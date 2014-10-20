@@ -10,3 +10,4 @@ Make.dep
 core
 .gdbinit
 cscope.out
+misc/tools/kconfig-frontends
