@@ -173,6 +173,13 @@ config ARCH_CHIP_STR71X
 	---help---
 		STMicro STR71x architectures (ARM7TDMI).
 
+config ARCH_CHIP_TSB
+	bool "Toshiba Bridge"
+	select ARCH_CORTEXM3
+	select ARCH_HAVE_CMNVECTOR
+	---help---
+		Toshiba Bridge architectures (ARM Cortex-M3).
+
 endchoice
 
 config ARCH_ARM7TDMI
@@ -254,6 +261,7 @@ config ARCH_CHIP
 	default "sam34"		if ARCH_CHIP_SAM34
 	default "stm32"		if ARCH_CHIP_STM32
 	default "str71x"	if ARCH_CHIP_STR71X
+	default "tsb"       if ARCH_CHIP_TSB
 
 config ARMV7M_USEBASEPRI
 	bool "Use BASEPRI Register"
@@ -404,5 +412,9 @@ endif
 if ARCH_CHIP_STR71X
 source arch/arm/src/str71x/Kconfig
 endif
+if ARCH_CHIP_TSB
+source arch/arm/src/tsb/Kconfig
+endif
+
 
 endif

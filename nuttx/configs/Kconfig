@@ -925,6 +925,12 @@ config ARCH_BOARD_SIM
 		This port does not support interrupts or a real timer (and hence no
 		round robin scheduler)  Otherwise, it is complete.
 
+config ARCH_BOARD_BDB
+	bool "Quanta BDB"
+	depends on ARCH_CHIP_TSB
+	---help---
+		BDB
+
 config ARCH_BOARD_CUSTOM
 	bool "Custom development board"
 	---help---
@@ -951,6 +957,7 @@ config ARCH_BOARD
 	default "amber"               if ARCH_BOARD_AMBER
 	default "arduino-due"         if ARCH_BOARD_ARDUINO_DUE
 	default "avr32dev1"           if ARCH_BOARD_AVR32DEV1
+	default "bdb"                 if ARCH_BOARD_BDB
 	default "c5471evm"            if ARCH_BOARD_C5471EVM
 	default "compal_e86"          if ARCH_BOARD_COMPALE86
 	default "compal_e88"          if ARCH_BOARD_COMPALE88
@@ -1366,4 +1373,7 @@ source "configs/zkit-arm-1769/Kconfig"
 endif
 if ARCH_BOARD_SIM
 source "configs/sim/Kconfig"
+endif
+if ARCH_BOARD_BDB
+source "configs/bdb/Kconfig"
 endif
