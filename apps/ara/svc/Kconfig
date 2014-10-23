@@ -1,0 +1,24 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+# Copyright (C) 2014 Google, Inc.
+#
+
+config ARA_SVC_MAIN
+	bool "Ara SVC main"
+	default n
+	---help---
+		Enable the Ara SVC main program
+
+if ARA_SVC_MAIN
+
+config ARA_SVC_MAIN_PROGNAME
+	string "Program name"
+	default "svc"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+endif

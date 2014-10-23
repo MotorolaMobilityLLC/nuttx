@@ -64,6 +64,7 @@ SUBDIRS += netutils platform system
 # builtin/Make.defs must be included first
 
 include builtin/Make.defs
+include ara/Make.defs
 include examples/Make.defs
 include graphics/Make.defs
 include interpreters/Make.defs
@@ -173,5 +174,4 @@ else
 endif
 	$(call DELFILE, .depend)
 	$(call DELDIR, $(BIN_DIR))
-
 

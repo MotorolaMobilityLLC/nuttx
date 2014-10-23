@@ -7,6 +7,10 @@ menu "Built-In Applications"
 source "$APPSDIR/builtin/Kconfig"
 endmenu
 
+menu "Ara Applications"
+source "$APPSDIR/ara/Kconfig"
+endmenu
+
 menu "Examples"
 source "$APPSDIR/examples/Kconfig"
 endmenu
