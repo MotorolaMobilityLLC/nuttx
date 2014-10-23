@@ -225,6 +225,8 @@ struct mm_heap_s
    * the following un-named semaphore.
    */
 
+  irqstate_t mm_flags;
+
   sem_t mm_semaphore;
   pid_t mm_holder;
   int   mm_counts_held;

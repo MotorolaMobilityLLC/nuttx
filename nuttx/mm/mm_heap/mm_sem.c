@@ -38,6 +38,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/arch.h>
 
 #include <unistd.h>
 #include <errno.h>
@@ -121,12 +122,8 @@ int mm_trysemaphore(FAR struct mm_heap_s *heap)
     }
   else
     {
-      /* Try to take the semaphore (perhaps waiting) */
-
-      if (sem_trywait(&heap->mm_semaphore) != 0)
-       {
-         return ERROR;
-       }
+      /* Disable interrupts */
+      heap->mm_flags = irqsave();
 
       /* We have it.  Claim the stak and return */
 
@@ -159,17 +156,10 @@ void mm_takesemaphore(FAR struct mm_heap_s *heap)
     }
   else
     {
-      /* Take the semaphore (perhaps waiting) */
+      /* Disable interrupts */
 
       msemdbg("PID=%d taking\n", my_pid);
-      while (sem_wait(&heap->mm_semaphore) != 0)
-        {
-          /* The only case that an error should occur here is if
-           * the wait was awakened by a signal.
-           */
-
-          ASSERT(errno == EINTR);
-        }
+      heap->mm_flags = irqsave();
 
       /* We have it.  Claim the stake and return */
 
@@ -217,7 +207,7 @@ void mm_givesemaphore(FAR struct mm_heap_s *heap)
 
       heap->mm_holder      = -1;
       heap->mm_counts_held = 0;
-      ASSERT(sem_post(&heap->mm_semaphore) == 0);
+      irqrestore(heap->mm_flags);
     }
 }
 
