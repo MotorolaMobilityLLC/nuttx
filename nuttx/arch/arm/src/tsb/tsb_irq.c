@@ -64,14 +64,19 @@ void up_irqinitialize(void) {
     irqenable();
 }
 
-void up_disable_irq(int irq) {
+#define irqn_to_nvic(irqn) \
+        (irqn - 16);
+
+void up_disable_irq(int irqn) {
+    int irq = irqn_to_nvic(irqn);
     uint32_t bit = 1 << (irq % 32);
     uint32_t reg = NVIC_IRQ_CLEAR(irq);
 
     putreg32(bit, reg);
 }
 
-void up_enable_irq(int irq) {
+void up_enable_irq(int irqn) {
+    int irq = irqn_to_nvic(irqn);
     uint32_t bit = 1 << (irq % 32);
     uint32_t reg = NVIC_IRQ_ENABLE(irq);
 
