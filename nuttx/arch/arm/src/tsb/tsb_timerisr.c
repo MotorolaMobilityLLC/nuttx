@@ -28,6 +28,4 @@ void up_timer_initialize(void) {
              NVIC_SYSTICK_CTRL_TICKINT   |
              NVIC_SYSTICK_CTRL_ENABLE,
              NVIC_SYSTICK_CTRL);
-
-    up_enable_irq(TSB_IRQ_SYSTICK);
 }
