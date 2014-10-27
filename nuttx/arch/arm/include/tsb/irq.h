@@ -9,8 +9,9 @@ extern "C" {
 #define EXTERN extern
 #endif
 
-/* No peripheral interrupts at the moment */
-#define NR_IRQS             (16)
+#include <arch/tsb/chip.h>
+
+#define NR_IRQS             (16+ARMV7M_PERIPHERAL_INTERRUPTS)
 
 #define TSB_IRQ_NMI         (2)
 #define TSB_IRQ_HARDFAULT   (3)
