@@ -28,4 +28,22 @@ config ARCH_CHIP_GPBRIDGE
 
 endchoice
 
+config ARCH_CHIP_USB_COMMON
+	bool
+	select CLOCK_MONOTONIC
 
+config ARCH_CHIP_USB_HCD
+	bool "USB Host Support"
+	depends on ARCH_CHIP_GPBRIDGE
+	default y if ARCH_CHIP_GPBRIDGE
+	select ARCH_CHIP_USB_COMMON
+	---help---
+		Synopsys USB Host Controller Driver
+
+config ARCH_CHIP_USB_PCD
+	bool "USB Device Support"
+	depends on ARCH_CHIP_APBRIDGE
+	default y if ARCH_CHIP_APBRIDGE
+	select ARCH_CHIP_USB_COMMON
+	---help---
+		Synopsys USB Device Driver

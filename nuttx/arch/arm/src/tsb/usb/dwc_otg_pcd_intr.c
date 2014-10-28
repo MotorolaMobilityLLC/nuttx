@@ -4491,7 +4491,7 @@ do { \
 													req->buf + ep->dwc_ep.xfer_count, 8);
 										}
 										req->actual = ep->dwc_ep.xfer_count;
-										dwc_otg_request_done(ep, req, -ECONNRESET);
+										dwc_otg_request_done(ep, req, -DWC_E_DISCONNECT);
 										ep->dwc_ep.start_xfer_buff = 0;
 										ep->dwc_ep.xfer_buff = 0;
 										ep->dwc_ep.xfer_len = 0;
@@ -4641,7 +4641,7 @@ retry:
 													req->buf + ep->dwc_ep.xfer_count, 8);
 										}
 										req->actual = ep->dwc_ep.xfer_count;
-										dwc_otg_request_done(ep, req, -ECONNRESET);
+										dwc_otg_request_done(ep, req, -DWC_E_DISCONNECT);
 										ep->dwc_ep.start_xfer_buff = 0;
 										ep->dwc_ep.xfer_buff = 0;
 										ep->dwc_ep.xfer_len = 0;

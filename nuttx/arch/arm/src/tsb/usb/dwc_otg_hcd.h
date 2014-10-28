@@ -512,7 +512,7 @@ struct dwc_otg_hcd {
 	/**
 	 * DMA address for status_buf.
 	 */
-	dma_addr_t status_buf_dma;
+	dwc_dma_t status_buf_dma;
 #define DWC_OTG_HCD_STATUS_BUF_SIZE 64
 
 	/**
@@ -539,7 +539,7 @@ struct dwc_otg_hcd {
 	uint32_t *frame_list;
 
 	/** Frame List DMA address */
-	dma_addr_t frame_list_dma;
+	dwc_dma_t frame_list_dma;
 
 #ifdef DEBUG
 	uint32_t frrem_samples;

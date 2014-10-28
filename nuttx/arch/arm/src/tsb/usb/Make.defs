@@ -1,0 +1,28 @@
+# Copyright (c) 2014 Google, Inc.
+# Google Confidential/Restricted
+
+USB_COMMON_CSRCS := \
+    dwc_otg_adp.c \
+    dwc_otg_cfi.c \
+    dwc_otg_cil.c \
+    dwc_otg_cil_intr.c \
+    dwc_common_nuttx.c \
+    dwc_otg_driver.c
+
+ifeq ($(CONFIG_ARCH_CHIP_USB_HCD),y)
+USB_HCD_CSRCS := \
+    dwc_otg_hcd.c \
+    dwc_otg_hcd_ddma.c \
+    dwc_otg_hcd_intr.c \
+    dwc_otg_hcd_queue.c
+endif
+
+ifeq ($(CONFIG_ARCH_CHIP_USB_PCD),y)
+USB_PCD_CSRCS := \
+    dwc_otg_pcd.c \
+    dwc_otg_pcd_intr.c
+endif
+
+USB_CSRCS = $(USB_COMMON_CSRCS) $(USB_HCD_CSRCS) $(USB_PCD_CSRCS)
+CFLAGS += -DDWC_NUTTX
+VPATH += chip/usb

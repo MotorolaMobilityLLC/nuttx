@@ -67,6 +67,17 @@ extern "C" {
 # include <os_dep.h>
 #endif
 
+#ifdef DWC_NUTTX
+#include <stdlib.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <string.h>
+typedef unsigned long u_long;
+typedef uint32_t __le32;
+typedef uint16_t __le16;
+typedef uint8_t __u8;
+#endif
+
 
 /** @name Primitive Types and Values */
 
@@ -127,6 +138,19 @@ typedef uint8_t dwc_bool_t;
 
 #endif
 
+
+#ifdef DWC_NUTTX
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+
+typedef uint8_t u_int8_t;
+typedef uint16_t u_int16_t;
+typedef uint32_t u_int32_t;
+
+typedef unsigned int u_int;
+typedef unsigned char u_char;
+#endif
 
 /** @name Tracing/Logging Functions
  *
@@ -565,6 +589,11 @@ typedef dma_addr_t dwc_dma_t;
 typedef bus_addr_t dwc_dma_t;
 #endif
 
+#ifdef DWC_NUTTX
+/* Assume 32bit on arm */
+typedef uint32_t dwc_dma_t;
+#endif
+
 #ifdef DWC_FREEBSD
 typedef struct dwc_dmactx {
 	struct device *dev;
@@ -652,6 +681,12 @@ extern void __DWC_FREE(void *mem_ctx, void *addr);
 #define DWC_FREE(_addr_) __DWC_FREE(NULL, _addr_)
 
 # ifdef DWC_LINUX
+#define DWC_DMA_ALLOC(_size_,_dma_) __DWC_DMA_ALLOC(NULL, _size_, _dma_)
+#define DWC_DMA_ALLOC_ATOMIC(_size_,_dma_) __DWC_DMA_ALLOC_ATOMIC(NULL, _size_,_dma_)
+#define DWC_DMA_FREE(_size_,_virt_,_dma_) __DWC_DMA_FREE(NULL, _size_, _virt_, _dma_)
+# endif
+
+# ifdef DWC_NUTTX
 #define DWC_DMA_ALLOC(_size_,_dma_) __DWC_DMA_ALLOC(NULL, _size_, _dma_)
 #define DWC_DMA_ALLOC_ATOMIC(_size_,_dma_) __DWC_DMA_ALLOC_ATOMIC(NULL, _size_,_dma_)
 #define DWC_DMA_FREE(_size_,_virt_,_dma_) __DWC_DMA_FREE(NULL, _size_, _virt_, _dma_)

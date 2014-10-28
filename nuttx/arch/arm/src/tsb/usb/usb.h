@@ -45,6 +45,10 @@
 extern "C" {
 #endif
 
+#ifdef DWC_NUTTX
+#include "dwc_os.h"
+#endif
+
 /*
  * The USB records contain some unaligned little-endian word
  * components.  The U[SG]ETW macros take care of both the alignment

@@ -83,4 +83,7 @@ do { \
 #define  S3C2410X_CLEAR_EINTPEND()   do { } while (0)
 #endif
 
+dwc_otg_device_t * get_dwc_otg_dev(void);
+int set_parameters(dwc_otg_core_if_t * core_if);
+
 #endif
