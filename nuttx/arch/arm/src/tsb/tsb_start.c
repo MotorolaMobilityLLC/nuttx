@@ -34,6 +34,10 @@ void __start(void) {
 #endif
     dbg('C');
 
+    /* early init the 16550 driver */
+    up_earlyserialinit();
+    dbg('D');
+
     tsb_boardinitialize();
 
     os_start();
