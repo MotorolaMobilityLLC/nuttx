@@ -126,6 +126,9 @@ void up_lowputc(int c){
     putreg32(c, UART_RBR_THR_DLL);
 }
 
+
+#ifndef CONFIG_16550_UART
+
 int up_putc(int ch) {
     if (ch == '\n') {
         up_lowputc('\r');
@@ -135,4 +138,4 @@ int up_putc(int ch) {
     return ch;
 }
 
-
+#endif
