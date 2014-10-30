@@ -1,13 +1,13 @@
 #include <nuttx/config.h>
 #include <stdint.h>
+#include "chip.h"
 #include "up_arch.h"
 
-#define TSB_SYSCTL_BASE                 0x40000000
-#define TSB_SYSCTL_SOFTRESET0           (TSB_SYSCTL_BASE + 0x0)
-#define TSB_SYSCTL_SOFTRESETRELEASE0    (TSB_SYSCTL_BASE + 0x100)
-#define TSB_SYSCTL_CLOCKGATING0         (TSB_SYSCTL_BASE + 0x200)
-#define TSB_SYSCTL_CLOCKENABLE0         (TSB_SYSCTL_BASE + 0x300)
-#define TSB_SYSCTL_PINSHARE             (TSB_SYSCTL_BASE + 0x800)
+#define TSB_SYSCTL_SOFTRESET0           (SYSCTL_BASE + 0x0)
+#define TSB_SYSCTL_SOFTRESETRELEASE0    (SYSCTL_BASE + 0x100)
+#define TSB_SYSCTL_CLOCKGATING0         (SYSCTL_BASE + 0x200)
+#define TSB_SYSCTL_CLOCKENABLE0         (SYSCTL_BASE + 0x300)
+#define TSB_SYSCTL_PINSHARE             (SYSCTL_BASE + 0x800)
 
 /* Clock bits for CLOCKGATING/CLOCKENABLE registers */
 #define TSB_SYSCTL_CLOCK_SDIOSYSCLK (1 << 9)
@@ -63,7 +63,6 @@
 #define TSB_SOFTRESET_SPIS    (1 << 21)
 #define TSB_SOFTRESET_GPIO    (1 << 22)
 
-#define UART_BASE           0x40005000
 #define UART_RBR_THR_DLL    (UART_BASE + 0x0)
 #define UART_IER_DLH        (UART_BASE + 0x4)
 #define UART_FCR_IIR        (UART_BASE + 0x8)
@@ -73,7 +72,6 @@
 #define UART_115200_BPS     26
 #define UART_DLL_115200     ((UART_115200_BPS >> 0) & 0xff)
 #define UART_DLH_115200     ((UART_115200_BPS >> 8) & 0xff)
-
 #define UART_LCR_DLAB  (0x1 << 7) // Divisor latch
 #define UART_LCR_DLS_8 (0x3 << 0) // 8 bit
 
