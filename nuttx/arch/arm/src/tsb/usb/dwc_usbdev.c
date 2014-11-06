@@ -176,7 +176,6 @@ int dwc_submit(struct usbdev_ep_s *usb_ep, struct usbdev_req_s *req)
     int retval;
     dwc_dma_t dma_addr;
     dwc_otg_pcd_t *pcd;
-    struct dwc_otg_pcd_ep *ep;
     struct dwc_usbdev_ep_s *privep;
     struct dwc_usbdev_s *priv;
 
@@ -184,7 +183,6 @@ int dwc_submit(struct usbdev_ep_s *usb_ep, struct usbdev_req_s *req)
     priv = (struct dwc_usbdev_s *)privep->usbdev;
     pcd = priv->dwc_otg_device.pcd;
 
-    ep = ep_from_handle(pcd, usb_ep);
     req->result = -EINPROGRESS;
     req->xfrd = 0;
 
@@ -338,7 +336,6 @@ struct usbdev_ep_s *dwc_allocep(struct usbdev_s *dev, uint8_t epno,
 
 void dwc_freeep(struct usbdev_s *dev, struct usbdev_ep_s *ep)
 {
-    int i;
     int epno = USB_EPNO(ep->eplog);
     struct dwc_usbdev_s *priv = (struct dwc_usbdev_s *)dev;
 
