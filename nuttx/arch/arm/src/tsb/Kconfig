@@ -47,3 +47,7 @@ config ARCH_CHIP_USB_PCD
 	select ARCH_CHIP_USB_COMMON
 	---help---
 		Synopsys USB Device Driver
+
+config ARA_USB_DEBUG
+  bool "Enable DWC Debug"
+  depends on ARCH_CHIP_USB_PCD || ARCH_CHIP_USB_HCD
