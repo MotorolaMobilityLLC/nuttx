@@ -20,6 +20,7 @@
 
 #include "chip.h"
 #include "up_arch.h"
+#include "up_gpio.h"
 #include "up_internal.h"
 #include "stm32.h"
 
@@ -31,7 +32,14 @@
 
 int switch_control(int state)
 {
-	printk("%s(): state %d\n", __func__, state);
+    printk("%s(): state %d\n", __func__, state);
 
-	return 0;
+    gpio_init();
+
+    if (state == 0)
+        gpio_clr_debug();
+    else
+        gpio_set_debug();
+
+    return 0;
 }

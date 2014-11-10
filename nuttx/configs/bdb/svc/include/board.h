@@ -5,6 +5,8 @@
  *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
+ *   Copyright (C) 2014 Google, Inc.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -342,13 +344,13 @@
  */
 #  define POW_EN (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_CLEAR)
 
-#define GPIO_PH6       (POW_EN|GPIO_PORTH|GPIO_PIN6) // PH6 -> J53
-#define GPIO_PH7       (POW_EN|GPIO_PORTH|GPIO_PIN7) // PH7 -> J53
-#define GPIO_PH8       (POW_EN|GPIO_PORTH|GPIO_PIN8) // PH8 -> J53
-#define GPIO_PH9       (POW_EN|GPIO_PORTH|GPIO_PIN9) // PH9 -> J53
+#define GPIO_DBG_1     (POW_EN|GPIO_PORTH|GPIO_PIN6) // PH6 -> J53.1
+#define GPIO_DBG_2     (POW_EN|GPIO_PORTH|GPIO_PIN7) // PH7 -> J53.2
+#define GPIO_DBG_3     (POW_EN|GPIO_PORTH|GPIO_PIN8) // PH8 -> J53.3
+#define GPIO_DBG_4     (POW_EN|GPIO_PORTH|GPIO_PIN9) // PH9 -> J53.4
 
 /* SVC_LED_EN */
-#define GPIO_PH12       (POW_EN|GPIO_PORTH|GPIO_PIN12)
+#define GPIO_LED_EN    (POW_EN|GPIO_PORTH|GPIO_PIN12)
 
 #define GPIO_VGPB1_1P1_EN       (POW_EN|GPIO_PORTC|GPIO_PIN1)  // PC1
 #define GPIO_VGPB1_1P2_EN       (POW_EN|GPIO_PORTC|GPIO_PIN2)  // PC2
@@ -364,15 +366,29 @@
 #define GPIO_VAPB1_1P2_EN       (POW_EN|GPIO_PORTD|GPIO_PIN5)  // PD5
 #define GPIO_VAPB1_1P8_EN       (POW_EN|GPIO_PORTD|GPIO_PIN6)  // PD6
 
-#define GPIO_VAPB2_1P1_EN       PE1
-#define GPIO_VAPB2_1P2_EN       PE7
-#define GPIO_VAPB2_1P8_EN       PE9
+#define GPIO_VAPB2_1P1_EN       (POW_EN|GPIO_PORTE|GPIO_PIN1)  // PE1
+#define GPIO_VAPB2_1P2_EN       (POW_EN|GPIO_PORTE|GPIO_PIN7)  // PE7
+#define GPIO_VAPB2_1P8_EN       (POW_EN|GPIO_PORTE|GPIO_PIN9)  // PE9
 
-#define GPIO_VAPB3_1P1_EN       PE11
-#define GPIO_VAPB3_1P2_EN       PE13
-#define GPIO_VAPB3_1P8_EN       PE15
+#define GPIO_VAPB3_1P1_EN       (POW_EN|GPIO_PORTE|GPIO_PIN11) // PE11
+#define GPIO_VAPB3_1P2_EN       (POW_EN|GPIO_PORTE|GPIO_PIN13) // PE13
+#define GPIO_VAPB3_1P8_EN       (POW_EN|GPIO_PORTE|GPIO_PIN15) // PE15
 
-#define GPIO_SW_RST_40uS        (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_PULLUP|GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN14)  // PE14
+#define GPIO_SW_RST_40uS        (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_PULLUP| \
+                                 GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN14) // PE14
+
+/*
+ * Wake out: the pin initially needs to be floating (open drain,
+ * output set to 1) then is set to 1 (push-pull, output set to 1) to generate
+ * a wake out pulse to the module
+ */
+#define GPIO_APB1_WAKE_OUT      (GPIO_FLOAT|GPIO_PORTI|GPIO_PIN0) // PI0
+#define GPIO_GPB2_WAKE_OUT      (GPIO_FLOAT|GPIO_PORTI|GPIO_PIN4) // PI4
+#define GPIO_BB1_WAKE_OUT       (GPIO_FLOAT|GPIO_PORTH|GPIO_PIN13) // PH13
+
+/* IRQ line from Switch and IO expanders */
+#define GPIO_SVC_IRQ            (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI| \
+                                 GPIO_PORTA|GPIO_PIN0) // PA0
 
 /* PWM
  *
