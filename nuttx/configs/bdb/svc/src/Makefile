@@ -15,7 +15,7 @@ CFLAGS		+= -I$(TOPDIR)/sched
 ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
-CSRCS		= up_boot.c up_gpio.c up_i2c.c up_switch.c
+CSRCS		= up_boot.c up_gpio.c up_i2c.c up_power.c up_switch.c
 
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
 CSRCS		+= up_nsh.c
