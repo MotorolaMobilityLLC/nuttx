@@ -92,3 +92,56 @@ inline int i2c_switch_receive_msg(uint8_t *buf, unsigned int size)
 
     return 0;
 }
+
+/* Write data to the IO Expander */
+void i2c_ioexp_write(uint8_t *msg, int size, uint8_t addr)
+{
+    int ret;
+
+    //dbg_print_buf(msg, size);
+
+    i2c_select_device(addr);
+
+    ret = I2C_WRITE(sw_exp_dev, msg, size);
+    if (ret) {
+        printk("%s(): Error %d\n", __func__, ret);
+        return;
+    }
+
+    //dbg_print_buf(msg, size);
+}
+
+/* Read data from the IO Expander */
+void i2c_ioexp_read(uint8_t *msg, int size, uint8_t addr)
+{
+    int ret;
+
+    //dbg_print_buf(msg, size);
+
+    i2c_select_device(addr);
+
+    /* We need 2 messages (cf. datasheet) */
+    struct i2c_msg_s msgv[2] = {
+        /* Write the command byte, no restart */
+        {
+            .addr   = addr,
+            .flags  = 0,
+            .buffer = msg,
+            .length = 1
+        },
+        /* Read the bytes */
+        {
+            .addr   = addr,
+            .flags  = I2C_M_READ,
+            .buffer = msg,
+            .length = size
+        }
+    };
+
+    if ((ret = I2C_TRANSFER(sw_exp_dev, msgv, 2)) != OK) {
+        printk("%s(): Error %d\n", __func__, ret);
+        return;
+    }
+
+    //dbg_print_buf(msg, size);
+}

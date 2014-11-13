@@ -27,4 +27,6 @@ extern inline void i2c_select_device(uint8_t addr);
 extern inline int i2c_switch_send_msg(uint8_t *buf, unsigned int size);
 extern inline int i2c_switch_receive_msg(uint8_t *buf, unsigned int size);
 
+extern void i2c_ioexp_write(uint8_t *msg, int size, uint8_t addr);
+extern void i2c_ioexp_read(uint8_t *msg, int size, uint8_t addr);
 #endif // __CONFIGS_BDB_INCLUDE_UP_I2C_H
