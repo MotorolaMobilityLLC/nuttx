@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "up_switch.h"
 
-void switch_control(int);
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])

@@ -53,6 +53,9 @@ PROGNAME = $(CONFIG_ARA_SVC_MAIN_PROGNAME)
 
 ROOTDEPPATH = --dep-path .
 
+# Add the exported functions from the SVC code
+CFLAGS += -I$(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/src
+
 # Common build
 
 VPATH =
