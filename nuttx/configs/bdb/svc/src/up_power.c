@@ -1,8 +1,9 @@
 /****************************************************************************
  * configs/bdb/svc/src/up_power.c
- * BDB/SVC power support
+ * BDB/SVC power support: bridges power supply control, wake and detect
  *
  * Copyright (C) 2014 Google, Inc.
+ * @author: Jean Pihet <jean.pihet@newoldbits.com>
  *
  ****************************************************************************/
 #include <nuttx/config.h>
@@ -17,7 +18,10 @@
 
 #include "chip.h"
 #include "up_arch.h"
+#include "up_gpio.h"
+#include "up_i2c.h"
 #include "up_internal.h"
+#include "up_ioexp.h"
 #include "stm32.h"
 
 #include "bdb-internal.h"
@@ -181,4 +185,67 @@ void bdb_gpb2_disable(void)
     stm32_gpiowrite(GPIO_VGPB2_1P2_EN, false);
     stm32_gpiowrite(GPIO_VGPB2_1P8_EN, false);
     stm32_gpiowrite(GPIO_VGPB2_SDIO_EN, false);
+}
+
+/* Wake and detect validation code */
+void validate_wake_detect(void)
+{
+    /*
+     * APB1 pins:
+     * - interface pin: R310/R318
+     * - detect_in: U96/P01, R368
+     * - wake_in: U96/P02, R367
+     * - wake_out: PI0
+     *
+     * BB1 pins:
+     * - interface pin: J87/1
+     * - detect_in: U96/P20
+     * - wake_in: U96/P21
+     * - wake_out: PH13
+     */
+    uint8_t msg[4];
+    uint32_t x = 0;
+
+    // configure IO Expander pins as input
+    msg[0] = 0x8C;
+    msg[1] = 0xFF;
+    msg[2] = 0xFF;
+    msg[3] = 0xFF;
+    i2c_ioexp_write(msg, 4, I2C_ADDR_IOEXP_U96);
+
+    msg[0] = 0x03;
+    msg[1] = 0xFF;
+    i2c_ioexp_write(msg, 2, I2C_ADDR_IOEXP_U90);
+
+    /* Configure wakeout as input */
+    stm32_configgpio(GPIO_APB1_WAKE_OUT | GPIO_INPUT);
+    stm32_configgpio(GPIO_BB1_WAKE_OUT | GPIO_INPUT);
+
+    svc_irq_enable();
+
+    while (1) {
+        /* Check if we got an IRQ, if so let's handle it */
+        if (sem_trywait(&svc_irq_sem) == 0)
+            ioexp_read_iopins();
+
+        // Generate a module wake up pulse every x cycles
+        if ((x & 0xff) == 14) {
+            printk("%s(): wakeout pulse on\n", __func__);
+            /* Configure wakeout as output, value high */
+            stm32_configgpio(GPIO_APB1_WAKE_OUT | GPIO_OUTPUT |
+                             GPIO_OUTPUT_SET);
+            stm32_configgpio(GPIO_BB1_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
+        }
+        if ((x & 0xff) == 15) {
+            printk("%s(): wakeout pulse off\n", __func__);
+            /* Re-configure wakeout as input */
+            stm32_configgpio(GPIO_APB1_WAKE_OUT | GPIO_INPUT);
+            stm32_configgpio(GPIO_BB1_WAKE_OUT | GPIO_INPUT);
+        }
+
+        // Wait
+        usleep(20000);
+
+        x++;
+    }
 }

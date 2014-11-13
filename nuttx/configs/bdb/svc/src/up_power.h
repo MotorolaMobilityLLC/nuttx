@@ -3,6 +3,7 @@
  * BDB/SVC power support
  *
  * Copyright (C) 2014 Google, Inc.
+ * @author: Jean Pihet <jean.pihet@newoldbits.com>
  *
  ****************************************************************************/
 #ifndef __CONFIGS_BDB_INCLUDE_UP_POWER_H
@@ -24,4 +25,5 @@ void bdb_gpb2_init(void);
 void bdb_gpb2_enable(void);
 void bdb_gpb2_disable(void);
 
-#endif	// __CONFIGS_BDB_INCLUDE_UP_POWER_H
+void validate_wake_detect(void);
+#endif // __CONFIGS_BDB_INCLUDE_UP_POWER_H
