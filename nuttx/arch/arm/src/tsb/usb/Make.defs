@@ -20,7 +20,9 @@ endif
 ifeq ($(CONFIG_ARCH_CHIP_USB_PCD),y)
 USB_PCD_CSRCS := \
     dwc_otg_pcd.c \
-    dwc_otg_pcd_intr.c
+    dwc_otg_pcd_intr.c \
+    dwc_usbdev.c
+CFLAGS += -DDWC_DEVICE_ONLY
 endif
 
 USB_CSRCS = $(USB_COMMON_CSRCS) $(USB_HCD_CSRCS) $(USB_PCD_CSRCS)
