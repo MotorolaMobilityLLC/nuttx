@@ -6,11 +6,11 @@
  * @author: Jean Pihet <jean.pihet@newoldbits.com>
  *
  ****************************************************************************/
+#define DBG_COMP DBG_POWER
 #include <nuttx/config.h>
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <debug.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -18,6 +18,7 @@
 
 #include "chip.h"
 #include "up_arch.h"
+#include "up_debug.h"
 #include "up_gpio.h"
 #include "up_i2c.h"
 #include "up_internal.h"
@@ -26,14 +27,11 @@
 
 #include "bdb-internal.h"
 
-#undef lldbg
-#define lldbg printk
-
 
 /* Init APB1 power control */
 void bdb_apb1_init(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_configgpio(GPIO_VAPB1_1P1_EN);
     stm32_configgpio(GPIO_VAPB1_1P2_EN);
@@ -43,7 +41,7 @@ void bdb_apb1_init(void)
 /* Enable APB1 power */
 void bdb_apb1_enable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VAPB1_1P1_EN, true);
     stm32_gpiowrite(GPIO_VAPB1_1P2_EN, true);
@@ -53,7 +51,7 @@ void bdb_apb1_enable(void)
 /* Disable APB1 power */
 void bdb_apb1_disable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VAPB1_1P1_EN, false);
     stm32_gpiowrite(GPIO_VAPB1_1P2_EN, false);
@@ -63,7 +61,7 @@ void bdb_apb1_disable(void)
 /* Init APB2 power control */
 void bdb_apb2_init(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_configgpio(GPIO_VAPB2_1P1_EN);
     stm32_configgpio(GPIO_VAPB2_1P2_EN);
@@ -73,7 +71,7 @@ void bdb_apb2_init(void)
 /* Enable APB2 power */
 void bdb_apb2_enable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VAPB2_1P1_EN, true);
     stm32_gpiowrite(GPIO_VAPB2_1P2_EN, true);
@@ -83,7 +81,7 @@ void bdb_apb2_enable(void)
 /* Disable APB2 power */
 void bdb_apb2_disable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VAPB2_1P1_EN, false);
     stm32_gpiowrite(GPIO_VAPB2_1P2_EN, false);
@@ -93,7 +91,7 @@ void bdb_apb2_disable(void)
 /* Init APB3 power control */
 void bdb_apb3_init(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_configgpio(GPIO_VAPB3_1P1_EN);
     stm32_configgpio(GPIO_VAPB3_1P2_EN);
@@ -103,7 +101,7 @@ void bdb_apb3_init(void)
 /* Enable APB3 power */
 void bdb_apb3_enable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VAPB3_1P1_EN, true);
     stm32_gpiowrite(GPIO_VAPB3_1P2_EN, true);
@@ -113,7 +111,7 @@ void bdb_apb3_enable(void)
 /* Disable APB3 power */
 void bdb_apb3_disable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VAPB3_1P1_EN, false);
     stm32_gpiowrite(GPIO_VAPB3_1P2_EN, false);
@@ -123,7 +121,7 @@ void bdb_apb3_disable(void)
 /* Init GPB1 power control */
 void bdb_gpb1_init(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_configgpio(GPIO_VGPB1_1P1_EN);
     stm32_configgpio(GPIO_VGPB1_1P2_EN);
@@ -134,7 +132,7 @@ void bdb_gpb1_init(void)
 /* Enable GPB1 power */
 void bdb_gpb1_enable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VGPB1_1P1_EN, true);
     stm32_gpiowrite(GPIO_VGPB1_1P2_EN, true);
@@ -145,7 +143,7 @@ void bdb_gpb1_enable(void)
 /* Disable GPB1 power */
 void bdb_gpb1_disable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VGPB1_1P1_EN, false);
     stm32_gpiowrite(GPIO_VGPB1_1P2_EN, false);
@@ -156,7 +154,7 @@ void bdb_gpb1_disable(void)
 /* Init GPB2 power control */
 void bdb_gpb2_init(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     /*  Power control to the GPB2 */
     stm32_configgpio(GPIO_VGPB2_1P1_EN);
@@ -168,7 +166,7 @@ void bdb_gpb2_init(void)
 /* Enable GPB2 power */
 void bdb_gpb2_enable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VGPB2_1P1_EN, true);
     stm32_gpiowrite(GPIO_VGPB2_1P2_EN, true);
@@ -179,7 +177,7 @@ void bdb_gpb2_enable(void)
 /* Disable APB2 power */
 void bdb_gpb2_disable(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     stm32_gpiowrite(GPIO_VGPB2_1P1_EN, false);
     stm32_gpiowrite(GPIO_VGPB2_1P2_EN, false);
@@ -206,6 +204,8 @@ void validate_wake_detect(void)
     uint8_t msg[4];
     uint32_t x = 0;
 
+    dbg_info("%s()\n", __func__);
+
     // configure IO Expander pins as input
     msg[0] = 0x8C;
     msg[1] = 0xFF;
@@ -230,14 +230,14 @@ void validate_wake_detect(void)
 
         // Generate a module wake up pulse every x cycles
         if ((x & 0xff) == 14) {
-            printk("%s(): wakeout pulse on\n", __func__);
+            dbg_info("%s(): wakeout pulse on\n", __func__);
             /* Configure wakeout as output, value high */
             stm32_configgpio(GPIO_APB1_WAKE_OUT | GPIO_OUTPUT |
                              GPIO_OUTPUT_SET);
             stm32_configgpio(GPIO_BB1_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
         }
         if ((x & 0xff) == 15) {
-            printk("%s(): wakeout pulse off\n", __func__);
+            dbg_info("%s(): wakeout pulse off\n", __func__);
             /* Re-configure wakeout as input */
             stm32_configgpio(GPIO_APB1_WAKE_OUT | GPIO_INPUT);
             stm32_configgpio(GPIO_BB1_WAKE_OUT | GPIO_INPUT);
