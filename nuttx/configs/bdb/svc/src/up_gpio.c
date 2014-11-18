@@ -1,15 +1,15 @@
- /****************************************************************************
-  * configs/bdb/svc/src/up_gpio.c
-  * BDB/SVC GPIO support
-  *
-  * Copyright (C) 2014 Google, Inc.
-  *
-  ****************************************************************************/
+/****************************************************************************
+ * configs/bdb/svc/src/up_gpio.c
+ * BDB/SVC GPIO support
+ *
+ * Copyright (C) 2014 Google, Inc.
+ *
+ ****************************************************************************/
+#define DBG_COMP DBG_GPIO
 #include <nuttx/config.h>
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <debug.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -19,6 +19,7 @@
 
 #include "chip.h"
 #include "up_arch.h"
+#include "up_debug.h"
 #include "up_internal.h"
 #include "stm32.h"
 
@@ -33,7 +34,8 @@ sem_t svc_irq_sem;
 /* Init GPIO control lines */
 void gpio_init(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
+
     /* Configure GPIOs for output */
     /*  Debug pins to J53 */
     stm32_configgpio(GPIO_DBG_1);
@@ -72,21 +74,21 @@ void svc_irq_disable(void)
 /* Clear DBG_1 debug line */
 void gpio_clr_debug(void)
 {
-    printk("%s()\n", __func__);
+    dbg_verbose("%s()\n", __func__);
     stm32_gpiowrite(GPIO_DBG_1, false);
 }
 
 /* Set DBG_1 debug line */
 void gpio_set_debug(void)
 {
-    printk("%s()\n", __func__);
+    dbg_verbose("%s()\n", __func__);
     stm32_gpiowrite(GPIO_DBG_1, true);
 }
 
 /* Dump state of the DBG_* debug lines */
 void stm32_gpio_dump(void)
 {
-    printk("%s()\n", __func__);
+    dbg_verbose("%s()\n", __func__);
     stm32_dumpgpio(GPIO_DBG_1, "dumpgpio");
     stm32_dumpgpio(GPIO_DBG_2, "dumpgpio");
     stm32_dumpgpio(GPIO_DBG_3, "dumpgpio");
