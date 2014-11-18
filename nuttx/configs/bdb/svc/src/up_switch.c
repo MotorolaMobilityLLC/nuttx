@@ -5,12 +5,12 @@
  * Copyright (C) 2014 Google, Inc.
  *
  ****************************************************************************/
+#define DBG_COMP DBG_SWITCH     /* DBG_COMP macro of the component */
 
 #include <nuttx/config.h>
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <debug.h>
 #include <time.h>
 #include <unistd.h>
 #include <string.h>
@@ -21,6 +21,7 @@
 
 #include "chip.h"
 #include "up_arch.h"
+#include "up_debug.h"
 #include "up_gpio.h"
 #include "up_i2c.h"
 #include "up_internal.h"
@@ -29,20 +30,6 @@
 #include "stm32.h"
 
 #include "bdb-internal.h"
-
-#undef lldbg
-#define lldbg printk
-
-/* Debug support, to be moved to the appropriate debug code */
-static inline void dbg_print_buf(uint8_t *buf, unsigned int size)
-{
-    unsigned int i;
-
-    printk("buf[%d]=", size);
-    for (i = 0; i < size; i++)
-        printk(" 0x%02x", buf[i]);
-    printk("\n");
-}
 
 /* portId to destDeviceId_Enc mapping table */
 uint8_t deviceid_table[NR_INTERFACES];
@@ -71,7 +58,8 @@ static uint8_t deviceid_table_get_deviceid(uint8_t portid)
         deviceid = deviceid_table[portid];
 
     if (deviceid == INVALID_ID)
-        printk("%s(): Could not get device ID for port %u\n", __func__, portid);
+        dbg_warn("%s(): Could not get device ID for port %u\n",
+                 __func__, portid);
 
     return deviceid;
 }
@@ -85,13 +73,16 @@ static uint8_t deviceid_table_get_portid(uint8_t deviceid)
         if (deviceid_table[i] == deviceid)
             return i;
 
+    dbg_warn("%s(): Could not find portId for device %u\n",
+             __func__, deviceid);
+
     return INVALID_ID;
 }
 
 /* Reset the switch before initiating any communication to it */
 void switch_reset(void)
 {
-    printk("%s()\n", __func__);
+    dbg_info("%s()\n", __func__);
 
     /* Assert reset, wait 1ms, de-assert reset */
     stm32_gpiowrite(GPIO_SW_RST_40uS, false);
@@ -111,8 +102,8 @@ static int switch_lut_setreq(uint8_t lut_address, uint8_t dest_portid)
     };
     uint8_t buffer[2];
 
-    printk("%s(): lutAddress=%d, destPortId=%d\n", __func__, lut_address,
-           dest_portid);
+    dbg_verbose("%s(): lutAddress=%d, destPortId=%d\n", __func__, lut_address,
+                dest_portid);
 
     if (i2c_switch_send_msg(msg, sizeof(msg)))
         return ERROR;
@@ -122,12 +113,12 @@ static int switch_lut_setreq(uint8_t lut_address, uint8_t dest_portid)
 
     /* Check for FunctionID */
     if (buffer[1] != NCP_LUTSETCNF) {
-        printk("%s(): wrong FunctionID\n", __func__);
+        dbg_warn("%s(): wrong FunctionID\n", __func__);
         return ERROR;
     }
 
-    printk("%s(): ret=0x%02x, lut(%d)=0x%02x\n", __func__,
-           buffer[0], lut_address, dest_portid);
+    dbg_verbose("%s(): ret=0x%02x, lut(%d)=0x%02x\n", __func__,
+                buffer[0], lut_address, dest_portid);
 
     /* Return resultCode */
     return buffer[0];
@@ -142,7 +133,7 @@ static int switch_lut_getreq(uint8_t lut_address, uint8_t *dest_portid)
     };
     uint8_t buffer[4];
 
-    //printk("%s(): lutAddress: %d\n", __func__, lut_address);
+    dbg_verbose("%s(): lutAddress: %d\n", __func__, lut_address);
 
     if (i2c_switch_send_msg(msg, sizeof(msg)))
         return ERROR;
@@ -152,14 +143,14 @@ static int switch_lut_getreq(uint8_t lut_address, uint8_t *dest_portid)
 
     /* Check for FunctionID */
     if (buffer[1] != NCP_LUTGETCNF) {
-        printk("%s(): wrong FunctionID\n", __func__);
+        dbg_warn("%s(): wrong FunctionID\n", __func__);
         return ERROR;
     }
 
     *dest_portid = buffer[3];
 
-    //printk("%s(): ret=0x%02x, lut(%d)=0x%02x\n", __func__,
-    //       buffer[0], lut_address, *dest_portid);
+    dbg_verbose("%s(): ret=0x%02x, lut(%d)=0x%02x\n", __func__,
+                buffer[0], lut_address, *dest_portid);
 
     /* Return resultCode */
     return buffer[0];
@@ -184,8 +175,8 @@ int switch_peer_setreq(uint8_t portid, uint16_t attrid,
     };
     uint8_t buffer[4];
 
-    printk("%s(): attrId=0x%04x, selectIndex=%d, attrValue=0x%08x\n",
-           __func__, attrid, select_index, attr_value);
+    dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d, attrValue=0x%08x\n",
+                __func__, portid, attrid, select_index, attr_value);
 
     if (i2c_switch_send_msg(msg, sizeof(msg)))
         return ERROR;
@@ -195,18 +186,18 @@ int switch_peer_setreq(uint8_t portid, uint16_t attrid,
 
     /* Check for portID */
     if (buffer[0] != portid) {
-        printk("%s(): wrong portId\n", __func__);
+        dbg_warn("%s(): wrong portId\n", __func__);
         return ERROR;
     }
 
     /* Check for FunctionID */
     if (buffer[1] != NCP_PEERSETCNF) {
-        printk("%s(): wrong FunctionID\n", __func__);
+        dbg_warn("%s(): wrong FunctionID\n", __func__);
         return ERROR;
     }
 
-    printk("%s(): ret=0x%02x, attr(0x%04x,%d)=0x%04x\n", __func__,
-           buffer[3], attrid, select_index, attr_value);
+    dbg_verbose("%s(): ret=0x%02x, attr(0x%04x,%d)=0x%04x\n", __func__,
+                buffer[3], attrid, select_index, attr_value);
 
     /* Return resultCode */
     return buffer[3];
@@ -226,8 +217,8 @@ int switch_peer_getreq(uint8_t portid, uint16_t attrid,
     };
     uint8_t buffer[8];
 
-    printk("%s(): portId=%d, attrId=0x%04x, selectIndex=%d\n",
-           __func__, portid, attrid, select_index);
+    dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d\n",
+                __func__, portid, attrid, select_index);
 
     if (i2c_switch_send_msg(msg, sizeof(msg)))
         return ERROR;
@@ -237,21 +228,21 @@ int switch_peer_getreq(uint8_t portid, uint16_t attrid,
 
     /* Check for portID */
     if (buffer[0] != portid) {
-        printk("%s(): wrong portId\n", __func__);
+        dbg_warn("%s(): wrong portId\n", __func__);
         return ERROR;
     }
 
     /* Check for FunctionID */
     if (buffer[1] != NCP_PEERGETCNF) {
-        printk("%s(): wrong FunctionID\n", __func__);
+        dbg_warn("%s(): wrong FunctionID\n", __func__);
         return ERROR;
     }
 
     /* Retrieve the attribute value from the uint8_t reads */
     *attr_value = buf_to_uint32(&buffer[4]);
 
-    printk("%s(): ret=0x%02x, attr(0x%04x,%d)=0x%04x\n", __func__,
-           buffer[3], attrid, select_index, *attr_value);
+    dbg_verbose("%s(): ret=0x%02x, attr(0x%04x,%d)=0x%04x\n", __func__,
+                buffer[3], attrid, select_index, *attr_value);
 
     /* Return resultCode */
     return buffer[3];
@@ -269,7 +260,7 @@ int switch_get_attribute(uint16_t attrid, uint32_t *attr_value)
     };
     uint8_t buffer[6];
 
-    printk("%s() attrId=%d\n", __func__, attrid);
+    dbg_info("%s() attrId=%d\n", __func__, attrid);
 
     if (i2c_switch_send_msg(msg, sizeof(msg)))
         return ERROR;
@@ -279,15 +270,15 @@ int switch_get_attribute(uint16_t attrid, uint32_t *attr_value)
 
     /* Check for FunctionID */
     if (buffer[1] != NCP_SWITCHATTRGETCNF) {
-        printk("%s(): wrong portId\n", __func__);
+        dbg_warn("%s(): wrong portId\n", __func__);
         return ERROR;
     }
 
     /* Retrieve the attribute value from the uint8_t reads */
     *attr_value = buf_to_uint32(&buffer[2]);
 
-    printk("%s(): ret=0x%02x, attr(0x%04x)=0x%08x\n", __func__,
-           buffer[0], attrid, *attr_value);
+    dbg_info("%s(): ret=0x%02x, attr(0x%04x)=0x%08x\n", __func__,
+             buffer[0], attrid, *attr_value);
 
     /* Return resultCode */
     return buffer[0];
@@ -313,8 +304,8 @@ static int switch_id_setreq(uint8_t cportid, uint8_t peercportid, uint8_t dis,
     };
     uint8_t buffer[2];
 
-    printk("%s(): switchDeviceId=0x%01x, cPortId=0x%01x -> peerCPortId=0x%01x\n",
-           __func__, SWITCH_DEVICE_ID, cportid, peercportid);
+    dbg_info("%s(): switchDeviceId=0x%01x, cPortId=0x%01x -> peerCPortId=0x%01x\n",
+             __func__, SWITCH_DEVICE_ID, cportid, peercportid);
 
     if (i2c_switch_send_msg(msg, sizeof(msg)))
         return ERROR;
@@ -324,12 +315,12 @@ static int switch_id_setreq(uint8_t cportid, uint8_t peercportid, uint8_t dis,
 
     /* Check for FunctionID */
     if (buffer[1] != NCP_SWITCHIDSETCNF) {
-        printk("%s(): wrong FunctionID\n", __func__);
+        dbg_warn("%s(): wrong FunctionID\n", __func__);
         return ERROR;
     }
 
-    printk("%s(): ret=0x%02x, switchDeviceId=0x%01x, cPortId=0x%01x -> peerCPortId=0x%01x\n",
-           __func__, buffer[0], SWITCH_DEVICE_ID, cportid, peercportid);
+    dbg_info("%s(): ret=0x%02x, switchDeviceId=0x%01x, cPortId=0x%01x -> peerCPortId=0x%01x\n",
+             __func__, buffer[0], SWITCH_DEVICE_ID, cportid, peercportid);
 
     /* Return resultCode */
     return buffer[0];
@@ -354,8 +345,8 @@ int switch_set_req(uint8_t portid, uint16_t attrid,
     };
     uint8_t buffer[4];
 
-    printk("%s(): portId=%d, attrId=0x%02x, selectIndex=%d\n",
-           __func__, portid, attrid, select_index);
+    dbg_verbose("%s(): portId=%d, attrId=0x%02x, selectIndex=%d\n",
+                __func__, portid, attrid, select_index);
 
     if (i2c_switch_send_msg(msg, sizeof(msg)))
         return ERROR;
@@ -365,18 +356,18 @@ int switch_set_req(uint8_t portid, uint16_t attrid,
 
     /* Check for portID */
     if (buffer[0] != portid) {
-        printk("%s(): wrong portId\n", __func__);
+        dbg_warn("%s(): wrong portId\n", __func__);
         return ERROR;
     }
 
     /* Check for FunctionID */
     if (buffer[1] != NCP_SETCNF) {
-        printk("%s(): wrong FunctionID\n", __func__);
+        dbg_warn("%s(): wrong FunctionID\n", __func__);
         return ERROR;
     }
 
-    printk("%s(): ret=0x%02x, attr(0x%04x,%d)=0x%04x\n", __func__,
-           buffer[3], attrid, select_index, attr_value);
+    dbg_verbose("%s(): ret=0x%02x, attr(0x%04x,%d)=0x%04x\n", __func__,
+                buffer[3], attrid, select_index, attr_value);
 
     /* Return resultCode */
     return buffer[3];
@@ -396,7 +387,7 @@ int switch_get_req(uint8_t portid, uint16_t attrid,
     };
     uint8_t buffer[8];
 
-    printk("%s(): portId=%d, attrId=0x%02x\n", __func__, portid, attrid);
+    dbg_verbose("%s(): portId=%d, attrId=0x%02x\n", __func__, portid, attrid);
 
     if (i2c_switch_send_msg(msg, sizeof(msg)))
         return ERROR;
@@ -406,21 +397,21 @@ int switch_get_req(uint8_t portid, uint16_t attrid,
 
     /* Check for portID */
     if (buffer[0] != portid) {
-        printk("%s(): wrong portId\n", __func__);
+        dbg_warn("%s(): wrong portId\n", __func__);
         return ERROR;
     }
 
     /* Check for FunctionID */
     if (buffer[1] != NCP_GETCNF) {
-        printk("%s(): wrong FunctionID\n", __func__);
+        dbg_warn("%s(): wrong FunctionID\n", __func__);
         return ERROR;
     }
 
     /* Retrieve the attribute value from the uint8_t reads */
     *attr_value = buf_to_uint32(&buffer[4]);
 
-    printk("%s(): ret=0x%02x, attr(0x%04x)=0x%04x\n", __func__,
-           buffer[3], attrid, *attr_value);
+    dbg_verbose("%s(): ret=0x%02x, attr(0x%04x)=0x%04x\n", __func__,
+                buffer[3], attrid, *attr_value);
 
     /* Return resultCode */
     return buffer[3];
@@ -456,12 +447,13 @@ static int switch_deviceidmask_getreq(uint8_t *bitmask) {
  */
 static void switch_dump_routing_table(void)
 {
-    int i, j;
-    uint8_t p[8];
-    uint8_t valid_bitmask[16];
+    int i, j, idx, ret;
+    uint8_t p = 0, valid_bitmask[16];
+    char msg[64];
 
-    printk("%s(): Routing table\n"
-            "======================================================\n", __func__);
+    dbg_info("%s(): Routing table\n"
+             "======================================================\n",
+             __func__);
 
     /* Replace invalid entries with 'XX' */
 #define CHECK_VALID_ENTRY(entry) \
@@ -470,27 +462,52 @@ static void switch_dump_routing_table(void)
     switch_deviceidmask_getreq(valid_bitmask);
 
     for (i = 0; i < 8; i++) {
-        printk("%3d: ", i * 16);
-        for (j = 0; j < 8; j++) {
+        /* Build a line with the offset, 8 entries, a '|' then 8 entries */
+        idx = 0;
+        ret = sprintf(msg, "%3d: ", i * 16);
+        if (ret <= 0)
+            goto out;
+        else
+            idx += ret;
+
+        for (j = 0; j < 16; j++) {
             if (CHECK_VALID_ENTRY(i * 16 + j)) {
-                switch_lut_getreq(i * 16 + j, &p[j]);
-                printk("%2u ", p[j]);
+                switch_lut_getreq(i * 16 + j, &p);
+                ret = sprintf(msg + idx, "%2u ", p);
+                if (ret <= 0)
+                    goto out;
+                else
+                    idx += ret;
             } else {
-                printk("XX ");
+                ret = sprintf(msg + idx, "XX ");
+                if (ret <= 0)
+                    goto out;
+                else
+                    idx += ret;
+            }
+
+            if (j == 7) {
+                ret = sprintf(msg + idx, "| ");
+                if (ret <= 0)
+                    goto out;
+                else
+                    idx += ret;
             }
         }
-        printk("| ");
-        for (j = 0; j < 8; j++) {
-            if (CHECK_VALID_ENTRY((i * 16) + 8 + j)) {
-                switch_lut_getreq((i * 16) + 8 + j, &p[j]);
-                printk("%2u ", p[j]);
-            } else {
-                printk("XX ");
-            }
-        }
-        printk("\n");
+
+        ret = sprintf(msg + idx, "\n");
+        if (ret <= 0)
+            goto out;
+        else
+            idx += ret;
+        msg[idx] = 0;
+
+        /* Output the line */
+        dbg_info("%s", msg);
     }
-    printk("======================================================\n", __func__);
+
+out:
+    dbg_info("======================================================\n");
 }
 
 /**
@@ -506,11 +523,13 @@ static int switch_configure_cport(uint8_t devid,
                                   uint8_t peer_devid,
                                   uint8_t peer_cportid) {
     uint8_t portid;
+
+    dbg_info("%s(): deviceId=%u, CPortId=%u, PeerDeviceId=%u, PeerCPortId=%u\n",
+             __func__, devid, cportid, peer_devid, peer_cportid);
+
     portid = deviceid_table_get_portid(devid);
-    if (portid == INVALID_ID) {
-        printk("%s(): Could not find device id %u\n", __func__, devid);
+    if (portid == INVALID_ID)
         return ERROR;
-    }
 
     /*  Disable connection */
     switch_peer_setreq(portid, T_CONNECTIONSTATE, cportid, 0x0);
@@ -527,6 +546,8 @@ static int switch_configure_cport(uint8_t devid,
 
     /*  Enable connection */
     switch_peer_setreq(portid, T_CONNECTIONSTATE, cportid, 0x1);
+
+    dbg_info("%s(): done!\n", __func__);
 
     return 0;
 }
@@ -560,18 +581,20 @@ static int configure_link(uint8_t devid) {
     uint8_t portid;
 
     portid = deviceid_table_get_portid(devid);
+    if (portid == INVALID_ID)
+        return ERROR;
 
-   /*  TOSHIBA Specific Register Access Control, testing only */
+    /* TOSHIBA Specific Register Access Control, testing only */
     switch_peer_getreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, &val);
 
-    /*  COM REFCLKFREQ SEL */
+    /* COM REFCLKFREQ SEL */
     switch_peer_getreq(portid, COM_REFCLKFREQ_SEL, NCP_SELINDEX_NULL,
             &val);
     switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x1);
     switch_peer_setreq(portid, COM_REFCLKFREQ_SEL, NCP_SELINDEX_NULL, 0x0);
     switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x0);
 
-    /*  Power Mode Change */
+    /* Power Mode Change */
     switch_peer_setreq(portid, PA_TXGEAR, NCP_SELINDEX_NULL, 0x3);
     switch_peer_setreq(portid, PA_TXTERMINATION, NCP_SELINDEX_NULL, 0x1);
     switch_peer_setreq(portid, PA_HSSERIES, NCP_SELINDEX_NULL, 0x1);
@@ -596,7 +619,7 @@ static int configure_link(uint8_t devid) {
                        NCP_SELINDEX_NULL,
                        MAX_SEGMENT_CONFIG);
 
-    printk("%s(): deviceId=%d, portId=%d\n", __func__, devid, portid);
+    dbg_info("%s(): deviceId=%d, portId=%d\n", __func__, devid, portid);
 
     return 0;
 }
@@ -618,6 +641,7 @@ static int switch_configure_device(uint8_t devid) {
 
     /* Bring up the link */
     configure_link(devid);
+
     return 0;
 }
 
@@ -626,7 +650,7 @@ int switch_control(int state)
     uint32_t attr_value, link_status;
     int i;
 
-    printk("%s(): state %d\n", __func__, state);
+    dbg_info("%s(): state %d\n", __func__, state);
 
     /* Init GPIO pins for debug, SVC IRQ, bridges power supplies */
     gpio_init();
@@ -757,7 +781,7 @@ int switch_control(int state)
 
         /* Set default routes and parameters */
         /*  BDB bring-up: APB1 <-> GPB1 */
-        lldbg("\n\nCreating APB<->GPB routing entries\n");
+        dbg_ui("\n\nCreating APB<->GPB routing entries\n");
         uint8_t dev_apb1, dev_gpb1;
         dev_apb1 = deviceid_table_get_deviceid(PORT_ID_APB1);
         dev_gpb1 = deviceid_table_get_deviceid(PORT_ID_GPB1);
