@@ -6,6 +6,7 @@
  * Copyright (C) 2014 Google, Inc.
  *
  ****************************************************************************/
+#define DBG_COMP DBG_I2C
 #include <nuttx/config.h>
 
 #include <stdint.h>
@@ -21,6 +22,7 @@
 
 #include "chip.h"
 #include "up_arch.h"
+#include "up_debug.h"
 #include "up_internal.h"
 #include "up_i2c.h"
 #include "stm32.h"
@@ -40,7 +42,7 @@ inline int i2c_init_comm(uint8_t bus)
     /* Initialize I2C internal structs */
     sw_exp_dev = up_i2cinitialize(bus);
     if (!sw_exp_dev) {
-        printk("%s(): Failed to get bus %d\n", __func__, I2C_SW_BUS);
+        dbg_error("%s(): Failed to get bus %d\n", __func__, I2C_SW_BUS);
         return ERROR;
     }
 
@@ -62,13 +64,14 @@ inline int i2c_switch_send_msg(uint8_t *buf, unsigned int size)
 {
     int ret;
 
-    //dbg_print_buf(buf, size);
+    dbg_verbose("%s()\n", __func__);
+    dbg_print_buf(DBG_VERBOSE, buf, size);
 
     i2c_select_device(I2C_ADDR_SWITCH);
 
     ret = I2C_WRITE(sw_exp_dev, buf, size);
     if (ret) {
-        printk("%s(): Error %d\n", __func__, ret);
+        dbg_error("%s(): Error %d\n", __func__, ret);
         return ERROR;
     }
 
@@ -84,11 +87,12 @@ inline int i2c_switch_receive_msg(uint8_t *buf, unsigned int size)
 
     ret = I2C_READ(sw_exp_dev, buf, size);
     if (ret) {
-        printk("%s(): Error %d\n", __func__, ret);
+        dbg_error("%s(): Error %d\n", __func__, ret);
         return ERROR;
     }
 
-    //dbg_print_buf(buf, size);
+    dbg_verbose("%s()\n", __func__);
+    dbg_print_buf(DBG_VERBOSE, buf, size);
 
     return 0;
 }
@@ -98,17 +102,16 @@ void i2c_ioexp_write(uint8_t *msg, int size, uint8_t addr)
 {
     int ret;
 
-    //dbg_print_buf(msg, size);
-
     i2c_select_device(addr);
 
     ret = I2C_WRITE(sw_exp_dev, msg, size);
     if (ret) {
-        printk("%s(): Error %d\n", __func__, ret);
+        dbg_error("%s(): Error %d\n", __func__, ret);
         return;
     }
 
-    //dbg_print_buf(msg, size);
+    dbg_verbose("%s()\n", __func__);
+    dbg_print_buf(DBG_VERBOSE, msg, size);
 }
 
 /* Read data from the IO Expander */
@@ -116,7 +119,8 @@ void i2c_ioexp_read(uint8_t *msg, int size, uint8_t addr)
 {
     int ret;
 
-    //dbg_print_buf(msg, size);
+    dbg_verbose("%s()\n", __func__);
+    dbg_print_buf(DBG_VERBOSE, msg, size);
 
     i2c_select_device(addr);
 
@@ -139,9 +143,10 @@ void i2c_ioexp_read(uint8_t *msg, int size, uint8_t addr)
     };
 
     if ((ret = I2C_TRANSFER(sw_exp_dev, msgv, 2)) != OK) {
-        printk("%s(): Error %d\n", __func__, ret);
+        dbg_error("%s(): Error %d\n", __func__, ret);
         return;
     }
 
-    //dbg_print_buf(msg, size);
+    dbg_verbose("%s()\n", __func__);
+    dbg_print_buf(DBG_VERBOSE, msg, size);
 }
