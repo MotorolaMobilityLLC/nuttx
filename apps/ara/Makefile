@@ -5,7 +5,6 @@
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
 #   Copyright (C) 2014 Google, Inc.
-#   Author: Jean Pihet <jean.pihet@newoldbits.com>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -40,16 +39,16 @@
 
 # Sub-directories
 
-SUBDIRS  = svc unipro
+SUBDIRS  = debug svc unipro
 
 # Sub-directories that might need context setup.  Directories may need
 # context setup for a variety of reasons, but the most common is because
 # the example may be built as an NSH built-in function.
 
-CNTXTDIRS = svc unipro
+CNTXTDIRS = debug svc unipro
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
-CNTXTDIRS += svc unipro
+CNTXTDIRS += debug svc unipro
 endif
 
 all: nothing

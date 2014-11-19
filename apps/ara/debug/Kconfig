@@ -1,0 +1,25 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+# Copyright (C) 2014 Google, Inc.
+#
+
+config ARA_SVC_DEBUG
+	bool "Ara SVC debug"
+	default n
+	depends on ARCH_BOARD_ARA_BDB_SVC
+	---help---
+		Enable the Ara Debug program. Controls the debug output messages
+
+if ARA_SVC_DBUG
+
+config ARA_SVC_DEBUG_PROGNAME
+	string "Program name"
+	default "debug"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be used when the
+		NSH ELF program is installed.
+
+endif

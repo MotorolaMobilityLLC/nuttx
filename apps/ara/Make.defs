@@ -36,9 +36,14 @@
 #
 ############################################################################
 
+ifeq ($(CONFIG_ARA_SVC_DEBUG),y)
+CONFIGURED_APPS += ara/debug
+endif
+
 ifeq ($(CONFIG_ARA_SVC_MAIN),y)
 CONFIGURED_APPS += ara/svc
 endif
+
 ifeq ($(CONFIG_ARA_UNIPRO_MAIN),y)
 CONFIGURED_APPS += ara/unipro
 endif
