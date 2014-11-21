@@ -144,7 +144,8 @@ winnative=`grep CONFIG_WINDOWS_NATIVE= "${src_config}" | cut -d'=' -f2`
 defappdir=y
 if [ -z "${appdir}" ]; then
   quoted=`grep "^CONFIG_APPS_DIR=" "${src_config}" | cut -d'=' -f2`
-  if [ ! -z "${appdir}" ]; then
+  if [ ! -z "${quoted}" ]; then
+    echo 'Using defconfig APPS_DIR'
     appdir=`echo ${quoted} | sed -e "s/\"//g"`
     defappdir=n
   fi
