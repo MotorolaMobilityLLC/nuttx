@@ -1,0 +1,23 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config ARA_UNIPRO_MAIN
+	bool "Ara UNIPRO main"
+	default n
+	depends on ARCH_CHIP_TSB
+	---help---
+		Enable the Ara UNIPRO main programz
+
+if ARA_UNIPRO_MAIN
+
+config ARA_UNIPRO_MAIN_PROGNAME
+	string "Program name"
+	default "unipro"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+endif

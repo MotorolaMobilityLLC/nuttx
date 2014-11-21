@@ -40,16 +40,16 @@
 
 # Sub-directories
 
-SUBDIRS  = svc
+SUBDIRS  = svc unipro
 
 # Sub-directories that might need context setup.  Directories may need
 # context setup for a variety of reasons, but the most common is because
 # the example may be built as an NSH built-in function.
 
-CNTXTDIRS = svc
+CNTXTDIRS = svc unipro
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
-CNTXTDIRS += svc
+CNTXTDIRS += svc unipro
 endif
 
 all: nothing
