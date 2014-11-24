@@ -58,6 +58,16 @@
  ************************************************************************************/
 
 /* Clocking *************************************************************************/
+
+/*
+ * Different sets of settings are defined for SYSCLK of 104 and 168MHz:
+ *  BDB_ARA_STM32_104MHZ
+ *  BDB_ARA_STM32_168MHZ
+ * Only one shall be defined here. If needed this could become a Kconfig
+ * option.
+ */
+#define BDB_ARA_STM32_104MHZ
+
 /* Four clock sources are available on STM3240G-EVAL evaluation board for
  * STM32F407IGH6 and RTC embedded:
  *
@@ -104,6 +114,7 @@
 
 #define STM32_BOARD_USEHSI      1
 
+#ifdef BDB_ARA_STM32_168MHZ
 /* Main PLL Configuration.
  *
  * PLL source is HSE
@@ -124,7 +135,9 @@
 
 #define STM32_SYSCLK_FREQUENCY  168000000ul
 
+#endif // BDB_ARA_STM32_168MHZ
 
+#ifdef BDB_ARA_STM32_104MHZ
 /* Main PLL Configuration.
  *
  * Formula:
@@ -162,19 +175,20 @@
 
 #define STM32_SYSCLK_FREQUENCY  104000000ul
 
+#endif // BDB_ARA_STM32_104MHZ
 
-/* AHB clock (HCLK) is SYSCLK (168MHz) */
+/* AHB clock (HCLK) is SYSCLK */
 
 #define STM32_RCC_CFGR_HPRE     RCC_CFGR_HPRE_SYSCLK  /* HCLK  = SYSCLK / 1 */
 #define STM32_HCLK_FREQUENCY    STM32_SYSCLK_FREQUENCY
 #define STM32_BOARD_HCLK        STM32_HCLK_FREQUENCY  /* same as above, to satisfy compiler */
 
-/* APB1 clock (PCLK1) is HCLK/4 (42MHz) */
+/* APB1 clock (PCLK1) is HCLK/4 */
 
 #define STM32_RCC_CFGR_PPRE1    RCC_CFGR_PPRE1_HCLKd4     /* PCLK1 = HCLK / 4 */
 #define STM32_PCLK1_FREQUENCY   (STM32_HCLK_FREQUENCY/4)
 
-/* Timers driven from APB1 will be twice PCLK1 */
+/* Timers driven from APB1 will be twice PCLK1 (HCLK/2) */
 
 #define STM32_APB1_TIM2_CLKIN   (2*STM32_PCLK1_FREQUENCY)
 #define STM32_APB1_TIM3_CLKIN   (2*STM32_PCLK1_FREQUENCY)
@@ -186,12 +200,12 @@
 #define STM32_APB1_TIM13_CLKIN  (2*STM32_PCLK1_FREQUENCY)
 #define STM32_APB1_TIM14_CLKIN  (2*STM32_PCLK1_FREQUENCY)
 
-/* APB2 clock (PCLK2) is HCLK/2 (84MHz) */
+/* APB2 clock (PCLK2) is HCLK/2 */
 
 #define STM32_RCC_CFGR_PPRE2    RCC_CFGR_PPRE2_HCLKd2     /* PCLK2 = HCLK / 2 */
 #define STM32_PCLK2_FREQUENCY   (STM32_HCLK_FREQUENCY/2)
 
-/* Timers driven from APB2 will be twice PCLK2 */
+/* Timers driven from APB2 will be twice PCLK2 (HCLK) */
 
 #define STM32_APB2_TIM1_CLKIN   (2*STM32_PCLK2_FREQUENCY)
 #define STM32_APB2_TIM8_CLKIN   (2*STM32_PCLK2_FREQUENCY)
@@ -204,8 +218,8 @@
  * Note: TIM1,8 are on APB2, others on APB1
  */
 
-#define STM32_TIM18_FREQUENCY   STM32_HCLK_FREQUENCY
-#define STM32_TIM27_FREQUENCY   STM32_HCLK_FREQUENCY
+#define STM32_TIM18_FREQUENCY   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM27_FREQUENCY   (2*STM32_PCLK1_FREQUENCY)
 
 /* SDIO dividers.  Note that slower clocking is required when DMA is disabled
  * in order to avoid RX overrun/TX underrun errors due to delayed responses
@@ -342,15 +356,7 @@
 /*
  * GPIO lines for AP/GP Bridges power enable
  */
-#  define POW_EN (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_CLEAR)
-
-#define GPIO_DBG_1     (POW_EN|GPIO_PORTH|GPIO_PIN6) // PH6 -> J53.1
-#define GPIO_DBG_2     (POW_EN|GPIO_PORTH|GPIO_PIN7) // PH7 -> J53.2
-#define GPIO_DBG_3     (POW_EN|GPIO_PORTH|GPIO_PIN8) // PH8 -> J53.3
-#define GPIO_DBG_4     (POW_EN|GPIO_PORTH|GPIO_PIN9) // PH9 -> J53.4
-
-/* SVC_LED_EN */
-#define GPIO_LED_EN    (POW_EN|GPIO_PORTH|GPIO_PIN12)
+#define POW_EN (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_CLEAR)
 
 #define GPIO_VGPB1_1P1_EN       (POW_EN|GPIO_PORTC|GPIO_PIN1)  // PC1
 #define GPIO_VGPB1_1P2_EN       (POW_EN|GPIO_PORTC|GPIO_PIN2)  // PC2
@@ -374,6 +380,16 @@
 #define GPIO_VAPB3_1P2_EN       (POW_EN|GPIO_PORTE|GPIO_PIN13) // PE13
 #define GPIO_VAPB3_1P8_EN       (POW_EN|GPIO_PORTE|GPIO_PIN15) // PE15
 
+/* Debug lines to header */
+#define GPIO_DBG_1              (POW_EN|GPIO_PORTH|GPIO_PIN6) // PH6 -> J53.1
+#define GPIO_DBG_2              (POW_EN|GPIO_PORTH|GPIO_PIN7) // PH7 -> J53.2
+#define GPIO_DBG_3              (POW_EN|GPIO_PORTH|GPIO_PIN8) // PH8 -> J53.3
+#define GPIO_DBG_4              (POW_EN|GPIO_PORTH|GPIO_PIN9) // PH9 -> J53.4
+
+/* SVC_LED_EN */
+#define GPIO_LED_EN             (POW_EN|GPIO_PORTH|GPIO_PIN12)
+
+/* Switch reset line */
 #define GPIO_SW_RST_40uS        (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_PULLUP| \
                                  GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN14) // PE14
 
