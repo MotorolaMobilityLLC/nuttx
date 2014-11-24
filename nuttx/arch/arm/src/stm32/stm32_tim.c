@@ -472,6 +472,13 @@ static int stm32_tim_setmode(FAR struct stm32_tim_dev_s *dev, stm32_tim_mode_t m
       default: return ERROR;
     }
 
+  /*
+   * Set the mode in CR1 register but do not start the timer yet.
+   * The setclock method is used to start the timer.
+   */
+  if ((mode & STM32_TIM_MODE_DONOTSTART) == STM32_TIM_MODE_DONOTSTART)
+      val &= ~ATIM_CR1_CEN;
+
   stm32_tim_reload_counter(dev);
   stm32_putreg16(dev, STM32_BTIM_CR1_OFFSET, val);
 
