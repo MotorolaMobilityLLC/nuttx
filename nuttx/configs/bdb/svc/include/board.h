@@ -394,6 +394,26 @@
                                  GPIO_OUTPUT_SET|GPIO_PORTE|GPIO_PIN14) // PE14
 
 /*
+ * EPM lines
+ *
+ * The lines must be low by default, with a pull down. A simultaneous
+ * high state on the N and P lines causes HW damage.
+ */
+#define GPIO_EPM_DEFAULT        (GPIO_OUTPUT|GPIO_PULLDOWN)
+#define GPIO_HB0_N              (GPIO_PORTA|GPIO_PIN7) // PA7
+#define GPIO_HB0_P              (GPIO_PORTA|GPIO_PIN1) // PA1
+// Alternate timer function for PA1
+#define GPIO_TIM2_CH2OUT        GPIO_TIM2_CH2OUT_1
+#define GPIO_HB_A1_N            (GPIO_PORTB|GPIO_PIN0) // PB0
+#define GPIO_HB_A1_P            (GPIO_PORTA|GPIO_PIN2) // PA2
+// Alternate timer function for PA2
+#define GPIO_TIM2_CH3OUT        GPIO_TIM2_CH3OUT_1
+#define GPIO_HB_A2_N            (GPIO_PORTB|GPIO_PIN1) // PB1
+#define GPIO_HB_A2_P            (GPIO_PORTA|GPIO_PIN3) // PA3
+// Alternate timer function for PA3
+#define GPIO_TIM2_CH4OUT        GPIO_TIM2_CH4OUT_1
+
+/*
  * Wake out: the pin initially needs to be floating (open drain,
  * output set to 1) then is set to 1 (push-pull, output set to 1) to generate
  * a wake out pulse to the module
