@@ -32,3 +32,4 @@ CHIP_CSRCS += tsb_main.c tsb_lowputc.c tsb_serial.c tsb_unipro.c
 CHIP_CSRCS += tsb_scm.c
 CHIP_CSRCS += tsb_gpio.c
 CHIP_CSRCS += $(USB_CSRCS)
+CHIP_CSRCS += tsb_i2c.c
