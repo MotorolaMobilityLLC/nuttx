@@ -4,6 +4,7 @@
 #
 
 source "$APPSDIR/ara/debug/Kconfig"
+source "$APPSDIR/ara/epm/Kconfig"
 source "$APPSDIR/ara/svc/Kconfig"
 source "$APPSDIR/ara/unipro/Kconfig"
 
