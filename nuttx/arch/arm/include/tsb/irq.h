@@ -152,6 +152,7 @@ extern "C" {
 #define TSB_IRQ_UNIPRO_RX_EOM30           (124 + TSB_IRQ_EXT_BASE)
 #define TSB_IRQ_UNIPRO_RX_EOM31           (125 + TSB_IRQ_EXT_BASE)
 
+void tsb_dumpnvic(void);
 
 #undef EXTERN
 #ifdef __cplusplus

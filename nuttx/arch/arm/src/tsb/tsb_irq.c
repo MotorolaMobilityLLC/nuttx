@@ -207,7 +207,7 @@ void up_disable_irq(int irqn) {
     uint32_t bit = 1 << (irq % 32);
     uint32_t reg = NVIC_IRQ_CLEAR(irq);
 
-    putreg32(bit, reg);
+    putreg32(bit, (uint32_t*)reg);
 }
 
 void up_enable_irq(int irqn) {
@@ -215,8 +215,80 @@ void up_enable_irq(int irqn) {
     uint32_t bit = 1 << (irq % 32);
     uint32_t reg = NVIC_IRQ_ENABLE(irq);
 
-    putreg32(bit, reg);
+    putreg32(bit, (uint32_t*)reg);
 }
 
 void up_ack_irq(int irq) {
+    (void)irq;
+}
+
+/*
+ * Print human-readable strings for enabled bits in peripheral NVIC space
+ */
+static inline void dbg_irq_names(uint32_t *base, size_t lines_per_word) {
+    uint32_t val;
+    unsigned int irq;
+    uint32_t *reg = base;
+
+    for (irq = 0; irq < ARMV7M_PERIPHERAL_INTERRUPTS; irq++) {
+        val = getreg32(&reg[irq / lines_per_word]);
+        if (val & (1 << (irq % lines_per_word))) {
+            lldbg("    [%03u:%s]\n", irq, irq_names[irq]);
+        }
+    }
+}
+
+/**
+ * @brief Print out a bunch of information about the NVIC and currently
+ *        configured peripheral interrupts on the low-level debug console
+ */
+void tsb_dumpnvic(void) {
+    uint32_t *reg;
+    uint32_t nr_prio_regs = ARMV7M_PERIPHERAL_INTERRUPTS/4;
+    uint32_t i;
+    irqstate_t flags;
+
+    flags = irqsave();
+    lldbg("  INTCTRL:     %08x VECTAB: %08x\n",
+          getreg32(NVIC_INTCTRL),
+          getreg32(NVIC_VECTAB));
+
+    lldbg("  SYSH ENABLE MEMFAULT: %08x BUSFAULT: %08x USGFAULT: %08x SYSTICK: %08x\n",
+          getreg32(NVIC_SYSHCON_MEMFAULTENA),
+          getreg32(NVIC_SYSHCON_BUSFAULTENA),
+          getreg32(NVIC_SYSHCON_USGFAULTENA),
+          getreg32(NVIC_SYSTICK_CTRL_ENABLE));
+
+    lldbg("  SYSH_PRIO:   %08x %08x %08x\n",
+          getreg32(NVIC_SYSH4_7_PRIORITY),
+          getreg32(NVIC_SYSH8_11_PRIORITY),
+          getreg32(NVIC_SYSH12_15_PRIORITY));
+
+    reg = (uint32_t*)NVIC_IRQ0_3_PRIORITY;
+    for (i = 0; i < nr_prio_regs; i += 4) {
+        lldbg("  IRQ PRIO:    %08x %08x %08x %08x\n",
+              getreg32(reg),
+              getreg32(reg + 1),
+              getreg32(reg + 2),
+              getreg32(reg + 3));
+        reg += 4;
+    }
+
+    lldbg("  IRQ ENABLE:  %08x %08x %08x %08x %08x\n",
+          getreg32(NVIC_IRQ0_31_ENABLE),
+          getreg32(NVIC_IRQ32_63_ENABLE),
+          getreg32(NVIC_IRQ64_95_ENABLE),
+          getreg32(NVIC_IRQ96_127_ENABLE),
+          getreg32(NVIC_IRQ128_159_ENABLE));
+    dbg_irq_names((uint32_t*)NVIC_IRQ_ENABLE(0), 32);
+
+    lldbg("  IRQ PENDING: %08x %08x %08x %08x %08x\n",
+          getreg32(NVIC_IRQ0_31_PEND),
+          getreg32(NVIC_IRQ32_63_PEND),
+          getreg32(NVIC_IRQ64_95_PEND),
+          getreg32(NVIC_IRQ96_127_PEND),
+          getreg32(NVIC_IRQ128_159_PEND));
+    dbg_irq_names((uint32_t*)NVIC_IRQ_PEND(0), 32);
+
+    irqrestore(flags);
 }
