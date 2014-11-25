@@ -13,6 +13,7 @@
 #include <debug.h>
 #include <time.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <nuttx/i2c.h>
 
@@ -420,27 +421,71 @@ int switch_get_req(uint8_t portid, uint16_t attrid,
     return buffer[3];
 }
 
+/**
+ * @brief Get the valid bitmask for routing table entries
+ * @param bitmask destination on where to store the result
+ */
+static int switch_deviceidmask_getreq(uint8_t *bitmask) {
+    uint8_t msg[] = {
+        SWITCH_DEVICE_ID,
+        NCP_RESERVED,
+        NCP_GETDEVICEIDMASKREQ
+    };
+    uint8_t buffer[18];
+
+    if (i2c_switch_send_msg(msg, sizeof(msg)))
+        return ERROR;
+
+    if (i2c_switch_receive_msg(buffer, sizeof(buffer)))
+        return ERROR;
+
+    memcpy(bitmask, buffer + 2, 16);
+
+    return 0;
+}
+
 /* Dump routing table */
+
+/**
+ * @brief Dump routing table to low level console
+ */
 static void switch_dump_routing_table(void)
 {
     int i, j;
     uint8_t p[8];
+    uint8_t valid_bitmask[16];
 
-    printk("%s(): Routing table\n", __func__);
+    printk("%s(): Routing table\n"
+            "======================================================\n", __func__);
+
+    /* Replace invalid entries with 'XX' */
+#define CHECK_VALID_ENTRY(entry) \
+    (valid_bitmask[15 - ((entry) / 8)] & (1 << ((entry)) % 8))
+
+    switch_deviceidmask_getreq(valid_bitmask);
 
     for (i = 0; i < 8; i++) {
-        printk("%03d: ", i * 16);
+        printk("%3d: ", i * 16);
         for (j = 0; j < 8; j++) {
-            switch_lut_getreq(i * 16 + j, &p[j]);
-            printk("%02x ", p[j]);
+            if (CHECK_VALID_ENTRY(i * 16 + j)) {
+                switch_lut_getreq(i * 16 + j, &p[j]);
+                printk("%2u ", p[j]);
+            } else {
+                printk("XX ");
+            }
         }
         printk("| ");
         for (j = 0; j < 8; j++) {
-            switch_lut_getreq((i * 16) + 8 + j, &p[j]);
-            printk("%02x ", p[j]);
+            if (CHECK_VALID_ENTRY((i * 16) + 8 + j)) {
+                switch_lut_getreq((i * 16) + 8 + j, &p[j]);
+                printk("%2u ", p[j]);
+            } else {
+                printk("XX ");
+            }
         }
         printk("\n");
     }
+    printk("======================================================\n", __func__);
 }
 
 /* Configure the routing and parameters to allow communication to a device */

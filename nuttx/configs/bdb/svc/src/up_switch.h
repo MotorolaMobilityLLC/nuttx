@@ -46,6 +46,7 @@
 #define NCP_LUTSETCNF               0x11
 #define NCP_LUTGETREQ               0x12
 #define NCP_LUTGETCNF               0x13
+#define NCP_GETDEVICEIDMASKREQ      0x16
 #define NCP_SWITCHATTRGETREQ        0x22
 #define NCP_SWITCHATTRGETCNF        0x23
 #define NCP_SWITCHIDSETREQ          0x24
