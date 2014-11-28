@@ -1,0 +1,27 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+# Copyright (c) 2014 Google, Inc.
+# Google Confidential/Restricted
+#
+
+config ARA_SVC_POWER
+	bool "Ara SVC Power control"
+	default n
+	depends on ARCH_BOARD_ARA_ENDO_SVC
+	---help---
+		Enable the Ara Power program. Controls the interfaces power
+                supply and wakeout signal
+
+if ARA_SVC_POWER
+
+config ARA_SVC_POWER_PROGNAME
+	string "Program name"
+	default "power"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+endif

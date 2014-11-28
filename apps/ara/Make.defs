@@ -5,7 +5,8 @@
 #   Copyright (C) 2012 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
-#   Copyright (C) 2014 Google, Inc.
+#   Copyright (c) 2014 Google, Inc.
+#   Google Confidential/Restricted
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -44,14 +45,14 @@ ifeq ($(CONFIG_ARA_SVC_EPM),y)
 CONFIGURED_APPS += ara/epm
 endif
 
+ifeq ($(CONFIG_ARA_SVC_POWER),y)
+CONFIGURED_APPS += ara/svc_power
+endif
+
 ifeq ($(CONFIG_ARA_SVC_MAIN),y)
 CONFIGURED_APPS += ara/svc
 endif
 
 ifeq ($(CONFIG_ARA_UNIPRO_MAIN),y)
 CONFIGURED_APPS += ara/unipro
-endif
-
-ifeq ($(CONFIG_ARA_SVC_EPM),y)
-CONFIGURED_APPS += ara/epm
 endif
