@@ -238,6 +238,20 @@ static inline void dbg_irq_names(uint32_t *base, size_t lines_per_word) {
     }
 }
 
+
+/**
+ * @brief Clear pending IRQ
+ * @param irqn IRQ number to clear
+ */
+void tsb_irq_clear_pending(int irqn) {
+    int irq = irqn_to_nvic(irqn);
+    uint32_t bit = 1 << (irq % 32);
+    uint32_t reg = NVIC_IRQ_CLRPEND(irq);
+
+    putreg32(bit, (uint32_t*)reg);
+}
+
+
 /**
  * @brief Print out a bunch of information about the NVIC and currently
  *        configured peripheral interrupts on the low-level debug console
