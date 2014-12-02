@@ -32,6 +32,7 @@
 /* Switch attributes */
 #define SWVER                       0x0000
 #define SWSTA                       0x0003
+#define SWINT                       0x0010
 
 /* NCP commands */
 #define NCP_SETREQ                  0x00
@@ -102,30 +103,36 @@
 #define COM_REFCLKFREQ_SEL          0x8032
 
 /*
- * Physical portIds on the BDB
+ * Physical portIds on the Endo
  *
- * We need a static list because:
- * . the routing is fixed in HW,
- * . the detection of the AP is not yet implemented and so it is assumed
- *   that AP bridge 1 is used from the AP module,
- * . dynamic enumeration with the AP is not yet implemented.
+ * The Endo geometry is:
+ * Top
+ *      N
+ *      M
+ * Bottom
+ *      B  A
+ *      D  C
+ *      E  F
+ *      G  H
+ *      I  J
+ *      K  L
  */
 enum {
-    PORT_ID_APB1                    = 0,    /* AP bridge 1 */
-    PORT_ID_APB2,                           /* AP bridge 2 */
-    PORT_ID_APB3,                           /* AP bridge 3 */
-    PORT_ID_GPB1,                           /* GP bridge 1 */
-    PORT_ID_GPB2,                           /* GP bridge 2 */
-    PORT_ID_NC,                             /* Not connected */
-    PORT_ID_SPRING6,                        /* Spring connector 6 */
-    PORT_ID_SPRING7,                        /* Spring connector 7 */
-    PORT_ID_SPRING8,                        /* Spring connector 8 */
-    PORT_ID_SPRING9,                        /* Spring connector 9 */
-    PORT_ID_SPRING10,                       /* Spring connector 10 */
-    PORT_ID_SPRING11,                       /* Spring connector 11 */
-    PORT_ID_SPRING12,                       /* Spring connector 12 */
-    PORT_ID_SPRING13,                       /* Spring connector 13 */
-    PORT_ID_SWITCH                          /* Switch */
+    PORT_ID_SPRING_A            = 0,
+    PORT_ID_SPRING_B,
+    PORT_ID_SPRING_C,
+    PORT_ID_SPRING_D,
+    PORT_ID_SPRING_E,
+    PORT_ID_SPRING_F,
+    PORT_ID_SPRING_G,
+    PORT_ID_SPRING_H,
+    PORT_ID_SPRING_I,
+    PORT_ID_SPRING_J,
+    PORT_ID_SPRING_K,
+    PORT_ID_SPRING_L,
+    PORT_ID_SPRING_M,
+    PORT_ID_SPRING_N,
+    PORT_ID_SWITCH              /* Switch */
 };
 
 

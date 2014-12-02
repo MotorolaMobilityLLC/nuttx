@@ -41,9 +41,6 @@
 /* DeviceIDs for modules */
 #define DEMO_SETUP_AP_M_DEVID       10
 #define DEMO_SETUP_LCD_M_DEVID      14
-/* DeviceIDs for on-board bridges */
-#define DEMO_SETUP_AP_B_DEVID       20
-#define DEMO_SETUP_LCD_B_DEVID      24
 /* CPorts in use */
 #define DEMO_SETUP_I2C_CPORT        5
 #define DEMO_SETUP_LCD_CPORT        16
@@ -52,9 +49,38 @@
 #define SWITCH_SETTLE_DELAY         1
 #define BRIDGE_SETTLE_DELAY         5
 
+/*
+ * The Phy lines of the switch are swapped in the layout.
+ * Define the conversion table between the physical ports and the
+ * Spring (i.e. interface connector) number.
+ */
+uint8_t spring_port_map[NR_INTERFACES] = {
+    0,          /* Spring A <-> port 0 */
+    1,          /* Spring B <-> port 1. Note: no Phy lines, debug only */
+    3,          /* Spring C <-> port 3 */
+    2,          /* Spring D <-> port 2 */
+    4,          /* Spring E <-> port 4. Note: no Phy lines, debug only */
+    6,          /* Spring F <-> port 6 */
+    5,          /* Spring G <-> port 5 */
+    8,          /* Spring H <-> port 8 */
+    7,          /* Spring I <-> port 7 */
+    9,          /* Spring J <-> port 9 */
+    10,         /* Spring K <-> port 10 */
+    11,         /* Spring L <-> port 11 */
+    12,         /* Spring M <-> port 12 */
+    13,         /* Spring N <-> port 13 */
+    14,         /* Switch internal <-> port 14 */
+};
 
 /* portId to destDeviceId_Enc mapping table */
 uint8_t deviceid_table[NR_INTERFACES];
+
+/*
+ * Dynamic allocation of deviceId:
+ * - First deviceId is 0 for the switch,
+ * - start on 1 for new devices
+ */
+static uint8_t last_device_id;
 
 static void deviceid_table_init(void)
 {
@@ -62,6 +88,7 @@ static void deviceid_table_init(void)
 
     for (i = 0; i < NR_INTERFACES; i++)
         deviceid_table[i] = INVALID_ID;
+    last_device_id = 1;
 }
 
 /* Update table with portId to deviceId mapping */
@@ -674,6 +701,101 @@ static int switch_configure_connection(uint8_t devid,
     return 0;
 }
 
+/* Detect devices on the Unipro link */
+uint32_t switch_detect_devices(void)
+{
+    uint32_t attr_value, link_status;
+    int i;
+
+    /*
+     * Get link up status, detect devices on the link and
+     * setup default routes
+     */
+    switch_get_attribute(SWSTA, &link_status);
+
+    /* Get attributes from connected devices */
+    for (i = 0; i < NR_INTERFACES; i++) {
+        if (link_status & (1 << i)) {
+            /* DME_DDBL1 */
+            /*  Revision,       expected 0x0010 */
+            switch_peer_getreq(i, DME_DDBL1_REVISION, NCP_SELINDEX_NULL,
+                               &attr_value);
+            /*  Level,          expected 0x0003 */
+            switch_peer_getreq(i, DME_DDBL1_LEVEL, NCP_SELINDEX_NULL,
+                               &attr_value);
+            /*  deviceClass,    expected 0x0000 */
+            switch_peer_getreq(i, DME_DDBL1_DEVICECLASS,
+                               NCP_SELINDEX_NULL, &attr_value);
+            /*  ManufactureID,  expected 0x0126 */
+            switch_peer_getreq(i, DME_DDBL1_MANUFACTUREID,
+                               NCP_SELINDEX_NULL, &attr_value);
+            /*  productID,      expected 0x1000 */
+            switch_peer_getreq(i, DME_DDBL1_PRODUCTID,
+                               NCP_SELINDEX_NULL, &attr_value);
+            /*  length,         expected 0x0008 */
+            switch_peer_getreq(i, DME_DDBL1_LENGTH, NCP_SELINDEX_NULL,
+                               &attr_value);
+            /* DME_DDBL2 VID and PID */
+            switch_peer_getreq(i, DME_DDBL2_VID, NCP_SELINDEX_NULL,
+                               &attr_value);
+            switch_peer_getreq(i, DME_DDBL2_PID, NCP_SELINDEX_NULL,
+                               &attr_value);
+            switch_peer_getreq(i, PA_CONNECTEDTXDATALANES,
+                               NCP_SELINDEX_NULL, &attr_value);
+            if (attr_value != PA_CONN_TX_DATA_LANES_NR)
+                dbg_error("%s(): Error: Connected TX Data lines=%d\n",
+                          __func__, attr_value);
+            switch_peer_getreq(i, PA_CONNECTEDRXDATALANES,
+                               NCP_SELINDEX_NULL, &attr_value);
+            if (attr_value != PA_CONN_RX_DATA_LANES_NR)
+                dbg_error("%s(): Error: Connected RX Data lines=%d\n",
+                          __func__, attr_value);
+        }
+    }
+
+    return link_status;
+}
+
+/* Dynamically allocate a deviceID_Enc for new devices on the link */
+void switch_assign_deviceid(uint32_t link_status)
+{
+    int i;
+
+    /*
+     * Set initial destDeviceId_Enc and routes
+     *
+     * Endo bring-up phase:
+     *  destDeviceId_Enc are set to:
+     *   SWITCH_DEVICE_ID = 0 for switch
+     *   incremented for every new device on the link
+     *
+     * Final ES1 phase:
+     *  destDeviceId_Enc are set to:
+     *   SWITCH_DEVICE_ID = 0 for switch
+     *   1 for the detected AP bridge
+     *  The rest of the destDeviceId_Enc are assigned by the AP
+     *  upon detection
+     */
+
+    /* Set destDeviceId_Enc for the connected devices */
+    for (i = 0; i < NR_INTERFACES; i++) {
+        if (link_status & (1 << i)) {
+            /* Do not allocate a deviceId if already existing */
+            if (deviceid_table_get_deviceid(i) != INVALID_ID)
+                continue;
+
+            /* Endo bring-up phase style: allocate next deviceid */
+            switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL, i + 1);
+            switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
+                               1);
+            deviceid_table_update(i, last_device_id);
+            dbg_info("%s(): new deviceId %d for port %d\n", __func__,
+                     last_device_id, i);
+            last_device_id++;
+        }
+    }
+}
+
 int switch_control(int state)
 {
     uint32_t attr_value, link_status;
@@ -759,81 +881,27 @@ start_switch:
         /* Pass through for routes and connection setup */
 
     case SWITCH_CHECK_LINKUP:
-        /*
-         * Get link up status, detect devices on the link and
-         * setup default routes
-         */
-        switch_get_attribute(SWSTA, &link_status);
+        /* Re-init device id mapping table */
+        deviceid_table_init();
+        deviceid_table_update(PORT_ID_SWITCH, SWITCH_DEVICE_ID);
 
-        /* Get attributes from connected devices */
-        for (i = 0; i < NR_INTERFACES; i++) {
-            if (link_status & (1 << i)) {
-                /* DME_DDBL1 */
-                /*  Revision,       expected 0x0010 */
-                switch_peer_getreq(i, DME_DDBL1_REVISION, NCP_SELINDEX_NULL,
-                                   &attr_value);
-                /*  Level,          expected 0x0003 */
-                switch_peer_getreq(i, DME_DDBL1_LEVEL, NCP_SELINDEX_NULL,
-                                   &attr_value);
-                /*  deviceClass,    expected 0x0000 */
-                switch_peer_getreq(i, DME_DDBL1_DEVICECLASS,
-                                   NCP_SELINDEX_NULL, &attr_value);
-                /*  ManufactureID,  expected 0x0126 */
-                switch_peer_getreq(i, DME_DDBL1_MANUFACTUREID,
-                                   NCP_SELINDEX_NULL, &attr_value);
-                /*  productID,      expected 0x1000 */
-                switch_peer_getreq(i, DME_DDBL1_PRODUCTID,
-                                   NCP_SELINDEX_NULL, &attr_value);
-                /*  length,         expected 0x0008 */
-                switch_peer_getreq(i, DME_DDBL1_LENGTH, NCP_SELINDEX_NULL,
-                                   &attr_value);
-                /* DME_DDBL2 VID and PID */
-                switch_peer_getreq(i, DME_DDBL2_VID, NCP_SELINDEX_NULL,
-                                   &attr_value);
-                switch_peer_getreq(i, DME_DDBL2_PID, NCP_SELINDEX_NULL,
-                                   &attr_value);
-                switch_peer_getreq(i, PA_CONNECTEDTXDATALANES,
-                                   NCP_SELINDEX_NULL, &attr_value);
-                if (attr_value != PA_CONN_TX_DATA_LANES_NR)
-                    dbg_error("%s(): Error: Connected TX Data lines=%d\n",
-                              __func__, attr_value);
-                switch_peer_getreq(i, PA_CONNECTEDRXDATALANES,
-                                   NCP_SELINDEX_NULL, &attr_value);
-                if (attr_value != PA_CONN_RX_DATA_LANES_NR)
-                    dbg_error("%s(): Error: Connected RX Data lines=%d\n",
-                              __func__, attr_value);
-            }
-        }
+        /* Detect devices on the Unipro link */
+        link_status = switch_detect_devices();
 
         /* Let the bridges boot and initialize */
         sleep(BRIDGE_SETTLE_DELAY);
 
         /* Setup initial routes */
-        switch_lut_setreq(DEMO_SETUP_AP_M_DEVID, PORT_ID_SPRING8);
-        switch_lut_setreq(DEMO_SETUP_LCD_M_DEVID, PORT_ID_SPRING11);
-        switch_lut_setreq(DEMO_SETUP_AP_B_DEVID, PORT_ID_APB1);
-        switch_lut_setreq(DEMO_SETUP_LCD_B_DEVID, PORT_ID_APB2);
+        switch_lut_setreq(DEMO_SETUP_AP_M_DEVID,
+                          spring_port_map[PORT_ID_SPRING_C]);
+        switch_lut_setreq(DEMO_SETUP_LCD_M_DEVID,
+                          spring_port_map[PORT_ID_SPRING_M]);
 
         /* Wait for switch to settle */
         sleep(SWITCH_SETTLE_DELAY);
 
         /*
          * Set initial destDeviceId_Enc and routes
-         *
-         * Board bring-up phase:
-         *  destDeviceId_Enc are set to:
-         *   SWITCH_DEVICE_ID = 0 for switch
-         *   Use portId + 1 for the rest of the detected devices.
-         *  BDB has the following devices connected:
-         *   Module portId  destDeviceId_Enc
-         *   Switch 14      0
-         *   APB1   0       1
-         *   APB2   1       2
-         *   APB3   2       3
-         *   GPB1   3       4
-         *   GPB2   4       5
-         *   -      5       -
-         *   Springs 6..13  7..14
          *
          * Final ES1 phase:
          *  destDeviceId_Enc are set to:
@@ -842,61 +910,47 @@ start_switch:
          *  The rest of the destDeviceId_Enc are assigned by the AP
          *  upon detection
          *
-         * AP <-> LCD setup:
+         * AP <-> LCD demo setup:
          *  destDeviceId_Enc are set to:
          *   SWITCH_DEVICE_ID = 0 for switch
-         *   10/20 for the AP as module or on-board bridge,
-         *   14/24 for the LCD as module or on-board bridge,
+         *   10 for the AP module on Spring C,
+         *   14 for the LCD module on Spring M,
          *   CPorts: 5 (I2C) and 16 (DSI)
          */
 
         /* Set destDeviceId_Enc and route for the connected devices */
         for (i = 0; i < NR_INTERFACES; i++) {
             if (link_status & (1 << i)) {
-                /* AP module on Spring 8 */
-                if (i == PORT_ID_SPRING8) {
+                /* AP module on Spring C */
+                if (i == spring_port_map[PORT_ID_SPRING_C]) {
                     switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL,
                                        DEMO_SETUP_AP_M_DEVID);
                     switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
                                        1);
                     deviceid_table_update(i, DEMO_SETUP_AP_M_DEVID);
+                    dbg_info("%s(): new deviceId %d for port %d\n",
+                             __func__, DEMO_SETUP_AP_M_DEVID, i);
                 }
-                /* LCD module on Spring 11 */
-                if (i == PORT_ID_SPRING11) {
+                /* LCD module on Spring M */
+                if (i == spring_port_map[PORT_ID_SPRING_M]) {
                     switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL,
                                        DEMO_SETUP_LCD_M_DEVID);
                     switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
                                        1);
                     deviceid_table_update(i, DEMO_SETUP_LCD_M_DEVID);
-                }
-
-                /* AP on APB1 */
-                if (i == PORT_ID_APB1) {
-                    switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL,
-                                       DEMO_SETUP_AP_B_DEVID);
-                    switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
-                                       1);
-                    deviceid_table_update(i, DEMO_SETUP_AP_B_DEVID);
-                }
-                /* LCD on APB2 */
-                if (i == PORT_ID_APB2) {
-                    switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL,
-                                       DEMO_SETUP_LCD_B_DEVID);
-                    switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
-                                       1);
-                    deviceid_table_update(i, DEMO_SETUP_LCD_B_DEVID);
+                    dbg_info("%s(): new deviceId %d for port %d\n",
+                             __func__, DEMO_SETUP_LCD_M_DEVID, i);
                 }
             }
         }
 
         /* Set default routes and parameters
          *  AP <-> LCD setup:
-         *   APB1 <-> APB2
-         *   Spring 8 (AP module) <-> Spring 11 (LCD on CON21)
+         *   Spring C (AP module) <-> Spring M (LCD module)
          */
-        dbg_ui("\nCreating Spring 8 <-> Spring 11 routing entries\n");
-        dev1 = deviceid_table_get_deviceid(PORT_ID_SPRING8);
-        dev2 = deviceid_table_get_deviceid(PORT_ID_SPRING11);
+        dbg_ui("\nCreating Spring C <-> Spring M routing entries\n");
+        dev1 = deviceid_table_get_deviceid(spring_port_map[PORT_ID_SPRING_C]);
+        dev2 = deviceid_table_get_deviceid(spring_port_map[PORT_ID_SPRING_M]);
         if (dev1 != INVALID_ID && dev2 != INVALID_ID) {
             /*
              * Set up cports:
@@ -907,21 +961,8 @@ start_switch:
                                         dev2, DEMO_SETUP_I2C_CPORT);
             switch_configure_connection(dev1, DEMO_SETUP_LCD_CPORT,
                                         dev2, DEMO_SETUP_LCD_CPORT);
-        }
-
-        dbg_ui("\nCreating APB1 <-> APB2 routing entries\n");
-        dev1 = deviceid_table_get_deviceid(PORT_ID_APB1);
-        dev2 = deviceid_table_get_deviceid(PORT_ID_APB2);
-        if (dev1 != INVALID_ID && dev2 != INVALID_ID) {
-            /*
-             * Set up cports:
-             *    [5]<->[5] for I2C
-             *    [16]<->[16] for DSI
-             */
-            switch_configure_connection(dev1, DEMO_SETUP_I2C_CPORT,
-                                        dev2, DEMO_SETUP_I2C_CPORT);
-            switch_configure_connection(dev1, DEMO_SETUP_LCD_CPORT,
-                                        dev2, DEMO_SETUP_LCD_CPORT);
+            /* Green LED */
+            debug_rgb_led(0, 1, 0);
         }
 
         /* Dump routing table */
