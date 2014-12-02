@@ -488,45 +488,84 @@ static void switch_dump_routing_table(void)
     printk("======================================================\n", __func__);
 }
 
-/* Configure the routing and parameters to allow communication to a device */
-static int switch_set_route(uint8_t deviceid)
-{
+/**
+ * @brief Set up L4 attributes for a cport
+ * @param devid device id
+ * @param cportid cport id to configure
+ * @param peer_devid peer device id
+ * @param peer_cportid peed cport to link this cport to
+ * @returns 0 on success, ERROR otherwise
+ */
+static int switch_configure_cport(uint8_t devid,
+                                  uint8_t cportid,
+                                  uint8_t peer_devid,
+                                  uint8_t peer_cportid) {
     uint8_t portid;
-    uint32_t attribute_value;
-
-    portid = deviceid_table_get_portid(deviceid);
-    if (portid == INVALID_ID)
+    portid = deviceid_table_get_portid(devid);
+    if (portid == INVALID_ID) {
+        printk("%s(): Could not find device id %u\n", __func__, devid);
         return ERROR;
+    }
 
-    /* Alter routing table */
-    switch_lut_setreq(deviceid, portid);
-
-    /* CPort config of the peer device */
     /*  Disable connection */
-    switch_peer_setreq(portid, T_CONNECTIONSTATE, NCP_SELINDEX_NULL, 0x0);
+    switch_peer_setreq(portid, T_CONNECTIONSTATE, cportid, 0x0);
+
     /*  Set CSD_n and CSV_n flags */
-    switch_peer_setreq(portid, T_CPORTFLAGS, NCP_SELINDEX_NULL, 0x6);
-    /*  TC0 */
-    switch_peer_setreq(portid, T_TRAFFICCLASS, NCP_SELINDEX_NULL, 0x0);
-    /*  CPortID 0 */
-    switch_peer_setreq(portid, T_PEERCPORTID, NCP_SELINDEX_NULL, 0x0);
-    /*  PeerDeviceID */
-    switch_peer_getreq(portid, T_PEERDEVICEID, NCP_SELINDEX_NULL,
-                       &attribute_value);
-    switch_peer_setreq(portid, T_PEERDEVICEID, NCP_SELINDEX_NULL, deviceid);
+    switch_peer_setreq(portid, T_CPORTFLAGS, cportid, 0x6);
+
+    /*  TC0 for now */
+    switch_peer_setreq(portid, T_TRAFFICCLASS, cportid, 0x0);
+
+    /*  Set peer devid/cportid for this cport */
+    switch_peer_setreq(portid, T_PEERCPORTID, cportid, peer_cportid);
+    switch_peer_setreq(portid, T_PEERDEVICEID, cportid, peer_devid);
+
     /*  Enable connection */
-    switch_peer_setreq(portid, T_CONNECTIONSTATE, NCP_SELINDEX_NULL, 0x1);
-    /*  TOSHIBA Specific Register Access Control, testing only */
-    switch_peer_getreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL,
-                       &attribute_value);
+    switch_peer_setreq(portid, T_CONNECTIONSTATE, cportid, 0x1);
+
+    return 0;
+}
+
+
+/**
+ * @brief Configure both sides of a connection at L4. Points both cports
+ *        to eachother
+ * @param devid device id
+ * @param cportid cport id to configure
+ * @param peer_devid peer device id
+ * @param peer_cportid peed cport to link this cport to
+ */
+static int switch_configure_connection(uint8_t devid,
+                                       uint8_t cportid,
+                                       uint8_t peer_devid,
+                                       uint8_t peer_cportid) {
+    switch_configure_cport(devid, cportid, peer_devid, peer_cportid);
+    switch_configure_cport(peer_devid, peer_cportid, devid, cportid);
+
+    return 0;
+}
+
+/**
+ * @brief Configure a UniPro link with defaults:
+ *      1 lane RX/TX, PWM mode gear 3
+ * @param
+ */
+static int configure_link(uint8_t devid) {
+    uint32_t val;
+    uint8_t portid;
+
+    portid = deviceid_table_get_portid(devid);
+
+   /*  TOSHIBA Specific Register Access Control, testing only */
+    switch_peer_getreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, &val);
+
     /*  COM REFCLKFREQ SEL */
     switch_peer_getreq(portid, COM_REFCLKFREQ_SEL, NCP_SELINDEX_NULL,
-                       &attribute_value);
-    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL,
-                       0x1);
+            &val);
+    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x1);
     switch_peer_setreq(portid, COM_REFCLKFREQ_SEL, NCP_SELINDEX_NULL, 0x0);
-    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL,
-                       0x0);
+    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x0);
+
     /*  Power Mode Change */
     switch_peer_setreq(portid, PA_TXGEAR, NCP_SELINDEX_NULL, 0x3);
     switch_peer_setreq(portid, PA_TXTERMINATION, NCP_SELINDEX_NULL, 0x1);
@@ -535,32 +574,50 @@ static int switch_set_route(uint8_t deviceid)
     switch_peer_setreq(portid, PA_RXGEAR, NCP_SELINDEX_NULL, 0x3);
     switch_peer_setreq(portid, PA_RXTERMINATION, NCP_SELINDEX_NULL, 0x1);
     switch_peer_setreq(portid, PA_ACTIVERXDATALANES, NCP_SELINDEX_NULL, 0x2);
-    /*   DL_FC0ProtectionTimeOutVal */
-    switch_peer_setreq(portid, PA_PWRMODEUSERDATA0, NCP_SELINDEX_NULL,
-                       0x1FFF);
 
-    /*  Change power mode to Fast Auto Mode for RX & TX */
-    switch_set_req(portid, PA_PWRMODE, NCP_SELINDEX_NULL,
-                   PA_FASTAUTOMODE_RXTX);
-    /*  Check the result of power mode change */
+    /* DL_FC0ProtectionTimeOutVal */
+    switch_peer_setreq(portid, PA_PWRMODEUSERDATA0, NCP_SELINDEX_NULL, 0x1FFF);
+
+    /* Change power mode to Fast Auto Mode for RX & TX */
+    switch_set_req(portid, PA_PWRMODE, NCP_SELINDEX_NULL, PA_FASTAUTOMODE_RXTX);
     do {
-        switch_get_req(portid, DME_POWERMODEIND, NCP_SELINDEX_NULL,
-                       &attribute_value);
-    } while (attribute_value);
+        /* Wait until the power mode change completes */
+        switch_get_req(portid, DME_POWERMODEIND, NCP_SELINDEX_NULL, &val);
+    } while (val);
 
-    /*  Set TSB_MaxSegmentConfig to 280 */
-    switch_peer_setreq(portid, TSB_MAXSEGMENTCONFIG, NCP_SELINDEX_NULL,
+    /* Set TSB_MaxSegmentConfig to 280 */
+    switch_peer_setreq(portid,
+                       TSB_MAXSEGMENTCONFIG,
+                       NCP_SELINDEX_NULL,
                        MAX_SEGMENT_CONFIG);
 
-    printk("%s(): deviceId=%d, portId=%d\n", __func__, deviceid, portid);
+    printk("%s(): deviceId=%d, portId=%d\n", __func__, devid, portid);
 
     return 0;
 }
 
+/**
+ * @brief Set up a routing entry for this device and configure the link
+ * @param devid device id to configure
+ */
+static int switch_configure_device(uint8_t devid) {
+    // Set DeviceId_Enc entry for this port
+    uint8_t portid;
+
+    portid = deviceid_table_get_portid(devid);
+    if (portid == INVALID_ID)
+        return ERROR;
+
+    /* Alter routing table */
+    switch_lut_setreq(devid, portid);
+
+    /* Bring up the link */
+    configure_link(devid);
+    return 0;
+}
 
 int switch_control(int state)
 {
-    uint8_t deviceid;
     uint32_t attr_value, link_status;
     int i;
 
@@ -695,17 +752,25 @@ int switch_control(int state)
 
         /* Set default routes and parameters */
         /*  BDB bring-up: APB1 <-> GPB1 */
-        deviceid = deviceid_table_get_deviceid(PORT_ID_APB1);
-        if (deviceid != INVALID_ID)
-            switch_set_route(deviceid);
-        else
-            printk("%s(): Cannot get APB1 deviceId\n", __func__);
-
-        deviceid = deviceid_table_get_deviceid(PORT_ID_GPB1);
-        if (deviceid != INVALID_ID)
-            switch_set_route(deviceid);
-        else
-            printk("%s(): Cannot get GPB1 deviceId\n", __func__);
+        lldbg("\n\nCreating APB<->GPB routing entries\n");
+        uint8_t dev_apb1, dev_gpb1;
+        dev_apb1 = deviceid_table_get_deviceid(PORT_ID_APB1);
+        dev_gpb1 = deviceid_table_get_deviceid(PORT_ID_GPB1);
+        if (dev_apb1 != INVALID_ID && dev_gpb1 != INVALID_ID) {
+            /*
+             * Set up APB to GPB, cports:
+             *    [0]<->[0]
+             *    [1]<->[1]
+             *    [2]<->[2]
+             *    [3]<->[3]
+             */
+            switch_configure_device(dev_apb1);
+            switch_configure_device(dev_gpb1);
+            switch_configure_connection(dev_apb1, 0, dev_gpb1, 0);
+            switch_configure_connection(dev_apb1, 1, dev_gpb1, 1);
+            switch_configure_connection(dev_apb1, 2, dev_gpb1, 2);
+            switch_configure_connection(dev_apb1, 3, dev_gpb1, 3);
+        }
 
         /* Dump routing table */
         switch_dump_routing_table();
