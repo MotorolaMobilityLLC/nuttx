@@ -7,6 +7,7 @@ CMN_ASRCS  = up_saveusercontext.S up_fullcontextrestore.S up_switchcontext.S
 CMN_ASRCS += vfork.S
 CMN_ASRCS += up_exception.S
 CMN_ASRCS += up_memcpy.S
+CMN_ASRCS += atomic.S
 
 CMN_CSRCS  = up_assert.c up_blocktask.c up_copyfullstate.c
 CMN_CSRCS += up_createstack.c up_mdelay.c up_udelay.c up_exit.c
