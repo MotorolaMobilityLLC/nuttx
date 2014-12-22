@@ -65,10 +65,15 @@ static void deviceid_table_update(uint8_t portid, uint8_t deviceid)
 /* Return destDeviceId_Enc for portId in the mapping table */
 static uint8_t deviceid_table_get_deviceid(uint8_t portid)
 {
-    if (portid < NR_INTERFACES)
-        return deviceid_table[portid];
+    uint8_t deviceid = INVALID_ID;
 
-    return INVALID_ID;
+    if (portid < NR_INTERFACES)
+        deviceid = deviceid_table[portid];
+
+    if (deviceid == INVALID_ID)
+        printk("%s(): Could not get device ID for port %u\n", __func__, portid);
+
+    return deviceid;
 }
 
 /* Look up in the mapping table for an entry that maps to deviceId */
