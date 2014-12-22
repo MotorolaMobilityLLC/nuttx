@@ -68,3 +68,7 @@ endif
 ifeq ($(CONFIG_APBRIDGE_UNIPRO),y)
 CONFIGURED_APPS += ara/apbridge-unipro
 endif
+
+ifeq ($(CONFIG_ARA_TCA_MAIN),y)
+CONFIGURED_APPS += ara/tca
+endif
