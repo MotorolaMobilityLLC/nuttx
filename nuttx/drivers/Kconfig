@@ -156,6 +156,16 @@ config ARCH_HAVE_I2CRESET
 	bool
 	default n
 
+menuconfig GPIO
+	bool "GPIO Device Support"
+	default y
+	---help---
+		Drivers for various GPIO devices
+
+if GPIO
+source drivers/gpio/Kconfig
+endif # GPIO
+
 menuconfig I2C
 	bool "I2C Driver Support"
 	default n

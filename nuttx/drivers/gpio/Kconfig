@@ -1,0 +1,13 @@
+#
+# Copyright (C) 2014 Google, Inc.
+# Author: Patrick Titiano
+# Based on Gregory Nutt <gnutt@nuttx.org> sensors Kconfig
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config GPIO_TCA6408
+    bool "TCA6408 device support"
+    default y
+    select GPIO
