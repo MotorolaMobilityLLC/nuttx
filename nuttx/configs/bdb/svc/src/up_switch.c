@@ -32,19 +32,26 @@
 #include "bdb-internal.h"
 
 /* switch_control parameter */
-#define SWITCH_DEINIT       0
-#define SWITCH_INIT         1
-#define SWITCH_CHECK_LINKUP 2
+#define SWITCH_DEINIT               0
+#define SWITCH_INIT                 1
+#define SWITCH_CHECK_LINKUP         2
 
+/*
+ * AP <-> LCD Demo defines
+ */
 /* DeviceIDs for modules */
-#define DEMO_SETUP_AP_M_DEVID   10
-#define DEMO_SETUP_LCD_M_DEVID  14
+#define DEMO_SETUP_AP_M_DEVID       10
+#define DEMO_SETUP_LCD_M_DEVID      14
 /* DeviceIDs for on-board bridges */
-#define DEMO_SETUP_AP_B_DEVID   20
-#define DEMO_SETUP_LCD_B_DEVID  24
+#define DEMO_SETUP_AP_B_DEVID       20
+#define DEMO_SETUP_LCD_B_DEVID      24
 /* CPorts in use */
-#define DEMO_SETUP_I2C_CPORT    5
-#define DEMO_SETUP_LCD_CPORT    16
+#define DEMO_SETUP_I2C_CPORT        5
+#define DEMO_SETUP_LCD_CPORT        16
+/* Settle delays, in second */
+#define SWITCH_SETTLE_INITIAL_DELAY 2
+#define SWITCH_SETTLE_DELAY         1
+#define BRIDGE_SETTLE_DELAY         5
 
 
 /* portId to destDeviceId_Enc mapping table */
@@ -437,7 +444,8 @@ int switch_get_req(uint8_t portid, uint16_t attrid,
  * @brief Get the valid bitmask for routing table entries
  * @param bitmask destination on where to store the result
  */
-static int switch_deviceidmask_getreq(uint8_t *bitmask) {
+static int switch_deviceidmask_getreq(uint8_t *bitmask)
+{
     uint8_t msg[] = {
         SWITCH_DEVICE_ID,
         NCP_RESERVED,
@@ -526,6 +534,75 @@ out:
     dbg_info("======================================================\n");
 }
 
+static void switch_show_link_state(uint8_t portid)
+{
+    uint32_t num_cports, deviceid, peerdeviceid, peercportid;
+    int i;
+
+    switch_peer_getreq(portid, T_NUMCPORTS, NCP_SELINDEX_NULL, &num_cports);
+    switch_peer_getreq(portid, N_DEVICEID, NCP_SELINDEX_NULL, &deviceid);
+    dbg_info("%s(): portID %d: N_DeviceID=%d, T_NumCPorts=%d\n", __func__,
+             portid, deviceid, num_cports);
+
+    for (i = 0; i < num_cports; i++) {
+        switch_peer_getreq(portid, T_PEERDEVICEID, i, &peerdeviceid);
+        switch_peer_getreq(portid, T_PEERCPORTID, i, &peercportid);
+        dbg_info(" | CPortID %2d | PeerDeviceID %2d | PeerCPortID %2d |\n",
+                 i, peerdeviceid, peercportid);
+    }
+}
+
+/**
+ * @brief Configure a UniPro link with defaults:
+ *      2 lanes RX/TX, PWM mode as PA_GEAR
+ * @param
+ */
+static int switch_configure_link(uint8_t devid)
+{
+    uint32_t val;
+    uint8_t portid;
+
+    portid = deviceid_table_get_portid(devid);
+
+    /*  TOSHIBA Specific Register Access Control, testing only */
+    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x1);
+    /*  COM REFCLKFREQ SEL */
+    switch_peer_setreq(portid, COM_REFCLKFREQ_SEL, NCP_SELINDEX_NULL, 0x0);
+    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x0);
+
+    /*  Power Mode Change in the switch */
+    /* Q: should the peer device settings be changed as well ? */
+    switch_set_req(portid, PA_TXGEAR, NCP_SELINDEX_NULL, PA_GEAR);
+    switch_set_req(portid, PA_TXTERMINATION, NCP_SELINDEX_NULL, 0x1);
+    switch_set_req(portid, PA_HSSERIES, NCP_SELINDEX_NULL, 0x1);
+    switch_set_req(portid, PA_ACTIVETXDATALANES, NCP_SELINDEX_NULL,
+                           PA_ACTIVE_TX_DATA_LANES_NR);
+    switch_set_req(portid, PA_RXGEAR, NCP_SELINDEX_NULL, PA_GEAR);
+    switch_set_req(portid, PA_RXTERMINATION, NCP_SELINDEX_NULL, 0x1);
+    switch_set_req(portid, PA_ACTIVERXDATALANES, NCP_SELINDEX_NULL,
+                           PA_ACTIVE_RX_DATA_LANES_NR);
+
+    /* DL_FC0ProtectionTimeOutVal */
+    switch_set_req(portid, PA_PWRMODEUSERDATA0, NCP_SELINDEX_NULL, 0x1FFF);
+
+    /* Change power mode to Fast Auto Mode for RX & TX */
+    switch_set_req(portid, PA_PWRMODE, NCP_SELINDEX_NULL, PA_FASTMODE_RXTX);
+    do {
+        /* Wait until the power mode change completes */
+        switch_get_req(portid, DME_POWERMODEIND, NCP_SELINDEX_NULL, &val);
+    } while (val != DME_POWERMODEIND_SUCCESS);
+
+    /* Set TSB_MaxSegmentConfig */
+    switch_peer_setreq(portid,
+                       TSB_MAXSEGMENTCONFIG,
+                       NCP_SELINDEX_NULL,
+                       MAX_SEGMENT_CONFIG);
+
+    dbg_info("%s(): deviceId=%d, portId=%d\n", __func__, devid, portid);
+
+    return 0;
+}
+
 /**
  * @brief Set up L4 attributes for a cport
  * @param devid device id
@@ -537,7 +614,8 @@ out:
 static int switch_configure_cport(uint8_t devid,
                                   uint8_t cportid,
                                   uint8_t peer_devid,
-                                  uint8_t peer_cportid) {
+                                  uint8_t peer_cportid)
+{
     uint8_t portid;
 
     dbg_info("%s(): deviceId=%u, CPortId=%u, PeerDeviceId=%u, PeerCPortId=%u\n",
@@ -580,83 +658,19 @@ static int switch_configure_cport(uint8_t devid,
 static int switch_configure_connection(uint8_t devid,
                                        uint8_t cportid,
                                        uint8_t peer_devid,
-                                       uint8_t peer_cportid) {
+                                       uint8_t peer_cportid)
+{
+    /* Configure peer device and port IDs */
     switch_configure_cport(devid, cportid, peer_devid, peer_cportid);
     switch_configure_cport(peer_devid, peer_cportid, devid, cportid);
 
-    return 0;
-}
+    /* Configure the link power settings */
+    switch_configure_link(devid);
+    switch_configure_link(peer_devid);
 
-/**
- * @brief Configure a UniPro link with defaults:
- *      1 lane RX/TX, PWM mode gear 3
- * @param
- */
-static int configure_link(uint8_t devid) {
-    uint32_t val;
-    uint8_t portid;
-
-    portid = deviceid_table_get_portid(devid);
-    if (portid == INVALID_ID)
-        return ERROR;
-
-    /* TOSHIBA Specific Register Access Control, testing only */
-    switch_peer_getreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, &val);
-
-    /* COM REFCLKFREQ SEL */
-    switch_peer_getreq(portid, COM_REFCLKFREQ_SEL, NCP_SELINDEX_NULL,
-            &val);
-    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x1);
-    switch_peer_setreq(portid, COM_REFCLKFREQ_SEL, NCP_SELINDEX_NULL, 0x0);
-    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x0);
-
-    /* Power Mode Change */
-    switch_peer_setreq(portid, PA_TXGEAR, NCP_SELINDEX_NULL, 0x3);
-    switch_peer_setreq(portid, PA_TXTERMINATION, NCP_SELINDEX_NULL, 0x1);
-    switch_peer_setreq(portid, PA_HSSERIES, NCP_SELINDEX_NULL, 0x1);
-    switch_peer_setreq(portid, PA_ACTIVETXDATALANES, NCP_SELINDEX_NULL, 0x2);
-    switch_peer_setreq(portid, PA_RXGEAR, NCP_SELINDEX_NULL, 0x3);
-    switch_peer_setreq(portid, PA_RXTERMINATION, NCP_SELINDEX_NULL, 0x1);
-    switch_peer_setreq(portid, PA_ACTIVERXDATALANES, NCP_SELINDEX_NULL, 0x2);
-
-    /* DL_FC0ProtectionTimeOutVal */
-    switch_peer_setreq(portid, PA_PWRMODEUSERDATA0, NCP_SELINDEX_NULL, 0x1FFF);
-
-    /* Change power mode to Fast Auto Mode for RX & TX */
-    switch_set_req(portid, PA_PWRMODE, NCP_SELINDEX_NULL, PA_FASTAUTOMODE_RXTX);
-    do {
-        /* Wait until the power mode change completes */
-        switch_get_req(portid, DME_POWERMODEIND, NCP_SELINDEX_NULL, &val);
-    } while (val);
-
-    /* Set TSB_MaxSegmentConfig to 280 */
-    switch_peer_setreq(portid,
-                       TSB_MAXSEGMENTCONFIG,
-                       NCP_SELINDEX_NULL,
-                       MAX_SEGMENT_CONFIG);
-
-    dbg_info("%s(): deviceId=%d, portId=%d\n", __func__, devid, portid);
-
-    return 0;
-}
-
-/**
- * @brief Set up a routing entry for this device and configure the link
- * @param devid device id to configure
- */
-static int switch_configure_device(uint8_t devid) {
-    // Set DeviceId_Enc entry for this port
-    uint8_t portid;
-
-    portid = deviceid_table_get_portid(devid);
-    if (portid == INVALID_ID)
-        return ERROR;
-
-    /* Alter routing table */
-    switch_lut_setreq(devid, portid);
-
-    /* Bring up the link */
-    configure_link(devid);
+    /* Dump link info */
+    switch_show_link_state(devid);
+    switch_show_link_state(peer_devid);
 
     return 0;
 }
@@ -705,6 +719,9 @@ int switch_control(int state)
         bdb_gpb1_enable();
         bdb_gpb2_enable();
 
+        /* Switch settle delay */
+        sleep(SWITCH_SETTLE_INITIAL_DELAY);
+
         /* Get switch version */
         switch_get_attribute(SWVER, &attr_value);
 
@@ -721,7 +738,7 @@ int switch_control(int state)
                          CPORT_ENABLE, IRT_DISABLE);
 
         /* Let the switch boot and the links settle */
-        usleep(500000);
+        sleep(SWITCH_SETTLE_INITIAL_DELAY);
 
         /* Pass through for routes and connection setup */
 
@@ -759,8 +776,30 @@ int switch_control(int state)
                                    &attr_value);
                 switch_peer_getreq(i, DME_DDBL2_PID, NCP_SELINDEX_NULL,
                                    &attr_value);
+                switch_peer_getreq(i, PA_CONNECTEDTXDATALANES,
+                                   NCP_SELINDEX_NULL, &attr_value);
+                if (attr_value != PA_CONN_TX_DATA_LANES_NR)
+                    dbg_error("%s(): Error: Connected TX Data lines=%d\n",
+                              __func__, attr_value);
+                switch_peer_getreq(i, PA_CONNECTEDRXDATALANES,
+                                   NCP_SELINDEX_NULL, &attr_value);
+                if (attr_value != PA_CONN_RX_DATA_LANES_NR)
+                    dbg_error("%s(): Error: Connected RX Data lines=%d\n",
+                              __func__, attr_value);
             }
         }
+
+        /* Let the bridges boot and initialize */
+        sleep(BRIDGE_SETTLE_DELAY);
+
+        /* Setup initial routes */
+        switch_lut_setreq(DEMO_SETUP_AP_M_DEVID, PORT_ID_SPRING8);
+        switch_lut_setreq(DEMO_SETUP_LCD_M_DEVID, PORT_ID_SPRING11);
+        switch_lut_setreq(DEMO_SETUP_AP_B_DEVID, PORT_ID_APB1);
+        switch_lut_setreq(DEMO_SETUP_LCD_B_DEVID, PORT_ID_APB2);
+
+        /* Wait for switch to settle */
+        sleep(SWITCH_SETTLE_DELAY);
 
         /*
          * Set initial destDeviceId_Enc and routes
@@ -848,8 +887,6 @@ int switch_control(int state)
              *    [5]<->[5] for I2C
              *    [16]<->[16] for DSI
              */
-            switch_configure_device(dev1);
-            switch_configure_device(dev2);
             switch_configure_connection(dev1, DEMO_SETUP_I2C_CPORT,
                                         dev2, DEMO_SETUP_I2C_CPORT);
             switch_configure_connection(dev1, DEMO_SETUP_LCD_CPORT,
@@ -865,8 +902,6 @@ int switch_control(int state)
              *    [5]<->[5] for I2C
              *    [16]<->[16] for DSI
              */
-            switch_configure_device(dev1);
-            switch_configure_device(dev2);
             switch_configure_connection(dev1, DEMO_SETUP_I2C_CPORT,
                                         dev2, DEMO_SETUP_I2C_CPORT);
             switch_configure_connection(dev1, DEMO_SETUP_LCD_CPORT,

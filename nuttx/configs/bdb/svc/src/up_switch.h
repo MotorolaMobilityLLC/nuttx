@@ -54,16 +54,19 @@
 /* Unipro attributes */
 #define T_REGACCCTRL_TESTONLY       0x007F
 #define PA_ACTIVETXDATALANES        0x1560
+#define PA_CONNECTEDTXDATALANES     0x1561
 #define PA_TXGEAR                   0x1568
 #define PA_TXTERMINATION            0x1569
 #define PA_HSSERIES                 0x156A
 #define PA_PWRMODE                  0x1571
 #define PA_ACTIVERXDATALANES        0x1580
+#define PA_CONNECTEDRXDATALANES     0x1581
 #define PA_RXGEAR                   0x1583
 #define PA_RXTERMINATION            0x1584
 #define PA_PWRMODEUSERDATA0         0x15B0
 #define N_DEVICEID                  0x3000
 #define N_DEVICEID_VALID            0x3001
+#define T_NUMCPORTS                 0x4000
 #define T_CONNECTIONSTATE           0x4020
 #define T_PEERDEVICEID              0x4021
 #define T_PEERCPORTID               0x4022
@@ -85,8 +88,16 @@
 #define NCP_SELINDEX_NULL           0x00
 
 /* Unipro attributes values */
+#define PA_CONN_TX_DATA_LANES_NR    2
+#define PA_CONN_RX_DATA_LANES_NR    2
+#define PA_ACTIVE_TX_DATA_LANES_NR  2
+#define PA_ACTIVE_RX_DATA_LANES_NR  2
 #define MAX_SEGMENT_CONFIG          280
+#define PA_FASTMODE_RXTX            0x11
 #define PA_FASTAUTOMODE_RXTX        0x44
+#define PA_GEAR                     0x1
+#define DME_POWERMODEIND_SUCCESS    2
+
 /*  Toshiba specific */
 #define COM_REFCLKFREQ_SEL          0x8032
 
