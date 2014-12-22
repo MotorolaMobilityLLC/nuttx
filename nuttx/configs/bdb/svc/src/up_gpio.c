@@ -45,6 +45,14 @@ void gpio_init(void)
     stm32_gpiowrite(GPIO_LED_EN, true);
     /* Switch reset line */
     stm32_configgpio(GPIO_SW_RST_40uS);
+
+    /* Assert the Springs wakeout lines */
+    stm32_configgpio(GPIO_BB1_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
+    stm32_configgpio(GPIO_BB2_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
+    stm32_configgpio(GPIO_BB3_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
+    stm32_configgpio(GPIO_BB4_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
+    stm32_configgpio(GPIO_BB5_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
+    stm32_configgpio(GPIO_BB6_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
 }
 
 void svc_irq_enable(void)
