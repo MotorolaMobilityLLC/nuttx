@@ -31,6 +31,22 @@
 
 #include "bdb-internal.h"
 
+/* switch_control parameter */
+#define SWITCH_DEINIT       0
+#define SWITCH_INIT         1
+#define SWITCH_CHECK_LINKUP 2
+
+/* DeviceIDs for modules */
+#define DEMO_SETUP_AP_M_DEVID   10
+#define DEMO_SETUP_LCD_M_DEVID  14
+/* DeviceIDs for on-board bridges */
+#define DEMO_SETUP_AP_B_DEVID   20
+#define DEMO_SETUP_LCD_B_DEVID  24
+/* CPorts in use */
+#define DEMO_SETUP_I2C_CPORT    5
+#define DEMO_SETUP_LCD_CPORT    16
+
+
 /* portId to destDeviceId_Enc mapping table */
 uint8_t deviceid_table[NR_INTERFACES];
 
@@ -648,6 +664,7 @@ static int switch_configure_device(uint8_t devid) {
 int switch_control(int state)
 {
     uint32_t attr_value, link_status;
+    uint8_t dev1, dev2;
     int i;
 
     dbg_info("%s(): state %d\n", __func__, state);
@@ -668,7 +685,8 @@ int switch_control(int state)
     deviceid_table_init();
     deviceid_table_update(PORT_ID_SWITCH, SWITCH_DEVICE_ID);
 
-    if (state == 0) {
+    switch (state) {
+    case SWITCH_DEINIT:
         /* De-init */
         gpio_clr_debug();
         bdb_apb1_disable();
@@ -676,7 +694,8 @@ int switch_control(int state)
         bdb_apb3_disable();
         bdb_gpb1_disable();
         bdb_gpb2_disable();
-    } else {
+        break;
+    case SWITCH_INIT:
         /* Init */
         gpio_set_debug();
         switch_reset();
@@ -701,8 +720,16 @@ int switch_control(int state)
         switch_id_setreq(L4_CPORT_CC_TO_SVC, L4_PEERCPORT_CC_TO_SVC,
                          CPORT_ENABLE, IRT_DISABLE);
 
-        /* Get switch version, detect devices on the link */
+        /* Let the switch boot and the links settle */
         usleep(500000);
+
+        /* Pass through for routes and connection setup */
+
+    case SWITCH_CHECK_LINKUP:
+        /*
+         * Get link up status, detect devices on the link and
+         * setup default routes
+         */
         switch_get_attribute(SWSTA, &link_status);
 
         /* Get attributes from connected devices */
@@ -760,49 +787,97 @@ int switch_control(int state)
          *  The rest of the destDeviceId_Enc are assigned by the AP
          *  upon detection
          *
-         * Initial routes:
-         *  .(Initial bring-up) APB1 <-> GPB1
-         *  .to detected AP
+         * AP <-> LCD setup:
+         *  destDeviceId_Enc are set to:
+         *   SWITCH_DEVICE_ID = 0 for switch
+         *   10/20 for the AP as module or on-board bridge,
+         *   14/24 for the LCD as module or on-board bridge,
+         *   CPorts: 5 (I2C) and 16 (DSI)
          */
 
         /* Set destDeviceId_Enc and route for the connected devices */
         for (i = 0; i < NR_INTERFACES; i++) {
             if (link_status & (1 << i)) {
-                /*
-                 * Board bring-up phase style:
-                 * destDeviceId_Enc is portId + 1
-                 */
-                switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL, i + 1);
-                switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
-                                   1);
-                deviceid_table_update(i, i + 1);
+                /* AP module on Spring 8 */
+                if (i == PORT_ID_SPRING8) {
+                    switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL,
+                                       DEMO_SETUP_AP_M_DEVID);
+                    switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
+                                       1);
+                    deviceid_table_update(i, DEMO_SETUP_AP_M_DEVID);
+                }
+                /* LCD module on Spring 11 */
+                if (i == PORT_ID_SPRING11) {
+                    switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL,
+                                       DEMO_SETUP_LCD_M_DEVID);
+                    switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
+                                       1);
+                    deviceid_table_update(i, DEMO_SETUP_LCD_M_DEVID);
+                }
+
+                /* AP on APB1 */
+                if (i == PORT_ID_APB1) {
+                    switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL,
+                                       DEMO_SETUP_AP_B_DEVID);
+                    switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
+                                       1);
+                    deviceid_table_update(i, DEMO_SETUP_AP_B_DEVID);
+                }
+                /* LCD on APB2 */
+                if (i == PORT_ID_APB2) {
+                    switch_peer_setreq(i, N_DEVICEID, NCP_SELINDEX_NULL,
+                                       DEMO_SETUP_LCD_B_DEVID);
+                    switch_peer_setreq(i, N_DEVICEID_VALID, NCP_SELINDEX_NULL,
+                                       1);
+                    deviceid_table_update(i, DEMO_SETUP_LCD_B_DEVID);
+                }
             }
         }
 
-        /* Set default routes and parameters */
-        /*  BDB bring-up: APB1 <-> GPB1 */
-        dbg_ui("\n\nCreating APB<->GPB routing entries\n");
-        uint8_t dev_apb1, dev_gpb1;
-        dev_apb1 = deviceid_table_get_deviceid(PORT_ID_APB1);
-        dev_gpb1 = deviceid_table_get_deviceid(PORT_ID_GPB1);
-        if (dev_apb1 != INVALID_ID && dev_gpb1 != INVALID_ID) {
+        /* Set default routes and parameters
+         *  AP <-> LCD setup:
+         *   APB1 <-> APB2
+         *   Spring 8 (AP module) <-> Spring 11 (LCD on CON21)
+         */
+        dbg_ui("\nCreating Spring 8 <-> Spring 11 routing entries\n");
+        dev1 = deviceid_table_get_deviceid(PORT_ID_SPRING8);
+        dev2 = deviceid_table_get_deviceid(PORT_ID_SPRING11);
+        if (dev1 != INVALID_ID && dev2 != INVALID_ID) {
             /*
-             * Set up APB to GPB, cports:
-             *    [0]<->[0]
-             *    [1]<->[1]
-             *    [2]<->[2]
-             *    [3]<->[3]
+             * Set up cports:
+             *    [5]<->[5] for I2C
+             *    [16]<->[16] for DSI
              */
-            switch_configure_device(dev_apb1);
-            switch_configure_device(dev_gpb1);
-            switch_configure_connection(dev_apb1, 0, dev_gpb1, 0);
-            switch_configure_connection(dev_apb1, 1, dev_gpb1, 1);
-            switch_configure_connection(dev_apb1, 2, dev_gpb1, 2);
-            switch_configure_connection(dev_apb1, 3, dev_gpb1, 3);
+            switch_configure_device(dev1);
+            switch_configure_device(dev2);
+            switch_configure_connection(dev1, DEMO_SETUP_I2C_CPORT,
+                                        dev2, DEMO_SETUP_I2C_CPORT);
+            switch_configure_connection(dev1, DEMO_SETUP_LCD_CPORT,
+                                        dev2, DEMO_SETUP_LCD_CPORT);
+        }
+
+        dbg_ui("\nCreating APB1 <-> APB2 routing entries\n");
+        dev1 = deviceid_table_get_deviceid(PORT_ID_APB1);
+        dev2 = deviceid_table_get_deviceid(PORT_ID_APB2);
+        if (dev1 != INVALID_ID && dev2 != INVALID_ID) {
+            /*
+             * Set up cports:
+             *    [5]<->[5] for I2C
+             *    [16]<->[16] for DSI
+             */
+            switch_configure_device(dev1);
+            switch_configure_device(dev2);
+            switch_configure_connection(dev1, DEMO_SETUP_I2C_CPORT,
+                                        dev2, DEMO_SETUP_I2C_CPORT);
+            switch_configure_connection(dev1, DEMO_SETUP_LCD_CPORT,
+                                        dev2, DEMO_SETUP_LCD_CPORT);
         }
 
         /* Dump routing table */
         switch_dump_routing_table();
+        break;
+    default:
+        break;
     }
 
     return 0;
