@@ -534,3 +534,7 @@ endif # WIRELESS
 comment "System Logging Device Options"
 
 source drivers/syslog/Kconfig
+
+config GREYBUS
+	bool "Greybus support"
+	default n

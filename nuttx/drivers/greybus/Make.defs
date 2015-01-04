@@ -1,0 +1,14 @@
+#
+# Copyright (c) 2014 Google, Inc.
+# Google Confidential/Restricted
+#
+
+ifeq ($(CONFIG_GREYBUS),y)
+
+CSRCS += greybus-core.c
+CSRCS += greybus-unipro.c
+
+DEPPATH += --dep-path greybus
+VPATH += :greybus
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)greybus}
+endif
