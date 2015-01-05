@@ -25,7 +25,7 @@
 #include "dwc_otg_pcd_if.h"
 #include "dwc_otg_pcd.h"
 
-#include "chip.h"
+#include "tsb_scm.h"
 
 #define SNPSID_MASK 0xFFFFF000
 #define SNPSID_OTG2 0x4F542000
@@ -546,6 +546,16 @@ int up_usbinitialize_core(struct dwc_usbdev_s *priv)
 
     memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
     dwc_otg_device->os_dep.reg_offset = 0xFFFFFFFF;
+
+    /*
+     * Enable the DWC_otg clocks
+     */
+    tsb_clk_enable(TSB_CLK_HSIC480);
+    tsb_clk_enable(TSB_CLK_HSICREF);
+    tsb_clk_enable(TSB_CLK_HSICBUS);
+    tsb_reset(TSB_RST_HSIC);
+    tsb_reset(TSB_RST_HSICPHY);
+    tsb_reset(TSB_RST_HSICPOR);
 
     /*
      * Map the DWC_otg Core memory
