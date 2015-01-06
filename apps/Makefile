@@ -49,7 +49,7 @@ TOPDIR ?= $(APPDIR)/import
 
 CONFIGURED_APPS =
 SUBDIRS  = examples graphics interpreters modbus builtin import nshlib
-SUBDIRS += netutils platform system
+SUBDIRS += netutils platform system greybus-utils
 
 # The list of configured directories is derived from NuttX configuration
 # file:  The selected applications are enabled settings in the configuration
@@ -74,6 +74,7 @@ include nshlib/Make.defs
 include platform/Make.defs
 include system/Make.defs
 -include external/Make.defs
+include greybus-utils/Make.defs
 
 # INSTALLED_APPS is the list of currently available application directories.  It
 # is the same as CONFIGURED_APPS, but filtered to exclude any non-existent

@@ -8,4 +8,5 @@ source "$APPSDIR/ara/epm/Kconfig"
 source "$APPSDIR/ara/svc_power/Kconfig"
 source "$APPSDIR/ara/svc/Kconfig"
 source "$APPSDIR/ara/unipro/Kconfig"
+source "$APPSDIR/ara/apbridge/Kconfig"
 

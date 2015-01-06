@@ -1,0 +1,10 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config APBRIDGE
+	bool "APBridge FW without UniPro layer"
+	select DISABLE_UNIPRO
+	default n
+

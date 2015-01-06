@@ -56,3 +56,11 @@ endif
 ifeq ($(CONFIG_ARA_UNIPRO_MAIN),y)
 CONFIGURED_APPS += ara/unipro
 endif
+
+ifeq ($(CONFIG_ARA_SVC_EPM),y)
+CONFIGURED_APPS += ara/epm
+endif
+
+ifeq ($(CONFIG_APBRIDGE),y)
+CONFIGURED_APPS += ara/apbridge
+endif
