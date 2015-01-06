@@ -66,6 +66,14 @@ extern char *dbg_msg;
 /* Small statically allocated buffer, use as a rescue in case of OOM */
 extern char dbg_rescue[DBG_RESCUE_SIZE];
 
+/* Debug helper macros */
+#define dbg_insane(fmt, ...)    dbg_pr(DBG_INSANE, fmt, ##__VA_ARGS__)
+#define dbg_verbose(fmt, ...)   dbg_pr(DBG_VERBOSE, fmt, ##__VA_ARGS__)
+#define dbg_info(fmt, ...)      dbg_pr(DBG_INFO, fmt, ##__VA_ARGS__)
+#define dbg_warn(fmt, ...)      dbg_pr(DBG_WARN, fmt, ##__VA_ARGS__)
+#define dbg_error(fmt, ...)     dbg_pr(DBG_ERROR, fmt, ##__VA_ARGS__)
+#define dbg_ui(fmt, ...)        dbg_pr(DBG_UI, fmt, ##__VA_ARGS__)
+
 /* Macro value stringify magic */
 #define xstr(s)	str(s)
 #define str(s)	#s

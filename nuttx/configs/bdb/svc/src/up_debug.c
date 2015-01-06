@@ -24,7 +24,7 @@ void dbg_get_config(uint32_t *comp, uint32_t *level)
     *comp = dbg_ctrl.comp;
     *level = dbg_ctrl.lvl;
 
-    dbg_pr(DBG_INFO, "%s(): debug comp=0x%x, level=%d\n", __func__,
+    dbg_info("%s(): debug comp=0x%x, level=%d\n", __func__,
            dbg_ctrl.comp, dbg_ctrl.lvl);
 }
 
@@ -38,7 +38,7 @@ int dbg_set_config(uint32_t comp, uint32_t level)
     dbg_ctrl.comp = comp;
     dbg_ctrl.lvl = level;
 
-    dbg_pr(DBG_INFO, "%s(): debug comp=0x%x, level=%d\n", __func__,
+    dbg_info("%s(): debug comp=0x%x, level=%d\n", __func__,
            dbg_ctrl.comp, dbg_ctrl.lvl);
 
     return 0;
