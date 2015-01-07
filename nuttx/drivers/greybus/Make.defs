@@ -8,6 +8,7 @@ ifeq ($(CONFIG_GREYBUS),y)
 CSRCS += greybus-core.c
 CSRCS += greybus-unipro.c
 CSRCS += gpio.c
+CSRCS += i2c.c
 
 DEPPATH += --dep-path greybus
 VPATH += :greybus
