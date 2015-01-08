@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 
-#define CPORT_MAX                   (32)
+#define CPORT_MAX                   (44)
 #define CPORT_BUF_SIZE              (1024)
 
 struct unipro_driver {
