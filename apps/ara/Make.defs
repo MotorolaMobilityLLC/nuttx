@@ -72,3 +72,7 @@ endif
 ifeq ($(CONFIG_ARA_TCA_MAIN),y)
 CONFIGURED_APPS += ara/tca
 endif
+
+ifeq ($(CONFIG_ARA_LG_MAIN),y)
+CONFIGURED_APPS += ara/lg
+endif
