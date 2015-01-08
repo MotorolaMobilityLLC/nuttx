@@ -6,7 +6,7 @@ ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c
-CSRCS		+= lg4892.c
+CSRCS		+= lg4892.c lg4892_ts.c lg4892_ts_fw.c
 
 ifeq ($(CONFIG_NX_LCDDRIVER),y)
 CSRCS		+= up_lcd.c
