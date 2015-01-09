@@ -36,24 +36,11 @@ void gpio_init(void)
     dbg_info("%s()\n", __func__);
 
     /* Configure GPIOs for output */
-    /*  Debug pins to J53 */
-    stm32_configgpio(GPIO_DBG_1);
-    stm32_configgpio(GPIO_DBG_2);
-    stm32_configgpio(GPIO_DBG_3);
-    stm32_configgpio(GPIO_DBG_4);
     /* Enable LEDs control: SVC_LED_EN */
     stm32_configgpio(GPIO_LED_EN);
     stm32_gpiowrite(GPIO_LED_EN, true);
     /* Switch reset line */
     stm32_configgpio(GPIO_SW_RST_40uS);
-
-    /* Assert the Springs wakeout lines */
-    stm32_configgpio(GPIO_BB1_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
-    stm32_configgpio(GPIO_BB2_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
-    stm32_configgpio(GPIO_BB3_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
-    stm32_configgpio(GPIO_BB4_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
-    stm32_configgpio(GPIO_BB5_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
-    stm32_configgpio(GPIO_BB6_WAKE_OUT | GPIO_OUTPUT | GPIO_OUTPUT_SET);
 }
 
 void svc_irq_enable(void)
@@ -68,30 +55,6 @@ void svc_irq_enable(void)
 void svc_irq_disable(void)
 {
     stm32_gpiosetevent(GPIO_SVC_IRQ, false, true, true, NULL);
-}
-
-/* Clear DBG_1 debug line */
-void gpio_clr_debug(void)
-{
-    dbg_verbose("%s()\n", __func__);
-    stm32_gpiowrite(GPIO_DBG_1, false);
-}
-
-/* Set DBG_1 debug line */
-void gpio_set_debug(void)
-{
-    dbg_verbose("%s()\n", __func__);
-    stm32_gpiowrite(GPIO_DBG_1, true);
-}
-
-/* Dump state of the DBG_* debug lines */
-void stm32_gpio_dump(void)
-{
-    dbg_verbose("%s()\n", __func__);
-    stm32_dumpgpio(GPIO_DBG_1, "dumpgpio");
-    stm32_dumpgpio(GPIO_DBG_2, "dumpgpio");
-    stm32_dumpgpio(GPIO_DBG_3, "dumpgpio");
-    stm32_dumpgpio(GPIO_DBG_4, "dumpgpio");
 }
 
 static int svc_irq_handler(int irq, void *context)

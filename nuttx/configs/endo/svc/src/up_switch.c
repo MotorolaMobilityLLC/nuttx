@@ -682,13 +682,18 @@ int switch_control(int state)
 
     dbg_info("%s(): state %d\n", __func__, state);
 
-    /* Init GPIO pins for debug, SVC IRQ, bridges power supplies */
+    /* Init GPIO pins for debug, SVC IRQ */
     gpio_init();
-    bdb_apb1_init();
-    bdb_apb2_init();
-    bdb_apb3_init();
-    bdb_gpb1_init();
-    bdb_gpb2_init();
+
+    /* Init GPIO pins for interfaces power supplies and WAKEOUT */
+    power_interface_block_init();
+
+    /* Enable internal power supplies */
+    power_enable_internal();
+
+    /* Wake-up/power-up all interfaces */
+    /* For development: assert WAKEOUT on all interfaces */
+    power_set_wakeout(0xFFFFFFFF, true);
 
     /* Init comm with the switch */
     if (i2c_init_comm(I2C_SW_BUS))
@@ -701,22 +706,19 @@ int switch_control(int state)
     switch (state) {
     case SWITCH_DEINIT:
         /* De-init */
-        gpio_clr_debug();
-        bdb_apb1_disable();
-        bdb_apb2_disable();
-        bdb_apb3_disable();
-        bdb_gpb1_disable();
-        bdb_gpb2_disable();
+        /* Power down all interface blocks */
+        for (i = 0; i < PWR_SPRING_NR; i++)
+            power_set_power(i, false);
         break;
+
     case SWITCH_INIT:
         /* Init */
-        gpio_set_debug();
+        /* Power-up all interface blocks */
+        for (i = 0; i < PWR_SPRING_NR; i++)
+            power_set_power(i, true);
+
+        /* Reset switch */
         switch_reset();
-        bdb_apb1_enable();
-        bdb_apb2_enable();
-        bdb_apb3_enable();
-        bdb_gpb1_enable();
-        bdb_gpb2_enable();
 
         /* Switch settle delay */
         sleep(SWITCH_SETTLE_INITIAL_DELAY);

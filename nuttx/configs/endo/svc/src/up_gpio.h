@@ -14,8 +14,6 @@ extern sem_t svc_irq_sem;
 
 /* Exported functions */
 void gpio_init(void);
-void gpio_clr_debug(void);
-void gpio_set_debug(void);
 
 void svc_irq_enable(void);
 void svc_irq_disable(void);
