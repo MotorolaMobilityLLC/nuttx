@@ -12,4 +12,5 @@ source "$APPSDIR/ara/apbridge/Kconfig"
 source "$APPSDIR/ara/apbridge-unipro/Kconfig"
 source "$APPSDIR/ara/tca/Kconfig"
 source "$APPSDIR/ara/lg/Kconfig"
+source "$APPSDIR/ara/gpbridge/Kconfig"
 
