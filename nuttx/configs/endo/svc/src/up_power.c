@@ -268,46 +268,33 @@ void power_set_wakeout(uint32_t int_mask, bool assert)
     }
 }
 
-/* Wake and detect validation code */
-void validate_wake_detect(void)
+/* Read Wake and Detect states, for ~10s then exit */
+void power_read_wake_detect(void)
 {
-    /*
-     * APB1 pins:
-     * - interface pin: R310/R318
-     * - detect_in: U96/P01, R368
-     * - wake_in: U96/P02, R367
-     * - wake_out: PI0
-     *
-     * BB1 pins:
-     * - interface pin: J87/1
-     * - detect_in: U96/P20
-     * - wake_in: U96/P21
-     * - wake_out: PH13
-     */
     uint8_t msg[4];
     uint32_t x = 0;
 
     dbg_info("%s()\n", __func__);
 
     // configure IO Expander pins as input
-    msg[0] = 0x8C;
+    msg[0] = 0x06;
     msg[1] = 0xFF;
     msg[2] = 0xFF;
-    msg[3] = 0xFF;
-    i2c_ioexp_write(msg, 4, I2C_ADDR_IOEXP_U96);
+    i2c_ioexp_write(msg, 3, I2C_ADDR_IOEXP_U601);
 
-    msg[0] = 0x03;
+    msg[0] = 0x06;
     msg[1] = 0xFF;
-    i2c_ioexp_write(msg, 2, I2C_ADDR_IOEXP_U90);
+    msg[2] = 0xFF;
+    i2c_ioexp_write(msg, 3, I2C_ADDR_IOEXP_U602);
 
     svc_irq_enable();
 
-    while (1) {
+    while (x < 500) {
         /* Check if we got an IRQ, if so let's handle it */
         if (sem_trywait(&svc_irq_sem) == 0)
             ioexp_read_iopins();
 
-        // Generate a module wake up pulse every x cycles
+        /* Generate a wake up pulse on spring M (display) every x cycles */
         if ((x & 0xff) == 14) {
             dbg_info("%s(): wakeout pulse on\n", __func__);
             power_set_wakeout(1 << PWR_SPRING_M, false);

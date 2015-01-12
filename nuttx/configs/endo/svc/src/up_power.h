@@ -37,5 +37,5 @@ int power_set_power(uint32_t int_nr, bool enable);
 bool power_get_power(uint32_t int_nr);
 void power_set_wakeout(uint32_t int_mask, bool assert);
 
-void validate_wake_detect(void);
+void power_read_wake_detect(void);
 #endif // __CONFIGS_ENDO_INCLUDE_UP_POWER_H

@@ -97,7 +97,7 @@ inline int i2c_switch_receive_msg(uint8_t *buf, unsigned int size)
 }
 
 /* Write data to the IO Expander */
-void i2c_ioexp_write(uint8_t *msg, int size, uint8_t addr)
+int i2c_ioexp_write(uint8_t *msg, int size, uint8_t addr)
 {
     int ret;
 
@@ -106,15 +106,17 @@ void i2c_ioexp_write(uint8_t *msg, int size, uint8_t addr)
     ret = I2C_WRITE(sw_exp_dev, msg, size);
     if (ret) {
         dbg_error("%s(): Error %d\n", __func__, ret);
-        return;
+        return ERROR;
     }
 
     dbg_verbose("%s()\n", __func__);
     dbg_print_buf(DBG_VERBOSE, msg, size);
+
+    return ret;
 }
 
 /* Read data from the IO Expander */
-void i2c_ioexp_read(uint8_t *msg, int size, uint8_t addr)
+int i2c_ioexp_read(uint8_t *msg, int size, uint8_t addr)
 {
     int ret;
 
@@ -143,9 +145,11 @@ void i2c_ioexp_read(uint8_t *msg, int size, uint8_t addr)
 
     if ((ret = I2C_TRANSFER(sw_exp_dev, msgv, 2)) != OK) {
         dbg_error("%s(): Error %d\n", __func__, ret);
-        return;
+        return ERROR;
     }
 
     dbg_verbose("%s()\n", __func__);
     dbg_print_buf(DBG_VERBOSE, msg, size);
+
+    return ret;
 }

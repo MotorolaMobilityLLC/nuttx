@@ -15,38 +15,38 @@
  * value read in io_exp_state from the expanders.
  */
 enum {
-    IO_EXP_BB4_DETECT               = 0,    /* U90: 8 bits */
-    IO_EXP_BB4_WAKE,
-    IO_EXP_BB5_DETECT,
-    IO_EXP_BB5_WAKE,
-    IO_EXP_BB6_DETECT,
-    IO_EXP_BB6_WAKE,
-    IO_EXP_U90_NC06,
-    IO_EXP_U90_NC07,
-    IO_EXP_BB1_DETECT               = 8,     /* U96: 24 bits */
-    IO_EXP_BB1_WAKE,
-    IO_EXP_BB2_DETECT,
-    IO_EXP_BB2_WAKE,
-    IO_EXP_BB3_DETECT,
-    IO_EXP_BB3_WAKE,
-    IO_EXP_U96_NC26,
-    IO_EXP_U96_NC27,
-    IO_EXP_GPB1_DETECT,
-    IO_EXP_GPB1_WAKE,
-    IO_EXP_GPB2_DETECT,
-    IO_EXP_GPB2_WAKE,
-    IO_EXP_U96_NC14,
-    IO_EXP_U96_NC15,
-    IO_EXP_U96_NC16,
-    IO_EXP_U96_NC17,
-    IO_EXP_SWITCH_IRQ,
-    IO_EXP_APB1_DETECT,
-    IO_EXP_APB1_WAKE,
-    IO_EXP_APB2_DETECT,
-    IO_EXP_APB2_WAKE,
-    IO_EXP_APB3_DETECT,
-    IO_EXP_APB3_WAKE,
-    IO_EXP_U96_NC07
+    IO_EXP_MOD_4_DETECT             = 0,     /* U601: 16 bits */
+    IO_EXP_MOD_4_WAKE_IN,
+    IO_EXP_MOD_5_DETECT,
+    IO_EXP_MOD_5_WAKE_IN,
+    IO_EXP_MOD_6_DETECT,
+    IO_EXP_MOD_6_WAKE_IN,
+    IO_EXP_MOD_7_DETECT,
+    IO_EXP_MOD_7_WAKE_IN,
+    IO_EXP_SWITCH_IRQ,                       /* Switch IRQ */
+    IO_EXP_MOD_1_DETECT,
+    IO_EXP_MOD_1_WAKE_IN,
+    IO_EXP_MOD_2_DETECT,
+    IO_EXP_MOD_2_WAKE_IN,
+    IO_EXP_MOD_3_DETECT,
+    IO_EXP_MOD_3_WAKE_IN,
+    IO_EXP_IRQ1,                             /* IRQ from IO Expander U602 */
+    IO_EXP_MOD_12_DETECT             = 16,   /* U602: 16 bits */
+    IO_EXP_MOD_12_WAKE_IN,
+    IO_EXP_MOD_13_DETECT,
+    IO_EXP_MOD_13_WAKE_IN,
+    IO_EXP_MOD_14_DETECT,
+    IO_EXP_MOD_14_WAKE_IN,
+    IO_EXP_NRST_WAKEUP,                      /* Reset button */
+    IO_EXP_U601_NC17,
+    IO_EXP_MOD_8_DETECT,
+    IO_EXP_MOD_8_WAKE_IN,
+    IO_EXP_MOD_9_DETECT,
+    IO_EXP_MOD_9_WAKE_IN,
+    IO_EXP_MOD_10_DETECT,
+    IO_EXP_MOD_10_WAKE_IN,
+    IO_EXP_MOD_11_DETECT,
+    IO_EXP_MOD_11_WAKE_IN
 };
 
 extern void ioexp_read_iopins(void);
