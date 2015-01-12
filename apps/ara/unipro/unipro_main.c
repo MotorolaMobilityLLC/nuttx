@@ -1,7 +1,6 @@
 /**
  * Copyright (c) 2014 Google, Inc.
  * Google Confidential/Restricted
- * @author: Perry Hung
  */
 
 #include <nuttx/config.h>

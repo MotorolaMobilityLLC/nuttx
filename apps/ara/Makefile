@@ -5,6 +5,7 @@
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
 #   Copyright (C) 2014 Google, Inc.
+#   Google Confidential/Restricted
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions

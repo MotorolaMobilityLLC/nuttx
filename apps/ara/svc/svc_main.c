@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014 Google, Inc.
- * Author: Benoit Cousson <bcousson@baylibre.com>
+ * Google Confidential/Restricted
  */
 
 #include <nuttx/config.h>

@@ -3,6 +3,7 @@
 # see misc/tools/kconfig-language.txt.
 #
 # Copyright (C) 2014 Google, Inc.
+# Google Confidential/Restricted
 #
 
 config ARA_SVC_MAIN

@@ -1,5 +1,6 @@
 #
 # Copyright (C) 2014 Google, Inc.
+# Google Confidential/Restricted
 #
 # Based on examples
 #
