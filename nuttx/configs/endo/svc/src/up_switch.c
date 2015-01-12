@@ -106,9 +106,9 @@ void switch_reset(void)
 {
     dbg_info("%s()\n", __func__);
 
-    /* Assert reset, wait 1ms, de-assert reset */
+    /* Assert reset, cycle the power supplies, then de-assert reset */
     stm32_gpiowrite(GPIO_SW_RST_40uS, false);
-    usleep(1000);
+    power_cycle_switch();
     stm32_gpiowrite(GPIO_SW_RST_40uS, true);
 }
 
@@ -682,27 +682,6 @@ int switch_control(int state)
 
     dbg_info("%s(): state %d\n", __func__, state);
 
-    /* Init GPIO pins for debug, SVC IRQ */
-    gpio_init();
-
-    /* Init GPIO pins for interfaces power supplies and WAKEOUT */
-    power_interface_block_init();
-
-    /* Enable internal power supplies */
-    power_enable_internal();
-
-    /* Wake-up/power-up all interfaces */
-    /* For development: assert WAKEOUT on all interfaces */
-    power_set_wakeout(0xFFFFFFFF, true);
-
-    /* Init comm with the switch */
-    if (i2c_init_comm(I2C_SW_BUS))
-        return ERROR;
-
-    /* Init device id mapping table */
-    deviceid_table_init();
-    deviceid_table_update(PORT_ID_SWITCH, SWITCH_DEVICE_ID);
-
     switch (state) {
     case SWITCH_DEINIT:
         /* De-init */
@@ -717,13 +696,36 @@ int switch_control(int state)
 
     case SWITCH_INIT:
         /* Init */
+
+        /* Enable internal power supplies */
+        power_enable_internal();
+
+        /* Init GPIO pins for debug, RGB LED, SVC IRQ, Switch Reset etc. */
+        gpio_init();
+
         /* Red LED at init */
         debug_rgb_led(1, 0, 0);
+
+        /* Init comm with the switch */
+        if (i2c_init_comm(I2C_SW_BUS))
+            return ERROR;
+
+        /* Init GPIO pins for interfaces power supplies and WAKEOUT */
+        power_interface_block_init();
 
         /* Power-up all interface blocks */
         for (i = 0; i < PWR_SPRING_NR; i++)
             power_set_power(i, true);
 
+        /* Wake-up/power-up all interfaces */
+        /* For development: assert WAKEOUT on all interfaces */
+        power_set_wakeout(0xFFFFFFFF, true);
+
+        /* Init device id mapping table */
+        deviceid_table_init();
+        deviceid_table_update(PORT_ID_SWITCH, SWITCH_DEVICE_ID);
+
+start_switch:
         /* Reset switch */
         switch_reset();
 
@@ -731,7 +733,10 @@ int switch_control(int state)
         sleep(SWITCH_SETTLE_INITIAL_DELAY);
 
         /* Get switch version */
-        switch_get_attribute(SWVER, &attr_value);
+        if (switch_get_attribute(SWVER, &attr_value)) {
+            i2c_reset();
+            goto start_switch;
+        }
 
         /* Orange LED */
         debug_rgb_led(1, 1, 0);
