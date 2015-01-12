@@ -36,9 +36,13 @@ void gpio_init(void)
     dbg_info("%s()\n", __func__);
 
     /* Configure GPIOs for output */
-    /* Enable LEDs control: SVC_LED_EN */
-    stm32_configgpio(GPIO_LED_EN);
-    stm32_gpiowrite(GPIO_LED_EN, true);
+    /* Enable RGB LED control */
+    stm32_configgpio(GPIO_R_LED_EN);
+    stm32_gpiowrite(GPIO_R_LED_EN, true);
+    stm32_configgpio(GPIO_G_LED_EN);
+    stm32_gpiowrite(GPIO_G_LED_EN, true);
+    stm32_configgpio(GPIO_B_LED_EN);
+    stm32_gpiowrite(GPIO_B_LED_EN, true);
     /* Switch reset line */
     stm32_configgpio(GPIO_SW_RST_40uS);
 }

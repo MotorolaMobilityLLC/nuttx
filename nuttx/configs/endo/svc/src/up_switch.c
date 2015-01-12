@@ -709,10 +709,17 @@ int switch_control(int state)
         /* Power down all interface blocks */
         for (i = 0; i < PWR_SPRING_NR; i++)
             power_set_power(i, false);
+
+        /* Red LED at de-init */
+        debug_rgb_led(1, 0, 0);
+
         break;
 
     case SWITCH_INIT:
         /* Init */
+        /* Red LED at init */
+        debug_rgb_led(1, 0, 0);
+
         /* Power-up all interface blocks */
         for (i = 0; i < PWR_SPRING_NR; i++)
             power_set_power(i, true);
@@ -725,6 +732,9 @@ int switch_control(int state)
 
         /* Get switch version */
         switch_get_attribute(SWVER, &attr_value);
+
+        /* Orange LED */
+        debug_rgb_led(1, 1, 0);
 
         /* Dump routing table */
         switch_dump_routing_table();

@@ -378,8 +378,11 @@
 #define GPIO_PWR_SW_N13         (POW_EN|GPIO_PORTI|GPIO_PIN2)      // PI2
 #define GPIO_PWR_SW_N14         (POW_EN|GPIO_PORTI|GPIO_PIN3)      // PI3
 
-/* SVC_LED_EN */
-#define GPIO_LED_EN             (POW_EN|GPIO_PORTH|GPIO_PIN12)
+/* SVC RGB LED: active low */
+#define LED_EN                  (GPIO_OUTPUT|GPIO_OPENDRAIN)
+#define GPIO_R_LED_EN           (LED_EN|GPIO_PORTA|GPIO_PIN7)      // PA7
+#define GPIO_G_LED_EN           (LED_EN|GPIO_PORTB|GPIO_PIN0)      // PB0
+#define GPIO_B_LED_EN           (LED_EN|GPIO_PORTB|GPIO_PIN1)      // PB1
 
 /* Switch reset line */
 #define GPIO_SW_RST_40uS        (GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_PULLUP| \
