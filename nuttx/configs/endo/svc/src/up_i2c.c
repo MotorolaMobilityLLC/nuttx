@@ -49,6 +49,16 @@ inline int i2c_init_comm(uint8_t bus)
 }
 
 /*
+ * Reset the peripheral and generate a recovery sequence on the bus.
+ * To be used when the bus is stuck.
+ */
+inline void i2c_reset(void)
+{
+    dbg_info("%s()\n", __func__);
+    up_i2creset(sw_exp_dev);
+}
+
+/*
  * Select the destination device to communicate with.
  * I2C requires a bus address.
  */

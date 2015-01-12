@@ -23,6 +23,7 @@
 #define I2C_NOFLAGS                 0x00    /* No specific flags */
 
 extern inline int i2c_init_comm(uint8_t bus);
+extern inline void i2c_reset(void);
 extern inline void i2c_select_device(uint8_t addr);
 extern inline int i2c_switch_send_msg(uint8_t *buf, unsigned int size);
 extern inline int i2c_switch_receive_msg(uint8_t *buf, unsigned int size);

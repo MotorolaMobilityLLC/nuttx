@@ -27,13 +27,46 @@
 #include "up_power.h"
 #include "stm32.h"
 
-#define POWER_INTERNAL_STABILISATION_TIME   20000   /* uS */
+/* Internal power supply stabilisation time, in us */
+#define POWER_INTERNAL_STABILISATION_TIME   20000
+/* Switch power supply stabilisation time (1V1, 1V8), in us */
+#define POWER_SWITCH_ON_STABILISATION_TIME  50000
+/* Switch power supply shutdown time (1V1, 1V8), in us */
+#define POWER_SWITCH_OFF_STABILISATION_TIME 100000
 
 /* Interfaces power supply state. Springs B & E are always enabled */
 static uint32_t power_state = (1 << PWR_SPRING_B) | (1 << PWR_SPRING_E);
 
 
-/* Enable internal SVC power supplies */
+/*
+ * Enable/Disable the switch power supplies (1V1 and 1V8).
+ * The sequencing is described in the switch spec '10.5.1 Power On Reset'.
+ * The reset line should be asserted before cycling the power supplies,
+ * and de-asserted after enabling them.
+ * Sysclk is already enabled since power up.
+ */
+void power_cycle_switch(void)
+{
+    dbg_info("%s()\n", __func__);
+
+    /* Power off */
+    stm32_gpiowrite(GPIO_1V1_ON_EN, false);
+    stm32_gpiowrite(GPIO_1V8_ON_EN, false);
+    up_udelay(POWER_SWITCH_OFF_STABILISATION_TIME);
+
+    /* Power on */
+    /* First 1V1, wait for stabilisation */
+    stm32_gpiowrite(GPIO_1V1_ON_EN, true);
+    up_udelay(POWER_SWITCH_ON_STABILISATION_TIME);
+    /* Then 1V8, wait for stabilisation */
+    stm32_gpiowrite(GPIO_1V8_ON_EN, true);
+    up_udelay(POWER_SWITCH_ON_STABILISATION_TIME);
+}
+
+/*
+ * Enable internal SVC power supplies. The switch power is controlled by
+ * power_cycle_switch
+ */
 void power_enable_internal(void)
 {
     dbg_info("%s()\n", __func__);
@@ -43,8 +76,6 @@ void power_enable_internal(void)
     stm32_configgpio(GPIO_1V1_ON_EN);
     stm32_configgpio(GPIO_2V95_ON_EN);
     stm32_gpiowrite(GPIO_LIMIT_ON_EN, true);
-    stm32_gpiowrite(GPIO_1V8_ON_EN, true);
-    stm32_gpiowrite(GPIO_1V1_ON_EN, true);
     stm32_gpiowrite(GPIO_2V95_ON_EN, true);
 
     /* Stabilization time */

@@ -32,6 +32,7 @@ enum {
 #define WAKEOUT_PULSE_DURATION  100000
 
 void power_enable_internal(void);
+void power_cycle_switch(void);
 void power_interface_block_init(void);
 int power_set_power(uint32_t int_nr, bool enable);
 bool power_get_power(uint32_t int_nr);
