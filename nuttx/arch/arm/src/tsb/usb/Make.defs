@@ -1,6 +1,7 @@
 # Copyright (c) 2014 Google, Inc.
 # Google Confidential/Restricted
 
+ifeq ($(CONFIG_ARCH_CHIP_USB_COMMON),y)
 USB_COMMON_CSRCS := \
     dwc_otg_adp.c \
     dwc_otg_cfi.c \
@@ -8,6 +9,7 @@ USB_COMMON_CSRCS := \
     dwc_otg_cil_intr.c \
     dwc_common_nuttx.c \
     dwc_otg_driver.c
+endif
 
 ifeq ($(CONFIG_ARCH_CHIP_USB_HCD),y)
 USB_HCD_CSRCS := \
