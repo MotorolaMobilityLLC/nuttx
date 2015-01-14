@@ -1,6 +1,5 @@
 /**
  * Copyright (c) 2012/07 DVK Team
- * Google Confidential/Restricted
  * @author DVK Team
  * @brief MELFAS LG4892 TouchScreen Firmware
  */
