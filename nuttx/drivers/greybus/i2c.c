@@ -65,7 +65,7 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
 {
     int i, op_count;
     uint32_t size = 0;
-    uint8_t ret;
+    int ret;
     uint8_t *write_data;
     bool read_op;
     int read_count = 0;
