@@ -63,6 +63,10 @@ ifeq ($(CONFIG_MANIFEST_I2C), y)
  MANIFEST = simple-i2c-module
 endif
 
+ifeq ($(CONFIG_MANIFEST_GPIO_I2C), y)
+ MANIFEST = simple-gpio-i2c-module
+endif
+
 ifeq ($(CONFIG_MANIFEST_CONSOLE), y)
  MANIFEST = simple-uart-module
 endif
