@@ -4,8 +4,8 @@
 #   Copyright (C) 2011-2013 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
-#   Copyright (c) 2014 Google, Inc.
-#   Google Confidential/Restricted
+#   Copyright (c) 2014-2015 Google Inc.
+#   All rights reserved.
 #
 #
 # Redistribution and use in source and binary forms, with or without
