@@ -46,7 +46,8 @@
 #define DEMO_SETUP_AP_B_DEVID       20
 #define DEMO_SETUP_LCD_B_DEVID      24
 /* CPorts in use */
-#define DEMO_SETUP_I2C_CPORT        5
+#define DEMO_SETUP_GPIO_CPORT       5   // simple-i2c-module uses this also
+#define DEMO_SETUP_I2C_CPORT        4
 #define DEMO_SETUP_LCD_CPORT        16
 /* Settle delays, in second */
 #define SWITCH_SETTLE_INITIAL_DELAY 2
@@ -898,11 +899,16 @@ int switch_control(int state)
         dev2 = deviceid_table_get_deviceid(PORT_ID_APB2);
         if (dev1 != INVALID_ID && dev2 != INVALID_ID) {
             /*
-             * Set up cports:
-             *    [5]<->[5] for I2C
+             * Set up cports, keeping in mind Greybus auto-assignments
+             *    [0]<->[5] for GPIO (or I2C for simple-i2c-module)
+             *    [1]<->[4] for I2C
              *    [16]<->[16] for DSI
+             *
+             * NOTE: Greybus auto-assigns Cports t
              */
-            switch_configure_connection(dev1, DEMO_SETUP_I2C_CPORT,
+            switch_configure_connection(dev1, 0,
+                                        dev2, DEMO_SETUP_GPIO_CPORT);
+            switch_configure_connection(dev1, 1,
                                         dev2, DEMO_SETUP_I2C_CPORT);
             switch_configure_connection(dev1, DEMO_SETUP_LCD_CPORT,
                                         dev2, DEMO_SETUP_LCD_CPORT);
