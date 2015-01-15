@@ -1,6 +1,5 @@
 #
-# Copyright (C) 2014 Google, Inc.
-# Author: Patrick Titiano <ptitiano@baylibre.com>
+# Copyright (c) 2014-2015 Google Inc.
 #
 
 -include $(TOPDIR)/.config

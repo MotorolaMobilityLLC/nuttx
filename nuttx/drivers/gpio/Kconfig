@@ -1,6 +1,5 @@
 #
-# Copyright (C) 2014 Google, Inc.
-# Author: Patrick Titiano
+# Copyright (c) 2014-2015 Google Inc.
 # Based on Gregory Nutt <gnutt@nuttx.org> sensors Kconfig
 #
 # For a description of the syntax of this configuration file,
