@@ -57,7 +57,7 @@
  * table.
  */
 
-#define ARMV7M_VECTAB_SIZE (NR_VECTORS + 16)
+#define ARMV7M_VECTAB_SIZE (NR_IRQS)
 
 /****************************************************************************
  * Public Data

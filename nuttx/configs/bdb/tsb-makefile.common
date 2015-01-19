@@ -37,7 +37,11 @@ include ${TOPDIR}/.config
 include ${TOPDIR}/tools/Config.mk
 include ${TOPDIR}/arch/arm/src/armv7-m/Toolchain.defs
 
-LDSCRIPT = ld.script
+ifeq ($(CONFIG_BOOT_COPYTORAM),y)
+    LDSCRIPT = ld-spirom.script
+else
+    LDSCRIPT = ld.script
+endif
 
 ifeq ($(WINTOOL),y)
   # Windows-native toolchains

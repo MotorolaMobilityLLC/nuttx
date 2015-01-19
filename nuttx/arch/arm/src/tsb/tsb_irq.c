@@ -171,9 +171,6 @@ void up_irqinitialize(void) {
     putreg32(0, NVIC_IRQ0_31_ENABLE);
     putreg32(0, NVIC_IRQ32_63_ENABLE);
 
-    /* Move vector table to RAM. */
-    putreg32((uint32_t)&_vectors, NVIC_VECTAB);
-
     /* Set nvic interrupts and exceptions to midpoint priority */
     putreg32(DEFPRIORITY32, NVIC_SYSH4_7_PRIORITY);
     putreg32(DEFPRIORITY32, NVIC_SYSH8_11_PRIORITY);
