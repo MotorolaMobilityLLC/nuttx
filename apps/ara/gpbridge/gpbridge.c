@@ -10,6 +10,9 @@
 int bridge_main(int argc, char *argv[])
 {
     tsb_gpio_register();
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+    display_init();
+#endif
 
     enable_manifest("MID-1", NULL);
     gb_unipro_init();

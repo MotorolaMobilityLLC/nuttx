@@ -156,7 +156,10 @@ int bridge_main(int argc, char *argv[])
 {
     int i;
 
-    unipro_init();
+    tsb_gpio_register();
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+    display_init();
+#endif
 
     svc_register(recv_from_svc);
     usbdev_apbinitialize(&usb_driver);

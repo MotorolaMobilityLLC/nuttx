@@ -5,6 +5,10 @@
 
 if ARCH_BOARD_ARA_LGD
 
+config BOARD_HAVE_DISPLAY
+  bool
+  default y
+
 config APB1
 	bool "APBridge1 on BDB"
 	depends on ARCH_CHIP_TSB
