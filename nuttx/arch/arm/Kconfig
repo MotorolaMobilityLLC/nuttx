@@ -343,6 +343,10 @@ config DEBUG_HARDFAULT
 		output is sometimes helpful when debugging difficult hard fault problems,
 		but may be more than you typcially want to see.
 
+config ARM_SEMIHOSTING
+    bool "ARM Semihosting"
+    default n
+
 if ARCH_CORTEXM0
 source arch/arm/src/armv6-m/Kconfig
 endif

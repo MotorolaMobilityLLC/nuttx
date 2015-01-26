@@ -443,6 +443,8 @@ void lowconsole_init(void);
 # define lowconsole_init()
 #endif
 
+void semihosting_consoleinit(void);
+
 /* DMA **********************************************************************/
 
 #ifdef CONFIG_ARCH_DMA

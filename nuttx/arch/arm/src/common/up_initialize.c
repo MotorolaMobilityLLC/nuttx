@@ -222,6 +222,8 @@ void up_initialize(void)
   lowconsole_init();
 #elif defined(CONFIG_RAMLOG_CONSOLE)
   ramlog_consoleinit();
+#elif defined(CONFIG_ARM_SEMIHOSTING_CONSOLE)
+  semihosting_consoleinit();
 #endif
 
   /* Initialize the Random Number Generator (RNG)  */
