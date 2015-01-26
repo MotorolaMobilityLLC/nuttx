@@ -165,3 +165,8 @@ void gb_i2c_register(int cport)
 {
     gb_register_driver(cport, &gb_i2c_driver);
 }
+
+struct i2c_dev_s *gb_i2c_get_dev(void)
+{
+    return i2c_dev;
+}

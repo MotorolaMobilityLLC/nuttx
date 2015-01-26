@@ -144,6 +144,8 @@ void gb_operation_unref(struct gb_operation *operation);
 int greybus_rx_handler(unsigned int, void*, size_t);
 
 void gb_gpio_register(int cport);
+void gb_i2c_register(int cport);
+struct  i2c_dev_s *gb_i2c_get_dev(void);
 
 #ifndef ARRAY_SIZE
     #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
