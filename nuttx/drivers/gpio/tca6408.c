@@ -48,10 +48,12 @@
 #undef lldbg
 #define lldbg(x...)
 
+static struct i2c_dev_s *g_i2c_dev;
+
 static int i2c_get(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t *val)
 {
     int ret;
-    struct i2c_dev_s *dev;
+    struct i2c_dev_s *dev = g_i2c_dev;
     struct i2c_msg_s msg[] = {
         {
             .addr = addr,
@@ -66,12 +68,10 @@ static int i2c_get(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t *val)
         },
     };
 
-    dev = up_i2cinitialize(bus);
     if (!dev) {
         return -EINVAL;
     }
     ret = I2C_TRANSFER(dev, msg, 2);
-    up_i2cuninitialize(dev);
 
     if (ret == 0) {
         lldbg("bus=%hhu addr=0x%02hhX, regaddr=0x%02hhX: read 0x%02hhX\n",
@@ -87,7 +87,7 @@ static int i2c_get(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t *val)
 static int i2c_set(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t val)
 {
     int ret;
-    struct i2c_dev_s *dev;
+    struct i2c_dev_s *dev = g_i2c_dev;
     uint8_t cmd[2] = {regaddr, val};
     uint8_t data8;
     struct i2c_msg_s msg[] = {
@@ -106,12 +106,10 @@ static int i2c_set(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t val)
 
     lldbg("bus=%hhu addr=0x%02hhX: regaddr=0x%02hhX, val=0x%02hhX\n",
           bus, addr, regaddr, val);
-    dev = up_i2cinitialize(bus);
     if (!dev) {
         return -EINVAL;
     }
     ret = I2C_TRANSFER(dev, msg, 2);
-    up_i2cuninitialize(dev);
 
     return ret;
 }
@@ -339,4 +337,9 @@ int tca6408_get(uint8_t bus, uint8_t addr, uint8_t which)
     lldbg("in=%hhu\n", in);
 
     return in;
+}
+
+void tca6408_init(struct i2c_dev_s *dev)
+{
+    g_i2c_dev = dev;
 }
