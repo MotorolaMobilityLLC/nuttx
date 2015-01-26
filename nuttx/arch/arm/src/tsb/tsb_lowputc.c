@@ -1,4 +1,5 @@
 #include <nuttx/config.h>
+#include <arch/arm/semihosting.h>
 #include <stdint.h>
 #include "chip.h"
 #include "up_arch.h"
@@ -63,14 +64,18 @@ void tsb_lowsetup(void) {
 }
 
 void up_lowputc(int c){
+#if defined(CONFIG_ARM_SEMIHOSTING)
+    semihosting_putc(c);
+#else
     while ((getreg32(UART_LSR) & UART_LSR_THRE) != UART_LSR_THRE)
         ;
 
     putreg32(c, UART_RBR_THR_DLL);
+#endif
 }
 
 
-#ifndef CONFIG_16550_UART
+#ifdef CONFIG_16550_NO_SERIAL_CONSOLE
 
 int up_putc(int ch) {
     if (ch == '\n') {
@@ -79,6 +84,14 @@ int up_putc(int ch) {
 
     up_lowputc(ch);
     return ch;
+}
+
+#endif
+
+#ifndef CONFIG_16550_UART
+
+void up_serialinit(void)
+{
 }
 
 #endif

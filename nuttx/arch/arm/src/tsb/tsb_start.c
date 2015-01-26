@@ -38,8 +38,10 @@ void __start(void) {
 #endif
     dbg('C');
 
+#ifdef CONFIG_16550_UART
     /* early init the 16550 driver */
     up_earlyserialinit();
+#endif
     dbg('D');
 
     tsb_boardinitialize();

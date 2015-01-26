@@ -21,6 +21,10 @@ CMN_CSRCS += up_systemreset.c up_unblocktask.c up_usestack.c up_doirq.c
 CMN_CSRCS += up_hardfault.c up_svcall.c up_vfork.c
 CMN_CSRCS += up_vectors.c
 
+ifeq ($(CONFIG_ARM_SEMIHOSTING),y)
+CMN_CSRCS += up_semihosting.c
+endif
+
 ifeq ($(CONFIG_DEBUG_STACK),y)
 CMN_CSRCS += up_checkstack.c
 endif
