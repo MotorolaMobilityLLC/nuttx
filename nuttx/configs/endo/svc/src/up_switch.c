@@ -560,10 +560,15 @@ out:
     dbg_info("======================================================\n");
 }
 
-static void switch_show_link_state(uint8_t portid)
+static void switch_show_link_state(uint8_t devid)
 {
+    uint8_t portid;
     uint32_t num_cports, deviceid, peerdeviceid, peercportid;
     int i;
+
+    portid = deviceid_table_get_portid(devid);
+    if (portid == INVALID_ID)
+        return;
 
     switch_peer_getreq(portid, T_NUMCPORTS, NCP_SELINDEX_NULL, &num_cports);
     switch_peer_getreq(portid, N_DEVICEID, NCP_SELINDEX_NULL, &deviceid);
