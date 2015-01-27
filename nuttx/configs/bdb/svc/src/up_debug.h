@@ -84,8 +84,9 @@ extern char dbg_rescue[DBG_RESCUE_SIZE];
  * Every caller has to define its own DBG_COMP macro.
  */
 #define dbg_pr(level, fmt, ...)                                     \
-    if ((dbg_ctrl.comp & DBG_COMP) &&                               \
-        (level >= dbg_ctrl.lvl)) {                                  \
+    do {                                                            \
+        if ((dbg_ctrl.comp & DBG_COMP) &&                           \
+            (level >= dbg_ctrl.lvl)) {                              \
             if (asprintf(&dbg_msg, "[%s] " fmt, xstr(DBG_COMP),     \
                          ##__VA_ARGS__) > 0) {                      \
                 printk(dbg_msg);                                    \
@@ -95,7 +96,8 @@ extern char dbg_rescue[DBG_RESCUE_SIZE];
                          __func__);                                 \
                 printk(dbg_rescue);                                 \
             }                                                       \
-    }
+        }                                                           \
+    } while (0)
 
 /* Pretty print of an uint8_t buffer */
 static inline void dbg_print_buf(uint32_t level, uint8_t *buf, uint32_t size)
