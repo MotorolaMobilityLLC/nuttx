@@ -373,7 +373,7 @@ extern uint16_t DWC_BE16_TO_CPU(uint16_t *p);
  * The reg value is a pointer to the register calculated from the void *base
  * variable passed into the driver when it is started.  */
 
-#ifdef DWC_LINUX
+#if defined(DWC_LINUX) || defined(DWC_NUTTX)
 /* Linux doesn't need any extra parameters for register read/write, so we
  * just throw away the IO context parameter.
  */
