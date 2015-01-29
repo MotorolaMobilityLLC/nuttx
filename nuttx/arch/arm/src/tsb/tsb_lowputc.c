@@ -18,9 +18,9 @@
 #define UART_LCR_DLAB  (0x1 << 7) // Divisor latch
 #define UART_LCR_DLS_8 (0x3 << 0) // 8 bit
 
-#define UART_FCR_IIR_IID0_FIFOE  (0x1 << 0) // FIFO Enable
-#define UART_FCR_IIR_IID1_RFIFOR (0x2 << 0) // FIFO RX Reset
-#define UART_FCR_IIR_IID1_XFIFOR (0x3 << 0) // FIFO RX Reset
+#define UART_FCR_IIR_IID0_FIFOE  (1 << 0) // FIFO Enable
+#define UART_FCR_IIR_IID1_RFIFOR (1 << 1) // FIFO RX Reset
+#define UART_FCR_IIR_IID1_XFIFOR (1 << 2) // FIFO RX Reset
 
 #define UART_LSR_THRE (0x1 << 5)
 
