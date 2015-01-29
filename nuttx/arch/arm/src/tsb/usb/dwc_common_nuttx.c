@@ -683,16 +683,15 @@ void DWC_WAITQ_ABORT(dwc_waitq_t *wq)
  - different tasklets can be running simultaneously on different CPUs
  */
 struct dwc_tasklet {
-    pthread_t thread;
+    struct work_s work;
     dwc_tasklet_callback_t cb;
     void *data;
 };
 
-static void *tasklet_callback(void *data)
+static void tasklet_callback(void *data)
 {
     dwc_tasklet_t *task = (dwc_tasklet_t *)data;
     task->cb(task->data);
-    return NULL;
 }
 
 dwc_tasklet_t *DWC_TASK_ALLOC(char *name, dwc_tasklet_callback_t cb, void *data)
@@ -711,14 +710,13 @@ dwc_tasklet_t *DWC_TASK_ALLOC(char *name, dwc_tasklet_callback_t cb, void *data)
 
 void DWC_TASK_FREE(dwc_tasklet_t *task)
 {
-    pthread_cancel(task->thread);
-    pthread_join(task->thread, NULL);
+    work_cancel(HPWORK, &task->work);
     DWC_FREE(task);
 }
 
 void DWC_TASK_SCHEDULE(dwc_tasklet_t *task)
 {
-    pthread_create(&task->thread, NULL, tasklet_callback, task);
+    work_queue(HPWORK, &task->work, tasklet_callback, task, 0);
 }
 
 /* workqueues
