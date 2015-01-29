@@ -205,9 +205,9 @@ dwc_otg_pcd_ep_t *get_ep_by_addr(dwc_otg_pcd_t * pcd, u16 wIndex)
 	if (ep_num == 0) {
 		ep = &pcd->ep0;
 	} else if (UE_GET_DIR(wIndex) == UE_DIR_IN) {	/* in ep */
-		ep = &pcd->in_ep[ep_num - 1];
+		ep = get_in_ep(pcd, ep_num);
 	} else {
-		ep = &pcd->out_ep[ep_num - 1];
+		ep = get_out_ep(pcd, ep_num);
 	}
 
 	return ep;
