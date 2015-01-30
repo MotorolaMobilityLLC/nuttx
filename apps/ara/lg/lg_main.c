@@ -76,10 +76,10 @@ int lg_fwupdate(void)
     printf("New TS Firmware version: 0x%02X 0x%02X 0x%02X 0x%02X\n",
         app_maj, app_min, core_maj, core_min);
 
-    if ((app_maj == app_maj) ||
-        (app_min == app_min) ||
-        (core_maj == core_maj) ||
-        (core_min == bin_core_min)) {
+    if ((app_maj != bin_app_maj) ||
+        (app_min != bin_app_min) ||
+        (core_maj != bin_core_maj) ||
+        (core_min != bin_core_min)) {
         printf("TS firmware update succeeded.\n");
     } else {
         printf("TS firmware version mismatch, update failed!\n");
