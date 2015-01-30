@@ -168,8 +168,12 @@ void up_irqinitialize(void) {
     int num_priority_registers;
 
     /* Disable all interrupts */
-    putreg32(0, NVIC_IRQ0_31_ENABLE);
-    putreg32(0, NVIC_IRQ32_63_ENABLE);
+    num_priority_registers = getreg32(NVIC_ICTR) + 1;
+    reg = NVIC_IRQ0_31_ENABLE;
+    while (num_priority_registers--) {
+        putreg32(0, reg);
+        reg += 4;
+    }
 
     /* Set nvic interrupts and exceptions to midpoint priority */
     putreg32(DEFPRIORITY32, NVIC_SYSH4_7_PRIORITY);
