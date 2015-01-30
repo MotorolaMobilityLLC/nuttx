@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <nuttx/gpio/tca6408.h>
-#include <arch/tsb/gpio.h>
+#include <nuttx/gpio.h>
 
 #define TCA6408_INPUT_REG       0x00
 #define TCA6408_OUTPUT_REG      0x01
@@ -44,16 +44,25 @@
 #define TCA6408_TW      1 /* 1us (datasheet: reset pulse duration (Tw) is 4ns */
 #define TCA6408_TRESET  1 /* 1us (datasheet: time to reset (Treset) is 600ns */
 
+#define TCA6408_NR_GPIO 8
+
 /* disable the verbose debug output */
 #undef lldbg
 #define lldbg(x...)
 
-static struct i2c_dev_s *g_i2c_dev;
+struct tca6408_platform_data
+{
+    struct i2c_dev_s *dev;
+    uint8_t addr;
+    uint8_t reset;
+};
 
-static int i2c_get(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t *val)
+static struct tca6408_platform_data g_tca6408;
+
+static int i2c_get(uint8_t addr, uint8_t regaddr, uint8_t *val)
 {
     int ret;
-    struct i2c_dev_s *dev = g_i2c_dev;
+    struct i2c_dev_s *dev = g_tca6408.dev;
     struct i2c_msg_s msg[] = {
         {
             .addr = addr,
@@ -74,20 +83,20 @@ static int i2c_get(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t *val)
     ret = I2C_TRANSFER(dev, msg, 2);
 
     if (ret == 0) {
-        lldbg("bus=%hhu addr=0x%02hhX, regaddr=0x%02hhX: read 0x%02hhX\n",
-              bus, addr, regaddr, *val);
+        lldbg("addr=0x%02hhX, regaddr=0x%02hhX: read 0x%02hhX\n",
+              addr, regaddr, *val);
     } else {
-        lldbg("bus=%hhu addr=0x%02hhX, regaddr=0x%02hhX: failed!\n",
-              bus, addr, regaddr);
+        lldbg("addr=0x%02hhX, regaddr=0x%02hhX: failed!\n",
+              addr, regaddr);
     }
 
     return ret;
 }
 
-static int i2c_set(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t val)
+static int i2c_set(uint8_t addr, uint8_t regaddr, uint8_t val)
 {
     int ret;
-    struct i2c_dev_s *dev = g_i2c_dev;
+    struct i2c_dev_s *dev = g_tca6408.dev;
     uint8_t cmd[2] = {regaddr, val};
     uint8_t data8;
     struct i2c_msg_s msg[] = {
@@ -104,8 +113,8 @@ static int i2c_set(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t val)
         },
     };
 
-    lldbg("bus=%hhu addr=0x%02hhX: regaddr=0x%02hhX, val=0x%02hhX\n",
-          bus, addr, regaddr, val);
+    lldbg("addr=0x%02hhX: regaddr=0x%02hhX, val=0x%02hhX\n",
+          addr, regaddr, val);
     if (!dev) {
         return -EINVAL;
     }
@@ -114,19 +123,19 @@ static int i2c_set(uint8_t bus, uint8_t addr, uint8_t regaddr, uint8_t val)
     return ret;
 }
 
-int tca6408_reset(uint8_t gpio, bool en)
+int tca6408_reset(bool en)
 {
     /*
      * TCA6408 reset pin is active low.
      * If en = 1, maintain chip under reset.
      * If en = 0, get chip out of reset.
      */
-    lldbg("gpio=0x%02hhX, en=%hhu\n", gpio, en);
-    gpio_direction_out(gpio, 0);
+    lldbg("gpio=0x%02hhX, en=%hhu\n", g_tca6408.reset, en);
+    gpio_direction_out(g_tca6408.reset, 0);
     if (en == 0) {
         /* datasheet: reset pulse minimum duration (Tw) is 4ns */
         usleep(TCA6408_TW);
-        gpio_direction_out(gpio, 1);
+        gpio_direction_out(g_tca6408.reset, 1);
         /* datasheet: time to reset (Treset) is 600ns */
         usleep(TCA6408_TRESET);
     }
@@ -134,12 +143,14 @@ int tca6408_reset(uint8_t gpio, bool en)
     return 0;
 }
 
-int tca6408_set_direction_in(uint8_t bus, uint8_t addr, uint8_t which)
+void tca6408_set_direction_in(uint8_t which)
 {
+    uint8_t addr;
     uint8_t reg;
     int ret;
 
-    lldbg("bus=%hhu addr=0x%02hhX, which=%hhu\n", bus, addr, which);
+    addr = g_tca6408.addr;
+    lldbg("addr=0x%02hhX, which=%hhu\n", addr, which);
     /* Configure pin as input
      *
      * The Configuration Register (register 3) configures the direction of
@@ -148,42 +159,41 @@ int tca6408_set_direction_in(uint8_t bus, uint8_t addr, uint8_t which)
      * high-impedance output driver. If a bit in this register is
      * cleared to 0, the corresponding port pin is enabled as an output.
      */
-    ret = i2c_get(bus, addr, TCA6408_CONFIG_REG, &reg);
+    ret = i2c_get(addr, TCA6408_CONFIG_REG, &reg);
     if (ret != 0)
-        return -EIO;
+        return
     lldbg("current cfg=0x%02X\n", reg);
     reg |= (1 << which);
     lldbg("new cfg=0x%02X\n", reg);
-    ret = i2c_set(bus, addr, TCA6408_CONFIG_REG, reg);
-    if (ret != 0)
-        return -EIO;
-
-    return 0;
+    ret = i2c_set(addr, TCA6408_CONFIG_REG, reg);
 }
 
-int tca6408_set_default_outputs(uint8_t bus, uint8_t addr, uint8_t dflt)
+int tca6408_set_default_outputs(uint8_t dflt)
 {
     int ret;
+    uint8_t addr = g_tca6408.addr;
 
-    lldbg("bus=%hhu addr=0x%02hhX, dflt=0x%02hhX\n", bus, addr, dflt);
+    lldbg("addr=0x%02hhX, dflt=0x%02hhX\n", addr, dflt);
     /* Set output pins default value (before configuring it as output
      *
      * The Output Port Register (register 1) shows the outgoing logic
      * levels of the pins defined as outputs by the Configuration Register.
      */
-    ret = i2c_set(bus, addr, TCA6408_OUTPUT_REG, dflt);
+    ret = i2c_set(addr, TCA6408_OUTPUT_REG, dflt);
     if (ret != 0)
         return -EIO;
 
     return 0;
 }
 
-int tca6408_set_direction_out(uint8_t bus, uint8_t addr, uint8_t which)
+void tca6408_set_direction_out(uint8_t which, uint8_t value)
 {
+    uint8_t addr;
     uint8_t reg;
     int ret;
 
-    lldbg("bus=%hhu addr=0x%02hhX, which=%hhu\n", bus, addr, which);
+    addr = g_tca6408.addr;
+    lldbg("addr=0x%02hhX, which=%hhu\n", addr, which);
     /* Configure pin as output
      *
      * The Configuration Register (register 3) configures the direction of
@@ -192,26 +202,27 @@ int tca6408_set_direction_out(uint8_t bus, uint8_t addr, uint8_t which)
      * high-impedance output driver. If a bit in this register is
      * cleared to 0, the corresponding port pin is enabled as an output.
      */
-    ret = i2c_get(bus, addr, TCA6408_CONFIG_REG, &reg);
+    ret = i2c_get(addr, TCA6408_CONFIG_REG, &reg);
     if (ret != 0)
-        return -EIO;
+        return;
     lldbg("current cfg=0x%02X\n", reg);
     reg &= ~(1 << which);
     lldbg("new cfg=0x%02X\n", reg);
-    ret = i2c_set(bus, addr, TCA6408_CONFIG_REG, reg);
+    ret = i2c_set(addr, TCA6408_CONFIG_REG, reg);
     if (ret != 0)
-        return -EIO;
+        return;
 
-    return 0;
+    tca6408_set(which, value);
 }
 
 
-int tca6408_get_direction(uint8_t bus, uint8_t addr, uint8_t which)
+int tca6408_get_direction(uint8_t which)
 {
+    uint8_t addr = g_tca6408.addr;
     uint8_t direction;
     int ret;
 
-    lldbg("bus=%hhu addr=0x%02hhX, which=%hhu", bus, addr, which);
+    lldbg("addr=0x%02hhX, which=%hhu", addr, which);
     /*
      * The Configuration Register (register 3) configures the direction of
      * the I/O pins. If a bit in this register is set to 1,
@@ -219,7 +230,7 @@ int tca6408_get_direction(uint8_t bus, uint8_t addr, uint8_t which)
      * high-impedance output driver. If a bit in this register is
      * cleared to 0, the corresponding port pin is enabled as an output.
      */
-    ret = i2c_get(bus, addr, TCA6408_CONFIG_REG, &direction);
+    ret = i2c_get(addr, TCA6408_CONFIG_REG, &direction);
     if (ret != 0)
         return -EIO;
     direction = (direction & (1 << which)) >> which;
@@ -227,14 +238,14 @@ int tca6408_get_direction(uint8_t bus, uint8_t addr, uint8_t which)
 }
 
 
-int tca6408_set_polarity_inverted(uint8_t bus, uint8_t addr,
-                                  uint8_t which, uint8_t inverted)
+int tca6408_set_polarity_inverted(uint8_t which, uint8_t inverted)
 {
+    uint8_t addr = g_tca6408.addr;
     uint8_t polarity;
     int ret;
 
-    lldbg("bus=%hhu addr=0x%02hhX, which=%hhu inverted=%hhu\n",
-          bus, addr, which, inverted);
+    lldbg("addr=0x%02hhX, which=%hhu inverted=%hhu\n",
+          addr, which, inverted);
     /* Configure pin polarity inversion
      *
      * The Polarity Inversion Register (register 2) allows
@@ -244,7 +255,7 @@ int tca6408_set_polarity_inverted(uint8_t bus, uint8_t addr,
      * this register is cleared (written with a 0), the corresponding
      * port pin's original polarity is retained.
      */
-    ret = i2c_get(bus, addr, TCA6408_POLARITY_REG, &polarity);
+    ret = i2c_get(addr, TCA6408_POLARITY_REG, &polarity);
     if (ret != 0)
         return -EIO;
     lldbg("current polarity reg=0x%02hhX\n", polarity);
@@ -254,7 +265,7 @@ int tca6408_set_polarity_inverted(uint8_t bus, uint8_t addr,
         polarity &= ~(1 << which);
     }
     lldbg("new polarity reg=0x%02hhX\n", polarity);
-    ret = i2c_set(bus, addr, TCA6408_POLARITY_REG, polarity);
+    ret = i2c_set(addr, TCA6408_POLARITY_REG, polarity);
     if (ret != 0)
         return -EIO;
 
@@ -262,12 +273,13 @@ int tca6408_set_polarity_inverted(uint8_t bus, uint8_t addr,
 }
 
 
-int tca6408_get_polarity_inverted(uint8_t bus, uint8_t addr, uint8_t which)
+int tca6408_get_polarity_inverted(uint8_t which)
 {
+    uint8_t addr = g_tca6408.addr;
     uint8_t polarity;
     int ret;
 
-    lldbg("bus=%hhu addr=0x%02hhX, which=%hhu\n", bus, addr, which);
+    lldbg("addr=0x%02hhX, which=%hhu\n", addr, which);
     /*
      * The Configuration Register (register 3) configures the direction of
      * the I/O pins. If a bit in this register is set to 1,
@@ -275,7 +287,7 @@ int tca6408_get_polarity_inverted(uint8_t bus, uint8_t addr, uint8_t which)
      * high-impedance output driver. If a bit in this register is
      * cleared to 0, the corresponding port pin is enabled as an output.
      */
-    ret = i2c_get(bus, addr, TCA6408_POLARITY_REG, &polarity);
+    ret = i2c_get(addr, TCA6408_POLARITY_REG, &polarity);
     if (ret != 0)
         return -EIO;
     lldbg("polarity reg=0x%02hhX\n", polarity);
@@ -286,21 +298,22 @@ int tca6408_get_polarity_inverted(uint8_t bus, uint8_t addr, uint8_t which)
 }
 
 
-int tca6408_set(uint8_t bus, uint8_t addr, uint8_t which, uint8_t val)
+void tca6408_set(uint8_t which, uint8_t val)
 {
+    uint8_t addr = g_tca6408.addr;
     uint8_t reg;
     int ret;
 
-    lldbg("bus=%hhu addr=0x%02hhX, which=%hhu, val=%hhu\n",
-          bus, addr, which, val);
+    lldbg("addr=0x%02hhX, which=%hhu, val=%hhu\n",
+          addr, which, val);
     /* Set output pins default value (before configuring it as output
      *
      * The Output Port Register (register 1) shows the outgoing logic
      * levels of the pins defined as outputs by the Configuration Register.
      */
-    ret = i2c_get(bus, addr, TCA6408_OUTPUT_REG, &reg);
+    ret = i2c_get(addr, TCA6408_OUTPUT_REG, &reg);
     if (ret != 0)
-        return -EIO;
+        return;
     lldbg("current reg=0x%02hhX\n", reg);
     if (val) {
         reg |= (1 << which);
@@ -308,27 +321,24 @@ int tca6408_set(uint8_t bus, uint8_t addr, uint8_t which, uint8_t val)
         reg &= ~(1 << which);
     }
     lldbg("new reg=0x%02hhX\n", reg);
-    ret = i2c_set(bus, addr, TCA6408_OUTPUT_REG, reg);
-    if (ret != 0)
-        return -EIO;
-
-    return 0;
+    ret = i2c_set(addr, TCA6408_OUTPUT_REG, reg);
 }
 
 
-int tca6408_get(uint8_t bus, uint8_t addr, uint8_t which)
+uint8_t tca6408_get(uint8_t which)
 {
+    uint8_t addr = g_tca6408.addr;
     uint8_t in;
     int ret;
 
-    lldbg("bus=%hhu addr=0x%02hhX, which=%hhu\n", bus, addr, which);
+    lldbg("addr=0x%02hhX, which=%hhu\n", addr, which);
     /*
      * The Input Port Register (register 0) reflects the incoming logic
      * levels of the pins, regardless of whether the pin is defined as an
      * input or an output by the Configuration Register. They act only on
      * read operation.
      */
-    ret = i2c_get(bus, addr, TCA6408_INPUT_REG, &in);
+    ret = i2c_get(addr, TCA6408_INPUT_REG, &in);
     if (ret != 0)
         return -EIO;
     lldbg("input reg=0x%02hhX\n", in);
@@ -339,7 +349,42 @@ int tca6408_get(uint8_t bus, uint8_t addr, uint8_t which)
     return in;
 }
 
-void tca6408_init(struct i2c_dev_s *dev)
+void tca6408_activate(uint8_t which)
 {
-    g_i2c_dev = dev;
+
+}
+
+void tca6408_deactivate(uint8_t which)
+{
+
+}
+
+uint8_t tca6408_line_count(void)
+{
+    return TCA6408_NR_GPIO;
+}
+
+struct gpio_ops_s tca6408_gpio_ops = {
+    .get_direction = tca6408_get_direction,
+    .direction_in = tca6408_set_direction_in,
+    .direction_out = tca6408_set_direction_out,
+    .activate = tca6408_activate,
+    .get_value = tca6408_get,
+    .set_value = tca6408_set,
+    .deactivate = tca6408_deactivate,
+    .line_count = tca6408_line_count,
+    .irqattach = NULL,
+    .set_triggering = NULL,
+    .mask_irq = NULL,
+    .unmask_irq = NULL,
+    .clear_interrupt = NULL,
+    .get_interrupt = NULL,
+};
+
+void tca6408_init(struct i2c_dev_s *dev, uint8_t addr, uint8_t reset)
+{
+    g_tca6408.dev = dev;
+    g_tca6408.addr = addr;
+    g_tca6408.reset = reset;
+    register_gpio_chip(&tca6408_gpio_ops, -1);
 }

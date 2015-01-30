@@ -33,17 +33,16 @@
 
 #include <stdint.h>
 
-int tca6408_reset(uint8_t gpio, bool en);
-int tca6408_set_direction_in(uint8_t bus, uint8_t addr, uint8_t which);
-int tca6408_set_default_outputs(uint8_t bus, uint8_t addr, uint8_t dflt);
-int tca6408_set_direction_out(uint8_t bus, uint8_t addr, uint8_t which);
-int tca6408_get_direction(uint8_t bus, uint8_t addr, uint8_t which);
-int tca6408_set_polarity_inverted(uint8_t bus, uint8_t addr,
-                                  uint8_t which, uint8_t inverted);
-int tca6408_get_polarity_inverted(uint8_t bus, uint8_t addr, uint8_t which);
-int tca6408_set(uint8_t bus, uint8_t addr, uint8_t which, uint8_t val);
-int tca6408_get(uint8_t bus, uint8_t addr, uint8_t which);
+int tca6408_reset(bool en);
+void tca6408_set_direction_in(uint8_t which);
+int tca6408_set_default_outputs(uint8_t dflt);
+void tca6408_set_direction_out(uint8_t which, uint8_t value);
+int tca6408_get_direction(uint8_t which);
+int tca6408_set_polarity_inverted(uint8_t which, uint8_t inverted);
+int tca6408_get_polarity_inverted(uint8_t which);
+void tca6408_set(uint8_t which, uint8_t val);
+uint8_t tca6408_get(uint8_t which);
 
-void tca6408_init(struct i2c_dev_s *dev);
+void tca6408_init(struct i2c_dev_s *dev, uint8_t addr, uint8_t reset);
 
 #endif
