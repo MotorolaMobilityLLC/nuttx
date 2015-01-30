@@ -38,6 +38,7 @@
 
 ifeq ($(CONFIG_GPIO),y)
 
+CSRCS += gpio_chip.c
 ifeq ($(CONFIG_GPIO_TCA6408),y)
     CSRCS += tca6408.c
 endif
