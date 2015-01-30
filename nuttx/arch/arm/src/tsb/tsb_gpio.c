@@ -29,9 +29,11 @@
  *          Benoit Cousson <bcousson@baylibre.com>
  */
 
+#include <nuttx/gpio.h>
 #include <arch/tsb/gpio.h>
 
 #include <stdint.h>
+#include <string.h>
 #include <debug.h>
 #include <errno.h>
 
@@ -61,95 +63,112 @@
 #define NR_GPIO_IRQS 16
 
 /* A table of handlers for each GPIO interrupt */
-static xcpt_t gpio_irq_vector[NR_GPIO_IRQS];
+static xcpt_t tsb_gpio_irq_vector[NR_GPIO_IRQS];
+static uint8_t tsb_gpio_irq_gpio_base[NR_GPIO_IRQS];
 static volatile uint32_t refcount;
 
-int gpio_get_direction(uint8_t which)
+int tsb_gpio_get_direction(uint8_t which)
 {
     uint32_t dir = getreg32(GPIO_DIR);
     return !(dir & (1 << which));
 }
 
-void gpio_direction_in(uint8_t which)
+void tsb_gpio_direction_in(uint8_t which)
 {
     putreg32(1 << which, GPIO_DIRIN);
 }
 
-void gpio_direction_out(uint8_t which, uint8_t value)
+void tsb_gpio_direction_out(uint8_t which, uint8_t value)
 {
-    gpio_set_value(which, value);
+    tsb_gpio_set_value(which, value);
     putreg32(1 << which, GPIO_DIROUT);
 }
 
-void gpio_activate(uint8_t which)
+void tsb_gpio_activate(uint8_t which)
 {
-    gpio_initialize();
+    tsb_gpio_initialize();
 }
 
-uint8_t gpio_get_value(uint8_t which)
+uint8_t tsb_gpio_get_value(uint8_t which)
 {
     return !!(getreg32(GPIO_DATA) & (1 << which));
 }
 
-void gpio_set_value(uint8_t which, uint8_t value)
+void tsb_gpio_set_value(uint8_t which, uint8_t value)
 {
     putreg32(1 << which, value ? GPIO_ODATASET : GPIO_ODATACLR);
 }
 
-int gpio_set_debounce(uint8_t which, uint16_t delay)
+void tsb_gpio_deactivate(uint8_t which)
 {
-    uint8_t initial_reading;
-
-    initial_reading = gpio_get_value(which);
-    up_udelay(delay);
-    return initial_reading == gpio_get_value(which);
+    tsb_gpio_uninitialize();
 }
 
-void gpio_deactivate(uint8_t which)
-{
-    gpio_uninitialize();
-}
-
-uint8_t gpio_line_count(void)
+uint8_t tsb_gpio_line_count(void)
 {
     return NR_GPIO_IRQS;
 }
 
-void gpio_mask_irq(uint8_t which)
+int tsb_gpio_mask_irq(uint8_t which)
 {
     putreg32(1 << which, GPIO_INTMASKSET);
+    return 0;
 }
 
-void gpio_unmask_irq(uint8_t which)
+int tsb_gpio_unmask_irq(uint8_t which)
 {
     putreg32(1 << which, GPIO_INTMASKCLR);
+    return 0;
 }
 
-void gpio_clear_interrupt(uint8_t which)
+int tsb_gpio_clear_interrupt(uint8_t which)
 {
     putreg32(1 << which, GPIO_RAWINTSTAT);
+    return 0;
 }
 
-uint32_t gpio_get_raw_interrupt(uint8_t which)
+uint32_t tsb_gpio_get_raw_interrupt(void)
 {
     return getreg32(GPIO_RAWINTSTAT);
 }
 
-uint32_t gpio_get_interrupt(void)
+uint32_t tsb_gpio_get_interrupt(void)
 {
     return getreg32(GPIO_INTSTAT);
 }
 
-void set_gpio_triggering(uint8_t which, int trigger)
+int tsb_set_gpio_triggering(uint8_t which, int trigger)
 {
+    int tsb_trigger;
     uint32_t reg = GPIO_INTCTRL0 + ((which >> 1) & 0xfc);
     uint32_t shift = 4 * (which & 0x7);
     uint32_t v = getreg32(reg);
 
-    putreg32(v | (trigger << shift), reg);
+    switch(trigger) {
+    case IRQ_TYPE_EDGE_RISING:
+        tsb_trigger = TSB_IRQ_TYPE_EDGE_RISING;
+        break;
+    case IRQ_TYPE_EDGE_FALLING:
+        tsb_trigger = TSB_IRQ_TYPE_EDGE_FALLING;
+        break;
+    case IRQ_TYPE_EDGE_BOTH:
+        tsb_trigger = TSB_IRQ_TYPE_EDGE_BOTH;
+        break;
+    case IRQ_TYPE_LEVEL_HIGH:
+        tsb_trigger = TSB_IRQ_TYPE_LEVEL_HIGH;
+        break;
+    case IRQ_TYPE_LEVEL_LOW:
+        tsb_trigger = TSB_IRQ_TYPE_LEVEL_LOW;
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    putreg32(v | (tsb_trigger << shift), reg);
+    return 0;
 }
 
-static int gpio_irq_handler(int irq, void *context)
+static int tsb_gpio_irq_handler(int irq, void *context)
 {
     /*
      * Handle each pending GPIO interrupt.  "The GPIO MIS register is the masked
@@ -157,7 +176,8 @@ static int gpio_irq_handler(int irq, void *context)
      * of input lines triggering an interrupt. Bits read as Low indicate that
      * either no interrupt has been generated, or the interrupt is masked."
      */
-    uint32_t irqstat = gpio_get_interrupt();
+    uint32_t irqstat;
+    uint8_t base;
     int pin;
 
     /*
@@ -166,19 +186,21 @@ static int gpio_irq_handler(int irq, void *context)
      * register clears the corresponding interrupt edge detection logic register.
      * Writing a 0 has no effect."
      */
+    irqstat = tsb_gpio_get_interrupt();
     putreg32(irqstat, GPIO_RAWINTSTAT);
 
     /* Now process each IRQ pending in the GPIO */
     for (pin = 0; pin < NR_GPIO_IRQS && irqstat != 0; pin++, irqstat >>= 1) {
         if ((irqstat & 1) != 0) {
-            gpio_irq_vector[pin](pin, context);
+            base = tsb_gpio_irq_gpio_base[pin];
+            tsb_gpio_irq_vector[pin](base + pin, context);
         }
     }
 
     return 0;
 }
 
-int gpio_irqattach(int irq, xcpt_t isr)
+int tsb_gpio_irqattach(uint8_t irq, xcpt_t isr, uint8_t base)
 {
     irqstate_t flags;
 
@@ -197,23 +219,24 @@ int gpio_irqattach(int irq, xcpt_t isr)
     }
 
     /* Save the new ISR in the table. */
-    gpio_irq_vector[irq] = isr;
+    tsb_gpio_irq_vector[irq] = isr;
+    tsb_gpio_irq_gpio_base[irq] = base;
     irqrestore(flags);
 
     return OK;
 }
 
-static void gpio_irqinitialize(void)
+static void tsb_gpio_irqinitialize(void)
 {
     int i;
 
     /* Point all interrupt vectors to the unexpected interrupt */
     for (i = 0; i < NR_GPIO_IRQS; i++) {
-        gpio_irq_vector[i] = irq_unexpected_isr;
+        tsb_gpio_irq_vector[i] = irq_unexpected_isr;
     }
 }
 
-void gpio_initialize(void)
+void tsb_gpio_initialize(void)
 {
     irqstate_t flags;
 
@@ -223,10 +246,10 @@ void gpio_initialize(void)
     tsb_clk_enable(TSB_CLK_GPIO);
     tsb_reset(TSB_RST_GPIO);
 
-    gpio_irqinitialize();
+    tsb_gpio_irqinitialize();
 
     /* Attach Interrupt Handler */
-    irq_attach(TSB_IRQ_GPIO, gpio_irq_handler);
+    irq_attach(TSB_IRQ_GPIO, tsb_gpio_irq_handler);
 
     /* Enable Interrupt Handler */
     up_enable_irq(TSB_IRQ_GPIO);
@@ -234,7 +257,7 @@ void gpio_initialize(void)
     irqrestore(flags);
 }
 
-void gpio_uninitialize(void)
+void tsb_gpio_uninitialize(void)
 {
     irqstate_t flags;
 
@@ -251,4 +274,25 @@ void gpio_uninitialize(void)
     irq_detach(TSB_IRQ_GPIO);
 
     irqrestore(flags);
+}
+
+struct gpio_ops_s tsb_gpio_ops = {
+    .get_direction = tsb_gpio_get_direction,
+    .direction_in = tsb_gpio_direction_in,
+    .direction_out = tsb_gpio_direction_out,
+    .activate = tsb_gpio_activate,
+    .get_value = tsb_gpio_get_value,
+    .set_value = tsb_gpio_set_value,
+    .deactivate = tsb_gpio_deactivate,
+    .line_count = tsb_gpio_line_count,
+    .irqattach = tsb_gpio_irqattach,
+    .set_triggering = tsb_set_gpio_triggering,
+    .mask_irq = tsb_gpio_mask_irq,
+    .unmask_irq = tsb_gpio_unmask_irq,
+    .clear_interrupt = tsb_gpio_clear_interrupt,
+};
+
+int tsb_gpio_register(void)
+{
+    return register_gpio_chip(&tsb_gpio_ops, 0);
 }

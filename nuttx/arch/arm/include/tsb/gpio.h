@@ -35,30 +35,31 @@
 #include <stdint.h>
 #include <arch/irq.h>
 
-int gpio_get_direction(uint8_t which);
-void gpio_direction_in(uint8_t which);
-void gpio_direction_out(uint8_t which, uint8_t value);
-void gpio_activate(uint8_t which);
-uint8_t gpio_get_value(uint8_t which);
-void gpio_set_value(uint8_t which, uint8_t value);
-int gpio_set_debounce(uint8_t which, uint16_t delay);
-void gpio_deactivate(uint8_t which);
-uint8_t gpio_line_count(void);
-void gpio_initialize(void);
-void gpio_uninitialize(void);
-int gpio_irqattach(int irq, xcpt_t isr);
-void set_gpio_triggering(uint8_t which, int trigger);
-void gpio_mask_irq(uint8_t which);
-void gpio_unmask_irq(uint8_t which);
-void gpio_clear_interrupt(uint8_t which);
-uint32_t gpio_get_raw_interrupt(uint8_t which);
-uint32_t gpio_get_interrupt(void);
+int tsb_gpio_get_direction(uint8_t which);
+void tsb_gpio_direction_in(uint8_t which);
+void tsb_gpio_direction_out(uint8_t which, uint8_t value);
+void tsb_gpio_activate(uint8_t which);
+uint8_t tsb_gpio_get_value(uint8_t which);
+void tsb_gpio_set_value(uint8_t which, uint8_t value);
+void tsb_gpio_deactivate(uint8_t which);
+uint8_t tsb_gpio_line_count(void);
+void tsb_gpio_initialize(void);
+void tsb_gpio_uninitialize(void);
+int tsb_gpio_irqattach(uint8_t which, xcpt_t isr, uint8_t base);
+int set_tsb_gpio_triggering(uint8_t which, int trigger);
+int tsb_gpio_mask_irq(uint8_t which);
+int tsb_gpio_unmask_irq(uint8_t which);
+int tsb_gpio_clear_interrupt(uint8_t which);
+uint32_t tsb_gpio_get_raw_interrupt(void);
+uint32_t tsb_gpio_get_interrupt(void);
 
-#define IRQ_TYPE_LEVEL_LOW      0x0
-#define IRQ_TYPE_LEVEL_HIGH     0x1
-#define IRQ_TYPE_EDGE_FALLING   0x2
-#define IRQ_TYPE_EDGE_RISING    0x3
-#define IRQ_TYPE_EDGE_BOTH      0x7
+int tsb_gpio_register(void);
+
+#define TSB_IRQ_TYPE_LEVEL_LOW      0x0
+#define TSB_IRQ_TYPE_LEVEL_HIGH     0x1
+#define TSB_IRQ_TYPE_EDGE_FALLING   0x2
+#define TSB_IRQ_TYPE_EDGE_RISING    0x3
+#define TSB_IRQ_TYPE_EDGE_BOTH      0x7
 
 #endif /* _TSB_GPIO_H_ */
 
