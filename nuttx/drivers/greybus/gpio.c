@@ -31,7 +31,7 @@
 #include <nuttx/greybus/greybus.h>
 #include "gpio-gb.h"
 
-#include <arch/tsb/gpio.h>
+#include <nuttx/gpio.h>
 
 #define GB_GPIO_VERSION_MAJOR 0
 #define GB_GPIO_VERSION_MINOR 1
