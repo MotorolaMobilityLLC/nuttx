@@ -47,7 +47,7 @@
 #include <errno.h>
 
 #include "up_debug.h"
-#include "up_switch.h"
+#include "svc.h"
 
 #include "stm32.h"
 
@@ -59,12 +59,20 @@
  *
  ****************************************************************************/
 
+#define RETRY_TIME_S    (5)
+
 int nsh_archinitialize(void)
 {
-	printk("%s\n", __func__);
-
-	/* Power ON the switch and bridges upon boot */
-	switch_control(1);
+    int rc = 0;
+    do {
+        rc = svc_init();
+        if (rc < 0) {
+            dbg_error("%s: SVC Initialization failed. Retrying in %u",
+                      __func__,
+                      RETRY_TIME_S);
+            sleep(RETRY_TIME_S);
+        }
+    } while (rc < 0);
 
 	return OK;
 }

@@ -1,5 +1,5 @@
 ############################################################################
-# configs/endo/svc/src/Makefile
+# configs/ara/svc/src/Makefile
 #
 #   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -16,8 +16,14 @@ CFLAGS		+= -I$(TOPDIR)/sched
 ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
-CSRCS		= up_boot.c up_debug.c up_epm.c up_gpio.c up_i2c.c up_ioexp.c \
-                  up_power.c up_switch.c
+CSRCS		= up_boot.c up_debug.c svc.c interface.c
+CSRCS		+= tsb_switch.c
+
+ifeq ($(CONFIG_ARCH_BOARD_ARA_BDB1B_SVC),y)
+CSRCS		+= board-bdb1b.c
+CSRCS		+= tsb_switch_es1.c
+endif
+
 
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
 CSRCS		+= up_nsh.c

@@ -7,7 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifndef CONFIG_ARCH_BOARD_ARA_SVC
 #include "up_switch.h"
+#else
+#include "svc.h"
+#endif
 
 
 #ifdef CONFIG_BUILD_KERNEL
@@ -23,7 +27,15 @@ int svc_main(int argc, char *argv[])
 
 	state = strtol(argv[1], NULL, 10);
 
-	switch_control(state);
+#ifndef CONFIG_ARCH_BOARD_ARA_SVC
+    switch_control(state);
+#else
+    if (state) {
+        svc_init();
+    } else {
+        svc_exit();
+    }
+#endif
 
 	return 0;
 }
