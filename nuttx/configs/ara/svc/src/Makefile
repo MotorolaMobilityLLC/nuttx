@@ -4,7 +4,7 @@
 #   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
-#   Copyright (C) 2014 Google, Inc.
+#   Copyright (C) 2014-2015 Google, Inc.
 #   Google Confidential/Restricted
 #
 ############################################################################
@@ -24,6 +24,10 @@ CSRCS		+= board-bdb1b.c
 CSRCS		+= tsb_switch_es1.c
 endif
 
+ifeq ($(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC),y)
+CSRCS		+= board-bdb2a.c
+CSRCS		+= tsb_switch_es2.c
+endif
 
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
 CSRCS		+= up_nsh.c

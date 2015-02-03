@@ -711,6 +711,21 @@ config ARCH_BOARD_ARA_BDB1B_SVC
 		development platform.
 		This port uses a GNU Cortex-M4 toolchain (such as CodeSourcery).
 
+config ARCH_BOARD_ARA_BDB2A_SVC
+	bool "ARA SVC in BDB2A"
+	depends on ARCH_CHIP_STM32F407IG
+	select ARCH_BOARD_ARA_SVC
+	select SPI
+	select SPI_OWNBUS
+	select SPI_EXCHANGE
+	select STM32_SPI1
+	---help---
+		The ARA SVC is based on the STMicro STM32F417IG microcontroller
+		(ARM Cortex-M4 with FPU + crypto).
+		This options selects the support for the SVC on the BDB2A
+		development platform.
+		This port uses a GNU Cortex-M4 toolchain (such as CodeSourcery).
+
 config ARCH_BOARD_ARA_ENDO_SVC
 	bool "ARA SVC in Endo"
 	depends on ARCH_CHIP_STM32F407IG
@@ -1063,6 +1078,7 @@ config ARCH_BOARD
 	default "bdb/svc"             if ARCH_BOARD_ARA_BDB_SVC
 	default "endo/svc"            if ARCH_BOARD_ARA_ENDO_SVC
 	default "ara/svc"             if ARCH_BOARD_ARA_BDB1B_SVC
+	default "ara/svc"             if ARCH_BOARD_ARA_BDB2A_SVC
 	default "stm32f100rc_generic" if ARCH_BOARD_STM32F100RC_GENERIC
 	default "stm32f3discovery"    if ARCH_BOARD_STM32F3_DISCOVERY
 	default "stm32f4discovery"    if ARCH_BOARD_STM32F4_DISCOVERY
