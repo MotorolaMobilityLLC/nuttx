@@ -1,6 +1,7 @@
 /**
  * Copyright (c) 2015 Google Inc.
  * Google Confidential/Restricted
+ * @author: Perry Hung
  */
 
 #define DBG_COMP DBG_SVC     /* DBG_COMP macro of the component */
@@ -9,8 +10,10 @@
 #include <nuttx/arch.h>
 #include "ara_board.h"
 #include "interface.h"
-#include "up_switch.h"
+#include "tsb_switch_driver_es1.h"
 #include "stm32.h"
+
+#define SWITCH_I2C_BUS      (2)
 
 #define SVC_LED_RED         (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_PORTA | \
                              GPIO_OUTPUT_SET | GPIO_PIN7)
@@ -104,7 +107,6 @@ static struct ara_board_info bdb1b_board_info = {
     .interfaces = bdb1b_interfaces,
     .nr_interfaces = NELEM(bdb1b_interfaces),
 
-    .sw_i2c_bus = 2,
     .sw_1p1   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN9),
     .sw_1p8   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN6),
     .sw_reset = (GPIO_OUTPUT | GPIO_OUTPUT_CLEAR |
@@ -115,6 +117,8 @@ static struct ara_board_info bdb1b_board_info = {
 };
 
 struct ara_board_info *board_init(void) {
+    struct tsb_switch_driver *sw_drv;
+
     /* Pretty lights */
     stm32_configgpio(SVC_LED_RED);
     stm32_gpiowrite(SVC_LED_RED, true);
@@ -125,8 +129,15 @@ struct ara_board_info *board_init(void) {
     stm32_gpiowrite(IO_RESET, false);
     stm32_gpiowrite(IO_RESET1, false);
 
+    sw_drv = tsb_switch_es1_init(SWITCH_I2C_BUS);
+    if (!sw_drv) {
+        return NULL;
+    }
+    bdb1b_board_info.sw_drv = sw_drv;
+
     return &bdb1b_board_info;
 }
 
 void board_exit(void) {
+    tsb_switch_es1_exit();
 }

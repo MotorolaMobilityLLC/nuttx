@@ -11,7 +11,7 @@ struct ara_board_info {
     size_t nr_interfaces;
 
     /* Switch data */
-    unsigned int sw_i2c_bus;
+    struct tsb_switch_driver *sw_drv;
     unsigned int sw_1p1;
     unsigned int sw_1p8;
     unsigned int sw_reset;
