@@ -132,7 +132,6 @@ int switch_dme_peer_get(struct tsb_switch *sw,
     return drv->peer_get(drv, portid, attrid, select_index, attr_value);
 }
 
-
 /*
  * Routing table configuration commands
  */
@@ -165,6 +164,15 @@ static int switch_dev_id_mask_get(struct tsb_switch *sw,
     return drv->dev_id_mask_get(drv, dst);
 }
 
+static int switch_dev_id_mask_set(struct tsb_switch *sw,
+                                  uint8_t *mask) {
+    struct tsb_switch_driver *drv = sw->drv;
+    if (!drv->dev_id_mask_set) {
+        return -EOPNOTSUPP;
+    }
+    return drv->dev_id_mask_set(drv, mask);
+}
+
 /*
  * Switch internal configuration commands
  */
@@ -176,6 +184,16 @@ static int switch_internal_getattr(struct tsb_switch *sw,
         return -EOPNOTSUPP;
     }
     return drv->switch_attr_get(drv, attrid, val);
+}
+
+static int switch_internal_setattr(struct tsb_switch *sw,
+                                   uint16_t attrid,
+                                   uint32_t val) {
+    struct tsb_switch_driver *drv = sw->drv;
+    if (!drv->switch_attr_set) {
+        return -EOPNOTSUPP;
+    }
+    return drv->switch_attr_set(drv, attrid, val);
 }
 
 static int switch_internal_set_id(struct tsb_switch *sw,

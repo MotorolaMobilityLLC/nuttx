@@ -25,8 +25,12 @@
 #define NCP_LUTSETCNF               (0x11)
 #define NCP_LUTGETREQ               (0x12)
 #define NCP_LUTGETCNF               (0x13)
+#define NCP_SETDEVICEIDMASKREQ      (0x14)
+#define NCP_SETDEVICEIDMASKCNF      (0x15)
 #define NCP_GETDEVICEIDMASKREQ      (0x16)
 #define NCP_GETDEVICEIDMASKCNF      (0x17)
+#define NCP_SWITCHATTRSETREQ        (0x20)
+#define NCP_SWITCHATTRSETCNF        (0x21)
 #define NCP_SWITCHATTRGETREQ        (0x22)
 #define NCP_SWITCHATTRGETCNF        (0x23)
 #define NCP_SWITCHIDSETREQ          (0x24)
@@ -120,6 +124,9 @@ struct tsb_switch_driver {
     int (*switch_attr_get)(struct tsb_switch_driver*,
                            uint16_t attrid,
                            uint32_t *val);
+    int (*switch_attr_set)(struct tsb_switch_driver *drv,
+                           uint16_t attrid,
+                           uint32_t val);
     int (*switch_id_set)(struct tsb_switch_driver*,
                          uint8_t cportid,
                          uint8_t peer_cportid,
@@ -127,6 +134,8 @@ struct tsb_switch_driver {
                          uint8_t irt);
     int (*dev_id_mask_get)(struct tsb_switch_driver*,
                            uint8_t *dst);
+    int (*dev_id_mask_set)(struct tsb_switch_driver* drv,
+                           uint8_t *mask);
 };
 
 struct tsb_switch {

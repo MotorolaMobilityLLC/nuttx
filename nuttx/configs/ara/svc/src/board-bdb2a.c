@@ -158,6 +158,15 @@ void stm32_spi1select(struct spi_dev_s *dev, enum spi_dev_e devid, bool selected
         dbg_insane("%s(): CS %s\n", __func__,
                    selected ? "asserted" : "de-asserted");
 
+        /*
+         * SW-472: The STM32 SPI peripheral does not delay until the last
+         * falling edge of SCK, instead dropping RXNE as soon as the rising
+         * edge is clocked out.
+         * Manually add a hacked delay in these cases...
+         */
+        if ((!selected) && (SWITCH_SPI_FREQUENCY < 8000000))
+                up_udelay(2);
+
         /* Set the GPIO low to select and high to de-select */
         stm32_gpiowrite(TSB_SW_CS, !selected);
     }
