@@ -36,6 +36,8 @@
 #define GB_GPIO_VERSION_MAJOR 0
 #define GB_GPIO_VERSION_MINOR 1
 
+static int g_gpio_cport;
+
 static uint8_t gb_gpio_protocol_version(struct gb_operation *operation)
 {
     struct gb_gpio_proto_version_response *response;
@@ -166,6 +168,100 @@ static uint8_t gb_gpio_set_debounce(struct gb_operation *operation)
     return gpio_set_debounce(request->which, request->usec);
 }
 
+static uint8_t gb_gpio_irq_ack(struct gb_operation *operation)
+{
+    struct gb_gpio_irq_ack_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (request->which >= gpio_line_count())
+        return GB_OP_INVALID;
+
+    gpio_clear_interrupt(request->which);
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_gpio_irq_mask(struct gb_operation *operation)
+{
+    struct gb_gpio_irq_mask_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (request->which >= gpio_line_count())
+        return GB_OP_INVALID;
+
+    gpio_mask_irq(request->which);
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_gpio_irq_unmask(struct gb_operation *operation)
+{
+    struct gb_gpio_irq_unmask_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (request->which >= gpio_line_count())
+        return GB_OP_INVALID;
+
+    gpio_unmask_irq(request->which);
+    return GB_OP_SUCCESS;
+}
+
+int gb_gpio_irq_event(int irq, FAR void *context)
+{
+    struct gb_gpio_irq_event_request *request;
+    struct gb_operation *operation;
+
+    operation = gb_operation_create(g_gpio_cport, GB_GPIO_TYPE_IRQ_EVENT,
+                                    sizeof(*request));
+    request = gb_operation_get_request_payload(operation);
+    request->which = irq;
+
+    /* Mask the irq to not spam the host */
+    gpio_mask_irq(request->which);
+    gb_operation_send_request_sync(operation);
+    gpio_clear_interrupt(request->which);
+    gpio_unmask_irq(request->which);
+
+    return OK;
+}
+
+static uint8_t gb_gpio_irq_type(struct gb_operation *operation)
+{
+    int ret;
+    int trigger;
+    struct gb_gpio_irq_type_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (request->which >= gpio_line_count())
+        return GB_OP_INVALID;
+
+    switch(request->type) {
+    case GB_GPIO_IRQ_TYPE_EDGE_RISING:
+        trigger = IRQ_TYPE_EDGE_RISING;
+        break;
+    case GB_GPIO_IRQ_TYPE_EDGE_FALLING:
+        trigger = IRQ_TYPE_EDGE_FALLING;
+        break;
+    case GB_GPIO_IRQ_TYPE_EDGE_BOTH:
+        trigger = IRQ_TYPE_EDGE_BOTH;
+        break;
+    case GB_GPIO_IRQ_TYPE_LEVEL_HIGH:
+        trigger = IRQ_TYPE_LEVEL_HIGH;
+        break;
+    case GB_GPIO_IRQ_TYPE_LEVEL_LOW:
+        trigger = IRQ_TYPE_LEVEL_LOW;
+        break;
+    default:
+        return GB_OP_INVALID;
+    }
+    ret = set_gpio_triggering(request->which, trigger);
+    if (ret)
+        return GB_OP_INVALID;
+    ret = gpio_irqattach(request->which, gb_gpio_irq_event);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+    return GB_OP_SUCCESS;
+}
+
+
 static struct gb_operation_handler gb_gpio_handlers[] = {
     GB_HANDLER(GB_GPIO_TYPE_PROTOCOL_VERSION, gb_gpio_protocol_version),
     GB_HANDLER(GB_GPIO_TYPE_LINE_COUNT, gb_gpio_line_count),
@@ -177,6 +273,10 @@ static struct gb_operation_handler gb_gpio_handlers[] = {
     GB_HANDLER(GB_GPIO_TYPE_GET_VALUE, gb_gpio_get_value),
     GB_HANDLER(GB_GPIO_TYPE_SET_VALUE, gb_gpio_set_value),
     GB_HANDLER(GB_GPIO_TYPE_SET_DEBOUNCE, gb_gpio_set_debounce),
+    GB_HANDLER(GB_GPIO_TYPE_IRQ_TYPE, gb_gpio_irq_type),
+    GB_HANDLER(GB_GPIO_TYPE_IRQ_ACK, gb_gpio_irq_ack),
+    GB_HANDLER(GB_GPIO_TYPE_IRQ_MASK, gb_gpio_irq_mask),
+    GB_HANDLER(GB_GPIO_TYPE_IRQ_UNMASK, gb_gpio_irq_unmask),
 };
 
 struct gb_driver gpio_driver = {
@@ -186,5 +286,6 @@ struct gb_driver gpio_driver = {
 
 void gb_gpio_register(int cport)
 {
+    g_gpio_cport = cport;
     gb_register_driver(cport, &gpio_driver);
 }

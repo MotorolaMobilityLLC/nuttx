@@ -41,6 +41,24 @@
 #define	GB_GPIO_TYPE_GET_VALUE          0x08
 #define	GB_GPIO_TYPE_SET_VALUE          0x09
 #define	GB_GPIO_TYPE_SET_DEBOUNCE       0x0a
+#define GB_GPIO_TYPE_IRQ_TYPE           0x0b
+#define GB_GPIO_TYPE_IRQ_ACK            0x0c
+#define GB_GPIO_TYPE_IRQ_MASK           0x0d
+#define GB_GPIO_TYPE_IRQ_UNMASK         0x0e
+#define GB_GPIO_TYPE_IRQ_EVENT          0x0f
+#define GB_GPIO_TYPE_RESPONSE           0x80    /* OR'd with rest */
+
+
+#define GB_GPIO_IRQ_TYPE_NONE           0x00000000
+#define GB_GPIO_IRQ_TYPE_EDGE_RISING    0x00000001
+#define GB_GPIO_IRQ_TYPE_EDGE_FALLING   0x00000002
+#define GB_GPIO_IRQ_TYPE_EDGE_BOTH \
+    (GB_GPIO_IRQ_TYPE_EDGE_FALLING | GB_GPIO_IRQ_TYPE_EDGE_RISING)
+#define GB_GPIO_IRQ_TYPE_LEVEL_HIGH     0x00000004
+#define GB_GPIO_IRQ_TYPE_LEVEL_LOW      0x00000008
+#define GB_GPIO_IRQ_TYPE_LEVEL_MASK \
+    (GB_GPIO_IRQ_TYPE_LEVEL_LOW | GB_GPIO_IRQ_TYPE_LEVEL_HIGH)
+#define GB_GPIO_IRQ_TYPE_SENSE_MASK     0x0000000f
 
 /* version request has no payload */
 struct gb_gpio_proto_version_response {
@@ -100,6 +118,32 @@ struct gb_gpio_set_debounce_request {
 };
 /* debounce response has no payload */
 
+struct gb_gpio_irq_type_request {
+	__u8	which;
+	__u8	type;
+};
+/* irq type response has no payload */
+
+struct gb_gpio_irq_mask_request {
+	__u8	which;
+};
+/* irq mask response has no payload */
+
+struct gb_gpio_irq_unmask_request {
+	__u8	which;
+};
+/* irq unmask response has no payload */
+
+struct gb_gpio_irq_ack_request {
+	__u8	which;
+};
+/* irq ack response has no payload */
+
+/* irq event requests originate on another module and are handled on the AP */
+struct gb_gpio_irq_event_request {
+	__u8	which;
+};
+/* irq event response has no payload */
 
 #endif /* __GPIO_GB_H__ */
 
