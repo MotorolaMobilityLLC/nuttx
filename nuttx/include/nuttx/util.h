@@ -10,6 +10,10 @@
     #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
 
+#ifndef BIT
+    #define BIT(n)  (1UL << (n))
+#endif
+
 #endif
 
 
