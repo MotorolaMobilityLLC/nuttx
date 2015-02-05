@@ -533,10 +533,11 @@ void DWC_TIMER_FREE(dwc_timer_t *timer)
     DWC_SPINLOCK_IRQSAVE(timer->lock, &flags);
 
     if (timer->scheduled) {
-        timer_delete(&timer->t);
         timer->scheduled = 0;
+        DWC_TIMER_CANCEL(timer);
     }
 
+    timer_delete(&timer->t);
     DWC_SPINUNLOCK_IRQRESTORE(timer->lock, flags);
     DWC_SPINLOCK_FREE(timer->lock);
     DWC_FREE(timer->name);
@@ -586,7 +587,10 @@ void DWC_TIMER_SCHEDULE_PERIODIC(dwc_timer_t *timer, uint32_t time)
 
 void DWC_TIMER_CANCEL(dwc_timer_t *timer)
 {
-    timer_delete(&timer->t);
+    struct itimerspec its;
+    memset(&its, 0, sizeof(its));
+    if (timer_settime(timer->t, 0, &its, NULL) < 0)
+        perror("Can't stop timer!");
 }
 
 /* Wait Queues */
