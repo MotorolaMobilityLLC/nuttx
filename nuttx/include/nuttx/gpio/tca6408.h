@@ -43,6 +43,7 @@ int tca6408_get_polarity_inverted(uint8_t which);
 void tca6408_set(uint8_t which, uint8_t val);
 uint8_t tca6408_get(uint8_t which);
 
-void tca6408_init(struct i2c_dev_s *dev, uint8_t addr, uint8_t reset);
+void tca6408_init(struct i2c_dev_s *dev, uint8_t addr,
+                  uint8_t reset, uint8_t irq);
 
 #endif

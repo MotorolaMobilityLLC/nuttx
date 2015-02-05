@@ -33,48 +33,89 @@
 #include <debug.h>
 #include <errno.h>
 #include <unistd.h>
+#include <string.h>
 #include <nuttx/gpio/tca6408.h>
 #include <nuttx/gpio.h>
+#include <nuttx/wqueue.h>
+#include <pthread.h>
 
 #define TCA6408_INPUT_REG       0x00
 #define TCA6408_OUTPUT_REG      0x01
 #define TCA6408_POLARITY_REG    0x02
 #define TCA6408_CONFIG_REG      0x03
 
-#define TCA6408_TW      1 /* 1us (datasheet: reset pulse duration (Tw) is 4ns */
-#define TCA6408_TRESET  1 /* 1us (datasheet: time to reset (Treset) is 600ns */
+#define TCA6408_TW      1       /* 1us (datasheet: reset pulse duration (Tw) is 4ns */
+#define TCA6408_TRESET  1       /* 1us (datasheet: time to reset (Treset) is 600ns */
 
 #define TCA6408_NR_GPIO 8
+
+#define TCA6408_IRQ_TYPE_EDGE_BOTH      0x00000000
+#define TCA6408_IRQ_TYPE_EDGE_RISING    0x00000001
+#define TCA6408_IRQ_TYPE_EDGE_FALLING   0x00000002
+#define TCA6408_IRQ_TYPE_LEVEL_HIGH     0x00000001
+#define TCA6408_IRQ_TYPE_LEVEL_LOW      0x00000002
+
+#define TCA6408_IRQ_TYPE_EDGE           0x00000000
+#define TCA6408_IRQ_TYPE_LEVEL          0x00000001
+
+#define tca6408_irq_type_is_level(gpio) \
+    (tca6408_get_gpio_triggering_type(gpio) == TCA6408_IRQ_TYPE_LEVEL)
+#define tca6408_irq_type_is_edge(gpio) \
+    (tca6408_get_gpio_triggering_type(gpio) == TCA6408_IRQ_TYPE_EDGE)
+#define tca6408_irq_edge_trigger_is_both(gpio) \
+    (tca6408_get_gpio_triggering_level(gpio) == TCA6408_IRQ_TYPE_EDGE_BOTH)
+#define tca6408_irq_edge_trigger_is_falling(gpio) \
+    (tca6408_get_gpio_triggering_level(gpio) == TCA6408_IRQ_TYPE_EDGE_FALLING)
+#define tca6408_irq_edge_trigger_is_rising(gpio) \
+    (tca6408_get_gpio_triggering_level(gpio) == TCA6408_IRQ_TYPE_EDGE_RISING)
+#define tca6408_irq_level_trigger_is_low(gpio) \
+    (tca6408_get_gpio_triggering_level(gpio) == TCA6408_IRQ_TYPE_LEVEL_LOW)
+#define tca6408_irq_level_trigger_is_high(gpio) \
+    (tca6408_get_gpio_triggering_level(gpio) == TCA6408_IRQ_TYPE_LEVEL_HIGH)
 
 /* disable the verbose debug output */
 #undef lldbg
 #define lldbg(x...)
 
-struct tca6408_platform_data
-{
+extern int irq_unexpected_isr(int irq, FAR void *context);
+
+struct tca6408_platform_data {
     struct i2c_dev_s *dev;
     uint8_t addr;
     uint8_t reset;
+    uint8_t irq;
+    /* should be in another struct */
+    uint8_t in;
+    uint8_t intstat;
+    uint8_t mask;
+    uint8_t trigger;
+    uint16_t level;
+
+    xcpt_t irq_vector[TCA6408_NR_GPIO];
+    uint8_t gpio_base[TCA6408_NR_GPIO];
+
+    struct work_s work;
+    pthread_t thread;
 };
 
 static struct tca6408_platform_data g_tca6408;
 
-static int i2c_get(uint8_t addr, uint8_t regaddr, uint8_t *val)
+static int i2c_get(uint8_t addr, uint8_t regaddr, uint8_t * val)
 {
     int ret;
     struct i2c_dev_s *dev = g_tca6408.dev;
     struct i2c_msg_s msg[] = {
         {
-            .addr = addr,
-            .flags = 0,
-            .buffer = &regaddr,
-            .length = 1,
-        }, {
-            .addr = addr,
-            .flags = I2C_M_READ,
-            .buffer = val,
-            .length = 1,
-        },
+         .addr = addr,
+         .flags = 0,
+         .buffer = &regaddr,
+         .length = 1,
+         }, {
+             .addr = addr,
+             .flags = I2C_M_READ,
+             .buffer = val,
+             .length = 1,
+             },
     };
 
     if (!dev) {
@@ -86,8 +127,7 @@ static int i2c_get(uint8_t addr, uint8_t regaddr, uint8_t *val)
         lldbg("addr=0x%02hhX, regaddr=0x%02hhX: read 0x%02hhX\n",
               addr, regaddr, *val);
     } else {
-        lldbg("addr=0x%02hhX, regaddr=0x%02hhX: failed!\n",
-              addr, regaddr);
+        lldbg("addr=0x%02hhX, regaddr=0x%02hhX: failed!\n", addr, regaddr);
     }
 
     return ret;
@@ -97,20 +137,20 @@ static int i2c_set(uint8_t addr, uint8_t regaddr, uint8_t val)
 {
     int ret;
     struct i2c_dev_s *dev = g_tca6408.dev;
-    uint8_t cmd[2] = {regaddr, val};
+    uint8_t cmd[2] = { regaddr, val };
     uint8_t data8;
     struct i2c_msg_s msg[] = {
         {
-            .addr = addr,
-            .flags = 0,
-            .buffer = cmd,
-            .length = 2,
-        }, {
-            .addr = addr,
-            .flags = I2C_M_READ,
-            .buffer = &data8,
-            .length = 1,
-        },
+         .addr = addr,
+         .flags = 0,
+         .buffer = cmd,
+         .length = 2,
+         }, {
+             .addr = addr,
+             .flags = I2C_M_READ,
+             .buffer = &data8,
+             .length = 1,
+             },
     };
 
     lldbg("addr=0x%02hhX: regaddr=0x%02hhX, val=0x%02hhX\n",
@@ -161,8 +201,7 @@ void tca6408_set_direction_in(uint8_t which)
      */
     ret = i2c_get(addr, TCA6408_CONFIG_REG, &reg);
     if (ret != 0)
-        return
-    lldbg("current cfg=0x%02X\n", reg);
+        return lldbg("current cfg=0x%02X\n", reg);
     reg |= (1 << which);
     lldbg("new cfg=0x%02X\n", reg);
     ret = i2c_set(addr, TCA6408_CONFIG_REG, reg);
@@ -215,7 +254,6 @@ void tca6408_set_direction_out(uint8_t which, uint8_t value)
     tca6408_set(which, value);
 }
 
-
 int tca6408_get_direction(uint8_t which)
 {
     uint8_t addr = g_tca6408.addr;
@@ -237,15 +275,13 @@ int tca6408_get_direction(uint8_t which)
     return direction;
 }
 
-
 int tca6408_set_polarity_inverted(uint8_t which, uint8_t inverted)
 {
     uint8_t addr = g_tca6408.addr;
     uint8_t polarity;
     int ret;
 
-    lldbg("addr=0x%02hhX, which=%hhu inverted=%hhu\n",
-          addr, which, inverted);
+    lldbg("addr=0x%02hhX, which=%hhu inverted=%hhu\n", addr, which, inverted);
     /* Configure pin polarity inversion
      *
      * The Polarity Inversion Register (register 2) allows
@@ -272,7 +308,6 @@ int tca6408_set_polarity_inverted(uint8_t which, uint8_t inverted)
     return 0;
 }
 
-
 int tca6408_get_polarity_inverted(uint8_t which)
 {
     uint8_t addr = g_tca6408.addr;
@@ -297,15 +332,13 @@ int tca6408_get_polarity_inverted(uint8_t which)
     return polarity;
 }
 
-
 void tca6408_set(uint8_t which, uint8_t val)
 {
     uint8_t addr = g_tca6408.addr;
     uint8_t reg;
     int ret;
 
-    lldbg("addr=0x%02hhX, which=%hhu, val=%hhu\n",
-          addr, which, val);
+    lldbg("addr=0x%02hhX, which=%hhu, val=%hhu\n", addr, which, val);
     /* Set output pins default value (before configuring it as output
      *
      * The Output Port Register (register 1) shows the outgoing logic
@@ -324,11 +357,61 @@ void tca6408_set(uint8_t which, uint8_t val)
     ret = i2c_set(addr, TCA6408_OUTPUT_REG, reg);
 }
 
+static int tca6408_get_gpio_triggering_type(uint8_t which)
+{
+    return (g_tca6408.trigger >> which) & 1;
+}
+
+static int tca6408_get_gpio_triggering_level(uint8_t which)
+{
+    int shift = which << 1;
+    return (g_tca6408.level >> shift) & 3;
+}
+
+static void intstat_update(uint8_t in)
+{
+    int pin;
+    uint8_t diff;
+
+    diff = g_tca6408.in ^ in;
+    g_tca6408.in = in;
+
+    /*
+     * TCA6408 doesn't support irq trigger, then we have to do it in software.
+     */
+    for (pin = 0; pin < TCA6408_NR_GPIO; pin++) {
+        if (tca6408_irq_type_is_edge(pin) && (diff & 1)) {
+            /* GPIO level change. Set interrupt in function of edge type */
+            if (tca6408_irq_edge_trigger_is_both(pin) ||
+                ((in & 1) == 0 && tca6408_irq_edge_trigger_is_falling(pin)) ||
+                ((in & 1) == 1 && tca6408_irq_edge_trigger_is_rising(pin)))
+                g_tca6408.intstat |= 1 << pin;
+        } else if (tca6408_irq_type_is_level(pin)) {
+            /* Trigger is set to level. Set intstat if in match level type. */
+            if (((in & 1) == 1 && tca6408_irq_level_trigger_is_high(pin)) ||
+                ((in & 1) == 0 && tca6408_irq_level_trigger_is_low(pin)))
+                g_tca6408.intstat |= 1 << pin;
+        }
+        diff >>= 1, in >>= 1;
+    }
+}
+
+static void tca6408_registers_update()
+{
+    int ret;
+    uint8_t in;
+    uint8_t addr = g_tca6408.addr;
+
+    ret = i2c_get(addr, TCA6408_INPUT_REG, &in);
+    if (ret != 0)
+        return;
+    intstat_update(in);
+}
 
 uint8_t tca6408_get(uint8_t which)
 {
-    uint8_t addr = g_tca6408.addr;
     uint8_t in;
+    uint8_t addr = g_tca6408.addr;
     int ret;
 
     lldbg("addr=0x%02hhX, which=%hhu\n", addr, which);
@@ -341,12 +424,151 @@ uint8_t tca6408_get(uint8_t which)
     ret = i2c_get(addr, TCA6408_INPUT_REG, &in);
     if (ret != 0)
         return -EIO;
+    intstat_update(in);
     lldbg("input reg=0x%02hhX\n", in);
     in &= (1 << which);
-    in = !!in;
+    in = ! !in;
     lldbg("in=%hhu\n", in);
 
     return in;
+}
+
+uint8_t tca6408_line_count(void)
+{
+    return TCA6408_NR_GPIO;
+}
+
+int tca6408_gpio_mask_irq(uint8_t which)
+{
+    g_tca6408.mask |= (1 << which);
+    return 0;
+}
+
+int tca6408_gpio_unmask_irq(uint8_t which)
+{
+    g_tca6408.mask &= ~(1 << which);
+    return 0;
+}
+
+int tca6408_gpio_clear_interrupt(uint8_t which)
+{
+    g_tca6408.intstat &= ~(1 << which);
+    return 0;
+}
+
+uint8_t tca6408_gpio_get_interrupt(void)
+{
+    uint8_t mask = ~g_tca6408.mask;
+    uint8_t intstat = g_tca6408.intstat & mask;
+    return intstat;
+}
+
+static void tca6408_set_gpio_trigger(uint8_t which, int trigger)
+{
+    if (trigger)
+        g_tca6408.trigger |= TCA6408_IRQ_TYPE_LEVEL << which;
+    else
+        g_tca6408.trigger &= ~(TCA6408_IRQ_TYPE_LEVEL << which);
+}
+
+static void tca6408_set_gpio_level(uint8_t which, int level)
+{
+    int shift = which << 1;
+
+    g_tca6408.level &= ~(0x03 << shift);
+    g_tca6408.level |= level << shift;
+}
+
+static int tca6408_set_gpio_triggering(uint8_t which, int trigger)
+{
+    switch (trigger) {
+    case IRQ_TYPE_NONE:
+    case IRQ_TYPE_EDGE_BOTH:
+        tca6408_set_gpio_trigger(which, TCA6408_IRQ_TYPE_EDGE);
+        tca6408_set_gpio_level(which, TCA6408_IRQ_TYPE_EDGE_BOTH);
+        break;
+    case IRQ_TYPE_EDGE_RISING:
+        tca6408_set_gpio_trigger(which, TCA6408_IRQ_TYPE_EDGE);
+        tca6408_set_gpio_level(which, TCA6408_IRQ_TYPE_EDGE_RISING);
+    case IRQ_TYPE_EDGE_FALLING:
+        tca6408_set_gpio_trigger(which, TCA6408_IRQ_TYPE_EDGE);
+        tca6408_set_gpio_level(which, TCA6408_IRQ_TYPE_EDGE_FALLING);
+    case IRQ_TYPE_LEVEL_HIGH:
+        tca6408_set_gpio_trigger(which, TCA6408_IRQ_TYPE_LEVEL);
+        tca6408_set_gpio_level(which, TCA6408_IRQ_TYPE_LEVEL_HIGH);
+    case IRQ_TYPE_LEVEL_LOW:
+        tca6408_set_gpio_trigger(which, TCA6408_IRQ_TYPE_LEVEL);
+        tca6408_set_gpio_level(which, TCA6408_IRQ_TYPE_LEVEL_LOW);
+    }
+    return 0;
+}
+
+static void _tca6408_gpio_irq_handler(void *data)
+{
+    void *context = data;
+    uint32_t irqstat;
+    uint8_t base;
+    uint8_t in;
+    int pin;
+
+    tca6408_registers_update();
+    irqstat = tca6408_gpio_get_interrupt();
+    in = g_tca6408.in;
+
+    while (irqstat) {
+        /* Now process each IRQ pending in the GPIO */
+        for (pin = 0; pin < TCA6408_NR_GPIO && irqstat != 0;
+             pin++, irqstat >>= 1, in >>= 1) {
+            if ((irqstat & 1) == 1) {
+                base = g_tca6408.gpio_base[pin];
+                g_tca6408.irq_vector[pin] (base + pin, context);
+                tca6408_gpio_clear_interrupt(pin);
+            }
+        }
+
+        tca6408_registers_update();
+        irqstat = tca6408_gpio_get_interrupt();
+        in = g_tca6408.in;
+    }
+
+    gpio_clear_interrupt(g_tca6408.irq);
+    gpio_unmask_irq(g_tca6408.irq);
+}
+
+static int tca6408_gpio_irq_handler(int irq, void *context)
+{
+    /*
+     * We need to perform some i2c operations to get the gpios that cause
+     * the interrupt. We can't do these operation in irq then do it in thread.
+     * The tca6408 use low level irq trigger. We need to disable gpio interrupt
+     * until thread done with tca6408 irq.
+     */
+    gpio_mask_irq(g_tca6408.irq);
+    work_queue(HPWORK, &g_tca6408.work, _tca6408_gpio_irq_handler, context, 0);
+    return OK;
+}
+
+int tca6408_gpio_irqattach(uint8_t which, xcpt_t isr, uint8_t base)
+{
+    irqstate_t flags;
+
+    flags = irqsave();
+
+    /*
+     * If the new ISR is NULL, then the ISR is being detached.
+     * In this case, disable the ISR and direct any interrupts
+     * to the unexpected interrupt handler.
+     */
+    if (isr == NULL) {
+        isr = irq_unexpected_isr;
+    }
+
+    /* Save the new ISR in the table. */
+    g_tca6408.irq_vector[which] = isr;
+    g_tca6408.gpio_base[which] = base;
+    irqrestore(flags);
+
+    return OK;
 }
 
 void tca6408_activate(uint8_t which)
@@ -359,11 +581,6 @@ void tca6408_deactivate(uint8_t which)
 
 }
 
-uint8_t tca6408_line_count(void)
-{
-    return TCA6408_NR_GPIO;
-}
-
 struct gpio_ops_s tca6408_gpio_ops = {
     .get_direction = tca6408_get_direction,
     .direction_in = tca6408_set_direction_in,
@@ -373,17 +590,43 @@ struct gpio_ops_s tca6408_gpio_ops = {
     .set_value = tca6408_set,
     .deactivate = tca6408_deactivate,
     .line_count = tca6408_line_count,
-    .irqattach = NULL,
-    .set_triggering = NULL,
-    .mask_irq = NULL,
-    .unmask_irq = NULL,
-    .clear_interrupt = NULL,
+    .irqattach = tca6408_gpio_irqattach,
+    .set_triggering = tca6408_set_gpio_triggering,
+    .mask_irq = tca6408_gpio_mask_irq,
+    .unmask_irq = tca6408_gpio_unmask_irq,
+    .clear_interrupt = tca6408_gpio_clear_interrupt,
 };
 
-void tca6408_init(struct i2c_dev_s *dev, uint8_t addr, uint8_t reset)
+static void *tca6408_polling(void *data)
+{
+    /* Sometime, tca6408 loses interrupt. Re read to generate interrupt */
+    while (1) {
+        gpio_get_value(21);
+        usleep(100000);
+    }
+    return NULL;
+}
+
+void tca6408_init(struct i2c_dev_s *dev, uint8_t addr,
+                  uint8_t reset, uint8_t irq)
 {
     g_tca6408.dev = dev;
     g_tca6408.addr = addr;
+    g_tca6408.irq = irq;
     g_tca6408.reset = reset;
+
+    g_tca6408.mask = 0xFF;
+    g_tca6408.in = 0;
+    tca6408_registers_update(); /* init g_tca6408.in_diff */
+    g_tca6408.intstat = 0;
+    gpio_activate(g_tca6408.irq);
+    gpio_direction_in(g_tca6408.irq);
+    gpio_irqattach(g_tca6408.irq, tca6408_gpio_irq_handler);
+    /* Set to EDGE_BOTH to catch missed interrupt */
+    set_gpio_triggering(g_tca6408.irq, IRQ_TYPE_EDGE_BOTH);
+    gpio_clear_interrupt(g_tca6408.irq);
+    gpio_unmask_irq(g_tca6408.irq);
+
     register_gpio_chip(&tca6408_gpio_ops, -1);
+    pthread_create(&g_tca6408.thread, NULL, tca6408_polling, NULL);
 }
