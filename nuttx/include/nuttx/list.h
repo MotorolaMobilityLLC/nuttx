@@ -49,6 +49,9 @@ bool list_is_empty(struct list_head *head);
 #define list_foreach(head, iter) \
     for ((iter) = (head)->next; (iter) != (head); (iter) = (iter)->next)
 
+#define list_reverse_foreach(head, iter) \
+    for ((iter) = (head)->prev; (iter) != (head); (iter) = (iter)->prev)
+
 #define list_foreach_safe(head, iter, niter) \
     for ((iter) = (head)->next, (niter) = (iter)->next; \
          (iter) != (head); \
