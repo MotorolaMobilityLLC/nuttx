@@ -94,6 +94,7 @@
 struct tsb_switch_driver {
     void *priv;
 
+    int (*init_comm)(struct tsb_switch_driver*);
     int (*set)(struct tsb_switch_driver*,
                uint8_t portid,
                uint16_t attrid,
@@ -174,6 +175,7 @@ static inline int switch_connection_std_create(struct tsb_switch *sw,
 };
 
 void switch_dump_routing_table(struct tsb_switch*);
+
 struct tsb_switch *switch_init(struct tsb_switch_driver*,
                                unsigned int vreg_1p1,
                                unsigned int vreg_1p8,

@@ -146,9 +146,6 @@ static int es2_init_seq(struct tsb_switch_driver *drv)
 
     SPI_LOCK(spi_dev, true);
     SPI_SELECT(spi_dev, id, true);
-    SPI_SETMODE(spi_dev, SPIDEV_MODE0);
-    SPI_SETBITS(spi_dev, 8);
-    SPI_SETFREQUENCY(spi_dev, SWITCH_SPI_FREQUENCY);
 
     // Delay needed before the switch is ready on the SPI bus
     up_udelay(SWITCH_SPI_INIT_DELAY);
@@ -692,6 +689,8 @@ static int es2_switch_id_set(struct tsb_switch_driver* drv,
 }
 
 static struct tsb_switch_driver es2_drv = {
+    .init_comm             = es2_init_seq,
+
     .set                   = es2_set,
     .get                   = es2_get,
 
@@ -738,11 +737,10 @@ struct tsb_switch_driver *tsb_switch_es2_init(unsigned int spi_bus)
     priv->spi_dev = spi_dev;
     priv->id = SW_SPI_ID;
 
-    if (es2_init_seq(&es2_drv)) {
-        dbg_error("%s: Failed to init the SPI link with the switch\n",
-                  __func__);
-        goto error;
-    }
+    /* Configure the SPI1 bus in Mode0, 8bits, 13MHz clock */
+    SPI_SETMODE(spi_dev, SPIDEV_MODE0);
+    SPI_SETBITS(spi_dev, 8);
+    SPI_SETFREQUENCY(spi_dev, SWITCH_SPI_FREQUENCY);
 
     dbg_info("... Done!\n");
 

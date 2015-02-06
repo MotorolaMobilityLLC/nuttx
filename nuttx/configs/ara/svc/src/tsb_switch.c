@@ -81,6 +81,16 @@ static void switch_power_off(struct tsb_switch *sw) {
 }
 
 
+/* Switch communication link init and de-init */
+static int switch_init_comm(struct tsb_switch *sw)
+{
+    struct tsb_switch_driver *drv = sw->drv;
+    if (!drv->init_comm) {
+        return -EOPNOTSUPP;
+    }
+    return drv->init_comm(drv);
+}
+
 /*
  * Unipro NCP commands
  */
@@ -525,6 +535,11 @@ struct tsb_switch *switch_init(struct tsb_switch_driver *drv,
 
     switch_power_on_reset(sw);
 
+    rc = switch_init_comm(sw);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        goto error;
+    }
+
     /*
      * Sanity check
      */
@@ -567,6 +582,7 @@ error:
         switch_exit(sw);
     }
     dbg_error("%s: Failed to initialize switch.\n", __func__);
+
     return NULL;
 }
 
