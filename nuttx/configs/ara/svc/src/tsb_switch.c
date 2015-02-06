@@ -425,6 +425,60 @@ err0:
     return rc;
 }
 
+static int switch_detect_devices(struct tsb_switch *sw,
+                                 uint32_t *link_status)
+{
+    uint32_t attr_value = 0;
+    int i, j;
+    uint32_t attr_to_read[] = {
+        /* DME_DDBL1 */
+        /*  Revision,       expected 0x0010 */
+        DME_DDBL1_REVISION,
+        /*  Level,          expected 0x0003 */
+        DME_DDBL1_LEVEL,
+        /*  deviceClass,    expected 0x0000 */
+        DME_DDBL1_DEVICECLASS,
+        /*  ManufactureID,  expected 0x0126 */
+        DME_DDBL1_MANUFACTUREID,
+        /*  productID,      expected 0x1000 */
+        DME_DDBL1_PRODUCTID,
+        /*  length,         expected 0x0008 */
+        DME_DDBL1_LENGTH,
+        /* DME_DDBL2 VID and PID */
+        DME_DDBL2_VID,
+        DME_DDBL2_PID,
+        /* Data lines */
+        PA_CONNECTEDTXDATALANES,
+        PA_CONNECTEDRXDATALANES
+    };
+
+    /* Read switch link status */
+    if (switch_internal_getattr(sw, SWSTA, link_status)) {
+        dbg_error("Switch read status failed\n");
+        return -1;
+    }
+
+    dbg_info("%s: Link status: 0x%x\n", __func__, *link_status);
+
+    /* Get attributes from connected devices */
+    for (i = 0; i < SWITCH_PORT_MAX; i++) {
+        if (*link_status & (1 << i)) {
+            for (j = 0; j < ARRAY_SIZE(attr_to_read); j++) {
+                if (switch_dme_peer_get(sw, i, attr_to_read[j],
+                                        NCP_SELINDEX_NULL, &attr_value)) {
+                    dbg_error("%s: Failed to read attr(0x%x) from portID %d\n",
+                              __func__, attr_to_read[j], i);
+                } else {
+                    dbg_verbose("%s: portID %d: attr(0x%x)=0x%x\n",
+                                __func__, i, attr_to_read[j], attr_value);
+                }
+            }
+        }
+   }
+
+   return 0;
+}
+
 /**
  * @brief Dump routing table to low level console
  */
@@ -569,11 +623,10 @@ struct tsb_switch *switch_init(struct tsb_switch_driver *drv,
         goto error;
     }
 
-    rc = switch_internal_getattr(sw, SWSTA, &link_status);
+    rc = switch_detect_devices(sw, &link_status);
     if (rc) {
         goto error;
     }
-    dbg_info("%s: Link status: 0x%x\n", __func__, link_status);
 
     return sw;
 
