@@ -81,6 +81,7 @@ int lg4892_gpio_init(void)
     tca6408_set_direction_out(APB2_I2C0, TCA6408_U72, APB2_LCD_VDDI_EN);
     tca6408_set_direction_out(APB2_I2C0, TCA6408_U72, APB2_LCD_ENP);
     tca6408_set_direction_out(APB2_I2C0, TCA6408_U72, APB2_LCD_RST);
+    tca6408_set_direction_out(APB2_I2C0, TCA6408_U72, APB2_TP_RST);
 
     return 0;
 }
@@ -97,22 +98,28 @@ int lg4892_enable(bool enable)
         tca6408_set(APB2_I2C0, TCA6408_U72, APB2_LCD_VDDI_EN, 1);
         usleep(LG4892_T_VDDIO_TO_DDVDH + LG4892_T_DDVDH_TO_DDVDN);
 
-        lldbg("enable LCD_ENP\n");
-        tca6408_set(APB2_I2C0, TCA6408_U72, APB2_LCD_ENP, 1);
-        usleep(LG4892_T_DDVDN_TO_RESET);
-
         lldbg("release LCD_RST\n");
         tca6408_set(APB2_I2C0, TCA6408_U72, APB2_LCD_RST, 1);
         usleep(LG4892_T_RESET_TO_1ST_COMMAND);
         lldbg("LCD Panel powered ON and out of reset.\n");
+
+        lldbg("enable LCD_ENP\n");
+        tca6408_set(APB2_I2C0, TCA6408_U72, APB2_LCD_ENP, 1);
+        usleep(LG4892_T_DDVDN_TO_RESET);
+
+        lldbg("enable TP_RST\n");
+        tca6408_set(APB2_I2C0, TCA6408_U72, APB2_TP_RST, 1);
     } else {
-        lldbg("assert LCD_RST\n");
-        tca6408_set(APB2_I2C0, TCA6408_U72, APB2_LCD_RST, 0);
-        usleep(LG4892_T_RESET_TO_DDVDN);
+        lldbg("disable TP_RST\n");
+        tca6408_set(APB2_I2C0, TCA6408_U72, APB2_TP_RST, 0);
 
         lldbg("disable LCD_ENP\n");
         tca6408_set(APB2_I2C0, TCA6408_U72, APB2_LCD_ENP, 0);
         usleep(LG4892_T_DDVDN_TO_DDVDH + LG4892_T_DDVDH_TO_VDDIO);
+
+        lldbg("assert LCD_RST\n");
+        tca6408_set(APB2_I2C0, TCA6408_U72, APB2_LCD_RST, 0);
+        usleep(LG4892_T_RESET_TO_DDVDN);
 
         lldbg("disable LCD_VDDI_EN\n");
         tca6408_set(APB2_I2C0, TCA6408_U72, APB2_LCD_VDDI_EN, 0);
