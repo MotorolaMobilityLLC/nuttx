@@ -17,7 +17,7 @@ ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c up_debug.c up_epm.c up_gpio.c up_i2c.c up_ioexp.c \
-                  up_power.c up_switch.c
+                  up_power.c up_switch.c interface.c
 
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
 CSRCS		+= up_nsh.c
