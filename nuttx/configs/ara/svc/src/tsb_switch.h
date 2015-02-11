@@ -160,8 +160,8 @@ static inline int switch_connection_std_create(struct tsb_switch *sw,
                                     cport_id1,
                                     port_id2,
                                     cport_id2,
-                                    CPORT_TC1,
-                                    CPORT_FLAGS_E2EFC | CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N);
+                                    CPORT_TC0,
+                                    CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N);
 };
 
 void switch_dump_routing_table(struct tsb_switch*);
