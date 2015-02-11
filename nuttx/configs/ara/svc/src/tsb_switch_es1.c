@@ -133,6 +133,14 @@ static int es1_set(struct tsb_switch_driver *drv,
         return setcnf.rc;
     }
 
+    dbg_verbose("%s(): portid=%u, (attr,sel)=(0x%04x,%d)=0x%04x, ret=0x%02x\n",
+                __func__,
+                portid,
+                attrid,
+                select_index,
+                attr_value,
+                setcnf.rc);
+
     return setcnf.rc;
 }
 
@@ -175,6 +183,14 @@ static int es1_get(struct tsb_switch_driver *drv,
     }
 
     *attr_value = be32_to_cpu(getcnf.attr_val);
+
+    dbg_verbose("%s(): portid=%u, (attr,sel)=(0x%04x,%d)=0x%04x, ret=0x%02x\n",
+                __func__,
+                portid,
+                attrid,
+                select_index,
+                *attr_value,
+                getcnf.rc);
 
     return getcnf.rc;
 }
@@ -223,12 +239,13 @@ static int es1_peer_set(struct tsb_switch_driver *drv,
         return setcnf.rc;
     }
 
-    dbg_insane("%s(): ret=0x%02x, attr(0x%04x,%d)=0x%04x\n",
-               __func__,
-               setcnf.rc,
-               attrid,
-               select_index,
-               attr_value);
+    dbg_verbose("%s(): portid=%u, (attr,sel)=(0x%04x,%d)=0x%04x, ret=0x%02x\n",
+                __func__,
+                portid,
+                attrid,
+                select_index,
+                attr_value,
+                setcnf.rc);
 
     return setcnf.rc;
 }
@@ -273,6 +290,14 @@ static int es1_peer_get(struct tsb_switch_driver *drv,
 
     *attr_value = be32_to_cpu(getcnf.attr_val);
 
+    dbg_verbose("%s(): portid=%u, (attr,sel)=(0x%04x,%d)=0x%04x, ret=0x%02x\n",
+                __func__,
+                portid,
+                attrid,
+                select_index,
+                *attr_value,
+                getcnf.rc);
+
     return getcnf.rc;
 }
 
@@ -296,8 +321,6 @@ static int es1_switch_attr_get(struct tsb_switch_driver *drv,
 
     int rc;
 
-    dbg_insane("%s: attrid: %x\n", __func__, attrid);
-
     rc = es1_transfer(drv,
                       getreq,
                       sizeof(getreq),
@@ -316,11 +339,11 @@ static int es1_switch_attr_get(struct tsb_switch_driver *drv,
         *val = be32_to_cpu(getcnf.attr_val);
     }
 
-    dbg_insane("%s(): ret=0x%02x, attr(0x%04x)=0x%08x\n",
-               __func__,
-               getcnf.rc,
-               attrid,
-               *val);
+    dbg_verbose("%s(): attr(0x%04x)=0x%08x, ret=0x%02x\n",
+                __func__,
+                attrid,
+                *val,
+                getcnf.rc);
 
     return getcnf.rc;
 }
