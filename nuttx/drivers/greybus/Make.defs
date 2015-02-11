@@ -32,6 +32,7 @@ CSRCS += greybus-core.c
 CSRCS += greybus-unipro.c
 CSRCS += gpio.c
 CSRCS += i2c.c
+CSRCS += battery.c
 
 DEPPATH += --dep-path greybus
 VPATH += :greybus
