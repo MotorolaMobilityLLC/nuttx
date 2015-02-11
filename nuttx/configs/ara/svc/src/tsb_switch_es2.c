@@ -28,6 +28,7 @@
 
 /**
  * @author: Jean Pihet
+ * @author: Perry Hung
  */
 
 #define DBG_COMP    DBG_SWITCH
@@ -61,6 +62,7 @@ struct sw_es2_priv {
 #define LNUL        (0x00)
 #define STRW        (0x01)
 #define STRR        (0x02)
+#define NACK        (0x04)
 #define ENDP        (0x06)
 #define INIT        (0x08)
 
@@ -76,7 +78,7 @@ static int es2_transfer(struct tsb_switch_driver *drv,
     struct sw_es2_priv *priv = drv->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
     unsigned int id = priv->id;
-    unsigned int size;
+    unsigned int size, rcv_done = 0;
 
     uint8_t write_header[] = {
         LNUL,
@@ -103,15 +105,14 @@ static int es2_transfer(struct tsb_switch_driver *drv,
 
 
     SPI_LOCK(spi_dev, true);
-    /* Write */
     SPI_SELECT(spi_dev, id, true);
+    /* Write */
     SPI_SNDBLOCK(spi_dev, write_header, sizeof write_header);
     SPI_SNDBLOCK(spi_dev, tx_buf, tx_size);
     SPI_SNDBLOCK(spi_dev, write_trailer, sizeof write_trailer);
     // Wait write status, send NULL frames while waiting
     SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf,
                  SWITCH_WAIT_REPLY_LEN + SWITCH_WRITE_STATUS_LEN);
-    // Parse write status
 
     dbg_verbose("Write payload:\n");
     dbg_print_buf(DBG_VERBOSE, tx_buf, tx_size);
@@ -126,37 +127,44 @@ static int es2_transfer(struct tsb_switch_driver *drv,
         SPI_SEND(spi_dev, LNUL);
     }
 
-    // Read the CNF
-    size = SWITCH_WAIT_REPLY_LEN + rx_size + sizeof read_header;
-    SPI_SNDBLOCK(spi_dev, read_header, sizeof read_header);
-    SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf, size);
+    // Read CNF and retry if NACK received
+    do {
+        // Read the CNF
+        size = SWITCH_WAIT_REPLY_LEN + rx_size + sizeof read_header;
+        SPI_SNDBLOCK(spi_dev, read_header, sizeof read_header);
+        SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf, size - sizeof read_header);
+        /* Make sure we use 16-bit frames */
+        if (size & 0x1) {
+            SPI_SEND(spi_dev, LNUL);
+        }
 
-    dbg_verbose("RX Data:\n");
-    dbg_print_buf(DBG_VERBOSE, priv->rxbuf, size);
+        dbg_verbose("RX Data:\n");
+        dbg_print_buf(DBG_VERBOSE, priv->rxbuf, size);
 
-    /* Make sure we use 16-bit frames */
-    if (size % 2) {
-        SPI_SEND(spi_dev, LNUL);
-    }
+        if (!rx_buf) {
+            return 0;
+        }
+
+        /* Find the STRR and copy the response; handle the NACK case */
+        uint8_t *resp_start = NULL;
+        unsigned int i;
+        for (i = 0; i < size; i++) {
+            if (priv->rxbuf[i] == STRR) {
+                // STRR found, parse the reply length and data
+                resp_start = &priv->rxbuf[i];
+                size_t resp_len = resp_start[2] << 8 | resp_start[3];
+                memcpy(rx_buf, &resp_start[4], resp_len);
+                rcv_done = 1;
+                break;
+            } else if (priv->rxbuf[i] == NACK) {
+                // NACK found, retry the CNF read
+                break;
+            }
+        }
+    } while (!rcv_done);
 
     SPI_SELECT(spi_dev, id, false);
     SPI_LOCK(spi_dev, false);
-
-    if (!rx_buf) {
-        return 0;
-    }
-
-    /* Find the STRR and copy the response */
-    uint8_t *resp_start = NULL;
-    unsigned int i;
-    for (i = 0; i < size; i++) {
-        if (priv->rxbuf[i] == STRR) {
-            resp_start = &priv->rxbuf[i];
-            break;
-        }
-    }
-    size_t resp_len = resp_start[2] << 8 | resp_start[3];
-    memcpy(rx_buf, &resp_start[4], resp_len);
 
     return 0;
 }
