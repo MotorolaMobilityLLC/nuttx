@@ -14,6 +14,8 @@ config MANIFEST_I2C
   bool "I2C"
 config MANIFEST_GPIO_I2C
   bool "I2C and GPIO"
+config MANIFEST_BATTERY_GPIO_I2C
+  bool "Battery, GPIO and I2C"
 config CUSTOM_MANIFEST
   bool "Custom manifest"
 endchoice

@@ -45,6 +45,7 @@ struct gb_cport {
 
 extern void gb_gpio_register(int cport);
 extern void gb_i2c_register(int cport);
+extern void gb_battery_register(int cport);
 
 struct greybus {
     /* TODO use a list instead */
@@ -99,6 +100,10 @@ void enable_cports(void)
             if (protocol == GREYBUS_PROTOCOL_I2C) {
                 gb_info("Registering I2C greybus driver.\n");
                 gb_i2c_register(id);
+            }
+            if (protocol == GREYBUS_PROTOCOL_BATTERY) {
+                gb_info("Registering BATTERY greybus driver.\n");
+                gb_battery_register(id);
             }
         }
         i++;
