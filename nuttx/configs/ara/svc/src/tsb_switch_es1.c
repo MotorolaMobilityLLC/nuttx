@@ -32,7 +32,8 @@ static int es1_transfer(struct tsb_switch_driver *drv,
     struct i2c_dev_s *i2c_dev = drv->priv;
     int rc;
 
-    dbg_insane("%s() txsize: %u rxsize: %u\n", __func__, tx_size, rx_size);
+    dbg_insane("\t%s(): TX buffer:\n", __func__);
+    dbg_print_buf(DBG_INSANE, tx_buf, tx_size);
 
     struct i2c_msg_s msgs[] = {
         {
@@ -49,8 +50,12 @@ static int es1_transfer(struct tsb_switch_driver *drv,
         }
     };
     rc = I2C_TRANSFER(i2c_dev, msgs, 2);
+
+    dbg_insane("\t%s(): RX buffer:\n", __func__);
+    dbg_print_buf(DBG_INSANE, rx_buf, rx_size);
+
     if (rc < 0) {
-        dbg_error("%s write fail\n", __func__);
+        dbg_error("%s(): error %d\n", __func__, rc);
         return rc;
     }
 
@@ -87,6 +92,9 @@ static int es1_dev_id_mask_get(struct tsb_switch_driver *drv,
     }
 
     memcpy(dst, &getcnf.mask, sizeof(getcnf.mask));
+
+    dbg_verbose("%s(): device_id_mask[]:\n", __func__);
+    dbg_print_buf(DBG_VERBOSE, dst, sizeof(getcnf.mask));
 
     return 0;
 }
@@ -381,6 +389,7 @@ static int es1_lut_get(struct tsb_switch_driver *drv,
 
     *dst_portid = getcnf.dst_portid;
 
+    dbg_verbose("%s(): addr=%u, dst_portid=%u\n", __func__, addr, *dst_portid);
     return getcnf.rc;
 }
 
@@ -414,10 +423,11 @@ static int es1_lut_set(struct tsb_switch_driver *drv,
 
     if (setcnf.fid != NCP_LUTSETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return setcnf.rc;
     }
 
-    return 0;
+    dbg_verbose("%s(): addr=%u, dst_portid=%u, ret=0x%02x\n",
+                __func__, addr, dst_portid, setcnf.rc);
+    return setcnf.rc;
 }
 
 static int es1_switch_id_set(struct tsb_switch_driver *drv,
@@ -444,7 +454,7 @@ static int es1_switch_id_set(struct tsb_switch_driver *drv,
 
     int rc;
 
-    dbg_insane("%s: cportid: %u peer_cportid: %u dis: %u irt: %u\n",
+    dbg_insane("%s(): cportid: %u peer_cportid: %u dis: %u irt: %u\n",
                __func__,
                cportid,
                peer_cportid,
@@ -465,13 +475,12 @@ static int es1_switch_id_set(struct tsb_switch_driver *drv,
         return setcnf.rc;
     }
 
-    dbg_insane("%s(): ret=0x%02x, switchDeviceId=0x%01x, cPortId=0x%01x -> peerCPortId=0x%01x\n",
-               __func__,
-               setcnf.rc,
-               SWITCH_DEVICE_ID,
-               cportid,
-               peer_cportid);
-
+    dbg_verbose("%s(): switchDeviceId=0x%01x, cPortId=0x%01x -> peerCPortId=0x%01x, ret=0x%02x\n",
+                __func__,
+                SWITCH_DEVICE_ID,
+                cportid,
+                peer_cportid,
+                setcnf.rc);
     return setcnf.rc;
 }
 
