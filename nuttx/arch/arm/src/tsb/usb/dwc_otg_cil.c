@@ -1493,9 +1493,6 @@ void dwc_otg_core_init(dwc_otg_core_if_t * core_if)
 	}
 #endif
 
-	/* Enable HSIC mode */
-	dwc_otg_set_hsic_connect(core_if, 1);
-
 	if (core_if->core_params->ic_usb_cap) {
 		gusbcfg_data_t gusbcfg = {.d32 = 0 };
 		gusbcfg.b.ic_usb_cap = 1;

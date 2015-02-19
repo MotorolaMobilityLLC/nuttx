@@ -403,8 +403,12 @@ int dwc_selfpowered(struct usbdev_s *dev, bool selfpowered)
 
 int dwc_usbpullup(struct usbdev_s *dev, bool enable)
 {
-    /* TODO */
-    return -1;
+    struct dwc_usbdev_s *priv = (struct dwc_usbdev_s *)dev;
+
+    /* Start HSIC connect sequence */
+    dwc_otg_set_hsic_connect(priv->dwc_otg_device.core_if, 1);
+
+    return 0;
 }
 
 static const struct usbdev_ops_s g_devops = {
