@@ -6,10 +6,25 @@
 config SLICE_CMD
 	bool "Slice CMD"
 	default n
+	select I2C_SLAVE
 	---help---
 		Enable the Slice command handler
 
 if SLICE_CMD
+
+config SLICE_CMD_I2C_SLAVE_BUS
+	int "I2C Slave Bus Number"
+	default 1
+	depends on SLICE_CMD
+	---help---
+		I2C bus to use for slave device (default 1).
+
+config SLICE_CMD_I2C_SLAVE_ADDR
+	hex "I2C Slave Address"
+	depends on SLICE_CMD
+	default 0x55
+	---help---
+		I2C slave 7-bit device address (default: 0x55)
 
 config SLICE_CMD_PROGNAME
 	string "Program name"

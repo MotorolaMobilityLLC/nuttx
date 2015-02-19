@@ -79,10 +79,14 @@ install:
 endif
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
+ifeq ($(CONFIG_USER_ENTRYPOINT),"slice_cmd_main")
+context:
+else
 $(BUILTIN_REGISTRY)$(DELIM)$(APPNAME)_main.bdat: $(DEPCONFIG) Makefile
 	$(call REGISTER,$(APPNAME),$(PRIORITY),$(STACKSIZE),$(APPNAME)_main)
 
 context: $(BUILTIN_REGISTRY)$(DELIM)$(APPNAME)_main.bdat
+endif
 else
 context:
 endif
