@@ -157,6 +157,7 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
             continue;
 
         list_del(iter);
+        operation->request = op;
         if (op->callback)
             op->callback(operation);
         gb_operation_destroy(op);
@@ -336,7 +337,7 @@ int gb_operation_send_request(struct gb_operation *operation,
 
 static void gb_operation_callback_sync(struct gb_operation *operation)
 {
-    sem_post(&operation->sync_sem);
+    sem_post(&operation->request->sync_sem);
 }
 
 int gb_operation_send_request_sync(struct gb_operation *operation)

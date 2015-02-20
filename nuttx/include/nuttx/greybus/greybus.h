@@ -81,6 +81,8 @@ struct gb_operation {
 
     void *priv_data;
     struct list_head list;
+
+    struct gb_operation *request;
 };
 
 struct gb_driver {
