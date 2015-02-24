@@ -172,4 +172,32 @@ struct tsb_switch *switch_init(struct tsb_switch_driver*,
                                unsigned int irq);
 void switch_exit(struct tsb_switch*);
 
+/*
+ * Low-level DME access
+ */
+
+int switch_dme_set(struct tsb_switch *sw,
+                   uint8_t portid,
+                   uint16_t attrid,
+                   uint16_t select_index,
+                   uint32_t attr_value);
+
+int switch_dme_get(struct tsb_switch *sw,
+                   uint8_t portid,
+                   uint16_t attrid,
+                   uint16_t select_index,
+                   uint32_t *attr_value);
+
+int switch_dme_peer_set(struct tsb_switch *sw,
+                        uint8_t portid,
+                        uint16_t attrid,
+                        uint16_t select_index,
+                        uint32_t attr_value);
+
+int switch_dme_peer_get(struct tsb_switch *sw,
+                        uint8_t portid,
+                        uint16_t attrid,
+                        uint16_t select_index,
+                        uint32_t *attr_value);
+
 #endif

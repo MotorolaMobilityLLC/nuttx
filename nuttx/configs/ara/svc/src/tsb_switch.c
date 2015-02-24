@@ -84,7 +84,7 @@ static void switch_power_off(struct tsb_switch *sw) {
 /*
  * Unipro NCP commands
  */
-static int switch_dme_set(struct tsb_switch *sw,
+int switch_dme_set(struct tsb_switch *sw,
                           uint8_t portid,
                           uint16_t attrid,
                           uint16_t select_index,
@@ -96,7 +96,7 @@ static int switch_dme_set(struct tsb_switch *sw,
     return drv->set(drv, portid, attrid, select_index, attr_value);
 }
 
-static int switch_dme_get(struct tsb_switch *sw,
+int switch_dme_get(struct tsb_switch *sw,
                           uint8_t portid,
                           uint16_t attrid,
                           uint16_t select_index,
@@ -108,7 +108,7 @@ static int switch_dme_get(struct tsb_switch *sw,
     return drv->get(drv, portid, attrid, select_index, attr_value);
 }
 
-static int switch_dme_peer_set(struct tsb_switch *sw,
+int switch_dme_peer_set(struct tsb_switch *sw,
                                uint8_t portid,
                                uint16_t attrid,
                                uint16_t select_index,
@@ -120,7 +120,7 @@ static int switch_dme_peer_set(struct tsb_switch *sw,
     return drv->peer_set(drv, portid, attrid, select_index, attr_value);
 }
 
-static int switch_dme_peer_get(struct tsb_switch *sw,
+int switch_dme_peer_get(struct tsb_switch *sw,
                                uint8_t portid,
                                uint16_t attrid,
                                uint16_t select_index,
