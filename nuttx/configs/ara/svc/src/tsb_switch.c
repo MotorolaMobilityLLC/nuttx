@@ -38,6 +38,22 @@
 #define IRT_DISABLE                 0
 #define IRT_ENABLE                  1
 
+/* Default link configuration values.
+ *
+ * Bring everything up in non-auto HS-G1. The links which carry
+ * display traffic need this, so apply it everywhere.
+ *
+ * TODO: these should be replaced with auto PWM-G1 (i.e. USE_HS=0,
+ *       FLAGS=UNIPRO_LINK_CFGF_AUTO) when the AP and SVC know enough
+ *       control protocol to do the right thing on all links.
+ */
+#define LINK_DEFAULT_USE_HS_GEAR    1
+#define LINK_DEFAULT_HS_GEAR        1
+#define LINK_DEFAULT_PWM_GEAR       1
+#define LINK_DEFAULT_HS_NLANES      2
+#define LINK_DEFAULT_PWM_NLANES     LINK_DEFAULT_HS_NLANES
+#define LINK_DEFAULT_FLAGS          0
+
 static inline void dev_ids_update(struct tsb_switch *sw,
                                   uint8_t port_id,
                                   uint8_t dev_id) {
@@ -272,42 +288,26 @@ static int switch_cport_disconnect(struct tsb_switch *sw,
     return switch_dme_peer_set(sw, port_id, T_CONNECTIONSTATE, cport_id, 0x0);
 }
 
-static int switch_link_power_set_default(struct tsb_switch *sw, uint8_t port_id) {
+static int switch_link_power_set_default(struct tsb_switch *sw,
+                                         uint8_t port_id) {
     int rc;
-    uint32_t val;
-    unsigned int i;
-    struct pwr_mode_cmds {
-        uint16_t attr;
-        uint8_t select_index;
-        uint32_t val;
-    } pwr_mode_cmds[] = {
-        {PA_TXGEAR, NCP_SELINDEX_NULL, PA_GEAR},
-        {PA_TXTERMINATION, NCP_SELINDEX_NULL, 0x1},
-        {PA_HSSERIES, NCP_SELINDEX_NULL, 0x1},
-        {PA_ACTIVETXDATALANES, NCP_SELINDEX_NULL, PA_ACTIVE_TX_DATA_LANES_NR},
-        {PA_RXGEAR, NCP_SELINDEX_NULL, PA_GEAR},
-        {PA_RXTERMINATION, NCP_SELINDEX_NULL, 0x1},
-        {PA_ACTIVERXDATALANES, NCP_SELINDEX_NULL, PA_ACTIVE_RX_DATA_LANES_NR},
-        {PA_PWRMODEUSERDATA0, NCP_SELINDEX_NULL, 0x1FFF},
-        {PA_PWRMODE, NCP_SELINDEX_NULL, PA_FASTMODE_RXTX},
-    };
 
-    for (i = 0; i < ARRAY_SIZE(pwr_mode_cmds); i++) {
-        rc = switch_dme_set(sw,
-                            port_id,
-                            pwr_mode_cmds[i].attr,
-                            pwr_mode_cmds[i].select_index,
-                            pwr_mode_cmds[i].val);
-        if (rc) {
-            return rc;
-        }
+    if (LINK_DEFAULT_USE_HS_GEAR) {
+        rc = switch_configure_link_hs(sw,
+                                      port_id,
+                                      LINK_DEFAULT_HS_GEAR,
+                                      LINK_DEFAULT_HS_NLANES,
+                                      LINK_DEFAULT_FLAGS);
+    } else {
+        rc = switch_configure_link_pwm(sw,
+                                       port_id,
+                                       LINK_DEFAULT_PWM_GEAR,
+                                       LINK_DEFAULT_PWM_NLANES,
+                                       LINK_DEFAULT_FLAGS);
     }
-
-    do {
-        /* Wait until the power mode change completes */
-        switch_dme_get(sw, port_id, TSB_DME_POWERMODEIND,
-                       NCP_SELINDEX_NULL, &val);
-    } while (val != TSB_DME_POWERMODEIND_SUCCESS);
+    if (rc) {
+        return rc;
+    }
 
     /* Set TSB_MaxSegmentConfig */
     rc = switch_dme_peer_set(sw,
