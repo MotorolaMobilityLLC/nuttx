@@ -8,14 +8,11 @@
 -include $(TOPDIR)/Make.defs
 include $(APPDIR)/Make.defs
 
-ASRCS =
 CSRCS = cmd_main.c
-
-AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
-SRCS = $(ASRCS) $(CSRCS)
-OBJS = $(AOBJS) $(COBJS)
+SRCS = $(CSRCS)
+OBJS = $(COBJS)
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   BIN = ..\..\libapps$(LIBEXT)
@@ -32,9 +29,6 @@ VPATH =
 
 all: .built
 .PHONY: clean depend distclean
-
-$(AOBJS): %$(OBJEXT): %.S
-	$(call ASSEMBLE, $<, $@)
 
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
