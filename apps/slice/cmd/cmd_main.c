@@ -4,7 +4,6 @@
  *
  ****************************************************************************/
 
-#include <apps/builtin.h>
 #include <nuttx/config.h>
 #include <nuttx/i2c.h>
 #include <stdio.h>
@@ -14,6 +13,11 @@
 #define logd(format, ...) \
   printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
 
+#ifdef CONFIG_EXAMPLES_NSH
+extern int nsh_main(int argc, char *argv[]);
+#endif
+
+/* called when master is writing to slave */
 static int slice_cmd_read_cb(void *v)
 {
   FAR struct i2c_dev_s *dev = (struct i2c_dev_s *)v;
@@ -22,6 +26,7 @@ static int slice_cmd_read_cb(void *v)
   return 0;
 }
 
+/* called when master is reading from slave */
 static int slice_cmd_write_cb(void *v)
 {
   FAR struct i2c_dev_s *dev = (struct i2c_dev_s *)v;
@@ -30,17 +35,20 @@ static int slice_cmd_write_cb(void *v)
   return 0;
 }
 
+/* called to end transaction */
+static int slice_cmd_stop_cb(void *v)
+{
+  return 0;
+}
+
 static struct i2c_cb_ops_s cb_ops =
 {
   .read = slice_cmd_read_cb,
   .write = slice_cmd_write_cb,
+  .stop = slice_cmd_stop_cb,
 };
 
-#ifdef CONFIG_BUILD_KERNEL
-int main(int argc, FAR char *argv[])
-#else
 int slice_cmd_main(int argc, char *argv[])
-#endif
 {
   FAR struct i2c_dev_s *dev1;
 
@@ -53,17 +61,10 @@ int slice_cmd_main(int argc, char *argv[])
     logd("Slave setup failed!\n");
   }
 
-  // Attempt to start nsh shell if present
-  FAR char *args[] = {"nsh", NULL};
-  exec_builtin(args[0], args, NULL, 0);
-
-  while (true) {
-    // TODO: Implement me. Sleeping for 1 day in the meantime.
-    sleep(86400);
-  }
-
-  (void)up_i2cuninitialize(dev1);
-
+#ifdef CONFIG_EXAMPLES_NSH
+  logd("Calling NSH\n");
+  return nsh_main(argc, argv);
+#else
   return 0;
+#endif
 }
-
