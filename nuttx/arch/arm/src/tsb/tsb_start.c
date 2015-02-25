@@ -48,12 +48,11 @@ void tsb_start(void) {
         *dst++ = 0;
     }
 
-    /* Move vector table to RAM. */
-#ifdef CONFIG_ARCH_RAMVECTORS
-    up_ramvec_initialize();
-#else
+    /* Relocate vector table (eg from bootrom) */
     extern uint32_t _vectors;
     putreg32((uint32_t)&_vectors, NVIC_VECTAB);
+#ifdef CONFIG_ARCH_RAMVECTORS
+    up_ramvec_initialize();
 #endif
 
     /* Configure clocks */
