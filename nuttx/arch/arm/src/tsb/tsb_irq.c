@@ -268,12 +268,6 @@ void tsb_dumpnvic(void) {
           getreg32(NVIC_INTCTRL),
           getreg32(NVIC_VECTAB));
 
-    lldbg("  SYSH ENABLE MEMFAULT: %08x BUSFAULT: %08x USGFAULT: %08x SYSTICK: %08x\n",
-          getreg32(NVIC_SYSHCON_MEMFAULTENA),
-          getreg32(NVIC_SYSHCON_BUSFAULTENA),
-          getreg32(NVIC_SYSHCON_USGFAULTENA),
-          getreg32(NVIC_SYSTICK_CTRL_ENABLE));
-
     lldbg("  SYSH_PRIO:   %08x %08x %08x\n",
           getreg32(NVIC_SYSH4_7_PRIORITY),
           getreg32(NVIC_SYSH8_11_PRIORITY),
