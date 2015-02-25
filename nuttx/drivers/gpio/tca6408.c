@@ -378,7 +378,6 @@ struct gpio_ops_s tca6408_gpio_ops = {
     .mask_irq = NULL,
     .unmask_irq = NULL,
     .clear_interrupt = NULL,
-    .get_interrupt = NULL,
 };
 
 void tca6408_init(struct i2c_dev_s *dev, uint8_t addr, uint8_t reset)
