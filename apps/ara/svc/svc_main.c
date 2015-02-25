@@ -43,12 +43,12 @@ int main(int argc, FAR char *argv[])
 int svc_main(int argc, char *argv[])
 #endif
 {
-	int state = 0;
+    int state = 0;
 
-	if (argc < 2)
-		return ERROR;
+    if (argc < 2)
+        return ERROR;
 
-	state = strtol(argv[1], NULL, 10);
+    state = strtol(argv[1], NULL, 10);
 
 #ifndef CONFIG_ARCH_BOARD_ARA_SVC
     switch_control(state);
@@ -60,5 +60,5 @@ int svc_main(int argc, char *argv[])
     }
 #endif
 
-	return 0;
+    return 0;
 }
