@@ -29,6 +29,7 @@
 #include <nuttx/config.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifndef CONFIG_ARCH_BOARD_ARA_SVC
 #include "up_switch.h"
@@ -36,6 +37,92 @@
 #include "svc.h"
 #endif
 
+#define DBG_COMP DBG_SVC
+#include "up_debug.h"
+
+#if CONFIG_ARCH_BOARD_ARA_SVC
+
+/* ----------------------------------------------------------------------
+ * Current code (for configs/ara/svc).
+ */
+
+#define INVALID -1
+enum {
+    HELP,
+    INIT,
+    EXIT,
+    MAX_CMD,
+};
+
+struct command {
+    const char shortc;
+    const char *longc;
+    const char *help;
+};
+
+static const struct command commands[] = {
+    [HELP] = {'h', "help", "print this usage and exit"},
+    [INIT] = {'i', "init", "initialize switch and SVC"},
+    [EXIT] = {'e', "exit", "exit/de-initialize SVC"},
+};
+
+static void usage(int exit_status) {
+    int i;
+    printk("svc: usage:\n");
+    for (i = 0; i < MAX_CMD; i++) {
+        printk("    svc [%c|%s] : %s\n",
+               commands[i].shortc, commands[i].longc, commands[i].help);
+    }
+    exit(exit_status);
+}
+
+static int ara_svc_main(int argc, char *argv[]) {
+    /* Current main(), for configs/ara/svc (BDB1B, BDB2A, spiral 2
+     * modules, etc.). */
+    int i;
+    int cmd = INVALID;
+    const char *cmd_str;
+
+    /* Parse arguments. */
+    if (argc < 2) {
+        usage(EXIT_FAILURE);
+    }
+    cmd_str = argv[1];
+    for (i = 0; i < MAX_CMD; i++) {
+        if (!strcmp(cmd_str, commands[i].longc)) {
+            cmd = i;
+            break;
+        } else if (strlen(cmd_str) == 1 &&
+                   cmd_str[0] == commands[i].shortc) {
+            cmd = i;
+            break;
+        }
+    }
+    if (cmd == INVALID) {
+        usage(EXIT_FAILURE);
+    }
+
+    /* Run the command. */
+    switch (cmd) {
+    case HELP:
+        usage(EXIT_SUCCESS);
+    case INIT:
+        svc_init();
+        break;
+    case EXIT:
+        svc_exit();
+        break;
+    default:
+        usage(EXIT_FAILURE);
+    }
+
+    return 0;
+}
+#endif
+
+/* ----------------------------------------------------------------------
+ * Actual main(), with legacy fallback for older boards / configs.
+ */
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
@@ -43,22 +130,16 @@ int main(int argc, FAR char *argv[])
 int svc_main(int argc, char *argv[])
 #endif
 {
+#ifdef CONFIG_ARCH_BOARD_ARA_SVC
+    return ara_svc_main(argc, argv);
+#else
+    /* Legacy main(); for configs/{endo,bdb}/ */
     int state = 0;
 
     if (argc < 2)
         return ERROR;
-
     state = strtol(argv[1], NULL, 10);
-
-#ifndef CONFIG_ARCH_BOARD_ARA_SVC
     switch_control(state);
-#else
-    if (state) {
-        svc_init();
-    } else {
-        svc_exit();
-    }
-#endif
-
     return 0;
+#endif
 }
