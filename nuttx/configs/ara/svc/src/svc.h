@@ -29,6 +29,13 @@
 #ifndef  _SVC_H_
 #define  _SVC_H_
 
+struct svc {
+    struct tsb_switch *sw;
+    struct ara_board_info *board_info;
+};
+
+extern struct svc *ara_svc;
+
 int svc_init(void);
 void svc_exit(void);
 

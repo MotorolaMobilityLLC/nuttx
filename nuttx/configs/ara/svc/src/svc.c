@@ -41,11 +41,8 @@
 #include "tsb_switch.h"
 #include "svc.h"
 
-struct svc {
-    struct tsb_switch *sw;
-};
-
 static struct svc the_svc;
+struct svc *ara_svc = &the_svc;
 
 /*
  * Static connections table
@@ -238,6 +235,7 @@ int svc_init(void) {
         dbg_error("%s: No board information provided.\n", __func__);
         goto error0;
     }
+    the_svc.board_info = info;
 
     /* Power on all provided interfaces */
     if (!info->interfaces) {
@@ -307,5 +305,6 @@ void svc_exit(void) {
 
     free(the_svc.sw);
     the_svc.sw = NULL;
+    the_svc.board_info = NULL;
 }
 
