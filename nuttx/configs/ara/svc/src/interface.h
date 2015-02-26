@@ -44,6 +44,12 @@ struct vreg_data {
 struct interface {
     const char *name;
     unsigned int switch_portid;
+#   define ARA_IFACE_FLAG_BUILTIN (1U << 0) /* Connected to built-in UniPro peer
+                                         * (like a bridge ASIC on a BDB). */
+#   define ARA_IFACE_FLAG_BLOCK   (0U << 0) /* Connected to an interface block
+                                         * (like on an endo, or an interface
+                                         * block on a BDB). */
+    unsigned int flags;
     struct vreg_data *vregs;
     size_t nr_vregs;
     bool power_state;
@@ -66,6 +72,19 @@ int interface_generate_wakeout(struct interface *, bool assert);
 static inline int interface_read_wake_detect(void)
 {
     return -EOPNOTSUPP;
+}
+
+/**
+ * @brief Test if an interface connects to a built-in peer on the board.
+ *
+ * Some boards have built-in UniPro peers for some switch ports. For
+ * example, BDBs have built-in bridge ASICs. This function tests if an
+ * interface is to such ap eer.
+ *
+ * @return 1 if the interface is connected to a built-in peer, 0 otherwise.
+ */
+static inline int interface_is_builtin(struct interface *iface) {
+    return !!(iface->flags & ARA_IFACE_FLAG_BUILTIN);
 }
 
 /*
@@ -98,6 +117,7 @@ static inline int interface_read_wake_detect(void)
                                                                \
     static struct interface MAKE_BB_INTERFACE(number) = {      \
         .name = "spring" #number,                              \
+        .flags = ARA_IFACE_FLAG_BLOCK,                         \
         .vregs = MAKE_BB_VREG(number),                         \
         .nr_vregs = ARRAY_SIZE(MAKE_BB_VREG(number)),          \
         .switch_portid = portid,                               \
@@ -109,6 +129,7 @@ static inline int interface_read_wake_detect(void)
 #define DECLARE_INTERFACE(_name, gpios, portid, _wake_out)     \
     static struct interface MAKE_INTERFACE(_name) = {          \
         .name = #_name,                                        \
+        .flags = ARA_IFACE_FLAG_BUILTIN,                       \
         .vregs = gpios,                                        \
         .nr_vregs = ARRAY_SIZE(gpios),                         \
         .switch_portid = portid,                               \
