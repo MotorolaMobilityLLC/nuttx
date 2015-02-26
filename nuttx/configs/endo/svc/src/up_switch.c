@@ -42,12 +42,15 @@
 #define DEMO_SETUP_AP_M_DEVID       10
 #define DEMO_SETUP_LCD_M_DEVID      14
 /* CPorts in use */
-#define DEMO_SETUP_I2C_CPORT        5
+#define DEV1_SETUP_I2C_CPORT        0
+#define DEV1_SETUP_GPIO_CPORT       1
+#define DEV2_SETUP_I2C_CPORT        5
+#define DEV2_SETUP_GPIO_CPORT       4
 #define DEMO_SETUP_LCD_CPORT        16
 /* Settle delays, in second */
-#define SWITCH_SETTLE_INITIAL_DELAY 2
+#define SWITCH_SETTLE_INITIAL_DELAY 1
 #define SWITCH_SETTLE_DELAY         1
-#define BRIDGE_SETTLE_DELAY         5
+#define BRIDGE_SETTLE_DELAY         1
 
 /*
  * The Phy lines of the switch are swapped in the layout.
@@ -893,9 +896,6 @@ start_switch:
         /* Detect devices on the Unipro link */
         link_status = switch_detect_devices();
 
-        /* Let the bridges boot and initialize */
-        sleep(BRIDGE_SETTLE_DELAY);
-
         /* Setup initial routes */
         switch_lut_setreq(DEMO_SETUP_AP_M_DEVID,
                           spring_port_map[PORT_ID_SPRING_C]);
@@ -962,8 +962,10 @@ start_switch:
              *    [5]<->[5] for I2C
              *    [16]<->[16] for DSI
              */
-            switch_configure_connection(dev1, DEMO_SETUP_I2C_CPORT,
-                                        dev2, DEMO_SETUP_I2C_CPORT);
+            switch_configure_connection(dev1, DEV1_SETUP_I2C_CPORT,
+                                        dev2, DEV2_SETUP_I2C_CPORT);
+            switch_configure_connection(dev1, DEV1_SETUP_GPIO_CPORT,
+                                        dev2, DEV2_SETUP_GPIO_CPORT);
             switch_configure_connection(dev1, DEMO_SETUP_LCD_CPORT,
                                         dev2, DEMO_SETUP_LCD_CPORT);
             /* Green LED */
