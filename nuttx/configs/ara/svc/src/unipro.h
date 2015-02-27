@@ -251,8 +251,13 @@
 #define T_PEERCPORTID                0x4022
 #define T_CONNECTIONSTATE            0x4020
 #define T_TRAFFICCLASS               0x4023
+    #define CPORT_TC0               (0x0)
+    #define CPORT_TC1               (0x1)
 #define T_PROTOCOLID                 0x4024
 #define T_CPORTFLAGS                 0x4025
+    #define CPORT_FLAGS_E2EFC       (1)
+    #define CPORT_FLAGS_CSD_N       (2)
+    #define CPORT_FLAGS_CSV_N       (4)
 #define T_TXTOKENVALUE               0x4026
 #define T_RXTOKENVALUE               0x4027
 #define T_LOCALBUFFERSPACE           0x4028

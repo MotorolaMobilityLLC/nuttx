@@ -305,8 +305,9 @@ static int switch_link_power_set_default(struct tsb_switch *sw, uint8_t port_id)
 
     do {
         /* Wait until the power mode change completes */
-        switch_dme_get(sw, port_id, DME_POWERMODEIND, NCP_SELINDEX_NULL, &val);
-    } while (val != DME_POWERMODEIND_SUCCESS);
+        switch_dme_get(sw, port_id, TSB_DME_POWERMODEIND,
+                       NCP_SELINDEX_NULL, &val);
+    } while (val != TSB_DME_POWERMODEIND_SUCCESS);
 
     /* Set TSB_MaxSegmentConfig */
     rc = switch_dme_peer_set(sw,
