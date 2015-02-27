@@ -480,6 +480,347 @@ static int switch_detect_devices(struct tsb_switch *sw,
    return 0;
 }
 
+/*
+ * Sanity check an HS or PWM configuration.
+ */
+static int switch_active_cfg_is_sane(const struct unipro_pwr_cfg *pcfg,
+                                     unsigned max_nlanes) {
+    if (pcfg->upro_nlanes > max_nlanes) {
+        dbg_error("%s(): attempt to use %u lanes, support at most %u",
+                  __func__, pcfg->upro_nlanes, max_nlanes);
+        return 0;
+    }
+    switch (pcfg->upro_mode) {
+    case UNIPRO_FAST_MODE:      /* fall through */
+    case UNIPRO_FASTAUTO_MODE:
+        if (pcfg->upro_gear == 0 || pcfg->upro_gear > 3) {
+            dbg_error("%s(): invalid HS gear %u", __func__, pcfg->upro_gear);
+            return 0;
+        }
+        break;
+    case UNIPRO_SLOW_MODE:      /* fall through */
+    case UNIPRO_SLOWAUTO_MODE:
+        if (pcfg->upro_gear == 0 || pcfg->upro_gear > 7) {
+            dbg_error("%s(): invalid PWM gear %u", __func__, pcfg->upro_gear);
+            return 0;
+        }
+        break;
+    default:
+        dbg_error("%s(): unexpected mode %u", __func__, pcfg->upro_mode);
+        return 0;
+    }
+    return 1;
+}
+
+static int switch_configure_link_tx(struct tsb_switch *sw,
+                                    uint8_t port_id,
+                                    const struct unipro_pwr_cfg *tx,
+                                    uint32_t tx_term) {
+    int rc = 0;
+    /* If it needs changing, apply the TX side of the new link
+     * configuration. */
+    if (tx->upro_mode != UNIPRO_MODE_UNCHANGED) {
+        rc = switch_dme_set(sw, port_id, PA_TXGEAR,
+                            NCP_SELINDEX_NULL, tx->upro_gear) ||
+            switch_dme_set(sw, port_id, PA_TXTERMINATION,
+                           NCP_SELINDEX_NULL, tx_term) ||
+            switch_dme_set(sw, port_id, PA_ACTIVETXDATALANES,
+                           NCP_SELINDEX_NULL, tx->upro_nlanes);
+    }
+    return rc;
+}
+
+static int switch_configure_link_rx(struct tsb_switch *sw,
+                                    uint8_t port_id,
+                                    const struct unipro_pwr_cfg *rx,
+                                    uint32_t rx_term) {
+    int rc = 0;
+    /* If it needs changing, apply the RX side of the new link
+     * configuration.
+     */
+    if (rx->upro_mode != UNIPRO_MODE_UNCHANGED) {
+        rc = switch_dme_set(sw, port_id, PA_RXGEAR,
+                            NCP_SELINDEX_NULL, rx->upro_gear) ||
+            switch_dme_set(sw, port_id, PA_RXTERMINATION,
+                           NCP_SELINDEX_NULL, rx_term) ||
+            switch_dme_set(sw, port_id, PA_ACTIVERXDATALANES,
+                           NCP_SELINDEX_NULL, rx->upro_nlanes);
+    }
+    return rc;
+}
+
+static int switch_configure_link_user_data
+        (struct tsb_switch *sw,
+         uint8_t port_id,
+         const struct unipro_pwr_user_data *udata) {
+    int rc = 0;
+    const uint32_t flags = udata->flags;
+    if (flags & UPRO_PWRF_FC0) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            PA_PWRMODEUSERDATA0,
+                            NCP_SELINDEX_NULL,
+                            udata->upro_pwr_fc0_protection_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & UPRO_PWRF_TC0) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            PA_PWRMODEUSERDATA1,
+                            NCP_SELINDEX_NULL,
+                            udata->upro_pwr_tc0_replay_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & UPRO_PWRF_AFC0) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            PA_PWRMODEUSERDATA2,
+                            NCP_SELINDEX_NULL,
+                            udata->upro_pwr_afc0_req_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & UPRO_PWRF_FC1) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            PA_PWRMODEUSERDATA3,
+                            NCP_SELINDEX_NULL,
+                            udata->upro_pwr_fc1_protection_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & UPRO_PWRF_TC1) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            PA_PWRMODEUSERDATA4,
+                            NCP_SELINDEX_NULL,
+                            udata->upro_pwr_tc1_replay_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & UPRO_PWRF_AFC1) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            PA_PWRMODEUSERDATA5,
+                            NCP_SELINDEX_NULL,
+                            udata->upro_pwr_afc1_req_timeout);
+    }
+    return rc;
+}
+
+static int switch_configure_link_tsbdata
+        (struct tsb_switch *sw,
+         uint8_t port_id,
+         const struct tsb_local_l2_timer_cfg *tcfg) {
+    int rc = 0;
+    const unsigned int flags = tcfg->tsb_flags;
+    if (flags & TSB_LOCALL2F_FC0) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            DME_FC0PROTECTIONTIMEOUTVAL,
+                            NCP_SELINDEX_NULL,
+                            tcfg->tsb_fc0_protection_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & TSB_LOCALL2F_TC0) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            DME_TC0REPLAYTIMEOUTVAL,
+                            NCP_SELINDEX_NULL,
+                            tcfg->tsb_tc0_replay_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & TSB_LOCALL2F_AFC0) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            DME_AFC0REQTIMEOUTVAL,
+                            NCP_SELINDEX_NULL,
+                            tcfg->tsb_afc0_req_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & TSB_LOCALL2F_FC1) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            DME_FC1PROTECTIONTIMEOUTVAL,
+                            NCP_SELINDEX_NULL,
+                            tcfg->tsb_fc1_protection_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & TSB_LOCALL2F_TC1) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            DME_TC1REPLAYTIMEOUTVAL,
+                            NCP_SELINDEX_NULL,
+                            tcfg->tsb_tc1_replay_timeout);
+        if (rc) {
+            return rc;
+        }
+    }
+    if (flags & TSB_LOCALL2F_AFC1) {
+        rc = switch_dme_set(sw,
+                            port_id,
+                            DME_AFC1REQTIMEOUTVAL,
+                            NCP_SELINDEX_NULL,
+                            tcfg->tsb_afc1_req_timeout);
+    }
+    return rc;
+}
+
+static int switch_apply_power_mode(struct tsb_switch *sw,
+                                   uint8_t port_id,
+                                   uint32_t pwr_mode) {
+    int rc;
+    uint32_t val;
+    dbg_insane("%s(): enter, port=%u, pwr_mode=0x%x\n", __func__, port_id,
+               pwr_mode);
+    rc = switch_dme_set(sw, port_id, PA_PWRMODE, NCP_SELINDEX_NULL,
+                        pwr_mode);
+    if (rc) {
+        goto out;
+    }
+    do {
+        /*
+         * Wait until the power mode change completes.
+         *
+         * FIXME error out after too many retries.
+         * FIXME other error handling (UniPro specification 5.7.12.5).
+         */
+        rc = switch_dme_get(sw, port_id, TSB_DME_POWERMODEIND,
+                            NCP_SELINDEX_NULL, &val);
+        if (rc) {
+            dbg_error("%s: failed to read power mode indication: %d\n",
+                      __func__,
+                      rc);
+            goto out;
+        }
+    } while (val != TSB_DME_POWERMODEIND_SUCCESS);
+
+    dbg_insane("%s(): testing link state with peer DME access\n", __func__);
+    rc = switch_dme_peer_get(sw,
+                             port_id,
+                             T_CONNECTIONSTATE,
+                             NCP_SELINDEX_NULL,
+                             &val);
+
+ out:
+    dbg_insane("%s(): exit, rc=%d\n", __func__, rc);
+    return rc;
+}
+
+/**
+ * @brief Low-level UniPro link configuration routine.
+ *
+ * This supports separate reconfiguration of each direction of the
+ * UniPro link to different power modes, and allows for hibernation
+ * and off modes.
+ *
+ * Higher level convenience functions to set both directions of a link
+ * to the same HS or PWM gear are available.
+ *
+ * @param sw Switch handle
+ * @param port_id Port whose link to reconfigure
+ * @param cfg UniPro power configuration to apply
+ * @param tcg Toshiba extensions to UniPro power config to apply,
+ *            This may be NULL if no extensions are needed.
+ *
+ * @see switch_configure_link_hs()
+ * @see switch_configure_link_pwm()
+ */
+int switch_configure_link(struct tsb_switch *sw,
+                          uint8_t port_id,
+                          const struct unipro_link_cfg *cfg,
+                          const struct tsb_link_cfg *tcfg) {
+    int rc = 0;
+    const struct unipro_pwr_cfg *tx = &cfg->upro_tx_cfg;
+    uint32_t tx_term = !!(cfg->flags & UPRO_LINKF_TX_TERMINATION);
+    const struct unipro_pwr_cfg *rx = &cfg->upro_rx_cfg;
+    uint32_t rx_term = !!(cfg->flags & UPRO_LINKF_RX_TERMINATION);
+    uint32_t scrambling = !!(cfg->flags & UPRO_LINKF_SCRAMBLING);
+    const struct unipro_pwr_user_data *udata = &cfg->upro_user;
+    uint32_t pwr_mode = tx->upro_mode | (rx->upro_mode << 4);
+
+    dbg_verbose("%s(): port=%d\n", __func__, port_id);
+
+    /*
+     * FIXME (ADD JIRA): support HS series changes if the need arises.
+     *
+     * - PA_HSSeries can only be set when the Link is in Slow_Mode or
+     *   SlowAuto_Mode.
+     *
+     * - When PA_HSSeries is set, PA_PWRMode cannot be set to
+     *   UNCHANGED. It can be set to the same value, however.
+     */
+    if (cfg->upro_hs_ser != UNIPRO_HS_SERIES_UNCHANGED) {
+        rc = -EOPNOTSUPP;
+        goto out;
+    }
+
+    /* FIXME ADD JIRA support hibernation and link off modes. */
+    if (tx->upro_mode == UNIPRO_HIBERNATE_MODE ||
+        tx->upro_mode == UNIPRO_OFF_MODE ||
+        rx->upro_mode == UNIPRO_HIBERNATE_MODE ||
+        rx->upro_mode == UNIPRO_OFF_MODE) {
+        rc = -EOPNOTSUPP;
+        goto out;
+    }
+
+    /* Sanity-check the configuration. */
+    if (!(switch_active_cfg_is_sane(tx, PA_CONN_TX_DATA_LANES_NR) &&
+          switch_active_cfg_is_sane(rx, PA_CONN_RX_DATA_LANES_NR))) {
+        rc = -EINVAL;
+        goto out;
+    }
+
+    /* Apply TX and RX link reconfiguration as needed. */
+    rc = switch_configure_link_tx(sw, port_id, tx, tx_term) ||
+        switch_configure_link_rx(sw, port_id, rx, rx_term);
+    if (rc) {
+        goto out;
+    }
+
+    /* Handle scrambling. */
+    rc = switch_dme_set(sw, port_id, PA_SCRAMBLING,
+                        NCP_SELINDEX_NULL, scrambling);
+    if (rc) {
+        goto out;
+    }
+
+    /* Set any DME user data we understand. */
+    rc = switch_configure_link_user_data(sw, port_id, udata);
+    if (rc) {
+        goto out;
+    }
+
+    /* Handle Toshiba extensions to the link configuration procedure. */
+    if (tcfg) {
+        rc = switch_configure_link_tsbdata(sw, port_id, &tcfg->tsb_l2tim_cfg);
+    }
+    if (rc) {
+        goto out;
+    }
+
+    /* Kick off the actual power mode change, and see what happens. */
+    rc = switch_apply_power_mode(sw, port_id, pwr_mode);
+ out:
+    dbg_insane("%s(): exit, rc=%d\n", __func__, rc);
+    return rc;
+}
+
 /**
  * @brief Dump routing table to low level console
  */

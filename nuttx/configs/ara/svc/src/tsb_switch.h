@@ -56,6 +56,47 @@
 
 #define SWITCH_PORT_MAX             (14)
 
+/**
+ * @brief Toshiba-specific L2 timer configuraion to apply to the local
+ *        end of the link during a power mode change.
+ *
+ * A particular attribute is only reconfigured if the corresponding
+ * flag is set. E.g., `tsb_fc0_protection_timeout` is used to set
+ * TSB_DME_FC0PROTECTIONTIMEOUTVAL if and only if TSB_LOCAL_L2_FC0 is
+ * set in `flags'.
+ *
+ * @see switch_configure_link()
+ */
+struct tsb_local_l2_timer_cfg {
+    /* Set TSB_DME_FC0PROTECTIONTIMEOUTVAL */
+#   define TSB_LOCALL2F_FC0  (1U << 0)
+    /* Set TSB_DME_TC0REPLAYTIMEOUTVAL */
+#   define TSB_LOCALL2F_TC0  (1U << 1)
+    /* Set TSB_DME_AFC0REQTIMEOUTVAL */
+#   define TSB_LOCALL2F_AFC0 (1U << 2)
+    /* Set TSB_DME_FC1PROTECTIONTIMEOUTVAL */
+#   define TSB_LOCALL2F_FC1  (1U << 3)
+    /* Set TSB_DME_TC1REPLAYTIMEOUTVAL */
+#   define TSB_LOCALL2F_TC1  (1U << 4)
+    /* Set TSB_DME_AFC1REQTIMEOUTVAL */
+#   define TSB_LOCALL2F_AFC1 (1U << 5)
+    unsigned int tsb_flags;
+
+    uint16_t tsb_fc0_protection_timeout;
+    uint16_t tsb_tc0_replay_timeout;
+    uint16_t tsb_afc0_req_timeout;
+    uint16_t tsb_fc1_protection_timeout;
+    uint16_t tsb_tc1_replay_timeout;
+    uint16_t tsb_afc1_req_timeout;
+};
+
+/**
+ * Extra Toshiba extensions for UniPro link configuration.
+ */
+struct tsb_link_cfg {
+    struct tsb_local_l2_timer_cfg tsb_l2tim_cfg;
+};
+
 struct tsb_switch_driver {
     void *priv;
 
@@ -138,6 +179,76 @@ static inline int switch_connection_std_create(struct tsb_switch *sw,
                                     CPORT_TC0,
                                     CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N);
 };
+
+int switch_configure_link(struct tsb_switch *sw,
+                          uint8_t port_id,
+                          const struct unipro_link_cfg *cfg,
+                          const struct tsb_link_cfg *tcfg);
+
+/**
+ * @brief "Auto" mode variant selection during link configuration.
+ *
+ * If set when configuring a link for an HS or PWM gear, choose the
+ * "auto" mode variant. This provides lower power with automatic
+ * transitions between BURST and SLEEP M-PHY states, at the cost of
+ * extra latency to come out of SLEEP. */
+#define UNIPRO_LINK_CFGF_AUTO         (1U << 0)
+
+#define TSB_DEFAULT_PWR_USER_DATA                               \
+    {                                                           \
+        .flags = UPRO_PWRF_FC0,                                 \
+        .upro_pwr_fc0_protection_timeout = 0x1FFF,              \
+    }
+
+/**
+ * @brief Configure both directions of a link to the given HS gear.
+ *
+ * @param sw Switch handle
+ * @param port_id Port whose link to configure
+ * @param gear HS gear to use (HS-G1=1, HS-G2=2, HS-G3=3)
+ * @param nlanes Number of lanes to use (1, 2, ...)
+ * @param flags UNIPRO_LINK_CFGF_xxx
+ */
+static inline int switch_configure_link_hs(struct tsb_switch *sw,
+                                           uint8_t port_id,
+                                           unsigned int gear,
+                                           unsigned int nlanes,
+                                           unsigned int flags) {
+    int auto_variant = flags & UNIPRO_LINK_CFGF_AUTO;
+    const struct unipro_link_cfg lcfg = {
+        .upro_hs_ser = UNIPRO_HS_SERIES_UNCHANGED,
+        .upro_tx_cfg = UNIPRO_FAST_PWR_CFG(auto_variant, gear, nlanes),
+        .upro_rx_cfg = UNIPRO_FAST_PWR_CFG(auto_variant, gear, nlanes),
+        .upro_user   = TSB_DEFAULT_PWR_USER_DATA,
+        .flags       = 0,
+    };
+    return switch_configure_link(sw, port_id, &lcfg, NULL);
+}
+
+/**
+ * @brief Configure both directions of a link to the given PWM gear.
+ *
+ * @param sw Switch handle
+ * @param port_id Port whose link to configure
+ * @param gear PWM gear to use (PWM-G1=1, PWM-G2=2, ..., PWM-G7=7)
+ * @param nlanes Number of lanes to use (1, 2, ...)
+ * @param flags UNIPRO_LINK_CFGF_xxx
+ */
+static inline int switch_configure_link_pwm(struct tsb_switch *sw,
+                                            uint8_t port_id,
+                                            unsigned int gear,
+                                            unsigned int nlanes,
+                                            unsigned int flags) {
+    int auto_variant = flags & UNIPRO_LINK_CFGF_AUTO;
+    const struct unipro_link_cfg lcfg = {
+        .upro_hs_ser = UNIPRO_HS_SERIES_UNCHANGED,
+        .upro_tx_cfg = UNIPRO_SLOW_PWR_CFG(auto_variant, gear, nlanes),
+        .upro_rx_cfg = UNIPRO_SLOW_PWR_CFG(auto_variant, gear, nlanes),
+        .upro_user   = TSB_DEFAULT_PWR_USER_DATA,
+        .flags       = UPRO_LINKF_TX_TERMINATION | UPRO_LINKF_RX_TERMINATION,
+    };
+    return switch_configure_link(sw, port_id, &lcfg, NULL);
+}
 
 void switch_dump_routing_table(struct tsb_switch*);
 
