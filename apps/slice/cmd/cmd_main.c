@@ -21,6 +21,8 @@
 
 #define SLICE_NUM_REGS        1
 
+#define SLICE_REG_INVALID    -2
+#define SLICE_REG_NOT_SET    -1
 #define SLICE_REG_SVC         0     /* SVC message register */
 
 #define SLICE_REG_SVC_RX_SZ   8
@@ -73,11 +75,20 @@ static int slice_cmd_read_cb(void *v)
   uint8_t val;
 
   I2C_SLAVE_READ(dev, &val, sizeof(val));
-  if (slf->reg < 0)
+
+  if (slf->reg == SLICE_REG_INVALID)
+    {
+      // Ignore additional written bytes since register invalid
+    }
+  else if (slf->reg == SLICE_REG_NOT_SET)
     {
       if (val < SLICE_NUM_REGS)
         {
           slf->reg = val;
+        }
+      else
+        {
+          slf->reg = SLICE_REG_INVALID;
         }
     }
   else 
@@ -130,7 +141,7 @@ static int slice_cmd_stop_cb(void *v)
       svc_handle(slf->reg_svc_rx, slf->reg_idx);
     }
 
-  slf->reg = -1;
+  slf->reg = SLICE_REG_NOT_SET;
   slf->reg_idx = 0;
   slf->reg_write = false;
 
@@ -153,7 +164,7 @@ int slice_cmd_main(int argc, char *argv[])
   dev1 = up_i2cinitialize(CONFIG_SLICE_CMD_I2C_SLAVE_BUS);
 
   slice_cmd_self.i2c = dev1;
-  slice_cmd_self.reg = -1;
+  slice_cmd_self.reg = SLICE_REG_NOT_SET;
 
   if (I2C_SETOWNADDRESS(dev1, CONFIG_SLICE_CMD_I2C_SLAVE_ADDR, 7) == OK) {
     I2C_REGISTERCALLBACK(dev1, &cb_ops, &slice_cmd_self);
