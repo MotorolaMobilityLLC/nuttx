@@ -249,6 +249,10 @@ ifeq ($(CONFIG_DEBUG),y)
 CHIP_CSRCS += stm32_dumpgpio.c
 endif
 
+ifeq ($(CONFIG_SLICE_CMD),y)
+CHIP_CSRCS += stm32_slice.c
+endif
+
 ifeq ($(CONFIG_GPIO_CHIP_STM32),y)
 CHIP_CSRCS += stm32_gpio_chip.c
 endif
