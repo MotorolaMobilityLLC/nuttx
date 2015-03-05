@@ -13,6 +13,7 @@
 
 #include <arch/stm32/slice.h>
 
+#include <apps/greybus-utils/manifest.h>
 #include <apps/greybus-utils/svc.h>
 
 #define EXTRA_FMT "%s: "
@@ -27,6 +28,7 @@
 #define SLICE_REG_SVC         0     /* SVC message register */
 
 #define SLICE_REG_SVC_RX_SZ   8
+#define SLICE_MID_SZ          7
 
 #ifdef CONFIG_EXAMPLES_NSH
 extern int nsh_main(int argc, char *argv[]);
@@ -51,6 +53,15 @@ struct slice_cmd_data
 };
 
 static struct slice_cmd_data slice_cmd_self;
+
+static void slice_cmd_manifest_event(unsigned char *mfile, int mnum)
+{
+  char mid[SLICE_MID_SZ];
+
+  snprintf(mid, SLICE_MID_SZ, "MID-%d", mnum + 1);
+  logd("num=%d\n", mnum);
+  send_svc_event(0, mid, mfile);
+}
 
 static int slice_cmd_recv_from_svc(void *buf, size_t length)
 {
@@ -190,6 +201,7 @@ int slice_cmd_main(int argc, char *argv[])
 
   svc_register(slice_cmd_recv_from_svc);
   send_svc_handshake();
+  foreach_manifest(slice_cmd_manifest_event);
 
 #ifdef CONFIG_EXAMPLES_NSH
   logd("Calling NSH\n");
