@@ -347,12 +347,10 @@ static int tsb_i2c_handle_tx_abort(void)
 static int up_i2c_transfer(struct i2c_dev_s *idev, struct i2c_msg_s *msgs, int num)
 {
     int ret;
-    irqstate_t flags;
 
     lldbg("msgs: %d\n", num);
 
     sem_wait(&g_mutex);
-    flags = irqsave();
 
     g_msgs = msgs;
     g_msgs_count = num;
@@ -416,7 +414,6 @@ static int up_i2c_transfer(struct i2c_dev_s *idev, struct i2c_msg_s *msgs, int n
     lldbg("unknown error %x\n", ret);
 
 done:
-    irqrestore(flags);
     sem_post(&g_mutex);
 
     return ret;
