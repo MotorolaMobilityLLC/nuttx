@@ -6,6 +6,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/i2c.h>
+#include <nuttx/list.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +32,13 @@
 extern int nsh_main(int argc, char *argv[]);
 #endif
 
+struct slice_svc_msg
+{
+    uint8_t *buf;
+    int size;
+    struct list_head list;
+};
+
 struct slice_cmd_data
 {
   FAR struct i2c_dev_s *i2c;
@@ -38,9 +46,7 @@ struct slice_cmd_data
   int reg_idx;
   bool reg_write;
 
-  uint8_t *reg_svc_tx;
-  int reg_svc_tx_size;
-
+  struct list_head reg_svc_tx_fifo;
   uint8_t reg_svc_rx[SLICE_REG_SVC_RX_SZ];
 };
 
@@ -48,19 +54,27 @@ static struct slice_cmd_data slice_cmd_self;
 
 static int slice_cmd_recv_from_svc(void *buf, size_t length)
 {
-  logd("length=%d\n", length);
+  struct slice_svc_msg *m;
 
-  // TODO: Add queue instead of just dropping msg
-  if (!slice_cmd_self.reg_svc_tx)
+  bool was_empty = list_is_empty(&slice_cmd_self.reg_svc_tx_fifo);
+  logd("length=%d, fifo_empty=%d\n", length, was_empty);
+
+  m = malloc(sizeof(struct slice_svc_msg));
+  if (m)
     {
-      slice_cmd_self.reg_svc_tx = malloc(length);
-      if (slice_cmd_self.reg_svc_tx)
+      m->buf = malloc(length);
+      if (m->buf)
         {
-          memcpy(slice_cmd_self.reg_svc_tx, buf, length);
-          slice_cmd_self.reg_svc_tx_size = length;
+          memcpy(m->buf, buf, length);
+          m->size = length;
+          list_add(&slice_cmd_self.reg_svc_tx_fifo, &m->list);
 
           slice_host_int_set(true);
           return 0;
+        }
+      else
+        {
+          free(m);
         }
     }
 
@@ -71,10 +85,9 @@ static int slice_cmd_recv_from_svc(void *buf, size_t length)
 static int slice_cmd_read_cb(void *v)
 {
   struct slice_cmd_data *slf = (struct slice_cmd_data *)v;
-  FAR struct i2c_dev_s *dev = slf->i2c;
   uint8_t val;
 
-  I2C_SLAVE_READ(dev, &val, sizeof(val));
+  I2C_SLAVE_READ(slf->i2c, &val, sizeof(val));
 
   if (slf->reg == SLICE_REG_INVALID)
     {
@@ -110,24 +123,25 @@ static int slice_cmd_read_cb(void *v)
 static int slice_cmd_write_cb(void *v)
 {
   struct slice_cmd_data *slf = (struct slice_cmd_data *)v;
-  FAR struct i2c_dev_s *dev = slf->i2c;
+  struct slice_svc_msg *m;
   uint8_t val = 0;
 
-  if ((slf->reg == SLICE_REG_SVC) && (slf->reg_svc_tx != NULL))
+  if ((slf->reg == SLICE_REG_SVC) && !list_is_empty(&slf->reg_svc_tx_fifo))
     {
-      val = slf->reg_svc_tx[slf->reg_idx];
-      slf->reg_idx = (slf->reg_idx + 1) % slf->reg_svc_tx_size;
+      m = list_entry(slf->reg_svc_tx_fifo.next, struct slice_svc_msg, list);
+      val = m->buf[slf->reg_idx];
+      slf->reg_idx = (slf->reg_idx + 1) % m->size;
       if (slf->reg_idx == 0)
         {
           /* host has read entire SVC message */
-          slice_host_int_set(false);
-          free(slf->reg_svc_tx);
-          slf->reg_svc_tx = NULL;
-          slf->reg_svc_tx_size = 0;
+          list_del(slf->reg_svc_tx_fifo.next);
+          slice_host_int_set(!list_is_empty(&slf->reg_svc_tx_fifo));
+          free(m->buf);
+          free(m);
         }
     }
 
-  I2C_SLAVE_WRITE(dev, &val, sizeof(val));
+  I2C_SLAVE_WRITE(slf->i2c, &val, sizeof(val));
   return 0;
 }
 
@@ -165,6 +179,7 @@ int slice_cmd_main(int argc, char *argv[])
 
   slice_cmd_self.i2c = dev1;
   slice_cmd_self.reg = SLICE_REG_NOT_SET;
+  list_init(&slice_cmd_self.reg_svc_tx_fifo);
 
   if (I2C_SETOWNADDRESS(dev1, CONFIG_SLICE_CMD_I2C_SLAVE_ADDR, 7) == OK) {
     I2C_REGISTERCALLBACK(dev1, &cb_ops, &slice_cmd_self);
