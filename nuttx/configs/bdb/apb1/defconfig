@@ -458,7 +458,7 @@ CONFIG_APBRIDGE_PRODUCTID=0x0001
 # System Logging
 #
 # CONFIG_RAMLOG is not set
-CONFIG_GREYBUS=y
+# CONFIG_GREYBUS is not set
 
 #
 # Networking Support

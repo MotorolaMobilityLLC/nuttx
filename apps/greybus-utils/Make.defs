@@ -34,7 +34,5 @@
 #
 ############################################################################
 
-ifeq ($(CONFIG_GREYBUS),y)
 CONFIGURED_APPS += greybus-utils
-endif
 

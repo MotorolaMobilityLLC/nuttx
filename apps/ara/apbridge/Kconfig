@@ -5,6 +5,7 @@
 
 config APBRIDGE
 	bool "APBridge FW without UniPro layer"
+	select GREYBUS
 	select DISABLE_UNIPRO
 	default n
 

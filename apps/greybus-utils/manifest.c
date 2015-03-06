@@ -93,6 +93,7 @@ void enable_cports(void)
         if (g_greybus.cports_bmp & (1 << i)) {
             id = g_greybus.cports[i].id;
             protocol = g_greybus.cports[i].protocol;
+#ifdef CONFIG_GREYBUS
             if (protocol == GREYBUS_PROTOCOL_GPIO) {
                 gb_info("Registering GPIO greybus driver.\n");
                 gb_gpio_register(id);
@@ -109,6 +110,7 @@ void enable_cports(void)
                 gb_info("Registering Loopback greybus driver.\n");
                 gb_loopback_register(id);
             }
+#endif
         }
         i++;
     }
