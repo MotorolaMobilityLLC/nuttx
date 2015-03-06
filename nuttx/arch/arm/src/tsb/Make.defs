@@ -42,6 +42,7 @@ CHIP_CSRCS += tsb_scm.c
 CHIP_CSRCS += tsb_gpio.c
 CHIP_CSRCS += $(USB_CSRCS)
 CHIP_CSRCS += tsb_i2c.c
+CHIP_CSRCS += tsb_cdsi.c
 ifeq ($(CONFIG_PWM),y)
 CHIP_CSRCS += tsb_pwm.c
 endif
