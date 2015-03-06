@@ -5,6 +5,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/greybus/greybus.h>
 #include <nuttx/i2c.h>
 #include <nuttx/list.h>
 #include <stdio.h>
@@ -15,19 +16,22 @@
 
 #include <apps/greybus-utils/manifest.h>
 #include <apps/greybus-utils/svc.h>
+#include <apps/greybus-utils/utils.h>
 
 #define EXTRA_FMT "%s: "
 #define EXTRA_ARG ,__FUNCTION__
 #define logd(format, ...) \
   lowsyslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
 
-#define SLICE_NUM_REGS        1
+#define SLICE_NUM_REGS        2
 
 #define SLICE_REG_INVALID    -2
 #define SLICE_REG_NOT_SET    -1
-#define SLICE_REG_SVC         0     /* SVC message register */
+#define SLICE_REG_SVC         0     /* SVC message register    */
+#define SLICE_REG_UNIPRO      1     /* Unipro message register */
 
 #define SLICE_REG_SVC_RX_SZ   8
+#define SLICE_REG_UNIPRO_SZ  16
 #define SLICE_MID_SZ          7
 
 #ifdef CONFIG_EXAMPLES_NSH
@@ -50,6 +54,8 @@ struct slice_cmd_data
 
   struct list_head reg_svc_tx_fifo;
   uint8_t reg_svc_rx[SLICE_REG_SVC_RX_SZ];
+
+  uint8_t reg_unipro[SLICE_REG_UNIPRO_SZ];
 };
 
 static struct slice_cmd_data slice_cmd_self;
@@ -117,12 +123,20 @@ static int slice_cmd_read_cb(void *v)
     }
   else 
     {
-      if (slf->reg == SLICE_REG_SVC)
+      switch (slf->reg)
         {
-          if (slf->reg_idx < SLICE_REG_SVC_RX_SZ)
-            {
-              slf->reg_svc_rx[slf->reg_idx++] = val;
-            }
+          case SLICE_REG_SVC:
+            if (slf->reg_idx < SLICE_REG_SVC_RX_SZ)
+              {
+                slf->reg_svc_rx[slf->reg_idx++] = val;
+              }
+            break;
+          case SLICE_REG_UNIPRO:
+            if (slf->reg_idx < SLICE_REG_UNIPRO_SZ)
+              {
+                slf->reg_unipro[slf->reg_idx++] = val;
+              }
+            break;
         }
       slf->reg_write = true;
     }
@@ -160,10 +174,20 @@ static int slice_cmd_write_cb(void *v)
 static int slice_cmd_stop_cb(void *v)
 {
   struct slice_cmd_data *slf = (struct slice_cmd_data *)v;
+  struct cport_msg *cmsg;
 
-  if (slf->reg_write && (slf->reg == SLICE_REG_SVC))
+  if (slf->reg_write)
     {
-      svc_handle(slf->reg_svc_rx, slf->reg_idx);
+      switch (slf->reg)
+        {
+          case SLICE_REG_SVC:
+            svc_handle(slf->reg_svc_rx, slf->reg_idx);
+            break;
+          case SLICE_REG_UNIPRO:
+            cmsg = (struct cport_msg *) slf->reg_unipro;
+            greybus_rx_handler(cmsg->cport, cmsg->data, slf->reg_idx - 1);
+            break;
+        }
     }
 
   slf->reg = SLICE_REG_NOT_SET;
