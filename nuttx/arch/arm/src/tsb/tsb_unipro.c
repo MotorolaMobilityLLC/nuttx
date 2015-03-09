@@ -111,7 +111,6 @@ static inline struct cport *cport_handle(uint16_t cportid) {
 
 /* Helpers */
 static uint32_t cport_get_status(struct cport*);
-static void configure_connected_cports(void);
 static inline void clear_rx_interrupt(struct cport*);
 static inline void enable_rx_interrupt(struct cport*);
 static void clear_ints(void);
@@ -141,37 +140,38 @@ static uint32_t cport_get_status(struct cport *cport) {
 }
 
 /**
- * @brief Enable only CPorts that have connected connections
+ * @brief Enable a CPort that has a connected connection.
  */
-static void configure_connected_cports(void) {
+static int configure_connected_cport(unsigned int cportid) {
+    int ret = 0;
     struct cport *cport;
-    unsigned int rc, i;
+    unsigned int rc;
     uint32_t peer_cportid;
 
-    for (i = 0; i < CPORT_MAX; i++) {
-        cport = cport_handle(i);
-        if (!cport) {
-            continue;
-        }
-        rc = cport_get_status(cport);
-        switch (rc) {
-        case UNIPRO_CPORT_STATUS_CONNECTED:
-            /* Point destination address at peer cport rx buffer */
-            unipro_attr_read(T_PEERCPORTID,
-                             &peer_cportid,
-                             cport->cportid,
-                             0,
-                             &rc);
-            cport->peer_rx_buf = CPORT_RX_BUF(peer_cportid);
-            cport->connected = 1;
-            break;
-        case UNIPRO_CPORT_STATUS_UNCONNECTED:
-            continue;
-        default:
-            lldbg("Unexpected status: CP%d: status: 0x%u\n", rc);
-            continue;
-        }
+    cport = cport_handle(cportid);
+    if (!cport) {
+        return -EINVAL;
     }
+    rc = cport_get_status(cport);
+    switch (rc) {
+    case UNIPRO_CPORT_STATUS_CONNECTED:
+        /* Point destination address at peer cport rx buffer */
+        unipro_attr_read(T_PEERCPORTID,
+                         &peer_cportid,
+                         cport->cportid,
+                         0,
+                         &rc);
+        cport->peer_rx_buf = CPORT_RX_BUF(peer_cportid);
+        cport->connected = 1;
+        break;
+    case UNIPRO_CPORT_STATUS_UNCONNECTED:
+        ret = -ENOTCONN;
+        break;
+    default:
+        lldbg("Unexpected status: CP%d: status: 0x%u\n", rc);
+        ret = -EIO;
+    }
+    return ret;
 }
 
 /**
@@ -224,44 +224,43 @@ static int irq_rx_eom(int irq, void *context) {
 }
 
 /**
- * @brief Clear and disable all UniPro interrupts
+ * @brief Clear and disable UniPro interrupt
  */
-static void clear_ints(void) {
+static void clear_int(unsigned int cportid) {
     unsigned int i;
+    uint32_t int_en;
 
-    /* Clear all RX EOM interrupt status */
-    putreg32(0xFFFFFFFF, UNIPRO_AHM_RX_EOM_INT_BEF_0);
-    putreg32(0xFFFFFFFF, UNIPRO_AHM_RX_EOM_INT_BEF_1);
-    putreg32(0x0, UNIPRO_AHM_RX_EOM_INT_EN_0);
-    putreg32(0x0, UNIPRO_AHM_RX_EOM_INT_EN_1);
-    putreg32(0x0, UNIPRO_UNIPRO_INT_EN);
-    for (i = 0; i < CPORT_MAX; i++) {
-        tsb_irq_clear_pending(cportid_to_irqn(i));
+    i = cportid * 2;
+    if (cportid < 16) {
+        putreg32(0x3 << i, UNIPRO_AHM_RX_EOM_INT_BEF_0);
+        int_en = getreg32(UNIPRO_AHM_RX_EOM_INT_EN_0);
+        int_en &= ~(0x3 << i);
+        putreg32(int_en, UNIPRO_AHM_RX_EOM_INT_EN_0);
+    } else {
+        putreg32(0x3 << i, UNIPRO_AHM_RX_EOM_INT_BEF_1);
+        int_en = getreg32(UNIPRO_AHM_RX_EOM_INT_EN_1);
+        int_en &= ~(0x3 << i);
+        putreg32(int_en, UNIPRO_AHM_RX_EOM_INT_EN_1);
     }
+    tsb_irq_clear_pending(cportid_to_irqn(cportid));
 }
 
 /**
- * @brief Enable EOM interrupts on connected cports
+ * @brief Enable EOM interrupt on cport
  */
-static void enable_ints(void) {
+static void enable_int(unsigned int cportid) {
     struct cport *cport;
-    unsigned int i, irqn;
+    unsigned int irqn;
 
-    for (i = 0; i < CPORT_MAX; i++) {
-        cport = cport_handle(i);
-        if (!cport) {
-            continue;
-        }
-
-        if (cport->connected) {
-            irqn = cportid_to_irqn(i);
-            enable_rx_interrupt(cport);
-            irq_attach(irqn, irq_rx_eom);
-            up_enable_irq(irqn);
-        }
+    cport = cport_handle(cportid);
+    if (!cport || !cport->connected) {
+        return;
     }
 
-    putreg32(0x1, UNIPRO_UNIPRO_INT_EN);
+    irqn = cportid_to_irqn(cportid);
+    enable_rx_interrupt(cport);
+    irq_attach(irqn, irq_rx_eom);
+    up_enable_irq(irqn);
 }
 
 static void enable_e2efc(void) {
@@ -381,11 +380,45 @@ void unipro_info(void) {
     dump_regs();
 }
 
+/**
+ * @brief Initialize one UniPro cport
+ */
+int unipro_init_cport(unsigned int cportid) {
+    int ret;
+    irqstate_t flags;
+    struct cport *cport = cport_handle(cportid);
+
+    if (cport->connected)
+        return 0;
+
+    /*
+     * Initialize cport.
+     */
+    ret = configure_connected_cport(cportid);
+    if (ret)
+        return ret;
+
+    /*
+     * Clear any pending EOM interrupts, then enable them.
+     * TODO: Defer interrupt enable until driver registration?
+     */
+    flags = irqsave();
+    clear_int(cportid);
+    enable_int(cportid);
+    irqrestore(flags);
+
+#ifdef UNIPRO_DEBUG
+    unipro_info();
+#endif
+
+    return 0;
+}
 
 /**
  * @brief Initialize the UniPro core
  */
 void unipro_init(void) {
+    unsigned int i;
     irqstate_t flags;
 
     /*
@@ -411,16 +444,11 @@ void unipro_init(void) {
     /*
      * Initialize connected cports.
      */
-    configure_connected_cports();
-
-    /*
-     * Clear any pending EOM interrupts, then enable them.
-     * TODO: Defer interrupt enable until driver registration?
-     */
-    flags = irqsave();
-    clear_ints();
-    enable_ints();
-    irqrestore(flags);
+    putreg32(0x0, UNIPRO_UNIPRO_INT_EN);
+    for (i = 0; i < CPORT_MAX; i++) {
+        unipro_init_cport(i);
+    }
+    putreg32(0x1, UNIPRO_UNIPRO_INT_EN);
 
 #ifdef UNIPRO_DEBUG
     unipro_info();
