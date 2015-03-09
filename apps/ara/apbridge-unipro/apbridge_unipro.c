@@ -111,13 +111,26 @@ static void manifest_event(unsigned char *manifest_file, int manifest_number)
     send_svc_event(0, mid, manifest_file);
 }
 
+struct unipro_driver unipro_driver = {
+    .name = "APBridge",
+    .rx_handler = recv_from_unipro,
+};
+
 static void *svc_sim_fn(void * p_data)
 {
+    int i;
     struct apbridge_dev_s *priv;
 
     priv = (struct apbridge_dev_s *)p_data;
 
     usb_wait(priv);
+    for (i = 0; i < CPORT_MAX; i++) {
+        /* This cports are already allocated for display and camera */
+        if (i == CPORTID_CDSI0 || i == CPORTID_CDSI1)
+            continue;
+        unipro_init_cport(i);
+        unipro_driver_register(&unipro_driver, i);
+    }
     send_svc_handshake();
     foreach_manifest(manifest_event);
     return NULL;
@@ -133,11 +146,6 @@ static int svc_sim_init(struct apbridge_dev_s *priv)
     return ret;
 }
 
-struct unipro_driver unipro_driver = {
-    .name = "APBridge",
-    .rx_handler = recv_from_unipro,
-};
-
 static struct apbridge_usb_driver usb_driver = {
     .usb_to_unipro = usb_to_unipro,
     .usb_to_svc = usb_to_svc,
@@ -149,12 +157,7 @@ int bridge_main(int argc, char *argv[])
     int i;
 
     unipro_init();
-    for (i = 0; i < CPORT_MAX; i++) {
-        /* This cports are already allocated for display and camera */
-        if (i == CPORTID_CDSI0 || i == CPORTID_CDSI1)
-            continue;
-        unipro_driver_register(&unipro_driver, i);
-    }
+
     svc_register(recv_from_svc);
     usbdev_apbinitialize(&usb_driver);
 
