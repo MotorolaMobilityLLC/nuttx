@@ -54,12 +54,18 @@ static uint8_t gb_gpio_protocol_version(struct gb_operation *operation)
 static uint8_t gb_gpio_line_count(struct gb_operation *operation)
 {
     struct gb_gpio_line_count_response *response;
+    uint8_t count;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->count = gpio_line_count();
+    count = gpio_line_count();
+    if (!count)
+	    return GB_OP_UNKNOWN_ERROR;
+
+    response->count = count - 1;
+
     return GB_OP_SUCCESS;
 }
 
