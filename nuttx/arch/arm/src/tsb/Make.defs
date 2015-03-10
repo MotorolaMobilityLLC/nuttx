@@ -36,7 +36,7 @@ endif
 
 CHIP_ASRCS  = tsb_vectors.S
 
-CHIP_CSRCS  = tsb_start.c up_allocateheap.c up_idle.c tsb_irq.c tsb_timerisr.c
+CHIP_CSRCS  = tsb_start.c up_allocateheap.c tsb_idle.c tsb_irq.c tsb_timerisr.c
 CHIP_CSRCS += tsb_main.c tsb_lowputc.c tsb_serial.c tsb_unipro.c
 CHIP_CSRCS += tsb_scm.c
 CHIP_CSRCS += tsb_gpio.c
