@@ -199,6 +199,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     struct gb_operation *op;
     struct gb_operation_hdr *hdr = data;
     struct gb_operation_handler *op_handler;
+    int retval;
 
     if (cport >= CPORT_MAX || !data)
         return -EINVAL;
@@ -217,6 +218,10 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
         return -ENOMEM;
 
     op->request_buffer = malloc(hdr->size);
+    if (!op->request_buffer) {
+        retval = -ENOMEM;
+        goto err_operation_destroy;
+    }
     memcpy(op->request_buffer, data, hdr->size);
 
     flags = irqsave(); // useless if IRQ's priorities are correct
@@ -225,6 +230,11 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     irqrestore(flags);
 
     return 0;
+
+err_operation_destroy:
+    gb_operation_destroy(op);
+
+    return retval;
 }
 
 int gb_register_driver(unsigned int cport, struct gb_driver *driver)
