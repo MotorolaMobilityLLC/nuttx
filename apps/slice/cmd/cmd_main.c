@@ -47,16 +47,20 @@
 #define logd(format, ...) \
   lowsyslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
 
-#define SLICE_NUM_REGS        2
+#define SLICE_NUM_REGS            3
 
-#define SLICE_REG_INVALID    -2
-#define SLICE_REG_NOT_SET    -1
-#define SLICE_REG_SVC         0     /* SVC message register    */
-#define SLICE_REG_UNIPRO      1     /* Unipro message register */
+#define SLICE_REG_INVALID        -2
+#define SLICE_REG_NOT_SET        -1
+#define SLICE_REG_INT             0     /* Interrupt register        */
+#define SLICE_REG_SVC             1     /* SVC message register      */
+#define SLICE_REG_UNIPRO          2     /* Unipro message register   */
 
-#define SLICE_REG_SVC_RX_SZ   8
-#define SLICE_REG_UNIPRO_SZ  16
-#define SLICE_MID_SZ          7
+#define SLICE_REG_INT_SVC      0x01
+#define SLICE_REG_INT_UNIPRO   0x02
+
+#define SLICE_REG_SVC_RX_SZ       8
+#define SLICE_REG_UNIPRO_SZ      16
+#define SLICE_MID_SZ              7
 
 #ifdef CONFIG_EXAMPLES_NSH
 extern int nsh_main(int argc, char *argv[]);
@@ -76,6 +80,8 @@ struct slice_cmd_data
   int reg_idx;
   bool reg_write;
 
+  uint8_t reg_int;
+
   struct list_head reg_svc_tx_fifo;
   uint8_t reg_svc_rx[SLICE_REG_SVC_RX_SZ];
 
@@ -85,6 +91,17 @@ struct slice_cmd_data
 };
 
 static struct slice_cmd_data slice_cmd_self;
+
+static void slice_cmd_interrupt(struct slice_cmd_data *slf, uint8_t int_mask, bool assert)
+{
+  if (assert)
+    slf->reg_int |= int_mask;
+  else
+    slf->reg_int &= ~(int_mask);
+
+  logd("set = %d\n", slf->reg_int > 0);
+  slice_host_int_set(slf->reg_int > 0);
+}
 
 static void slice_cmd_manifest_event(unsigned char *mfile, int mnum)
 {
@@ -132,7 +149,7 @@ static int slice_cmd_recv_from_unipro(unsigned int cportid, const void *buf, siz
 
   slice_cmd_self.reg_unipro_tx_size = len + 1;
   slice_cmd_self.reg_unipro_tx = (uint8_t *)cmsg;
-  // TODO: interrupt management
+  slice_cmd_interrupt(&slice_cmd_self, SLICE_REG_INT_UNIPRO, true);
 
   return 0;
 }
@@ -160,7 +177,7 @@ static int slice_cmd_recv_from_svc(void *buf, size_t length)
           m->size = length;
           list_add(&slice_cmd_self.reg_svc_tx_fifo, &m->list);
 
-          slice_host_int_set(true);
+          slice_cmd_interrupt(&slice_cmd_self, SLICE_REG_INT_SVC, true);
           return 0;
         }
       else
@@ -180,39 +197,38 @@ static int slice_cmd_read_cb(void *v)
 
   I2C_SLAVE_READ(slf->i2c, &val, sizeof(val));
 
-  if (slf->reg == SLICE_REG_INVALID)
+  switch (slf->reg)
     {
-      // Ignore additional written bytes since register invalid
-    }
-  else if (slf->reg == SLICE_REG_NOT_SET)
-    {
-      if (val < SLICE_NUM_REGS)
-        {
-          slf->reg = val;
-        }
-      else
-        {
-          slf->reg = SLICE_REG_INVALID;
-        }
-    }
-  else 
-    {
-      switch (slf->reg)
-        {
-          case SLICE_REG_SVC:
-            if (slf->reg_idx < SLICE_REG_SVC_RX_SZ)
-              {
-                slf->reg_svc_rx[slf->reg_idx++] = val;
-              }
-            break;
-          case SLICE_REG_UNIPRO:
-            if (slf->reg_idx < SLICE_REG_UNIPRO_SZ)
-              {
-                slf->reg_unipro_rx[slf->reg_idx++] = val;
-              }
-            break;
-        }
-      slf->reg_write = true;
+      case SLICE_REG_INVALID:
+        // Ignore additional written bytes since register invalid
+        break;
+      case SLICE_REG_NOT_SET:
+        if (val < SLICE_NUM_REGS)
+          {
+            slf->reg = val;
+          }
+        else
+          {
+            slf->reg = SLICE_REG_INVALID;
+          }
+        break;
+      case SLICE_REG_INT:
+        // Writes to interrupt register not allowed
+        break;
+      case SLICE_REG_SVC:
+        if (slf->reg_idx < SLICE_REG_SVC_RX_SZ)
+          {
+            slf->reg_svc_rx[slf->reg_idx++] = val;
+          }
+        slf->reg_write = true;
+        break;
+      case SLICE_REG_UNIPRO:
+        if (slf->reg_idx < SLICE_REG_UNIPRO_SZ)
+          {
+            slf->reg_unipro_rx[slf->reg_idx++] = val;
+          }
+        slf->reg_write = true;
+        break;
     }
 
   return 0;
@@ -225,7 +241,11 @@ static int slice_cmd_write_cb(void *v)
   struct slice_svc_msg *m;
   uint8_t val = 0;
 
-  if ((slf->reg == SLICE_REG_SVC) && !list_is_empty(&slf->reg_svc_tx_fifo))
+  if (slf->reg == SLICE_REG_INT)
+    {
+      val = slf->reg_int;
+    }
+  else if ((slf->reg == SLICE_REG_SVC) && !list_is_empty(&slf->reg_svc_tx_fifo))
     {
       m = list_entry(slf->reg_svc_tx_fifo.next, struct slice_svc_msg, list);
       val = m->buf[slf->reg_idx];
@@ -234,7 +254,8 @@ static int slice_cmd_write_cb(void *v)
         {
           /* host has read entire SVC message */
           list_del(slf->reg_svc_tx_fifo.next);
-          slice_host_int_set(!list_is_empty(&slf->reg_svc_tx_fifo));
+          slice_cmd_interrupt(slf, SLICE_REG_INT_SVC,
+                              !list_is_empty(&slf->reg_svc_tx_fifo));
           free(m->buf);
           free(m);
         }
@@ -246,7 +267,7 @@ static int slice_cmd_write_cb(void *v)
       if (slf->reg_idx == 0)
         {
           /* host has read entire Unipro message */
-          // TODO: interrupt management
+          slice_cmd_interrupt(&slice_cmd_self, SLICE_REG_INT_UNIPRO, false);
           slf->reg_unipro_tx_size = 0;
           free(slf->reg_unipro_tx);
           slf->reg_unipro_tx = NULL;
