@@ -395,6 +395,8 @@ void *gb_operation_alloc_response(struct gb_operation *operation, size_t size)
     if (!operation->response_buffer)
         return NULL;
 
+    memset(operation->response_buffer, 0, size + sizeof(*resp_hdr));
+
     req_hdr = operation->request_buffer;
     resp_hdr = operation->response_buffer;
 
