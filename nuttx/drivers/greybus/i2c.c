@@ -114,7 +114,10 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
     if (!msg)
         return GB_OP_NO_MEMORY;
     response = gb_operation_alloc_response(operation, size);
-
+    if (!response) {
+	    ret = GB_OP_NO_MEMORY;
+	    goto err_free_msg;
+    }
     for (i = 0; i < op_count; i++) {
         desc = &request->desc[i];
         read_op = (desc->flags & I2C_M_RD) ? true : false;
@@ -139,6 +142,11 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
       return GB_OP_UNKNOWN_ERROR;
 
     return GB_OP_SUCCESS;
+
+err_free_msg:
+    free(msg);
+
+    return ret;
 }
 
 static int gb_i2c_init(unsigned int cport)
