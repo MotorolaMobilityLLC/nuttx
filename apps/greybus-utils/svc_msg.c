@@ -47,8 +47,8 @@ void send_svc_handshake(void)
     m->header.function_id = SVC_FUNCTION_HANDSHAKE;
     m->header.message_type = SVC_MSG_DATA;
     m->header.payload_length = htole16(HS_PAYLOAD_SIZE);
-    m->handshake.version_major = 0;
-    m->handshake.version_minor = 0;
+    m->handshake.version_major = GREYBUS_VERSION_MAJOR;
+    m->handshake.version_minor = GREYBUS_VERSION_MINOR;
     m->handshake.handshake_type = SVC_HANDSHAKE_SVC_HELLO;
 
     svc_int_write(m, HS_MSG_SIZE);
