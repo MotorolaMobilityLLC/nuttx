@@ -547,3 +547,7 @@ config LIB_SLCDCODEC
 		include/nuttx/lcd/slcd_codec.h.  While not correctly a part of the C
 		library, it is included here because the encoding side of this
 		interface must be accessible by end user programs.
+
+config LIB_RING_BUF
+    bool
+    default n

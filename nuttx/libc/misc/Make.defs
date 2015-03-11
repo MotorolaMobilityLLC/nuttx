@@ -76,6 +76,12 @@ ifeq ($(CONFIG_LIB_SLCDCODEC),y)
 CSRCS += lib_slcdencode.c lib_slcddecode.c
 endif
 
+# Ring buffer package
+
+ifeq ($(CONFIG_LIB_RING_BUF),y)
+CSRCS += lib_ring_buf.c
+endif
+
 # Add the misc directory to the build
 
 DEPPATH += --dep-path misc
