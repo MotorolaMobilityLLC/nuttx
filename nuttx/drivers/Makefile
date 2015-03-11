@@ -102,6 +102,10 @@ ifeq ($(CONFIG_TIMER),y)
 endif
 endif
 
+ifeq ($(CONFIG_DEVICE_CORE),y)
+  CSRCS += device.c device_resource.c device_table.c
+endif
+
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
 

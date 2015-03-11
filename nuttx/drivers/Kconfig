@@ -156,6 +156,10 @@ config ARCH_HAVE_I2CRESET
 	bool
 	default n
 
+config DEVICE_CORE
+    bool
+    default n
+
 menuconfig GPIO
 	bool "GPIO Device Support"
 	default y
