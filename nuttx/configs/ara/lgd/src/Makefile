@@ -6,7 +6,11 @@ ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c
-CSRCS		+= lg4892.c
+ifeq ($(CONFIG_APB1),y)
+CSRCS   += dsi_rx_init.c
+else
+CSRCS   += lg4892.c dsi_tx_init.c
+endif
 
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
