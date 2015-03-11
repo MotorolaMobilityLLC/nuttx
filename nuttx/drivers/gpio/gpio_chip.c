@@ -136,11 +136,9 @@ void gpio_set_value(uint8_t which, uint8_t value)
 
 int gpio_set_debounce(uint8_t which, uint16_t delay)
 {
-    uint8_t initial_reading;
+    printf("%s - unimplemented\n", __func__);
 
-    initial_reading = gpio_get_value(&which);
-    up_udelay(delay);
-    return initial_reading == gpio_get_value(which);
+    return -ENOSYS;
 }
 
 void gpio_deactivate(uint8_t which)
