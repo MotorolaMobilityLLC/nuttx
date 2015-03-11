@@ -9,8 +9,9 @@
 
 int bridge_main(int argc, char *argv[])
 {
-    enable_manifest("MID-1", NULL);
+    tsb_gpio_register();
 
+    enable_manifest("MID-1", NULL);
     gb_unipro_init();
     enable_cports();
 
