@@ -6,23 +6,7 @@ ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c
-
-ifeq ($(CONFIG_NX_LCDDRIVER),y)
-CSRCS		+= up_lcd.c
-endif
-
-ifeq ($(CONFIG_NSH_ARCHINIT),y)
-endif
-
-ifeq ($(CONFIG_INPUT),y)
-endif
-
-ifeq ($(CONFIG_USBMSC),y)
-endif
-
-ifeq ($(CONFIG_WATCHDOG),y)
-	CSRCS		+= up_watchdog.c
-endif
+CSRCS		+= lg4892.c
 
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
