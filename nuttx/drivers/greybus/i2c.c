@@ -44,7 +44,7 @@
 #define I2C_M_RD                        0x0001
 
 /* TODO move it inside a struct */
-struct i2c_dev_s *i2c_dev;
+struct i2c_dev_s *i2c_dev = NULL;
 
 static uint8_t gb_i2c_protocol_version(struct gb_operation *operation)
 {
@@ -151,7 +151,8 @@ err_free_msg:
 
 static int gb_i2c_init(unsigned int cport)
 {
-    i2c_dev = up_i2cinitialize(0);
+    if (!i2c_dev)
+        i2c_dev = up_i2cinitialize(0);
     return 0;
 }
 
@@ -172,6 +173,15 @@ static struct gb_driver gb_i2c_driver = {
 void gb_i2c_register(int cport)
 {
     gb_register_driver(cport, &gb_i2c_driver);
+}
+
+int gb_i2c_set_dev(struct i2c_dev_s *dev)
+{
+    if (!i2c_dev)
+        i2c_dev = dev;
+    else
+        return -EBUSY;
+    return 0;
 }
 
 struct i2c_dev_s *gb_i2c_get_dev(void)

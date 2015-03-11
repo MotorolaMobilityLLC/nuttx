@@ -147,6 +147,7 @@ int greybus_rx_handler(unsigned int, void*, size_t);
 
 void gb_gpio_register(int cport);
 void gb_i2c_register(int cport);
+int gb_i2c_set_dev(struct i2c_dev_s *dev);
 struct  i2c_dev_s *gb_i2c_get_dev(void);
 
 #ifndef ARRAY_SIZE
