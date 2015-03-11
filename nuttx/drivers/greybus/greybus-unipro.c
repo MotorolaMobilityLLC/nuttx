@@ -28,6 +28,7 @@
  * Author: Fabien Parent <fparent@baylibre.com>
  */
 
+#include <errno.h>
 #include <arch/tsb/unipro.h>
 #include <nuttx/greybus/greybus.h>
 
@@ -38,7 +39,16 @@ static struct unipro_driver greybus_driver = {
 
 static int gb_unipro_listen(unsigned int cport)
 {
-    return unipro_driver_register(&greybus_driver, cport);
+    int ret;
+
+    do {
+        ret = unipro_init_cport(cport);
+        if (!ret)
+            ret = unipro_driver_register(&greybus_driver, cport);
+        else
+            usleep(200000);
+    } while (ret == -ENOTCONN);
+    return ret;
 }
 
 struct gb_transport_backend gb_unipro_backend = {
