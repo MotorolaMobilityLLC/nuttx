@@ -167,11 +167,16 @@ static uint8_t gb_gpio_set_debounce(struct gb_operation *operation)
 {
     struct gb_gpio_set_debounce_request *request =
         gb_operation_get_request_payload(operation);
+    int ret;
 
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
 
-    return gpio_set_debounce(request->which, request->usec);
+    ret = gpio_set_debounce(request->which, request->usec);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
 }
 
 static uint8_t gb_gpio_irq_ack(struct gb_operation *operation)
