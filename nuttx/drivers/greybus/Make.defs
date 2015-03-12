@@ -95,6 +95,12 @@ ifeq ($(CONFIG_GREYBUS_DEBUG),y)
 CSRCS += greybus-debug.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_BATTERY_MAX17050),y)
+CSRCS += battery-max17050.c
+endif
+
+endif
+
 DEPPATH += --dep-path greybus
 VPATH += :greybus
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)greybus}
