@@ -8,6 +8,8 @@
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
+#include <nuttx/util.h>
+
 #include "ara_board.h"
 #include "interface.h"
 #include "tsb_switch_driver_es1.h"
@@ -105,7 +107,7 @@ static struct interface *bdb1b_interfaces[] = {
 
 static struct ara_board_info bdb1b_board_info = {
     .interfaces = bdb1b_interfaces,
-    .nr_interfaces = NELEM(bdb1b_interfaces),
+    .nr_interfaces = ARRAY_SIZE(bdb1b_interfaces),
 
     .sw_1p1   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN9),
     .sw_1p8   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN6),

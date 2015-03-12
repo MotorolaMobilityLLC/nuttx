@@ -56,7 +56,7 @@ int interface_pwr_disable(struct interface*);
     static struct interface MAKE_BB_INTERFACE(number) = {      \
         .name = "spring" #number,                              \
         .vregs = MAKE_BB_VREG(number),                         \
-        .nr_vregs = NELEM(MAKE_BB_VREG(number)),               \
+        .nr_vregs = ARRAY_SIZE(MAKE_BB_VREG(number)),          \
         .switch_portid = portid,                               \
     };
 
@@ -64,17 +64,11 @@ int interface_pwr_disable(struct interface*);
 #define MAKE_INTERFACE(n) __MAKE_INTERFACE(n)
 #define DECLARE_INTERFACE(_name, gpios, portid)                \
     static struct interface MAKE_INTERFACE(_name) = {          \
-        .name = #_name,                                         \
+        .name = #_name,                                        \
         .vregs = gpios,                                        \
-        .nr_vregs = NELEM(gpios),                              \
+        .nr_vregs = ARRAY_SIZE(gpios),                         \
         .switch_portid = portid,                               \
     };
-
-/* FIXME: This shouldn't go here. */
-#ifndef NELEM
-    #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 
 #endif
 
