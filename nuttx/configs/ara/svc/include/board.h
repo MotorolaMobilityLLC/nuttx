@@ -5,7 +5,7 @@
  *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
- *   Copyright (C) 2014 Google, Inc.
+ *   Copyright (C) 2014-2015 Google, Inc.
  *   Google Confidential/Restricted
  *
  * Redistribution and use in source and binary forms, with or without
@@ -525,6 +525,13 @@
 #define GPIO_I2C3_SCL GPIO_I2C3_SCL_2 /* PH7 is I2C3_SCL */
 #define GPIO_I2C3_SDA GPIO_I2C3_SDA_2 /* PH8 is I2C3_SDA */
 
+/*
+ * SPI1 to the Unipro Switch
+ */
+#define GPIO_SPI1_MISO          GPIO_SPI1_MISO_1
+#define GPIO_SPI1_MOSI          GPIO_SPI1_MOSI_1
+#define GPIO_SPI1_NSS           GPIO_SPI1_NSS_1
+#define GPIO_SPI1_SCK           GPIO_SPI1_SCK_1
 
 /* DMA Channel/Stream Selections *****************************************************/
 /* Stream selections are arbitrary for now but might become important in the future
