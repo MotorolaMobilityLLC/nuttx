@@ -84,8 +84,6 @@ int svc_init(void) {
     struct tsb_switch *sw;
     int rc;
 
-    dbg_set_config(DBG_I2C | DBG_SVC | DBG_SWITCH | DBG_UI, DBG_INFO);
-
     dbg_info("Initializing SVC\n");
     /*
      * Board-specific initialization, all boards must define this.
