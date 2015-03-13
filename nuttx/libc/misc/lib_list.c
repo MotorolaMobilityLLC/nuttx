@@ -37,7 +37,7 @@ void list_init(struct list_head *head)
 
 bool list_is_empty(struct list_head *head)
 {
-    return head->prev == head->next;
+    return head == head->next;
 }
 
 void list_add(struct list_head *head, struct list_head *node)
