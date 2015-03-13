@@ -34,7 +34,7 @@ include $(APPDIR)/Make.defs
 
 # PWRM built-in application info
 
-APPNAME = pwrm
+APPNAME = bdbpm
 PRIORITY = SCHED_PRIORITY_DEFAULT
 STACKSIZE = 2048
 

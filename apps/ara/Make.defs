@@ -114,3 +114,7 @@ endif
 ifeq ($(CONFIG_ARA_GPIO),y)
 CONFIGURED_APPS += ara/gpio
 endif
+
+ifeq ($(CONFIG_ARA_SVC_BDBPM),y)
+CONFIGURED_APPS += ara/bdbpm
+endif
