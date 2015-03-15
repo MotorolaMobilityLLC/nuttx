@@ -135,6 +135,10 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
     struct list_head *iter, *iter_next;
     struct gb_operation *op;
     struct gb_operation_hdr *op_hdr;
+    struct gb_operation_hdr timedout_hdr = {
+        .size = sizeof(timedout_hdr),
+        .result = GB_OP_TIMEOUT,
+    };
 
     list_foreach_safe(&g_cport[operation->cport].tx_fifo, iter, iter_next) {
         op = list_entry(iter, struct gb_operation, list);
@@ -144,10 +148,12 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
         if (gb_operation_has_timedout(op)) {
             list_del(iter);
             if (op->callback) {
-                gb_operation_alloc_response(operation, 0);
-                op_hdr = op->response_buffer;
-                op_hdr->result = GB_OP_TIMEOUT;
+                timedout_hdr.id = op_hdr->id;
+                timedout_hdr.type = TYPE_RESPONSE_FLAG | op_hdr->type;
+
+                op->response_buffer = &timedout_hdr;
                 op->callback(operation);
+                op->response_buffer = NULL;
             }
             gb_operation_destroy(op);
             continue;
