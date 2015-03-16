@@ -88,6 +88,13 @@ struct slice_cmd_data
   uint8_t reg_unipro_tx_size;
   uint8_t *reg_unipro_tx;
   uint8_t reg_unipro_rx[SLICE_REG_UNIPRO_SZ];
+  uint8_t reg_unipro_rx_cport;
+};
+
+struct slice_unipro_msg {
+    __u8    slice_cport;
+    __u8    ap_cport;
+    __u8    data[0];
 };
 
 static struct slice_cmd_data slice_cmd_self;
@@ -129,7 +136,8 @@ static int slice_cmd_recv_from_unipro(unsigned int cportid, const void *buf, siz
 {
   struct cport_msg *cmsg;
 
-  logd("cportid=%d, len=%d\n", cportid, len);
+  logd("slice_cport=%d, ap_cport=%d, len=%d\n",
+       cportid, slice_cmd_self.reg_unipro_rx_cport, len);
 
   if (slice_cmd_self.reg_unipro_tx)
     {
@@ -142,7 +150,7 @@ static int slice_cmd_recv_from_unipro(unsigned int cportid, const void *buf, siz
   if (!cmsg)
       return -ENOMEM;
 
-  cmsg->cport = cportid;
+  cmsg->cport = slice_cmd_self.reg_unipro_rx_cport;
   memcpy(cmsg->data, buf, len);
 
   gb_dump(cmsg->data, len);
@@ -292,7 +300,7 @@ static int slice_cmd_write_cb(void *v)
 static int slice_cmd_stop_cb(void *v)
 {
   struct slice_cmd_data *slf = (struct slice_cmd_data *)v;
-  struct cport_msg *cmsg;
+  struct slice_unipro_msg *umsg;
 
   if (slf->reg_write)
     {
@@ -302,8 +310,9 @@ static int slice_cmd_stop_cb(void *v)
             svc_handle(slf->reg_svc_rx, slf->reg_idx);
             break;
           case SLICE_REG_UNIPRO:
-            cmsg = (struct cport_msg *) slf->reg_unipro_rx;
-            greybus_rx_handler(cmsg->cport, cmsg->data, slf->reg_idx - 1);
+            umsg = (struct slice_unipro_msg *) slf->reg_unipro_rx;
+            slf->reg_unipro_rx_cport = umsg->ap_cport;
+            greybus_rx_handler(umsg->slice_cport, umsg->data, slf->reg_idx - 2);
             break;
         }
     }
