@@ -440,14 +440,14 @@ static int switch_detect_devices(struct tsb_switch *sw,
         /*  deviceClass,    expected 0x0000 */
         DME_DDBL1_DEVICECLASS,
         /*  ManufactureID,  expected 0x0126 */
-        DME_DDBL1_MANUFACTUREID,
+        DME_DDBL1_MANUFACTURERID,
         /*  productID,      expected 0x1000 */
         DME_DDBL1_PRODUCTID,
         /*  length,         expected 0x0008 */
         DME_DDBL1_LENGTH,
         /* DME_DDBL2 VID and PID */
-        DME_DDBL2_VID,
-        DME_DDBL2_PID,
+        TSB_DME_DDBL2_A,
+        TSB_DME_DDBL2_B,
         /* Data lines */
         PA_CONNECTEDTXDATALANES,
         PA_CONNECTEDRXDATALANES
