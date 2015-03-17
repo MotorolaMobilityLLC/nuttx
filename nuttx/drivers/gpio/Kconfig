@@ -8,4 +8,4 @@
 
 config GPIO_TCA6408
     bool "TCA6408 device support"
-    default y
+    default n

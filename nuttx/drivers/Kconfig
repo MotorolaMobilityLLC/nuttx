@@ -162,7 +162,7 @@ config DEVICE_CORE
 
 menuconfig GPIO
 	bool "GPIO Device Support"
-	default y
+	default n
 	---help---
 		Drivers for various GPIO devices
 
@@ -542,3 +542,4 @@ source drivers/syslog/Kconfig
 config GREYBUS
 	bool "Greybus support"
 	default n
+	select GPIO
