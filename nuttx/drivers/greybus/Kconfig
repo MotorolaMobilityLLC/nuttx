@@ -1,0 +1,18 @@
+config GREYBUS_GPIO_PHY
+	bool "GPIO PHY support"
+	select GPIO
+	default n
+
+config GREYBUS_I2C_PHY
+	bool "I2C PHY support"
+	select I2C
+	select I2C_TRANSFER
+	default n
+
+config GREYBUS_BATTERY_PHY
+	bool "Battery support"
+	default n
+
+config GREYBUS_LOOPBACK_PHY
+	bool "Loopback support"
+	default n
