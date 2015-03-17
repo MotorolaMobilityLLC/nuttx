@@ -107,6 +107,18 @@ config GREYBUS_SDIO_PHY
 	select DEVICE_CORE
 	default n
 
+config GREYBUS_VENDOR
+	bool "Vendor Specific Protocol"
+	default n
+
+if GREYBUS_VENDOR
+choice
+  prompt "Select a vendor driver"
+config GREYBUS_VENDOR_MOTO
+  bool "Motorola"
+endchoice
+endif
+
 config GREYBUS_FEATURE_HAVE_TIMESTAMPS
 	bool
 	default n
