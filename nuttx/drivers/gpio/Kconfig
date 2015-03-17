@@ -8,4 +8,5 @@
 
 config GPIO_TCA6408
     bool "TCA6408 device support"
+    select SCHED_WORKQUEUE
     default n
