@@ -60,7 +60,8 @@
 
 #define SLICE_REG_SVC_RX_SZ       8
 #define SLICE_REG_UNIPRO_SZ      16
-#define SLICE_MID_SZ              7
+
+#define SLICE_MID           "MID-1"
 
 #ifdef CONFIG_EXAMPLES_NSH
 extern int nsh_main(int argc, char *argv[]);
@@ -76,6 +77,11 @@ struct slice_svc_msg
 struct slice_cmd_data
 {
   FAR struct i2c_dev_s *i2c;
+
+  pthread_t base_det_thread;
+  sem_t base_det_lock;
+  bool base_attached;
+
   int reg;
   int reg_idx;
   bool reg_write;
@@ -110,20 +116,53 @@ static void slice_cmd_interrupt(struct slice_cmd_data *slf, uint8_t int_mask, bo
   slice_host_int_set(slf->reg_int > 0);
 }
 
-static void slice_cmd_manifest_event(unsigned char *mfile, int mnum)
+static void *slice_cmd_base_det_worker(void *v)
 {
-  char mid[SLICE_MID_SZ];
+  struct slice_cmd_data *slf = (struct slice_cmd_data *)v;
+  bool base_present;
 
-  snprintf(mid, SLICE_MID_SZ, "MID-%d", mnum + 1);
-  logd("num=%d\n", mnum);
-  send_svc_event(0, mid, mfile);
+  while (1)
+    {
+      base_present = !slice_base_det_read(); // active low
+
+      if (slf->base_attached != base_present)
+        {
+          logd("base_present=%d\n", base_present);
+          slf->base_attached = base_present;
+
+          if (base_present)
+            {
+              send_svc_handshake();
+              send_svc_event(0, SLICE_MID, NULL);
+              enable_cports();
+            }
+        }
+
+      sem_wait(&slf->base_det_lock);
+    }
+
+  return NULL;
+}
+
+static int slice_cmd_base_det_isr(int irq, void *context)
+{
+  sem_post(&slice_cmd_self.base_det_lock);
+  return OK;
 }
 
 static void slice_cmd_init(void)
 {
-  send_svc_handshake();
-  foreach_manifest(slice_cmd_manifest_event);
-  enable_cports();
+  sem_init(&slice_cmd_self.base_det_lock, 0, 0);
+
+  if (pthread_create(&slice_cmd_self.base_det_thread, NULL,
+                     slice_cmd_base_det_worker, &slice_cmd_self))
+    {
+      logd("Failed to create pthread for interrupts!\n");
+    }
+  else if (slice_init(slice_cmd_base_det_isr) != OK)
+    {
+      logd("Failed to configure GPIOs!\n");
+    }
 }
 
 static int slice_cmd_listen(unsigned int cport)
@@ -195,16 +234,6 @@ static int slice_cmd_recv_from_svc(void *buf, size_t length)
     }
 
   return -1;
-}
-
-static int slice_cmd_base_det_isr(int irq, void *context)
-{
-  bool base_present = !slice_base_det_read(); // active low
-
-  logd("base_present=%d\n", base_present);
-  // TODO: implement once hardware issue resolved
-
-  return OK;
 }
 
 /* called when master is writing to slave */
@@ -334,15 +363,6 @@ static struct i2c_cb_ops_s cb_ops =
 int slice_cmd_main(int argc, char *argv[])
 {
   FAR struct i2c_dev_s *dev1;
-
-  if (slice_init(slice_cmd_base_det_isr) == OK)
-    {
-      logd("GPIOs configured\n");
-    }
-  else
-    {
-      logd("Failed to configure GPIOs!\n");
-    }
 
   dev1 = up_i2cinitialize(CONFIG_SLICE_CMD_I2C_SLAVE_BUS);
 
