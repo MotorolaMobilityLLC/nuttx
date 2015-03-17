@@ -47,13 +47,15 @@
 #define logd(format, ...) \
   lowsyslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
 
-#define SLICE_NUM_REGS            3
+#define FIRMWARE_VERSION_NUM   0x01
 
 #define SLICE_REG_INVALID        -2
 #define SLICE_REG_NOT_SET        -1
 #define SLICE_REG_INT             0     /* Interrupt register        */
 #define SLICE_REG_SVC             1     /* SVC message register      */
 #define SLICE_REG_UNIPRO          2     /* Unipro message register   */
+#define SLICE_REG_VERSION         3     /* Firmware version register */
+#define SLICE_REG__NUM            4     /* Add new registers above   */
 
 #define SLICE_REG_INT_SVC      0x01
 #define SLICE_REG_INT_UNIPRO   0x02
@@ -250,7 +252,7 @@ static int slice_cmd_read_cb(void *v)
         // Ignore additional written bytes since register invalid
         break;
       case SLICE_REG_NOT_SET:
-        if (val < SLICE_NUM_REGS)
+        if (val < SLICE_REG__NUM)
           {
             slf->reg = val;
           }
@@ -260,7 +262,8 @@ static int slice_cmd_read_cb(void *v)
           }
         break;
       case SLICE_REG_INT:
-        // Writes to interrupt register not allowed
+      case SLICE_REG_VERSION:
+        // Writes to these registers are not allowed
         break;
       case SLICE_REG_SVC:
         if (slf->reg_idx < SLICE_REG_SVC_RX_SZ)
@@ -319,6 +322,10 @@ static int slice_cmd_write_cb(void *v)
           free(slf->reg_unipro_tx);
           slf->reg_unipro_tx = NULL;
         }
+    }
+  else if (slf->reg == SLICE_REG_VERSION)
+    {
+      val = FIRMWARE_VERSION_NUM;
     }
 
   I2C_SLAVE_WRITE(slf->i2c, &val, sizeof(val));
