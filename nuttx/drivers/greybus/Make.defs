@@ -51,6 +51,10 @@ ifeq ($(CONFIG_GREYBUS_VIBRATOR),y)
 CSRCS += vibrator.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_USB_HOST_PHY),y)
+CSRCS += usb.c
+endif
+
 DEPPATH += --dep-path greybus
 VPATH += :greybus
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)greybus}
