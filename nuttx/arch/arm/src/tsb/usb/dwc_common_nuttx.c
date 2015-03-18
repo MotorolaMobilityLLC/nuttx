@@ -537,7 +537,7 @@ void DWC_TIMER_FREE(dwc_timer_t *timer)
         DWC_TIMER_CANCEL(timer);
     }
 
-    timer_delete(&timer->t);
+    timer_delete(timer->t);
     DWC_SPINUNLOCK_IRQRESTORE(timer->lock, flags);
     DWC_SPINLOCK_FREE(timer->lock);
     DWC_FREE(timer->name);
