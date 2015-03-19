@@ -92,6 +92,10 @@ ifeq ($(CONFIG_MANIFEST_BATTERY_GPIO_I2C), y)
  MANIFEST = simple-battery-gpio-i2c-module
 endif
 
+ifeq ($(CONFIG_MANIFEST_LOOPBACK), y)
+ MANIFEST = simple-loopback-module
+endif
+
 ifeq ($(CONFIG_MANIFEST_CONSOLE), y)
  MANIFEST = simple-uart-module
 endif

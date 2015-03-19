@@ -1,0 +1,45 @@
+;
+; Simple Loopback Module Manifest
+;
+
+[manifest-header]
+version-major = 0
+version-minor = 1
+
+[module-descriptor]
+vendor = 0xffff
+product = 0x0001
+version = 1
+vendor-string-id = 1
+product-string-id = 2
+unique-id = 0
+
+; Module vendor string (id can't be 0)
+[string-descriptor "1"]
+id = 1
+string = "Project Ara"
+
+; Module product string (id can't be 0)
+[string-descriptor "2"]
+id = 2
+string = "Simple Loopback Module"
+
+; GPIO protocol on CPort 0
+[cport-descriptor "0"]
+interface = 0
+id = 4
+protocol = 0x11
+
+; GPIO protocol on CPort 1
+[cport-descriptor "1"]
+interface = 0
+id = 5
+protocol = 0x11
+
+; Interface 0
+[interface-descriptor "0"]
+id = 0
+
+; Control Class
+[class-descriptor "0"]
+Class = 0x00

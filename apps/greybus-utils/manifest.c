@@ -105,6 +105,10 @@ void enable_cports(void)
                 gb_info("Registering BATTERY greybus driver.\n");
                 gb_battery_register(id);
             }
+            if (protocol == GREYBUS_PROTOCOL_LOOPBACK) {
+                gb_info("Registering Loopback greybus driver.\n");
+                gb_loopback_register(id);
+            }
         }
         i++;
     }
