@@ -67,7 +67,6 @@ include spi$(DELIM)Make.defs
 include syslog$(DELIM)Make.defs
 include usbdev$(DELIM)Make.defs
 include usbhost$(DELIM)Make.defs
-include video$(DELIM)Make.defs
 include wireless$(DELIM)Make.defs
 include greybus$(DELIM)Make.defs
 
