@@ -65,6 +65,7 @@ struct sw_es2_priv {
 #define NACK        (0x04)
 #define ENDP        (0x06)
 #define INIT        (0x08)
+#define HNUL        (0xff)
 
 #define NCP_CPORT   (0x03)
 
@@ -79,6 +80,8 @@ static int es2_transfer(struct tsb_switch_driver *drv,
     struct spi_dev_s *spi_dev = priv->spi_dev;
     unsigned int id = priv->id;
     unsigned int size, rcv_done = 0;
+    bool null_rxbuf;
+    int ret = OK;
 
     uint8_t write_header[] = {
         LNUL,
@@ -142,13 +145,27 @@ static int es2_transfer(struct tsb_switch_driver *drv,
         dbg_print_buf(DBG_VERBOSE, priv->rxbuf, size);
 
         if (!rx_buf) {
-            return 0;
+            break;
         }
 
-        /* Find the STRR and copy the response; handle the NACK case */
+        /*
+         * Find the STRR and copy the response; handle other cases:
+         * NACK, switch not responding.
+         *
+         * In some cases (e.g. wrong function ID in the NCP command) the
+         * switch does respond on the command with all NULs.
+         * In that case bail out with error.
+         */
         uint8_t *resp_start = NULL;
         unsigned int i;
+        null_rxbuf = true;
+
         for (i = 0; i < size; i++) {
+            // Detect an all-[LH]NULs RX buffer
+            if ((priv->rxbuf[i] != LNUL) && (priv->rxbuf[i] != HNUL)) {
+                null_rxbuf = false;
+            }
+            // Check for STRR or NACK
             if (priv->rxbuf[i] == STRR) {
                 // STRR found, parse the reply length and data
                 resp_start = &priv->rxbuf[i];
@@ -161,12 +178,19 @@ static int es2_transfer(struct tsb_switch_driver *drv,
                 break;
             }
         }
-    } while (!rcv_done);
+
+        // If all NULs in RX buffer, bail out with error code
+        if (null_rxbuf) {
+            ret = -EIO;
+            dbg_error("Switch not responding, aborting command\n");
+        }
+
+    } while (!rcv_done && !null_rxbuf);
 
     SPI_SELECT(spi_dev, id, false);
     SPI_LOCK(spi_dev, false);
 
-    return 0;
+    return ret;
 }
 
 static int es2_init_seq(struct tsb_switch_driver *drv)
