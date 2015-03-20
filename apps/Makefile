@@ -48,8 +48,8 @@ TOPDIR ?= $(APPDIR)/import
 #   only for cleaning. builtin must always be the first in the list.
 
 CONFIGURED_APPS =
-SUBDIRS  = ara examples graphics interpreters modbus builtin import nshlib
-SUBDIRS += netutils platform system greybus-utils
+SUBDIRS  = ara examples graphics interpreters builtin import nshlib
+SUBDIRS += platform system greybus-utils
 
 # The list of configured directories is derived from NuttX configuration
 # file:  The selected applications are enabled settings in the configuration
@@ -68,8 +68,6 @@ include ara/Make.defs
 include examples/Make.defs
 include graphics/Make.defs
 include interpreters/Make.defs
-include modbus/Make.defs
-include netutils/Make.defs
 include nshlib/Make.defs
 include platform/Make.defs
 include system/Make.defs
