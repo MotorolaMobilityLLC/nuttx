@@ -28,14 +28,6 @@ menu "Interpreters"
 source "$APPSDIR/interpreters/Kconfig"
 endmenu
 
-menu "Network Utilities"
-source "$APPSDIR/netutils/Kconfig"
-endmenu
-
-menu "FreeModBus"
-source "$APPSDIR/modbus/Kconfig"
-endmenu
-
 menu "NSH Library"
 source "$APPSDIR/nshlib/Kconfig"
 endmenu
