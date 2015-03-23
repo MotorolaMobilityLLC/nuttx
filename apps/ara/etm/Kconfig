@@ -1,0 +1,25 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config ARA_BRIDGE_ETM
+	bool "Ara Bridge ETM control"
+	default n if !DEBUG
+	default y if DEBUG
+	depends on ARCH_CHIP_TSB
+	---help---
+		Enable the Ara ETM program. Controls TRACE output from ETM.
+
+
+if ARA_BRIDGE_ETM
+
+config ARA_BRIDGE_ETM_PROGNAME
+	string "Program name"
+	default "etm"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the
+		NSH ELF program is installed.
+
+endif

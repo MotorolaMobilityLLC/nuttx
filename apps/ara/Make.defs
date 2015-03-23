@@ -67,6 +67,10 @@ ifeq ($(CONFIG_ARA_SVC_EPM),y)
 CONFIGURED_APPS += ara/epm
 endif
 
+ifeq ($(CONFIG_ARA_BRIDGE_ETM),y)
+CONFIGURED_APPS += ara/etm
+endif
+
 ifeq ($(CONFIG_ARA_SVC_POWER),y)
 CONFIGURED_APPS += ara/svc_power
 endif
