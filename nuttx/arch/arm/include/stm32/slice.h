@@ -12,7 +12,7 @@
 int slice_init(xcpt_t irqhandler);
 int slice_uninit(void);
 void slice_host_int_set(bool value);
-bool slice_base_det_read(void);
+bool slice_is_base_present(void);
 void slice_vbus_en_sw(bool value);
 
 #endif /* _STM32_SLICE_H_ */

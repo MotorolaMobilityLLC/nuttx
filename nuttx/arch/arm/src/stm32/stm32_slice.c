@@ -24,7 +24,7 @@ int slice_init(xcpt_t irqhandler)
         goto chg_ce_n_failed;
 
     // The gpio is configured inside stm32_gpiosetevent
-    stm32_gpiosetevent(GPIO_SLICE_BASE_DET_N, true, true, true, irqhandler);
+    stm32_gpiosetevent(GPIO_SLICE_SL_BPLUS_EN, true, true, true, irqhandler);
 
     return OK;
 
@@ -37,7 +37,7 @@ vbus_en_sw_failed:
 
 int slice_uninit(void)
 {
-    int ret = stm32_unconfiggpio(GPIO_SLICE_BASE_DET_N);
+    int ret = stm32_unconfiggpio(GPIO_SLICE_SL_BPLUS_EN);
     if (ret != OK)
         return ret;
 
@@ -57,9 +57,10 @@ void slice_host_int_set(bool value)
     stm32_gpiowrite(GPIO_SLICE_CORE_INT, value);
 }
 
-bool slice_base_det_read(void)
+/* Has a base (phone) been attached */
+bool slice_is_base_present(void)
 {
-    return stm32_gpioread(GPIO_SLICE_BASE_DET_N);
+    return stm32_gpioread(GPIO_SLICE_SL_BPLUS_EN);
 }
 
 void slice_vbus_en_sw(bool value)
