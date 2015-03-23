@@ -8,7 +8,7 @@
 -include $(TOPDIR)/Make.defs
 include $(APPDIR)/Make.defs
 
-CSRCS = cmd_main.c
+CSRCS = cmd_main.c bus.c bus-i2c.c
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(CSRCS)
