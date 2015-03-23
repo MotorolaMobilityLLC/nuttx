@@ -1177,6 +1177,9 @@ endif
 if ARCH_BOARD_AVR32DEV1
 source "configs/avr32dev1/Kconfig"
 endif
+if ARCH_BOARD_ARA_BDB1B_SVC || ARCH_BOARD_ARA_BDB2A_SVC
+source "configs/ara/svc/Kconfig"
+endif
 if ARCH_BOARD_C5471EVM
 source "configs/c5471evm/Kconfig"
 endif
