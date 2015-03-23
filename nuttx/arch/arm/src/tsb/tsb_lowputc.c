@@ -66,6 +66,8 @@ void tsb_lowsetup(void) {
 void up_lowputc(int c){
 #if defined(CONFIG_ARM_SEMIHOSTING)
     semihosting_putc(c);
+#elif defined(CONFIG_APB_USB_LOG)
+    usb_putc(c);
 #else
     while ((getreg32(UART_LSR) & UART_LSR_THRE) != UART_LSR_THRE)
         ;

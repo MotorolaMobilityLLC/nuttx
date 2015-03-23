@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <queue.h>
 #include <debug.h>
+#include <fcntl.h>
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/arch.h>
@@ -31,6 +32,7 @@
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/usb/usbdev_trace.h>
 #include <nuttx/usb/apb_es1.h>
+#include <nuttx/logbuffer.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -112,6 +114,7 @@
 /* Vender specific control requests *******************************************/
 
 #define APBRIDGE_RWREQUEST_SVC       (0x01)
+#define APBRIDGE_RWREQUEST_LOG     (0x02)
 
 /* Misc Macros ****************************************************************/
 
@@ -172,6 +175,7 @@ struct apbridge_alloc_s {
 enum ctrlreq_state {
     USB_REQ,
     GREYBUS_SVC_REQ,
+    GREYBUS_LOG,
 };
 
 /****************************************************************************
@@ -1118,6 +1122,45 @@ static void usbclass_unbind(struct usbdevclass_driver_s *driver,
     }
 }
 
+#if defined(CONFIG_APB_USB_LOG)
+static struct log_buffer *g_lb;
+
+static ssize_t usb_log_read(struct file *filep, char *buffer, size_t buflen)
+{
+    return 0;
+}
+
+static ssize_t usb_log_write(struct file *filep, const char *buffer,
+                                 size_t buflen)
+{
+    return log_buffer_write(g_lb, buffer, buflen);
+}
+
+static const struct file_operations usb_log_ops = {
+    .read = usb_log_read,
+    .write = usb_log_write,
+};
+
+void usb_log_init(void)
+{
+    g_lb = log_buffer_alloc(CONFIG_USB_LOG_BUFFER_SIZE);
+    if (g_lb)
+        register_driver("/dev/console", &usb_log_ops,
+                        CONFIG_USB_LOG_BUFFER_SIZE, NULL);
+}
+
+void usb_putc(int c)
+{
+    if (g_lb)
+        log_buffer_write(g_lb, &c, 1);
+}
+
+int usb_get_log(void *buf, int len)
+{
+    return log_buffer_readlines(g_lb, buf, len);
+}
+#endif
+
 /****************************************************************************
  * Name: usbclass_setup
  *
@@ -1295,6 +1338,16 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                     } else {
                         ctrlreq->priv = (void *)GREYBUS_SVC_REQ;
                         ret = len;
+                    }
+                } else if (ctrl->req == APBRIDGE_RWREQUEST_LOG) {
+                    if ((ctrl->type & USB_DIR_IN) == 0) {
+                    } else {
+#if defined(CONFIG_APB_USB_LOG)
+                        ctrlreq->priv = (void *)GREYBUS_LOG;
+                        ret = usb_get_log(ctrlreq->buf, len);
+#else
+                        ret = 0;
+#endif
                     }
                 } else {
                     usbtrace(TRACE_CLSERROR
