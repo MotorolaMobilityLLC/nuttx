@@ -154,11 +154,14 @@ struct tsb_switch_ops {
                     uint32_t *attr_value);
 
     int (*lut_set)(struct tsb_switch *,
+                   uint8_t unipro_portid,
                    uint8_t addr,
                    uint8_t dst_portid);
     int (*lut_get)(struct tsb_switch *,
+                   uint8_t unipro_portid,
                    uint8_t addr,
                    uint8_t *dst_portid);
+    int (*dump_routing_table)(struct tsb_switch*);
     int (*switch_attr_get)(struct tsb_switch *,
                            uint16_t attrid,
                            uint32_t *val);
@@ -171,8 +174,10 @@ struct tsb_switch_ops {
                          uint8_t dis,
                          uint8_t irt);
     int (*dev_id_mask_get)(struct tsb_switch *,
+                           uint8_t unipro_portid,
                            uint8_t *dst);
     int (*dev_id_mask_set)(struct tsb_switch *,
+                           uint8_t unipro_portid,
                            uint8_t *mask);
 };
 
@@ -282,7 +287,31 @@ static inline int switch_configure_link_pwm(struct tsb_switch *sw,
     return switch_configure_link(sw, port_id, &lcfg, NULL);
 }
 
-void switch_dump_routing_table(struct tsb_switch *);
+int switch_lut_get(struct tsb_switch *sw,
+                   uint8_t unipro_portid,
+                   uint8_t addr,
+                   uint8_t *dst_portid);
+
+int switch_lut_set(struct tsb_switch *sw,
+                   uint8_t unipro_portid,
+                   uint8_t addr,
+                   uint8_t dst_portid);
+
+int switch_dev_id_mask_get(struct tsb_switch *sw,
+                           uint8_t unipro_portid,
+                           uint8_t *dst);
+
+int switch_dev_id_mask_set(struct tsb_switch *sw,
+                           uint8_t unipro_portid,
+                           uint8_t *mask);
+
+int switch_setup_routing_table(struct tsb_switch *sw,
+                               uint8_t device_id_0,
+                               uint8_t port_id_0,
+                               uint8_t device_id_1,
+                               uint8_t port_id_1);
+
+int switch_dump_routing_table(struct tsb_switch *sw);
 
 struct tsb_switch *switch_init(struct tsb_switch *,
                                unsigned int vreg_1p1,

@@ -77,10 +77,10 @@ struct svc_interface_device_id {
 };
 
 struct svc_connection {
-    uint8_t local_device_id;    // Local DeviceID
-    uint8_t local_cport;        // Local CPort
-    uint8_t peer_device_id;     // Peer DeviceID
-    uint8_t peer_cport;         // Peer CPort
+    uint8_t device_id_0;        // DeviceID 0
+    uint8_t cport_0;            // CPort 0
+    uint8_t device_id_1;        // DeviceID 1
+    uint8_t cport_1;            // CPort 1
 };
 
 /*
@@ -125,8 +125,8 @@ static struct svc_connection conn[] = {
 
 static int setup_default_routes(struct tsb_switch *sw) {
     int i, j, rc;
-    uint8_t port_id_local, port_id_peer;
-    bool port_id_local_found, port_id_peer_found;
+    uint8_t port_id_0, port_id_1;
+    bool port_id_0_found, port_id_1_found;
     struct interface *iface;
 
     /*
@@ -161,41 +161,54 @@ static int setup_default_routes(struct tsb_switch *sw) {
     /* Connections setup */
     for (i = 0; i < ARRAY_SIZE(conn); i++) {
         /* Look up local and peer portIDs for the given deviceIDs */
-        port_id_local = port_id_peer = 0;
-        port_id_local_found = port_id_peer_found = false;
+        port_id_0 = port_id_1 = 0;
+        port_id_0_found = port_id_1_found = false;
         for (j = 0; j < ARRAY_SIZE(devid); j++) {
             if (!devid[j].found)
                 continue;
 
-            if (devid[j].device_id == conn[i].local_device_id) {
-                port_id_local = devid[j].port_id;
-                port_id_local_found = true;
+            if (devid[j].device_id == conn[i].device_id_0) {
+                port_id_0 = devid[j].port_id;
+                port_id_0_found = true;
             }
-            if (devid[j].device_id == conn[i].peer_device_id) {
-                port_id_peer = devid[j].port_id;
-                port_id_peer_found = true;
+            if (devid[j].device_id == conn[i].device_id_1) {
+                port_id_1 = devid[j].port_id;
+                port_id_1_found = true;
             }
         }
 
         /* If found, create the requested connection */
-        if (port_id_local_found && port_id_peer_found) {
+        if (port_id_0_found && port_id_1_found) {
             dbg_info("Creating connection [%u:%u]->[%u:%u]\n",
-                     port_id_local, conn[i].local_cport,
-                     port_id_peer, conn[i].peer_cport);
-            rc = switch_connection_std_create(sw,
-                                              port_id_local,
-                                              conn[i].local_cport,
-                                              port_id_peer,
-                                              conn[i].peer_cport);
+                     port_id_0, conn[i].cport_0,
+                     port_id_1, conn[i].cport_1);
+
+            /* Update Switch routing table */
+            rc = switch_setup_routing_table(sw,
+                                            conn[i].device_id_0, port_id_0,
+                                            conn[i].device_id_1, port_id_1);
             if (rc) {
-                dbg_error("Failed to create connection [%u:%u]->[%u:%u]\n",
-                          port_id_local, conn[i].local_cport,
-                          port_id_peer, conn[i].peer_cport);
+                dbg_error("Failed to setup routing table [%u:%u]<->[%u:%u]\n",
+                          conn[i].device_id_0, port_id_0,
+                          conn[i].device_id_1, port_id_1);
+                return -1;
+            }
+
+            /* Create connection */
+            rc = switch_connection_std_create(sw,
+                                              port_id_0,
+                                              conn[i].cport_0,
+                                              port_id_1,
+                                              conn[i].cport_1);
+            if (rc) {
+                dbg_error("Failed to create connection [%u:%u]<->[%u:%u]\n",
+                          port_id_0, conn[i].cport_0,
+                          port_id_1, conn[i].cport_1);
                 return -1;
             }
         } else {
             dbg_error("Cannot find portIDs for deviceIDs %d and %d\n",
-                      port_id_local, port_id_peer);
+                      port_id_0, port_id_1);
         }
     }
 

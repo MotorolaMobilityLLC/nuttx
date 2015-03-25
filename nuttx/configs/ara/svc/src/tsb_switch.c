@@ -81,6 +81,10 @@
 #define LINK_DEFAULT_PWM_NLANES     LINK_DEFAULT_HS_NLANES
 #define LINK_DEFAULT_FLAGS          0
 
+/* MaskId entry update */
+#define SET_VALID_ENTRY(entry) \
+    id_mask[15 - ((entry) / 8)] |= (1 << ((entry)) % 8)
+
 static inline void dev_ids_update(struct tsb_switch *sw,
                                   uint8_t port_id,
                                   uint8_t dev_id) {
@@ -183,38 +187,49 @@ int switch_dme_peer_get(struct tsb_switch *sw,
 /*
  * Routing table configuration commands
  */
-static int switch_lut_set(struct tsb_switch *sw,
-                          uint8_t addr,
-                          uint8_t dst_portid) {
+int switch_lut_set(struct tsb_switch *sw,
+                   uint8_t unipro_portid,
+                   uint8_t addr,
+                   uint8_t dst_portid) {
     if (!sw->ops->lut_set) {
         return -EOPNOTSUPP;
     }
-    return sw->ops->lut_set(sw, addr, dst_portid);
+    return sw->ops->lut_set(sw, unipro_portid, addr, dst_portid);
 }
 
-static int switch_lut_get(struct tsb_switch *sw,
-                          uint8_t addr,
-                          uint8_t *dst_portid) {
+int switch_lut_get(struct tsb_switch *sw,
+                   uint8_t unipro_portid,
+                   uint8_t addr,
+                   uint8_t *dst_portid) {
     if (!sw->ops->lut_get) {
         return -EOPNOTSUPP;
     }
-    return sw->ops->lut_get(sw, addr, dst_portid);
+    return sw->ops->lut_get(sw, unipro_portid, addr, dst_portid);
 }
 
-static int switch_dev_id_mask_get(struct tsb_switch *sw,
-                                  uint8_t *dst) {
+int switch_dump_routing_table(struct tsb_switch *sw) {
+    if (!sw->ops->dump_routing_table) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->dump_routing_table(sw);
+}
+
+int switch_dev_id_mask_get(struct tsb_switch *sw,
+                           uint8_t unipro_portid,
+                           uint8_t *dst) {
     if (!sw->ops->dev_id_mask_get) {
         return -EOPNOTSUPP;
     }
-    return sw->ops->dev_id_mask_get(sw, dst);
+    return sw->ops->dev_id_mask_get(sw, unipro_portid, dst);
 }
 
-static int switch_dev_id_mask_set(struct tsb_switch *sw,
-                                  uint8_t *mask) {
+int switch_dev_id_mask_set(struct tsb_switch *sw,
+                           uint8_t unipro_portid,
+                           uint8_t *mask) {
     if (!sw->ops->dev_id_mask_set) {
         return -EOPNOTSUPP;
     }
-    return sw->ops->dev_id_mask_set(sw, mask);
+    return sw->ops->dev_id_mask_set(sw, unipro_portid, mask);
 }
 
 /*
@@ -359,14 +374,89 @@ int switch_if_dev_id_set(struct tsb_switch *sw,
         return rc;
     }
 
-    rc = switch_lut_set(sw, dev_id, port_id);
-    if (rc) {
-        /* is it worth undoing deviceid_valid on failure...? */
+    /* update the table */
+    dev_ids_update(sw, port_id, dev_id);
+
+    return 0;
+}
+
+/**
+ * @brief Setup network routing table
+ *
+ * Setup of the deviceID Mask tables (if supported) and the Switch LUTs,
+ * bidirectionally between the source and destination Switch ports.
+ */
+int switch_setup_routing_table(struct tsb_switch *sw,
+                               uint8_t device_id_0,
+                               uint8_t port_id_0,
+                               uint8_t device_id_1,
+                               uint8_t port_id_1) {
+
+    int rc;
+    uint8_t id_mask[16];
+
+    dbg_verbose("Setup routing table [%u:%u]<->[%u:%u]\n",
+                device_id_0, port_id_0, device_id_1, port_id_1);
+
+    // Set MaskId for devices 0->1
+    rc = switch_dev_id_mask_get(sw,
+                                port_id_0,
+                                id_mask);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        dbg_error("Failed to get MaskId for port %d\n", port_id_0);
         return rc;
     }
 
-    /* update the table */
-    dev_ids_update(sw, port_id, dev_id);
+    SET_VALID_ENTRY(device_id_1);
+
+    rc = switch_dev_id_mask_set(sw,
+                                port_id_0,
+                                id_mask);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        dbg_error("Failed to set MaskId for port %d\n", port_id_0);
+        return rc;
+    }
+
+    // Set MaskId for devices 1->0
+    rc = switch_dev_id_mask_get(sw,
+                                port_id_1,
+                                id_mask);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        dbg_error("Failed to get MaskId for port %d\n", port_id_1);
+        return rc;
+    }
+
+    SET_VALID_ENTRY(device_id_0);
+
+    rc = switch_dev_id_mask_set(sw,
+                                port_id_1,
+                                id_mask);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        dbg_error("Failed to set MaskId for port %d\n", port_id_1);
+        return rc;
+    }
+
+    // Setup routing table for devices 0->1
+    rc = switch_lut_set(sw, port_id_0, device_id_1, port_id_1);
+    if (rc) {
+        dbg_error("Failed to set Lut for source port %d, disabling\n",
+                  port_id_0);
+        /* Undo deviceid_valid on failure */
+        switch_dme_peer_set(sw, port_id_0, N_DEVICEID_VALID,
+                            NCP_SELINDEX_NULL, 0);
+        return rc;
+    }
+
+    // Setup routing table for devices 1->0
+    rc = switch_lut_set(sw, port_id_1, device_id_0, port_id_0);
+    if (rc) {
+        dbg_error("Failed to set Lut for source port %d, disabling\n",
+                  port_id_1);
+        /* Undo deviceid_valid on failure */
+        switch_dme_peer_set(sw, port_id_1, N_DEVICEID_VALID,
+                            NCP_SELINDEX_NULL, 0);
+        return rc;
+    }
 
     return 0;
 }
@@ -833,76 +923,6 @@ int switch_configure_link(struct tsb_switch *sw,
  out:
     dbg_insane("%s(): exit, rc=%d\n", __func__, rc);
     return rc;
-}
-
-/**
- * @brief Dump routing table to low level console
- */
-void switch_dump_routing_table(struct tsb_switch *sw) {
-    int i, j, idx, rc;
-    uint8_t p = 0, valid_bitmask[16];
-    char msg[64];
-
-    rc = switch_dev_id_mask_get(sw, valid_bitmask);
-    if (rc) {
-        dbg_error("%s() Failed to retrieve routing table.\n", __func__);
-        return;
-    }
-
-    dbg_info("%s(): Routing table\n", __func__);
-    dbg_info("======================================================\n");
-
-    /* Replace invalid entries with 'XX' */
-#define CHECK_VALID_ENTRY(entry) \
-    (valid_bitmask[15 - ((entry) / 8)] & (1 << ((entry)) % 8))
-
-    for (i = 0; i < 8; i++) {
-        /* Build a line with the offset, 8 entries, a '|' then 8 entries */
-        idx = 0;
-        rc = sprintf(msg, "%3d: ", i * 16);
-        if (rc <= 0)
-            goto out;
-        else
-            idx += rc;
-
-        for (j = 0; j < 16; j++) {
-            if (CHECK_VALID_ENTRY(i * 16 + j)) {
-                switch_lut_get(sw, i * 16 + j, &p);
-                rc = sprintf(msg + idx, "%2u ", p);
-                if (rc <= 0)
-                    goto out;
-                else
-                    idx += rc;
-            } else {
-                rc = sprintf(msg + idx, "XX ");
-                if (rc <= 0)
-                    goto out;
-                else
-                    idx += rc;
-            }
-
-            if (j == 7) {
-                rc = sprintf(msg + idx, "| ");
-                if (rc <= 0)
-                    goto out;
-                else
-                    idx += rc;
-            }
-        }
-
-        rc = sprintf(msg + idx, "\n");
-        if (rc <= 0)
-            goto out;
-        else
-            idx += rc;
-        msg[idx] = 0;
-
-        /* Output the line */
-        dbg_info("%s", msg);
-    }
-
-out:
-    dbg_info("======================================================\n");
 }
 
 /**

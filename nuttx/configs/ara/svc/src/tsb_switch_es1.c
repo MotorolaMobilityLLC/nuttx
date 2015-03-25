@@ -50,6 +50,9 @@
 #define SWITCH_DEVICE_ID    (0)
 #define SWITCH_PORT_ID      (14)
 
+#define CHECK_VALID_ENTRY(entry) \
+    (valid_bitmask[15 - ((entry) / 8)] & (1 << ((entry)) % 8))
+
 static int es1_transfer(struct tsb_switch *sw,
                         uint8_t *tx_buf,
                         size_t tx_size,
@@ -89,6 +92,7 @@ static int es1_transfer(struct tsb_switch *sw,
 }
 
 static int es1_dev_id_mask_get(struct tsb_switch *sw,
+                               uint8_t unipro_portid,
                                uint8_t *dst) {
     int rc;
     uint8_t getreq[] = {
@@ -383,6 +387,7 @@ static int es1_switch_attr_get(struct tsb_switch *sw,
 }
 
 static int es1_lut_get(struct tsb_switch *sw,
+                       uint8_t unipro_portid,
                        uint8_t addr,
                        uint8_t *dst_portid) {
     int rc;
@@ -422,6 +427,7 @@ static int es1_lut_get(struct tsb_switch *sw,
 
 
 static int es1_lut_set(struct tsb_switch *sw,
+                       uint8_t unipro_portid,
                        uint8_t addr,
                        uint8_t dst_portid) {
     int rc;
@@ -510,6 +516,75 @@ static int es1_switch_id_set(struct tsb_switch *sw,
     return setcnf.rc;
 }
 
+/**
+ * @brief Dump routing table to low level console
+ */
+static int es1_dump_routing_table(struct tsb_switch *sw) {
+    int i, j, idx, rc;
+    uint8_t p = 0, valid_bitmask[16];
+    char msg[64];
+
+    rc = switch_dev_id_mask_get(sw, SWITCH_PORT_ID, valid_bitmask);
+    if (rc) {
+        dbg_error("%s() Failed to retrieve routing table.\n", __func__);
+        return rc;
+    }
+
+    dbg_info("%s(): Routing table\n", __func__);
+    dbg_info("======================================================\n");
+
+    /* Replace invalid entries with 'XX' */
+    for (i = 0; i < 8; i++) {
+        /* Build a line with the offset, 8 entries, a '|' then 8 entries */
+        idx = 0;
+        rc = sprintf(msg, "%3d: ", i * 16);
+        if (rc <= 0)
+            goto out;
+        else
+            idx += rc;
+
+        for (j = 0; j < 16; j++) {
+            if (CHECK_VALID_ENTRY(i * 16 + j)) {
+                switch_lut_get(sw, SWITCH_PORT_ID, i * 16 + j, &p);
+                rc = sprintf(msg + idx, "%2u ", p);
+                if (rc <= 0)
+                    goto out;
+                else
+                    idx += rc;
+            } else {
+                rc = sprintf(msg + idx, "XX ");
+                if (rc <= 0)
+                    goto out;
+                else
+                    idx += rc;
+            }
+
+            if (j == 7) {
+                rc = sprintf(msg + idx, "| ");
+                if (rc <= 0)
+                    goto out;
+                else
+                    idx += rc;
+            }
+        }
+
+        rc = sprintf(msg + idx, "\n");
+        if (rc <= 0)
+            goto out;
+        else
+            idx += rc;
+        msg[idx] = 0;
+
+        /* Output the line */
+        dbg_info("%s", msg);
+    }
+
+out:
+    dbg_info("======================================================\n");
+
+    return 0;
+}
+
 static struct tsb_switch_ops es1_ops = {
     .set                   = es1_set,
     .get                   = es1_get,
@@ -518,6 +593,7 @@ static struct tsb_switch_ops es1_ops = {
 
     .lut_set               = es1_lut_set,
     .lut_get               = es1_lut_get,
+    .dump_routing_table    = es1_dump_routing_table,
 
     .dev_id_mask_get       = es1_dev_id_mask_get,
 

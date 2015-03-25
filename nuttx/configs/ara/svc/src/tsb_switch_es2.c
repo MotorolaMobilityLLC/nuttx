@@ -49,7 +49,6 @@
 #define SWITCH_SPI_INIT_DELAY   (700)   // us
 #define SWITCH_DEVICE_ID        (0)
 #define SWITCH_PORT_ID          (14)
-#define UNIPRO_PORTID_BROADCAST (0xFF)
 
 #define RXBUF_SIZE  272
 
@@ -69,6 +68,8 @@ struct sw_es2_priv {
 
 #define NCP_CPORT   (0x03)
 
+#define CHECK_VALID_ENTRY(entry) \
+    (valid_bitmask[15 - ((entry) / 8)] & (1 << ((entry)) % 8))
 
 static int es2_transfer(struct tsb_switch *sw,
                         uint8_t *tx_buf,
@@ -430,6 +431,7 @@ static int es2_peer_get(struct tsb_switch *sw,
 }
 
 static int es2_lut_set(struct tsb_switch *sw,
+                       uint8_t unipro_portid,
                        uint8_t lut_address,
                        uint8_t dest_portid)
 {
@@ -439,7 +441,7 @@ static int es2_lut_set(struct tsb_switch *sw,
         SWITCH_DEVICE_ID,
         lut_address,
         NCP_LUTSETREQ,
-        UNIPRO_PORTID_BROADCAST,    // Target all routing matrices
+        unipro_portid,
         dest_portid
     };
 
@@ -450,14 +452,14 @@ static int es2_lut_set(struct tsb_switch *sw,
         uint8_t reserved;
     } cnf;
 
-    dbg_verbose("%s(): lutAddress=%d, destPortId=%d\n", __func__, lut_address,
-                dest_portid);
+    dbg_verbose("%s(): unipro_portid=%d, lutAddress=%d, destPortId=%d\n",
+                __func__, unipro_portid, lut_address, dest_portid);
 
     rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
                       sizeof(struct cnf));
     if (rc) {
-        dbg_error("%s(): destPortId=%d failed: rc=%d\n", __func__,
-                  dest_portid, rc);
+        dbg_error("%s(): unipro_portid=%d, destPortId=%d failed: rc=%d\n",
+                  __func__, unipro_portid, dest_portid, rc);
         return rc;
     }
 
@@ -474,6 +476,7 @@ static int es2_lut_set(struct tsb_switch *sw,
 }
 
 static int es2_lut_get(struct tsb_switch *sw,
+                       uint8_t unipro_portid,
                        uint8_t lut_address,
                        uint8_t *dest_portid)
 {
@@ -483,7 +486,7 @@ static int es2_lut_get(struct tsb_switch *sw,
         SWITCH_DEVICE_ID,
         lut_address,
         NCP_LUTGETREQ,
-        SWITCH_PORT_ID,         // Read from the internal L4 routing matrix
+        unipro_portid,
         NCP_RESERVED,
     };
 
@@ -494,14 +497,14 @@ static int es2_lut_get(struct tsb_switch *sw,
         uint8_t dest_portid;
     } cnf;
 
-    dbg_verbose("%s(): lutAddress=%d, destPortId=%d\n", __func__, lut_address,
-                *dest_portid);
+    dbg_verbose("%s(): unipro_portid=%d, lutAddress=%d, destPortId=%d\n",
+                __func__, unipro_portid, lut_address, *dest_portid);
 
     rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
                       sizeof(struct cnf));
     if (rc) {
-        dbg_error("%s(): destPortId=%d failed: rc=%d\n", __func__,
-                 dest_portid, rc);
+        dbg_error("%s(): unipro_portid=%d, destPortId=%d failed: rc=%d\n",
+                  __func__, unipro_portid, dest_portid, rc);
         return rc;
     }
 
@@ -519,7 +522,43 @@ static int es2_lut_get(struct tsb_switch *sw,
     return cnf.rc;
 }
 
+/**
+ * @brief Dump routing table to low level console
+ */
+static int es2_dump_routing_table(struct tsb_switch *sw) {
+    int i, j, devid, unipro_portid;
+    uint8_t p = 0, valid_bitmask[16];
+
+    dbg_info("======================================================\n");
+    dbg_info("Routing table:\n");
+    dbg_info(" [Port,DevId] -> [Port]\n");
+
+    for (unipro_portid = 0; unipro_portid <= SWITCH_PORT_ID; unipro_portid++) {
+        if (switch_dev_id_mask_get(sw, unipro_portid, valid_bitmask)) {
+            dbg_error("%s() Failed to retrieve routing table.\n", __func__);
+            return -1;
+        }
+        dbg_verbose("%s(): Mask ID %d\n", __func__, unipro_portid);
+        dbg_print_buf(DBG_VERBOSE, valid_bitmask, sizeof(valid_bitmask));
+
+        for (i = 0; i < 8; i++) {
+            for (j = 0; j < 16; j++) {
+                devid = i * 16 + j;
+                if (CHECK_VALID_ENTRY(devid)) {
+                    switch_lut_get(sw, unipro_portid, devid, &p);
+                    dbg_info(" [%2u,%2u] -> %2u\n", unipro_portid, devid, p);
+               }
+            }
+        }
+    }
+
+    dbg_info("======================================================\n");
+
+    return 0;
+}
+
 static int es2_dev_id_mask_set(struct tsb_switch *sw,
+                               uint8_t unipro_portid,
                                uint8_t *mask)
 {
     int rc;
@@ -531,7 +570,7 @@ static int es2_dev_id_mask_set(struct tsb_switch *sw,
         uint8_t mask[16];
     } req = {
         SWITCH_DEVICE_ID,
-        SWITCH_PORT_ID,
+        unipro_portid,
         NCP_SETDEVICEIDMASKREQ,
     };
 
@@ -566,13 +605,14 @@ static int es2_dev_id_mask_set(struct tsb_switch *sw,
 }
 
 static int es2_dev_id_mask_get(struct tsb_switch *sw,
+                               uint8_t unipro_portid,
                                uint8_t *dst)
 {
     int rc;
 
     uint8_t req[] = {
         SWITCH_DEVICE_ID,
-        SWITCH_PORT_ID,
+        unipro_portid,
         NCP_GETDEVICEIDMASKREQ,
     };
 
@@ -584,7 +624,7 @@ static int es2_dev_id_mask_get(struct tsb_switch *sw,
         uint8_t mask[16];
     } cnf;
 
-    dbg_verbose("%s()\n", __func__);
+    dbg_verbose("%s(%d)\n", __func__, unipro_portid);
 
     rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
                       sizeof(struct cnf));
@@ -756,6 +796,7 @@ static struct tsb_switch_ops es2_ops = {
 
     .lut_set               = es2_lut_set,
     .lut_get               = es2_lut_get,
+    .dump_routing_table    = es2_dump_routing_table,
 
     .dev_id_mask_get       = es2_dev_id_mask_get,
     .dev_id_mask_set       = es2_dev_id_mask_set,
