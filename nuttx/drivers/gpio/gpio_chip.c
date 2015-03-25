@@ -36,6 +36,7 @@
 
 #include "nuttx/arch.h"
 
+uint8_t g_gpio_line_count = 0;
 struct list_head g_gpio_chip = {
     .prev = &g_gpio_chip,
     .next = &g_gpio_chip,
@@ -47,6 +48,7 @@ int register_gpio_chip(struct gpio_ops_s *ops, int base)
     struct gpio_chip_s *chip;
 
     DEBUGASSERT(ops);
+    DEBUGASSERT(ops->line_count);
 
     if (base == -1) {
         list_foreach(&g_gpio_chip, iter) {
@@ -62,6 +64,8 @@ int register_gpio_chip(struct gpio_ops_s *ops, int base)
     chip->base = base;
     chip->end = base + ops->line_count();
     chip->ops = ops;
+
+    g_gpio_line_count += ops->line_count();
 
     list_add(&g_gpio_chip, &chip->list);
 
@@ -152,16 +156,7 @@ void gpio_deactivate(uint8_t which)
 
 uint8_t gpio_line_count(void)
 {
-    uint8_t count = 0;
-    struct list_head *iter;
-    struct gpio_chip_s *chip;
-
-    list_foreach(&g_gpio_chip, iter) {
-        chip = list_entry(iter, struct gpio_chip_s, list);
-        DEBUGASSERT(chip->ops->line_count);
-        count += chip->ops->line_count();
-    }
-    return count;
+    return g_gpio_line_count;
 }
 
 int gpio_irqattach(uint8_t which, xcpt_t isr)
