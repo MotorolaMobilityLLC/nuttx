@@ -47,8 +47,6 @@
 #include "tsb_switch_driver_es2.h"
 
 #define SWITCH_SPI_INIT_DELAY   (700)   // us
-#define SWITCH_DEVICE_ID        (0)
-#define SWITCH_PORT_ID          (14)
 
 #define RXBUF_SIZE  272
 

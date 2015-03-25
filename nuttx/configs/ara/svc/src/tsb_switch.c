@@ -93,11 +93,27 @@ static inline void dev_ids_update(struct tsb_switch *sw,
 
 static inline uint8_t dev_ids_port_to_dev(struct tsb_switch *sw,
                                           uint8_t port_id) {
+    if (port_id >= SWITCH_PORT_MAX)
+         return INVALID_PORT;
+
     return sw->dev_ids[port_id];
 }
 
+static inline uint8_t dev_ids_dev_to_port(struct tsb_switch *sw,
+                                          uint8_t dev_id) {
+    int i;
+
+    for (i = 0; i < SWITCH_PORT_MAX; i++) {
+        if (sw->dev_ids[i] == dev_id) {
+             return i;
+        }
+    }
+
+    return INVALID_PORT;
+}
+
 static void dev_ids_destroy(struct tsb_switch *sw) {
-    memset(sw->dev_ids, 0, sizeof(sw->dev_ids));
+    memset(sw->dev_ids, INVALID_PORT, sizeof(sw->dev_ids));
 }
 
 static void switch_power_on_reset(struct tsb_switch *sw) {
@@ -275,6 +291,12 @@ static int switch_cport_connect(struct tsb_switch *sw,
     int rc = 0;
     uint8_t peer_dev_id = dev_ids_port_to_dev(sw, peer_port_id);
 
+    if (peer_dev_id == INVALID_PORT) {
+        dbg_error("%s: no device for port ID %d, aborting\n",
+                  __func__, peer_port_id);
+        return -EINVAL;
+    }
+
     /* Disable connection */
     rc = switch_dme_peer_set(sw, port_id, T_CONNECTIONSTATE, cport_id, 0x0);
     if (rc) {
@@ -359,7 +381,7 @@ int switch_if_dev_id_set(struct tsb_switch *sw,
                          uint8_t dev_id) {
     int rc;
 
-    if (port_id >= SWITCH_PORT_MAX) {
+    if (port_id >= SWITCH_UNIPORT_MAX) {
         return -EINVAL;
     }
 
@@ -566,7 +588,7 @@ static int switch_detect_devices(struct tsb_switch *sw,
     dbg_info("%s: Link status: 0x%x\n", __func__, *link_status);
 
     /* Get attributes from connected devices */
-    for (i = 0; i < SWITCH_PORT_MAX; i++) {
+    for (i = 0; i < SWITCH_UNIPORT_MAX; i++) {
         if (*link_status & (1 << i)) {
             for (j = 0; j < ARRAY_SIZE(attr_to_read); j++) {
                 if (switch_dme_peer_get(sw, i, attr_to_read[j],
@@ -969,6 +991,10 @@ struct tsb_switch *switch_init(struct tsb_switch *sw,
         dbg_error("Switch probe failed\n");
         goto error;
     }
+
+    // Init port <-> deviceID mapping table
+    dev_ids_destroy(sw);
+    dev_ids_update(sw, SWITCH_PORT_ID, SWITCH_DEVICE_ID);
 
     /*
      * Set initial SVC deviceId to SWITCH_DEVICE_ID and setup

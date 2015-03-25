@@ -81,7 +81,14 @@
 #define PA_GEAR                         (0x1)
 #define TSB_DME_POWERMODEIND_SUCCESS    (2)
 
-#define SWITCH_PORT_MAX             (14)
+/* Number of external ports, excluding the internal switch port */
+#define SWITCH_UNIPORT_MAX          (14)
+#define SWITCH_PORT_ID              SWITCH_UNIPORT_MAX
+/* Number of ports, including the internal switch port */
+#define SWITCH_PORT_MAX             (SWITCH_UNIPORT_MAX + 1)
+#define INVALID_PORT                (0xFF)
+
+#define SWITCH_DEVICE_ID            (0)
 
 /**
  * @brief Toshiba-specific L2 timer configuraion to apply to the local

@@ -47,8 +47,6 @@
 
 #define ES1_I2C_ADDR        (0x44)
 #define ES1_I2C_FREQUENCY   (400000)
-#define SWITCH_DEVICE_ID    (0)
-#define SWITCH_PORT_ID      (14)
 
 #define CHECK_VALID_ENTRY(entry) \
     (valid_bitmask[15 - ((entry) / 8)] & (1 << ((entry)) % 8))
