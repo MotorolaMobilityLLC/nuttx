@@ -38,10 +38,12 @@
 #include <string.h>
 
 #include <nuttx/util.h>
-#include "stm32.h"
 
+#include "stm32.h"
 #include "up_debug.h"
 #include "tsb_switch.h"
+
+#define DEFAULT_STACK_SIZE          2048
 
 /* Switch power supply times (1V1, 1V8), in us */
 #define POWER_SWITCH_ON_STABILISATION_TIME_US  (50000)
@@ -200,6 +202,15 @@ int switch_dme_peer_get(struct tsb_switch *sw,
     return sw->ops->peer_get(sw, portid, attrid, select_index, attr_value);
 }
 
+int switch_port_irq_enable(struct tsb_switch *sw,
+                           uint8_t portid,
+                           bool enable) {
+    if (!sw->ops->port_irq_enable) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->port_irq_enable(sw, portid, enable);
+}
+
 /*
  * Routing table configuration commands
  */
@@ -251,18 +262,18 @@ int switch_dev_id_mask_set(struct tsb_switch *sw,
 /*
  * Switch internal configuration commands
  */
-static int switch_internal_getattr(struct tsb_switch *sw,
-                                   uint16_t attrid,
-                                   uint32_t *val) {
+int switch_internal_getattr(struct tsb_switch *sw,
+                            uint16_t attrid,
+                            uint32_t *val) {
     if (!sw->ops->switch_attr_get) {
         return -EOPNOTSUPP;
     }
     return sw->ops->switch_attr_get(sw, attrid, val);
 }
 
-static int switch_internal_setattr(struct tsb_switch *sw,
-                                   uint16_t attrid,
-                                   uint32_t val) {
+int switch_internal_setattr(struct tsb_switch *sw,
+                            uint16_t attrid,
+                            uint32_t val) {
     if (!sw->ops->switch_attr_set) {
         return -EOPNOTSUPP;
     }
@@ -278,6 +289,21 @@ static int switch_internal_set_id(struct tsb_switch *sw,
         return -EOPNOTSUPP;
     }
     return sw->ops->switch_id_set(sw, cportid, peercportid, dis, irt);
+}
+
+int switch_irq_enable(struct tsb_switch *sw,
+                      bool enable) {
+    if (!sw->ops->switch_irq_enable) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->switch_irq_enable(sw, enable);
+}
+
+int switch_irq_handler(struct tsb_switch *sw) {
+    if (!sw->ops->switch_irq_handler) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->switch_irq_handler(sw);
 }
 
 static int switch_cport_connect(struct tsb_switch *sw,
@@ -947,6 +973,73 @@ int switch_configure_link(struct tsb_switch *sw,
     return rc;
 }
 
+/* Post a message to the IRQ worker thread */
+int switch_post_irq(struct tsb_switch *sw)
+{
+    sem_post(&sw->sw_irq_lock);
+
+    return 0;
+}
+
+/* IRQ worker thread */
+static void *switch_irq_pending_worker(void *data)
+{
+    struct tsb_switch *sw = data;
+
+    while (!sw->sw_irq_thread_exit) {
+
+        sem_wait(&sw->sw_irq_lock);
+        if (sw->sw_irq_thread_exit)
+            break;
+
+        /* Calls the low level handler to clear the interrupt source */
+        switch_irq_handler(sw);
+    }
+
+    return NULL;
+}
+
+/* IRQ worker thread creation */
+static int create_switch_irq_thread(struct tsb_switch *sw)
+{
+    pthread_attr_t thread_attr;
+    int ret;
+
+    sem_init(&sw->sw_irq_lock, 0, 0);
+    sw->sw_irq_thread_exit = false;
+
+    ret = pthread_attr_init(&thread_attr);
+    if (ret)
+        goto error;
+
+    ret = pthread_attr_setstacksize(&thread_attr, DEFAULT_STACK_SIZE);
+    if (ret)
+        goto error;
+
+    ret = pthread_create(&sw->sw_irq_thread, &thread_attr,
+                         switch_irq_pending_worker, sw);
+
+error:
+    if (ret)
+        dbg_error("%s: Failed to create IRQ worker thread\n", __func__);
+
+    pthread_attr_destroy(&thread_attr);
+
+    return ret;
+}
+
+/* IRQ worker thread destruction */
+static int destroy_switch_irq_thread(struct tsb_switch *sw)
+{
+    void *value;
+
+    sw->sw_irq_thread_exit = true;
+    sem_post(&sw->sw_irq_lock);
+    pthread_join(sw->sw_irq_thread, &value);
+
+    return 0;
+}
+
 /**
  * @brief Initialize the switch and set default SVC<->Switch route
  * @param sw switch context
@@ -975,7 +1068,7 @@ struct tsb_switch *switch_init(struct tsb_switch *sw,
     sw->vreg_1p1 = vreg_1p1;
     sw->vreg_1p8 = vreg_1p8;
     sw->reset = reset;
-    sw->irq = irq;              // unused for now
+    sw->irq = irq;
 
     switch_power_on_reset(sw);
 
@@ -1017,6 +1110,14 @@ struct tsb_switch *switch_init(struct tsb_switch *sw,
         goto error;
     }
 
+    // Create Switch interrupt handling thread, enable the interrupt
+    rc = create_switch_irq_thread(sw);
+    if (rc) {
+        dbg_error("%s: Failed to create Switch IRQ thread\n", __func__);
+        goto error;
+    }
+
+    // Detect Unipro devices
     rc = switch_detect_devices(sw, &link_status);
     if (rc) {
         goto error;
@@ -1039,6 +1140,8 @@ error:
  */
 void switch_exit(struct tsb_switch *sw) {
     dbg_verbose("%s: Disabling switch\n", __func__);
+    switch_irq_enable(sw, false);
+    destroy_switch_irq_thread(sw);
     dev_ids_destroy(sw);
     switch_power_off(sw);
 }

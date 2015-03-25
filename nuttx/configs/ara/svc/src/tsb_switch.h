@@ -34,6 +34,10 @@
 #ifndef  _TSB_SWITCH_H_
 #define  _TSB_SWITCH_H_
 
+#include <pthread.h>
+
+#include <nuttx/list.h>
+
 #include "tsb_unipro.h"
 #include "unipro.h"
 
@@ -159,6 +163,9 @@ struct tsb_switch_ops {
                     uint16_t attrid,
                     uint16_t select_index,
                     uint32_t *attr_value);
+    int (*port_irq_enable)(struct tsb_switch *sw,
+                           uint8_t port_id,
+                           bool enable);
 
     int (*lut_set)(struct tsb_switch *,
                    uint8_t unipro_portid,
@@ -186,16 +193,22 @@ struct tsb_switch_ops {
     int (*dev_id_mask_set)(struct tsb_switch *,
                            uint8_t unipro_portid,
                            uint8_t *mask);
+    int (*switch_irq_enable)(struct tsb_switch *sw,
+                             bool enable);
+    int (*switch_irq_handler)(struct tsb_switch *sw);
 };
 
 struct tsb_switch {
-    void *priv;
-    struct tsb_switch_ops *ops;
-    unsigned int vreg_1p1;
-    unsigned int vreg_1p8;
-    unsigned int irq;
-    unsigned int reset;
-    uint8_t dev_ids[SWITCH_PORT_MAX];
+    void                    *priv;
+    struct tsb_switch_ops   *ops;
+    unsigned int            vreg_1p1;
+    unsigned int            vreg_1p8;
+    unsigned int            irq;
+    unsigned int            reset;
+    sem_t                   sw_irq_lock;
+    pthread_t               sw_irq_thread;
+    bool                    sw_irq_thread_exit;
+    uint8_t                 dev_ids[SWITCH_PORT_MAX];
 };
 
 int switch_if_dev_id_set(struct tsb_switch *sw,
@@ -354,5 +367,21 @@ int switch_dme_peer_get(struct tsb_switch *sw,
                         uint16_t attrid,
                         uint16_t select_index,
                         uint32_t *attr_value);
+
+int switch_port_irq_enable(struct tsb_switch *sw,
+                           uint8_t portid,
+                           bool enable);
+
+int switch_internal_getattr(struct tsb_switch *sw,
+                            uint16_t attrid,
+                            uint32_t *val);
+
+int switch_internal_setattr(struct tsb_switch *sw,
+                            uint16_t attrid,
+                            uint32_t val);
+
+int switch_irq_enable(struct tsb_switch *sw,
+                      bool enable);
+int switch_post_irq(struct tsb_switch *sw);
 
 #endif

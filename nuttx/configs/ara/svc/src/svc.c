@@ -221,7 +221,7 @@ static int setup_default_routes(struct tsb_switch *sw) {
 int svc_init(void) {
     struct ara_board_info *info;
     struct tsb_switch *sw;
-    int rc;
+    int i, rc;
 
     dbg_info("Initializing SVC\n");
 
@@ -251,6 +251,7 @@ int svc_init(void) {
         goto error1;
     }
 
+    /* Init Switch */
     sw = switch_init(sw,
                      info->sw_1p1,
                      info->sw_1p8,
@@ -262,14 +263,31 @@ int svc_init(void) {
     }
     the_svc.sw = sw;
 
+    /* Set up default routes */
     rc = setup_default_routes(sw);
     if (rc) {
         dbg_error("%s: Failed to set default routes\n", __func__);
     }
 
+    /*
+     * Enable the switch IRQ
+     *
+     * Note: the IRQ must be enabled after all NCP commands have been sent
+     * for the switch and Unipro devices initialization.
+     */
+    rc = switch_irq_enable(sw, true);
+    if (rc) {
+        goto error2;
+    }
+
+    /* Enable interrupts for all Unipro ports */
+    for (i = 0; i < SWITCH_PORT_MAX; i++)
+        switch_port_irq_enable(sw, i, true);
+
     return 0;
 
 error2:
+    switch_irq_enable(sw, false);
     interface_exit();
 error1:
     board_exit(sw);

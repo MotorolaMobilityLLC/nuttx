@@ -157,8 +157,8 @@ static struct ara_board_info bdb2a_board_info = {
     .sw_1p8   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN6),
     .sw_reset = (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP |
                  GPIO_OUTPUT_CLEAR | GPIO_PORTE | GPIO_PIN14),
-    .sw_irq   = (GPIO_PORTI | GPIO_PIN9),
-    .svc_irq = (GPIO_PORTA | GPIO_PIN0),
+    .sw_irq   = (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | GPIO_PORTI | GPIO_PIN9),
+    .svc_irq  = (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | GPIO_PORTA | GPIO_PIN0),
 };
 
 struct ara_board_info *board_init(struct tsb_switch *sw) {
