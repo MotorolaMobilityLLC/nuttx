@@ -102,6 +102,7 @@ static void *svc_sim_fn(void * p_data)
 
   usb_wait(priv);
   send_svc_handshake();
+  send_ap_id(0);
   foreach_manifest(manifest_event);
   enable_cports();
 

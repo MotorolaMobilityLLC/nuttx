@@ -138,6 +138,7 @@ static void *svc_sim_fn(void *p_data)
         unipro_driver_register(&unipro_driver, i);
     }
     send_svc_handshake();
+    send_ap_id(0);
     foreach_manifest(manifest_event);
     return NULL;
 }

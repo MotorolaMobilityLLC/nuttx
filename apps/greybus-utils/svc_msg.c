@@ -36,6 +36,7 @@
 
 int verbose;
 static int state = GBEMU_IDLE;
+static sem_t svc_lock;
 
 size_t(*svc_int_write) (void *data, size_t size);
 
@@ -52,6 +53,7 @@ void send_svc_handshake(void)
     m->handshake.handshake_type = SVC_HANDSHAKE_SVC_HELLO;
 
     svc_int_write(m, HS_MSG_SIZE);
+    sem_wait(&svc_lock);
     gb_debug("SVC->AP handshake sent\n");
 }
 
@@ -132,7 +134,7 @@ int svc_handle(void *payload, int size)
         if (HS_VALID(m)) {
             gb_info("AP handshake complete\n");
             state = GBEMU_HS_COMPLETE;
-            send_ap_id(0);
+            sem_post(&svc_lock);
         } else
             gb_error("AP handshake invalid");
         break;
@@ -197,4 +199,5 @@ void send_svc_event(int type, char *name, void *priv)
 void svc_register(size_t(*handler) (void *data, size_t size))
 {
     svc_int_write = handler;
+    sem_init(&svc_lock, 0, 0);
 }
