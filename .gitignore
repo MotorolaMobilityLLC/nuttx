@@ -7,8 +7,10 @@ Make.dep
 *~
 .swp
 .*.swp
+.*.kate-swp
 core
 .gdbinit
 cscope.out
 misc/tools/kconfig-frontends
 .built
+build
