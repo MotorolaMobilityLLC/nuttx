@@ -35,9 +35,6 @@
 
 #include "battery-gb.h"
 
-#define GB_BATTERY_VERSION_MAJOR     0
-#define GB_BATTERY_VERSION_MINOR     1
-
 #define MAX17050_I2C_ADDR         0x36
 
 #define MAX17050_REG_REP_SOC      0x06
@@ -54,7 +51,7 @@
 
 struct i2c_dev_s *i2c_dev;
 
-static int gb_battery_read_reg(uint16_t reg)
+static int max17050_reg_read(uint16_t reg)
 {
     uint16_t reg_val;
     int ret;
@@ -64,196 +61,135 @@ static int gb_battery_read_reg(uint16_t reg)
     return ret ? ret : reg_val;
 }
 
-static uint8_t gb_battery_protocol_version(struct gb_operation *operation)
+uint8_t gb_battery_driver_technology(__le32 *technology)
 {
-    struct gb_battery_proto_version_response *response;
-
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
-    response->major = GB_BATTERY_VERSION_MAJOR;
-    response->minor = GB_BATTERY_VERSION_MINOR;
-    return GB_OP_SUCCESS;
-}
-
-static uint8_t gb_battery_technology(struct gb_operation *operation)
-{
-    struct gb_battery_technology_response *response;
-
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
     // TODO: Better to hard-code something here, or just return unknown?
-    response->technology = GB_BATTERY_TECH_UNKNOWN;
+    *technology = GB_BATTERY_TECH_UNKNOWN;
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_status(struct gb_operation *operation)
+uint8_t gb_battery_driver_status(__le16 *status)
 {
-    struct gb_battery_status_response *response;
-
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
     // TODO: implement when charging supported
-    response->status = GB_BATTERY_STATUS_UNKNOWN;
+    *status = GB_BATTERY_STATUS_UNKNOWN;
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_max_voltage(struct gb_operation *operation)
+uint8_t gb_battery_driver_max_voltage(__le32 *max_voltage)
 {
-    struct gb_battery_max_voltage_response *response;
     int ret;
 
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
-    ret = gb_battery_read_reg(MAX17050_REG_MAX_VOLT);
+    ret = max17050_reg_read(MAX17050_REG_MAX_VOLT);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->max_voltage = ret >> 8;
-    response->max_voltage *= 20000; /* Units of LSB = 20mV */
+    *max_voltage = ret >> 8;
+    *max_voltage *= 20000; /* Units of LSB = 20mV */
 
-    lowsyslog("%s: %d mV\n", __func__, response->max_voltage);
+    lowsyslog("%s: %d mV\n", __func__, *max_voltage);
 
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_percent_capacity(struct gb_operation *operation)
+uint8_t gb_battery_driver_percent_capacity(__le32 *capacity)
 {
-    struct gb_battery_percent_capacity_response *response;
     int ret;
 
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
-    ret = gb_battery_read_reg(MAX17050_REG_REP_SOC);
+    ret = max17050_reg_read(MAX17050_REG_REP_SOC);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->capacity = ret >> 8;
+    *capacity = ret >> 8;
 
-    lowsyslog("%s: %d percent\n", __func__, response->capacity);
+    lowsyslog("%s: %d percent\n", __func__, *capacity);
 
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_temperature(struct gb_operation *operation)
+uint8_t gb_battery_driver_temperature(__le32 *temperature)
 {
-    struct gb_battery_temperature_response *response;
     int ret;
 
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
-    ret = gb_battery_read_reg(MAX17050_REG_TEMP);
+    ret = max17050_reg_read(MAX17050_REG_TEMP);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->temperature = ret;
+    *temperature = ret;
     /* The value is signed. */
-    if (response->temperature & 0x8000) {
-        response->temperature = (0x7fff & ~response->temperature) + 1;
-        response->temperature *= -1;
+    if (*temperature & 0x8000) {
+        *temperature = (0x7fff & ~*temperature) + 1;
+        *temperature *= -1;
     }
 
     /* The value is converted into deci-centigrade scale */
     /* Units of LSB = 1 / 256 degree Celsius */
-    response->temperature = response->temperature * 10 / 256;
+    *temperature = *temperature * 10 / 256;
 
-    lowsyslog("%s: %d\n", __func__, response->temperature);
-
-    return GB_OP_SUCCESS;
-}
-
-static uint8_t gb_battery_voltage(struct gb_operation *operation)
-{
-    struct gb_battery_voltage_rsp *response;
-    int ret;
-
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
-    ret = gb_battery_read_reg(MAX17050_REG_VCELL);
-    if (ret < 0)
-        return GB_OP_UNKNOWN_ERROR;
-
-    response->voltage = ret * 625 / 8;
-
-    lowsyslog("%s: %d mV\n", __func__, response->voltage);
+    lowsyslog("%s: %d\n", __func__, *temperature);
 
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_current(struct gb_operation *operation)
+uint8_t gb_battery_driver_voltage(__le32 *voltage)
 {
-    struct gb_battery_current_rsp *response;
     int ret;
 
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
-    ret = gb_battery_read_reg(MAX17050_REG_CURRENT);
+    ret = max17050_reg_read(MAX17050_REG_VCELL);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->current = ret;
-    if (response->current & 0x8000) {
+    *voltage = ret * 625 / 8;
+
+    lowsyslog("%s: %d mV\n", __func__, *voltage);
+
+    return GB_OP_SUCCESS;
+}
+
+uint8_t gb_battery_driver_current(__le32 *current)
+{
+    int ret;
+
+    ret = max17050_reg_read(MAX17050_REG_CURRENT);
+    if (ret < 0)
+        return GB_OP_UNKNOWN_ERROR;
+
+    *current = ret;
+    if (*current & 0x8000) {
         /* Negative */
-        response->current = ~response->current & 0x7fff;
-        response->current++;
-        response->current *= -1;
+        *current = ~*current & 0x7fff;
+        *current += 1;
+        *current *= -1;
     }
-    response->current *= 1562500 / MAX17050_SNS_RESISTOR;
+    *current *= 1562500 / MAX17050_SNS_RESISTOR;
 
-    lowsyslog("%s: %d uA\n", __func__, response->current);
+    lowsyslog("%s: %d uA\n", __func__, *current);
 
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_capacity(struct gb_operation *operation)
+uint8_t gb_battery_driver_capacity(__le32 *capacity)
 {
-    struct gb_battery_capacity_rsp *response;
     int ret;
 
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
-    ret = gb_battery_read_reg(MAX17050_REG_FULL_CAP);
+    ret = max17050_reg_read(MAX17050_REG_FULL_CAP);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->capacity = ret * 1000 / 2;
+    *capacity = ret * 1000 / 2;
 
-    lowsyslog("%s: %d mAh\n", __func__, response->capacity);
+    lowsyslog("%s: %d mAh\n", __func__, *capacity);
 
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_battery_shutdown_temperature(struct gb_operation *operation)
+uint8_t gb_battery_driver_shutdown_temperature(__le32 *temperature)
 {
-    struct gb_battery_shutdown_temp_rsp *response;
-
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
     // TODO: return a better value?
-    response->temperature = 0;
+    *temperature = 0;
     return GB_OP_SUCCESS;
 }
 
-static int gb_battery_init(unsigned int cport)
+int gb_battery_driver_init(void)
 {
     int ret;
 
@@ -267,7 +203,7 @@ static int gb_battery_init(unsigned int cport)
 
     I2C_SETFREQUENCY(i2c_dev, 400000);
 
-    ret = gb_battery_read_reg(MAX17050_REG_DEV_NAME);
+    ret = max17050_reg_read(MAX17050_REG_DEV_NAME);
     if (ret < 0)
         return ret;
 
@@ -278,28 +214,3 @@ static int gb_battery_init(unsigned int cport)
 
     return 0;
 }
-
-static struct gb_operation_handler gb_battery_handlers[] = {
-    GB_HANDLER(GB_BATTERY_TYPE_PROTOCOL_VERSION, gb_battery_protocol_version),
-    GB_HANDLER(GB_BATTERY_TYPE_TECHNOLOGY, gb_battery_technology),
-    GB_HANDLER(GB_BATTERY_TYPE_STATUS, gb_battery_status),
-    GB_HANDLER(GB_BATTERY_TYPE_MAX_VOLTAGE, gb_battery_max_voltage),
-    GB_HANDLER(GB_BATTERY_TYPE_PERCENT_CAPACITY, gb_battery_percent_capacity),
-    GB_HANDLER(GB_BATTERY_TYPE_TEMPERATURE, gb_battery_temperature),
-    GB_HANDLER(GB_BATTERY_TYPE_VOLTAGE, gb_battery_voltage),
-    GB_HANDLER(GB_BATTERY_TYPE_CURRENT, gb_battery_current),
-    GB_HANDLER(GB_BATTERY_TYPE_CAPACITY, gb_battery_capacity),
-    GB_HANDLER(GB_BATTERY_TYPE_SHUTDOWN_TEMPERATURE, gb_battery_shutdown_temperature),
-};
-
-static struct gb_driver gb_battery_driver = {
-    .init = gb_battery_init,
-    .op_handlers = gb_battery_handlers,
-    .op_handlers_count = ARRAY_SIZE(gb_battery_handlers),
-};
-
-void gb_battery_register(int cport)
-{
-    gb_register_driver(cport, &gb_battery_driver);
-}
-

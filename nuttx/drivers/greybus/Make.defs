@@ -50,7 +50,7 @@ CSRCS += i2c.c
 endif
 
 ifeq ($(CONFIG_GREYBUS_BATTERY),y)
-CSRCS += battery.c
+CSRCS += battery-gb.c
 endif
 
 ifeq ($(CONFIG_GREYBUS_LOOPBACK),y)
