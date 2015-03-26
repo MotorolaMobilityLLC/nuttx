@@ -54,21 +54,14 @@
 
 struct i2c_dev_s *i2c_dev;
 
-static int gb_battery_read_reg(uint16_t reg, uint8_t *buf, int size)
+static int gb_battery_read_reg(uint16_t reg)
 {
-    struct i2c_msg_s msgs[2];
+    uint16_t reg_val;
+    int ret;
 
-    msgs[0].addr = MAX17050_I2C_ADDR;
-    msgs[0].flags = 0;
-    msgs[0].length = sizeof(reg);
-    msgs[0].buffer = (uint8_t *)&reg;
-
-    msgs[1].addr = MAX17050_I2C_ADDR;
-    msgs[1].flags = I2C_M_READ;
-    msgs[1].length = size;
-    msgs[1].buffer = buf;
-
-    return I2C_TRANSFER(i2c_dev, msgs, 2);
+    ret = I2C_WRITEREAD(i2c_dev, (uint8_t *)&reg, sizeof(reg),
+                        (uint8_t *)&reg_val, sizeof(reg_val));
+    return ret ? ret : reg_val;
 }
 
 static uint8_t gb_battery_protocol_version(struct gb_operation *operation)
@@ -113,18 +106,17 @@ static uint8_t gb_battery_status(struct gb_operation *operation)
 static uint8_t gb_battery_max_voltage(struct gb_operation *operation)
 {
     struct gb_battery_max_voltage_response *response;
-    uint16_t reg_val;
     int ret;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    ret = gb_battery_read_reg(MAX17050_REG_MAX_VOLT, (uint8_t *)&reg_val, sizeof(reg_val));
-    if (ret)
+    ret = gb_battery_read_reg(MAX17050_REG_MAX_VOLT);
+    if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->max_voltage = reg_val >> 8;
+    response->max_voltage = ret >> 8;
     response->max_voltage *= 20000; /* Units of LSB = 20mV */
 
     lowsyslog("%s: %d mV\n", __func__, response->max_voltage);
@@ -135,18 +127,17 @@ static uint8_t gb_battery_max_voltage(struct gb_operation *operation)
 static uint8_t gb_battery_percent_capacity(struct gb_operation *operation)
 {
     struct gb_battery_percent_capacity_response *response;
-    uint16_t reg_val;
     int ret;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    ret = gb_battery_read_reg(MAX17050_REG_REP_SOC, (uint8_t *)&reg_val, sizeof(reg_val));
-    if (ret)
+    ret = gb_battery_read_reg(MAX17050_REG_REP_SOC);
+    if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->capacity = reg_val >> 8;
+    response->capacity = ret >> 8;
 
     lowsyslog("%s: %d percent\n", __func__, response->capacity);
 
@@ -156,18 +147,17 @@ static uint8_t gb_battery_percent_capacity(struct gb_operation *operation)
 static uint8_t gb_battery_temperature(struct gb_operation *operation)
 {
     struct gb_battery_temperature_response *response;
-    uint16_t reg_val;
     int ret;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    ret = gb_battery_read_reg(MAX17050_REG_TEMP, (uint8_t *)&reg_val, sizeof(reg_val));
-    if (ret)
+    ret = gb_battery_read_reg(MAX17050_REG_TEMP);
+    if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->temperature = reg_val;
+    response->temperature = ret;
     /* The value is signed. */
     if (response->temperature & 0x8000) {
         response->temperature = (0x7fff & ~response->temperature) + 1;
@@ -186,18 +176,17 @@ static uint8_t gb_battery_temperature(struct gb_operation *operation)
 static uint8_t gb_battery_voltage(struct gb_operation *operation)
 {
     struct gb_battery_voltage_rsp *response;
-    uint16_t reg_val;
     int ret;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    ret = gb_battery_read_reg(MAX17050_REG_VCELL, (uint8_t *)&reg_val, sizeof(reg_val));
-    if (ret)
+    ret = gb_battery_read_reg(MAX17050_REG_VCELL);
+    if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->voltage = reg_val * 625 / 8;
+    response->voltage = ret * 625 / 8;
 
     lowsyslog("%s: %d mV\n", __func__, response->voltage);
 
@@ -207,18 +196,17 @@ static uint8_t gb_battery_voltage(struct gb_operation *operation)
 static uint8_t gb_battery_current(struct gb_operation *operation)
 {
     struct gb_battery_current_rsp *response;
-    uint16_t reg_val;
     int ret;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    ret = gb_battery_read_reg(MAX17050_REG_CURRENT, (uint8_t *)&reg_val, sizeof(reg_val));
-    if (ret)
+    ret = gb_battery_read_reg(MAX17050_REG_CURRENT);
+    if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->current = reg_val;
+    response->current = ret;
     if (response->current & 0x8000) {
         /* Negative */
         response->current = ~response->current & 0x7fff;
@@ -235,18 +223,17 @@ static uint8_t gb_battery_current(struct gb_operation *operation)
 static uint8_t gb_battery_capacity(struct gb_operation *operation)
 {
     struct gb_battery_capacity_rsp *response;
-    uint16_t reg_val;
     int ret;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    ret = gb_battery_read_reg(MAX17050_REG_FULL_CAP, (uint8_t *)&reg_val, sizeof(reg_val));
-    if (ret)
+    ret = gb_battery_read_reg(MAX17050_REG_FULL_CAP);
+    if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    response->capacity = reg_val * 1000 / 2;
+    response->capacity = ret * 1000 / 2;
 
     lowsyslog("%s: %d mAh\n", __func__, response->capacity);
 
@@ -268,18 +255,23 @@ static uint8_t gb_battery_shutdown_temperature(struct gb_operation *operation)
 
 static int gb_battery_init(unsigned int cport)
 {
-    uint16_t version;
     int ret;
 
     i2c_dev = up_i2cinitialize(CONFIG_GREYBUS_BATTERY_MAX17050_I2C_BUS);
     if (!i2c_dev)
         return -ENODEV;
 
-    ret = gb_battery_read_reg(MAX17050_REG_DEV_NAME, (uint8_t *)&version, sizeof(version));
+    ret = I2C_SETADDRESS(i2c_dev, MAX17050_I2C_ADDR, 7);
     if (ret)
-        return -ENODEV;
+        return ret;
 
-    if (version != MAX17050_IC_VERSION)
+    I2C_SETFREQUENCY(i2c_dev, 400000);
+
+    ret = gb_battery_read_reg(MAX17050_REG_DEV_NAME);
+    if (ret < 0)
+        return ret;
+
+    if (ret != MAX17050_IC_VERSION)
         return -EINVAL;
 
     // TODO: Initialize IC registers as needed
