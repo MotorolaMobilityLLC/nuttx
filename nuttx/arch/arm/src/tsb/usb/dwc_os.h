@@ -592,6 +592,8 @@ typedef bus_addr_t dwc_dma_t;
 #ifdef DWC_NUTTX
 /* Assume 32bit on arm */
 typedef uint32_t dwc_dma_t;
+extern struct mm_heap_s g_usb_dma_heap;
+#define USB_DMA_HEAP &g_usb_dma_heap
 #endif
 
 #ifdef DWC_FREEBSD
@@ -676,11 +678,11 @@ extern void __DWC_FREE(void *mem_ctx, void *addr);
 
 #ifndef DWC_DEBUG_MEMORY
 
+# ifdef DWC_LINUX
 #define DWC_ALLOC(_size_) __DWC_ALLOC(NULL, _size_)
 #define DWC_ALLOC_ATOMIC(_size_) __DWC_ALLOC_ATOMIC(NULL, _size_)
 #define DWC_FREE(_addr_) __DWC_FREE(NULL, _addr_)
 
-# ifdef DWC_LINUX
 #define DWC_DMA_ALLOC(_size_,_dma_) __DWC_DMA_ALLOC(NULL, _size_, _dma_)
 #define DWC_DMA_ALLOC_ATOMIC(_size_,_dma_) __DWC_DMA_ALLOC_ATOMIC(NULL, _size_,_dma_)
 #define DWC_DMA_FREE(_size_,_virt_,_dma_) __DWC_DMA_FREE(NULL, _size_, _virt_, _dma_)
@@ -688,9 +690,21 @@ extern void __DWC_FREE(void *mem_ctx, void *addr);
 
 # ifdef DWC_NUTTX
 void *phys_to_virt(unsigned long address);
-#define DWC_DMA_ALLOC(_size_,_dma_) __DWC_DMA_ALLOC(NULL, _size_, _dma_)
-#define DWC_DMA_ALLOC_ATOMIC(_size_,_dma_) __DWC_DMA_ALLOC_ATOMIC(NULL, _size_,_dma_)
-#define DWC_DMA_FREE(_size_,_virt_,_dma_) __DWC_DMA_FREE(NULL, _size_, _virt_, _dma_)
+/*
+ * NuttX doesn't do a great job at modeling the Linux kernel's concept of atomic context-
+ * safe memory allocation.  We're currently using a modified version of NuttX's heap memory
+ * allocator that guards against access by disabling interrupts
+ */
+#define DWC_ALLOC(_size_) __DWC_ALLOC(NULL, _size_)
+#define DWC_ALLOC_ATOMIC(_size_) __DWC_ALLOC(NULL, _size_)
+#define DWC_FREE(_addr_) __DWC_FREE(NULL, _addr_)
+/*
+ * We allocate DMA-able memory from a different heap, allocated from Bridge BUFRAM, to avoid
+ * the USB core contending with the CM3 for access to WORKRAM, and losing.
+ */
+#define DWC_DMA_ALLOC(_size_,_dma_) __DWC_DMA_ALLOC(USB_DMA_HEAP, _size_, _dma_)
+#define DWC_DMA_ALLOC_ATOMIC(_size_,_dma_) __DWC_DMA_ALLOC(USB_DMA_HEAP, _size_, _dma_)
+#define DWC_DMA_FREE(_size_,_virt_,_dma_) __DWC_DMA_FREE(USB_DMA_HEAP, _size_, _virt_, _dma_)
 # endif
 
 # if defined(DWC_FREEBSD) || defined(DWC_NETBSD)

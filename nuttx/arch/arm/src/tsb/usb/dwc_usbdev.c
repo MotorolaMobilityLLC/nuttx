@@ -40,6 +40,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbdev.h>
+#include <nuttx/mm/mm.h>
 
 #include <arch/irq.h>
 
@@ -84,7 +85,7 @@ struct dwc_usbdev_s {
     struct dwc_usbdev_ep_s eplist[DWC_NENDPOINTS];
 };
 static struct dwc_usbdev_s g_usbdev;
-
+struct mm_heap_s    g_usb_dma_heap;
 /*
  * Configure/enable and disable endpoint
  */
@@ -164,14 +165,12 @@ struct usbdev_req_s *dwc_allocreq(struct usbdev_ep_s *ep)
     }
 #endif
 
-    privreq = (struct dwc_req_s *)kmm_malloc(sizeof(struct dwc_req_s));
+    privreq = (struct dwc_req_s *)DWC_ALLOC(sizeof(struct dwc_req_s));
     if (!privreq) {
         DWC_ERROR("%s, Fail to allocate request for ep%d\n", __func__,
                   USB_EPNO(ep->eplog));
         return NULL;
     }
-
-    memset(privreq, 0, sizeof(struct dwc_req_s));
     return &privreq->req;
 }
 
@@ -186,7 +185,7 @@ void dwc_freereq(struct usbdev_ep_s *ep, struct usbdev_req_s *req)
     }
 #endif
 
-    kmm_free(privreq);
+    DWC_FREE(privreq);
 }
 
 /*
@@ -277,11 +276,28 @@ int dwc_stall(struct usbdev_ep_s *ep, bool resume)
     return retval;
 }
 
+#ifdef CONFIG_USBDEV_DMA
+static void *dwc_epallocbuffer(struct usbdev_ep_s *ep, uint16_t size)
+{
+    dwc_dma_t dummy;
+
+    return DWC_DMA_ALLOC(size, &dummy);
+}
+static void dwc_epfreebuffer(struct usbdev_ep_s *ep, void *buf)
+{
+    DWC_DMA_FREE(0, buf, NULL);
+}
+#endif
+
 static const struct usbdev_epops_s g_epops = {
     .configure = dwc_configure,
     .disable = dwc_disable,
     .allocreq = dwc_allocreq,
     .freereq = dwc_freereq,
+#ifdef CONFIG_USBDEV_DMA
+    .allocbuffer = dwc_epallocbuffer,
+    .freebuffer  = dwc_epfreebuffer,
+#endif
     .submit = dwc_submit,
     .cancel = dwc_cancel,
     .stall = dwc_stall,
@@ -736,6 +752,19 @@ void up_usbinitialize(void)
     struct dwc_usbdev_s *priv = &g_usbdev;
 
     SET_DEBUG_LEVEL(DBG_ANY);
+    /*
+     * Create a separate heap for use by USB DMA.  The idea is to avoid having
+     * the USB core contend with the CM3 for access to Bridge WORKRAM, and lose.
+     * We must initialize the heap before continuing, since DMA-able memory may
+     * be allocated during up_usbinitialize_device().
+     *
+     * We add BUFRAM banks 2 and 3 to the USB DMA heap as separate regions, to
+     * avoid potentially allocating a buffer that spans two banks.  This seems
+     * to be the conservative approach until we better-understand how BUFRAM
+     * banks behave and interact.
+     */
+    mm_initialize(&g_usb_dma_heap, (void *)BUFRAM2_BASE, BUFRAM_BANK_SIZE);
+    mm_addregion(&g_usb_dma_heap, (void *)BUFRAM3_BASE, BUFRAM_BANK_SIZE);
     if (up_usbinitialize_core(priv))
         goto fail;
     if (up_usbinitialize_device(priv))

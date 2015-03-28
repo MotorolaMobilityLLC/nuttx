@@ -37,6 +37,7 @@
 #include <stdio.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/mm/mm.h>
 #include <nuttx/wqueue.h>
 #include <arch/armv7-m/byteorder.h>
 
@@ -230,50 +231,20 @@ void __DWC_DEBUG(char *format, ...)
 
 void *__DWC_DMA_ALLOC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
 {
-    void *buf = __DWC_ALLOC(dma_ctx, size);
+    void *buf = mm_zalloc((struct mm_heap_s *)dma_ctx, size);
     *dma_addr = (dwc_dma_t) buf;
-    if (!buf) {
-        return NULL;
-    }
-
-    memset(buf, 0, (size_t)size);
-    return buf;
-}
-
-void *__DWC_DMA_ALLOC_ATOMIC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
-{
-    void *buf = __DWC_ALLOC_ATOMIC(dma_ctx, size);
-    *dma_addr = (dwc_dma_t) buf;
-    if (!buf) {
-        return NULL;
-    }
-
-    memset(buf, 0, (size_t)size);
     return buf;
 }
 
 void __DWC_DMA_FREE(void *dma_ctx, uint32_t size, void *virt_addr,
                     dwc_dma_t dma_addr)
 {
-    free(virt_addr);
+    mm_free((struct mm_heap_s *)dma_ctx, virt_addr);
 }
 
 void *__DWC_ALLOC(void *mem_ctx, uint32_t size)
 {
-    void *ptr = malloc(size);
-    memset(ptr, 0, size);
-    return ptr;
-}
-
-void *__DWC_ALLOC_ATOMIC(void *mem_ctx, uint32_t size)
-{
-    irqstate_t flags;
-    void *ptr;
-
-    flags = irqsave();
-    ptr = __DWC_ALLOC(mem_ctx, size);
-    irqrestore(flags);
-    return ptr;
+    return zalloc(size);
 }
 
 void __DWC_FREE(void *mem_ctx, void *addr)
