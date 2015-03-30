@@ -124,6 +124,22 @@ struct battery_operations_s
   /* Battery capacity */
 
   int (*capacity)(struct battery_dev_s *dev, b16_t *value);
+
+  /* Maximum battery voltage */
+
+  int (*max_voltage)(struct battery_dev_s *dev, b16_t *value);
+
+  /* Current battery temperature */
+
+  int (*temperature)(struct battery_dev_s *dev, b16_t *value);
+
+  /* Current battery current */
+
+  int (*current)(struct battery_dev_s *dev, b16_t *value);
+
+  /* Battery full capacity */
+
+  int (*full_capacity)(struct battery_dev_s *dev, b16_t *value);
 };
 
 /* This structure defines the battery driver state structure */
@@ -205,6 +221,35 @@ struct i2c_dev_s; /* Forward reference */
 
 EXTERN FAR struct battery_dev_s *
   max1704x_initialize(FAR struct i2c_dev_s *i2c, uint8_t addr, uint32_t frequency);
+#endif
+
+/****************************************************************************
+ * Name: max17050_initialize
+ *
+ * Description:
+ *   Initialize the MAX17050 battery driver and return an instance of the
+ *   lower_half interface that may be used with battery_register();
+ *
+ *   This driver requires:
+ *     CONFIG_BATTERY
+ *     CONFIG_I2C
+ *     CONFIG_I2C_MAX17050
+ *
+ * Input Parameters:
+ *   i2c - An instance of the I2C interface to use to communicate with the MAX17050
+ *   frequency - The desired I2C frequency
+ *
+ * Returned Value:
+ *   A pointer to the initialized battery driver instance.  A NULL pointer
+ *   is returned on a failure to initialize the MAX17050 lower half.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_BATTERY_MAX17050
+struct i2c_dev_s; /* Forward reference */
+
+EXTERN FAR struct battery_dev_s *
+  max17050_initialize(FAR struct i2c_dev_s *i2c, uint32_t frequency);
 #endif
 
 #undef EXTERN

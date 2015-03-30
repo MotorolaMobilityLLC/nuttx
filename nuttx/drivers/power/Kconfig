@@ -21,3 +21,13 @@ config MAX1704X
 config I2C_MAX1704X
 	bool
 	default y if MAX1704X
+
+config BATTERY_MAX17050
+	bool "MAX17050 battery fuel gauge support"
+	default n
+	select I2C
+	select I2C_WRITEREAD
+	depends on BATTERY
+	---help---
+		Select to support the MAX17050 battery fuel gauge IC.
+
