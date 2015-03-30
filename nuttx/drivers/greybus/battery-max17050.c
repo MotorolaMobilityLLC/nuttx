@@ -32,153 +32,126 @@
 
 #include <nuttx/i2c.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/power/battery.h>
 
 #include "battery-gb.h"
 
-#define MAX17050_I2C_ADDR         0x36
-
-#define MAX17050_REG_REP_SOC      0x06
-#define MAX17050_REG_TEMP         0x08
-#define MAX17050_REG_VCELL        0x09
-#define MAX17050_REG_CURRENT      0x0A
-#define MAX17050_REG_FULL_CAP     0x10
-#define MAX17050_REG_MAX_VOLT     0x1B
-#define MAX17050_REG_DEV_NAME     0x21
-
-#define MAX17050_IC_VERSION     0x00AC
-
-#define MAX17050_SNS_RESISTOR    10000
-
-struct i2c_dev_s *i2c_dev;
-
-static int max17050_reg_read(uint16_t reg)
-{
-    uint16_t reg_val;
-    int ret;
-
-    ret = I2C_WRITEREAD(i2c_dev, (uint8_t *)&reg, sizeof(reg),
-                        (uint8_t *)&reg_val, sizeof(reg_val));
-    return ret ? ret : reg_val;
-}
+struct battery_dev_s *bdev;
 
 uint8_t gb_battery_driver_technology(__le32 *technology)
 {
-    // TODO: Better to hard-code something here, or just return unknown?
-    *technology = GB_BATTERY_TECH_UNKNOWN;
+    // The MAX17050 is for lithium-ion batteries only
+    *technology = GB_BATTERY_TECH_LION;
     return GB_OP_SUCCESS;
 }
 
 uint8_t gb_battery_driver_status(__le16 *status)
 {
-    // TODO: implement when charging supported
-    *status = GB_BATTERY_STATUS_UNKNOWN;
+    int ret;
+    int value;
+
+    ret = bdev->ops->state(bdev, &value);
+    if (ret < 0)
+        return GB_OP_UNKNOWN_ERROR;
+
+    // Convert to Greybus values
+    switch (value) {
+        case BATTERY_IDLE:
+            *status = GB_BATTERY_STATUS_NOT_CHARGING;
+            break;
+        case BATTERY_FULL:
+            *status = GB_BATTERY_STATUS_FULL;
+            break;
+        case BATTERY_CHARGING:
+            *status = GB_BATTERY_STATUS_CHARGING;
+            break;
+        case BATTERY_DISCHARGING:
+            *status = GB_BATTERY_STATUS_DISCHARGING;
+            break;
+        case BATTERY_UNKNOWN:
+        default:
+            *status = GB_BATTERY_STATUS_UNKNOWN;
+            break;
+    }
+
     return GB_OP_SUCCESS;
 }
 
 uint8_t gb_battery_driver_max_voltage(__le32 *max_voltage)
 {
     int ret;
+    b16_t value;
 
-    ret = max17050_reg_read(MAX17050_REG_MAX_VOLT);
+    ret = bdev->ops->max_voltage(bdev, &value);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    *max_voltage = ret >> 8;
-    *max_voltage *= 20000; /* Units of LSB = 20mV */
-
-    lowsyslog("%s: %d mV\n", __func__, *max_voltage);
-
+    *max_voltage = value;
     return GB_OP_SUCCESS;
 }
 
 uint8_t gb_battery_driver_percent_capacity(__le32 *capacity)
 {
     int ret;
+    b16_t value;
 
-    ret = max17050_reg_read(MAX17050_REG_REP_SOC);
+    ret = bdev->ops->capacity(bdev, &value);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    *capacity = ret >> 8;
-
-    lowsyslog("%s: %d percent\n", __func__, *capacity);
-
+    *capacity = value;
     return GB_OP_SUCCESS;
 }
 
 uint8_t gb_battery_driver_temperature(__le32 *temperature)
 {
     int ret;
+    b16_t value;
 
-    ret = max17050_reg_read(MAX17050_REG_TEMP);
+    ret = bdev->ops->temperature(bdev, &value);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    *temperature = ret;
-    /* The value is signed. */
-    if (*temperature & 0x8000) {
-        *temperature = (0x7fff & ~*temperature) + 1;
-        *temperature *= -1;
-    }
-
-    /* The value is converted into deci-centigrade scale */
-    /* Units of LSB = 1 / 256 degree Celsius */
-    *temperature = *temperature * 10 / 256;
-
-    lowsyslog("%s: %d\n", __func__, *temperature);
-
+    *temperature = value;
     return GB_OP_SUCCESS;
 }
 
 uint8_t gb_battery_driver_voltage(__le32 *voltage)
 {
     int ret;
+    b16_t value;
 
-    ret = max17050_reg_read(MAX17050_REG_VCELL);
+    ret = bdev->ops->voltage(bdev, &value);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    *voltage = ret * 625 / 8;
-
-    lowsyslog("%s: %d mV\n", __func__, *voltage);
-
+    *voltage = value;
     return GB_OP_SUCCESS;
 }
 
 uint8_t gb_battery_driver_current(__le32 *current)
 {
     int ret;
+    b16_t value;
 
-    ret = max17050_reg_read(MAX17050_REG_CURRENT);
+    ret = bdev->ops->current(bdev, &value);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    *current = ret;
-    if (*current & 0x8000) {
-        /* Negative */
-        *current = ~*current & 0x7fff;
-        *current += 1;
-        *current *= -1;
-    }
-    *current *= 1562500 / MAX17050_SNS_RESISTOR;
-
-    lowsyslog("%s: %d uA\n", __func__, *current);
-
+    *current = value;
     return GB_OP_SUCCESS;
 }
 
 uint8_t gb_battery_driver_capacity(__le32 *capacity)
 {
     int ret;
+    b16_t value;
 
-    ret = max17050_reg_read(MAX17050_REG_FULL_CAP);
+    ret = bdev->ops->full_capacity(bdev, &value);
     if (ret < 0)
         return GB_OP_UNKNOWN_ERROR;
 
-    *capacity = ret * 1000 / 2;
-
-    lowsyslog("%s: %d mAh\n", __func__, *capacity);
-
+    *capacity = value;
     return GB_OP_SUCCESS;
 }
 
@@ -191,26 +164,15 @@ uint8_t gb_battery_driver_shutdown_temperature(__le32 *temperature)
 
 int gb_battery_driver_init(void)
 {
-    int ret;
+    FAR struct i2c_dev_s *i2c;
 
-    i2c_dev = up_i2cinitialize(CONFIG_GREYBUS_BATTERY_MAX17050_I2C_BUS);
-    if (!i2c_dev)
+    i2c = up_i2cinitialize(CONFIG_GREYBUS_BATTERY_MAX17050_I2C_BUS);
+    if (!i2c)
         return -ENODEV;
 
-    ret = I2C_SETADDRESS(i2c_dev, MAX17050_I2C_ADDR, 7);
-    if (ret)
-        return ret;
-
-    I2C_SETFREQUENCY(i2c_dev, 400000);
-
-    ret = max17050_reg_read(MAX17050_REG_DEV_NAME);
-    if (ret < 0)
-        return ret;
-
-    if (ret != MAX17050_IC_VERSION)
-        return -EINVAL;
-
-    // TODO: Initialize IC registers as needed
+    bdev = max17050_initialize(i2c, 400000);
+    if (!bdev)
+        return -ENODEV;
 
     return 0;
 }
