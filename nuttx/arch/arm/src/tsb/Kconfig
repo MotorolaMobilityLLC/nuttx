@@ -56,3 +56,10 @@ config TSB_SPIROM
     bool
     default y if BOOT_COPYTORAM
     select ARCH_RAMVECTORS
+
+config TSB_PINSHARE_ETM
+    bool "Enable ETM PINSHARE at Boot"
+    depends on ARCH_CHIP_TSB
+    default n
+	---help---
+		Enable ETM PINSHARE at Boot Instead of I2S

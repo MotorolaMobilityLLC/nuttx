@@ -62,6 +62,10 @@ void tsb_start(void) {
     tsb_lowsetup();
     dbg('A');
 
+#ifdef CONFIG_TSB_PINSHARE_ETM
+    tsb_set_pinshare(TSB_PIN_ETM);
+#endif
+
 #ifdef CONFIG_16550_UART
     /* early init the 16550 driver */
     up_earlyserialinit();
