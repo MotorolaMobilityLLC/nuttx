@@ -4,6 +4,7 @@
 
 #include <nuttx/gpio.h>
 #include <arch/tsb/cdsi.h>
+#include <arch/tsb/gpio.h>
 #include <arch/board/cdsi0_offs_def.h>
 
 #define CDSIRX_CLKEN_VAL                                0x00000001
@@ -40,12 +41,14 @@ static pthread_t g_display_thread;
 
 void press_powerkey(void)
 {
-    gpio_direction_out(0, 1);
+    tsb_gpio_initialize();
+    tsb_gpio_direction_out(0, 1);
 }
 
 void depress_powerkey(void)
 {
-    gpio_direction_out(0, 0);
+    tsb_gpio_direction_out(0, 0);
+    tsb_gpio_uninitialize();
 }
 
 void lg4892_dsi_init(struct cdsi_dev *dev)
@@ -127,10 +130,11 @@ void lg4892_dsi_init(struct cdsi_dev *dev)
     cdsi_write(dev, CDSI0_CDSIRX_START_OFFS, 0x00000001);
 
     press_powerkey();
+    usleep(100000);
+    depress_powerkey();
     rdata1 = cdsi_read(dev, CDSI0_CDSIRX_LPRX_STATE_INT_STAT_OFFS);
     while ((rdata1 & 0x00000001) != 0x00000001) {
         rdata1 = cdsi_read(dev, CDSI0_CDSIRX_LPRX_STATE_INT_STAT_OFFS);
-        depress_powerkey();
     }
     printf("Second LPRX_STATE_INT: %d\n", rdata1);
 
