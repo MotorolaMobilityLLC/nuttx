@@ -211,10 +211,16 @@ int svc_init(void) {
     int rc;
 
     dbg_info("Initializing SVC\n");
+
+    // Allocate and zero the sw struct
+    sw = zalloc(sizeof(struct tsb_switch));
+    if (!sw)
+        return -ENOMEM;
+
     /*
      * Board-specific initialization, all boards must define this.
      */
-    info = board_init();
+    info = board_init(sw);
     if (!info) {
         dbg_error("%s: No board information provided.\n", __func__);
         goto error0;
@@ -232,7 +238,7 @@ int svc_init(void) {
         goto error1;
     }
 
-    sw = switch_init(info->sw_drv,
+    sw = switch_init(sw,
                      info->sw_1p1,
                      info->sw_1p8,
                      info->sw_reset,
@@ -253,18 +259,22 @@ int svc_init(void) {
 error2:
     interface_exit();
 error1:
-    board_exit();
+    board_exit(sw);
 error0:
+    free(sw);
     return -1;
 }
 
 void svc_exit(void) {
-    if (the_svc.sw) {
+    if (the_svc.sw)
         switch_exit(the_svc.sw);
-        the_svc.sw = NULL;
-    }
 
     interface_exit();
-    board_exit();
+
+    if (the_svc.sw)
+        board_exit(the_svc.sw);
+
+    free(the_svc.sw);
+    the_svc.sw = NULL;
 }
 

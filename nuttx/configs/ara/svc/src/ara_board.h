@@ -29,12 +29,13 @@
 #ifndef  _ARA_BOARD_H_
 #define  _ARA_BOARD_H_
 
+#include "tsb_switch.h"
+
 struct ara_board_info {
     struct interface **interfaces;
     size_t nr_interfaces;
 
     /* Switch data */
-    struct tsb_switch_driver *sw_drv;
     unsigned int sw_1p1;
     unsigned int sw_1p8;
     unsigned int sw_reset;
@@ -43,8 +44,8 @@ struct ara_board_info {
     unsigned int svc_irq;
 };
 
-struct ara_board_info *board_init(void);
-void board_exit(void);
+struct ara_board_info *board_init(struct tsb_switch *);
+void board_exit(struct tsb_switch *);
 
 #endif
 

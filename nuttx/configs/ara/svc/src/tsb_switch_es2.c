@@ -70,13 +70,13 @@ struct sw_es2_priv {
 #define NCP_CPORT   (0x03)
 
 
-static int es2_transfer(struct tsb_switch_driver *drv,
+static int es2_transfer(struct tsb_switch *sw,
                         uint8_t *tx_buf,
                         size_t tx_size,
                         uint8_t *rx_buf,
                         size_t rx_size)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
     unsigned int id = priv->id;
     unsigned int size, rcv_done = 0;
@@ -193,9 +193,9 @@ static int es2_transfer(struct tsb_switch_driver *drv,
     return ret;
 }
 
-static int es2_init_seq(struct tsb_switch_driver *drv)
+static int es2_init_seq(struct tsb_switch *sw)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
     unsigned int id = priv->id;
     const char init_reply[] = { INIT, LNUL };
@@ -231,13 +231,13 @@ static int es2_init_seq(struct tsb_switch_driver *drv)
 }
 
 /* NCP commands */
-static int es2_set(struct tsb_switch_driver *drv,
+static int es2_set(struct tsb_switch *sw,
                    uint8_t port_id,
                    uint16_t attrid,
                    uint16_t select_index,
                    uint32_t val)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -264,7 +264,7 @@ static int es2_set(struct tsb_switch_driver *drv,
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d, val=0x%04x\n",
                 __func__, port_id, attrid, select_index, val);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): portId=%u, attrId=0x%04x failed: rc=%d\n",
                   __func__, port_id, attrid, rc);
@@ -282,13 +282,13 @@ static int es2_set(struct tsb_switch_driver *drv,
     return cnf->rc;
 }
 
-static int es2_get(struct tsb_switch_driver *drv,
+static int es2_get(struct tsb_switch *sw,
                    uint8_t port_id,
                    uint16_t attrid,
                    uint16_t select_index,
                    uint32_t *val)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -312,7 +312,7 @@ static int es2_get(struct tsb_switch_driver *drv,
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d\n",
                 __func__, port_id, attrid, select_index);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
@@ -331,13 +331,13 @@ static int es2_get(struct tsb_switch_driver *drv,
 }
 
 
-static int es2_peer_set(struct tsb_switch_driver *drv,
+static int es2_peer_set(struct tsb_switch *sw,
                         uint8_t port_id,
                         uint16_t attrid,
                         uint16_t select_index,
                         uint32_t val)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -364,7 +364,7 @@ static int es2_peer_set(struct tsb_switch_driver *drv,
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d, val=0x%04x\n",
                 __func__, port_id, attrid, select_index, val);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): portId=%u, attrId=0x%04x failed: rc=%d\n",
                   __func__, port_id, attrid, rc);
@@ -381,13 +381,13 @@ static int es2_peer_set(struct tsb_switch_driver *drv,
     return cnf->rc;
 }
 
-static int es2_peer_get(struct tsb_switch_driver *drv,
+static int es2_peer_get(struct tsb_switch *sw,
                         uint8_t port_id,
                         uint16_t attrid,
                         uint16_t select_index,
                         uint32_t *val)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -411,7 +411,7 @@ static int es2_peer_get(struct tsb_switch_driver *drv,
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d\n",
                  __func__, port_id, attrid, select_index);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
@@ -429,11 +429,11 @@ static int es2_peer_get(struct tsb_switch_driver *drv,
     return cnf->rc;
 }
 
-static int es2_lut_set(struct tsb_switch_driver* drv,
+static int es2_lut_set(struct tsb_switch *sw,
                        uint8_t lut_address,
                        uint8_t dest_portid)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -454,7 +454,7 @@ static int es2_lut_set(struct tsb_switch_driver* drv,
     dbg_verbose("%s(): lutAddress=%d, destPortId=%d\n", __func__, lut_address,
                 dest_portid);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): destPortId=%d failed: rc=%d\n", __func__,
                   dest_portid, rc);
@@ -473,11 +473,11 @@ static int es2_lut_set(struct tsb_switch_driver* drv,
     return cnf->rc;
 }
 
-static int es2_lut_get(struct tsb_switch_driver* drv,
+static int es2_lut_get(struct tsb_switch *sw,
                        uint8_t lut_address,
                        uint8_t *dest_portid)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -498,7 +498,7 @@ static int es2_lut_get(struct tsb_switch_driver* drv,
     dbg_verbose("%s(): lutAddress=%d, destPortId=%d\n", __func__, lut_address,
                 *dest_portid);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): destPortId=%d failed: rc=%d\n", __func__,
                  dest_portid, rc);
@@ -519,10 +519,10 @@ static int es2_lut_get(struct tsb_switch_driver* drv,
     return cnf->rc;
 }
 
-static int es2_dev_id_mask_set(struct tsb_switch_driver* drv,
+static int es2_dev_id_mask_set(struct tsb_switch *sw,
                                uint8_t *mask)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     struct __attribute__ ((__packed__)) req {
@@ -547,7 +547,7 @@ static int es2_dev_id_mask_set(struct tsb_switch_driver* drv,
 
     memcpy(req.mask, mask, sizeof(req.mask));
 
-    rc = es2_transfer(drv, (uint8_t *) &req, sizeof(req),
+    rc = es2_transfer(sw, (uint8_t *) &req, sizeof(req),
                       priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s()failed: rc=%d\n", __func__, rc);
@@ -566,10 +566,10 @@ static int es2_dev_id_mask_set(struct tsb_switch_driver* drv,
     return cnf->rc;
 }
 
-static int es2_dev_id_mask_get(struct tsb_switch_driver* drv,
+static int es2_dev_id_mask_get(struct tsb_switch *sw,
                                uint8_t *dst)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -588,7 +588,7 @@ static int es2_dev_id_mask_get(struct tsb_switch_driver* drv,
 
     dbg_verbose("%s()\n", __func__);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s()failed: rc=%d\n", __func__, rc);
         return rc;
@@ -608,11 +608,11 @@ static int es2_dev_id_mask_get(struct tsb_switch_driver* drv,
     return cnf->rc;
 }
 
-static int es2_switch_attr_set(struct tsb_switch_driver *drv,
+static int es2_switch_attr_set(struct tsb_switch *sw,
                                uint16_t attrid,
                                uint32_t val)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -634,7 +634,7 @@ static int es2_switch_attr_set(struct tsb_switch_driver *drv,
 
     dbg_verbose("%s(): attrId=0x%04x\n", __func__, attrid);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
@@ -651,11 +651,11 @@ static int es2_switch_attr_set(struct tsb_switch_driver *drv,
     return cnf->rc;
 }
 
-static int es2_switch_attr_get(struct tsb_switch_driver *drv,
+static int es2_switch_attr_get(struct tsb_switch *sw,
                                uint16_t attrid,
                                uint32_t *val)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -674,7 +674,7 @@ static int es2_switch_attr_get(struct tsb_switch_driver *drv,
 
     dbg_verbose("%s(): attrId=0x%04x\n", __func__, attrid);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
@@ -692,13 +692,13 @@ static int es2_switch_attr_get(struct tsb_switch_driver *drv,
     return cnf->rc;
 }
 
-static int es2_switch_id_set(struct tsb_switch_driver* drv,
+static int es2_switch_id_set(struct tsb_switch *sw,
                              uint8_t cportid,
                              uint8_t peer_cportid,
                              uint8_t dis,
                              uint8_t irt)
 {
-    struct sw_es2_priv *priv = drv->priv;
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -725,7 +725,7 @@ static int es2_switch_id_set(struct tsb_switch_driver* drv,
                 dis,
                 irt);
 
-    rc = es2_transfer(drv, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s() failed: rc=%d\n", __func__, rc);
         return rc;
@@ -746,7 +746,7 @@ static int es2_switch_id_set(struct tsb_switch_driver* drv,
     return cnf->rc;
 }
 
-static struct tsb_switch_driver es2_drv = {
+static struct tsb_switch_ops es2_ops = {
     .init_comm             = es2_init_seq,
 
     .set                   = es2_set,
@@ -766,34 +766,39 @@ static struct tsb_switch_driver es2_drv = {
     .switch_id_set         = es2_switch_id_set,
 };
 
-struct tsb_switch_driver *tsb_switch_es2_init(unsigned int spi_bus)
+int tsb_switch_es2_init(struct tsb_switch *sw, unsigned int spi_bus)
 {
     struct spi_dev_s *spi_dev;
     struct sw_es2_priv *priv;
+    int rc = 0;
 
     dbg_info("Initializing ES2 switch...\n");
 
     spi_dev = up_spiinitialize(spi_bus);
     if (!spi_dev) {
         dbg_error("%s: Failed to initialize spi device\n", __func__);
-        return NULL;
+        return -ENODEV;
     }
 
     priv = malloc(sizeof(struct sw_es2_priv));
     if (!priv) {
         dbg_error("%s: Failed to alloc the priv struct\n", __func__);
+        rc = -ENOMEM;
         goto error;
     }
-    es2_drv.priv = priv;
 
     priv->rxbuf = malloc(RXBUF_SIZE);
     if (!priv->rxbuf) {
         dbg_error("%s: Failed to alloc the RX buffer\n", __func__);
+        rc = -ENOMEM;
         goto error;
     }
 
     priv->spi_dev = spi_dev;
     priv->id = SW_SPI_ID;
+
+    sw->priv = priv;
+    sw->ops = &es2_ops;
 
     /* Configure the SPI1 bus in Mode0, 8bits, 13MHz clock */
     SPI_SETMODE(spi_dev, SPIDEV_MODE0);
@@ -802,19 +807,23 @@ struct tsb_switch_driver *tsb_switch_es2_init(unsigned int spi_bus)
 
     dbg_info("... Done!\n");
 
-    return &es2_drv;
+    return rc;
 
 error:
-    tsb_switch_es2_exit();
-    return NULL;
+    tsb_switch_es2_exit(sw);
+    return rc;
 }
 
-void tsb_switch_es2_exit(void) {
-    struct sw_es2_priv *priv = (struct sw_es2_priv *) es2_drv.priv;
-    if (priv) {
-        if (priv->rxbuf)
-            free(priv->rxbuf);
-        free(priv);
-    }
-    es2_drv.priv = NULL;
+void tsb_switch_es2_exit(struct tsb_switch *sw) {
+    struct sw_es2_priv *priv;
+
+    if (!sw)
+        return;
+
+    priv = sw->priv;
+    if (priv)
+        free(priv->rxbuf);
+    free(priv);
+    sw->priv = NULL;
+    sw->ops = NULL;
 }

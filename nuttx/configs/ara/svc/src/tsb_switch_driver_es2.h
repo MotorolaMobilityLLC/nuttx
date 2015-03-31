@@ -42,7 +42,7 @@
 // Write status reply length
 #define SWITCH_WRITE_STATUS_LEN (11)
 
-struct tsb_switch_driver *tsb_switch_es2_init(unsigned int spi_bus);
-void tsb_switch_es2_exit(void);
+int tsb_switch_es2_init(struct tsb_switch *, unsigned int spi_bus);
+void tsb_switch_es2_exit(struct tsb_switch *);
 
 #endif

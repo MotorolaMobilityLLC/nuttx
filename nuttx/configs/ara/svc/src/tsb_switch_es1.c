@@ -50,12 +50,12 @@
 #define SWITCH_DEVICE_ID    (0)
 #define SWITCH_PORT_ID      (14)
 
-static int es1_transfer(struct tsb_switch_driver *drv,
+static int es1_transfer(struct tsb_switch *sw,
                         uint8_t *tx_buf,
                         size_t tx_size,
                         uint8_t *rx_buf,
                         size_t rx_size) {
-    struct i2c_dev_s *i2c_dev = drv->priv;
+    struct i2c_dev_s *i2c_dev = sw->priv;
     int rc;
 
     dbg_insane("\t%s(): TX buffer:\n", __func__);
@@ -88,7 +88,7 @@ static int es1_transfer(struct tsb_switch_driver *drv,
     return 0;
 }
 
-static int es1_dev_id_mask_get(struct tsb_switch_driver *drv,
+static int es1_dev_id_mask_get(struct tsb_switch *sw,
                                uint8_t *dst) {
     int rc;
     uint8_t getreq[] = {
@@ -103,7 +103,7 @@ static int es1_dev_id_mask_get(struct tsb_switch_driver *drv,
         uint8_t mask[16];
     } getcnf;
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       getreq,
                       sizeof(getreq),
                       (uint8_t*)&getcnf,
@@ -125,7 +125,7 @@ static int es1_dev_id_mask_get(struct tsb_switch_driver *drv,
     return 0;
 }
 
-static int es1_set(struct tsb_switch_driver *drv,
+static int es1_set(struct tsb_switch *sw,
                    uint8_t portid,
                    uint16_t attrid,
                    uint16_t select_index,
@@ -153,7 +153,7 @@ static int es1_set(struct tsb_switch_driver *drv,
 
     int rc;
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       setreq,
                       sizeof(setreq),
                       (uint8_t*)&setcnf,
@@ -178,7 +178,7 @@ static int es1_set(struct tsb_switch_driver *drv,
     return setcnf.rc;
 }
 
-static int es1_get(struct tsb_switch_driver *drv,
+static int es1_get(struct tsb_switch *sw,
                    uint8_t portid,
                    uint16_t attrid,
                    uint16_t select_index,
@@ -202,7 +202,7 @@ static int es1_get(struct tsb_switch_driver *drv,
         uint32_t attr_val;
     } getcnf;
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       getreq,
                       sizeof(getreq),
                       (uint8_t*)&getcnf,
@@ -230,7 +230,7 @@ static int es1_get(struct tsb_switch_driver *drv,
 }
 
 
-static int es1_peer_set(struct tsb_switch_driver *drv,
+static int es1_peer_set(struct tsb_switch *sw,
                         uint8_t portid,
                         uint16_t attrid,
                         uint16_t select_index,
@@ -259,7 +259,7 @@ static int es1_peer_set(struct tsb_switch_driver *drv,
 
     int rc;
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       setreq,
                       sizeof(setreq),
                       (uint8_t*)&setcnf,
@@ -284,7 +284,7 @@ static int es1_peer_set(struct tsb_switch_driver *drv,
     return setcnf.rc;
 }
 
-static int es1_peer_get(struct tsb_switch_driver *drv,
+static int es1_peer_get(struct tsb_switch *sw,
                         uint8_t portid,
                         uint16_t attrid,
                         uint16_t select_index,
@@ -308,7 +308,7 @@ static int es1_peer_get(struct tsb_switch_driver *drv,
         uint32_t attr_val;
     } getcnf;
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       getreq,
                       sizeof(getreq),
                       (uint8_t*)&getcnf,
@@ -336,7 +336,7 @@ static int es1_peer_get(struct tsb_switch_driver *drv,
 }
 
 
-static int es1_switch_attr_get(struct tsb_switch_driver *drv,
+static int es1_switch_attr_get(struct tsb_switch *sw,
                                    uint16_t attrid,
                                    uint32_t *val) {
     uint8_t getreq[] = {
@@ -355,7 +355,7 @@ static int es1_switch_attr_get(struct tsb_switch_driver *drv,
 
     int rc;
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       getreq,
                       sizeof(getreq),
                       (uint8_t*)&getcnf,
@@ -382,7 +382,7 @@ static int es1_switch_attr_get(struct tsb_switch_driver *drv,
     return getcnf.rc;
 }
 
-static int es1_lut_get(struct tsb_switch_driver *drv,
+static int es1_lut_get(struct tsb_switch *sw,
                        uint8_t addr,
                        uint8_t *dst_portid) {
     int rc;
@@ -399,7 +399,7 @@ static int es1_lut_get(struct tsb_switch_driver *drv,
         uint8_t dst_portid;
     } getcnf;
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       getreq,
                       sizeof(getreq),
                       (uint8_t*)&getcnf,
@@ -421,7 +421,7 @@ static int es1_lut_get(struct tsb_switch_driver *drv,
 
 
 
-static int es1_lut_set(struct tsb_switch_driver *drv,
+static int es1_lut_set(struct tsb_switch *sw,
                        uint8_t addr,
                        uint8_t dst_portid) {
     int rc;
@@ -438,7 +438,7 @@ static int es1_lut_set(struct tsb_switch_driver *drv,
         uint8_t fid;
     } setcnf;
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       setreq,
                       sizeof(setreq),
                       (uint8_t*)&setcnf,
@@ -456,7 +456,7 @@ static int es1_lut_set(struct tsb_switch_driver *drv,
     return setcnf.rc;
 }
 
-static int es1_switch_id_set(struct tsb_switch_driver *drv,
+static int es1_switch_id_set(struct tsb_switch *sw,
                              uint8_t cportid,
                              uint8_t peer_cportid,
                              uint8_t dis,
@@ -487,7 +487,7 @@ static int es1_switch_id_set(struct tsb_switch_driver *drv,
                dis,
                irt);
 
-    rc = es1_transfer(drv,
+    rc = es1_transfer(sw,
                       setreq,
                       sizeof(setreq),
                       (uint8_t*)&setcnf,
@@ -510,7 +510,7 @@ static int es1_switch_id_set(struct tsb_switch_driver *drv,
     return setcnf.rc;
 }
 
-static struct tsb_switch_driver es1_drv = {
+static struct tsb_switch_ops es1_ops = {
     .set                   = es1_set,
     .get                   = es1_get,
     .peer_set              = es1_peer_set,
@@ -525,22 +525,29 @@ static struct tsb_switch_driver es1_drv = {
     .switch_id_set         = es1_switch_id_set,
 };
 
-struct tsb_switch_driver *tsb_switch_es1_init(unsigned int i2c_bus) {
+int tsb_switch_es1_init(struct tsb_switch *sw, unsigned int i2c_bus) {
     struct i2c_dev_s *i2c_dev;
+
+    dbg_info("Initializing ES1 switch...\n");
 
     i2c_dev = up_i2cinitialize(i2c_bus);
     if (!i2c_dev) {
-        return NULL;
+        return -ENODEV;
     }
 
     I2C_SETFREQUENCY(i2c_dev, ES1_I2C_FREQUENCY);
 
-    es1_drv.priv = i2c_dev;
-    return &es1_drv;
+    sw->priv = i2c_dev;
+    sw->ops = &es1_ops;
+
+    dbg_info("... Done!\n");
+
+    return 0;
 }
 
-void tsb_switch_es1_exit(void) {
-    up_i2cuninitialize((struct i2c_dev_s*)es1_drv.priv);
-    es1_drv.priv = NULL;
+void tsb_switch_es1_exit(struct tsb_switch *sw) {
+    up_i2cuninitialize((struct i2c_dev_s*) sw->priv);
+    sw->priv = NULL;
+    sw->ops = NULL;
 }
 

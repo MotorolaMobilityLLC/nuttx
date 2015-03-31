@@ -28,6 +28,7 @@
 
 /**
  * @author: Perry Hung
+ * @author: Jean Pihet
  */
 
 #define DBG_COMP    DBG_SWITCH
@@ -126,11 +127,10 @@ static void switch_power_off(struct tsb_switch *sw) {
 /* Switch communication link init and de-init */
 static int switch_init_comm(struct tsb_switch *sw)
 {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->init_comm) {
+    if (!sw->ops->init_comm) {
         return -EOPNOTSUPP;
     }
-    return drv->init_comm(drv);
+    return sw->ops->init_comm(sw);
 }
 
 /*
@@ -141,11 +141,10 @@ int switch_dme_set(struct tsb_switch *sw,
                           uint16_t attrid,
                           uint16_t select_index,
                           uint32_t attr_value) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->set) {
+    if (!sw->ops->set) {
         return -EOPNOTSUPP;
     }
-    return drv->set(drv, portid, attrid, select_index, attr_value);
+    return sw->ops->set(sw, portid, attrid, select_index, attr_value);
 }
 
 int switch_dme_get(struct tsb_switch *sw,
@@ -153,11 +152,10 @@ int switch_dme_get(struct tsb_switch *sw,
                           uint16_t attrid,
                           uint16_t select_index,
                           uint32_t *attr_value) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->get) {
+    if (!sw->ops->get) {
         return -EOPNOTSUPP;
     }
-    return drv->get(drv, portid, attrid, select_index, attr_value);
+    return sw->ops->get(sw, portid, attrid, select_index, attr_value);
 }
 
 int switch_dme_peer_set(struct tsb_switch *sw,
@@ -165,11 +163,10 @@ int switch_dme_peer_set(struct tsb_switch *sw,
                                uint16_t attrid,
                                uint16_t select_index,
                                uint32_t attr_value) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->peer_set) {
+    if (!sw->ops->peer_set) {
         return -EOPNOTSUPP;
     }
-    return drv->peer_set(drv, portid, attrid, select_index, attr_value);
+    return sw->ops->peer_set(sw, portid, attrid, select_index, attr_value);
 }
 
 int switch_dme_peer_get(struct tsb_switch *sw,
@@ -177,11 +174,10 @@ int switch_dme_peer_get(struct tsb_switch *sw,
                                uint16_t attrid,
                                uint16_t select_index,
                                uint32_t *attr_value) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->peer_get) {
+    if (!sw->ops->peer_get) {
         return -EOPNOTSUPP;
     }
-    return drv->peer_get(drv, portid, attrid, select_index, attr_value);
+    return sw->ops->peer_get(sw, portid, attrid, select_index, attr_value);
 }
 
 /*
@@ -190,39 +186,35 @@ int switch_dme_peer_get(struct tsb_switch *sw,
 static int switch_lut_set(struct tsb_switch *sw,
                           uint8_t addr,
                           uint8_t dst_portid) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->lut_set) {
+    if (!sw->ops->lut_set) {
         return -EOPNOTSUPP;
     }
-    return drv->lut_set(drv, addr, dst_portid);
+    return sw->ops->lut_set(sw, addr, dst_portid);
 }
 
 static int switch_lut_get(struct tsb_switch *sw,
                           uint8_t addr,
                           uint8_t *dst_portid) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->lut_get) {
+    if (!sw->ops->lut_get) {
         return -EOPNOTSUPP;
     }
-    return drv->lut_get(drv, addr, dst_portid);
+    return sw->ops->lut_get(sw, addr, dst_portid);
 }
 
 static int switch_dev_id_mask_get(struct tsb_switch *sw,
                                   uint8_t *dst) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->dev_id_mask_get) {
+    if (!sw->ops->dev_id_mask_get) {
         return -EOPNOTSUPP;
     }
-    return drv->dev_id_mask_get(drv, dst);
+    return sw->ops->dev_id_mask_get(sw, dst);
 }
 
 static int switch_dev_id_mask_set(struct tsb_switch *sw,
                                   uint8_t *mask) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->dev_id_mask_set) {
+    if (!sw->ops->dev_id_mask_set) {
         return -EOPNOTSUPP;
     }
-    return drv->dev_id_mask_set(drv, mask);
+    return sw->ops->dev_id_mask_set(sw, mask);
 }
 
 /*
@@ -231,21 +223,19 @@ static int switch_dev_id_mask_set(struct tsb_switch *sw,
 static int switch_internal_getattr(struct tsb_switch *sw,
                                    uint16_t attrid,
                                    uint32_t *val) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->switch_attr_get) {
+    if (!sw->ops->switch_attr_get) {
         return -EOPNOTSUPP;
     }
-    return drv->switch_attr_get(drv, attrid, val);
+    return sw->ops->switch_attr_get(sw, attrid, val);
 }
 
 static int switch_internal_setattr(struct tsb_switch *sw,
                                    uint16_t attrid,
                                    uint32_t val) {
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->switch_attr_set) {
+    if (!sw->ops->switch_attr_set) {
         return -EOPNOTSUPP;
     }
-    return drv->switch_attr_set(drv, attrid, val);
+    return sw->ops->switch_attr_set(sw, attrid, val);
 }
 
 static int switch_internal_set_id(struct tsb_switch *sw,
@@ -253,12 +243,10 @@ static int switch_internal_set_id(struct tsb_switch *sw,
                                   uint8_t peercportid,
                                   uint8_t dis,
                                   uint8_t irt) {
-
-    struct tsb_switch_driver *drv = sw->drv;
-    if (!drv->switch_id_set) {
+    if (!sw->ops->switch_id_set) {
         return -EOPNOTSUPP;
     }
-    return drv->switch_id_set(drv, cportid, peercportid, dis, irt);
+    return sw->ops->switch_id_set(sw, cportid, peercportid, dis, irt);
 }
 
 static int switch_cport_connect(struct tsb_switch *sw,
@@ -919,23 +907,22 @@ out:
 
 /**
  * @brief Initialize the switch and set default SVC<->Switch route
- * @param drv switch driver
+ * @param sw switch context
  * @param vreg_1p1 gpio for 1p1 regulator
  * @param vreg_1p8 gpio for 1p8 regulator
  * @param reset gpio for reset line
  * @param irq gpio for switch irq
  */
-struct tsb_switch *switch_init(struct tsb_switch_driver *drv,
+struct tsb_switch *switch_init(struct tsb_switch *sw,
                                unsigned int vreg_1p1,
                                unsigned int vreg_1p8,
                                unsigned int reset,
                                unsigned int irq) {
-    struct tsb_switch *sw = NULL;
     unsigned int attr_value, link_status;
     int rc;
 
     dbg_verbose("%s: Initializing switch\n", __func__);
-    if (!drv) {
+    if (!sw) {
         goto error;
     }
 
@@ -943,13 +930,6 @@ struct tsb_switch *switch_init(struct tsb_switch_driver *drv,
         goto error;
     }
 
-    sw = malloc(sizeof(struct tsb_switch));
-    if (!sw) {
-        goto error;
-    }
-    memset(sw, 0, sizeof *sw);
-
-    sw->drv = drv;
     sw->vreg_1p1 = vreg_1p1;
     sw->vreg_1p8 = vreg_1p8;
     sw->reset = reset;
@@ -1015,5 +995,4 @@ void switch_exit(struct tsb_switch *sw) {
     dbg_verbose("%s: Disabling switch\n", __func__);
     dev_ids_destroy(sw);
     switch_power_off(sw);
-    free(sw);
 }

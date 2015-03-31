@@ -28,6 +28,7 @@
 
 /**
  * @author: Perry Hung
+ * @author: Jean Pihet
  */
 
 #ifndef  _TSB_SWITCH_H_
@@ -123,56 +124,61 @@ struct tsb_link_cfg {
     struct tsb_local_l2_timer_cfg tsb_l2tim_cfg;
 };
 
-struct tsb_switch_driver {
-    void *priv;
+/**
+ * Switch structs
+ */
+struct tsb_switch;
 
-    int (*init_comm)(struct tsb_switch_driver*);
-    int (*set)(struct tsb_switch_driver*,
+struct tsb_switch_ops {
+    int (*init_comm)(struct tsb_switch *);
+
+    int (*set)(struct tsb_switch *,
                uint8_t portid,
                uint16_t attrid,
                uint16_t select_index,
                uint32_t attr_value);
-    int (*get)(struct tsb_switch_driver*,
+    int (*get)(struct tsb_switch *,
                uint8_t portid,
                uint16_t attrid,
                uint16_t select_index,
                uint32_t *attr_value);
-    int (*peer_set)(struct tsb_switch_driver*,
+    int (*peer_set)(struct tsb_switch *,
                     uint8_t portid,
                     uint16_t attrid,
                     uint16_t select_index,
                     uint32_t attr_value);
-    int (*peer_get)(struct tsb_switch_driver*,
+    int (*peer_get)(struct tsb_switch *,
                     uint8_t portid,
                     uint16_t attrid,
                     uint16_t select_index,
                     uint32_t *attr_value);
 
-    int (*lut_set)(struct tsb_switch_driver*,
+    int (*lut_set)(struct tsb_switch *,
                    uint8_t addr,
                    uint8_t dst_portid);
-    int (*lut_get)(struct tsb_switch_driver*,
+    int (*lut_get)(struct tsb_switch *,
                    uint8_t addr,
                    uint8_t *dst_portid);
-    int (*switch_attr_get)(struct tsb_switch_driver*,
+    int (*switch_attr_get)(struct tsb_switch *,
                            uint16_t attrid,
                            uint32_t *val);
-    int (*switch_attr_set)(struct tsb_switch_driver *drv,
+    int (*switch_attr_set)(struct tsb_switch *,
                            uint16_t attrid,
                            uint32_t val);
-    int (*switch_id_set)(struct tsb_switch_driver*,
+    int (*switch_id_set)(struct tsb_switch *,
                          uint8_t cportid,
                          uint8_t peer_cportid,
                          uint8_t dis,
                          uint8_t irt);
-    int (*dev_id_mask_get)(struct tsb_switch_driver*,
+    int (*dev_id_mask_get)(struct tsb_switch *,
                            uint8_t *dst);
-    int (*dev_id_mask_set)(struct tsb_switch_driver* drv,
+    int (*dev_id_mask_set)(struct tsb_switch *,
                            uint8_t *mask);
 };
 
 struct tsb_switch {
-    struct tsb_switch_driver *drv;
+    void *priv;
+    struct tsb_switch_ops *ops;
     unsigned int vreg_1p1;
     unsigned int vreg_1p8;
     unsigned int irq;
@@ -276,9 +282,9 @@ static inline int switch_configure_link_pwm(struct tsb_switch *sw,
     return switch_configure_link(sw, port_id, &lcfg, NULL);
 }
 
-void switch_dump_routing_table(struct tsb_switch*);
+void switch_dump_routing_table(struct tsb_switch *);
 
-struct tsb_switch *switch_init(struct tsb_switch_driver*,
+struct tsb_switch *switch_init(struct tsb_switch *,
                                unsigned int vreg_1p1,
                                unsigned int vreg_1p8,
                                unsigned int reset,

@@ -158,8 +158,7 @@ static struct ara_board_info bdb1b_board_info = {
     .svc_irq = (GPIO_PORTA | GPIO_PIN0),
 };
 
-struct ara_board_info *board_init(void) {
-    struct tsb_switch_driver *sw_drv;
+struct ara_board_info *board_init(struct tsb_switch *sw) {
 
     /* Pretty lights */
     stm32_configgpio(SVC_LED_RED);
@@ -171,15 +170,13 @@ struct ara_board_info *board_init(void) {
     stm32_gpiowrite(IO_RESET, false);
     stm32_gpiowrite(IO_RESET1, false);
 
-    sw_drv = tsb_switch_es1_init(SWITCH_I2C_BUS);
-    if (!sw_drv) {
+    if (tsb_switch_es1_init(sw, SWITCH_I2C_BUS)) {
         return NULL;
     }
-    bdb1b_board_info.sw_drv = sw_drv;
 
     return &bdb1b_board_info;
 }
 
-void board_exit(void) {
-    tsb_switch_es1_exit();
+void board_exit(struct tsb_switch *sw) {
+    tsb_switch_es1_exit(sw);
 }
