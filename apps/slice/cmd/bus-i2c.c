@@ -55,12 +55,6 @@ struct slice_bus_i2c_data
     bool reg_write;
 };
 
-struct slice_unipro_msg {
-    __u8    slice_cport;
-    __u8    ap_cport;
-    __u8    data[0];
-};
-
 static struct slice_bus_i2c_data bus_i2c_data;
 
 /* called when master is writing to slave */
@@ -161,7 +155,6 @@ static int bus_i2c_write_cb(void *v)
 static int bus_i2c_stop_cb(void *v)
 {
   struct slice_bus_i2c_data *slf = (struct slice_bus_i2c_data *)v;
-  struct slice_unipro_msg *umsg;
 
   if (slf->reg_write)
     {
@@ -171,9 +164,7 @@ static int bus_i2c_stop_cb(void *v)
             svc_handle(slf->bus->reg_svc_rx, slf->reg_idx);
             break;
           case SLICE_REG_UNIPRO:
-            umsg = (struct slice_unipro_msg *) slf->bus->reg_unipro_rx;
-            slf->bus->reg_unipro_rx_cport = umsg->ap_cport;
-            greybus_rx_handler(umsg->slice_cport, umsg->data, slf->reg_idx - 2);
+            bus_greybus_from_base(slf->bus, slf->reg_idx);
             break;
         }
     }

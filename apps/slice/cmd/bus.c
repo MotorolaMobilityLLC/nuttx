@@ -58,6 +58,15 @@ void bus_interrupt(struct slice_bus_data *slf, uint8_t int_mask, bool assert)
   slice_host_int_set(slf->reg_int > 0);
 }
 
+void bus_greybus_from_base(struct slice_bus_data *slf, size_t len)
+{
+  struct slice_unipro_msg *umsg;
+
+  umsg = (struct slice_unipro_msg *) slf->reg_unipro_rx;
+  slf->reg_unipro_rx_cport = umsg->ap_cport;
+  greybus_rx_handler(umsg->slice_cport, umsg->data, len - 2);
+}
+
 int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
 {
   struct cport_msg *cmsg;

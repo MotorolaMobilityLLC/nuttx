@@ -63,6 +63,13 @@ struct slice_bus_data
     uint8_t reg_unipro_rx_cport;
 };
 
+struct slice_unipro_msg
+{
+    __u8    slice_cport;
+    __u8    ap_cport;
+    __u8    data[0];
+};
+
 /* Initialize the bus to the host/base/core. */
 int bus_init(void);
 
@@ -71,6 +78,9 @@ int bus_svc_to_base(void *buf, size_t length);
 
 /* Send a Greybus message across the bus to the base */
 int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len);
+
+/* Base has sent a Greybus message */
+void bus_greybus_from_base(struct slice_bus_data *slf, size_t len);
 
 /* Assert an interrupt to the base */
 void bus_interrupt(struct slice_bus_data *slf, uint8_t int_mask, bool assert);
