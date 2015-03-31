@@ -237,7 +237,6 @@ static int es2_set(struct tsb_switch *sw,
                    uint16_t select_index,
                    uint32_t val)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -259,27 +258,28 @@ static int es2_set(struct tsb_switch *sw,
         uint8_t function_id;
         uint8_t reserved;
         uint8_t rc;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d, val=0x%04x\n",
                 __func__, port_id, attrid, select_index, val);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): portId=%u, attrId=0x%04x failed: rc=%d\n",
                   __func__, port_id, attrid, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_SETCNF) {
+    if (cnf.function_id != NCP_SETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
     dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf->function_id, cnf->rc, attrid, val);
+                cnf.function_id, cnf.rc, attrid, val);
 
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_get(struct tsb_switch *sw,
@@ -288,7 +288,6 @@ static int es2_get(struct tsb_switch *sw,
                    uint16_t select_index,
                    uint32_t *val)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -307,27 +306,28 @@ static int es2_get(struct tsb_switch *sw,
         uint8_t reserved;
         uint8_t rc;
         uint32_t attr_val;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d\n",
                 __func__, port_id, attrid, select_index);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_GETCNF) {
+    if (cnf.function_id != NCP_GETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
-    *val = be32_to_cpu(cnf->attr_val);
+    *val = be32_to_cpu(cnf.attr_val);
     dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf->function_id, cnf->rc, attrid, *val);
+                cnf.function_id, cnf.rc, attrid, *val);
 
-    return cnf->rc;
+    return cnf.rc;
 }
 
 
@@ -337,7 +337,6 @@ static int es2_peer_set(struct tsb_switch *sw,
                         uint16_t select_index,
                         uint32_t val)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -359,26 +358,27 @@ static int es2_peer_set(struct tsb_switch *sw,
         uint8_t function_id;
         uint8_t reserved;
         uint8_t rc;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d, val=0x%04x\n",
                 __func__, port_id, attrid, select_index, val);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *)  &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): portId=%u, attrId=0x%04x failed: rc=%d\n",
                   __func__, port_id, attrid, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_PEERSETCNF) {
+    if (cnf.function_id != NCP_PEERSETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
    }
     dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf->function_id, cnf->rc, attrid, val);
+                cnf.function_id, cnf.rc, attrid, val);
 
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_peer_get(struct tsb_switch *sw,
@@ -387,7 +387,6 @@ static int es2_peer_get(struct tsb_switch *sw,
                         uint16_t select_index,
                         uint32_t *val)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -406,34 +405,34 @@ static int es2_peer_get(struct tsb_switch *sw,
         uint8_t reserved;
         uint8_t rc;
         uint32_t attr_val;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d\n",
                  __func__, port_id, attrid, select_index);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_PEERGETCNF) {
+    if (cnf.function_id != NCP_PEERGETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
-    *val = be32_to_cpu(cnf->attr_val);
+    *val = be32_to_cpu(cnf.attr_val);
     dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf->function_id, cnf->rc, attrid, *val);
+                cnf.function_id, cnf.rc, attrid, *val);
 
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_lut_set(struct tsb_switch *sw,
                        uint8_t lut_address,
                        uint8_t dest_portid)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -449,35 +448,35 @@ static int es2_lut_set(struct tsb_switch *sw,
         uint8_t function_id;
         uint8_t portid;
         uint8_t reserved;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s(): lutAddress=%d, destPortId=%d\n", __func__, lut_address,
                 dest_portid);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): destPortId=%d failed: rc=%d\n", __func__,
                   dest_portid, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_LUTSETCNF) {
+    if (cnf.function_id != NCP_LUTSETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
     dbg_verbose("fid=%02x, rc=%u, portID=%u\n",
-                cnf->function_id, cnf->rc, cnf->portid);
+                cnf.function_id, cnf.rc, cnf.portid);
 
     /* Return resultCode */
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_lut_get(struct tsb_switch *sw,
                        uint8_t lut_address,
                        uint8_t *dest_portid)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -493,36 +492,36 @@ static int es2_lut_get(struct tsb_switch *sw,
         uint8_t function_id;
         uint8_t portid;
         uint8_t dest_portid;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s(): lutAddress=%d, destPortId=%d\n", __func__, lut_address,
                 *dest_portid);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): destPortId=%d failed: rc=%d\n", __func__,
                  dest_portid, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_LUTGETCNF) {
+    if (cnf.function_id != NCP_LUTGETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
-    *dest_portid = cnf->dest_portid;
+    *dest_portid = cnf.dest_portid;
 
     dbg_verbose("%s(): fid=%02x, rc=%u, portID=%u\n", __func__,
-                cnf->function_id, cnf->rc, cnf->dest_portid);
+                cnf.function_id, cnf.rc, cnf.dest_portid);
 
     /* Return resultCode */
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_dev_id_mask_set(struct tsb_switch *sw,
                                uint8_t *mask)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     struct __attribute__ ((__packed__)) req {
@@ -541,35 +540,34 @@ static int es2_dev_id_mask_set(struct tsb_switch *sw,
         uint8_t function_id;
         uint8_t portid;
         uint8_t reserved;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s()\n", __func__);
 
     memcpy(req.mask, mask, sizeof(req.mask));
 
     rc = es2_transfer(sw, (uint8_t *) &req, sizeof(req),
-                      priv->rxbuf, sizeof(struct cnf));
+                      (uint8_t *) &cnf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s()failed: rc=%d\n", __func__, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_SETDEVICEIDMASKCNF) {
+    if (cnf.function_id != NCP_SETDEVICEIDMASKCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
     dbg_verbose("%s(): fid=%02x, rc=%u\n", __func__,
-                cnf->function_id, cnf->rc);
+                cnf.function_id, cnf.rc);
 
     /* Return resultCode */
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_dev_id_mask_get(struct tsb_switch *sw,
                                uint8_t *dst)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -584,35 +582,35 @@ static int es2_dev_id_mask_get(struct tsb_switch *sw,
         uint8_t portid;
         uint8_t reserved;
         uint8_t mask[16];
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s()\n", __func__);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s()failed: rc=%d\n", __func__, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_GETDEVICEIDMASKCNF) {
+    if (cnf.function_id != NCP_GETDEVICEIDMASKCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
-    memcpy(dst, &cnf->mask, sizeof(cnf->mask));
+    memcpy(dst, &cnf.mask, sizeof(cnf.mask));
 
     dbg_verbose("%s(): fid=%02x, rc=%u\n", __func__,
-                cnf->function_id, cnf->rc);
+                cnf.function_id, cnf.rc);
 
     /* Return resultCode */
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_switch_attr_set(struct tsb_switch *sw,
                                uint16_t attrid,
                                uint32_t val)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -630,32 +628,32 @@ static int es2_switch_attr_set(struct tsb_switch *sw,
     struct __attribute__ ((__packed__)) cnf {
         uint8_t rc;
         uint8_t function_id;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s(): attrId=0x%04x\n", __func__, attrid);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_SWITCHATTRSETCNF) {
+    if (cnf.function_id != NCP_SWITCHATTRSETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
     dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf->function_id, cnf->rc, attrid, val);
+                cnf.function_id, cnf.rc, attrid, val);
 
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_switch_attr_get(struct tsb_switch *sw,
                                uint16_t attrid,
                                uint32_t *val)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -670,26 +668,27 @@ static int es2_switch_attr_get(struct tsb_switch *sw,
         uint8_t rc;
         uint8_t function_id;
         uint32_t attr_val;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s(): attrId=0x%04x\n", __func__, attrid);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_SWITCHATTRGETCNF) {
+    if (cnf.function_id != NCP_SWITCHATTRGETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
-    *val = be32_to_cpu(cnf->attr_val);
+    *val = be32_to_cpu(cnf.attr_val);
     dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf->function_id, cnf->rc, attrid, *val);
+                cnf.function_id, cnf.rc, attrid, *val);
 
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static int es2_switch_id_set(struct tsb_switch *sw,
@@ -698,7 +697,6 @@ static int es2_switch_id_set(struct tsb_switch *sw,
                              uint8_t dis,
                              uint8_t irt)
 {
-    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
     uint8_t req[] = {
@@ -716,7 +714,7 @@ static int es2_switch_id_set(struct tsb_switch *sw,
     struct __attribute__ ((__packed__)) cnf {
         uint8_t rc;
         uint8_t function_id;
-    } *cnf = (struct cnf *) priv->rxbuf;
+    } cnf;
 
     dbg_verbose("%s: cportid: %u peer_cportid: %u dis: %u irt: %u\n",
                 __func__,
@@ -725,25 +723,26 @@ static int es2_switch_id_set(struct tsb_switch *sw,
                 dis,
                 irt);
 
-    rc = es2_transfer(sw, req, sizeof(req), priv->rxbuf, sizeof(struct cnf));
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                      sizeof(struct cnf));
     if (rc) {
         dbg_error("%s() failed: rc=%d\n", __func__, rc);
         return rc;
     }
 
-    if (cnf->function_id != NCP_SWITCHIDSETCNF) {
+    if (cnf.function_id != NCP_SWITCHIDSETCNF) {
         dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf->rc;
+        return cnf.rc;
     }
 
     dbg_verbose("%s(): ret=0x%02x, switchDeviceId=0x%01x, cPortId=0x%01x -> peerCPortId=0x%01x\n",
                 __func__,
-                cnf->rc,
+                cnf.rc,
                 SWITCH_DEVICE_ID,
                 cportid,
                 peer_cportid);
 
-    return cnf->rc;
+    return cnf.rc;
 }
 
 static struct tsb_switch_ops es2_ops = {
