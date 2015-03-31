@@ -60,19 +60,44 @@ void bus_interrupt(struct slice_bus_data *slf, uint8_t int_mask, bool assert)
 
 void bus_greybus_from_base(struct slice_bus_data *slf, size_t len)
 {
-  struct slice_unipro_msg *umsg;
+  struct slice_unipro_msg_rx *umsg;
+  int i;
+  uint8_t checksum;
 
-  umsg = (struct slice_unipro_msg *) slf->reg_unipro_rx;
+  umsg = (struct slice_unipro_msg_rx *) slf->reg_unipro_rx;
+
+  /*
+   * Check the checksum if the checksum is non-zero. A zero checksum signals
+   * the base does not request a checksum check (useful for debugging when
+   * sending raw messages manually).
+   */
+  if (umsg->checksum != 0)
+    {
+      for (i = 0, checksum = 0; i < len; ++i)
+        {
+          checksum += slf->reg_unipro_rx[i];
+        }
+
+      if (checksum)
+        {
+          logd("Checksum error! Ignoring message.\n");
+          gb_dump(slf->reg_unipro_rx, len);
+          return;
+        }
+    }
+
   slf->reg_unipro_rx_cport = umsg->ap_cport;
-  greybus_rx_handler(umsg->slice_cport, umsg->data, len - 2);
+  greybus_rx_handler(umsg->slice_cport, umsg->data, len - 3);
 }
 
 int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
 {
-  struct cport_msg *cmsg;
+  struct slice_unipro_msg_tx *umsg;
+  size_t total_len = len + sizeof(struct slice_unipro_msg_tx);
+  int i;
 
-  logd("slice_cport=%d, ap_cport=%d, len=%d\n",
-       cportid, bus_data.reg_unipro_rx_cport, len);
+  logd("slice_cport=%d, ap_cport=%d, len=%d, total_len=%d\n",
+       cportid, bus_data.reg_unipro_rx_cport, len, total_len);
 
   if (bus_data.reg_unipro_tx)
     {
@@ -81,17 +106,25 @@ int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
       return -ENOMEM;
     }
 
-  cmsg = malloc(len + 1);
-  if (!cmsg)
+  umsg = malloc(total_len);
+  if (!umsg)
       return -ENOMEM;
 
-  cmsg->cport = bus_data.reg_unipro_rx_cport;
-  memcpy(cmsg->data, buf, len);
+  umsg->ap_cport = bus_data.reg_unipro_rx_cport;
+  memcpy(umsg->data, buf, len);
 
-  gb_dump(cmsg->data, len);
+  // Calculate the checksum
+  umsg->checksum = umsg->ap_cport;
+  for (i = 0; i < len; ++i)
+    {
+      umsg->checksum += umsg->data[i];
+    }
+  umsg->checksum = ~umsg->checksum + 1;
 
-  bus_data.reg_unipro_tx_size = len + 1;
-  bus_data.reg_unipro_tx = (uint8_t *)cmsg;
+  gb_dump(umsg->data, len);
+
+  bus_data.reg_unipro_tx_size = total_len;
+  bus_data.reg_unipro_tx = (uint8_t *)umsg;
   bus_interrupt(&bus_data, SLICE_REG_INT_UNIPRO, true);
 
   return 0;

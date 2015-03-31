@@ -63,9 +63,17 @@ struct slice_bus_data
     uint8_t reg_unipro_rx_cport;
 };
 
-struct slice_unipro_msg
+struct slice_unipro_msg_rx
 {
+    __u8    checksum;
     __u8    slice_cport;
+    __u8    ap_cport;
+    __u8    data[0];
+};
+
+struct slice_unipro_msg_tx
+{
+    __u8    checksum;
     __u8    ap_cport;
     __u8    data[0];
 };
