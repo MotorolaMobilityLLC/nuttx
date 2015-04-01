@@ -38,6 +38,16 @@
 
 struct battery_dev_s *bdev;
 
+static uint8_t to_gb_error(int ret)
+{
+    switch (ret) {
+        case -EAGAIN:
+            return GB_OP_RETRY;
+        default:
+            return GB_OP_UNKNOWN_ERROR;
+    }
+}
+
 uint8_t gb_battery_driver_technology(__le32 *technology)
 {
     // The MAX17050 is for lithium-ion batteries only
@@ -52,7 +62,7 @@ uint8_t gb_battery_driver_status(__le16 *status)
 
     ret = bdev->ops->state(bdev, &value);
     if (ret < 0)
-        return GB_OP_UNKNOWN_ERROR;
+        return to_gb_error(ret);
 
     // Convert to Greybus values
     switch (value) {
@@ -84,7 +94,7 @@ uint8_t gb_battery_driver_max_voltage(__le32 *max_voltage)
 
     ret = bdev->ops->max_voltage(bdev, &value);
     if (ret < 0)
-        return GB_OP_UNKNOWN_ERROR;
+        return to_gb_error(ret);
 
     *max_voltage = value;
     return GB_OP_SUCCESS;
@@ -97,7 +107,7 @@ uint8_t gb_battery_driver_percent_capacity(__le32 *capacity)
 
     ret = bdev->ops->capacity(bdev, &value);
     if (ret < 0)
-        return GB_OP_UNKNOWN_ERROR;
+        return to_gb_error(ret);
 
     *capacity = value;
     return GB_OP_SUCCESS;
@@ -110,7 +120,7 @@ uint8_t gb_battery_driver_temperature(__le32 *temperature)
 
     ret = bdev->ops->temperature(bdev, &value);
     if (ret < 0)
-        return GB_OP_UNKNOWN_ERROR;
+        return to_gb_error(ret);
 
     *temperature = value;
     return GB_OP_SUCCESS;
@@ -123,7 +133,7 @@ uint8_t gb_battery_driver_voltage(__le32 *voltage)
 
     ret = bdev->ops->voltage(bdev, &value);
     if (ret < 0)
-        return GB_OP_UNKNOWN_ERROR;
+        return to_gb_error(ret);
 
     *voltage = value;
     return GB_OP_SUCCESS;
@@ -136,7 +146,7 @@ uint8_t gb_battery_driver_current(__le32 *current)
 
     ret = bdev->ops->current(bdev, &value);
     if (ret < 0)
-        return GB_OP_UNKNOWN_ERROR;
+        return to_gb_error(ret);
 
     *current = value;
     return GB_OP_SUCCESS;
@@ -149,7 +159,7 @@ uint8_t gb_battery_driver_capacity(__le32 *capacity)
 
     ret = bdev->ops->full_capacity(bdev, &value);
     if (ret < 0)
-        return GB_OP_UNKNOWN_ERROR;
+        return to_gb_error(ret);
 
     *capacity = value;
     return GB_OP_SUCCESS;

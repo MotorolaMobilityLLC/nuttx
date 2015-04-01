@@ -27,20 +27,21 @@
  */
 
 #include <nuttx/config.h>
+#include <nuttx/i2c.h>
+#include <nuttx/kmalloc.h>
+#include <nuttx/power/battery.h>
 
 #include <sys/types.h>
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <errno.h>
 #include <debug.h>
-
-#include <nuttx/kmalloc.h>
-#include <nuttx/i2c.h>
-#include <nuttx/power/battery.h>
+#include <errno.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #define MAX17050_I2C_ADDR         0x36
 
+#define MAX17050_REG_STATUS       0x00
 #define MAX17050_REG_REP_SOC      0x06
 #define MAX17050_REG_TEMP         0x08
 #define MAX17050_REG_VCELL        0x09
@@ -50,6 +51,9 @@
 #define MAX17050_REG_DEV_NAME     0x21
 
 #define MAX17050_IC_VERSION     0x00AC
+
+#define MAX17050_STATUS_POR   (1 << 1)  /* Power-On Reset */
+#define MAX17050_STATUS_BST   (1 << 3)  /* Battery Status */
 
 #define MAX17050_SNS_RESISTOR    10000
 
@@ -63,6 +67,7 @@ struct max17050_dev_s
     /* Data fields specific to the lower half MAX17050 driver follow */
 
     FAR struct i2c_dev_s *i2c;
+    bool initialized;
 };
 
 static int max17050_reg_read(FAR struct max17050_dev_s *priv, uint16_t reg)
@@ -75,9 +80,48 @@ static int max17050_reg_read(FAR struct max17050_dev_s *priv, uint16_t reg)
     return ret ? ret : reg_val;
 }
 
+static int max17050_reg_write(FAR struct max17050_dev_s *priv, uint16_t reg, uint16_t val)
+{
+    uint16_t buf[2];
+
+    buf[0] = reg;
+    buf[1] = val;
+
+    return I2C_WRITE(priv->i2c, (uint8_t *)buf, 4);
+}
+
+static int max17050_reg_modify(FAR struct max17050_dev_s *priv, uint16_t reg,
+                               uint16_t mask, uint16_t set)
+{
+    int ret;
+    uint16_t new_value;
+
+    ret = max17050_reg_read(priv, reg);
+    if (ret < 0)
+        return ret;
+
+    new_value = ret & ~mask;
+    new_value |= set & mask;
+
+    return max17050_reg_write(priv, reg, new_value);
+}
+
 static int max17050_online(struct battery_dev_s *dev, bool *status)
 {
-    *status = true;
+    FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
+    int ret;
+
+    if (!priv->initialized)
+        return -EAGAIN;
+
+    ret = max17050_reg_read(priv, MAX17050_REG_STATUS);
+    if (ret < 0)
+        return ret;
+
+    // BST is 0 when battery is present and 1 when battery is removed
+    *status = (ret & MAX17050_STATUS_BST) != MAX17050_STATUS_BST;
+
+    dbg("%d\n", *status);
     return OK;
 }
 
@@ -86,13 +130,16 @@ static int max17050_voltage(struct battery_dev_s *dev, b16_t *voltage)
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
     int ret;
 
+    if (!priv->initialized)
+        return -EAGAIN;
+
     ret = max17050_reg_read(priv, MAX17050_REG_VCELL);
     if (ret < 0)
         return ret;
 
     *voltage = ret * 625 / 8;
 
-    lowsyslog("%s: %d mV\n", __func__, *voltage);
+    dbg("%d mV\n", *voltage);
     return OK;
 }
 
@@ -101,13 +148,16 @@ static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
     int ret;
 
+    if (!priv->initialized)
+        return -EAGAIN;
+
     ret = max17050_reg_read(priv, MAX17050_REG_REP_SOC);
     if (ret < 0)
         return ret;
 
     *capacity = ret >> 8;
 
-    lowsyslog("%s: %d percent\n", __func__, *capacity);
+    dbg("%d percent\n", *capacity);
     return OK;
 }
 
@@ -116,6 +166,9 @@ static int max17050_max_voltage(struct battery_dev_s *dev, b16_t *max_voltage)
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
     int ret;
 
+    if (!priv->initialized)
+        return -EAGAIN;
+
     ret = max17050_reg_read(priv, MAX17050_REG_MAX_VOLT);
     if (ret < 0)
         return ret;
@@ -123,7 +176,7 @@ static int max17050_max_voltage(struct battery_dev_s *dev, b16_t *max_voltage)
     *max_voltage = ret >> 8;
     *max_voltage *= 20000; /* Units of LSB = 20mV */
 
-    lowsyslog("%s: %d mV\n", __func__, *max_voltage);
+    dbg("%d mV\n", *max_voltage);
     return OK;
 }
 
@@ -131,6 +184,9 @@ static int max17050_temperature(struct battery_dev_s *dev, b16_t *temperature)
 {
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
     int ret;
+
+    if (!priv->initialized)
+        return -EAGAIN;
 
     ret = max17050_reg_read(priv, MAX17050_REG_TEMP);
     if (ret < 0)
@@ -147,7 +203,7 @@ static int max17050_temperature(struct battery_dev_s *dev, b16_t *temperature)
     /* Units of LSB = 1 / 256 degree Celsius */
     *temperature = *temperature * 10 / 256;
 
-    lowsyslog("%s: %d\n", __func__, *temperature);
+    dbg("%d\n", *temperature);
     return OK;
 }
 
@@ -155,6 +211,9 @@ static int max17050_current(struct battery_dev_s *dev, b16_t *current)
 {
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
     int ret;
+
+    if (!priv->initialized)
+        return -EAGAIN;
 
     ret = max17050_reg_read(priv, MAX17050_REG_CURRENT);
     if (ret < 0)
@@ -169,7 +228,7 @@ static int max17050_current(struct battery_dev_s *dev, b16_t *current)
     }
     *current *= 1562500 / MAX17050_SNS_RESISTOR;
 
-    lowsyslog("%s: %d uA\n", __func__, *current);
+    dbg("%d uA\n", *current);
     return OK;
 }
 
@@ -178,20 +237,27 @@ static int max17050_full_capacity(struct battery_dev_s *dev, b16_t *capacity)
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
     int ret;
 
+    if (!priv->initialized)
+        return -EAGAIN;
+
     ret = max17050_reg_read(priv, MAX17050_REG_FULL_CAP);
     if (ret < 0)
         return ret;
 
     *capacity = ret * 1000 / 2;
 
-    lowsyslog("%s: %d mAh\n", __func__, *capacity);
+    dbg("%d mAh\n", *capacity);
     return OK;
 }
 
 static int max17050_state(struct battery_dev_s *dev, int *status)
 {
+    FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
     int ret;
     b16_t value;
+
+    if (!priv->initialized)
+        return -EAGAIN;
 
     ret = max17050_capacity(dev, &value);
     if (ret < 0) {
@@ -215,7 +281,7 @@ static int max17050_state(struct battery_dev_s *dev, int *status)
     // Positive current means the battery is charging
     *status = (value > 0) ? BATTERY_CHARGING : BATTERY_DISCHARGING;
 
-    lowsyslog("%s: %d\n", __func__, *status);
+    dbg("%d\n", *status);
     return OK;
 }
 
@@ -231,11 +297,31 @@ static const struct battery_operations_s max17050_ops =
     .full_capacity = max17050_full_capacity,
 };
 
+static void *max17050_por(void *v)
+{
+    FAR struct max17050_dev_s *priv = (struct max17050_dev_s *)v;
+
+    // As per spec, wait 600ms for POR operation to fully complete.
+    usleep(600000);
+
+    // TODO: restore all register values
+
+    // POR bit must be cleared to detect next POR event
+    max17050_reg_modify(priv, MAX17050_REG_STATUS, MAX17050_STATUS_POR, 0);
+
+    // Ready for battery operations
+    priv->initialized = true;
+
+    dbg("Power-On Reset complete\n");
+    return NULL;
+}
+
 FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
                                               uint32_t frequency)
 {
     FAR struct max17050_dev_s *priv;
     int ret;
+    pthread_t por_thread;
 
     priv = (FAR struct max17050_dev_s *)kmm_zalloc(sizeof(*priv));
     if (priv) {
@@ -256,7 +342,17 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
         if (ret != MAX17050_IC_VERSION)
             goto err;
 
-        // TODO: Initialize IC registers as needed
+        ret = max17050_reg_read(priv, MAX17050_REG_STATUS);
+        if (ret < 0)
+            goto err;
+
+        // Check for Power-On Reset, which indicates the device should be
+        // reconfigured.
+        if (ret & MAX17050_STATUS_POR) {
+            pthread_create(&por_thread, NULL, max17050_por, priv);
+            pthread_detach(por_thread);
+        } else
+            priv->initialized = true;
     }
 
     return (FAR struct battery_dev_s *)priv;
