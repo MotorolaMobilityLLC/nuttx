@@ -44,6 +44,7 @@
 
 #include "bus.h"
 #include "cmd_main.h"
+#include "wdog.h"
 
 /*
  * Module ID of the slice. This is required for the Greybus SVC message to the
@@ -132,6 +133,7 @@ struct gb_transport_backend slice_cmd_greybus_backend = {
 
 int slice_cmd_main(int argc, char *argv[])
 {
+  wdog_init();
   bus_init();
   svc_register(bus_svc_to_base);
   gb_init(&slice_cmd_greybus_backend);
