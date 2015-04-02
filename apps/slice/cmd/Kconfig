@@ -26,4 +26,12 @@ config SLICE_CMD_I2C_SLAVE_ADDR
 	---help---
 		I2C slave 7-bit device address (default: 0x55)
 
+config SLICE_CMD_I2C_SEC_SLAVE_ADDR
+	hex "I2C Secondary Slave Address"
+	depends on SLICE_CMD
+	depends on I2C_SLAVE_SECONDARY
+	default 0x39
+	---help---
+		I2C secondary slave 7-bit device address (default: 0x39)
+
 endif

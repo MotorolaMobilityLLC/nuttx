@@ -34,8 +34,7 @@
 #define SLICE_REG_INT             0     /* Interrupt register        */
 #define SLICE_REG_SVC             1     /* SVC message register      */
 #define SLICE_REG_UNIPRO          2     /* Unipro message register   */
-#define SLICE_REG_VERSION         3     /* Firmware version register */
-#define SLICE_REG__NUM            4     /* Add new registers above   */
+#define SLICE_REG__NUM            3     /* Add new registers above   */
 
 #define SLICE_REG_INT_SVC      0x01
 #define SLICE_REG_INT_UNIPRO   0x02

@@ -81,8 +81,7 @@ static int bus_i2c_read_cb(void *v)
           }
         break;
       case SLICE_REG_INT:
-      case SLICE_REG_VERSION:
-        // Writes to these registers are not allowed
+        // Writes to this register not allowed
         break;
       case SLICE_REG_SVC:
         if (slf->reg_idx < SLICE_REG_SVC_RX_SZ)
@@ -142,10 +141,6 @@ static int bus_i2c_write_cb(void *v)
           slf->bus->reg_unipro_tx = NULL;
         }
     }
-  else if (slf->reg == SLICE_REG_VERSION)
-    {
-      val = FIRMWARE_VERSION_NUM;
-    }
 
   I2C_SLAVE_WRITE(slf->i2c, &val, sizeof(val));
   return 0;
@@ -183,6 +178,38 @@ static struct i2c_cb_ops_s cb_ops =
   .stop = bus_i2c_stop_cb,
 };
 
+#ifdef CONFIG_I2C_SLAVE_SECONDARY
+/* called when master is writing to slave */
+static int bus_i2c_read_cb2(void *v)
+{
+  struct slice_bus_i2c_data *slf = (struct slice_bus_i2c_data *)v;
+  uint8_t val;
+
+  // Read to keep HW happy, but don't actually care what Master writes.
+  I2C_SLAVE_READ(slf->i2c, &val, sizeof(val));
+  return 0;
+}
+
+/* called when master is reading from slave */
+static int bus_i2c_write_cb2(void *v)
+{
+  struct slice_bus_i2c_data *slf = (struct slice_bus_i2c_data *)v;
+
+  // Always return the firmware version
+  uint8_t val = FIRMWARE_VERSION_NUM;
+  I2C_SLAVE_WRITE(slf->i2c, &val, sizeof(val));
+
+  return 0;
+}
+
+static struct i2c_cb_ops_s cb2_ops =
+{
+  .read = bus_i2c_read_cb2,
+  .write = bus_i2c_write_cb2,
+  // stop callback not needed
+};
+#endif
+
 int bus_i2c_init(struct slice_bus_data *bus)
 {
   FAR struct i2c_dev_s *dev1;
@@ -196,12 +223,24 @@ int bus_i2c_init(struct slice_bus_data *bus)
   if (I2C_SETOWNADDRESS(dev1, CONFIG_SLICE_CMD_I2C_SLAVE_ADDR, 7) == OK)
     {
       I2C_REGISTERCALLBACK(dev1, &cb_ops, &bus_i2c_data);
-      logd("I2C slave setup complete!\n");
+      logd("I2C primary slave setup complete!\n");
     }
   else
     {
-      logd("I2C slave setup failed!\n");
+      logd("I2C primary slave setup failed!\n");
     }
+
+#ifdef CONFIG_I2C_SLAVE_SECONDARY
+  if (I2C_SETOWNADDRESS2(dev1, CONFIG_SLICE_CMD_I2C_SEC_SLAVE_ADDR, 7) == OK)
+    {
+      I2C_REGISTERCALLBACK2(dev1, &cb2_ops, &bus_i2c_data);
+      logd("I2C secondary slave setup complete!\n");
+    }
+  else
+    {
+      logd("I2C secondary slave setup failed!\n");
+    }
+#endif
 
   return 0;
 }
