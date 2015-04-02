@@ -172,5 +172,6 @@ void tsb_clk_dump(void);
 void tsb_reset(uint32_t rst);
 void tsb_set_pinshare(uint32_t pin);
 void tsb_clr_pinshare(uint32_t pin);
+uint32_t tsb_get_pinshare(void);
 
 #endif /* __ARCH_ARM_SRC_TSB_TSB_SCM_H */

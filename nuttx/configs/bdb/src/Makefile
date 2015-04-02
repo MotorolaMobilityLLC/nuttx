@@ -11,6 +11,10 @@ ifeq ($(CONFIG_NX_LCDDRIVER),y)
 CSRCS		+= up_lcd.c
 endif
 
+ifeq ($(CONFIG_PWM),y)
+CSRCS		+= up_pwm.c
+endif
+
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
 endif
 

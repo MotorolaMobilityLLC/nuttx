@@ -95,6 +95,11 @@ void tsb_clr_pinshare(uint32_t bits)
     scm_write(TSB_SCM_PINSHARE, r & ~bits);
 }
 
+uint32_t tsb_get_pinshare(void)
+{
+    return scm_read(TSB_SCM_PINSHARE);
+}
+
 /* Debug code for command line tool usage */
 struct clk_info {
     uint32_t    clk;

@@ -28,6 +28,7 @@
 
 #include <errno.h>
 #include <assert.h>
+#include <debug.h>
 
 #include <nuttx/pwm.h>
 #include <nuttx/config.h>
@@ -107,7 +108,7 @@ static int pwm_start(struct pwm_lowerhalf_s *dev,
     if (freq)
         DEBUGASSERT(duty && freq > duty);
 
-    lowsyslog("freq = %d\n, duty = %d\n", freq, duty);
+    lldbg("freq = %d, duty = %d\n", freq, duty);
 
     cr = tsb_pwm_read(priv, TSB_PWM_CR) & ~PWM_CR_ENB;
     tsb_pwm_write(priv, TSB_PWM_CR, cr);        //stop pwm

@@ -1,0 +1,26 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config ARA_BRIDGE_PWM
+	bool "Ara Bridge PWM control"
+	default n if !DEBUG
+	default y if DEBUG
+	depends on ARCH_CHIP_TSB
+	select PWM
+	---help---
+		Enable the Ara PWM program.  Controls and tests PWM0 and PWM1.
+
+
+if ARA_BRIDGE_PWM
+
+config ARA_BRIDGE_PWM_PROGNAME
+	string "Program name"
+	default "pwm"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the
+		NSH ELF program is installed.
+
+endif
