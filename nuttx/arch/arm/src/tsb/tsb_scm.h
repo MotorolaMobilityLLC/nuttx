@@ -140,6 +140,31 @@
 #define TSB_PIN_DBG             (1 << 9)
 
 
+/* IO_DRIVE_STRENGTH: 2 Bits per Output */
+
+enum tsb_drivestrength {
+    tsb_ds_min     = 0,
+    tsb_ds_default,
+    tsb_ds_max,
+    tsb_ds_invalid,
+};
+
+#define DRIVESTRENGTH_OFFSET(driver) (((driver >> 22) & 0xfc))
+#define DRIVESTRENGTH_SHIFT(driver)  (driver & 0x1f)
+#define DRIVESTRENGTH_MASK(driver)  (0x3 << DRIVESTRENGTH_SHIFT(driver))
+
+#ifdef CONFIG_TSB_CHIP_REV_ES2
+#define TSB_TRACE_DRIVESTRENGTH   (TSB_SCM_REG1 | 24)
+#define TSB_SPI_DRIVESTRENGTH     (TSB_SCM_REG1 | 22)
+#define TSB_PWM_DRIVESTRENGTH     (TSB_SCM_REG1 | 20)
+#define TSB_I2S_DRIVESTRENGTH     (TSB_SCM_REG1 | 18)
+#else /* ES1 */
+#define TSB_TRACE_DRIVESTRENGTH   (TSB_SCM_REG1 | 6)
+#define TSB_SPI_DRIVESTRENGTH     (TSB_SCM_REG1 | 4)
+#define TSB_PWM_DRIVESTRENGTH     (TSB_SCM_REG1 | 2)
+#define TSB_I2S_DRIVESTRENGTH     (TSB_SCM_REG1 | 0)
+#endif
+
 #define CLK_OFFSET(clk) (((clk >> 22) & 0xfc))
 #define CLK_MASK(clk)   (1 << (clk & 0x1f))
 
@@ -173,5 +198,7 @@ void tsb_reset(uint32_t rst);
 void tsb_set_pinshare(uint32_t pin);
 void tsb_clr_pinshare(uint32_t pin);
 uint32_t tsb_get_pinshare(void);
+void tsb_set_drivestrength(uint32_t ds_id, enum tsb_drivestrength value);
+enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id);
 
 #endif /* __ARCH_ARM_SRC_TSB_TSB_SCM_H */

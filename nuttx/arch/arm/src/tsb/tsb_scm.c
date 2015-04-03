@@ -45,7 +45,7 @@
 #define TSB_SCM_CLOCKGATING0            0x00000200
 #define TSB_SCM_CLOCKENABLE0            0x00000300
 #define TSB_SCM_PINSHARE                0x00000800
-
+#define TSB_IO_DRIVE_STRENGTH0          0x00000A00
 
 static uint32_t scm_read(uint32_t offset)
 {
@@ -98,6 +98,22 @@ void tsb_clr_pinshare(uint32_t bits)
 uint32_t tsb_get_pinshare(void)
 {
     return scm_read(TSB_SCM_PINSHARE);
+}
+
+void tsb_set_drivestrength(uint32_t ds_id, enum tsb_drivestrength value)
+{
+    uint32_t r = scm_read(TSB_IO_DRIVE_STRENGTH0 +
+                          DRIVESTRENGTH_OFFSET(ds_id));
+    scm_write(TSB_IO_DRIVE_STRENGTH0 + DRIVESTRENGTH_OFFSET(ds_id),
+              (r & ~DRIVESTRENGTH_MASK(ds_id)) |
+              ((uint32_t)value << DRIVESTRENGTH_SHIFT(ds_id)));
+}
+
+enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id)
+{
+    return (enum tsb_drivestrength)
+        ((scm_read(TSB_IO_DRIVE_STRENGTH0 + DRIVESTRENGTH_OFFSET(ds_id)) &
+          DRIVESTRENGTH_MASK(ds_id)) >> DRIVESTRENGTH_SHIFT(ds_id));
 }
 
 /* Debug code for command line tool usage */
