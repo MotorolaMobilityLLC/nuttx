@@ -87,6 +87,18 @@ extern "C" {
 EXTERN xcpt_t stm32_gpiosetevent(uint32_t pinset, bool risingedge, bool fallingedge,
                                  bool event, xcpt_t func);
 
+/*
+ * stm32_gpiosetevent_priv
+ *
+ * Extension of stm32_gpiosetevent with an extra parameter for private data
+ * that will be passed to the handler.
+ */
+typedef int (*xcpt_priv_t)(int irq, FAR void *context, void *priv);
+
+EXTERN xcpt_priv_t stm32_gpiosetevent_priv(uint32_t pinset, bool risingedge,
+                                           bool fallingedge, bool event,
+                                           xcpt_priv_t func, void *priv);
+
 /****************************************************************************
  * Name: stm32_exti_alarm
  *

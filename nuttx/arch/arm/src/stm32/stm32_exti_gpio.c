@@ -60,8 +60,18 @@
  ****************************************************************************/
 
 /* Interrupt handlers attached to each EXTI */
+struct stm32_exti_handlers_priv_t {
+    union {
+        xcpt_t stm32_exti_callback;
+        xcpt_priv_t stm32_exti_callback_priv;
+    } handler;
+    void *priv;
+    bool priv_enabled;
+};
 
-static xcpt_t stm32_exti_callbacks[16];
+
+/* Handlers that pass private data ptr */
+static struct stm32_exti_handlers_priv_t stm32_exti_handlers[16];
 
 /****************************************************************************
  * Public Data
@@ -84,11 +94,17 @@ static int stm32_exti0_isr(int irq, void *context)
   putreg32(0x0001, STM32_EXTI_PR);
 
   /* And dispatch the interrupt to the handler */
-
-  if (stm32_exti_callbacks[0])
-    {
-      ret = stm32_exti_callbacks[0](irq, context);
+  if (!stm32_exti_handlers[0].priv_enabled) {
+    if (stm32_exti_handlers[0].handler.stm32_exti_callback) {
+          ret = stm32_exti_handlers[0].handler.stm32_exti_callback(
+                     irq, context);
     }
+  } else {
+    if (stm32_exti_handlers[0].handler.stm32_exti_callback_priv) {
+          ret = stm32_exti_handlers[0].handler.stm32_exti_callback_priv(
+                     irq, context, stm32_exti_handlers[0].priv);
+    }
+  }
 
   return ret;
 }
@@ -102,11 +118,17 @@ static int stm32_exti1_isr(int irq, void *context)
   putreg32(0x0002, STM32_EXTI_PR);
 
   /* And dispatch the interrupt to the handler */
-
-  if (stm32_exti_callbacks[1])
-    {
-      ret = stm32_exti_callbacks[1](irq, context);
+  if (!stm32_exti_handlers[1].priv_enabled) {
+    if (stm32_exti_handlers[1].handler.stm32_exti_callback) {
+          ret = stm32_exti_handlers[1].handler.stm32_exti_callback(
+                     irq, context);
     }
+  } else {
+    if (stm32_exti_handlers[1].handler.stm32_exti_callback_priv) {
+          ret = stm32_exti_handlers[1].handler.stm32_exti_callback_priv(
+                     irq, context, stm32_exti_handlers[1].priv);
+    }
+  }
 
   return ret;
 }
@@ -120,11 +142,17 @@ static int stm32_exti2_isr(int irq, void *context)
   putreg32(0x0004, STM32_EXTI_PR);
 
   /* And dispatch the interrupt to the handler */
-
-  if (stm32_exti_callbacks[2])
-    {
-      ret = stm32_exti_callbacks[2](irq, context);
+  if (!stm32_exti_handlers[2].priv_enabled) {
+    if (stm32_exti_handlers[2].handler.stm32_exti_callback) {
+          ret = stm32_exti_handlers[2].handler.stm32_exti_callback(
+                     irq, context);
     }
+  } else {
+    if (stm32_exti_handlers[2].handler.stm32_exti_callback_priv) {
+          ret = stm32_exti_handlers[2].handler.stm32_exti_callback_priv(
+                     irq, context, stm32_exti_handlers[2].priv);
+    }
+  }
 
   return ret;
 }
@@ -138,11 +166,17 @@ static int stm32_exti3_isr(int irq, void *context)
   putreg32(0x0008, STM32_EXTI_PR);
 
   /* And dispatch the interrupt to the handler */
-
-  if (stm32_exti_callbacks[3])
-    {
-      ret = stm32_exti_callbacks[3](irq, context);
+  if (!stm32_exti_handlers[3].priv_enabled) {
+    if (stm32_exti_handlers[3].handler.stm32_exti_callback) {
+          ret = stm32_exti_handlers[3].handler.stm32_exti_callback(
+                     irq, context);
     }
+  } else {
+    if (stm32_exti_handlers[3].handler.stm32_exti_callback_priv) {
+          ret = stm32_exti_handlers[3].handler.stm32_exti_callback_priv(
+                     irq, context, stm32_exti_handlers[3].priv);
+    }
+  }
 
   return ret;
 }
@@ -156,11 +190,17 @@ static int stm32_exti4_isr(int irq, void *context)
   putreg32(0x0010, STM32_EXTI_PR);
 
   /* And dispatch the interrupt to the handler */
-
-  if (stm32_exti_callbacks[4])
-    {
-      ret = stm32_exti_callbacks[4](irq, context);
+  if (!stm32_exti_handlers[4].priv_enabled) {
+    if (stm32_exti_handlers[4].handler.stm32_exti_callback) {
+          ret = stm32_exti_handlers[4].handler.stm32_exti_callback(
+                     irq, context);
     }
+  } else {
+    if (stm32_exti_handlers[4].handler.stm32_exti_callback_priv) {
+          ret = stm32_exti_handlers[4].handler.stm32_exti_callback_priv(
+                     irq, context, stm32_exti_handlers[4].priv);
+    }
+  }
 
   return ret;
 }
@@ -190,14 +230,23 @@ static int stm32_exti_multiisr(int irq, void *context, int first, int last)
 
           /* And dispatch the interrupt to the handler */
 
-          if (stm32_exti_callbacks[pin])
-            {
-              int tmp = stm32_exti_callbacks[pin](irq, context);
-              if (tmp != OK)
-                {
-                  ret = tmp;
-                }
+          int tmp = -1;
+          if (!stm32_exti_handlers[pin].priv_enabled) {
+            if (stm32_exti_handlers[pin].handler.stm32_exti_callback) {
+              tmp = stm32_exti_handlers[pin].handler.stm32_exti_callback(
+                         irq, context);
             }
+          } else {
+            if (stm32_exti_handlers[pin].handler.stm32_exti_callback_priv) {
+              tmp = stm32_exti_handlers[pin].handler.stm32_exti_callback_priv(
+                         irq, context, stm32_exti_handlers[pin].priv);
+            }
+          }
+          if (tmp != OK)
+          {
+            ret = tmp;
+          }
+
         }
     }
 
@@ -215,10 +264,6 @@ static int stm32_exti1510_isr(int irq, void *context)
 }
 
 /****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
  * Name: stm32_gpiosetevent
  *
  * Description:
@@ -230,21 +275,18 @@ static int stm32_exti1510_isr(int irq, void *context)
  *  - event:  generate event when set
  *  - func:   when non-NULL, generate interrupt
  *
- * Returns:
- *  The previous value of the interrupt handler function pointer.  This value may,
- *  for example, be used to restore the previous handler when multiple handlers are
- *  used.
+ * Returns: pin associated with the IRQ vector
  *
  ****************************************************************************/
 
-xcpt_t stm32_gpiosetevent(uint32_t pinset, bool risingedge, bool fallingedge,
-                          bool event, xcpt_t func)
+static uint32_t stm32_gpio_setevent(uint32_t pinset, bool risingedge,
+                                    bool fallingedge,
+                                    bool event, bool func)
 {
   uint32_t pin = pinset & GPIO_PIN_MASK;
   uint32_t exti = STM32_EXTI_BIT(pin);
   int      irq;
   xcpt_t   handler;
-  xcpt_t   oldhandler = NULL;
 
   /* Select the interrupt handler for this EXTI pin */
 
@@ -284,11 +326,6 @@ xcpt_t stm32_gpiosetevent(uint32_t pinset, bool risingedge, bool fallingedge,
       irq     = STM32_IRQ_EXTI1510;
       handler = stm32_exti1510_isr;
     }
-
-  /* Get the previous GPIO IRQ handler; Save the new IRQ handler. */
-
-  oldhandler = stm32_exti_callbacks[pin];
-  stm32_exti_callbacks[pin] = func;
 
   /* Install external interrupt handlers */
 
@@ -331,7 +368,80 @@ xcpt_t stm32_gpiosetevent(uint32_t pinset, bool risingedge, bool fallingedge,
               func ? 0 : exti,
               func ? exti : 0);
 
-  /* Return the old IRQ handler */
+  return pin;
+}
 
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/*
+ * Returns:
+ *  The previous value of the interrupt handler function pointer.  This value may,
+ *  for example, be used to restore the previous handler when multiple handlers are
+ *  used.
+ */
+xcpt_t stm32_gpiosetevent(uint32_t pinset, bool risingedge, bool fallingedge,
+                          bool event,
+                          xcpt_t func) {
+  xcpt_t   oldhandler = NULL;
+  uint32_t pin;
+  bool     bfunc = func ? true : false;
+  irqstate_t flags;
+
+  /*
+   * Disable IRQs so that the handler gets installed correctly before the IRQ
+   * is re-enabled.
+   */
+  flags = irqsave();
+
+  /* Set GPIO based event and interrupt triggers */
+  pin = stm32_gpio_setevent(pinset, risingedge, fallingedge, event, bfunc);
+
+  /* Get the previous GPIO IRQ handler; Save the new IRQ handler. */
+  oldhandler = stm32_exti_handlers[pin].handler.stm32_exti_callback;
+  stm32_exti_handlers[pin].handler.stm32_exti_callback = func;
+  stm32_exti_handlers[pin].priv_enabled = false;
+
+  /* Re-enable IRQs */
+  irqrestore(flags);
+
+  /* Return the old IRQ handler */
+  return oldhandler;
+}
+
+/*
+ * Returns:
+ *  The previous value of the interrupt handler function pointer.  This value may,
+ *  for example, be used to restore the previous handler when multiple handlers are
+ *  used.
+ */
+xcpt_priv_t stm32_gpiosetevent_priv(uint32_t pinset, bool risingedge,
+                                    bool fallingedge, bool event,
+                                    xcpt_priv_t func, void *priv) {
+  xcpt_priv_t   oldhandler = NULL;
+  uint32_t pin;
+  bool     bfunc = func ? true : false;
+  irqstate_t flags;
+
+  /*
+   * Disable IRQs so that the handler gets installed correctly before the IRQ
+   * is re-enabled.
+   */
+  flags = irqsave();
+
+  /* Set GPIO based event and interrupt triggers */
+  pin = stm32_gpio_setevent(pinset, risingedge, fallingedge, event, bfunc);
+
+  /* Get the previous GPIO IRQ handler; Save the new IRQ handler. */
+  oldhandler = stm32_exti_handlers[pin].handler.stm32_exti_callback_priv;
+  stm32_exti_handlers[pin].handler.stm32_exti_callback_priv = func;
+  stm32_exti_handlers[pin].priv = priv;
+  stm32_exti_handlers[pin].priv_enabled = true;
+
+  /* Re-enable IRQs */
+  irqrestore(flags);
+
+  /* Return the old IRQ handler */
   return oldhandler;
 }
