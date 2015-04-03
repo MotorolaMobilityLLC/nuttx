@@ -139,8 +139,8 @@ static int es2_transfer(struct tsb_switch *sw,
     SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf,
                  SWITCH_WAIT_REPLY_LEN + SWITCH_WRITE_STATUS_LEN);
 
-    dbg_verbose("Write payload:\n");
-    dbg_print_buf(DBG_VERBOSE, tx_buf, tx_size);
+    dbg_insane("Write payload:\n");
+    dbg_print_buf(DBG_INSANE, tx_buf, tx_size);
     dbg_insane("Write status:\n");
     dbg_print_buf(DBG_INSANE, priv->rxbuf,
                   SWITCH_WAIT_REPLY_LEN + SWITCH_WRITE_STATUS_LEN);
@@ -163,8 +163,8 @@ static int es2_transfer(struct tsb_switch *sw,
             SPI_SEND(spi_dev, LNUL);
         }
 
-        dbg_verbose("RX Data:\n");
-        dbg_print_buf(DBG_VERBOSE, priv->rxbuf, size);
+        dbg_insane("RX Data:\n");
+        dbg_print_buf(DBG_INSANE, priv->rxbuf, size);
 
         if (!rx_buf) {
             break;
@@ -235,8 +235,8 @@ static int es2_init_seq(struct tsb_switch *sw)
     SPI_SEND(spi_dev, INIT);
     SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf, SWITCH_WAIT_REPLY_LEN);
 
-    dbg_verbose("Init RX Data:\n");
-    dbg_print_buf(DBG_VERBOSE, priv->rxbuf, SWITCH_WAIT_REPLY_LEN);
+    dbg_insane("Init RX Data:\n");
+    dbg_print_buf(DBG_INSANE, priv->rxbuf, SWITCH_WAIT_REPLY_LEN);
 
     // Check for the transition from INIT to LNUL after sending INITs
     for (i = 0; i < SWITCH_WAIT_REPLY_LEN - 1; i++) {
@@ -270,51 +270,51 @@ int es2_switch_irq_handler(struct tsb_switch *sw)
             dbg_error("IRQ: SWINT register read failed\n");
             return -EIO;
         }
-        dbg_verbose("IRQ: SWINT=%x\n", swint);
+        dbg_insane("IRQ: SWINT=%x\n", swint);
 
         // Handle the Switch internal interrupts
         if (swint & TSB_INTERRUPT_SWINTERNAL) {
             if (switch_internal_getattr(sw, SWINS, &swins)) {
                 dbg_error("IRQ: SWINS register read failed\n");
             }
-            dbg_verbose("IRQ: Switch internal irq, SWINS=0x%04x\n", swins);
+            dbg_insane("IRQ: Switch internal irq, SWINS=0x%04x\n", swins);
 
             if (swins & TSB_INTERRUPT_SPICES) {
                 if (switch_internal_getattr(sw, SPICES, &attr_value)) {
                     dbg_error("IRQ: SPICES register read failed\n");
                 }
-                dbg_verbose("IRQ: Switch internal irq, SPICES=0x%04x\n",
-                        attr_value);
+                dbg_insane("IRQ: Switch internal irq, SPICES=0x%04x\n",
+                           attr_value);
             }
             if (swins & TSB_INTERRUPT_SPI3ES) {
                 if (switch_internal_getattr(sw, SPI3ES, &attr_value)) {
                     dbg_error("IRQ: SPI3ES register read failed\n");
                 }
-                dbg_verbose("IRQ: Switch internal irq, SPI3ES=0x%04x\n",
-                            attr_value);
+                dbg_insane("IRQ: Switch internal irq, SPI3ES=0x%04x\n",
+                           attr_value);
             }
             if (swins & TSB_INTERRUPT_SPI4ES) {
                 if (switch_internal_getattr(sw, SPI4ES, &attr_value)) {
                     dbg_error("IRQ: SPI4ES register read failed\n");
                 }
-                dbg_verbose("IRQ: Switch internal irq, SPI4ES=0x%04x\n",
-                            attr_value);
+                dbg_insane("IRQ: Switch internal irq, SPI4ES=0x%04x\n",
+                           attr_value);
             }
             if (swins & TSB_INTERRUPT_SPI5ES) {
                 if (switch_internal_getattr(sw, SPI5ES, &attr_value)) {
                     dbg_error("IRQ: SPI5ES register read failed\n");
                 }
-                dbg_verbose("IRQ: Switch internal irq, SPI5ES=0x%04x\n",
-                            attr_value);
+                dbg_insane("IRQ: Switch internal irq, SPI5ES=0x%04x\n",
+                           attr_value);
             }
         }
 
         // Handle external interrupts: CPorts 4 & 5
         if (swint & TSB_INTERRUPT_SPIPORT4_RX) {
-            dbg_verbose("IRQ: Switch SPI port 4 RX irq\n");
+            dbg_insane("IRQ: Switch SPI port 4 RX irq\n");
         }
         if (swint & TSB_INTERRUPT_SPIPORT5_RX) {
-            dbg_verbose("IRQ: Switch SPI port 5 RX irq\n");
+            dbg_insane("IRQ: Switch SPI port 5 RX irq\n");
         }
 
         // Handle Unipro interrupts: read the Unipro ports interrupt status
@@ -327,8 +327,8 @@ int es2_switch_irq_handler(struct tsb_switch *sw)
                               i);
                     break;
                 }
-                dbg_verbose("IRQ: TSB_INTERRUPTSTATUS(%d)=0x%04x\n",
-                            i, port_irq_status);
+                dbg_insane("IRQ: TSB_INTERRUPTSTATUS(%d)=0x%04x\n",
+                           i, port_irq_status);
 
                 // Read the attributes associated to the interrupt sources
                 for (j = 0; j < 15; j++) {
@@ -338,8 +338,8 @@ int es2_switch_irq_handler(struct tsb_switch *sw)
                             dbg_error("IRQ: Port %d line %d attr(%04x) read failed\n",
                                       i, j, unipro_irq_attr[j]);
                         } else {
-                            dbg_verbose("IRQ: Port %d line %d asserted, attr(%04x)=%04x\n",
-                                        i, j, unipro_irq_attr[j], attr_value);
+                            dbg_insane("IRQ: Port %d line %d asserted, attr(%04x)=%04x\n",
+                                       i, j, unipro_irq_attr[j], attr_value);
                         }
                     }
                 }
@@ -487,8 +487,8 @@ static int es2_set(struct tsb_switch *sw,
         return cnf.rc;
     }
 
-    dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf.function_id, cnf.rc, attrid, val);
+    dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
+                __func__, cnf.function_id, cnf.rc, attrid, val);
 
     return cnf.rc;
 }
@@ -535,8 +535,8 @@ static int es2_get(struct tsb_switch *sw,
     }
 
     *val = be32_to_cpu(cnf.attr_val);
-    dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf.function_id, cnf.rc, attrid, *val);
+    dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
+                __func__, cnf.function_id, cnf.rc, attrid, *val);
 
     return cnf.rc;
 }
@@ -586,8 +586,8 @@ static int es2_peer_set(struct tsb_switch *sw,
         dbg_error("%s(): unexpected CNF\n", __func__);
         return cnf.rc;
    }
-    dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf.function_id, cnf.rc, attrid, val);
+    dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
+                __func__, cnf.function_id, cnf.rc, attrid, val);
 
     return cnf.rc;
 }
@@ -634,8 +634,8 @@ static int es2_peer_get(struct tsb_switch *sw,
     }
 
     *val = be32_to_cpu(cnf.attr_val);
-    dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf.function_id, cnf.rc, attrid, *val);
+    dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
+                __func__, cnf.function_id, cnf.rc, attrid, *val);
 
     return cnf.rc;
 }
@@ -678,8 +678,8 @@ static int es2_lut_set(struct tsb_switch *sw,
         return cnf.rc;
     }
 
-    dbg_verbose("fid=%02x, rc=%u, portID=%u\n",
-                cnf.function_id, cnf.rc, cnf.portid);
+    dbg_verbose("%s(): fid=%02x, rc=%u, portID=%u\n",
+                __func__, cnf.function_id, cnf.rc, cnf.portid);
 
     /* Return resultCode */
     return cnf.rc;
@@ -748,8 +748,8 @@ static int es2_dump_routing_table(struct tsb_switch *sw) {
             dbg_error("%s() Failed to retrieve routing table.\n", __func__);
             return -1;
         }
-        dbg_verbose("%s(): Mask ID %d\n", __func__, unipro_portid);
-        dbg_print_buf(DBG_VERBOSE, valid_bitmask, sizeof(valid_bitmask));
+        dbg_insane("%s(): Mask ID %d\n", __func__, unipro_portid);
+        dbg_print_buf(DBG_INSANE, valid_bitmask, sizeof(valid_bitmask));
 
         for (i = 0; i < 8; i++) {
             for (j = 0; j < 16; j++) {
@@ -894,8 +894,8 @@ static int es2_switch_attr_set(struct tsb_switch *sw,
         return cnf.rc;
     }
 
-    dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf.function_id, cnf.rc, attrid, val);
+    dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
+                __func__, cnf.function_id, cnf.rc, attrid, val);
 
     return cnf.rc;
 }
@@ -935,8 +935,8 @@ static int es2_switch_attr_get(struct tsb_switch *sw,
     }
 
     *val = be32_to_cpu(cnf.attr_val);
-    dbg_verbose("fid=%02x, rc=%u, attr(%04x)=%04x\n",
-                cnf.function_id, cnf.rc, attrid, *val);
+    dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
+                __func__, cnf.function_id, cnf.rc, attrid, *val);
 
     return cnf.rc;
 }
