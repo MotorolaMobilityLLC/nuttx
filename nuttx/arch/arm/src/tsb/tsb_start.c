@@ -64,6 +64,14 @@ void tsb_start(void) {
 
 #ifdef CONFIG_TSB_PINSHARE_ETM
     tsb_set_pinshare(TSB_PIN_ETM);
+
+#ifdef CONFIG_TSB_TRACE_DRIVESTRENGTH_MIN
+    tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_min);
+#elif CONFIG_TSB_TRACE_DRIVESTRENGTH_DEFAULT
+    tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_default);
+#elif CONFIG_TSB_TRACE_DRIVESTRENGTH_MAX
+    tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_max);
+#endif
 #endif
 
 #ifdef CONFIG_16550_UART

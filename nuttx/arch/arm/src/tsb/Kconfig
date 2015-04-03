@@ -63,3 +63,25 @@ config TSB_PINSHARE_ETM
     default n
 	---help---
 		Enable ETM PINSHARE at Boot Instead of I2S
+
+choice
+	prompt "Drive Strength for the TRACE Signals"
+	default TSB_TRACE_DRIVESTRENGTH_MAX
+	depends on TSB_PINSHARE_ETM
+
+config TSB_TRACE_DRIVESTRENGTH_MIN
+	bool "Minimum Drive Strength (2ma)"
+	---help---
+		Selects the lowest possible drive strength for the TRACE signals
+
+config TSB_TRACE_DRIVESTRENGTH_DEFAULT
+	bool "Default Drive Strength (4ma)"
+	---help---
+		Selects a mid-range drive strength for the TRACE signals
+
+config TSB_TRACE_DRIVESTRENGTH_MAX
+	bool "Maximum Drive Strength (8ma)"
+	---help---
+		Selects the highest possible drive strength for the TRACE signals
+
+endchoice
