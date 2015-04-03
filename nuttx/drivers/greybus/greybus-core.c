@@ -32,6 +32,7 @@
 #include <nuttx/list.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/debug.h>
+#include <nuttx/wdog.h>
 
 #include <arch/tsb/unipro.h>
 #include <arch/atomic.h>
@@ -49,17 +50,28 @@
 #define ONE_SEC_IN_MSEC         1000
 #define ONE_MSEC_IN_NSEC        1000000
 
+#define TIMEOUT_WD_DELAY    (TIMEOUT_IN_MS * CLOCKS_PER_SEC) / ONE_SEC_IN_MSEC
+
 struct gb_cport_driver {
     struct gb_driver *driver;
     struct list_head tx_fifo;
     struct list_head rx_fifo;
     sem_t rx_fifo_lock;
     pthread_t thread;
+    struct wdog_s timeout_wd;
+    struct gb_operation timedout_operation;
 };
 
 static atomic_t request_id;
 static struct gb_cport_driver g_cport[CPORT_MAX];
 static struct gb_transport_backend *transport_backend;
+static struct gb_operation_hdr timedout_hdr = {
+    .size = sizeof(timedout_hdr),
+    .result = GB_OP_TIMEOUT,
+    .type = TYPE_RESPONSE_FLAG,
+};
+
+static void gb_operation_timeout(int argc, uint32_t cport, ...);
 
 uint8_t gb_errno_to_op_result(int err)
 {
@@ -178,6 +190,58 @@ static bool gb_operation_has_timedout(struct gb_operation *operation)
     return current_time.tv_nsec > timeout_time.tv_nsec;
 }
 
+/**
+ * Update watchdog state
+ *
+ * Cancel cport watchdog if there is no outgoing message waiting for a response,
+ * or update the watchdog if there is still outgoing messages.
+ *
+ * TODO use fine-grain timeout delay when doing the update
+ *
+ * @note This function should be called from an atomic context
+ */
+static void gb_watchdog_update(unsigned int cport)
+{
+    irqstate_t flags;
+
+    flags = irqsave();
+
+    if (list_is_empty(&g_cport[cport].tx_fifo)) {
+        wd_cancel(&g_cport[cport].timeout_wd);
+    } else {
+        wd_start(&g_cport[cport].timeout_wd, TIMEOUT_WD_DELAY,
+                 gb_operation_timeout, 1, cport);
+    }
+
+    irqrestore(flags);
+}
+
+static void gb_clean_timedout_operation(unsigned int cport)
+{
+    irqstate_t flags;
+    struct list_head *iter, *iter_next;
+    struct gb_operation *op;
+
+    list_foreach_safe(&g_cport[cport].tx_fifo, iter, iter_next) {
+        op = list_entry(iter, struct gb_operation, list);
+
+        if (!gb_operation_has_timedout(op)) {
+            continue;
+        }
+
+        flags = irqsave();
+        list_del(iter);
+        irqrestore(flags);
+
+        if (op->callback) {
+            op->callback(op);
+        }
+        gb_operation_unref(op);
+    }
+
+    gb_watchdog_update(cport);
+}
+
 static void gb_process_response(struct gb_operation_hdr *hdr,
                                 struct gb_operation *operation)
 {
@@ -185,38 +249,17 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
     struct list_head *iter, *iter_next;
     struct gb_operation *op;
     struct gb_operation_hdr *op_hdr;
-    struct gb_operation_hdr timedout_hdr = {
-        .size = sizeof(timedout_hdr),
-        .result = GB_OP_TIMEOUT,
-    };
 
     list_foreach_safe(&g_cport[operation->cport].tx_fifo, iter, iter_next) {
         op = list_entry(iter, struct gb_operation, list);
         op_hdr = op->request_buffer;
-
-        // Destroy all the operation that have timedout
-        if (gb_operation_has_timedout(op)) {
-            flags = irqsave();
-            list_del(iter);
-            irqrestore(flags);
-
-            if (op->callback) {
-                timedout_hdr.id = op_hdr->id;
-                timedout_hdr.type = TYPE_RESPONSE_FLAG | op_hdr->type;
-
-                op->response_buffer = &timedout_hdr;
-                op->callback(op);
-                op->response_buffer = NULL;
-            }
-            gb_operation_unref(op);
-            continue;
-        }
 
         if (hdr->id != op_hdr->id)
             continue;
 
         flags = irqsave();
         list_del(iter);
+        gb_watchdog_update(operation->cport);
         irqrestore(flags);
 
         /* attach this response with the original request */
@@ -250,6 +293,11 @@ static void *gb_pending_message_worker(void *data)
 
         operation = list_entry(head, struct gb_operation, list);
         hdr = operation->request_buffer;
+
+        if (hdr == &timedout_hdr) {
+            gb_clean_timedout_operation(cportid);
+            continue;
+        }
 
         if (hdr->type & TYPE_RESPONSE_FLAG)
             gb_process_response(hdr, operation);
@@ -299,7 +347,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
 
     memcpy(op->request_buffer, data, hdr_size);
 
-    flags = irqsave(); // useless if IRQ's priorities are correct
+    flags = irqsave();
     list_add(&g_cport[cport].rx_fifo, &op->list);
     sem_post(&g_cport[cport].rx_fifo_lock);
     irqrestore(flags);
@@ -390,6 +438,22 @@ int gb_stop_listening(unsigned int cport)
     return transport_backend->stop_listening(cport);
 }
 
+static void gb_operation_timeout(int argc, uint32_t cport, ...)
+{
+    irqstate_t flags;
+
+    flags = irqsave();
+
+    /* timedout operation could potentially already been queued */
+    if (list_is_empty(&g_cport[cport].timedout_operation.list)) {
+        return;
+    }
+
+    list_add(&g_cport[cport].rx_fifo, &g_cport[cport].timedout_operation.list);
+    sem_post(&g_cport[cport].rx_fifo_lock);
+    irqrestore(flags);
+}
+
 int gb_operation_send_request(struct gb_operation *operation,
                               gb_operation_callback callback,
                               bool need_response)
@@ -414,6 +478,10 @@ int gb_operation_send_request(struct gb_operation *operation,
         operation->callback = callback;
         gb_operation_ref(operation);
         list_add(&g_cport[operation->cport].tx_fifo, &operation->list);
+        if (!WDOG_ISACTIVE(&g_cport[operation->cport].timeout_wd)) {
+            wd_start(&g_cport[operation->cport].timeout_wd, TIMEOUT_WD_DELAY,
+                     gb_operation_timeout, 1, operation->cport);
+        }
     }
 
     gb_dump(operation->request_buffer, hdr->size);
@@ -422,6 +490,7 @@ int gb_operation_send_request(struct gb_operation *operation,
                                      le16_to_cpu(hdr->size));
     if (need_response && retval) {
         list_del(&operation->list);
+        gb_watchdog_update(operation->cport);
         gb_operation_unref(operation);
     }
 
@@ -609,6 +678,9 @@ int gb_init(struct gb_transport_backend *transport)
         sem_init(&g_cport[i].rx_fifo_lock, 0, 0);
         list_init(&g_cport[i].rx_fifo);
         list_init(&g_cport[i].tx_fifo);
+        wd_static(&g_cport[i].timeout_wd);
+        g_cport[i].timedout_operation.request_buffer = &timedout_hdr;
+        list_init(&g_cport[i].timedout_operation.list);
     }
 
     atomic_init(&request_id, (uint32_t) 0);
