@@ -41,8 +41,6 @@
 #define DRIVE_MA_DEFAULT     4
 #define DRIVE_MA_MAX         8
 
-#define TSB_SCM_PINSHARE     0x40000800
-
 #define IO_DRIVE_STRENGTH1   0x40000A04
 #define TRACE_STRENGTH_MASK  0x000000C0
 #define TRACE_STRENGTH_SHIFT 6
@@ -180,7 +178,7 @@ int main(int argc, FAR char *argv[]) {
              * perhaps we ought to be recording the old value
              * but the present API doesn't expose it
              */
-            etm.etm_pinshare_save = getreg32(TSB_SCM_PINSHARE) & TSB_PIN_ETM;
+            etm.etm_pinshare_save = tsb_get_pinshare() & TSB_PIN_ETM;
             tsb_set_pinshare(TSB_PIN_ETM);
 
             /* set drive strength for the TRACE signals to the specified value */
