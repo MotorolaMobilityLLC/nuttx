@@ -41,10 +41,6 @@
 #define DRIVE_MA_DEFAULT     4
 #define DRIVE_MA_MAX         8
 
-#define IO_DRIVE_STRENGTH1   0x40000A04
-#define TRACE_STRENGTH_MASK  0x000000C0
-#define TRACE_STRENGTH_SHIFT 6
-
 #define TPIU_CPSR            0xE0040004
 #define TPIU_SPPR            0xE00400F0
 
@@ -83,17 +79,15 @@ static struct {
 
 /* set drive strength for the TRACE lines to the specified value */
 void set_trace_drive_ma(unsigned short drive_ma) {
-    uint32_t io_drive_strength_masked = getreg32(IO_DRIVE_STRENGTH1) & ~TRACE_STRENGTH_MASK;
     switch(drive_ma) {
     case DRIVE_MA_MIN:
-        /* value is 0, so we're all set */
-        putreg32(io_drive_strength_masked, IO_DRIVE_STRENGTH1);
+        tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_min);
         break;
     case DRIVE_MA_DEFAULT:
-        putreg32(io_drive_strength_masked | (0x1 << 6), IO_DRIVE_STRENGTH1);
+        tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_default);
         break;
     case DRIVE_MA_MAX:
-        putreg32(io_drive_strength_masked | (0x2 << 6), IO_DRIVE_STRENGTH1);
+        tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_max);
         break;
     default:
         printf("Provided drive strength value of %u milliamp is invalid\n", drive_ma);
@@ -103,14 +97,14 @@ void set_trace_drive_ma(unsigned short drive_ma) {
 
 /* get the currently configured drive strength for the TRACE lines */
 unsigned short get_trace_drive_ma(void) {
-    switch((getreg32(IO_DRIVE_STRENGTH1) & TRACE_STRENGTH_MASK) >> TRACE_STRENGTH_SHIFT) {
-    case 0:
+    switch(tsb_get_drivestrength(TSB_TRACE_DRIVESTRENGTH)) {
+    case tsb_ds_min:
         return DRIVE_MA_MIN;
         break;
-    case 1:
+    case tsb_ds_default:
         return DRIVE_MA_DEFAULT;
         break;
-    case 2:
+    case tsb_ds_max:
         return DRIVE_MA_MAX;
         break;
     default:
@@ -150,7 +144,7 @@ int main(int argc, FAR char *argv[]) {
     case 'e':
         /* enable ETM */
         if (argc == 2) {
-            etm.drive_ma = DRIVE_MA_DEFAULT;
+            etm.drive_ma = DRIVE_MA_MAX;
         } else if (argc == 3) {
             drive_ma = strtol(argv[2], NULL, 10);
             if (drive_ma != DRIVE_MA_MIN &&
