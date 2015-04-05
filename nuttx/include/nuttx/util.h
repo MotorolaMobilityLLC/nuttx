@@ -41,6 +41,10 @@
     #define BIT(n)  (1UL << (n))
 #endif
 
+#ifndef ONE_BIT_IS_SET
+    #define ONE_BIT_IS_SET(x)   ((x) && !((x) & ((x) - 1)))
+#endif
+
 #endif
 
 
