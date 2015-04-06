@@ -52,6 +52,7 @@
 #include <debug.h>
 #include <fcntl.h>
 
+#include <nuttx/list.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/arch.h>
 #include <nuttx/serial/serial.h>
@@ -105,6 +106,9 @@
 #define APBRIDGE_NINTERFACES         (1)        /* Number of interfaces in the configuration */
 #define APBRIDGE_NENDPOINTS          (3)        /* Number of endpoints in the interface  */
 
+#define APBRIDGE_NREQS               (1)
+#define APBRIDGE_REQ_SIZE            (4096)
+
 #define APBRIDGE_CONFIG_ATTR \
   USB_CONFIG_ATTR_ONE | \
   USB_CONFIG_ATTR_SELFPOWER | \
@@ -156,6 +160,9 @@
 #define max(a,b) ((a)>(b)?(a):(b))
 #endif
 
+/* Total number of endpoints (included setup endpoint) */
+#define APBRIDGE_MAX_ENDPOINTS (APBRIDGE_NENDPOINTS + 1)
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -163,8 +170,9 @@
 /* Container to support a list of requests */
 
 struct apbridge_req_s {
-    struct apbridge_req_s *flink;       /* Implements a singly linked list */
+    struct list_head list;
     struct usbdev_req_s *req;   /* The contained request */
+    void *priv;
 };
 
 /* This structure describes the internal state of the driver */
@@ -175,14 +183,12 @@ struct apbridge_dev_s {
     uint8_t config;             /* Configuration number */
     sem_t config_sem;
 
-    struct usbdev_ep_s *epintin;        /* Interrupt IN endpoint structure */
-    struct usbdev_ep_s *epbulkin;       /* Bulk IN endpoint structure */
-    struct usbdev_ep_s *epbulkout;      /* Bulk OUT endpoint structure */
+    struct usbdev_ep_s *ep[APBRIDGE_MAX_ENDPOINTS];
 
-    struct usbdev_req_s *ctrlreq;       /* Control request */
-    struct apbridge_req_s intreq;
-    struct apbridge_req_s rdreq;
-    struct apbridge_req_s wrreq;
+    struct list_head ctrlreq;       /* Control request */
+    struct list_head intreq;
+    struct list_head rdreq;
+    struct list_head wrreq;
 
     struct apbridge_usb_driver *driver;
 };
@@ -213,9 +219,13 @@ enum ctrlreq_state {
 
 /* Request helpers *********************************************************/
 
+static int usbclass_allocreq_buf(struct usbdev_req_s *req,
+                                 uint16_t len);
+static void usbclass_freereq_buf(struct usbdev_req_s *req);
 static struct usbdev_req_s *usbclass_allocreq(struct usbdev_ep_s *ep,
                                               uint16_t len);
-static void usbclass_freereq(struct usbdev_ep_s *ep, struct usbdev_req_s *req);
+static void usbclass_freereq(struct usbdev_ep_s *ep,
+                             struct usbdev_req_s *req);
 
 /* Configuration ***********************************************************/
 
@@ -232,8 +242,6 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
                                    struct usbdev_req_s *req);
 static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
                                 struct usbdev_req_s *req);
-static void usbclass_intcomplete(struct usbdev_ep_s *ep,
-                                 struct usbdev_req_s *req);
 static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
                                 struct usbdev_req_s *req);
 
@@ -340,6 +348,13 @@ static const struct usb_epdesc_s g_epbulkindesc = {
     0                           /* interval */
 };
 
+static const struct usb_epdesc_s *g_usbdesc[] = {
+    NULL,               /* No descriptor for ep0 */
+    &g_epintindesc,
+    &g_epbulkoutdesc,
+    &g_epbulkindesc,
+};
+
 static const struct usb_qualdesc_s g_qualdesc = {
     USB_SIZEOF_QUALDESC,        /* len */
     USB_DESC_TYPE_DEVICEQUALIFIER,      /* type */
@@ -364,6 +379,76 @@ void usb_wait(struct apbridge_dev_s *priv)
     sem_wait(&priv->config_sem);
 }
 
+static struct list_head *epno_to_req_list(struct apbridge_dev_s *priv,
+                                          uint8_t epno)
+{
+    switch(epno) {
+    case 0:
+        return &priv->ctrlreq;
+    case CONFIG_APBRIDGE_EPINTIN:
+        return &priv->intreq;
+    case CONFIG_APBRIDGE_EPBULKIN:
+        return &priv->wrreq;
+    case CONFIG_APBRIDGE_EPBULKOUT:
+        return &priv->rdreq;
+    }
+    return NULL;
+}
+
+static struct usbdev_req_s *get_request(struct list_head *list)
+{
+    struct usbdev_req_s *req;
+    struct apbridge_req_s *reqcontainer;
+
+    if (list_is_empty(list))
+        return NULL;
+
+    list = list->next;
+    list_del(list);
+    reqcontainer = list_entry(list,  struct apbridge_req_s, list);
+    req = reqcontainer->req;
+    return req;
+}
+
+static void put_request(struct list_head *list, struct usbdev_req_s *req)
+{
+    struct apbridge_req_s *reqcontainer;
+
+    reqcontainer = (struct apbridge_req_s *)req->priv;
+    list_add(list, &reqcontainer->list);
+}
+
+static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
+                   void *payload, size_t len)
+{
+    int ret;
+
+    struct list_head *list;
+    struct usbdev_ep_s *ep;
+    struct usbdev_req_s *req;
+
+    list = epno_to_req_list(priv, epno);
+    if (!list)
+        return -EINVAL;
+
+    req = get_request(list);
+    if (!req)
+        return -EBUSY;
+    req->len = len;
+    memcpy(req->buf, payload, len);
+
+    /* Then submit the request to the endpoint */
+
+    ep = priv->ep[epno & USB_EPNO_MASK];
+    ret = EP_SUBMIT(ep, req);
+    if (ret != OK) {
+        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_SUBMITFAIL), (uint16_t) - ret);
+        return ret;
+    }
+
+    return 0;
+}
+
 /**
  * @brief Send incoming data from unipro to AP module
  * priv usb device.
@@ -374,33 +459,10 @@ void usb_wait(struct apbridge_dev_s *priv)
 
 int unipro_to_usb(struct apbridge_dev_s *priv, void *payload, size_t len)
 {
-    int ret;
-
-    struct usbdev_ep_s *ep;
-    struct usbdev_req_s *req;
-    struct apbridge_req_s *reqcontainer;
-
-    if (len > APBRIDGE_BULK_MXPACKET)
+    if (len > APBRIDGE_REQ_SIZE)
         return -EINVAL;
 
-    ep = priv->epbulkin;
-
-    reqcontainer = &priv->wrreq;
-    req = reqcontainer->req;
-    req->len = len;
-    req->priv = reqcontainer;
-
-    memcpy(req->buf, payload, len);
-
-    /* Then submit the request to the endpoint */
-
-    ret = EP_SUBMIT(ep, req);
-    if (ret != OK) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_SUBMITFAIL), (uint16_t) - ret);
-        return ret;
-    }
-
-    return 0;
+    return _to_usb(priv, CONFIG_APBRIDGE_EPBULKIN, payload, len);
 }
 
 /**
@@ -413,37 +475,32 @@ int unipro_to_usb(struct apbridge_dev_s *priv, void *payload, size_t len)
 
 int svc_to_usb(struct apbridge_dev_s *priv, void *payload, size_t len)
 {
-    int ret;
-
-    struct usbdev_ep_s *ep;
-    struct usbdev_req_s *req;
-    struct apbridge_req_s *reqcontainer;
-
     if (len > APBRIDGE_EPINTIN_MXPACKET)
         return -EINVAL;
 
-    ep = priv->epintin;
-
-    reqcontainer = &priv->intreq;
-    req = reqcontainer->req;
-    req->len = len;
-    req->priv = reqcontainer;
-
-    memcpy(req->buf, payload, len);
-
-    /* Then submit the request to the endpoint */
-    ret = EP_SUBMIT(ep, req);
-    if (ret != OK) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_SUBMITFAIL), (uint16_t) - ret);
-        return ret;
-    }
-
-    return 0;
+    return _to_usb(priv, CONFIG_APBRIDGE_EPINTIN, payload, len);
 }
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: usbclass_allocreq_buf
+ *
+ * Description:
+ *   Allocate a request buffer
+ *
+ ****************************************************************************/
+
+static int usbclass_allocreq_buf(struct usbdev_req_s *req, uint16_t len)
+{
+    req->len = len;
+    req->buf = EP_ALLOCBUFFER(ep, len);
+    if (!req->buf)
+        return -ENOMEM;
+    return 0;
+}
 
 /****************************************************************************
  * Name: usbclass_allocreq
@@ -460,11 +517,14 @@ static struct usbdev_req_s *usbclass_allocreq(struct usbdev_ep_s *ep,
 
     req = EP_ALLOCREQ(ep);
     if (req != NULL) {
-        req->len = len;
-        req->buf = EP_ALLOCBUFFER(ep, len);
-        if (!req->buf) {
-            EP_FREEREQ(ep, req);
-            req = NULL;
+        if (!len) {
+            req->len = 0;
+            req->buf = NULL;
+        } else {
+            if (usbclass_allocreq_buf(req, len)) {
+                EP_FREEREQ(ep, req);
+                req = NULL;
+            }
         }
     }
     return req;
@@ -478,12 +538,28 @@ static struct usbdev_req_s *usbclass_allocreq(struct usbdev_ep_s *ep,
  *
  ****************************************************************************/
 
+static void usbclass_freereq_buf(struct usbdev_req_s *req)
+{
+    if (req->buf != NULL) {
+        EP_FREEBUFFER(ep, req->buf);
+        req->buf = NULL;
+        req->len = 0;
+    }
+}
+
+
+/****************************************************************************
+ * Name: usbclass_freereq
+ *
+ * Description:
+ *   Free a request instance along with its buffer
+ *
+ ****************************************************************************/
+
 static void usbclass_freereq(struct usbdev_ep_s *ep, struct usbdev_req_s *req)
 {
     if (ep != NULL && req != NULL) {
-        if (req->buf != NULL) {
-            EP_FREEBUFFER(ep, req->buf);
-        }
+        usbclass_freereq_buf(req);
         EP_FREEREQ(ep, req);
     }
 }
@@ -582,6 +658,7 @@ static inline void usbclass_mkepdesc(const struct usb_epdesc_s *indesc,
 
 static int16_t usbclass_mkcfgdesc(uint8_t * buf, uint8_t speed, uint8_t type)
 {
+    int i;
     struct usb_cfgdesc_s *cfgdesc = (struct usb_cfgdesc_s *)buf;
     bool hispeed = (speed == USB_SPEED_HIGH);
     uint16_t mxpacket;
@@ -615,24 +692,16 @@ static int16_t usbclass_mkcfgdesc(uint8_t * buf, uint8_t speed, uint8_t type)
         hispeed = !hispeed;
     }
 
-    if (hispeed) {
-        mxpacket = APBRIDGE_EPINTIN_MXPACKET;
-    } else {
-        mxpacket = 64;
+    for (i = 1; i < APBRIDGE_MAX_ENDPOINTS; i++) {
+        if (hispeed) {
+            mxpacket = GETUINT16(g_usbdesc[i]->mxpacketsize);
+        } else {
+            mxpacket = 64;
+        }
+        usbclass_mkepdesc(g_usbdesc[i],
+                          mxpacket, (struct usb_epdesc_s *)buf);
+        buf += USB_SIZEOF_EPDESC;
     }
-
-    usbclass_mkepdesc(&g_epintindesc, mxpacket, (struct usb_epdesc_s *)buf);
-    buf += USB_SIZEOF_EPDESC;
-
-    if (hispeed) {
-        mxpacket = APBRIDGE_BULK_MXPACKET;
-    } else {
-        mxpacket = 64;
-    }
-
-    usbclass_mkepdesc(&g_epbulkoutdesc, mxpacket, (struct usb_epdesc_s *)buf);
-    buf += USB_SIZEOF_EPDESC;
-    usbclass_mkepdesc(&g_epbulkindesc, mxpacket, (struct usb_epdesc_s *)buf);
 
     /* Finally, fill in the total size of the configuration descriptor */
 
@@ -651,6 +720,8 @@ static int16_t usbclass_mkcfgdesc(uint8_t * buf, uint8_t speed, uint8_t type)
 
 static void usbclass_resetconfig(struct apbridge_dev_s *priv)
 {
+    int i;
+
     /* Are we configured? */
 
     if (priv->config != APBRIDGE_CONFIGIDNONE) {
@@ -662,9 +733,8 @@ static void usbclass_resetconfig(struct apbridge_dev_s *priv)
          * transfers.
          */
 
-        EP_DISABLE(priv->epintin);
-        EP_DISABLE(priv->epbulkin);
-        EP_DISABLE(priv->epbulkout);
+        for (i = 1; i < APBRIDGE_MAX_ENDPOINTS; i++)
+            EP_DISABLE(priv->ep[i]);
     }
 }
 
@@ -679,10 +749,12 @@ static void usbclass_resetconfig(struct apbridge_dev_s *priv)
 
 static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config)
 {
+    struct list_head *iter;
     struct usbdev_req_s *req;
+    struct apbridge_req_s *reqcontainer;
     struct usb_epdesc_s epdesc;
     uint16_t mxpacket;
-//  int i;
+    int i;
     int ret = 0;
 
 #if CONFIG_DEBUG
@@ -717,58 +789,31 @@ static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config)
         return -EINVAL;
     }
 
-    /* Configure the IN interrupt endpoint */
-
-    if (priv->usbdev->speed == USB_SPEED_HIGH) {
-        mxpacket = APBRIDGE_EPINTIN_MXPACKET;
-    } else {
-        mxpacket = 64;
+    for (i = 1; i < APBRIDGE_MAX_ENDPOINTS; i++) {
+        if (priv->usbdev->speed == USB_SPEED_HIGH) {
+            mxpacket = GETUINT16(g_usbdesc[i]->mxpacketsize);
+        } else {
+            mxpacket = 64;
+        }
+        usbclass_mkepdesc(g_usbdesc[i], mxpacket, &epdesc);
+        ret = EP_CONFIGURE(priv->ep[i], &epdesc, false);
+        if (ret < 0) {
+            usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPINTINCONFIGFAIL), 0);
+            goto errout;
+        }
     }
-
-    usbclass_mkepdesc(&g_epintindesc, mxpacket, &epdesc);
-    ret = EP_CONFIGURE(priv->epintin, &epdesc, false);
-    if (ret < 0) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPINTINCONFIGFAIL), 0);
-        goto errout;
-    }
-    priv->epintin->priv = priv;
-
-    /* Configure the IN bulk endpoint */
-
-    if (priv->usbdev->speed == USB_SPEED_HIGH) {
-        mxpacket = APBRIDGE_BULK_MXPACKET;
-    } else {
-        mxpacket = 64;
-    }
-
-    usbclass_mkepdesc(&g_epbulkindesc, mxpacket, &epdesc);
-    ret = EP_CONFIGURE(priv->epbulkin, &epdesc, false);
-    if (ret < 0) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPBULKINCONFIGFAIL), 0);
-        goto errout;
-    }
-
-    priv->epbulkin->priv = priv;
-
-    /* Configure the OUT bulk endpoint */
-
-    usbclass_mkepdesc(&g_epbulkoutdesc, mxpacket, &epdesc);
-    ret = EP_CONFIGURE(priv->epbulkout, &epdesc, true);
-    if (ret < 0) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPBULKOUTCONFIGFAIL), 0);
-        goto errout;
-    }
-
-    priv->epbulkout->priv = priv;
 
     /* Queue read requests in the bulk OUT endpoint */
-    req = priv->rdreq.req;
-    req->callback = usbclass_rdcomplete;
-    ret = EP_SUBMIT(priv->epbulkout, priv->rdreq.req);
+    list_foreach(&priv->rdreq, iter) {
+        reqcontainer = list_entry(iter, struct apbridge_req_s, list);
+        req = reqcontainer->req;
+        req->callback = usbclass_rdcomplete;
+        ret = EP_SUBMIT(priv->ep[CONFIG_APBRIDGE_EPBULKOUT], req);
 
-    if (ret != OK) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSUBMIT), (uint16_t) - ret);
-        goto errout;
+        if (ret != OK) {
+            usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSUBMIT), (uint16_t) - ret);
+            goto errout;
+        }
     }
 
     /* We are successfully configured */
@@ -796,8 +841,9 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
 {
     struct apbridge_dev_s *priv;
     struct apbridge_usb_driver *drv;
+    struct apbridge_req_s *ctrlreq;
 
-    priv = (struct apbridge_dev_s *)ep->priv;
+    priv = (struct apbridge_dev_s *) ep->priv;
     drv = priv->driver;
 
     if (req->result || req->xfrd != req->len) {
@@ -805,8 +851,10 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
                  (uint16_t) - req->result);
     }
 
-    if ((int)req->priv == GREYBUS_SVC_REQ)
+    ctrlreq = (struct apbridge_req_s *)req->priv;
+    if ((int) ctrlreq->priv == GREYBUS_SVC_REQ)
         drv->usb_to_svc(NULL, req->buf, req->len);
+    put_request(&priv->ctrlreq, req);
 }
 
 /****************************************************************************
@@ -836,13 +884,13 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
 
     /* Extract references to private data */
 
-    priv = (struct apbridge_dev_s *)ep->priv;
+    priv = (struct apbridge_dev_s *) ep->priv;
     drv = priv->driver;
 
     /* Process the received data unless this is some unusual condition */
 
     switch (req->result) {
-    case 0:                    /* Normal completion */
+    case OK:                    /* Normal completion */
         usbtrace(TRACE_CLASSRDCOMPLETE, 0);
         drv->usb_to_unipro(priv, req->buf, req->xfrd);
         break;
@@ -857,69 +905,30 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
         break;
     };
 
-    ret = EP_SUBMIT(priv->epbulkout, req);
+    ret = EP_SUBMIT(ep, req);
 
     if (ret != OK) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSUBMIT), (uint16_t) - ret);
     }
 }
 
-/****************************************************************************
- * Name: usbclass_intcomplete
- *
- * Description:
- *   Handle completion of read request on the bulk OUT endpoint.  This
- *   is handled like the receipt of serial data on the "UART"
- *
- ****************************************************************************/
-
-static void usbclass_intcomplete(struct usbdev_ep_s *ep,
-                                 struct usbdev_req_s *req)
-{
-    /* Sanity check */
-#ifdef CONFIG_DEBUG
-    if (!ep || !ep->priv || !req || !req->priv) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_INVALIDARG), 0);
-        return;
-    }
-#endif
-
-    switch (req->result) {
-    case OK:                   /* Normal completion */
-        usbtrace(TRACE_CLASSWRCOMPLETE, 0);
-        break;
-
-    case -ESHUTDOWN:           /* Disconnection */
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_WRSHUTDOWN), 0);
-        break;
-
-    default:                   /* Some other error occurred */
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_WRUNEXPECTED),
-                 (uint16_t) - req->result);
-        break;
-    }
-}
-
-/****************************************************************************
- * Name: usbclass_wrcomplete
- *
- * Description:
- *   Handle completion of write request.  This function probably executes
- *   in the context of an interrupt handler.
- *
- ****************************************************************************/
-
 static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
-                                struct usbdev_req_s *req)
+                              struct usbdev_req_s *req)
 {
-    /* Sanity check */
+    struct list_head *list;
+    struct apbridge_dev_s *priv;
 
+    /* Sanity check */
 #ifdef CONFIG_DEBUG
     if (!ep || !ep->priv || !req || !req->priv) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_INVALIDARG), 0);
         return;
     }
 #endif
+
+    priv = (struct apbridge_dev_s *) ep->priv;
+    list = epno_to_req_list(priv, USB_EPNO(ep->eplog));
+    put_request(list, req);
 
     switch (req->result) {
     case OK:                   /* Normal completion */
@@ -939,7 +948,96 @@ static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
 
 /****************************************************************************
  * USB Class Driver Methods
- ****************************************************************************/
+****************************************************************************/
+typedef void (*usb_callback)(FAR struct usbdev_ep_s *ep, FAR
+                             struct usbdev_req_s *req);
+
+static int allocep(struct apbridge_dev_s *priv,
+                    const struct usb_epdesc_s *desc)
+{
+    int in;
+    uint8_t epno;
+    struct usbdev_ep_s *ep;
+
+    if (desc) {
+        in = desc->addr & USB_DIR_IN ? 1 : 0;
+        epno = desc->addr & USB_EPNO_MASK;
+        DEBUGASSERT(epno < APBRIDGE_MAX_ENDPOINTS);
+
+        ep = DEV_ALLOCEP(priv->usbdev, epno, in, desc->type);
+        if (!ep) {
+            usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPINTINALLOCFAIL), 0);
+            return -ENODEV;
+        }
+        priv->ep[epno] = ep;
+    } else {
+        ep = priv->usbdev->ep0;
+        priv->ep[0] = ep;
+    }
+    ep->priv = priv;
+
+    return OK;
+}
+
+static void freeep(struct apbridge_dev_s *priv, uint8_t epno)
+{
+    DEBUGASSERT(epno < APBRIDGE_MAX_ENDPOINTS);
+    if (epno == 0 || !priv->ep[epno])
+        return;
+
+    DEV_FREEEP(priv->usbdev, priv->ep[epno]);
+    priv->ep[epno] = NULL;
+}
+
+static void prealloc_request(struct usbdev_ep_s *ep,
+                             usb_callback callback, int size, int n)
+{
+    int i;
+    struct usbdev_req_s *req;
+    struct apbridge_req_s *reqcontainer;
+    struct list_head *list = epno_to_req_list(ep->priv, USB_EPNO(ep->eplog));
+
+    DEBUGASSERT(ep);
+    DEBUGASSERT(list);
+    DEBUGASSERT(callback);
+
+    for (i = 0; i < n; i++) {
+        reqcontainer = malloc(sizeof(struct apbridge_req_s *));
+        if (!reqcontainer)
+            return;
+        req = usbclass_allocreq(ep, size);
+        if (!req) {
+            free(reqcontainer);
+            return;
+        }
+        req->len = size;
+        req->priv = reqcontainer;
+        req->callback = callback;
+        reqcontainer->req = req;
+        list_add(list, &reqcontainer->list);
+    }
+}
+
+static void free_preallocated_request(struct usbdev_ep_s *ep)
+{
+    struct list_head *iter, *iter_next;
+    struct usbdev_req_s *req;
+    struct apbridge_req_s *reqcontainer;
+    struct list_head *list;
+
+    if (!ep)
+        return;
+    list = epno_to_req_list(ep->priv, USB_EPNO(ep->eplog));
+    DEBUGASSERT(list);
+
+    list_foreach_safe(list, iter, iter_next) {
+        reqcontainer = list_entry(iter, struct apbridge_req_s, list);
+        req = reqcontainer->req;
+        usbclass_freereq(ep, req);
+        free(reqcontainer);
+        list_del(iter);
+    }
+}
 
 /****************************************************************************
  * Name: usbclass_bind
@@ -953,8 +1051,9 @@ static int usbclass_bind(struct usbdevclass_driver_s *driver,
                          struct usbdev_s *dev)
 {
     struct apbridge_dev_s *priv = ((struct apbridge_driver_s *)driver)->dev;
-    struct apbridge_req_s *reqcontainer;
+    struct list_head *list;
     int ret;
+    int i;
 
     usbtrace(TRACE_CLASSBIND, 0);
 
@@ -962,23 +1061,13 @@ static int usbclass_bind(struct usbdevclass_driver_s *driver,
 
     priv->usbdev = dev;
 
-    /* Save the reference to our private data structure in EP0 so that it
-     * can be recovered in ep0 completion events (Unless we are part of
-     * a composite device and, in that case, the composite device owns
-     * EP0).
-     */
+    /* Allocate endpoints */
 
-    dev->ep0->priv = priv;
-
-    /* Preallocate control request */
-
-    priv->ctrlreq = usbclass_allocreq(dev->ep0, APBRIDGE_MXDESCLEN);
-    if (priv->ctrlreq == NULL) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_ALLOCCTRLREQ), 0);
-        ret = -ENOMEM;
-        goto errout;
+    for (i = 0; i < APBRIDGE_MAX_ENDPOINTS; i++) {
+        ret = allocep(priv, g_usbdesc[i]);
+        if (ret < 0)
+            goto error;
     }
-    priv->ctrlreq->callback = usbclass_ep0incomplete;
 
     /* Pre-allocate all endpoints... the endpoints will not be functional
      * until the SET CONFIGURATION request is processed in usbclass_setconfig.
@@ -987,74 +1076,41 @@ static int usbclass_bind(struct usbdevclass_driver_s *driver,
      * logic where kmm_malloc calls will fail.
      */
 
-    /* Pre-allocate the IN interrupt endpoint */
+    list_init(&priv->ctrlreq);
+    prealloc_request(priv->ep[0], usbclass_ep0incomplete,
+                     APBRIDGE_MXDESCLEN, 1);
 
-    priv->epintin =
-        DEV_ALLOCEP(dev, APBRIDGE_EPINTIN_ADDR, true, USB_EP_ATTR_XFER_INT);
-    if (!priv->epintin) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPINTINALLOCFAIL), 0);
-        ret = -ENODEV;
-        goto errout;
-    }
-    priv->epintin->priv = priv;
+    list_init(&priv->intreq);
+    prealloc_request(priv->ep[CONFIG_APBRIDGE_EPINTIN], usbclass_wrcomplete,
+                     APBRIDGE_EPINTIN_MXPACKET, 1);
 
-    /* Pre-allocate the IN bulk endpoint */
+    list_init(&priv->rdreq);
+    prealloc_request(priv->ep[CONFIG_APBRIDGE_EPBULKOUT],
+                     usbclass_rdcomplete, APBRIDGE_REQ_SIZE, APBRIDGE_NREQS);
 
-    priv->epbulkin =
-        DEV_ALLOCEP(dev, APBRIDGE_EPINBULK_ADDR, true, USB_EP_ATTR_XFER_BULK);
-    if (!priv->epbulkin) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPBULKINALLOCFAIL), 0);
-        ret = -ENODEV;
-        goto errout;
-    }
-    priv->epbulkin->priv = priv;
-
-    /* Pre-allocate the OUT bulk endpoint */
-
-    priv->epbulkout =
-        DEV_ALLOCEP(dev, APBRIDGE_EPOUTBULK_ADDR, false,
-                    USB_EP_ATTR_XFER_BULK);
-    if (!priv->epbulkout) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPBULKOUTALLOCFAIL), 0);
-        ret = -ENODEV;
-        goto errout;
-    }
-    priv->epbulkout->priv = priv;
-
-    reqcontainer = &priv->intreq;
-    reqcontainer->req =
-        usbclass_allocreq(priv->epintin, APBRIDGE_EPINTIN_MXPACKET);
-    reqcontainer->req->priv = reqcontainer;
-    reqcontainer->req->callback = usbclass_intcomplete;
-    reqcontainer = &priv->rdreq;
-    reqcontainer->req =
-        usbclass_allocreq(priv->epbulkout, APBRIDGE_BULK_MXPACKET);
-    reqcontainer->req->priv = reqcontainer;
-    reqcontainer->req->callback = usbclass_rdcomplete;
-    reqcontainer = &priv->wrreq;
-    reqcontainer->req =
-        usbclass_allocreq(priv->epbulkin, APBRIDGE_BULK_MXPACKET);
-    reqcontainer->req->priv = reqcontainer;
-    reqcontainer->req->callback = usbclass_wrcomplete;
+    list_init(&priv->wrreq);
+    prealloc_request(priv->ep[CONFIG_APBRIDGE_EPBULKIN],
+                     usbclass_wrcomplete, APBRIDGE_REQ_SIZE, APBRIDGE_NREQS);
 
     /* Report if we are selfpowered */
 
-#ifdef CONFIG_USBDEV_SELFPOWERED
     DEV_SETSELFPOWERED(dev);
-#endif
+
+    for (i = 0; i < APBRIDGE_MAX_ENDPOINTS; i++) {
+        list = epno_to_req_list(priv, i);
+        if (list_is_empty(list)) {
+            ret = -ENOMEM;
+            goto error;
+        }
+    }
 
     /* And pull-up the data line for the soft connect function */
 
     DEV_CONNECT(dev);
+
     return OK;
 
- errout:
-
-    /* 
-     * One endpoint allocation fail.
-     * Release the endpoints which were allocated.
-     */
-
+error:
     usbclass_unbind(driver, dev);
     return ret;
 }
@@ -1070,6 +1126,7 @@ static int usbclass_bind(struct usbdevclass_driver_s *driver,
 static void usbclass_unbind(struct usbdevclass_driver_s *driver,
                             struct usbdev_s *dev)
 {
+    int i;
     struct apbridge_dev_s *priv;
 
     usbtrace(TRACE_CLASSUNBIND, 0);
@@ -1105,33 +1162,13 @@ static void usbclass_unbind(struct usbdevclass_driver_s *driver,
         usbclass_resetconfig(priv);
         up_mdelay(50);
 
-        /* Free the interrupt IN endpoint */
+        /* Free the pre-allocated request */
 
-        if (priv->epintin) {
-            DEV_FREEEP(dev, priv->epintin);
-            priv->epintin = NULL;
+        for (i = 0; i < APBRIDGE_MAX_ENDPOINTS; i++) {
+            free_preallocated_request(priv->ep[i]);
+            freeep(priv, i);
         }
 
-        /* Free the bulk IN endpoint */
-
-        if (priv->epbulkin) {
-            DEV_FREEEP(dev, priv->epbulkin);
-            priv->epbulkin = NULL;
-        }
-
-        /* Free the pre-allocated control request */
-
-        if (priv->ctrlreq != NULL) {
-            usbclass_freereq(dev->ep0, priv->ctrlreq);
-            priv->ctrlreq = NULL;
-        }
-
-        /* Free the bulk OUT endpoint */
-
-        if (priv->epbulkout) {
-            DEV_FREEEP(dev, priv->epbulkout);
-            priv->epbulkout = NULL;
-        }
     }
 }
 
@@ -1189,7 +1226,9 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                           uint8_t * dataout, size_t outlen)
 {
     struct apbridge_dev_s *priv;
-    struct usbdev_req_s *ctrlreq;
+    struct usbdev_req_s *req;
+    struct apbridge_req_s *ctrreq;
+
     uint16_t value;
     uint16_t index;
     uint16_t len;
@@ -1208,13 +1247,14 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
     priv = ((struct apbridge_driver_s *)driver)->dev;
 
 #ifdef CONFIG_DEBUG
-    if (!priv || !priv->ctrlreq) {
+    if (!priv) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EP0NOTBOUND), 0);
         return -ENODEV;
     }
 #endif
-    ctrlreq = priv->ctrlreq;
-    ctrlreq->priv = (void *)USB_REQ;
+    req = get_request(&priv->ctrlreq);
+    ctrreq = (struct apbridge_req_s *)req->priv;
+    ctrreq->priv = (void *)USB_REQ;
 
     /* Extract the little-endian 16-bit values to host order */
 
@@ -1243,14 +1283,14 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                     case USB_DESC_TYPE_DEVICE:
                         {
                             ret = USB_SIZEOF_DEVDESC;
-                            memcpy(ctrlreq->buf, &g_devdesc, ret);
+                            memcpy(req->buf, &g_devdesc, ret);
                         }
                         break;
 
                     case USB_DESC_TYPE_DEVICEQUALIFIER:
                         {
                             ret = USB_SIZEOF_QUALDESC;
-                            memcpy(ctrlreq->buf, &g_qualdesc, ret);
+                            memcpy(req->buf, &g_qualdesc, ret);
                         }
                         break;
 
@@ -1258,7 +1298,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                     case USB_DESC_TYPE_CONFIG:
                         {
                             ret =
-                                usbclass_mkcfgdesc(ctrlreq->buf, dev->speed,
+                                usbclass_mkcfgdesc(req->buf, dev->speed,
                                                    ctrl->req);
                         }
                         break;
@@ -1270,7 +1310,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                             ret =
                                 usbclass_mkstrdesc(ctrl->value[0],
                                                    (struct usb_strdesc_s *)
-                                                   ctrlreq->buf);
+                                                   req->buf);
                         }
                         break;
 
@@ -1295,7 +1335,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
             case USB_REQ_GETCONFIGURATION:
                 {
                     if (ctrl->type == USB_DIR_IN) {
-                        *(uint8_t *) ctrlreq->buf = priv->config;
+                        *(uint8_t *) req->buf = priv->config;
                         ret = 1;
                     }
                 }
@@ -1323,7 +1363,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                         if (index != APBRIDGE_INTERFACEID) {
                             ret = -EDOM;
                         } else {
-                            *(uint8_t *) ctrlreq->buf =
+                            *(uint8_t *) req->buf =
                                 APBRIDGE_ALTINTERFACEID;
                             ret = 1;
                         }
@@ -1346,18 +1386,18 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                 USB_REQ_RECIPIENT_INTERFACE) {
                 if (ctrl->req == APBRIDGE_RWREQUEST_SVC) {
                     if ((ctrl->type & USB_DIR_IN) != 0) {
-                        *(uint32_t *) ctrlreq->buf = 0xdeadbeef;
+                        *(uint32_t *) req->buf = 0xdeadbeef;
                         ret = 4;
                     } else {
-                        ctrlreq->priv = (void *)GREYBUS_SVC_REQ;
+                        ctrreq->priv = (void *)GREYBUS_SVC_REQ;
                         ret = len;
                     }
                 } else if (ctrl->req == APBRIDGE_RWREQUEST_LOG) {
                     if ((ctrl->type & USB_DIR_IN) == 0) {
                     } else {
 #if defined(CONFIG_APB_USB_LOG)
-                        ctrlreq->priv = (void *)GREYBUS_LOG;
-                        ret = usb_get_log(ctrlreq->buf, len);
+                        ctrreq->priv = (void *)GREYBUS_LOG;
+                        ret = usb_get_log(req->buf, len);
 #else
                         ret = 0;
 #endif
@@ -1381,14 +1421,14 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
      */
 
     if (ret >= 0) {
-        ctrlreq->len = min(len, ret);
-        ctrlreq->flags = USBDEV_REQFLAGS_NULLPKT;
-        ret = EP_SUBMIT(dev->ep0, ctrlreq);
+        req->len = min(len, ret);
+        req->flags = USBDEV_REQFLAGS_NULLPKT;
+        ret = EP_SUBMIT(dev->ep0, req);
         if (ret < 0) {
             usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPRESPQ),
                      (uint16_t) - ret);
-            ctrlreq->result = OK;
-            usbclass_ep0incomplete(dev->ep0, ctrlreq);
+            req->result = OK;
+            usbclass_ep0incomplete(dev->ep0, req);
         }
     }
 

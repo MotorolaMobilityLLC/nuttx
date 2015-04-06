@@ -1,6 +1,8 @@
 #ifndef _APB_ES1_H_
 #define _APB_ES1_H_
 
+#include <sys/types.h>
+
 struct apbridge_dev_s;
 
 struct apbridge_usb_driver
