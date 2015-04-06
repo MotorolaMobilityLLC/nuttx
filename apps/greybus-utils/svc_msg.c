@@ -55,7 +55,7 @@ void send_svc_handshake(void)
     gb_debug("SVC->AP handshake sent\n");
 }
 
-void send_hot_plug(char *hpe, int mid)
+void send_hot_plug(char *hpe, int iid)
 {
     struct svc_msg *msg = (struct svc_msg *)hpe;
     struct greybus_manifest_header *mh =
@@ -65,7 +65,7 @@ void send_hot_plug(char *hpe, int mid)
     msg->header.message_type = SVC_MSG_DATA;
     msg->header.payload_length = mh->size + 2;
     msg->hotplug.hotplug_event = SVC_HOTPLUG_EVENT;
-    msg->hotplug.module_id = mid;
+    msg->hotplug.interface_id = iid;
 
     /* Write out hotplug message with manifest payload */
     svc_int_write(hpe, HP_BASE_SIZE + mh->size);
@@ -73,7 +73,7 @@ void send_hot_plug(char *hpe, int mid)
     gb_debug("SVC->AP hotplug event (plug) sent\n");
 }
 
-void send_hot_unplug(int mid)
+void send_hot_unplug(int iid)
 {
     struct svc_msg msg;
 
@@ -81,7 +81,7 @@ void send_hot_unplug(int mid)
     msg.header.message_type = SVC_MSG_DATA;
     msg.header.payload_length = 2;
     msg.hotplug.hotplug_event = SVC_HOTUNPLUG_EVENT;
-    msg.hotplug.module_id = mid;
+    msg.hotplug.interface_id = iid;
 
     /* Write out hotplug message */
     svc_int_write(&msg, HP_BASE_SIZE);
@@ -89,7 +89,7 @@ void send_hot_unplug(int mid)
     gb_debug("SVC->AP hotplug event (unplug) sent\n");
 }
 
-void send_link_up(int mid, int iid, int did)
+void send_link_up(int iid, int did)
 {
     struct svc_msg msg;
 
@@ -97,17 +97,16 @@ void send_link_up(int mid, int iid, int did)
     msg.header.message_type = SVC_MSG_DATA;
     msg.header.payload_length = htole16(LU_PAYLOAD_SIZE);
     msg.management.management_packet_type = SVC_MANAGEMENT_LINK_UP;
-    msg.management.link_up.module_id = mid;
     msg.management.link_up.interface_id = iid;
     msg.management.link_up.device_id = did;
 
     /* Write out hotplug message */
     svc_int_write(&msg, LU_MSG_SIZE);
 
-    gb_debug("SVC -> AP Link Up (%d:%d:%d) message sent\n", mid, iid, did);
+    gb_debug("SVC -> AP Link Up (%d:%d) message sent\n", iid, did);
 }
 
-void send_ap_id(int mid)
+void send_ap_id(int iid)
 {
     struct svc_msg msg;
 
@@ -115,13 +114,13 @@ void send_ap_id(int mid)
     msg.header.message_type = SVC_MSG_DATA;
     msg.header.payload_length = htole16(APID_PAYLOAD_SIZE);
     msg.management.management_packet_type = SVC_MANAGEMENT_AP_ID;
-    msg.management.ap_id.module_id = mid;
+    msg.management.ap_id.interface_id = iid;
     msg.management.ap_id.device_id = 1;
 
     /* Write out hotplug message */
     svc_int_write(&msg, APID_MSG_SIZE);
 
-    gb_debug("SVC -> AP ID (MID:%d DID:1) message sent\n", mid);
+    gb_debug("SVC -> AP ID (IID:%d DID:1) message sent\n", iid);
 }
 
 int svc_handle(void *payload, int size)
@@ -148,18 +147,18 @@ int svc_handle(void *payload, int size)
     return size;
 }
 
-static int get_module_id(char *fname)
+static int get_interface_id(char *fname)
 {
-    char *mid_str;
-    int mid = 0;
+    char *iid_str;
+    int iid = 0;
     char tmp[256];
 
     strcpy(tmp, fname);
-    mid_str = strtok(tmp, "-");
-    if (!strncmp(mid_str, "MID", 3))
-        mid = strtol(fname + 4, NULL, 0);
+    iid_str = strtok(tmp, "-");
+    if (!strncmp(iid_str, "IID", 3))
+        iid = strtol(fname + 4, NULL, 0);
 
-    return mid;
+    return iid;
 }
 
 void send_svc_event(int type, char *name, void *priv)
@@ -170,28 +169,27 @@ void send_svc_event(int type, char *name, void *priv)
     if (type == 0) {
         if (hpe) {
             parse_manifest_blob(hpe);
-            int mid = get_module_id(name);
-            if (mid > 0) {
-                gb_info("%s module inserted\n", name);
-                send_hot_plug(hpe, mid);
+            int iid = get_interface_id(name);
+            if (iid > 0) {
+                gb_info("%s interface detected\n", name);
+                send_hot_plug(hpe, iid);
                 /*
                  * FIXME: hardcoded
-                 * interface and device
-                 * ID
+                 * device ID
                  */
-                send_link_up(mid, 0, 2);
+                send_link_up(iid, 2);
             } else
-                gb_error("invalid module ID, no hotplug plug event sent\n");
+                gb_error("invalid interface ID, no hotplug plug event sent\n");
         } else
             gb_error("missing manifest blob, no hotplug event sent\n");
     } else if (type == 1) {
-        int mid = get_module_id(name);
-        if (mid > 0) {
+        int iid = get_interface_id(name);
+        if (iid > 0) {
             manifest_release(hpe);
-            send_hot_unplug(mid);
-            gb_info("%s module removed\n", name);
+            send_hot_unplug(iid);
+            gb_info("%s interface removed\n", name);
         } else
-            gb_error("invalid module ID, no hotplug unplug event sent\n");
+            gb_error("invalid interface ID, no hotplug unplug event sent\n");
     }
     free(hpe);
 }

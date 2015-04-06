@@ -19,7 +19,7 @@ int bridge_main(int argc, char *argv[])
     tsb_device_table_register();
     tsb_driver_register();
 
-    enable_manifest("MID-1", NULL);
+    enable_manifest("IID-1", NULL);
     gb_unipro_init();
     enable_cports();
 

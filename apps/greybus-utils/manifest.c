@@ -275,18 +275,18 @@ bool manifest_release(void *data, size_t size)
     return _manifest_parse(data, size, 1);
 }
 
-static int get_module_id(char *fname)
+static int get_interface_id(char *fname)
 {
-    char *mid_str;
-    int mid = 0;
+    char *iid_str;
+    int iid = 0;
     char tmp[256];
 
     strcpy(tmp, fname);
-    mid_str = strtok(tmp, "-");
-    if (!strncmp(mid_str, "MID", 3))
-        mid = strtol(fname + 4, NULL, 0);
+    iid_str = strtok(tmp, "-");
+    if (!strncmp(iid_str, "IID", 3))
+        iid = strtol(fname + 4, NULL, 0);
 
-    return mid;
+    return iid;
 }
 
 char *get_manifest_blob(void *data)
@@ -326,12 +326,12 @@ void enable_manifest(char *name, void *priv)
     hpe = get_manifest_blob(priv);
     if (hpe) {
         parse_manifest_blob(hpe);
-        int mid = get_module_id(name);
-        if (mid > 0) {
-            gb_info("%s module inserted\n", name);
+        int iid = get_interface_id(name);
+        if (iid > 0) {
+            gb_info("%s interface inserted\n", name);
             free(hpe);
         } else {
-            gb_error("invalid module ID, no hotplug plug event sent\n");
+            gb_error("invalid interface ID, no hotplug plug event sent\n");
         }
     } else {
         gb_error("missing manifest blob, no hotplug event sent\n");
