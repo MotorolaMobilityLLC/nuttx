@@ -102,7 +102,6 @@ struct greybus_descriptor_string {
 struct greybus_descriptor_interface {
     __le16 vendor;
     __le16 product;
-    __le16 version;        // TODO - remove after Dec demo.
     __u8 vendor_stringid;
     __u8 product_stringid;
     __le64 unique_id;

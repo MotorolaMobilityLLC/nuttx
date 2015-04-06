@@ -9,7 +9,6 @@ version-minor = 1
 [interface-descriptor]
 vendor = 0xffff
 product = 0x0001
-version = 1
 vendor-string-id = 1
 product-string-id = 2
 unique-id = 0
