@@ -1,12 +1,12 @@
 ;
-; Simple GPIO Module Manifest
+; Simple GPIO Interface Manifest
 ;
 
 [manifest-header]
 version-major = 0
 version-minor = 1
 
-[module-descriptor]
+[interface-descriptor]
 vendor = 0xffff
 product = 0x0001
 version = 1
@@ -14,30 +14,30 @@ vendor-string-id = 1
 product-string-id = 2
 unique-id = 0
 
-; Module vendor string (id can't be 0)
+; Interface vendor string (id can't be 0)
 [string-descriptor "1"]
 id = 1
 string = "Project Ara"
 
-; Module product string (id can't be 0)
+; Interface product string (id can't be 0)
 [string-descriptor "2"]
 id = 2
-string = "Simple GPIO and I2C Module"
+string = "Simple GPIO and I2C Interface"
 
 ; GPIO protocol on CPort 5
 [cport-descriptor "5"]
-interface = 0
+bundle = 0
 id = 5
 protocol = 0x02
 
 ; I2C protocol on CPort 4
 [cport-descriptor "4"]
-interface = 0
+bundle = 0
 id = 4
 protocol = 0x03
 
-; Interface 0
-[interface-descriptor "0"]
+; Bundle 0
+[bundle-descriptor "0"]
 id = 0
 
 ; Control Class

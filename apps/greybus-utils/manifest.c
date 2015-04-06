@@ -142,7 +142,7 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
 {
     struct greybus_descriptor_header *desc_header = &desc->header;
     size_t expected_size;
-    int desc_size;
+    size_t desc_size;
     struct gb_cport *cport;
 
     if (size < sizeof(*desc_header)) {
@@ -156,36 +156,31 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
         return -EINVAL;
     }
 
+    /* Descriptor needs to at least have a header */
+    expected_size = sizeof(*desc_header);
+
     switch (desc_header->type) {
-    case GREYBUS_TYPE_MODULE:
-        if (desc_size < sizeof(struct greybus_descriptor_module)) {
-            gb_error("module descriptor too small (%u)\n", desc_size);
-            return -EINVAL;
-        }
-        break;
     case GREYBUS_TYPE_STRING:
-        expected_size = sizeof(struct greybus_descriptor_header);
         expected_size += sizeof(struct greybus_descriptor_string);
-        expected_size += (size_t) desc->string.length;
-        if (desc_size < expected_size) {
-            gb_error("string descriptor too small (%u)\n", desc_size);
-            return -EINVAL;
-        }
+        expected_size += desc->string.length;
         break;
     case GREYBUS_TYPE_INTERFACE:
+        expected_size += sizeof(struct greybus_descriptor_interface);
+        break;
+    case GREYBUS_TYPE_BUNDLE:
+        expected_size += sizeof(struct greybus_descriptor_bundle);
         break;
     case GREYBUS_TYPE_CPORT:
-        if (desc_size < sizeof(struct greybus_descriptor_cport)) {
-            gb_error("cport descriptor too small (%u)\n", desc_size);
-            return -EINVAL;
-        }
-        if (!release) {
-            cport = alloc_cport();
-            cport->id = desc->cport.id;
-            cport->protocol = desc->cport.protocol;
-            gb_debug("cport_id = %d\n", cport->id);
-        } else {
-            free_cport(desc->cport.id);
+        expected_size += sizeof(struct greybus_descriptor_cport);
+        if (desc_size >= expected_size) {
+            if (!release) {
+                cport = alloc_cport();
+                cport->id = desc->cport.id;
+                cport->protocol = desc->cport.protocol_id;
+                gb_debug("cport_id = %d\n", cport->id);
+            } else {
+                free_cport(desc->cport.id);
+            }
         }
         break;
     case GREYBUS_TYPE_CLASS:
@@ -194,6 +189,12 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
     case GREYBUS_TYPE_INVALID:
     default:
         gb_error("invalid descriptor type (%hhu)\n", desc_header->type);
+        return -EINVAL;
+    }
+
+    if (desc_size < expected_size) {
+        gb_error("%d: descriptor too small (%zu < %zu)\n",
+                 desc_header->type, desc_size, expected_size);
         return -EINVAL;
     }
 
@@ -238,11 +239,8 @@ bool _manifest_parse(void *data, size_t size, int release)
         int desc_size;
 
         desc_size = identify_descriptor(desc, size, release);
-        if (desc_size <= 0) {
-            if (!desc_size)
-                gb_error("zero-sized manifest descriptor\n");
+        if (desc_size <= 0)
             return false;
-        }
         desc = (struct greybus_descriptor *)((char *)desc + desc_size);
         size -= desc_size;
     }
@@ -251,7 +249,7 @@ bool _manifest_parse(void *data, size_t size, int release)
 }
 
 /*
- * Parse a buffer containing a module manifest.
+ * Parse a buffer containing a interface manifest.
  *
  * If we find anything wrong with the content/format of the buffer
  * we reject it.
