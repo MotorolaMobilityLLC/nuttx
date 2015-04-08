@@ -54,11 +54,22 @@ static pthread_t g_svc_thread;
 static int usb_to_unipro(struct apbridge_dev_s *dev,
                          void *payload, size_t size)
 {
-    struct cport_msg *cmsg = payload;
+    struct gb_operation_hdr *hdr = payload;
+    unsigned int cportid;
 
-    gb_dump(cmsg->data, size - 1);
+    gb_dump(payload, size);
 
-    return unipro_send(cmsg->cport, cmsg->data, size - 1);
+    if (size < sizeof(*hdr))
+        return -EPROTO;
+
+    /*
+     * Retreive and clear the cport id stored in the header pad bytes.
+     */
+    cportid = hdr->pad[1] << 8 | hdr->pad[0];
+    hdr->pad[0] = 0;
+    hdr->pad[1] = 0;
+
+    return unipro_send(cportid, payload, size);
 }
 
 static int usb_to_svc(struct apbridge_dev_s *dev, void *payload, size_t size)
@@ -70,32 +81,22 @@ static int usb_to_svc(struct apbridge_dev_s *dev, void *payload, size_t size)
 
 static int recv_from_unipro(unsigned int cportid, void *payload, size_t len)
 {
-    char *buf;
-    int ret;
+    struct gb_operation_hdr *hdr = payload;
 
     /*
      * FIXME: Remove when UniPro driver provides the actual buffer length.
      */
     len = gb_packet_size(payload);
 
-    buf = malloc(len + 1);
-    if (!buf)
-        return -ENOMEM;
-
     gb_dump(payload, len);
 
-    /*
-     * TODO
-     * Update UniPro driver to allocate a buffer that can contain
-     * the cport number and the data in order to avoid the recopy.
-     */
-    memcpy(buf, &cportid, 1);
-    memcpy(buf + 1, payload, len);
-    ret = unipro_to_usb(g_usbdev, buf, len + 1);
+    /* Store the cport id in the header pad bytes (if we have a header). */
+    if (len >= sizeof(*hdr)) {
+        hdr->pad[0] = cportid & 0xff;
+        hdr->pad[1] = (cportid >> 8) & 0xff;
+    }
 
-    free(buf);
-
-    return ret;
+    return unipro_to_usb(g_usbdev, payload, len);
 }
 
 static int recv_from_svc(void *buf, size_t length)
