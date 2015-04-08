@@ -64,6 +64,10 @@ config TSB_PINSHARE_ETM
 	---help---
 		Enable ETM PINSHARE at Boot Instead of I2S
 
+config ARCH_CHIP_DEVICE_PLL
+    bool
+    default n
+
 choice
 	prompt "Drive Strength for the TRACE Signals"
 	default TSB_TRACE_DRIVESTRENGTH_MAX

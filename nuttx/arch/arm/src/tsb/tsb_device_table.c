@@ -32,8 +32,35 @@
 #include <nuttx/device.h>
 #include <nuttx/device_resource.h>
 #include <nuttx/device_table.h>
+#include <nuttx/device_pll.h>
+
+#include "chip.h"
+
+#ifdef CONFIG_ARCH_CHIP_DEVICE_PLL
+#define TSB_PLLA_CG_BRIDGE_OFFSET    0x900
+#define TSB_PLLA_SIZE                0x20
+
+static struct device_resource tsb_plla_resources[] = {
+    {
+        .name   = "reg_base",
+        .type   = DEVICE_RESOUCE_TYPE_REGS,
+        .start  = SYSCTL_BASE + TSB_PLLA_CG_BRIDGE_OFFSET,
+        .count  = TSB_PLLA_SIZE,
+    },
+};
+#endif
 
 static struct device tsb_device_table[] = {
+#ifdef CONFIG_ARCH_CHIP_DEVICE_PLL
+    {
+        .type           = DEVICE_TYPE_PLL_HW,
+        .name           = "tsb_pll",
+        .desc           = "TSB PLLA Controller",
+        .id             = 0,
+        .resources      = tsb_plla_resources,
+        .resource_count = ARRAY_SIZE(tsb_plla_resources),
+    },
+#endif
 };
 
 int tsb_device_table_register(void)
