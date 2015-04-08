@@ -85,18 +85,20 @@ int stm32_pmstop(bool lpds)
 {
   uint32_t regval;
 
-  /* Clear the Power Down Deep Sleep (PDDS) and the Low Power Deep Sleep
-   * (LPDS)) bits in the power control register.
+  /* Clear the Power Down Deep Sleep (PDDS), Low Power Deep Sleep (LPDS), and
+   * Low Power regulator Low Voltage in Deep Sleep (LPLVDS) bits in the power
+   * control register.
    */
 
   regval  = getreg32(STM32_PWR_CR);
-  regval &= ~(PWR_CR_LPDS | PWR_CR_PDDS);
+  regval &= ~(PWR_CR_LPDS | PWR_CR_PDDS | PWR_CR_LPLVDS);
 
-  /* Set the Low Power Deep Sleep (LPDS) bit if so requested */
+  /* Set the Low Power Deep Sleep (LPDS) and Low Power regulator Low Voltage
+   * in Deep Sleep (LPLVDS) bits if so requested */
 
   if (lpds)
     {
-      regval |= PWR_CR_LPDS;
+      regval |= PWR_CR_LPDS | PWR_CR_LPLVDS;
     }
 
   putreg32(regval, STM32_PWR_CR);

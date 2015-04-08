@@ -92,6 +92,7 @@
 
 #if defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX)
 #  define PWR_CR_FPDS          (1 << 9)  /* Bit 9: Flash power down in Stop mode */
+#  define PWR_CR_LPLVDS        (1 << 10) /* Bit 10: Low Power regulator Low Voltage in Deep Sleep */
 #  if  defined(CONFIG_STM32_STM32F427) || defined(CONFIG_STM32_STM32F429) || \
        defined(CONFIG_STM32_STM32F446)
 #    define PWR_CR_ADCDC1      (1 << 13) /* Bit 13: see AN4073 for details */
