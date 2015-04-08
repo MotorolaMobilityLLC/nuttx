@@ -73,6 +73,9 @@ static int recv_from_unipro(unsigned int cportid, void *payload, size_t len)
     char *buf;
     int ret;
 
+    /*
+     * FIXME: Remove when UniPro driver provides the actual buffer length.
+     */
     len = gb_packet_size(payload);
 
     buf = malloc(len + 1);
