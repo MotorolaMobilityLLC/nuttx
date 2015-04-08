@@ -46,3 +46,8 @@ CHIP_CSRCS += tsb_cdsi.c
 ifeq ($(CONFIG_PWM),y)
 CHIP_CSRCS += tsb_pwm.c
 endif
+
+ifeq ($(CONFIG_DEVICE_CORE),y)
+CHIP_CSRCS += tsb_device_table.c
+CHIP_CSRCS += tsb_driver.c
+endif
