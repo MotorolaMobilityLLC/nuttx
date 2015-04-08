@@ -86,6 +86,15 @@ config ARCH_CHIP_DEVICE_PLL
 	bool
 	default n
 
+config ARCH_CHIP_TSB_PLL
+	bool "PLL Support"
+	depends on ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
+	select ARCH_CHIP_DEVICE_PLL
+	default n
+	---help---
+		TSB PLL Controller Driver
+
 choice
 	prompt "Drive Strength for the TRACE Signals"
 	default TSB_TRACE_DRIVESTRENGTH_MAX

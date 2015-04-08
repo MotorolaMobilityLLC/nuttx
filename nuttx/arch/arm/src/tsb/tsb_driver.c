@@ -32,6 +32,7 @@
 
 extern struct device_driver usb4624_driver;
 extern struct device_driver tsb_usb_hcd_driver;
+extern struct device_driver tsb_pll_driver;
 
 void tsb_driver_register(void)
 {
@@ -41,5 +42,9 @@ void tsb_driver_register(void)
 
 #ifdef CONFIG_ARCH_CHIP_USB_HCD
     device_register_driver(&tsb_usb_hcd_driver);
+#endif
+
+#ifdef CONFIG_ARCH_CHIP_TSB_PLL
+    device_register_driver(&tsb_pll_driver);
 #endif
 }
