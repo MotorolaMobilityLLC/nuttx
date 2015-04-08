@@ -33,6 +33,7 @@
 extern struct device_driver usb4624_driver;
 extern struct device_driver tsb_usb_hcd_driver;
 extern struct device_driver tsb_pll_driver;
+extern struct device_driver tsb_i2s_driver;
 extern struct device_driver tsb_pwm_driver;
 
 void tsb_driver_register(void)
@@ -47,6 +48,10 @@ void tsb_driver_register(void)
 
 #ifdef CONFIG_ARCH_CHIP_TSB_PLL
     device_register_driver(&tsb_pll_driver);
+#endif
+
+#ifdef CONFIG_ARCH_CHIP_TSB_I2S
+    device_register_driver(&tsb_i2s_driver);
 #endif
 
 #ifdef CONFIG_ARCH_CHIP_DEVICE_PWM
