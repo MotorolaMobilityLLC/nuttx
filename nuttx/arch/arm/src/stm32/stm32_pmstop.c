@@ -118,5 +118,12 @@ int stm32_pmstop(bool lpds)
 
   asm("wfi");
 #endif
+
+  /* Clear SLEEPDEEP bit of Cortex System Control Register */
+
+  regval  = getreg32(NVIC_SYSCON);
+  regval &= ~NVIC_SYSCON_SLEEPDEEP;
+  putreg32(regval, NVIC_SYSCON);
+
   return OK;
 }
