@@ -1,0 +1,25 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config ARA_BRIDGE_PINSHARE
+	bool "Ara Bridge PINSHARE control"
+	default n if !DEBUG
+	default y if DEBUG
+	depends on ARCH_CHIP_TSB
+	---help---
+		Enable the Ara PINSHARE program.  Reads, sets, and clears PINSHARE.
+
+
+if ARA_BRIDGE_PINSHARE
+
+config ARA_BRIDGE_PINSHARE_PROGNAME
+	string "Program name"
+	default "pinshare"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be used when the
+		NSH ELF program is installed.
+
+endif

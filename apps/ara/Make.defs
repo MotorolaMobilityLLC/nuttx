@@ -122,3 +122,7 @@ endif
 ifeq ($(CONFIG_ARA_SVC_SPRINGPM),y)
 CONFIGURED_APPS += ara/springpm
 endif
+
+ifeq ($(CONFIG_ARA_BRIDGE_PINSHARE),y)
+CONFIGURED_APPS += ara/pinshare
+endif
