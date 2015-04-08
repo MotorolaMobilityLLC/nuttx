@@ -95,6 +95,10 @@ config ARCH_CHIP_TSB_PLL
 	---help---
 		TSB PLL Controller Driver
 
+config ARCH_CHIP_DEVICE_I2S
+	bool
+	default n
+
 config ARCH_CHIP_DEVICE_PWM
 	bool "Enable PWM at Boot"
 	depends on ARCH_CHIP_APBRIDGE || ARCH_CHIP_GPBRIDGE
