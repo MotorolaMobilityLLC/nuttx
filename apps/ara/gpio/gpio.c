@@ -84,7 +84,7 @@ static const struct command commands[] = {
     [ACTIVATE]      = {'a', "activate",
                        "<gpio> [...]",
                        "Assign GPIO lines for use by this app"},
-    [DEACTIVATE]    = {'d', "deactivate",
+    [DEACTIVATE]    = {'u', "deactivate",
                        "<gpio> [...]",
                        "Unassign GPIO lines for use by this app"},
     [GET_DIRECTION] = {'d', "get-direction",
