@@ -80,6 +80,9 @@ struct slice_unipro_msg_tx
 /* Initialize the bus to the host/base/core. */
 int bus_init(void);
 
+/* Cleanup any unsent messages to the host/base/core. */
+void bus_cleanup(void);
+
 /* Send an SVC message across the bus to the base */
 int bus_svc_to_base(void *buf, size_t length);
 

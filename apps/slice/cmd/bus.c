@@ -166,3 +166,30 @@ int bus_init(void)
   return bus_i2c_init(&bus_data);
 }
 
+void bus_cleanup(void)
+{
+  struct list_head *iter;
+  struct list_head *iter_next;
+  struct slice_svc_msg *m;
+
+  // Deassert interrupt line
+  bus_interrupt(&bus_data, SLICE_REG_INT_SVC | SLICE_REG_INT_UNIPRO, false);
+
+  // Drop Unipro message (if present)
+  if (bus_data.reg_unipro_tx)
+    {
+      bus_data.reg_unipro_tx_size = 0;
+      free(bus_data.reg_unipro_tx);
+      bus_data.reg_unipro_tx = NULL;
+    }
+
+  // Drop all SVC messages (if any)
+  list_foreach_safe(&bus_data.reg_svc_tx_fifo, iter, iter_next)
+    {
+      m = list_entry(iter, struct slice_svc_msg, list);
+      list_del(iter);
+      free(m->buf);
+      free(m);
+    }
+}
+

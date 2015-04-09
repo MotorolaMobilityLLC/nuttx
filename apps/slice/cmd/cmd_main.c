@@ -118,6 +118,9 @@ static void *slice_cmd_base_present_worker(void *v)
             {
               // Ensure that base charging is disabled
               slice_vbus_en_sw(false);
+
+              // Cleanup any messages that were never sent to base
+              bus_cleanup();
             }
         }
 
