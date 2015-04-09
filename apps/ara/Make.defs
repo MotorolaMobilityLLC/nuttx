@@ -122,3 +122,7 @@ endif
 ifeq ($(CONFIG_ARA_GB_LOOPBACK),y)
 CONFIGURED_APPS += ara/gb_loopback
 endif
+
+ifeq ($(CONFIG_ARA_I2S_TEST),y)
+CONFIGURED_APPS += ara/i2s
+endif

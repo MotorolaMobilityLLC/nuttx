@@ -1,0 +1,23 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config ARA_I2S_TEST
+	bool "Ara TSB I2S Device Driver Test Program"
+	default n
+	depends on ARCH_CHIP_TSB && !GREYBUS_I2S_PHY
+	---help---
+		Enable the Toshiba I2S low-level device driver test program.
+		Note that this program does not exit.
+
+if ARA_I2S_TEST
+
+config ARA_I2S_TEST_PROGNAME
+	string "Program name"
+	default "i2s_test"
+	---help---
+		This is the name of the program that will be used when the
+		NSH ELF program is installed.
+
+endif
