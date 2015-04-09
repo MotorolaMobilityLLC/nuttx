@@ -876,6 +876,87 @@ static int es2_dump_routing_table(struct tsb_switch *sw) {
     return 0;
 }
 
+static int es2_sys_ctrl_set(struct tsb_switch *sw,
+                            uint16_t sc_addr,
+                            uint32_t val)
+{
+    int rc;
+
+    uint8_t req[] = {
+        SWITCH_DEVICE_ID,
+        NCP_RESERVED,
+        NCP_SYSCTRLSETREQ,
+        sc_addr >> 8,
+        sc_addr & 0xff,
+        val >> 24,
+        (val >> 16) & 0xff,
+        (val >> 8) & 0xff,
+        val & 0xff,
+    };
+
+    struct __attribute__((packed)) cnf {
+        uint8_t rc;
+        uint8_t function_id;
+    } cnf;
+
+    dbg_verbose("%s(): sc_addr=0x%x, val=0x%x (%d)",
+                __func__, sc_addr, val, val);
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t*)&cnf,
+                      sizeof(struct cnf));
+    if (rc) {
+        dbg_error("%s(): sc_addr=0x%x, val=0x%x (%d) failed: %d",
+                  __func__, sc_addr, val, val, rc);
+        return rc;
+    }
+    if (cnf.function_id != NCP_SYSCTRLSETCNF) {
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
+    }
+
+    dbg_verbose("%s(): fid=0x%02x, rc=%u", cnf.function_id, cnf.rc);
+    return cnf.rc;
+}
+
+static int es2_sys_ctrl_get(struct tsb_switch *sw,
+                            uint16_t sc_addr,
+                            uint32_t *val)
+{
+    int rc;
+    uint8_t req[] = {
+        SWITCH_DEVICE_ID,
+        NCP_RESERVED,
+        NCP_SYSCTRLGETREQ,
+        sc_addr >> 8,
+        sc_addr & 0xff,
+    };
+    struct __attribute__((packed)) cnf {
+        uint8_t rc;
+        uint8_t function_id;
+        uint32_t val;
+    } cnf;
+
+    dbg_verbose("%s(): sc_addr=0x%x\n", __func__, sc_addr);
+
+    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *)&cnf,
+                      sizeof(struct cnf));
+    if (rc) {
+        dbg_error("%s(): sc_addr=0x%x failed: %d\n", __func__, rc);
+        return rc;
+    }
+
+    if (cnf.function_id != NCP_SYSCTRLGETCNF) {
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
+    }
+
+    if (cnf.rc == 0) {
+        *val = be32_to_cpu(cnf.rc);
+    }
+    dbg_verbose("%s(): fid=0x%02x, rc=%u", cnf.function_id, cnf.rc);
+
+    return cnf.rc;
+}
+
 static int es2_dev_id_mask_set(struct tsb_switch *sw,
                                uint8_t unipro_portid,
                                uint8_t *mask)
@@ -1116,6 +1197,9 @@ static struct tsb_switch_ops es2_ops = {
     .lut_set               = es2_lut_set,
     .lut_get               = es2_lut_get,
     .dump_routing_table    = es2_dump_routing_table,
+
+    .sys_ctrl_set          = es2_sys_ctrl_set,
+    .sys_ctrl_get          = es2_sys_ctrl_get,
 
     .dev_id_mask_get       = es2_dev_id_mask_get,
     .dev_id_mask_set       = es2_dev_id_mask_set,
