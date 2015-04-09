@@ -41,7 +41,7 @@ STACKSIZE = 2048
 # SVC test tool
 
 ASRCS =
-CSRCS =
+CSRCS = attr_names.c
 MAINSRC = svc_main.c
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
