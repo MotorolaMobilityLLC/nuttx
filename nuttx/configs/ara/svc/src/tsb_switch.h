@@ -69,6 +69,32 @@
 #define NCP_SWITCHATTRGETCNF        (0x23)
 #define NCP_SWITCHIDSETREQ          (0x24)
 #define NCP_SWITCHIDSETCNF          (0x25)
+#define NCP_SYSCTRLSETREQ           (0x30)
+#define NCP_SYSCTRLSETCNF           (0x31)
+#define NCP_SYSCTRLGETREQ           (0x32)
+#define NCP_SYSCTRLGETCNF           (0x33)
+
+/* System registers, accessible via switch_sys_ctrl_set, switch_sys_ctrl_get */
+#define SC_SOFTRESET                (0x0000)
+#define SC_SOFTRESETRELEASE         (0x0100)
+#define SC_CLOCKGATING              (0x0200)
+#define SC_CLOCKENABLE              (0x0300)
+#define SC_SYSTEMCONF               (0x04C0)
+#define SC_ECCERROR                 (0x04C4)
+#define SC_VID                      (0x0700)
+#define SC_PID                      (0x0704)
+#define SC_REVISION0                (0x0710)
+#define SC_REVISION1                (0x0714)
+#define SC_MPHY_TRIM0               (0x0720)
+#define SC_MPHY_TRIM1               (0x0724)
+#define SC_MPHY_TRIM2               (0x0728)
+#define SC_MPHY_TRIM3               (0x072C)
+#define SC_MPHY_EFUSE1              (0x0770)
+#define SC_MPHY_EFUSE2              (0x0774)
+#define SC_PINSHARE                 (0x0800)
+#define SC_CHIPID0                  (0x0880)
+#define SC_CHIPID1                  (0x0884)
+#define SC_CHIPID2                  (0x0888)
 
 /* NCP field values */
 #define NCP_RESERVED                (0x00)
@@ -187,6 +213,12 @@ struct tsb_switch_ops {
                          uint8_t peer_cportid,
                          uint8_t dis,
                          uint8_t irt);
+    int (*sys_ctrl_set)(struct tsb_switch *sw,
+                        uint16_t sc_addr,
+                        uint32_t val);
+    int (*sys_ctrl_get)(struct tsb_switch *sw,
+                        uint16_t sc_addr,
+                        uint32_t *val);
     int (*dev_id_mask_get)(struct tsb_switch *,
                            uint8_t unipro_portid,
                            uint8_t *dst);
@@ -316,6 +348,14 @@ int switch_lut_set(struct tsb_switch *sw,
                    uint8_t unipro_portid,
                    uint8_t addr,
                    uint8_t dst_portid);
+
+int switch_sys_ctrl_set(struct tsb_switch *sw,
+                        uint16_t sc_addr,
+                        uint32_t val);
+
+int switch_sys_ctrl_get(struct tsb_switch *sw,
+                        uint16_t sc_addr,
+                        uint32_t *val);
 
 int switch_dev_id_mask_get(struct tsb_switch *sw,
                            uint8_t unipro_portid,

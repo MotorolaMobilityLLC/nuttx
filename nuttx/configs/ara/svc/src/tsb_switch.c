@@ -243,6 +243,24 @@ int switch_dump_routing_table(struct tsb_switch *sw) {
     return sw->ops->dump_routing_table(sw);
 }
 
+int switch_sys_ctrl_set(struct tsb_switch *sw,
+                        uint16_t sc_addr,
+                        uint32_t val) {
+    if (!sw->ops->sys_ctrl_set) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->sys_ctrl_set(sw, sc_addr, val);
+}
+
+int switch_sys_ctrl_get(struct tsb_switch *sw,
+                        uint16_t sc_addr,
+                        uint32_t *val) {
+    if (!sw->ops->sys_ctrl_get) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->sys_ctrl_get(sw, sc_addr, val);
+}
+
 int switch_dev_id_mask_get(struct tsb_switch *sw,
                            uint8_t unipro_portid,
                            uint8_t *dst) {
