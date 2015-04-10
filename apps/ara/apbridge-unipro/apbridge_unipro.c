@@ -155,8 +155,6 @@ static struct apbridge_usb_driver usb_driver = {
 
 int bridge_main(int argc, char *argv[])
 {
-    int i;
-
     tsb_gpio_register();
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
     display_init();
