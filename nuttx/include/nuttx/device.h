@@ -50,11 +50,11 @@ struct device_driver_ops {
     int     (*open)(struct device *dev);
     void    (*close)(struct device *dev);
     union {
-    } class_ops;
+    } type_ops;
 };
 
 struct device_driver {
-    char                        *class;
+    char                        *type;
     char                        *name;
     char                        *desc;
     struct device_driver_ops    *ops;
@@ -62,7 +62,7 @@ struct device_driver {
 };
 
 struct device {
-    char                    *class;
+    char                    *type;
     char                    *name;
     char                    *desc;
     unsigned int            id;
@@ -75,7 +75,7 @@ struct device {
 };
 
 /* Called by device driver clients */
-struct device *device_open(char *class, unsigned int id);
+struct device *device_open(char *type, unsigned int id);
 void device_close(struct device *dev);
 
 /* Called by device drivers */

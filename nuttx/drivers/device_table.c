@@ -37,6 +37,11 @@
 static struct device *device_table;
 static unsigned int device_table_entries;
 
+/**
+ * @brief Search device table for device by index
+ * @param idx Device table index
+ * @return Address of structure representing device or NULL on failure
+ */
 struct device *device_table_get_dev(unsigned int idx)
 {
     if (idx >= device_table_entries)
@@ -45,6 +50,11 @@ struct device *device_table_get_dev(unsigned int idx)
     return &device_table[idx];
 }
 
+/**
+ * @brief Get next device table entry
+ * @param dev Current device table entry
+ * @return Address of next device table entry or NULL if no more
+ */
 struct device *device_table_get_next_dev(struct device *dev)
 {
     if ((++dev - device_table) >= device_table_entries)
@@ -53,6 +63,13 @@ struct device *device_table_get_next_dev(struct device *dev)
     return dev;
 }
 
+/**
+ * @brief Register a device table
+ * @param table Device table to be registered
+ * @param entries Number of device table entries
+ * @return 0: Device table registered
+ *         -EINVAL: If 'table' is NULL or 'entries' is zero
+ */
 int device_table_register(struct device *table, unsigned int entries)
 {
     if (!table || !entries)
@@ -64,6 +81,9 @@ int device_table_register(struct device *table, unsigned int entries)
     return 0;
 }
 
+/**
+ * @brief unregister a device table
+ */
 void device_table_unregister(void)
 {
     device_table = NULL;

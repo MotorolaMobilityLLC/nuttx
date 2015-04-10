@@ -32,6 +32,13 @@
 
 #include <nuttx/device_resource.h>
 
+/**
+ * @brief Search for device resource by type and number
+ * @param dev Address of structure representing device
+ * @param type Resource type to search for
+ * @param num Instance of the resource of specified type
+ * @return Address of resource or NULL on failure
+ */
 struct device_resource *device_resource_get(struct device *dev,
                                             enum device_resource_type type,
                                             unsigned int num)
@@ -45,6 +52,13 @@ struct device_resource *device_resource_get(struct device *dev,
     return NULL;
 }
 
+/**
+ * @brief Search for device resource by type and name
+ * @param dev Address of structure representing device
+ * @param type Resource type to search for
+ * @param name Name of the resource
+ * @return Address of resource or NULL on failure
+ */
 struct device_resource *device_resource_get_by_name(
                                                 struct device *dev,
                                                 enum device_resource_type type,

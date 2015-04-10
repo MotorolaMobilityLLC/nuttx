@@ -37,19 +37,25 @@
 #include <nuttx/device.h>
 #include <nuttx/device_table.h>
 
-struct device *device_open(char *class, unsigned int id)
+/**
+ * @brief Open specified device
+ * @param type Type device belongs to (e.g., GPIO, I2C, I2S, UART)
+ * @param id ID or instance of device within its type
+ * @return Address of structure representing device or NULL on failure
+ */
+struct device *device_open(char *type, unsigned int id)
 {
     struct device *dev;
     irqstate_t flags;
     int ret;
 
-    if (!class)
+    if (!type)
         return NULL;
 
     flags = irqsave();
 
     device_table_for_each_dev(dev) {
-        if (!strcmp(dev->class, class) && (dev->id == id)) {
+        if (!strcmp(dev->type, type) && (dev->id == id)) {
             if (dev->state != DEVICE_STATE_PROBED)
                 goto err_irqrestore;
 
@@ -81,6 +87,10 @@ err_irqrestore:
     return NULL;
 }
 
+/**
+ * @brief Close specified device
+ * @param dev Address of structure representing device
+ */
 void device_close(struct device *dev)
 {
     irqstate_t flags;
@@ -108,19 +118,25 @@ void device_close(struct device *dev)
     irqrestore(flags);
 }
 
+/**
+ * @brief Register specified driver
+ * @param driver Address of structure containing driver information
+ * @return 0: Driver registered
+ *         -errno: Negative errno value indicating reason for failure
+ */
 int device_register_driver(struct device_driver *driver)
 {
     struct device *dev;
     irqstate_t flags;
     int ret;
 
-    if (!driver || !driver->class || !driver->name || !driver->ops)
+    if (!driver || !driver->type || !driver->name || !driver->ops)
         return -EINVAL;
 
     flags = irqsave();
 
     device_table_for_each_dev(dev) {
-        if (!strcmp(dev->class, driver->class) &&
+        if (!strcmp(dev->type, driver->type) &&
             !strcmp(dev->name, driver->name)) {
 
             if (dev->state != DEVICE_STATE_REMOVED)
@@ -150,6 +166,10 @@ int device_register_driver(struct device_driver *driver)
     return 0;
 }
 
+/**
+ * @brief Unregister specified driver
+ * @param driver Address of structure used to register the driver
+ */
 void device_unregister_driver(struct device_driver *driver)
 {
     struct device *dev;
