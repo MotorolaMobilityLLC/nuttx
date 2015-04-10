@@ -186,7 +186,7 @@ enum tsb_drivestrength {
      CLK_MASK(TSB_CLK_GPIO))
 
 
-
+uint32_t tsb_get_debug_reg(uint32_t reg);
 void tsb_clk_init(void);
 void tsb_clk_enable(uint32_t clk);
 void tsb_clk_disable(uint32_t clk);

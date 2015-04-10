@@ -57,6 +57,11 @@ static void scm_write(uint32_t offset, uint32_t v)
     putreg32(v, SYSCTL_BASE + offset);
 }
 
+uint32_t tsb_get_debug_reg(uint32_t offset)
+{
+    return scm_read(offset);
+}
+
 void tsb_clk_init(void)
 {
     scm_write(TSB_SCM_CLOCKGATING0, INIT_PERIPHERAL_CLOCK_BITS);
