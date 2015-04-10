@@ -35,6 +35,7 @@
 #include <pthread.h>
 #include <nuttx/usb/apb_es1.h>
 #include <apps/greybus-utils/utils.h>
+#include <arch/tsb/gpio.h>
 #include <arch/tsb/unipro.h>
 
 /*
