@@ -46,10 +46,15 @@
 #include "up_debug.h"
 #include "tsb_switch.h"
 #include "tsb_switch_driver_es2.h"
+#include "tsb_es2_mphy_fixups.h"
 
 #define SWITCH_SPI_INIT_DELAY   (700)   // us
 
 #define RXBUF_SIZE  272
+
+/* This is provided to apply port-dependent M-PHY fixups, in case a
+ * later switch increases SWITCH_UNIPORT_MAX */
+#define ES2_SWITCH_NUM_UNIPORTS 14
 
 struct sw_es2_priv {
     struct spi_dev_s    *spi_dev;
@@ -66,6 +71,11 @@ struct sw_es2_priv {
 #define HNUL        (0xff)
 
 #define NCP_CPORT   (0x03)
+
+#define TSB_MPHY_MAP (0x7F)
+    #define TSB_MPHY_MAP_TSB_REGISTER_1 (0x01)
+    #define TSB_MPHY_MAP_NORMAL         (0x00)
+    #define TSB_MPHY_MAP_TSB_REGISTER_2 (0x81)
 
 #define CHECK_VALID_ENTRY(entry) \
     (valid_bitmask[15 - ((entry) / 8)] & (1 << ((entry)) % 8))
@@ -150,8 +160,7 @@ static int es2_transfer_check_ncp_write_status(uint8_t *status_block,
                   (unsigned int)sizeof(w_status->status));
         return -EPROTO;
     } else if (w_status->endp != ENDP) {
-        dbg_error("%s: unexpected write status byte 0x%02x in ENDP position "
-                  "(expected 0x02%x)\n",
+        dbg_error("%s: unexpected write status byte 0x%02x in ENDP position (expected 0x02%x)\n",
                   __func__, w_status->endp, ENDP);
         return -EPROTO;
     }
@@ -323,6 +332,154 @@ static int es2_transfer(struct tsb_switch *sw,
     return ret;
 }
 
+static uint32_t es2_mphy_trim_fixup_value(uint32_t mphy_trim[4], uint8_t port)
+{
+    switch (port) {
+    case 0:
+        return (mphy_trim[0] >> 1) & 0x1f;
+    case 1:
+        return (mphy_trim[0] >> 9) & 0x1f;
+    case 2:
+        return (mphy_trim[0] >> 17) & 0x1f;
+    case 3:
+        return (mphy_trim[0] >> 25) & 0x1f;
+    case 4:
+        return (mphy_trim[1] >> 1) & 0x1f;
+    case 5:
+        return (mphy_trim[1] >> 9) & 0x1f;
+    case 6:
+        return (mphy_trim[1] >> 17) & 0x1f;
+    case 7:
+        return (mphy_trim[1] >> 25) & 0x1f;
+    case 8:
+        return (mphy_trim[2] >> 1) & 0x1f;
+    case 9:
+        return (mphy_trim[2] >> 9) & 0x1f;
+    case 10:
+        return (mphy_trim[2] >> 17) & 0x1f;
+    case 11:
+        return (mphy_trim[2] >> 25) & 0x1f;
+    case 12:
+        return (mphy_trim[3] >> 1) & 0x1f;
+    case 13:
+        return (mphy_trim[3] >> 9) & 0x1f;
+    default:                    /* can't happen */
+        DEBUGASSERT(0);
+        return 0xdeadbeef;
+    }
+}
+
+/*
+ * Apply M-PHY fixups.
+ *
+ * This function must be called while all links are still at PWM-G1,
+ * before a subsequent power mode change to an HS gear (e.g.,
+ * immediately after switch and interface initialization).
+ */
+static int es2_fixup_mphy(struct tsb_switch *sw)
+{
+    uint32_t mphy_trim[4];
+    int rc;
+    uint8_t port;
+
+    dbg_info("Applying M-PHY fixup settings to switch ports\n");
+
+    rc = (switch_sys_ctrl_get(sw, SC_MPHY_TRIM0, mphy_trim + 0) ||
+          switch_sys_ctrl_get(sw, SC_MPHY_TRIM1, mphy_trim + 1) ||
+          switch_sys_ctrl_get(sw, SC_MPHY_TRIM2, mphy_trim + 2) ||
+          switch_sys_ctrl_get(sw, SC_MPHY_TRIM3, mphy_trim + 3));
+    if (rc) {
+        dbg_error("%s(): can't read MPHY trim values: %d\n",
+                  __func__, rc);
+        return rc;
+    }
+
+    for (port = 0; port < ES2_SWITCH_NUM_UNIPORTS; port++) {
+        const struct tsb_mphy_fixup *fu;
+
+        /*
+         * Apply the "register 2" map fixups.
+         */
+        rc = switch_dme_set(sw, port, TSB_MPHY_MAP, 0,
+                            TSB_MPHY_MAP_TSB_REGISTER_2);
+        if (rc) {
+            dbg_error("%s(): failed to set switch map to \"TSB register 2\": %d\n",
+                      __func__, rc);
+            return rc;
+        }
+        fu = tsb_register_2_map_mphy_fixups;
+        do {
+            dbg_verbose("%s: port=%u, attrid=0x%04x, select_index=%u, value=0x%02x\n",
+                        __func__, port, fu->attrid, fu->select_index,
+                        fu->value);
+            rc = switch_dme_set(sw, port, fu->attrid, fu->select_index,
+                                fu->value);
+            if (rc) {
+                dbg_error("%s(): failed to apply register 2 map fixup: %d\n",
+                          __func__, rc);
+                return rc;
+            }
+        } while (!tsb_mphy_fixup_is_last(fu++));
+
+
+        /*
+         * Switch to "normal" map.
+         */
+        rc = switch_dme_set(sw, port, TSB_MPHY_MAP, 0,
+                            TSB_MPHY_MAP_NORMAL);
+        if (rc) {
+            dbg_error("%s(): failed to set switch map to normal: %d\n",
+                      __func__, rc);
+            return rc;
+        }
+
+        /*
+         * Apply the "register 1" map fixups.
+         */
+        rc = switch_dme_set(sw, port, TSB_MPHY_MAP, 0,
+                          TSB_MPHY_MAP_TSB_REGISTER_1);
+        if (rc) {
+            dbg_error("%s(): failed to switch to TSB register 1 map: %d\n",
+                      __func__, rc);
+            return rc;
+        }
+        fu = tsb_register_1_map_mphy_fixups;
+        do {
+            if (tsb_mphy_r1_fixup_is_magic(fu)) {
+                /* The "magic" fixups for the switch come from the
+                 * M-PHY trim values. */
+                uint32_t mpt = es2_mphy_trim_fixup_value(mphy_trim, port);
+                dbg_verbose("%s: port=%u, attrid=0x%04x, select_index=%u, value=0x%02x\n",
+                            __func__, port, 0x8002, 0, mpt);
+                rc = switch_dme_set(sw, port, 0x8002, 0, mpt);
+            } else {
+                dbg_verbose("%s: port=%u, attrid=0x%04x, select_index=%u, value=0x%02x\n",
+                            __func__, port, fu->attrid, fu->select_index,
+                            fu->value);
+                rc = switch_dme_set(sw, port, fu->attrid,
+                                    fu->select_index, fu->value);
+            }
+            if (rc) {
+                dbg_error("%s(): failed to apply register 1 map fixup: %d\n",
+                          __func__, rc);
+                return rc;
+            }
+        } while (!tsb_mphy_fixup_is_last(fu++));
+
+        /*
+         * Switch to "normal" map.
+         */
+        rc = switch_dme_set(sw, port, TSB_MPHY_MAP, 0,
+                            TSB_MPHY_MAP_NORMAL);
+        if (rc) {
+            dbg_error("%s(): failed to re-set switch map to normal: %d\n",
+                      __func__, rc);
+            return rc;
+        }
+    }
+    return 0;
+}
+
 /* Switch communication init procedure */
 static int es2_init_seq(struct tsb_switch *sw)
 {
@@ -351,12 +508,21 @@ static int es2_init_seq(struct tsb_switch *sw)
         if (!memcmp(priv->rxbuf + i, init_reply, sizeof(init_reply)))
             rc = 0;
     }
-    if (rc)
-        dbg_error("%s: Failed to init the SPI link with the switch\n",
-                  __func__);
 
     SPI_SELECT(spi_dev, id, false);
     SPI_LOCK(spi_dev, false);
+
+    if (rc) {
+        dbg_error("%s: Failed to init the SPI link with the switch\n",
+                  __func__);
+        return rc;
+    }
+
+    rc = es2_fixup_mphy(sw);
+    if (rc) {
+        dbg_error("%s: failed to fix up the M-PHY attributes\n",
+                  __func__);
+    }
 
     return rc;
 }
