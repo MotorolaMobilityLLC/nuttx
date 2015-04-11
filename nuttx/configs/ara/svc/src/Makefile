@@ -55,6 +55,7 @@ CSRCS		+= board-bdb2a.c
 CSRCS		+= tsb_switch_es2.c
 CSRCS		+= up_bdb_pm.c
 CSRCS       += up_adc.c up_spring_pm.c
+CSRCS		+= tsb_es2_mphy_fixups.c
 endif
 
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
