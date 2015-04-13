@@ -203,7 +203,7 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
 bool _manifest_parse(void *data, size_t size, int release)
 {
     struct greybus_manifest *manifest = data;
-    struct greybus_manifest_header *header;
+    struct greybus_manifest_header *header = &manifest->header;
     struct greybus_descriptor *desc;
     uint16_t manifest_size;
     bool result = false;
@@ -216,7 +216,6 @@ bool _manifest_parse(void *data, size_t size, int release)
         }
 
         /* Make sure the size is right */
-        header = &manifest->header;
         manifest_size = le16toh(header->size);
         if (manifest_size != size) {
             gb_error("manifest size mismatch %zu != %hu\n", size,
