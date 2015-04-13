@@ -70,6 +70,13 @@ struct sw_es2_priv {
 #define CHECK_VALID_ENTRY(entry) \
     (valid_bitmask[15 - ((entry) / 8)] & (1 << ((entry)) % 8))
 
+#define WSTATUS0_TXENTFIFOREMAIN_MASK  (0x03)
+#define WSTATUS1_TXENTFIFOREMAIN_MASK  (0xff)
+#define WSTATUS2_TXDATAFIFOREMAIN_MASK (0x7f)
+#define WSTATUS3_LENERR_MASK           (0x40)
+#define WSTATUS3_TXENTFIFOFULL_MASK    (0x02)
+#define WSTATUS3_TXDATAFIFOFULL_MASK   (0x01)
+
 /* Attributes as sources of interrupts from the Unipro ports */
 static uint16_t unipro_irq_attr[] = {
     TSB_DME_ENDPOINTRESETIND,
@@ -90,6 +97,101 @@ static uint16_t unipro_irq_attr[] = {
     TSB_MAILBOX
 };
 
+static int es2_transfer_check_ncp_write_status(uint8_t *status_block,
+                                               size_t size)
+{
+    size_t i;
+    __attribute__((packed))
+    struct write_status {
+        uint8_t strw;
+        uint8_t cport;
+        uint16_t len;
+        uint8_t status[4];
+        uint8_t endp;
+    };
+    struct write_status *w_status;
+    uint16_t tx_ent_remain;
+    uint8_t tx_data_remain;
+    int len_err, tx_ent_full, tx_data_full;
+
+    /*
+     * Find the status report within the block.
+     */
+    for (i = 0; i < size; i++) {
+        switch (status_block[i]) {
+        case STRW:
+            w_status = (struct write_status*)&status_block[i];
+            goto block_found;
+        case HNUL: /* fall through */
+        case LNUL:
+            continue;
+        default:
+            dbg_error("%s: invalid byte 0x%x in status block\n",
+                      __func__, status_block[i]);
+            dbg_print_buf(DBG_ERROR, status_block, SWITCH_WRITE_STATUS_NNULL);
+            return -EPROTO;
+        }
+    }
+    dbg_error("%s: no STRW found in write status block:\n", __func__);
+    dbg_print_buf(DBG_ERROR, status_block, size);
+    return -EPROTO;
+
+ block_found:
+    /*
+     * Sanity check the header and footer.
+     */
+    if (w_status->cport != NCP_CPORT) {
+        dbg_error("%s: unexpected cport %u in write status (expected %d)\n",
+                  __func__, w_status->cport, NCP_CPORT);
+        return -EPROTO;
+    } else if (be16_to_cpu(w_status->len) != sizeof(w_status->status)) {
+        dbg_error("%s: unexpected write status length %u (expected %u)\n",
+                  __func__, be16_to_cpu(w_status->len),
+                  (unsigned int)sizeof(w_status->status));
+        return -EPROTO;
+    } else if (w_status->endp != ENDP) {
+        dbg_error("%s: unexpected write status byte 0x%02x in ENDP position "
+                  "(expected 0x02%x)\n",
+                  __func__, w_status->endp, ENDP);
+        return -EPROTO;
+    }
+
+    /*
+     * Parse the status report itself.
+     */
+    tx_ent_remain =
+        (((w_status->status[0] & WSTATUS0_TXENTFIFOREMAIN_MASK) << 8) |
+         (w_status->status[1] & WSTATUS1_TXENTFIFOREMAIN_MASK));
+    tx_data_remain = w_status->status[2] & WSTATUS2_TXDATAFIFOREMAIN_MASK;
+    len_err = !!(w_status->status[3] & WSTATUS3_LENERR_MASK);
+    tx_ent_full = !!(w_status->status[3] & WSTATUS3_TXENTFIFOFULL_MASK);
+    tx_data_full = !!(w_status->status[3] & WSTATUS3_TXDATAFIFOFULL_MASK);
+    if (tx_ent_remain == 0 && !tx_ent_full) {
+        dbg_error("%s: TXENTFIFOREMAIN=0, but TXENTFIFOFULL is not set.\n",
+                  __func__);
+        return -EPROTO;
+    }
+    if (tx_data_remain == 0 && !tx_data_full) {
+        dbg_error("%s: TXDATAFIFOREMAIN=0, but TXDATAFIFOFULL is not set.\n",
+                  __func__);
+        return -EPROTO;
+    }
+    if (len_err) {
+        dbg_error("%s: payload length error.\n", __func__);
+        return -EIO;
+    }
+    if (tx_ent_full) {
+        dbg_warn("%s: TX entry FIFO is full; write data was discarded.\n",
+                 __func__);
+        return -EAGAIN;
+    }
+    if (tx_data_full) {
+        dbg_warn("%s: TX data FIFO is full; write data was discarded.\n",
+                 __func__);
+        return -EAGAIN;
+    }
+    return 0;
+}
 
 /* Transfer function for NCP port */
 static int es2_transfer(struct tsb_switch *sw,
@@ -136,20 +238,25 @@ static int es2_transfer(struct tsb_switch *sw,
     SPI_SNDBLOCK(spi_dev, tx_buf, tx_size);
     SPI_SNDBLOCK(spi_dev, write_trailer, sizeof write_trailer);
     // Wait write status, send NULL frames while waiting
-    SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf,
-                 SWITCH_WAIT_REPLY_LEN + SWITCH_WRITE_STATUS_LEN);
+    SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf, SWITCH_WRITE_STATUS_NNULL);
 
     dbg_insane("Write payload:\n");
     dbg_print_buf(DBG_INSANE, tx_buf, tx_size);
     dbg_insane("Write status:\n");
-    dbg_print_buf(DBG_INSANE, priv->rxbuf,
-                  SWITCH_WAIT_REPLY_LEN + SWITCH_WRITE_STATUS_LEN);
+    dbg_print_buf(DBG_INSANE, priv->rxbuf, SWITCH_WRITE_STATUS_NNULL);
 
     // Make sure we use 16-bit frames
     size = sizeof write_header + tx_size + sizeof write_trailer
-           + SWITCH_WAIT_REPLY_LEN + SWITCH_WRITE_STATUS_LEN;
+           + SWITCH_WRITE_STATUS_NNULL;
     if (size % 2) {
         SPI_SEND(spi_dev, LNUL);
+    }
+
+    // Parse the write status and bail on error.
+    ret = es2_transfer_check_ncp_write_status(priv->rxbuf,
+                                              SWITCH_WRITE_STATUS_NNULL);
+    if (ret) {
+        goto out;
     }
 
     // Read CNF and retry if NACK received
@@ -209,6 +316,7 @@ static int es2_transfer(struct tsb_switch *sw,
 
     } while (!rcv_done && !null_rxbuf);
 
+ out:
     SPI_SELECT(spi_dev, id, false);
     SPI_LOCK(spi_dev, false);
 

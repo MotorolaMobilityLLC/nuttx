@@ -41,6 +41,10 @@
 #define SWITCH_WAIT_REPLY_LEN   (16)
 // Write status reply length
 #define SWITCH_WRITE_STATUS_LEN (11)
+// Total number of NULLs to clock out to ensure a write status is read
+#define SWITCH_WRITE_STATUS_NNULL (SWITCH_WAIT_REPLY_LEN + \
+                                   SWITCH_WRITE_STATUS_LEN)
+
 
 /* Switch internal attributes */
 #define SWINE                       (0x0015)
