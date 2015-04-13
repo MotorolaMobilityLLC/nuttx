@@ -34,7 +34,7 @@
 #ifndef  _TSB_SWITCH_H_
 #define  _TSB_SWITCH_H_
 
-#include <pthread.h>
+#include <sched.h>
 
 #include <nuttx/list.h>
 
@@ -206,8 +206,8 @@ struct tsb_switch {
     unsigned int            irq;
     unsigned int            reset;
     sem_t                   sw_irq_lock;
-    pthread_t               sw_irq_thread;
-    bool                    sw_irq_thread_exit;
+    int                     worker_id;
+    bool                    sw_irq_worker_exit;
     uint8_t                 dev_ids[SWITCH_PORT_MAX];
 };
 

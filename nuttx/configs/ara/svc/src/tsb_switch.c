@@ -36,6 +36,7 @@
 #include <nuttx/arch.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #include <nuttx/util.h>
 
@@ -43,7 +44,8 @@
 #include "up_debug.h"
 #include "tsb_switch.h"
 
-#define DEFAULT_STACK_SIZE          2048
+#define IRQ_WORKER_DEFPRIO          50
+#define IRQ_WORKER_STACKSIZE        2048
 
 /* Switch power supply times (1V1, 1V8), in us */
 #define POWER_SWITCH_ON_STABILISATION_TIME_US  (50000)
@@ -1057,7 +1059,7 @@ int switch_configure_link(struct tsb_switch *sw,
     return rc;
 }
 
-/* Post a message to the IRQ worker thread */
+/* Post a message to the IRQ worker */
 int switch_post_irq(struct tsb_switch *sw)
 {
     sem_post(&sw->sw_irq_lock);
@@ -1065,63 +1067,67 @@ int switch_post_irq(struct tsb_switch *sw)
     return 0;
 }
 
-/* IRQ worker thread */
-static void *switch_irq_pending_worker(void *data)
+/* IRQ worker */
+static int switch_irq_pending_worker(int argc, char *argv[])
 {
-    struct tsb_switch *sw = data;
+    struct tsb_switch *sw = (struct tsb_switch *) strtol(argv[1], NULL, 16);
 
-    while (!sw->sw_irq_thread_exit) {
+    if (!sw) {
+        dbg_error("%s: no Switch context\n");
+        return ERROR;
+    }
+
+    while (!sw->sw_irq_worker_exit) {
 
         sem_wait(&sw->sw_irq_lock);
-        if (sw->sw_irq_thread_exit)
+        if (sw->sw_irq_worker_exit)
             break;
 
         /* Calls the low level handler to clear the interrupt source */
         switch_irq_handler(sw);
     }
 
-    return NULL;
+    return 0;
 }
 
-/* IRQ worker thread creation */
-static int create_switch_irq_thread(struct tsb_switch *sw)
+/* IRQ worker creation */
+static int create_switch_irq_worker(struct tsb_switch *sw)
 {
-    pthread_attr_t thread_attr;
+    const char* argv[2];
+    char buf[(sizeof(void *) / sizeof(char)) + 1];
     int ret;
 
-    sem_init(&sw->sw_irq_lock, 0, 0);
-    sw->sw_irq_thread_exit = false;
+    sprintf(buf, "%p", sw);
+    argv[0] = buf;
+    argv[1] = NULL;
 
-    ret = pthread_attr_init(&thread_attr);
-    if (ret)
-        goto error;
+    ret = task_create("irq_worker",
+                      IRQ_WORKER_DEFPRIO, IRQ_WORKER_STACKSIZE,
+                      switch_irq_pending_worker,
+                      (char * const*) argv);
+    if (ret == ERROR) {
+        dbg_error("%s: Failed to create IRQ worker\n", __func__);
+        return ERROR;
+    }
 
-    ret = pthread_attr_setstacksize(&thread_attr, DEFAULT_STACK_SIZE);
-    if (ret)
-        goto error;
-
-    ret = pthread_create(&sw->sw_irq_thread, &thread_attr,
-                         switch_irq_pending_worker, sw);
-
-error:
-    if (ret)
-        dbg_error("%s: Failed to create IRQ worker thread\n", __func__);
-
-    pthread_attr_destroy(&thread_attr);
-
-    return ret;
-}
-
-/* IRQ worker thread destruction */
-static int destroy_switch_irq_thread(struct tsb_switch *sw)
-{
-    void *value;
-
-    sw->sw_irq_thread_exit = true;
-    sem_post(&sw->sw_irq_lock);
-    pthread_join(sw->sw_irq_thread, &value);
+    sw->worker_id = ret;
 
     return 0;
+}
+
+/* IRQ worker destruction */
+static int destroy_switch_irq_worker(struct tsb_switch *sw)
+{
+    int ret = 0, status;
+
+    sw->sw_irq_worker_exit = true;
+    sem_post(&sw->sw_irq_lock);
+
+    ret = waitpid(sw->worker_id, &status, 0);
+    if (ret < 0)
+        dbg_warn("%s: waitpid failed with ret=%d\n", __func__, ret);
+
+    return ret;
 }
 
 /**
@@ -1153,6 +1159,8 @@ struct tsb_switch *switch_init(struct tsb_switch *sw,
     sw->vreg_1p8 = vreg_1p8;
     sw->reset = reset;
     sw->irq = irq;
+    sem_init(&sw->sw_irq_lock, 0, 0);
+    sw->sw_irq_worker_exit = false;
 
     switch_power_on_reset(sw);
 
@@ -1194,10 +1202,10 @@ struct tsb_switch *switch_init(struct tsb_switch *sw,
         goto error;
     }
 
-    // Create Switch interrupt handling thread, enable the interrupt
-    rc = create_switch_irq_thread(sw);
+    // Create Switch interrupt handling worker
+    rc = create_switch_irq_worker(sw);
     if (rc) {
-        dbg_error("%s: Failed to create Switch IRQ thread\n", __func__);
+        dbg_error("%s: Failed to create Switch IRQ worker\n", __func__);
         goto error;
     }
 
@@ -1225,7 +1233,7 @@ error:
 void switch_exit(struct tsb_switch *sw) {
     dbg_verbose("%s: Disabling switch\n", __func__);
     switch_irq_enable(sw, false);
-    destroy_switch_irq_thread(sw);
+    destroy_switch_irq_worker(sw);
     dev_ids_destroy(sw);
     switch_power_off(sw);
 }
