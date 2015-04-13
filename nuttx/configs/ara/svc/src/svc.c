@@ -220,6 +220,11 @@ int svc_init(void) {
     struct tsb_switch *sw;
     int i, rc;
 
+    if (the_svc.sw) {
+        dbg_info("SVC already initialized, aborting\n");
+        return 0;
+    }
+
     dbg_info("Initializing SVC\n");
 
     // Allocate and zero the sw struct
@@ -291,6 +296,7 @@ error1:
     board_exit(sw);
 error0:
     free(sw);
+    the_svc.sw = NULL;
     return -1;
 }
 
