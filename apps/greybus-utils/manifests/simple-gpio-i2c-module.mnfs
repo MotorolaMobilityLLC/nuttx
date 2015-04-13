@@ -7,11 +7,8 @@ version-major = 0
 version-minor = 1
 
 [interface-descriptor]
-vendor = 0xffff
-product = 0x0001
 vendor-string-id = 1
 product-string-id = 2
-unique-id = 0
 
 ; Interface vendor string (id can't be 0)
 [string-descriptor "1"]
