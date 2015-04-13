@@ -206,7 +206,6 @@ bool _manifest_parse(void *data, size_t size, int release)
     struct greybus_manifest_header *header = &manifest->header;
     struct greybus_descriptor *desc;
     uint16_t manifest_size;
-    bool result = false;
 
     if (!release) {
         /* we have to have at _least_ the manifest header */
@@ -242,15 +241,13 @@ bool _manifest_parse(void *data, size_t size, int release)
         if (desc_size <= 0) {
             if (!desc_size)
                 gb_error("zero-sized manifest descriptor\n");
-            result = false;
-            goto out;
+            return false;
         }
         desc = (struct greybus_descriptor *)((char *)desc + desc_size);
         size -= desc_size;
     }
 
- out:
-    return result;
+    return true;
 }
 
 /*
