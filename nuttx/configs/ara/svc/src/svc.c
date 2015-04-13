@@ -274,7 +274,7 @@ int svc_init(void) {
      * for the switch and Unipro devices initialization.
      */
     rc = switch_irq_enable(sw, true);
-    if (rc) {
+    if (rc && (rc != -EOPNOTSUPP)) {
         goto error2;
     }
 
