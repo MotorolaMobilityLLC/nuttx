@@ -156,7 +156,8 @@ static void do_get_direction(uint8_t *which, size_t count)
 {
     int i;
     for (i = 0; i < count; i++) {
-        printf("GPIO%d: %s\n", i, gpio_get_direction(which[i]) ? "IN" : "OUT");
+        printf("GPIO%d: %s\n", which[i],
+               gpio_get_direction(which[i]) ? "IN" : "OUT");
     }
 }
 
@@ -180,7 +181,7 @@ static void do_get_value(uint8_t *which, size_t count)
 {
     int i;
     for (i = 0; i < count; i++) {
-        printf("GPIO%d: %d\n", i, gpio_get_value(which[i]));
+        printf("GPIO%d: %d\n", which[i], gpio_get_value(which[i]));
     }
 }
 
