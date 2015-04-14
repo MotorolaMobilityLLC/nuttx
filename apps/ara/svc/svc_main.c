@@ -61,6 +61,7 @@ enum {
     INIT,
     EXIT,
     LINKTEST,
+    LINKSTATUS,
     MAX_CMD,
 };
 
@@ -76,6 +77,7 @@ static const struct command commands[] = {
     [EXIT] = {'e', "exit", "exit/de-initialize SVC"},
     [LINKTEST] = {'l', "linktest",
                   "test UniPro link power mode configuration"},
+    [LINKSTATUS] = {'s', "linkstatus", "print UniPro link status bit mask"},
 };
 
 static void usage(int exit_status) {
@@ -440,6 +442,24 @@ static int link_test(int argc, char *argv[]) {
     return rc;
 }
 
+static int link_status(int argc, char *argv[]) {
+    uint32_t link_status;
+    struct tsb_switch *sw = ara_svc->sw;
+    int rc;
+
+    if (argc != 2) {
+        printk("Ignoring unexpected arguments.\n");
+    }
+
+    rc = switch_internal_getattr(sw, SWSTA, &link_status);
+    if (rc) {
+        printk("Error: could not read link status: %d.\n", rc);
+    } else {
+        printk("Link status: 0x%x\n", link_status);
+    }
+    return rc;
+}
+
 static int ara_svc_main(int argc, char *argv[]) {
     /* Current main(), for configs/ara/svc (BDB1B, BDB2A, spiral 2
      * modules, etc.). */
@@ -479,6 +499,9 @@ static int ara_svc_main(int argc, char *argv[]) {
         break;
     case LINKTEST:
         rc = link_test(argc, argv);
+        break;
+    case LINKSTATUS:
+        rc = link_status(argc, argv);
         break;
     default:
         usage(EXIT_FAILURE);
