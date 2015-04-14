@@ -277,7 +277,7 @@ static inline int switch_configure_link_hs(struct tsb_switch *sw,
         .upro_tx_cfg = UNIPRO_FAST_PWR_CFG(auto_variant, gear, nlanes),
         .upro_rx_cfg = UNIPRO_FAST_PWR_CFG(auto_variant, gear, nlanes),
         .upro_user   = TSB_DEFAULT_PWR_USER_DATA,
-        .flags       = 0,
+        .flags       = UPRO_LINKF_TX_TERMINATION | UPRO_LINKF_RX_TERMINATION,
     };
     return switch_configure_link(sw, port_id, &lcfg, NULL);
 }
@@ -302,7 +302,7 @@ static inline int switch_configure_link_pwm(struct tsb_switch *sw,
         .upro_tx_cfg = UNIPRO_SLOW_PWR_CFG(auto_variant, gear, nlanes),
         .upro_rx_cfg = UNIPRO_SLOW_PWR_CFG(auto_variant, gear, nlanes),
         .upro_user   = TSB_DEFAULT_PWR_USER_DATA,
-        .flags       = UPRO_LINKF_TX_TERMINATION | UPRO_LINKF_RX_TERMINATION,
+        .flags       = UPRO_LINKF_TX_TERMINATION,
     };
     return switch_configure_link(sw, port_id, &lcfg, NULL);
 }
