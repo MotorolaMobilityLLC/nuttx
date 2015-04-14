@@ -73,8 +73,6 @@ enum gb_state {
     GBEMU_HS_COMPLETE = 1,
 };
 
-#pragma pack(push, 1)
-
 enum svc_function_id {
     SVC_FUNCTION_HANDSHAKE = 0x00,
     SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT = 0x01,
@@ -93,7 +91,7 @@ struct svc_msg_header {
     __u8 function_id;           /* enum svc_function_id */
     __u8 message_type;
     __le16 payload_length;
-};
+} __packed;
 
 enum svc_function_handshake_type {
     SVC_HANDSHAKE_SVC_HELLO = 0x00,
@@ -105,21 +103,21 @@ struct svc_function_handshake {
     __u8 version_major;
     __u8 version_minor;
     __u8 handshake_type;        /* enum svc_function_handshake_type */
-};
+} __packed;
 
 struct svc_function_unipro_set_route {
     __u8 device_id;
-};
+} __packed;
 
 struct svc_function_unipro_link_up {
     __u8 interface_id;
     __u8 device_id;
-};
+} __packed;
 
 struct svc_function_ap_id {
     __u8 interface_id;
     __u8 device_id;
-};
+} __packed;
 
 enum svc_function_management_event {
     SVC_MANAGEMENT_AP_ID = 0x00,
@@ -134,7 +132,7 @@ struct svc_function_unipro_management {
         struct svc_function_unipro_link_up link_up;
         struct svc_function_unipro_set_route set_route;
     };
-};
+} __packed;
 
 enum svc_function_hotplug_event {
     SVC_HOTPLUG_EVENT = 0x00,
@@ -145,7 +143,7 @@ struct svc_function_hotplug {
     __u8 hotplug_event;         /* enum svc_function_hotplug_event */
     __u8 interface_id;
     __u8 data[0];
-};
+} __packed;
 
 enum svc_function_power_type {
     SVC_POWER_BATTERY_STATUS = 0x00,
@@ -164,10 +162,10 @@ struct svc_function_power_battery_status {
     __le16 charge_full;
     __le16 charge_now;
     __u8 status;                /* enum svc_function_battery_status */
-};
+} __packed;
 
 struct svc_function_power_battery_status_request {
-};
+} __packed;
 
 /* XXX
  * Each interface block carries power, so it's possible these things
@@ -181,7 +179,7 @@ struct svc_function_power {
         struct svc_function_power_battery_status status;
         struct svc_function_power_battery_status_request request;
     };
-};
+} __packed;
 
 enum svc_function_epm_command_type {
     SVC_EPM_ENABLE = 0x00,
@@ -192,7 +190,7 @@ enum svc_function_epm_command_type {
 struct svc_function_epm {
     __u8 epm_command_type;      /* enum svc_function_epm_command_type */
     __u8 module_id;
-};
+} __packed;
 
 enum svc_function_suspend_command_type {
     SVC_SUSPEND_FIXME_1 = 0x00, // FIXME
@@ -203,7 +201,7 @@ enum svc_function_suspend_command_type {
 struct svc_function_suspend {
     __u8 suspend_command_type;  /* enum function_suspend_command_type */
     __u8 device_id;
-};
+} __packed;
 
 struct svc_msg {
     struct svc_msg_header header;
@@ -215,8 +213,6 @@ struct svc_msg {
         struct svc_function_epm epm;
         struct svc_function_suspend suspend;
     };
-};
-
-#pragma pack(pop)
+} __packed;
 
 #endif                          /* __SVC_MSG_H */
