@@ -151,7 +151,9 @@
 #define I2C_OAR1_OA1_7_SHIFT      (1)       /* Bits 1-7: 7-bit interface address */
 #define I2C_OAR1_OA1_7_MASK       (0x7f << I2C_OAR1_OA1_7_SHIFT)
 #define I2C_OAR1_OA1MODE          (1 << 10) /* Bit 10: Own Address 1 10-bit mode */
-#define I2C_OAR1_ONE              (1 << 14) /* Bit 14: always keep on in software */
+#ifdef CONFIG_STM32_STM32F30XX
+#  define I2C_OAR1_ONE            (1 << 14) /* Bit 14: always keep on in software */
+#endif
 #define I2C_OAR1_OA1EN            (1 << 15) /* Bit 15: Own Address 1 enable */
 
 /* Own address register 2 */

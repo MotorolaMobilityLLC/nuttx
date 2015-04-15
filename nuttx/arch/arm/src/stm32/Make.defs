@@ -146,7 +146,7 @@ endif
 ifeq ($(CONFIG_STM32_I2C_ALT),y)
 CHIP_CSRCS += stm32_i2c_alt.c
 else
-ifeq ($(CONFIG_STM32_STM32F30XX),y)
+ifneq ($(filter y,$(CONFIG_STM32_STM32F30XX) $(CONFIG_STM32_STM32L4X6)),)
 CHIP_CSRCS += stm32f30xxx_i2c.c
 else
 CHIP_CSRCS += stm32_i2c.c
@@ -188,7 +188,9 @@ ifneq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CHIP_CSRCS += stm32_idle.c
 endif
 
+ifeq ($(CONFIG_PM),y)
 CHIP_CSRCS += stm32_pmstop.c stm32_pmstandby.c stm32_pmsleep.c
+endif
 
 ifneq ($(CONFIG_ARCH_CUSTOM_PMINIT),y)
 CHIP_CSRCS += stm32_pminitialize.c

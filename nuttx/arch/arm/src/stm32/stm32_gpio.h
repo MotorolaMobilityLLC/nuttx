@@ -55,6 +55,8 @@
 
 #if defined(CONFIG_STM32_STM32L15XX)
 #  include "chip/stm32l15xxx_gpio.h"
+#elif defined(CONFIG_STM32_STM32L4X6)
+#  include "chip/stm32l4x6xx_gpio.h"
 #elif defined(CONFIG_STM32_STM32F10XX)
 #  include "chip/stm32f10xxx_gpio.h"
 #elif defined(CONFIG_STM32_STM32F20XX)
@@ -201,7 +203,8 @@
 #define GPIO_PIN15                    (15 << GPIO_PIN_SHIFT)
 
 #elif defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F20XX) || \
-      defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX)
+      defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX) || \
+      defined(CONFIG_STM32_STM32L4X6)
 
 /* Each port bit of the general-purpose I/O (GPIO) ports can be individually configured
  * by software in several modes:

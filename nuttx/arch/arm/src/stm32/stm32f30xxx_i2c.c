@@ -102,7 +102,7 @@
 #if defined(CONFIG_STM32_I2C1) || defined(CONFIG_STM32_I2C2) || defined(CONFIG_STM32_I2C3)
 /* This implementation is for the STM32 F1, F2, and F4 only */
 
-#if defined(CONFIG_STM32_STM32F30XX)
+#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -360,8 +360,13 @@ static int stm32_i2c_transfer(FAR struct i2c_dev_s *dev, FAR struct i2c_msg_s *m
 static const struct stm32_i2c_config_s stm32_i2c1_config =
 {
   .base       = STM32_I2C1_BASE,
+#if defined(CONFIG_STM32_STM32F30XX)
   .clk_bit    = RCC_APB1ENR_I2C1EN,
   .reset_bit  = RCC_APB1RSTR_I2C1RST,
+#elif defined(CONFIG_STM32_STM32L4X6)
+  .clk_bit    = RCC_APB1ENR1_I2C1EN,
+  .reset_bit  = RCC_APB1RSTR1_I2C1RST,
+#endif
   .scl_pin    = GPIO_I2C1_SCL,
   .sda_pin    = GPIO_I2C1_SDA,
 #ifndef CONFIG_I2C_POLLED
@@ -389,8 +394,13 @@ struct stm32_i2c_priv_s stm32_i2c1_priv =
 static const struct stm32_i2c_config_s stm32_i2c2_config =
 {
   .base       = STM32_I2C2_BASE,
+#if defined(CONFIG_STM32_STM32F30XX)
   .clk_bit    = RCC_APB1ENR_I2C2EN,
   .reset_bit  = RCC_APB1RSTR_I2C2RST,
+#elif defined(CONFIG_STM32_STM32L4X6)
+  .clk_bit    = RCC_APB1ENR1_I2C2EN,
+  .reset_bit  = RCC_APB1RSTR1_I2C2RST,
+#endif
   .scl_pin    = GPIO_I2C2_SCL,
   .sda_pin    = GPIO_I2C2_SDA,
 #ifndef CONFIG_I2C_POLLED
@@ -418,8 +428,13 @@ struct stm32_i2c_priv_s stm32_i2c2_priv =
 static const struct stm32_i2c_config_s stm32_i2c3_config =
 {
   .base       = STM32_I2C3_BASE,
+#if defined(CONFIG_STM32_STM32F30XX)
   .clk_bit    = RCC_APB1ENR_I2C3EN,
   .reset_bit  = RCC_APB1RSTR_I2C3RST,
+#elif defined(CONFIG_STM32_STM32L4X6)
+  .clk_bit    = RCC_APB1ENR1_I2C3EN,
+  .reset_bit  = RCC_APB1RSTR1_I2C3RST,
+#endif
   .scl_pin    = GPIO_I2C3_SCL,
   .sda_pin    = GPIO_I2C3_SDA,
 #ifndef CONFIG_I2C_POLLED
@@ -641,7 +656,6 @@ static inline int stm32_i2c_sem_waitdone(FAR struct stm32_i2c_priv_s *priv)
 {
   struct timespec abstime;
   irqstate_t flags;
-  uint32_t regval;
   int ret;
 
   flags = irqsave();
@@ -1143,9 +1157,11 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequ
 
   stm32_i2c_putreg32(priv, STM32_I2C_TIMINGR_OFFSET, timingr);
 
+#ifdef CONFIG_STM32_STM32F30XX
   /* Bit 14 of OAR1 must be configured and kept at 1 */
 
   stm32_i2c_putreg(priv, STM32_I2C_OAR1_OFFSET, I2C_OAR1_ONE);
+#endif
 
   /* Re-enable the peripheral (or not) */
 
@@ -1290,7 +1306,6 @@ static inline void stm32_i2c_isr_startmessage(struct stm32_i2c_priv_s *priv)
 
 static inline void stm32_i2c_clearinterrupts(struct stm32_i2c_priv_s *priv)
 {
-#warning "check this clears interrupts?"
     stm32_i2c_modifyreg32(priv, STM32_I2C_ICR_OFFSET, 0, I2C_ICR_CLEARMASK);
 }
 
@@ -1567,10 +1582,15 @@ static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv)
   /* Power-up and configure GPIOs */
 
   /* Enable power and reset the peripheral */
-
+#if defined(CONFIG_STM32_STM32F30XX)
   modifyreg32(STM32_RCC_APB1ENR, 0, priv->config->clk_bit);
   modifyreg32(STM32_RCC_APB1RSTR, 0, priv->config->reset_bit);
   modifyreg32(STM32_RCC_APB1RSTR, priv->config->reset_bit, 0);
+#elif defined(CONFIG_STM32_STM32L4X6)
+  modifyreg32(STM32_RCC_APB1ENR1, 0, priv->config->clk_bit);
+  modifyreg32(STM32_RCC_APB1RSTR1, 0, priv->config->reset_bit);
+  modifyreg32(STM32_RCC_APB1RSTR1, priv->config->reset_bit, 0);
+#endif
 
   /* Configure pins */
 
@@ -1638,8 +1658,11 @@ static int stm32_i2c_deinit(FAR struct stm32_i2c_priv_s *priv)
 #endif
 
   /* Disable clocking */
-
+#if defined(CONFIG_STM32_STM32F30XX)
   modifyreg32(STM32_RCC_APB1ENR, priv->config->clk_bit, 0);
+#elif defined(CONFIG_STM32_STM32L4X6)
+  modifyreg32(STM32_RCC_APB1ENR1, priv->config->clk_bit, 0);
+#endif
   return OK;
 }
 
@@ -2204,5 +2227,5 @@ out:
 }
 #endif /* CONFIG_I2C_RESET */
 
-#endif /* CONFIG_STM32_STM32F30XX */
+#endif /* CONFIG_STM32_STM32F30XX || CONFIG_STM32_STM32L4X6 */
 #endif /* CONFIG_STM32_I2C1 || CONFIG_STM32_I2C2 || CONFIG_STM32_I2C3 */

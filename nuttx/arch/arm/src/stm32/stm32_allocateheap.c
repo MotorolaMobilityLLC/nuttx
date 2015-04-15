@@ -117,6 +117,39 @@
 #    error "CONFIG_MM_REGIONS > 1.  The STM32L15X has only one memory region."
 #  endif
 
+/* Members of the STM32L4X6 family have a variable amount of SRAM, with up to
+ * 96KB SRAM1 and another 32KB of SRAM2.
+ */
+
+#elif defined(CONFIG_STM32_STM32L4X6)
+
+   /* Set the end of system SRAM */
+
+#  define SRAM1_END CONFIG_RAM_END
+
+   /* Set the range of SRAM2 as well (although we may not use it) */
+
+#  define SRAM2_START 0x10000000
+#  define SRAM2_END   0x10008000
+
+   /* There is no FSMC */
+
+#  undef CONFIG_STM32_FSMC_SRAM
+
+   /* There are 2 possible SRAM configurations:
+    *
+    * Configuration 1. System SRAM (only)
+    *                  CONFIG_MM_REGIONS == 1
+    * Configuration 2. System SRAM and SRAM2
+    *                  CONFIG_MM_REGIONS == 2
+    */
+
+#    if CONFIG_MM_REGIONS > 2
+#       error "No more than two memory regions can be supported (CONFIG_MM_REGIONS)"
+#       undef CONFIG_MM_REGIONS
+#       define CONFIG_MM_REGIONS 2
+#    endif
+
 /* For the STM312F10xxx family, all internal SRAM is in one contiguous block
  * starting at g_idle_topstack and extending through CONFIG_RAM_END (my apologies
  * for the bad naming).  In addition, external FSMC SRAM may be available.

@@ -1,6 +1,7 @@
 /****************************************************************************
  * arch/arm/src/stm32/stm32_pmstop.c
  *
+ *   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
  *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
@@ -85,6 +86,19 @@ int stm32_pmstop(bool lpds)
 {
   uint32_t regval;
 
+#ifdef CONFIG_STM32_STM32L4X6
+  /* Clear Low-Power Mode Selection (LPMS) bits in power control register 1. */
+  regval  = getreg32(STM32_PWR_CR1);
+  regval &= ~PWR_CR1_LPMS_MASK;
+
+  /* Select Stop 1 mode with low-power regulator if so requested */
+  if (lpds)
+    {
+      regval |= PWR_CR1_LPMS_STOP1LPR;
+    }
+
+  putreg32(regval, STM32_PWR_CR1);
+#else
   /* Clear the Power Down Deep Sleep (PDDS), Low Power Deep Sleep (LPDS), and
    * Low Power regulator Low Voltage in Deep Sleep (LPLVDS) bits in the power
    * control register.
@@ -102,6 +116,7 @@ int stm32_pmstop(bool lpds)
     }
 
   putreg32(regval, STM32_PWR_CR);
+#endif
 
   /* Set SLEEPDEEP bit of Cortex System Control Register */
 

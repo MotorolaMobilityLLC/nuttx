@@ -78,6 +78,8 @@
 
 #if defined(CONFIG_STM32_STM32L15XX)
 #  include "stm32l15xxx_rcc.c"
+#elif defined(CONFIG_STM32_STM32L4X6)
+#  include "stm32l4x6xx_rcc.c"
 #elif defined(CONFIG_STM32_STM32F10XX)
 #  include "stm32f10xxx_rcc.c"
 #elif defined(CONFIG_STM32_STM32F20XX)

@@ -1,6 +1,7 @@
 /****************************************************************************
  * arch/arm/src/stm32/stm32_pmstandby.c
  *
+ *   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
  *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
@@ -83,6 +84,21 @@ int stm32_pmstandby(void)
 {
   uint32_t regval;
 
+#ifdef CONFIG_STM32_STM32L4X6
+  /* Clear the Wake-Up Flags by setting the CWUFx bits in the power status
+   * clear register 
+   */
+  regval = PWR_SCR_CWUF1 | PWR_SCR_CWUF2 | PWR_SCR_CWUF3 |
+           PWR_SCR_CWUF4 | PWR_SCR_CWUF5;
+  putreg32(regval, STM32_PWR_SCR);
+
+  /* Select Standby mode */
+  regval  = getreg32(STM32_PWR_CR1);
+  regval &= ~PWR_CR1_LPMS_MASK;
+  regval |= PWR_CR1_LPMS_STANDBY;
+
+  putreg32(regval, STM32_PWR_CR1);
+#else
   /* Clear the Wake-Up Flag by setting the CWUF bit in the power control
    * register.
    */
@@ -95,6 +111,7 @@ int stm32_pmstandby(void)
 
   regval |= PWR_CR_PDDS;
   putreg32(regval, STM32_PWR_CR);
+#endif
 
   /* Set SLEEPDEEP bit of Cortex System Control Register */
 

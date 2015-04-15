@@ -171,6 +171,8 @@ _vectors:
 
 #if defined(CONFIG_STM32_STM32L15XX)
 #  include "chip/stm32l15xxx_vectors.h"
+#elif defined(CONFIG_STM32_STM32L4X6)
+#  include "chip/stm32l4x6xx_vectors.h"
 #elif defined(CONFIG_STM32_STM32F10XX)
 #  include "chip/stm32f10xxx_vectors.h"
 #elif defined(CONFIG_STM32_STM32F20XX)
@@ -213,6 +215,8 @@ handlers:
 
 #if defined(CONFIG_STM32_STM32L15XX)
 #  include "chip/stm32l15xxx_vectors.h"
+#elif defined(CONFIG_STM32_STM32L4X6)
+#  include "chip/stm32l4x6xx_vectors.h"
 #elif defined(CONFIG_STM32_STM32F10XX)
 #  include "chip/stm32f10xxx_vectors.h"
 #elif defined(CONFIG_STM32_STM32F20XX)

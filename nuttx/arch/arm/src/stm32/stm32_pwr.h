@@ -43,7 +43,14 @@
 #include <nuttx/config.h>
 
 #include "chip.h"
-#include "chip/stm32_pwr.h"
+
+/* Include the correct PWR register definitions for this STM32 family */
+
+#ifdef CONFIG_STM32_STM32L4X6
+#  include "chip/stm32l4x6xx_pwr.h"
+#else
+#  include "chip/stm32_pwr.h"
+#endif
 
 /************************************************************************************
  * Pre-processor Definitions

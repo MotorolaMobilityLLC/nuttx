@@ -45,6 +45,8 @@
 
 #if defined(CONFIG_STM32_STM32L15XX)
 #  include "chip/stm32l15xxx_syscfg.h"
+#elif defined(CONFIG_STM32_STM32L4X6)
+#  include "chip/stm32l4x6xx_syscfg.h"
 #elif defined(CONFIG_STM32_STM32F20XX)
 #  include "chip/stm32f20xxx_syscfg.h"
 #elif defined(CONFIG_STM32_STM32F30XX)
@@ -53,6 +55,8 @@
 #  include "chip/stm32f44xxx_syscfg.h"
 #elif defined(CONFIG_STM32_STM32F40XX)
 #  include "chip/stm32f40xxx_syscfg.h"
+#else
+#  error "Unsupported STM32 chip"
 #endif
 
 /****************************************************************************************************

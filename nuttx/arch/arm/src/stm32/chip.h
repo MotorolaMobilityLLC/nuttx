@@ -60,6 +60,11 @@
 #    error "Unsupported EnergyLite chip"
 #  endif
 
+/* STM32 L4 Family ******************************************************************/
+
+#elif defined(CONFIG_STM32_STM32L4X6)
+#  include "chip/stm32l4x6xx_pinmap.h"
+
 /* STM32 F1 Family ******************************************************************/
 
 #elif defined(CONFIG_STM32_STM32F10XX)
@@ -137,6 +142,8 @@
 #ifdef CONFIG_ARMV7M_CMNVECTOR
 #  if defined(CONFIG_STM32_STM32L15XX)
 #    include "chip/stm32l15xxx_vectors.h"
+#  elif defined(CONFIG_STM32_STM32L4X6)
+#    include "chip/stm32l4x6xx_vectors.h"
 #  elif defined(CONFIG_STM32_STM32F10XX)
 #    include "chip/stm32f10xxx_vectors.h"
 #  elif defined(CONFIG_STM32_STM32F20XX)
