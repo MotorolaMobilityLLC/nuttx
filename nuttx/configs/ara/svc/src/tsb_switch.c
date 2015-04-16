@@ -962,6 +962,8 @@ static int switch_apply_power_mode(struct tsb_switch *sw,
     rc = switch_dme_set(sw, port_id, PA_PWRMODE, NCP_SELINDEX_NULL,
                         pwr_mode);
     if (rc) {
+        dbg_error("%s(): can't set PA_PWRMODE (0x%x) to 0x%x: %d\n",
+                  __func__, PA_PWRMODE, pwr_mode, rc);
         goto out;
     }
     do {
@@ -979,7 +981,45 @@ static int switch_apply_power_mode(struct tsb_switch *sw,
                       rc);
             goto out;
         }
-    } while (val != TSB_DME_POWERMODEIND_SUCCESS);
+
+        switch (val) {
+        case TSB_DME_POWERMODEIND_NONE:
+            /* This happens sometimes, and seems harmless. */
+            break;
+        case TSB_DME_POWERMODEIND_OK:
+            dbg_warn("%s: TSB_DME_POWERMODEIND=0x%x (can't happen!)\n",
+                     __func__, val);
+            break;
+        case TSB_DME_POWERMODEIND_LOCAL:
+            /* ... and done */
+            break;
+        case TSB_DME_POWERMODEIND_REMOTE:
+            dbg_info("%s: TSB_DME_POWERMODEIND=0x%x (remote)\n",
+                     __func__, val);
+            break;
+        case TSB_DME_POWERMODEIND_BUSY:
+            dbg_warn("%s: TSB_DME_POWERMODEIND=0x%x (busy)\n",
+                     __func__, val);
+            rc = val;
+            goto out;
+        case TSB_DME_POWERMODEIND_CAP_ERR:
+            dbg_error("%s: TSB_DME_POWERMODEIND=0x%x (capability err)\n",
+                      __func__, val);
+            rc = val;
+            goto out;
+        case TSB_DME_POWERMODEIND_FATAL_ERR:
+            dbg_error("%s: TSB_DME_POWERMODEIND=0x%x (fatal error)\n",
+                      __func__, val);
+            rc = val;
+            goto out;
+        default:
+            dbg_error("%s: TSB_DME_POWERMODEIND=0x%x (invalid value)\n",
+                      __func__, val);
+            rc = val;
+            goto out;
+
+        }
+    } while (val != TSB_DME_POWERMODEIND_LOCAL);
 
     dbg_insane("%s(): testing link state with peer DME access\n", __func__);
     rc = switch_dme_peer_get(sw,
