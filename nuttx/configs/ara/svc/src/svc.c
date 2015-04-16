@@ -140,16 +140,16 @@ static int setup_default_routes(struct tsb_switch *sw) {
                 devid[i].port_id = iface->switch_portid;
                 devid[i].found = true;
 
-                dbg_info("Setting deviceID %d to interface %s (portID %d)\n",
-                         devid[i].device_id, devid[i].interface_name,
-                         devid[i].port_id);
-
                 rc = switch_if_dev_id_set(sw, devid[i].port_id,
                                           devid[i].device_id);
                 if (rc) {
                     dbg_error("Failed to assign deviceID %u to interface %s\n",
                               devid[i].device_id, devid[i].interface_name);
                     continue;
+                } else {
+                    dbg_info("Set deviceID %d to interface %s (portID %d)\n",
+                             devid[i].device_id, devid[i].interface_name,
+                             devid[i].port_id);
                 }
             }
         }
