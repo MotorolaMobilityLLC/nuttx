@@ -72,6 +72,25 @@ int register_gpio_chip(struct gpio_ops_s *ops, int base)
     return 0;
 }
 
+int unregister_gpio_chip(struct gpio_ops_s *ops)
+{
+    struct list_head *iter, *iter_next;
+    struct gpio_chip_s *chip;
+
+    DEBUGASSERT(ops);
+
+    list_foreach_safe(&g_gpio_chip, iter, iter_next) {
+        chip = list_entry(iter, struct gpio_chip_s, list);
+        if (chip->ops == ops) {
+            g_gpio_line_count -= chip->ops->line_count();
+            list_del(iter);
+            free(chip);
+        }
+    }
+
+    return 0;
+}
+
 static struct gpio_chip_s *get_gpio_chip(uint8_t *which)
 {
     struct list_head *iter;

@@ -80,6 +80,7 @@ int gpio_unmask_irq(uint8_t which);
 int gpio_clear_interrupt(uint8_t which);
 
 int register_gpio_chip(struct gpio_ops_s *ops, int base);
+int unregister_gpio_chip(struct gpio_ops_s *ops);
 
 #endif
 
