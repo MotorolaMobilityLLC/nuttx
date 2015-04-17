@@ -67,15 +67,18 @@ buildname=${board}-${image}
 if [ $ARA_MAKE_BUILD_NAME_UNIQUE == 1 ]; then
   buildname=${buildname}-`date +"%Y%m%d-%H%M%S"`
 fi
-echo "Build name            : '$buildname'"
-echo "Build config          : $configpath"
+
+# full path to defconfig file
+defconfigFile="${configpath}/defconfig"
+
+echo "Build config file   : $defconfigFile"
+echo "Build name          : '$buildname'"
 
 # define paths used during build process
 ARA_BUILD_CONFIG_PATH="$buildbase/$buildname/config"
 ARA_BUILD_IMAGE_PATH="$buildbase/$buildname/image"
 ARA_BUILD_TOPDIR="$buildbase/$buildname"
 
-echo "Using config from   : $ARA_BUILD_CONFIG_PATH"
 echo "Build output folder : $ARA_BUILD_TOPDIR"
 echo "Image output folder : $ARA_BUILD_IMAGE_PATH"
 
@@ -110,7 +113,7 @@ else
 fi
 
 # copy defconfig to build output tree
-if ! install -m 644 -p ${configpath}/defconfig ${ARA_BUILD_TOPDIR}/nuttx/.config ; then
+if ! install -m 644 -p ${defconfigFile} ${ARA_BUILD_TOPDIR}/nuttx/.config ; then
     echo "Failed to copy defconfig"
 #    exit $ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED
 fi
@@ -164,31 +167,14 @@ build_image() {
 
 clean_build() {
    # for each file found in the source tree, delete the one in the build tree
-  echo -n "Cleaning build tree ..."
+  echo "Cleaning build tree"
   outpath=$ARA_BUILD_TOPDIR
   srcpath=$(readlink -f $(dirname "$0"))
-  if [ $ARA_USE_SPINNER -eq 1 ] ; then
-    local spinstr='|/-\\'
-    tput civis; # hide cursor
-  fi
-  for fn in $(find -P $srcpath -type f) ; do
-    fn=$(readlink -f $fn)
-    fn=$(echo "$fn" | sed -e "s#$srcpath#$outpath#")
-    rm -f $fn >/dev/null 2>&1
-
-    if [ $ARA_USE_SPINNER -eq 1 ] ; then
-      local temp=${spinstr#?}
-      printf " %c  " "$spinstr"
-      spinstr=$temp${spinstr%"$temp"}
-      printf "\b\b\b\b"
-    fi
-
-  done
-  if [ $ARA_USE_SPINNER -eq 1 ] ; then
-    printf "\b\b\b     "
-    echo
-    tput cnorm; # show cursor
-  fi
+  (cd $srcpath; find -P . -type f) | sort > src_files
+  (cd $outpath; find -P . -type f) | sort > out_files
+  comm -1 -2 src_files out_files | sed "s#\\.#$outpath#" > files_to_remove
+  xargs -a files_to_remove -d\\n rm
+  rm src_files out_files files_to_remove
 }
 
 copy_image_files() {
