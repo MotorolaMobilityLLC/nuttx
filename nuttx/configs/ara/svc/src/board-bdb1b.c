@@ -36,6 +36,8 @@
 #include <nuttx/arch.h>
 #include <nuttx/util.h>
 
+#include "nuttx/gpio/stm32_gpio_chip.h"
+
 #include "ara_board.h"
 #include "interface.h"
 #include "tsb_switch_driver_es1.h"
@@ -170,6 +172,10 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
     stm32_gpiowrite(IO_RESET, false);
     stm32_gpiowrite(IO_RESET1, false);
 
+    // Register the GPIO Chip driver
+    stm32_gpio_init();
+
+    // Initialize the Switch
     if (tsb_switch_es1_init(sw, SWITCH_I2C_BUS)) {
         return NULL;
     }
@@ -178,5 +184,9 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
 }
 
 void board_exit(struct tsb_switch *sw) {
+    // Deinit the Switch
     tsb_switch_es1_exit(sw);
+
+    // Unegister the GPIO Chip driver
+    stm32_gpio_deinit();
 }
