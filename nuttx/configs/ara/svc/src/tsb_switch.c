@@ -955,8 +955,11 @@ static int switch_configure_link_tsbdata
 static int switch_apply_power_mode(struct tsb_switch *sw,
                                    uint8_t port_id,
                                    uint32_t pwr_mode) {
+    const int max_tries = 100;
     int rc;
     uint32_t val;
+    int i;
+
     dbg_insane("%s(): enter, port=%u, pwr_mode=0x%x\n", __func__, port_id,
                pwr_mode);
     rc = switch_dme_set(sw, port_id, PA_PWRMODE, NCP_SELINDEX_NULL,
@@ -966,11 +969,10 @@ static int switch_apply_power_mode(struct tsb_switch *sw,
                   __func__, PA_PWRMODE, pwr_mode, rc);
         goto out;
     }
-    do {
+    for (i = 0; i < max_tries; i++) {
         /*
          * Wait until the power mode change completes.
          *
-         * FIXME error out after too many retries.
          * FIXME other error handling (UniPro specification 5.7.12.5).
          */
         rc = switch_dme_get(sw, port_id, TSB_DME_POWERMODEIND,
@@ -1019,7 +1021,14 @@ static int switch_apply_power_mode(struct tsb_switch *sw,
             goto out;
 
         }
-    } while (val != TSB_DME_POWERMODEIND_LOCAL);
+        if (val == TSB_DME_POWERMODEIND_LOCAL) {
+            break;
+        }
+    }
+    if (val != TSB_DME_POWERMODEIND_LOCAL) {
+        rc = -ETIMEDOUT;
+        goto out;
+    }
 
     dbg_insane("%s(): testing link state with peer DME access\n", __func__);
     rc = switch_dme_peer_get(sw,
