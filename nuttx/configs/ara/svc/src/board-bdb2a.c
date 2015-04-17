@@ -28,6 +28,7 @@
 
 /**
  * @author: Jean Pihet
+ * @author: Perry Hung
  */
 
 #define DBG_COMP DBG_SVC     /* DBG_COMP macro of the component */
@@ -61,6 +62,8 @@
 #define TSB_SW_CS           (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_SET | \
                              GPIO_PORTA | GPIO_PIN4)
 
+#define BOOTRET_MODE        (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_CLEAR)
+
 /*
  * How long to leave hold each regulator before the next.
  */
@@ -81,17 +84,25 @@
 #define WAKEOUT_SPRING6 (GPIO_FLOAT | GPIO_PORTB | GPIO_PIN15)
 #define WAKEOUT_SPRING7 (GPIO_FLOAT | GPIO_PORTH | GPIO_PIN10)
 #define WAKEOUT_SPRING8 (GPIO_FLOAT | GPIO_PORTH | GPIO_PIN15)
+#define INIT_BOOTRET_DATA(g)        \
+    {                               \
+        .gpio = (BOOTRET_MODE | g), \
+        .hold_time = 0,             \
+        .active_high = 0,           \
+    }
 
 /*
  * Built-in bridge voltage regulator list
  */
 static struct vreg_data apb1_vregs[] = {
+    INIT_BOOTRET_DATA(GPIO_PORTF | GPIO_PIN12),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN4, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN5, HOLD_TIME_1P8),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN6, HOLD_TIME_1P2),
 };
 
 static struct vreg_data apb2_vregs[] = {
+    INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN3),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN11, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN10, HOLD_TIME_1P8),
     INIT_VREG_DATA(GPIO_PORTE | GPIO_PIN7, HOLD_TIME_1P2),
@@ -99,6 +110,7 @@ static struct vreg_data apb2_vregs[] = {
 };
 
 static struct vreg_data apb3_vregs[] = {
+    INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN4),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN12, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTE | GPIO_PIN15, HOLD_TIME_1P8),
     INIT_VREG_DATA(GPIO_PORTE | GPIO_PIN13, HOLD_TIME_1P2),
@@ -106,12 +118,14 @@ static struct vreg_data apb3_vregs[] = {
 };
 
 static struct vreg_data gpb1_vregs[] =  {
+    INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN6),
     INIT_VREG_DATA(GPIO_PORTB | GPIO_PIN5, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTC | GPIO_PIN3, HOLD_TIME_1P8),
     INIT_VREG_DATA(GPIO_PORTC | GPIO_PIN2, HOLD_TIME_1P2),
 };
 
 static struct vreg_data gpb2_vregs[] = {
+    INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN7),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN7, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN9, HOLD_TIME_1P8),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN8, HOLD_TIME_1P2),
