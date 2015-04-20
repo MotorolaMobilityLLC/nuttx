@@ -118,3 +118,7 @@ endif
 ifeq ($(CONFIG_ARA_SVC_BDBPM),y)
 CONFIGURED_APPS += ara/bdbpm
 endif
+
+ifeq ($(CONFIG_ARA_SVC_SPRINGPM),y)
+CONFIGURED_APPS += ara/springpm
+endif
