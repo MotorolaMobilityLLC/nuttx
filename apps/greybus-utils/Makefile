@@ -119,6 +119,9 @@ MNFC = $(addsuffix .c, $(MANIFESTS))
 MNFC_INCLUDES = $(addprefix -include , $(MNFC))
 $(warning $(MANIFEST))
 $(warning $(MNFS))
+ALL_MNFS = $(wildcard manifests/*.mnfs)
+ALL_MNFB = $(subst .mnfs,.mnfb,$(ALL_MNFS))
+ALL_MNFC = $(subst .mnfs,.c,$(ALL_MNFS))
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   BIN		= ..\libapps$(LIBEXT)
@@ -170,6 +173,7 @@ depend: .depend
 clean:
 	$(call DELFILE, .built)
 	$(call CLEAN)
+	$(call DELFILE, $(ALL_MNFC) $(ALL_MNFB))
 
 distclean: clean
 	$(call DELFILE, Make.dep)
