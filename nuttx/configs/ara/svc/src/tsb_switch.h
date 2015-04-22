@@ -126,6 +126,21 @@
 
 #define SWITCH_DEVICE_ID            (0)
 
+/*
+ * @brief UniPro connections
+ */
+struct unipro_connection {
+    uint8_t port_id0;
+    uint8_t device_id0;
+    uint16_t cport_id0;
+    uint8_t port_id1;
+    uint8_t device_id1;
+    uint16_t cport_id1;
+    uint8_t tc;
+    uint8_t flags;
+    uint8_t state;
+};
+
 /**
  * @brief Toshiba-specific L2 timer configuraion to apply to the local
  *        end of the link during a power mode change.
@@ -253,27 +268,8 @@ int switch_if_dev_id_set(struct tsb_switch *sw,
                          uint8_t port_id,
                          uint8_t dev_id);
 int switch_connection_create(struct tsb_switch *sw,
-                             uint8_t port_id1,
-                             uint8_t cport_id1,
-                             uint8_t port_id2,
-                             uint8_t cport_id2,
-                             uint8_t tc,
-                             uint8_t flags);
+                             struct unipro_connection *conn);
 
-static inline int switch_connection_std_create(struct tsb_switch *sw,
-                                               uint8_t port_id1,
-                                               uint8_t cport_id1,
-                                               uint8_t port_id2,
-                                               uint8_t cport_id2) {
-
-    return switch_connection_create(sw,
-                                    port_id1,
-                                    cport_id1,
-                                    port_id2,
-                                    cport_id2,
-                                    CPORT_TC0,
-                                    CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N);
-};
 
 int switch_configure_link(struct tsb_switch *sw,
                           uint8_t port_id,

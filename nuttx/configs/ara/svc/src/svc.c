@@ -34,6 +34,7 @@
 
 #include <arch/board/board.h>
 
+#include "unipro.h"
 #include "string.h"
 #include "ara_board.h"
 #include "up_debug.h"
@@ -73,13 +74,6 @@ struct svc_interface_device_id {
     bool found;
 };
 
-struct svc_connection {
-    uint8_t device_id_0;        // DeviceID 0
-    uint8_t cport_0;            // CPort 0
-    uint8_t device_id_1;        // DeviceID 1
-    uint8_t cport_1;            // CPort 1
-};
-
 /*
  * Default routes used on BDB1B demo
  */
@@ -101,21 +95,57 @@ static struct svc_interface_device_id devid[] = {
 };
 
 /* Connections table */
-static struct svc_connection conn[] = {
+static struct unipro_connection conn[] = {
 #if defined(CONFIG_SVC_ROUTE_DEFAULT)
     // APB1, CPort 0 <-> APB2, CPort 5, for GPIO
-    { DEV_ID_APB1, DEMO_GPIO_APB1_CPORT, DEV_ID_APB2, DEMO_GPIO_APB2_CPORT },
+    {
+        .device_id0 = DEV_ID_APB1,
+        .cport_id0  = DEMO_GPIO_APB1_CPORT,
+        .device_id1 = DEV_ID_APB2,
+        .cport_id1  = DEMO_GPIO_APB2_CPORT,
+        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
     // APB1, CPort 1 <-> APB2, CPort 4, for I2C
-    { DEV_ID_APB1, DEMO_I2C_APB1_CPORT, DEV_ID_APB2, DEMO_I2C_APB2_CPORT },
+    {
+        .device_id0 = DEV_ID_APB1,
+        .cport_id0  = DEMO_I2C_APB1_CPORT,
+        .device_id1 = DEV_ID_APB2,
+        .cport_id1  = DEMO_I2C_APB2_CPORT,
+        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
     // APB1, CPort 16 <-> APB2, CPort 16, for DSI
-    { DEV_ID_APB1, DEMO_DSI_APB1_CPORT, DEV_ID_APB2, DEMO_DSI_APB2_CPORT },
+    {
+        .device_id0 = DEV_ID_APB1,
+        .cport_id0  = DEMO_DSI_APB1_CPORT,
+        .device_id1 = DEV_ID_APB2,
+        .cport_id1  = DEMO_DSI_APB2_CPORT,
+        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
 #elif defined(CONFIG_SVC_ROUTE_SPRING6_APB2)
     // SPRING6, CPort 0 <-> APB2, CPort 5, for GPIO
-    { DEV_ID_SPRING6, DEMO_GPIO_APB1_CPORT, DEV_ID_APB2, DEMO_GPIO_APB2_CPORT },
+    {
+        .device_id0 = DEV_ID_SPRING6,
+        .cport_id0  = DEMO_GPIO_APB1_CPORT,
+        .device_id1 = DEV_ID_APB2,
+        .cport_id1  = DEMO_GPIO_APB2_CPORT,
+        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
     // SPRING6, CPort 1 <-> APB2, CPort 4, for I2C
-    { DEV_ID_SPRING6, DEMO_I2C_APB1_CPORT, DEV_ID_APB2, DEMO_I2C_APB2_CPORT },
+    {
+        .device_id0 = DEV_ID_SPRING6,
+        .cport_id0  = DEMO_I2C_APB1_CPORT,
+        .device_id1 = DEV_ID_APB2,
+        .cport_id1  = DEMO_I2C_APB2_CPORT,
+        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
     // SPRING6, CPort 16 <-> APB2, CPort 16, for DSI
-    { DEV_ID_SPRING6, DEMO_DSI_APB1_CPORT, DEV_ID_APB2, DEMO_DSI_APB2_CPORT },
+    {
+        .device_id0 = DEV_ID_SPRING6,
+        .cport_id0  = DEMO_DSI_APB1_CPORT,
+        .device_id1 = DEV_ID_APB2,
+        .cport_id1  = DEMO_DSI_APB2_CPORT,
+        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
 #endif
 };
 
@@ -164,43 +194,35 @@ static int setup_default_routes(struct tsb_switch *sw) {
             if (!devid[j].found)
                 continue;
 
-            if (devid[j].device_id == conn[i].device_id_0) {
-                port_id_0 = devid[j].port_id;
+            if (devid[j].device_id == conn[i].device_id0) {
+                conn[i].port_id0 = port_id_0 = devid[j].port_id;
                 port_id_0_found = true;
             }
-            if (devid[j].device_id == conn[i].device_id_1) {
-                port_id_1 = devid[j].port_id;
+            if (devid[j].device_id == conn[i].device_id1) {
+                conn[i].port_id1 = port_id_1 = devid[j].port_id;
                 port_id_1_found = true;
             }
         }
 
         /* If found, create the requested connection */
         if (port_id_0_found && port_id_1_found) {
-            dbg_info("Creating connection [%u:%u]->[%u:%u]\n",
-                     port_id_0, conn[i].cport_0,
-                     port_id_1, conn[i].cport_1);
-
             /* Update Switch routing table */
             rc = switch_setup_routing_table(sw,
-                                            conn[i].device_id_0, port_id_0,
-                                            conn[i].device_id_1, port_id_1);
+                                            conn[i].device_id0, port_id_0,
+                                            conn[i].device_id1, port_id_1);
             if (rc) {
                 dbg_error("Failed to setup routing table [%u:%u]<->[%u:%u]\n",
-                          conn[i].device_id_0, port_id_0,
-                          conn[i].device_id_1, port_id_1);
+                          conn[i].device_id0, port_id_0,
+                          conn[i].device_id1, port_id_1);
                 return -1;
             }
 
             /* Create connection */
-            rc = switch_connection_std_create(sw,
-                                              port_id_0,
-                                              conn[i].cport_0,
-                                              port_id_1,
-                                              conn[i].cport_1);
+            rc = switch_connection_create(sw, &conn[i]);
             if (rc) {
                 dbg_error("Failed to create connection [%u:%u]<->[%u:%u]\n",
-                          port_id_0, conn[i].cport_0,
-                          port_id_1, conn[i].cport_1);
+                          port_id_0, conn[i].cport_id0,
+                          port_id_1, conn[i].cport_id1);
                 return -1;
             }
         } else {

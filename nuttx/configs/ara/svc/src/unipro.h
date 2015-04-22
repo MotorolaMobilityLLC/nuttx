@@ -284,6 +284,8 @@
 #define T_PEERBUFFERSPACE            0x4029
 #define T_CREDITSTOSEND              0x402a
 #define T_CPORTMODE                  0x402b
+    #define CPORT_MODE_APPLICATION  (1)
+    #define CPORT_MODE_UNDER_TEST   (2)
 
 /*
  * DME attributes

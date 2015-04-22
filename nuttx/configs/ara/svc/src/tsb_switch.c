@@ -85,6 +85,11 @@
 #define LINK_DEFAULT_PWM_NLANES     LINK_DEFAULT_HS_NLANES
 #define LINK_DEFAULT_FLAGS          0
 
+/* Default CPort configuration values. */
+#define CPORT_DEFAULT_TOKENVALUE           32
+#define CPORT_DEFAULT_T_PROTOCOLID         0
+#define CPORT_DEFAULT_TSB_MAXSEGMENTCONFIG 0x118
+
 /* MaskId entry update */
 #define SET_VALID_ENTRY(entry) \
     id_mask[15 - ((entry) / 8)] |= (1 << ((entry)) % 8)
@@ -327,62 +332,221 @@ int switch_irq_handler(struct tsb_switch *sw) {
 }
 
 static int switch_cport_connect(struct tsb_switch *sw,
-                                uint8_t port_id,
-                                uint8_t cport_id,
-                                uint8_t peer_port_id,
-                                uint8_t peer_cport_id,
-                                uint8_t tc,
-                                uint8_t flags) {
-
+                                struct unipro_connection *c) {
+    int e2efc_enabled = (!!(c->flags & CPORT_FLAGS_E2EFC) == 1);
+    int csd_enabled = (!!(c->flags & CPORT_FLAGS_CSD_N) == 0);
     int rc = 0;
-    uint8_t peer_dev_id = dev_ids_port_to_dev(sw, peer_port_id);
 
-    if (peer_dev_id == INVALID_PORT) {
-        dbg_error("%s: no device for port ID %d, aborting\n",
-                  __func__, peer_port_id);
-        return -EINVAL;
+    /* Disable any existing connection(s). */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_CONNECTIONSTATE,
+                             c->cport_id0, 0x0);
+    if (rc) {
+        return rc;
     }
-
-    /* Disable connection */
-    rc = switch_dme_peer_set(sw, port_id, T_CONNECTIONSTATE, cport_id, 0x0);
+    rc = switch_dme_peer_set(sw, c->port_id1, T_CONNECTIONSTATE,
+                             c->cport_id1, 0x0);
     if (rc) {
         return rc;
     }
 
-    switch_dme_peer_set(sw, port_id, T_CPORTFLAGS, cport_id, flags);
+    /*
+     * Point each device at the other.
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_PEERDEVICEID,
+                             c->cport_id0, c->device_id1);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_PEERDEVICEID,
+                             c->cport_id1, c->device_id0);
     if (rc) {
         return rc;
     }
 
-    switch_dme_peer_set(sw, port_id, T_TRAFFICCLASS, cport_id, tc);
+    /*
+     * Point each CPort at the other.
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_PEERCPORTID,
+                             c->cport_id0, c->cport_id1);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_PEERCPORTID,
+                             c->cport_id1, c->cport_id0);
     if (rc) {
         return rc;
     }
 
-    /* Set peer devid/cportid for this cport */
-    switch_dme_peer_set(sw, port_id, T_PEERCPORTID, cport_id, peer_cport_id);
+    /*
+     * Match up traffic classes.
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_TRAFFICCLASS,
+                             c->cport_id0, c->tc);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_TRAFFICCLASS,
+                             c->cport_id1, c->tc);
     if (rc) {
         return rc;
     }
 
-    switch_dme_peer_set(sw, port_id, T_PEERDEVICEID, cport_id, peer_dev_id);
+    /*
+     * Make sure the protocol IDs are equal. (We don't use them otherwise.)
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_PROTOCOLID,
+                             c->cport_id0, CPORT_DEFAULT_T_PROTOCOLID);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_PROTOCOLID,
+                             c->cport_id1, CPORT_DEFAULT_T_PROTOCOLID);
     if (rc) {
         return rc;
     }
 
-    /* Enable connection */
-    rc = switch_dme_peer_set(sw, port_id, T_CONNECTIONSTATE, cport_id, 1);
+    /*
+     * Set default TxTokenValue and RxTokenValue values.
+     *
+     * IMPORTANT: TX and RX token values must be equal if E2EFC is
+     * enabled, so don't change them to different values unless you
+     * also patch up the E2EFC case, below.
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_TXTOKENVALUE,
+                             c->cport_id0, CPORT_DEFAULT_TOKENVALUE);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_TXTOKENVALUE,
+                             c->cport_id1, CPORT_DEFAULT_TOKENVALUE);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id0, T_RXTOKENVALUE,
+                             c->cport_id0, CPORT_DEFAULT_TOKENVALUE);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_RXTOKENVALUE,
+                             c->cport_id1, CPORT_DEFAULT_TOKENVALUE);
     if (rc) {
         return rc;
     }
 
-    return 0;
+
+    /*
+     * Set CPort flags.
+     *
+     * (E2EFC needs to be the same on both sides, which is handled by
+     * having a single flags value for now.)
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_CPORTFLAGS,
+                             c->cport_id0, c->flags);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_CPORTFLAGS,
+                             c->cport_id1, c->flags);
+    if (rc) {
+        return rc;
+    }
+
+    /*
+     * If E2EFC is enabled, or E2EFC is disabled and CSD is enabled,
+     * then each CPort's T_PeerBufferSpace must equal the peer CPort's
+     * T_LocalBufferSpace.
+     */
+    if (e2efc_enabled || (!e2efc_enabled && csd_enabled)) {
+        uint32_t cport0_local, cport1_local;
+        rc = switch_dme_peer_get(sw, c->port_id0, T_LOCALBUFFERSPACE,
+                                 c->cport_id0, &cport0_local);
+        if (rc) {
+            return rc;
+        }
+        rc = switch_dme_peer_get(sw, c->port_id1, T_LOCALBUFFERSPACE,
+                                 c->cport_id1, &cport1_local);
+        if (rc) {
+            return rc;
+        }
+        rc = switch_dme_peer_set(sw, c->port_id0, T_PEERBUFFERSPACE,
+                                 c->cport_id0, cport1_local);
+        if (rc) {
+            return rc;
+        }
+        rc = switch_dme_peer_set(sw, c->port_id1, T_PEERBUFFERSPACE,
+                                 c->cport_id1, cport0_local);
+        if (rc) {
+            return rc;
+        }
+    }
+
+    /*
+     * Ensure the CPorts aren't in test mode.
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_CPORTMODE,
+                             c->cport_id0, CPORT_MODE_APPLICATION);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id0, T_CPORTMODE,
+                             c->cport_id1, CPORT_MODE_APPLICATION);
+    if (rc) {
+        return rc;
+    }
+
+    /*
+     * Clear out the credits to send on each side.
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_CREDITSTOSEND,
+                             c->cport_id0, 0);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_CREDITSTOSEND,
+                             c->cport_id1, 0);
+    if (rc) {
+        return rc;
+    }
+
+    /*
+     * XXX Toshiba-specific TSB_MaxSegmentConfig (move to bridge ASIC code.)
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, TSB_MAXSEGMENTCONFIG,
+                             c->cport_id0, CPORT_DEFAULT_TSB_MAXSEGMENTCONFIG);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, TSB_MAXSEGMENTCONFIG,
+                             c->cport_id1, CPORT_DEFAULT_TSB_MAXSEGMENTCONFIG);
+    if (rc) {
+        return rc;
+    }
+
+    /*
+     * Establish the connections!
+     */
+    rc = switch_dme_peer_set(sw, c->port_id0, T_CONNECTIONSTATE,
+                             c->cport_id0, 1);
+    if (rc) {
+        return rc;
+    }
+    rc = switch_dme_peer_set(sw, c->port_id1, T_CONNECTIONSTATE,
+                             c->cport_id1, 1);
+
+    return rc;
 }
 
 static int switch_cport_disconnect(struct tsb_switch *sw,
-                                   uint8_t port_id,
-                                   uint8_t cport_id) {
-    return switch_dme_peer_set(sw, port_id, T_CONNECTIONSTATE, cport_id, 0x0);
+                                   uint8_t port_id0,
+                                   uint8_t cport_id0,
+                                   uint8_t port_id1,
+                                   uint8_t cport_id1) {
+    int rc0, rc1;
+    rc0 = switch_dme_peer_set(sw, port_id0, T_CONNECTIONSTATE,
+                             cport_id0, 0x0);
+    rc1 = switch_dme_peer_set(sw, port_id1, T_CONNECTIONSTATE,
+                              cport_id1, 0x0);
+    return rc0 || rc1;
 }
 
 static int switch_link_power_set_default(struct tsb_switch *sw,
@@ -402,23 +566,9 @@ static int switch_link_power_set_default(struct tsb_switch *sw,
                                        LINK_DEFAULT_PWM_NLANES,
                                        LINK_DEFAULT_FLAGS);
     }
-    if (rc) {
-        return rc;
-    }
 
-    /* Set TSB_MaxSegmentConfig */
-    rc = switch_dme_peer_set(sw,
-                         port_id,
-                         TSB_MAXSEGMENTCONFIG,
-                         NCP_SELINDEX_NULL,
-                         MAX_SEGMENT_CONFIG);
-    if (rc) {
-        return rc;
-    }
-
-    return 0;
+    return rc;
 }
-
 /**
  * @brief Assign a device id to a given port id
  */
@@ -533,42 +683,25 @@ int switch_setup_routing_table(struct tsb_switch *sw,
  * @brief Create a connection between two cports
  */
 int switch_connection_create(struct tsb_switch *sw,
-                             uint8_t port_id1,
-                             uint8_t cport_id1,
-                             uint8_t port_id2,
-                             uint8_t cport_id2,
-                             uint8_t tc,
-                             uint8_t flags) {
+                             struct unipro_connection *c) {
     int rc;
 
-    dbg_verbose("Creating connection: [%u:%u]<->[%u:%u] TC: %u Flags: %x\n",
-                port_id1,
-                cport_id1,
-                port_id2,
-                cport_id2,
-                tc,
-                flags);
-    rc = switch_cport_connect(sw,
-                              port_id1,
-                              cport_id1,
-                              port_id2,
-                              cport_id2,
-                              tc,
-                              flags);
-    if (rc) {
-        return rc;
-    }
-
-    rc = switch_cport_connect(sw,
-                              port_id2,
-                              cport_id2,
-                              port_id1,
-                              cport_id1,
-                              tc,
-                              flags);
-    if (rc) {
+    if (!c) {
+        rc = -EINVAL;
         goto err0;
     }
+
+    dbg_info("Creating connection: "
+             "[p=%u,d=%u,c=%u]<->[p=%u,d=%u,c=%u] "
+             "TC: %u Flags: 0x%x\n",
+             c->port_id0,
+             c->device_id0,
+             c->cport_id0,
+             c->port_id1,
+             c->device_id1,
+             c->cport_id1,
+             c->tc,
+             c->flags);
 
     /*
      * UniPro HS gears have issues on BDB2A with the default M-PHY
@@ -577,34 +710,54 @@ int switch_connection_create(struct tsb_switch *sw,
      * the default setting of HS-G1 to work properly).
      */
 #if !CONFIG_ARCH_BOARD_ARA_BDB2A_SVC
-    rc = switch_link_power_set_default(sw, port_id1);
+    rc = switch_link_power_set_default(sw, c->port_id0);
     if (rc) {
         goto err1;
     }
 
-    rc = switch_link_power_set_default(sw, port_id2);
+    rc = switch_link_power_set_default(sw, c->port_id1);
     if (rc) {
         goto err1;
     }
 #endif
+
+    rc = switch_cport_connect(sw, c);
+    if (rc) {
+        switch_cport_disconnect(sw,
+                                c->port_id0,
+                                c->cport_id0,
+                                c->port_id1,
+                                c->cport_id1);
+        dbg_error("%s: couldn't create connection: %d", __func__, rc);
+        goto err0;
+    }
 
     return 0;
 
 #if !CONFIG_ARCH_BOARD_ARA_BDB2A_SVC
 err1:
-    switch_cport_disconnect(sw, port_id2, cport_id2);
+    dbg_error("%s: couldn't set link power mode to default state.\n",
+              __func__);
+    switch_cport_disconnect(sw,
+                            c->port_id0,
+                            c->cport_id0,
+                            c->port_id1,
+                            c->cport_id1);
 #endif
 err0:
-    switch_cport_disconnect(sw, port_id1, cport_id1);
-    dbg_verbose("%s: Connection setup failed. [%u:%u]<->[%u:%u] TC: %u Flags: %x rc: %u\n",
-                __func__,
-                port_id1,
-                cport_id1,
-                port_id2,
-                cport_id2,
-                tc,
-                flags,
-                rc);
+    dbg_error("%s: Connection setup failed. "
+              "[p=%u,d=%u,c=%u]<->[p=%u,d=%u,c=%u] "
+              "TC: %u Flags: %x rc: %d\n",
+               __func__,
+               c->port_id0,
+               c->device_id0,
+               c->cport_id0,
+               c->port_id1,
+               c->device_id1,
+               c->cport_id1,
+               c->tc,
+               c->flags,
+               rc);
     return rc;
 }
 
