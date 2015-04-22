@@ -9,8 +9,7 @@
 ARA_BUILD_CONFIG_ERR_BAD_PARAMS=1
 ARA_BUILD_CONFIG_ERR_NO_NUTTX_TOPDIR=2
 ARA_BUILD_CONFIG_ERR_CONFIG_NOT_FOUND=3
-ARA_BUILD_CONFIG_ERR_CANT_CREATE_OUTPUT=4
-ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED=5
+ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED=4
 
 echo "Project Ara firmware image builder"
 
@@ -35,7 +34,6 @@ board=$1
 image=$2
 
 ARA_MAKE_BUILD_NAME_UNIQUE=0
-ARA_USE_SPINNER=0
 
 # determine NuttX top level folder absolute path
 TOPDIR="`dirname \"$0\"`"  # relative
@@ -100,69 +98,40 @@ cp -r ./NxWidgets $ARA_BUILD_TOPDIR/NxWidgets
 
 # copy Make.defs to build output tree
 if ! install -m 644 -p ${configpath}/Make.defs ${ARA_BUILD_TOPDIR}/nuttx/Make.defs ; then
-    echo "Failed to copy Make.defs"
+    echo "Warning: Failed to copy Make.defs"
 #    exit $ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED
 fi
 
 # copy setenv.sh to build output tree
-if ! install -p ${configpath}/setenv.sh ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh ; then
-  echo "Failed to copy setenv.sh"
-#  exit $ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED
-else
+if  install -p ${configpath}/setenv.sh ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh ; then
  chmod 755 "${ARA_BUILD_TOPDIR}/nuttx/setenv.sh"
 fi
 
 # copy defconfig to build output tree
 if ! install -m 644 -p ${defconfigFile} ${ARA_BUILD_TOPDIR}/nuttx/.config ; then
-    echo "Failed to copy defconfig"
-#    exit $ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED
+    echo "ERROR: Failed to copy defconfig"
+    exit $ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED
 fi
 
 # save config files
-cp ${ARA_BUILD_TOPDIR}/nuttx/.config   ${ARA_BUILD_CONFIG_PATH}/.config
-cp ${ARA_BUILD_TOPDIR}/nuttx/Make.defs ${ARA_BUILD_CONFIG_PATH}/Make.defs
-cp ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh  ${ARA_BUILD_CONFIG_PATH}/setenv.sh
+cp ${ARA_BUILD_TOPDIR}/nuttx/.config   ${ARA_BUILD_CONFIG_PATH}/.config > /dev/null 2>&1
+cp ${ARA_BUILD_TOPDIR}/nuttx/Make.defs ${ARA_BUILD_CONFIG_PATH}/Make.defs > /dev/null 2>&1
+cp ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh  ${ARA_BUILD_CONFIG_PATH}/setenv.sh > /dev/null 2>&1 
 
 #echo "Build configured"
 MAKE_RESULT=1
 
 build_image() {
   echo -n "Building '$buildname'" ...
-  local MAKELOG="$ARA_BUILD_TOPDIR/build.log"
-  #loca lMAKECMD=" --always-make -f Makefile.unix"
-  #local MAKECMD=" V=2 --always-make --debug=v -p  -f Makefile.unix"
-  local MAKECMD=" --always-make V=2 --debug -r -f Makefile.unix"
-
   pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
-  make $MAKECMD > $MAKELOG 2>&1 &
-  local pid=$! # get pid of make
+  make --always-make -r -f Makefile.unix | tee $ARA_BUILD_TOPDIR/build.log 2>&1
 
-  if [ $ARA_USE_SPINNER -eq 1 ] ; then
-    #### spinner progress indicator
-    local spinstr='|/-\\'
-    tput civis; # hide cursor
-    #while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-    while [ -d /proc/$pid ] ; do
-      local temp=${spinstr#?}
-      printf " %c  " "$spinstr"
-      spinstr=$temp${spinstr%"$temp"}
-      sleep 0.1
-      printf "\b\b\b\b"
-    done
-    printf "\b\b\b     "
-    echo
-    tput cnorm; # show cursor
-    #### end of spinner progress indicator
-  fi
-
-  wait $pid
   if [ $? -eq 0 ] ; then
     MAKE_RESULT=1
   else
     MAKE_RESULT=0
   fi
   popd > /dev/null
-
 }
 
 clean_build() {
