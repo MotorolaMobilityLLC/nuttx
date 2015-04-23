@@ -483,8 +483,8 @@ static int es2_set(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_SETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
@@ -530,8 +530,8 @@ static int es2_get(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_GETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     *val = be32_to_cpu(cnf.attr_val);
@@ -583,9 +583,10 @@ static int es2_peer_set(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_PEERSETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
-   }
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
+    }
+
     dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
                 __func__, cnf.function_id, cnf.rc, attrid, val);
 
@@ -629,8 +630,8 @@ static int es2_peer_get(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_PEERGETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     *val = be32_to_cpu(cnf.attr_val);
@@ -674,8 +675,8 @@ static int es2_lut_set(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_LUTSETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     dbg_verbose("%s(): fid=%02x, rc=%u, portID=%u\n",
@@ -719,8 +720,8 @@ static int es2_lut_get(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_LUTGETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     *dest_portid = cnf.dest_portid;
@@ -803,8 +804,8 @@ static int es2_dev_id_mask_set(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_SETDEVICEIDMASKCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     dbg_verbose("%s(): fid=%02x, rc=%u\n", __func__,
@@ -844,8 +845,8 @@ static int es2_dev_id_mask_get(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_GETDEVICEIDMASKCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     memcpy(dst, &cnf.mask, sizeof(cnf.mask));
@@ -890,8 +891,8 @@ static int es2_switch_attr_set(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_SWITCHATTRSETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     dbg_verbose("%s(): fid=%02x, rc=%u, attr(%04x)=%04x\n",
@@ -930,8 +931,8 @@ static int es2_switch_attr_get(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_SWITCHATTRGETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     *val = be32_to_cpu(cnf.attr_val);
@@ -981,8 +982,8 @@ static int es2_switch_id_set(struct tsb_switch *sw,
     }
 
     if (cnf.function_id != NCP_SWITCHIDSETCNF) {
-        dbg_error("%s(): unexpected CNF\n", __func__);
-        return cnf.rc;
+        dbg_error("%s(): unexpected CNF 0x%x\n", __func__, cnf.function_id);
+        return -EPROTO;
     }
 
     dbg_verbose("%s(): ret=0x%02x, switchDeviceId=0x%01x, cPortId=0x%01x -> peerCPortId=0x%01x\n",
