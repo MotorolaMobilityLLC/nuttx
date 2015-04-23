@@ -11,9 +11,13 @@ menu "Ara Applications"
 source "$APPSDIR/ara/Kconfig"
 endmenu
 
-menu "Greybus utility"
+menuconfig GREYBUS_UTILS
+    bool "Greybus utility"
+    default n
+
+if GREYBUS_UTILS
 source "$APPSDIR/greybus-utils/Kconfig"
-endmenu
+endif
 
 menu "Examples"
 source "$APPSDIR/examples/Kconfig"
