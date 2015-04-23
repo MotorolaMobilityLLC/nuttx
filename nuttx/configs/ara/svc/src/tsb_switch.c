@@ -552,6 +552,13 @@ int switch_connection_create(struct tsb_switch *sw,
         goto err0;
     }
 
+    /*
+     * UniPro HS gears have issues on BDB2A with the default M-PHY
+     * settings. Turn this off on that target for now, but leave them
+     * in for ES1 targets (e.g., the display tunnel on ES1 demos needs
+     * the default setting of HS-G1 to work properly).
+     */
+#if !CONFIG_ARCH_BOARD_ARA_BDB2A_SVC
     rc = switch_link_power_set_default(sw, port_id1);
     if (rc) {
         goto err1;
@@ -561,11 +568,14 @@ int switch_connection_create(struct tsb_switch *sw,
     if (rc) {
         goto err1;
     }
+#endif
 
     return 0;
 
+#if !CONFIG_ARCH_BOARD_ARA_BDB2A_SVC
 err1:
     switch_cport_disconnect(sw, port_id2, cport_id2);
+#endif
 err0:
     switch_cport_disconnect(sw, port_id1, cport_id1);
     dbg_verbose("%s: Connection setup failed. [%u:%u]<->[%u:%u] TC: %u Flags: %x rc: %u\n",
