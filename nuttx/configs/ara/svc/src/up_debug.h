@@ -103,8 +103,8 @@ extern char dbg_rescue[DBG_RESCUE_SIZE];
 #define dbg_ui(fmt, ...)        dbg_pr(DBG_UI, fmt, ##__VA_ARGS__)
 
 /* Macro value stringify magic */
-#define xstr(s)	str(s)
-#define str(s)	#s
+#define xstr(s) str(s)
+#define str(s)  #s
 
 /*
  * Debug dump function, to be used by components code.
