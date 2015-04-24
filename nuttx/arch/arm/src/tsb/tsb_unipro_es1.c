@@ -542,6 +542,14 @@ int unipro_attr_read(uint16_t attr,
     return 0;
 }
 
+int unipro_attr_write(uint16_t attr,
+                      uint32_t val,
+                      uint16_t selector,
+                      int peer,
+                      uint32_t *result_code) {
+    return -ENOSYS;
+}
+
 /**
  * @brief Register a driver with the unipro core
  * @param drv unipro driver to register

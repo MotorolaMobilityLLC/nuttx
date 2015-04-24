@@ -52,6 +52,11 @@ int unipro_attr_read(uint16_t attr,
                      uint16_t selector,
                      int peer,
                      uint32_t *result_code);
+int unipro_attr_write(uint16_t attr,
+                      uint32_t val,
+                      uint16_t selector,
+                      int peer,
+                      uint32_t *result_code);
 int unipro_driver_register(struct unipro_driver *drv, unsigned int cportid);
 
 static inline int unipro_attr_local_read(uint16_t attr,
