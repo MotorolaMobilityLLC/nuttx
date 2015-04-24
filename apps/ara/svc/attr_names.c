@@ -30,7 +30,7 @@
 
 #include <stddef.h>
 
-#include "unipro.h"
+#include <nuttx/greybus/unipro.h>
 
 #define TO_ATTR_NAME(a) {.attr = a, .name = #a}
 

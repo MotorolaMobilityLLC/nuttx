@@ -31,10 +31,10 @@
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
 #include <nuttx/util.h>
+#include <nuttx/greybus/unipro.h>
 
 #include <arch/board/board.h>
 
-#include "unipro.h"
 #include "string.h"
 #include "ara_board.h"
 #include "up_debug.h"

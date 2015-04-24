@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _ARA_UNIPRO_H_
-#define _ARA_UNIPRO_H_
+#ifndef _NUTTX_GREYBUS_UNIPRO_H_
+#define _NUTTX_GREYBUS_UNIPRO_H_
 
 #include <stdint.h>
 
@@ -416,4 +416,4 @@ struct unipro_link_cfg {
                    (gear),                                              \
                    (nlanes))
 
-#endif  /* _ARA_UNIPRO_H_ */
+#endif

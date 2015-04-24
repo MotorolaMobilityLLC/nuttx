@@ -37,9 +37,9 @@
 #include <sched.h>
 
 #include <nuttx/list.h>
+#include <nuttx/greybus/unipro.h>
 
 #include "tsb_unipro.h"
-#include "unipro.h"
 
 /* Switch internal attributes */
 #define SWVER                       (0x0000)
