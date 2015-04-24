@@ -34,6 +34,7 @@
 struct ara_board_info {
     struct interface **interfaces;
     size_t nr_interfaces;
+    size_t nr_spring_interfaces;
 
     /* Switch data */
     unsigned int sw_1p1;

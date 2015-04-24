@@ -44,6 +44,7 @@
 #include "interface.h"
 #include "tsb_switch_driver_es2.h"
 #include "stm32.h"
+#include <up_adc.h>
 
 #define SVC_LED_GREEN       (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_PORTB | \
                              GPIO_OUTPUT_SET | GPIO_PIN0)
@@ -90,6 +91,36 @@
         .hold_time = 0,             \
         .active_high = 0,           \
     }
+
+/* ADC Channels and GPIOs used for Spring Current Measurements */
+#define SPRING_COUNT            8
+
+#define SPRING1_ADC             ADC1
+#define SPRING2_ADC             ADC1
+#define SPRING3_ADC             ADC1
+#define SPRING4_ADC             ADC3
+#define SPRING5_ADC             ADC3
+#define SPRING6_ADC             ADC3
+#define SPRING7_ADC             ADC3
+#define SPRING8_ADC             ADC1
+
+#define SPRING1_SENSE_CHANNEL   14    /* PC4 is ADC1_IN14 */
+#define SPRING2_SENSE_CHANNEL   10    /* PC0 is ADC1_IN10 */
+#define SPRING3_SENSE_CHANNEL   15    /* PC5 is ADC1_IN15 */
+#define SPRING4_SENSE_CHANNEL   7     /* PF9 is ADC3_IN7 */
+#define SPRING5_SENSE_CHANNEL   6     /* PF8 is ADC3_IN6 */
+#define SPRING6_SENSE_CHANNEL   14    /* PF4 is ADC3_IN14 */
+#define SPRING7_SENSE_CHANNEL   15    /* PF5 is ADC3_IN15 */
+#define SPRING8_SENSE_CHANNEL   11    /* PC1 is ADC1_IN11 */
+
+#define SPRING1_SIGN_PIN (GPIO_INPUT | GPIO_PORTD | GPIO_PIN0)  /* PD0 */
+#define SPRING2_SIGN_PIN (GPIO_INPUT | GPIO_PORTG | GPIO_PIN0)  /* PG0 */
+#define SPRING3_SIGN_PIN (GPIO_INPUT | GPIO_PORTD | GPIO_PIN1)  /* PD1 */
+#define SPRING4_SIGN_PIN (GPIO_INPUT | GPIO_PORTG | GPIO_PIN5)  /* PG5 */
+#define SPRING5_SIGN_PIN (GPIO_INPUT | GPIO_PORTG | GPIO_PIN1)  /* PG1 */
+#define SPRING6_SIGN_PIN (GPIO_INPUT | GPIO_PORTF | GPIO_PIN2)  /* PF2 */
+#define SPRING7_SIGN_PIN (GPIO_INPUT | GPIO_PORTF | GPIO_PIN13) /* PF13 */
+#define SPRING8_SIGN_PIN (GPIO_INPUT | GPIO_PORTA | GPIO_PIN8)  /* PA8 */
 
 /*
  * Built-in bridge voltage regulator list
@@ -140,14 +171,23 @@ DECLARE_INTERFACE(apb3, apb3_vregs, 2, WAKEOUT_APB3);
 DECLARE_INTERFACE(gpb1, gpb1_vregs, 3, WAKEOUT_GPB1);
 DECLARE_INTERFACE(gpb2, gpb2_vregs, 4, WAKEOUT_GPB2);
 
-DECLARE_SPRING_INTERFACE(1, (GPIO_PORTI | GPIO_PIN2), 9);
-DECLARE_SPRING_INTERFACE(2, (GPIO_PORTF | GPIO_PIN14), 10);
-DECLARE_SPRING_INTERFACE(3, (GPIO_PORTI | GPIO_PIN3), 11);
-DECLARE_SPRING_INTERFACE(4, (GPIO_PORTF | GPIO_PIN11), 6);
-DECLARE_SPRING_INTERFACE(5, (GPIO_PORTG | GPIO_PIN15), 7);
-DECLARE_SPRING_INTERFACE(6, (GPIO_PORTG | GPIO_PIN12), 8);
-DECLARE_SPRING_INTERFACE(7, (GPIO_PORTG | GPIO_PIN13), 5);
-DECLARE_SPRING_INTERFACE(8, (GPIO_PORTF | GPIO_PIN15), 13);
+#define SPRING_INTERFACES_COUNT     8
+DECLARE_SPRING_INTERFACE(1, (GPIO_PORTI | GPIO_PIN2), 9,
+                         SPRING1_ADC, SPRING1_SENSE_CHANNEL, SPRING1_SIGN_PIN);
+DECLARE_SPRING_INTERFACE(2, (GPIO_PORTF | GPIO_PIN14), 10,
+                         SPRING2_ADC, SPRING2_SENSE_CHANNEL, SPRING2_SIGN_PIN);
+DECLARE_SPRING_INTERFACE(3, (GPIO_PORTF | GPIO_PIN13), 11,
+                         SPRING3_ADC, SPRING3_SENSE_CHANNEL, SPRING3_SIGN_PIN);
+DECLARE_SPRING_INTERFACE(4, (GPIO_PORTF | GPIO_PIN11), 6,
+                         SPRING4_ADC, SPRING4_SENSE_CHANNEL, SPRING4_SIGN_PIN);
+DECLARE_SPRING_INTERFACE(5, (GPIO_PORTG | GPIO_PIN15), 7,
+                         SPRING5_ADC, SPRING5_SENSE_CHANNEL, SPRING5_SIGN_PIN);
+DECLARE_SPRING_INTERFACE(6, (GPIO_PORTG | GPIO_PIN12), 8,
+                         SPRING6_ADC, SPRING6_SENSE_CHANNEL, SPRING6_SIGN_PIN);
+DECLARE_SPRING_INTERFACE(7, (GPIO_PORTG | GPIO_PIN13), 5,
+                         SPRING7_ADC, SPRING7_SENSE_CHANNEL, SPRING7_SIGN_PIN);
+DECLARE_SPRING_INTERFACE(8, (GPIO_PORTG | GPIO_PIN15), 13,
+                         SPRING8_ADC, SPRING8_SENSE_CHANNEL, SPRING8_SIGN_PIN);
 
 /*
  * NB: always declare first the interfaces, then the spring interfaces.
@@ -172,6 +212,7 @@ static struct interface *bdb2a_interfaces[] = {
 static struct ara_board_info bdb2a_board_info = {
     .interfaces = bdb2a_interfaces,
     .nr_interfaces = ARRAY_SIZE(bdb2a_interfaces),
+    .nr_spring_interfaces = SPRING_INTERFACES_COUNT,
 
     .sw_1p1   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN9),
     .sw_1p8   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN6),
