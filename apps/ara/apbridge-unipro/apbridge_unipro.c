@@ -41,7 +41,6 @@
 /*
  * TODO
  * Already defined in tsb_unipro.c
- * Move them to tsb_unipro.h
  */
 
 #define CPORTID_CDSI0    (16)

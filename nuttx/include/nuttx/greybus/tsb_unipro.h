@@ -30,14 +30,8 @@
  * @author: Marti Bolivar
  */
 
-/*
- * FIXME (SW-481): this is in the SVC directory, but shouldn't be.
- *
- * However, there's no really good place to put it in nuttx/configs/ara.
- */
-
-#ifndef _TSB_UNIPRO_H_
-#define _TSB_UNIPRO_H_
+#ifndef _NUTTX_GREYBUS_TSB_UNIPRO_H_
+#define _NUTTX_GREYBUS_TSB_UNIPRO_H_
 
 /*
  * TSB attributes
@@ -102,4 +96,4 @@
 #define TSB_DEEPSTALLCFG           0xd0a2
 #define TSB_DEEPSTALLSTATUS        0xd0a3
 
-#endif  /* _TSB_UNIPRO_H_ */
+#endif
