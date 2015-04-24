@@ -52,8 +52,8 @@
 #define TCA6424_POLARITY1_REG       0x09
 #define TCA6424_POLARITY2_REG       0x0A
 #define TCA6424_CONFIG0_REG         0x0C
-#define TCA6424_CONFIG1_REG         0x0C
-#define TCA6424_CONFIG2_REG         0x0C
+#define TCA6424_CONFIG1_REG         0x0D
+#define TCA6424_CONFIG2_REG         0x0E
 
 #define TCA6424_MAX_ADDR_SHIFT      2
 
