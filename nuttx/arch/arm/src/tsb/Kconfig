@@ -28,6 +28,21 @@ config ARCH_CHIP_GPBRIDGE
 
 endchoice
 
+choice TSB_CHIP_REV
+	prompt "Toshiba Bridge chip silicon revision"
+	default TSB_CHIP_REV_ES1
+	depends on ARCH_CHIP_TSB
+
+config TSB_CHIP_REV_ES1
+	bool "ES1"
+	---help---
+		Silicon Revision 1
+endchoice
+
+config TSB_CHIP_REV
+	string
+	default "es1" if TSB_CHIP_REV_ES1
+
 config ARCH_CHIP_USB_COMMON
 	bool
 	select CLOCK_MONOTONIC
