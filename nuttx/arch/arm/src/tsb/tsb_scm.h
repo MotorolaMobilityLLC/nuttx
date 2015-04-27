@@ -183,8 +183,6 @@ enum tsb_drivestrength {
      CLK_MASK(TSB_CLK_I2CS)    | \
      CLK_MASK(TSB_CLK_UARTP)   | \
      CLK_MASK(TSB_CLK_UARTS)   | \
-     CLK_MASK(TSB_CLK_SPIP)    | \
-     CLK_MASK(TSB_CLK_SPIS)    | \
      CLK_MASK(TSB_CLK_GPIO))
 
 
