@@ -46,6 +46,7 @@
 
 static struct interface **interfaces;
 static unsigned int nr_interfaces;
+static unsigned int nr_spring_interfaces;
 
 
 /**
@@ -200,6 +201,22 @@ bool interface_get_pwr_state(struct interface *iface)
     return iface->power_state;
 }
 
+
+/**
+ * @brief           Return the name of the interface
+ * @return          Interface name (string), NULL in case of error.
+ * @param[in]       iface: configured interface structure
+ */
+const char *interface_get_name(struct interface *iface)
+{
+    if (!iface) {
+        return NULL;
+    }
+
+    return iface->name;
+}
+
+
 /**
  * @brief Get the interface struct from the index, as specified in the MDK.
  *        Index 0 is for the first interface (aka 'A').
@@ -213,15 +230,100 @@ struct interface* interface_get(uint8_t index)
     return interfaces[index];
 }
 
+
+/**
+ * @brief           Return the spring interface struct from the index.
+ * @warning         Index 0 is for the first spring interface.
+ * @return          Interface structure, NULL in case of error.
+ * @param[in]       index: configured interface structure
+ */
+struct interface* interface_spring_get(uint8_t index)
+{
+    if ((!interfaces) || (index >= nr_spring_interfaces))
+        return NULL;
+
+    return interfaces[nr_interfaces - nr_spring_interfaces + index];
+}
+
+
+/**
+ * @brief           Return the number of available interfaces.
+ * @return          Number of available interfaces, 0 in case of error.
+ */
+uint8_t interface_get_count(void)
+{
+    return nr_interfaces;
+}
+
+
+/**
+ * @brief           Return the number of available spring interfaces.
+ * @return          Number of available spring interfaces, 0 in case of error.
+ */
+uint8_t interface_get_spring_count(void)
+{
+    return nr_spring_interfaces;
+}
+
+
+/**
+ * @brief           Return the ADC instance used for this interface
+ *                  current measurement.
+ * @return          ADC instance, 0 in case of error
+ * @param[in]       iface: configured interface structure
+ */
+uint8_t interface_pm_get_adc(struct interface *iface)
+{
+    if ((!iface) || (!iface->pm)) {
+        return 0;
+    }
+
+    return iface->pm->adc;
+}
+
+
+/**
+ * @brief           Return the ADC channel used for this interface
+ *                  current measurement.
+ * @return          ADC channel, 0 in case of error
+ * @param[in]       iface: configured interface structure
+ */
+uint8_t interface_pm_get_chan(struct interface *iface)
+{
+    if ((!iface) || (!iface->pm)) {
+        return 0;
+    }
+
+    return iface->pm->chan;
+}
+
+
+/**
+ * @brief           Return the measurement sign pin GPIO configuration.
+ * @return          Measurement sign pin GPIO configuration, 0 in case of error.
+ * @param[in]       iface: configured interface structure
+ */
+uint32_t interface_pm_get_spin(struct interface *iface)
+{
+    if ((!iface) || (!iface->pm)) {
+        return 0;
+    }
+
+    return iface->pm->spin;
+}
+
+
 /**
  * @brief Given a table of interfaces, initialize and enable all associated
  *        power supplies
  * @param interfaces table of interfaces to initialize
  * @param nr_ints number of interfaces to initialize
+ * @param nr_spring_ints number of spring interfaces
  * @returns: 0 on success, <0 on error
  * @sideeffects: leaves interfaces powered off on error.
  */
-int interface_init(struct interface **ints, size_t nr_ints) {
+int interface_init(struct interface **ints,
+                   size_t nr_ints, size_t nr_spring_ints) {
     unsigned int i;
     int rc;
     int fail = 0;
@@ -234,6 +336,7 @@ int interface_init(struct interface **ints, size_t nr_ints) {
 
     interfaces = ints;
     nr_interfaces = nr_ints;
+    nr_spring_interfaces = nr_spring_ints;
 
     for (i = 0; i < nr_interfaces; i++) {
         rc = interface_config(interfaces[i]);

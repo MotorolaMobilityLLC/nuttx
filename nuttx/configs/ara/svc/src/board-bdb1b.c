@@ -131,6 +131,10 @@ DECLARE_SPRING_INTERFACE(6, (GPIO_PORTG | GPIO_PIN12), 8);
 DECLARE_SPRING_INTERFACE(7, (GPIO_PORTG | GPIO_PIN13), 5);
 DECLARE_SPRING_INTERFACE(8, (GPIO_PORTG | GPIO_PIN15), 13);
 
+/*
+ * NB: always declare first the interfaces, then the spring interfaces.
+ * Assumed by Spring Power Measurement Library (up_spring_pm.c).
+ */
 static struct interface *bdb1b_interfaces[] = {
     &apb1_interface,
     &apb2_interface,

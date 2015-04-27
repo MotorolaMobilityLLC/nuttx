@@ -41,6 +41,16 @@ struct vreg_data {
     unsigned int active_high; // Active-high to assert
 };
 
+/*
+ * Structure storing information about how spring current measurement HW
+ * is connected to SVC.
+ */
+struct pm_data {
+    uint8_t adc;        /* ADC instance */
+    uint8_t chan;       /* ADC channel */
+    uint32_t spin;      /* ADC sign pin */
+};
+
 struct interface {
     const char *name;
     unsigned int switch_portid;
@@ -54,6 +64,7 @@ struct interface {
     size_t nr_vregs;
     bool power_state;
     unsigned int wake_out;
+    struct pm_data *pm;
 };
 
 #define interface_foreach(iface, idx)                       \
@@ -61,10 +72,15 @@ struct interface {
              (iface);                                       \
              (idx)++, (iface) = interface_get(idx))
 
-int interface_init(struct interface**, size_t nr_interfaces);
+int interface_init(struct interface**,
+                   size_t nr_interfaces, size_t nr_spring_ints);
 void interface_exit(void);
 struct interface* interface_get(uint8_t index);
+struct interface* interface_spring_get(uint8_t index);
+uint8_t interface_get_count(void);
+uint8_t interface_get_spring_count(void);
 
+const char *interface_get_name(struct interface *iface);
 int interface_pwr_enable(struct interface*);
 int interface_pwr_disable(struct interface*);
 bool interface_get_pwr_state(struct interface *iface);
@@ -87,6 +103,10 @@ static inline int interface_is_builtin(struct interface *iface) {
     return !!(iface->flags & ARA_IFACE_FLAG_BUILTIN);
 }
 
+uint8_t interface_pm_get_adc(struct interface *iface);
+uint8_t interface_pm_get_chan(struct interface *iface);
+uint32_t interface_pm_get_spin(struct interface *iface);
+
 /*
  * Macro magic.
  */
@@ -104,15 +124,29 @@ static inline int interface_is_builtin(struct interface *iface) {
         .active_high = 0,                                      \
     }
 
+#define INIT_SPRING_PM_DATA(_adc, _chan, _spin)                \
+    {                                                          \
+        .adc = _adc,                                           \
+        .chan = _chan,                                         \
+        .spin = _spin,                                         \
+    }
+
 #define __MAKE_BB_WAKEOUT(n) WAKEOUT_SPRING ## n
 #define MAKE_BB_WAKEOUT(n) __MAKE_BB_WAKEOUT(n)
 #define __MAKE_BB_VREG(n) bb ## n ## _vregs
 #define MAKE_BB_VREG(n) __MAKE_BB_VREG(n)
+#define __MAKE_BB_PM(n) bb ## n ## _pm
+#define MAKE_BB_PM(n) __MAKE_BB_PM(n)
 #define __MAKE_BB_INTERFACE(n) bb ## n ## _interface
 #define MAKE_BB_INTERFACE(n) __MAKE_BB_INTERFACE(n)
-#define DECLARE_SPRING_INTERFACE(number, gpio, portid)         \
+#define DECLARE_SPRING_INTERFACE(number, gpio, portid,         \
+                                 pm_adc, pm_chan, pm_spin)     \
     static struct vreg_data MAKE_BB_VREG(number)[] = {         \
         INIT_SPRING_VREG_DATA(gpio)                            \
+    };                                                         \
+                                                               \
+    static struct pm_data MAKE_BB_PM(number)[] = {             \
+        INIT_SPRING_PM_DATA(pm_adc, pm_chan, pm_spin)          \
     };                                                         \
                                                                \
     static struct interface MAKE_BB_INTERFACE(number) = {      \
@@ -122,6 +156,7 @@ static inline int interface_is_builtin(struct interface *iface) {
         .nr_vregs = ARRAY_SIZE(MAKE_BB_VREG(number)),          \
         .switch_portid = portid,                               \
         .wake_out = MAKE_BB_WAKEOUT(number),                   \
+        .pm = MAKE_BB_PM(number),                              \
     };
 
 #define __MAKE_INTERFACE(n) n ## _interface
@@ -134,6 +169,7 @@ static inline int interface_is_builtin(struct interface *iface) {
         .nr_vregs = ARRAY_SIZE(gpios),                         \
         .switch_portid = portid,                               \
         .wake_out = _wake_out,                                 \
+        .pm = NULL,                                            \
     };
 
 #endif

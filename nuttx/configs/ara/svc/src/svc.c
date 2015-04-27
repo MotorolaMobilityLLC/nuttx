@@ -248,7 +248,8 @@ int svc_init(void) {
         goto error1;
     }
 
-    rc = interface_init(info->interfaces, info->nr_interfaces);
+    rc = interface_init(info->interfaces,
+                        info->nr_interfaces, info->nr_spring_interfaces);
     if (rc < 0) {
         dbg_error("%s: Failed to initialize interfaces\n", __func__);
         goto error1;
