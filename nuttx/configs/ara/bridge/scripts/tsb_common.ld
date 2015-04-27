@@ -26,22 +26,16 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-MEMORY
-{
-    rom  (rx)  : ORIGIN = 0x0,        LENGTH = 320K
-    sram (rwx) : ORIGIN = 0x10000000, LENGTH = 320K
-}
-
 OUTPUT_ARCH(arm)
 EXTERN(_vectors)
 ENTRY(_spi_stext)
 SECTIONS
 {
-    .text.spi_reloc : {
+    .bootstrap.loader : {
         *(.vectors)
-        *(.text.spi_reloc)
+        *(.bootstrap.loader)
         _spi_stext = ABSOLUTE(.);
-    } > rom
+    } > REGION_TEXT
 
     .text : {
         _stext = ABSOLUTE(.);
@@ -57,18 +51,10 @@ SECTIONS
         *(.gcc_except_table)
         *(.gnu.linkonce.r.*)
         _etext = ABSOLUTE(.);
-    } > sram AT > rom
+    } > sram AT > REGION_TEXT
 
     _stext_lma = LOADADDR(.text);
     _text_size = SIZEOF(.text);
-
-    .bootstrap : {
-        *(.bootstrap)
-    } > sram AT > rom
-
-    _bootstrap_lma = LOADADDR(.bootstrap);
-    _bootstrap_vma = ADDR(.bootstrap);
-    _bootstrap_size = SIZEOF(.bootstrap);
 
     .init_section : {
         _sinit = ABSOLUTE(.);
@@ -94,7 +80,7 @@ SECTIONS
         *(.gnu.linkonce.d.*)
         CONSTRUCTORS
         _edata = ABSOLUTE(.);
-    } > sram AT > rom
+    } > sram AT > REGION_TEXT
 
     _sdata_lma = LOADADDR(.data);
 
@@ -105,6 +91,15 @@ SECTIONS
         *(COMMON)
         _ebss = ABSOLUTE(.);
     } > sram
+
+    .bootstrap : {
+        *(.bootstrap)
+    } > sram AT > REGION_TEXT
+
+    _bootstrap_lma = LOADADDR(.bootstrap);
+    _bootstrap_vma = ADDR(.bootstrap);
+    _bootstrap_size = SIZEOF(.bootstrap);
+
 
     /* Stabs debugging sections. */
     .stab 0 : { *(.stab) }

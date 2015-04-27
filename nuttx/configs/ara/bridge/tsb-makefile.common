@@ -59,10 +59,12 @@
 ##
 ############################################################################
 
+quotefixed_chip_rev := $(shell echo $(CONFIG_TSB_CHIP_REV))
+
 ifeq ($(CONFIG_BOOT_COPYTORAM),y)
-    LDSCRIPT = ld-spirom.script
+    LDSCRIPT = $(quotefixed_chip_rev)-spi.ld
 else
-    LDSCRIPT = ld.script
+    LDSCRIPT = $(quotefixed_chip_rev).ld
 endif
 
 LDDIR := $(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/scripts

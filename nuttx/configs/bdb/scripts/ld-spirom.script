@@ -37,9 +37,9 @@ EXTERN(_vectors)
 ENTRY(_spi_stext)
 SECTIONS
 {
-    .text.spi_reloc : {
+    .bootstrap.loader : {
         *(.vectors)
-        *(.text.spi_reloc)
+        *(.bootstrap.loader)
         _spi_stext = ABSOLUTE(.);
     } > rom
 

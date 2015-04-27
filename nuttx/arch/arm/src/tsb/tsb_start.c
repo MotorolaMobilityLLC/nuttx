@@ -20,9 +20,7 @@ void tsb_start(void);
 extern uint32_t _stext_lma;
 extern uint32_t _sdata_lma;
 
-#ifdef CONFIG_BOOT_COPYTORAM
-void __start(void) __attribute__((section(".text.spi_reloc")));
-#endif
+void __start(void) __attribute__((section(".bootstrap.loader")));
 
 void __start(void) {
 #ifdef CONFIG_BOOT_COPYTORAM
