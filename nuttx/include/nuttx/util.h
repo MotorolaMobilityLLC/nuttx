@@ -45,6 +45,13 @@
     #define ONE_BIT_IS_SET(x)   ((x) && !((x) & ((x) - 1)))
 #endif
 
+/* Wouldn't work for types bigger than 4 bytes */
+#ifndef ALIGN
+    #define _ALIGNBYTES    (sizeof(uint32_t) - 1)
+    #define ALIGN(p)       ((typeof(p))(((unsigned)(p) + _ALIGNBYTES) &	\
+                                        ~_ALIGNBYTES))
+#endif
+
 #endif
 
 
