@@ -39,7 +39,7 @@
 #include <errno.h>
 
 #include "up_arch.h"
-#include "tsb_unipro.h" // private
+#include "tsb_unipro_es1.h" // private
 
 #ifdef UNIPRO_DEBUG
 #define DBG_UNIPRO(fmt, ...) lldbg(fmt,__VA_ARGS__ )

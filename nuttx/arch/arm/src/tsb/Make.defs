@@ -37,7 +37,7 @@ endif
 CHIP_ASRCS  = tsb_vectors.S
 
 CHIP_CSRCS  = tsb_start.c up_allocateheap.c tsb_idle.c tsb_irq.c tsb_timerisr.c
-CHIP_CSRCS += tsb_main.c tsb_lowputc.c tsb_serial.c tsb_unipro.c
+CHIP_CSRCS += tsb_main.c tsb_lowputc.c tsb_serial.c
 CHIP_CSRCS += tsb_scm.c
 CHIP_CSRCS += tsb_gpio.c
 CHIP_CSRCS += $(USB_CSRCS)
@@ -50,4 +50,10 @@ endif
 ifeq ($(CONFIG_DEVICE_CORE),y)
 CHIP_CSRCS += tsb_device_table.c
 CHIP_CSRCS += tsb_driver.c
+endif
+
+ifeq ($(CONFIG_TSB_CHIP_REV_ES2), y)
+CMN_CSRCS += tsb_unipro_es2.c
+else
+CMN_CSRCS += tsb_unipro_es1.c
 endif
