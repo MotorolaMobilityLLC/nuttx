@@ -687,6 +687,7 @@ extern void __DWC_FREE(void *mem_ctx, void *addr);
 # endif
 
 # ifdef DWC_NUTTX
+void *phys_to_virt(unsigned long address);
 #define DWC_DMA_ALLOC(_size_,_dma_) __DWC_DMA_ALLOC(NULL, _size_, _dma_)
 #define DWC_DMA_ALLOC_ATOMIC(_size_,_dma_) __DWC_DMA_ALLOC_ATOMIC(NULL, _size_,_dma_)
 #define DWC_DMA_FREE(_size_,_virt_,_dma_) __DWC_DMA_FREE(NULL, _size_, _virt_, _dma_)
