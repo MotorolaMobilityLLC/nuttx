@@ -29,7 +29,21 @@
  */
 
 #include <arch/tsb/unipro.h>
+#include <arch/tsb/irq.h>
 #include <errno.h>
+
+#include "debug.h"
+#include "up_arch.h"
+#include "tsb_scm.h"
+#include "tsb_unipro_es2.h"
+
+static uint32_t unipro_read(uint32_t offset) {
+    return getreg32((volatile unsigned int*)(AIO_UNIPRO_BASE + offset));
+}
+
+static void unipro_write(uint32_t offset, uint32_t v) {
+    putreg32(v, (volatile unsigned int*)(AIO_UNIPRO_BASE + offset));
+}
 
 /*
  * public interfaces
@@ -43,8 +57,51 @@ void unipro_info(void)
 }
 
 /**
- * @brief Initialize one UniPro cport
+ * @brief perform a DME access
+ * @param attr attribute to access
+ * @param val pointer to value to either read or write
+ * @param peer 0 for local access, 1 for peer
+ * @param write 0 for read, 1 for write
+ * @param result_code unipro return code, optional
  */
+static int unipro_attr_access(uint16_t attr,
+                              uint32_t *val,
+                              uint16_t selector,
+                              int peer,
+                              int write,
+                              uint32_t *result_code) {
+
+    uint32_t ctrl = (REG_ATTRACS_CTRL_PEERENA(peer) |
+                     REG_ATTRACS_CTRL_SELECT(selector) |
+                     REG_ATTRACS_CTRL_WRITE(write) |
+                     attr);
+
+    unipro_write(A2D_ATTRACS_CTRL_00, ctrl);
+    if (write) {
+        unipro_write(A2D_ATTRACS_DATA_CTRL_00, *val);
+    }
+
+    /* Start the access */
+    unipro_write(A2D_ATTRACS_MSTR_CTRL,
+                 REG_ATTRACS_CNT(1) | REG_ATTRACS_UPD);
+
+    while (!unipro_read(A2D_ATTRACS_INT_BEF))
+        ;
+
+    /* Clear status bit */
+    unipro_write(A2D_ATTRACS_INT_BEF, 0x1);
+
+    if (result_code) {
+        *result_code = unipro_read(A2D_ATTRACS_STS_00);
+    }
+
+    if (!write) {
+        *val = unipro_read(A2D_ATTRACS_DATA_STS_00);
+    }
+
+    return 0;
+}
+
 int unipro_init_cport(unsigned int cportid)
 {
     return -ENOSYS;
@@ -84,7 +141,7 @@ int unipro_attr_read(uint16_t attr,
                      int peer,
                      uint32_t *result_code)
 {
-    return -ENOSYS;
+    return unipro_attr_access(attr, val, selector, peer, 0, result_code);
 }
 
 /**
@@ -102,7 +159,7 @@ int unipro_attr_write(uint16_t attr,
                       int peer,
                       uint32_t *result_code)
 {
-    return -ENOSYS;
+    return unipro_attr_access(attr, &val, selector, peer, 1, result_code);
 }
 
 /**
