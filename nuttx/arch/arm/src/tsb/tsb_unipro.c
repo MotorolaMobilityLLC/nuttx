@@ -113,8 +113,6 @@ static inline struct cport *cport_handle(uint16_t cportid) {
 static uint32_t cport_get_status(struct cport*);
 static inline void clear_rx_interrupt(struct cport*);
 static inline void enable_rx_interrupt(struct cport*);
-static void clear_ints(void);
-static void enable_ints(void);
 static void enable_e2efc(void);
 static void configure_transfer_mode(int);
 static void dump_regs(void);
