@@ -88,8 +88,13 @@ static int pwm_shutdown(struct pwm_lowerhalf_s *dev)
     return OK;
 }
 
+#ifdef CONFIG_PWM_PULSECOUNT
 static int pwm_start(struct pwm_lowerhalf_s *dev,
                      const struct pwm_info_s *info, void *handle)
+#else
+static int pwm_start(struct pwm_lowerhalf_s *dev,
+                     const struct pwm_info_s *info)
+#endif
 {
     uint32_t cr;
     uint32_t freq;
