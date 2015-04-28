@@ -822,18 +822,7 @@ CONFIG_ARA_SVC_MAIN=y
 # CONFIG_GPBRIDGE is not set
 CONFIG_ARA_GPIO=y
 # CONFIG_ARA_SVC_BDBPM is not set
-
-#
-# Greybus utility
-#
-# CONFIG_GREYBUS_DEBUG is not set
-CONFIG_MANIFEST_GPIO=y
-# CONFIG_MANIFEST_I2C is not set
-# CONFIG_MANIFEST_GPIO_I2C is not set
-# CONFIG_MANIFEST_BATTERY_GPIO_I2C is not set
-# CONFIG_MANIFEST_LOOPBACK is not set
-# CONFIG_CUSTOM_MANIFEST is not set
-# CONFIG_SVC_MSG is not set
+# CONFIG_GREYBUS_UTILS is not set
 
 #
 # Examples
