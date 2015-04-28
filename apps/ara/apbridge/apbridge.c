@@ -35,6 +35,7 @@
 #include <pthread.h>
 #include <nuttx/usb/apb_es1.h>
 #include <apps/greybus-utils/utils.h>
+#include <apps/nsh.h>
 
 #define IID_LENGTH 7
 

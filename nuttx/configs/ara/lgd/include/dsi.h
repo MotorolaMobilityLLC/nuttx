@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2014-2015 Google Inc.
+/**
+ * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,15 +24,14 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * @brief LG4892 LCD Panel Driver
  */
 
-#ifndef _GREYBUS_UTILS_MANIFEST_H_
-#define _GREYBUS_UTILS_MANIFEST_H_
+#ifndef __LGD_DSI_H__
+#define __LGD_DSI_H__
 
-void foreach_manifest(void (manifest_handler)(unsigned char *manifest_file, int manifest_number));
-void enable_cports(void);
-void parse_manifest_blob(char *hpe);
-void enable_manifest(char *name, void *priv);
+int display_init(void);
 
-#endif
+#endif /* __LGD_DSI_H__ */
 

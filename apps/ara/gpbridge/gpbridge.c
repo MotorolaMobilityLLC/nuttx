@@ -4,10 +4,18 @@
 
 #include <nuttx/config.h>
 
+#include <stdio.h>
+
+#include <arch/tsb/gpio.h>
 #include <arch/tsb/unipro.h>
 #include <arch/tsb/device_table.h>
 #include <arch/tsb/driver.h>
 #include <apps/greybus-utils/utils.h>
+#include <apps/nsh.h>
+
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+#include <arch/board/dsi.h>
+#endif
 
 int bridge_main(int argc, char *argv[])
 {

@@ -35,8 +35,13 @@
 #include <pthread.h>
 #include <nuttx/usb/apb_es1.h>
 #include <apps/greybus-utils/utils.h>
+#include <apps/nsh.h>
 #include <arch/tsb/gpio.h>
 #include <arch/tsb/unipro.h>
+
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+#include <arch/board/dsi.h>
+#endif
 
 /*
  * TODO

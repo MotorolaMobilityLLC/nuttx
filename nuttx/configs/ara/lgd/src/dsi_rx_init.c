@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <stdio.h>
 
 #include <nuttx/gpio.h>
 #include <arch/tsb/cdsi.h>
