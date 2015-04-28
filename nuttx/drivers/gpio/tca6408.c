@@ -396,7 +396,7 @@ static void intstat_update(uint8_t in)
     }
 }
 
-static void tca6408_registers_update()
+static void tca6408_registers_update(void)
 {
     int ret;
     uint8_t in;
