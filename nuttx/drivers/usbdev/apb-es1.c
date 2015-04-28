@@ -824,7 +824,6 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
 {
     struct apbridge_dev_s *priv;
     struct apbridge_usb_driver *drv;
-    irqstate_t flags;
     int ret;
 
     /* Sanity check */
@@ -878,8 +877,6 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
 static void usbclass_intcomplete(struct usbdev_ep_s *ep,
                                  struct usbdev_req_s *req)
 {
-    struct apbridge_dev_s *priv;
-
     /* Sanity check */
 #ifdef CONFIG_DEBUG
     if (!ep || !ep->priv || !req || !req->priv) {
@@ -887,10 +884,6 @@ static void usbclass_intcomplete(struct usbdev_ep_s *ep,
         return;
     }
 #endif
-
-    /* Extract references to our private data */
-
-    priv = (struct apbridge_dev_s *)ep->priv;
 
     switch (req->result) {
     case OK:                   /* Normal completion */
@@ -920,8 +913,6 @@ static void usbclass_intcomplete(struct usbdev_ep_s *ep,
 static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
                                 struct usbdev_req_s *req)
 {
-    struct apbridge_dev_s *priv;
-
     /* Sanity check */
 
 #ifdef CONFIG_DEBUG
@@ -930,10 +921,6 @@ static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
         return;
     }
 #endif
-
-    /* Extract references to our private data */
-
-    priv = (struct apbridge_dev_s *)ep->priv;
 
     switch (req->result) {
     case OK:                   /* Normal completion */

@@ -419,7 +419,6 @@ int unipro_init_cport(unsigned int cportid) {
  */
 void unipro_init(void) {
     unsigned int i;
-    irqstate_t flags;
 
     /*
      * Unipro controller automatically issues a link startup request

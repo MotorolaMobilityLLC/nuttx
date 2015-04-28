@@ -87,8 +87,8 @@ static void free_cport(int cportid)
 void enable_cports(void)
 {
     int i = 0;
-    int id;
-    int protocol;
+    __attribute__((unused)) int id;
+    __attribute__((unused)) int protocol;
     while (i < CPORT_MAX) {
         if (g_greybus.cports_bmp & (1 << i)) {
             id = g_greybus.cports[i].id;

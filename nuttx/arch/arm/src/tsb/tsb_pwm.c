@@ -64,7 +64,6 @@ static uint32_t tsb_pwm_read(struct tsb_pwm_s *dev, uint32_t addr)
 
 static int pwm_setup(struct pwm_lowerhalf_s *dev)
 {
-    uint32_t cr;
     struct tsb_pwm_s *priv = (struct tsb_pwm_s *)dev;
 
     /* Enable Clock */

@@ -58,8 +58,6 @@ static struct unipro_driver greybus_driver = {
  * Called in IRQ context
  */
 static int greybus_rx_handler(unsigned int cportid, void *data, size_t len) {
-    unsigned int *payload = (unsigned int*)data;
-
     /* pass it off to greybus core? */
     // gb_message_handler()
     return 0;

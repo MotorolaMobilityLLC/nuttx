@@ -35,7 +35,7 @@ void __start(void) {
 
 void tsb_start(void) {
     uint32_t *dst;
-    const uint32_t *src;
+    __attribute__((unused)) const uint32_t *src;
 
 #ifdef CONFIG_BOOT_COPYTORAM
     for (src = &_sdata_lma, dst = &_sdata; dst < &_edata;) {
