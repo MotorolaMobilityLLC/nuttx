@@ -33,7 +33,12 @@
 
 #include <stdlib.h>
 
+#ifdef CONFIG_TSB_CHIP_REV_ES1
 #define CPORT_MAX                   (32)
+#elif defined(CONFIG_TSB_CHIP_REV_ES2)
+#define CPORT_MAX                   (44)
+#endif
+
 #define CPORT_BUF_SIZE              (1024)
 
 struct unipro_driver {
