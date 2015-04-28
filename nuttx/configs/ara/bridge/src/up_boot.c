@@ -27,8 +27,10 @@
  */
 
 #include <nuttx/config.h>
+#include <nuttx/build_info.h>
 #include <arch/tsb/unipro.h>
 #include <debug.h>
+
 
 #ifdef CONFIG_ARCH_LOWPUTC
 #define early_dbg(fmt, ...) lowsyslog(fmt, ##__VA_ARGS__)
@@ -38,14 +40,14 @@
 #define ARA_FW_VERSION "unknown"
 #endif
 
-#ifndef ARA_FW_BUILD_TIME
-#define ARA_FW_BUILD_TIME "unknown"
+#ifndef ARA_FW_BUILD_INFO
+#define ARA_FW_BUILD_INFO "unknown"
 #endif
 
 void tsb_boardinitialize(void) {
     early_dbg("\n********************************************************************************\n");
     early_dbg("Ara Bridge FW version: %s\n", ARA_FW_VERSION);
-    early_dbg("Build: %s\n", ARA_FW_BUILD_TIME);
+    early_dbg("Build: %s\n", ARA_FW_BUILD_INFO);
     early_dbg("Chip Revision: %s\n", CONFIG_TSB_CHIP_REV);
 
 #if defined CONFIG_BOOT_COPYTORAM
