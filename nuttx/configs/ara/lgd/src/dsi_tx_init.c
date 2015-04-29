@@ -514,7 +514,6 @@ struct display_panel lg4892_panel = {
 
 int display_init(void)
 {
-    int pwm_argc;
     struct i2c_dev_s *dev;
 
     dev = up_i2cinitialize(0);
