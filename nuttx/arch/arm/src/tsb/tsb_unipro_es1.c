@@ -332,6 +332,8 @@ static void dump_regs(void) {
     DBG_ATTR(TSB_MAILBOX);
     DBG_ATTR(TSB_MAXSEGMENTCONFIG);
     DBG_ATTR(TSB_DME_POWERMODEIND);
+    DBG_ATTR(TSB_DEBUGTXBYTECOUNT);
+    DBG_ATTR(TSB_DEBUGRXBYTECOUNT);
 
     lldbg("Active CPort Configuration:\n");
     lldbg("========================================\n");
