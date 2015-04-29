@@ -27,14 +27,13 @@
  */
 
 #include <nuttx/config.h>
+#include <nuttx/greybus/tsb_unipro.h>
 #include <arch/tsb/unipro.h>
 
 #include <stdio.h>
 #include <string.h>
 
 #define NUM_CPORTS   (4)
-#define TSB_DEBUGTXBYTECOUNT 0xD093
-#define TSB_DEBUGRXBYTECOUNT 0xD092
 
 #define xstr(s) str(s)
 #define str(s) #s

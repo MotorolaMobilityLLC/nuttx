@@ -42,6 +42,8 @@
 #include <string.h>
 
 #include <nuttx/i2c.h>
+#include <nuttx/greybus/unipro.h>
+#include <nuttx/greybus/tsb_unipro.h>
 
 #include <arch/board/board.h>
 
@@ -624,10 +626,12 @@ static int switch_configure_link(uint8_t devid)
     portid = deviceid_table_get_portid(devid);
 
     /*  TOSHIBA Specific Register Access Control, testing only */
-    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x1);
+    switch_peer_setreq(portid, TSB_T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL,
+                       0x1);
     /*  COM REFCLKFREQ SEL */
     switch_peer_setreq(portid, COM_REFCLKFREQ_SEL, NCP_SELINDEX_NULL, 0x0);
-    switch_peer_setreq(portid, T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL, 0x0);
+    switch_peer_setreq(portid, TSB_T_REGACCCTRL_TESTONLY, NCP_SELINDEX_NULL,
+                       0x0);
 
     /*  Power Mode Change in the switch */
     /* Q: should the peer device settings be changed as well ? */
@@ -648,7 +652,7 @@ static int switch_configure_link(uint8_t devid)
     switch_set_req(portid, PA_PWRMODE, NCP_SELINDEX_NULL, PA_FASTMODE_RXTX);
     do {
         /* Wait until the power mode change completes */
-        switch_get_req(portid, DME_POWERMODEIND, NCP_SELINDEX_NULL, &val);
+        switch_get_req(portid, TSB_DME_POWERMODEIND, NCP_SELINDEX_NULL, &val);
     } while (val != DME_POWERMODEIND_SUCCESS);
 
     /* Set TSB_MaxSegmentConfig */
@@ -760,7 +764,7 @@ uint32_t switch_detect_devices(void)
             switch_peer_getreq(i, DME_DDBL1_DEVICECLASS,
                                NCP_SELINDEX_NULL, &attr_value);
             /*  ManufactureID,  expected 0x0126 */
-            switch_peer_getreq(i, DME_DDBL1_MANUFACTUREID,
+            switch_peer_getreq(i, DME_DDBL1_MANUFACTURERID,
                                NCP_SELINDEX_NULL, &attr_value);
             /*  productID,      expected 0x1000 */
             switch_peer_getreq(i, DME_DDBL1_PRODUCTID,
@@ -769,9 +773,9 @@ uint32_t switch_detect_devices(void)
             switch_peer_getreq(i, DME_DDBL1_LENGTH, NCP_SELINDEX_NULL,
                                &attr_value);
             /* DME_DDBL2 VID and PID */
-            switch_peer_getreq(i, DME_DDBL2_VID, NCP_SELINDEX_NULL,
+            switch_peer_getreq(i, TSB_DME_DDBL2_A, NCP_SELINDEX_NULL,
                                &attr_value);
-            switch_peer_getreq(i, DME_DDBL2_PID, NCP_SELINDEX_NULL,
+            switch_peer_getreq(i, TSB_DME_DDBL2_B, NCP_SELINDEX_NULL,
                                &attr_value);
             switch_peer_getreq(i, PA_CONNECTEDTXDATALANES,
                                NCP_SELINDEX_NULL, &attr_value);

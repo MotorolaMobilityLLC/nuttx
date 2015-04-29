@@ -32,6 +32,8 @@
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <arch/tsb/unipro.h>
+#include <nuttx/greybus/unipro.h>
+#include <nuttx/greybus/tsb_unipro.h>
 #include <debug.h>
 
 #include <stdint.h>
@@ -322,14 +324,14 @@ static void dump_regs(void) {
     DBG_ATTR(DME_DDBL1_REVISION);
     DBG_ATTR(DME_DDBL1_LEVEL);
     DBG_ATTR(DME_DDBL1_DEVICECLASS);
-    DBG_ATTR(DME_DDBL1_MANUFACTUREID);
+    DBG_ATTR(DME_DDBL1_MANUFACTURERID);
     DBG_ATTR(DME_DDBL1_PRODUCTID);
     DBG_ATTR(DME_DDBL1_LENGTH);
-    DBG_ATTR(DME_DDBL2_VID);
-    DBG_ATTR(DME_DDBL2_PID);
+    DBG_ATTR(TSB_DME_DDBL2_A);
+    DBG_ATTR(TSB_DME_DDBL2_B);
     DBG_ATTR(TSB_MAILBOX);
     DBG_ATTR(TSB_MAXSEGMENTCONFIG);
-    DBG_ATTR(DME_POWERMODEIND);
+    DBG_ATTR(TSB_DME_POWERMODEIND);
 
     lldbg("Active CPort Configuration:\n");
     lldbg("========================================\n");

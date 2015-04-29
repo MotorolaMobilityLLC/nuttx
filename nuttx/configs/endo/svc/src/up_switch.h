@@ -77,38 +77,7 @@
 #define NCP_SWITCHATTRGETCNF        0x23
 #define NCP_SWITCHIDSETREQ          0x24
 #define NCP_SWITCHIDSETCNF          0x25
-/* Unipro attributes */
-#define T_REGACCCTRL_TESTONLY       0x007F
-#define PA_ACTIVETXDATALANES        0x1560
-#define PA_CONNECTEDTXDATALANES     0x1561
-#define PA_TXGEAR                   0x1568
-#define PA_TXTERMINATION            0x1569
-#define PA_HSSERIES                 0x156A
-#define PA_PWRMODE                  0x1571
-#define PA_ACTIVERXDATALANES        0x1580
-#define PA_CONNECTEDRXDATALANES     0x1581
-#define PA_RXGEAR                   0x1583
-#define PA_RXTERMINATION            0x1584
-#define PA_PWRMODEUSERDATA0         0x15B0
-#define N_DEVICEID                  0x3000
-#define N_DEVICEID_VALID            0x3001
-#define T_NUMCPORTS                 0x4000
-#define T_CONNECTIONSTATE           0x4020
-#define T_PEERDEVICEID              0x4021
-#define T_PEERCPORTID               0x4022
-#define T_TRAFFICCLASS              0x4023
-#define T_CPORTFLAGS                0x4025
-#define DME_DDBL1_REVISION          0x5000
-#define DME_DDBL1_LEVEL             0x5001
-#define DME_DDBL1_DEVICECLASS       0x5002
-#define DME_DDBL1_MANUFACTUREID     0x5003
-#define DME_DDBL1_PRODUCTID         0x5004
-#define DME_DDBL1_LENGTH            0x5005
-#define DME_DDBL2_VID               0x6000
-#define DME_DDBL2_PID               0x6001
-#define TSB_MAILBOX                 0xA000
-#define TSB_MAXSEGMENTCONFIG        0xD089
-#define DME_POWERMODEIND            0xD040
+
 /* NCP field values */
 #define NCP_RESERVED                0x00
 #define NCP_SELINDEX_NULL           0x00
