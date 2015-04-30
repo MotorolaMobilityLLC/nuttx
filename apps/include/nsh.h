@@ -158,6 +158,27 @@ int nsh_consolemain(int argc, char *argv[]);
 
 int nsh_telnetstart(void);
 
+/****************************************************************************
+ * Name: nsh_main
+ *
+ * Description:
+ *   This interface may be called or started with task_start to start a
+ *   single an NSH instance that operates on stdin and stdout.  This
+ *   function does not return.
+ *
+ * Input Parameters:
+ *   Standard task start-up arguments.  These are not used.  argc may be
+ *   zero and argv may be NULL.
+ *
+ * Returned Values:
+ *   This function does not normally return.  exit() is usually called to
+ *   terminate the NSH session.  This function will return in the event of
+ *   an error.  In that case, a non-zero value is returned (EXIT_FAILURE=1).
+ *
+ ****************************************************************************/
+
+int nsh_main(int argc, char *argv[]);
+
 #undef EXTERN
 #ifdef __cplusplus
 }
