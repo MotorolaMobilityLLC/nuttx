@@ -471,16 +471,15 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
     memset(operation, 0, sizeof(*operation));
     operation->cport = cport;
 
-    if (req_size > 0) {
-        operation->request_buffer = malloc(req_size + sizeof(*hdr));
-        if (!operation->request_buffer)
-            goto malloc_error;
+    operation->request_buffer = malloc(req_size + sizeof(*hdr));
+    if (!operation->request_buffer)
+        goto malloc_error;
 
-        memset(operation->request_buffer, 0, req_size + sizeof(*hdr));
-        hdr = operation->request_buffer;
-        hdr->size = req_size + sizeof(*hdr);
-        hdr->type = type;
-    }
+    memset(operation->request_buffer, 0, req_size + sizeof(*hdr));
+    hdr = operation->request_buffer;
+    hdr->size = req_size + sizeof(*hdr);
+    hdr->type = type;
+
     list_init(&operation->list);
     atomic_init(&operation->ref_count, 1);
 
