@@ -231,6 +231,8 @@ int gb_gpio_irq_event(int irq, FAR void *context)
     gpio_clear_interrupt(request->which);
     gpio_unmask_irq(request->which);
 
+    gb_operation_destroy(operation);
+
     return OK;
 }
 
