@@ -38,6 +38,7 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/wqueue.h>
+#include <arch/armv7-m/byteorder.h>
 
 #ifdef DWC_CCLIB
 # include "dwc_cc.h"
@@ -284,86 +285,42 @@ void __DWC_FREE(void *mem_ctx, void *addr)
 
 uint32_t DWC_CPU_TO_LE32(uint32_t *p)
 {
-#ifdef __LITTLE_ENDIAN
-    return *p;
-#else
-    uint8_t *u_p = (uint8_t *)p;
-
-    return (u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24));
-#endif
+    return cpu_to_le32(*p);
 }
 
 uint32_t DWC_CPU_TO_BE32(uint32_t *p)
 {
-#ifdef __BIG_ENDIAN
-    return *p;
-#else
-    uint8_t *u_p = (uint8_t *)p;
-
-    return (u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24));
-#endif
+    return cpu_to_be32(*p);
 }
 
 uint32_t DWC_LE32_TO_CPU(uint32_t *p)
 {
-#ifdef __LITTLE_ENDIAN
-    return *p;
-#else
-    uint8_t *u_p = (uint8_t *)p;
-
-    return (u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24));
-#endif
+    return le32_to_cpu(*p);
 }
 
 uint32_t DWC_BE32_TO_CPU(uint32_t *p)
 {
-#ifdef __BIG_ENDIAN
-    return *p;
-#else
-    uint8_t *u_p = (uint8_t *)p;
-
-    return (u_p[3] | (u_p[2] << 8) | (u_p[1] << 16) | (u_p[0] << 24));
-#endif
+    return be32_to_cpu(*p);
 }
 
 uint16_t DWC_CPU_TO_LE16(uint16_t *p)
 {
-#ifdef __LITTLE_ENDIAN
-    return *p;
-#else
-    uint8_t *u_p = (uint8_t *)p;
-    return (u_p[1] | (u_p[0] << 8));
-#endif
+    return cpu_to_le16(*p);
 }
 
 uint16_t DWC_CPU_TO_BE16(uint16_t *p)
 {
-#ifdef __BIG_ENDIAN
-    return *p;
-#else
-    uint8_t *u_p = (uint8_t *)p;
-    return (u_p[1] | (u_p[0] << 8));
-#endif
+    return cpu_to_be16(*p);
 }
 
 uint16_t DWC_LE16_TO_CPU(uint16_t *p)
 {
-#ifdef __LITTLE_ENDIAN
-    return *p;
-#else
-    uint8_t *u_p = (uint8_t *)p;
-    return (u_p[1] | (u_p[0] << 8));
-#endif
+    return le16_to_cpu(*p);
 }
 
 uint16_t DWC_BE16_TO_CPU(uint16_t *p)
 {
-#ifdef __BIG_ENDIAN
-    return *p;
-#else
-    uint8_t *u_p = (uint8_t *)p;
-    return (u_p[1] | (u_p[0] << 8));
-#endif
+    return be16_to_cpu(*p);
 }
 
 
