@@ -660,13 +660,11 @@ void dwc_otg_pcd_stop(dwc_otg_pcd_t * pcd)
 	dwc_otg_request_nuke(ep);
 	/* prevent new request submissions, kill any outstanding requests  */
 	for (i = 0; i < num_in_eps; i++) {
-		dwc_otg_pcd_ep_t *ep = &pcd->in_ep[i];
-		dwc_otg_request_nuke(ep);
+		dwc_otg_request_nuke(&pcd->in_ep[i]);
 	}
 	/* prevent new request submissions, kill any outstanding requests  */
 	for (i = 0; i < num_out_eps; i++) {
-		dwc_otg_pcd_ep_t *ep = &pcd->out_ep[i];
-		dwc_otg_request_nuke(ep);
+		dwc_otg_request_nuke(&pcd->out_ep[i]);
 	}
 
 	/* report disconnect; the driver is already quiesced */
@@ -4060,10 +4058,10 @@ static int32_t dwc_otg_pcd_handle_in_ep_intr(dwc_otg_pcd_t * pcd)
 {
 #define CLEAR_IN_EP_INTR(__core_if,__epnum,__intr) \
 do { \
-		diepint_data_t diepint = {.d32=0}; \
-		diepint.b.__intr = 1; \
+		diepint_data_t __diepint = {.d32=0}; \
+		__diepint.b.__intr = 1; \
 		DWC_WRITE_REG32(&__core_if->dev_if->in_ep_regs[__epnum]->diepint, \
-		diepint.d32); \
+		__diepint.d32); \
 } while (0)
 
 	dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
@@ -4297,7 +4295,6 @@ do { \
 							CLEAR_IN_EP_INTR(core_if, epnum, nak); 
 						}
 					} else {
-						depctl_data_t depctl;
 						if (ep->dwc_ep.frame_num == 0xFFFFFFFF) {
 							ep->dwc_ep.frame_num = core_if->frame_num;
 							if (ep->dwc_ep.bInterval > 1) {
@@ -4352,10 +4349,10 @@ static int32_t dwc_otg_pcd_handle_out_ep_intr(dwc_otg_pcd_t * pcd)
 {
 #define CLEAR_OUT_EP_INTR(__core_if,__epnum,__intr) \
 do { \
-		doepint_data_t doepint = {.d32=0}; \
-		doepint.b.__intr = 1; \
+		doepint_data_t __doepint = {.d32=0}; \
+		__doepint.b.__intr = 1; \
 		DWC_WRITE_REG32(&__core_if->dev_if->out_ep_regs[__epnum]->doepint, \
-		doepint.d32); \
+		__doepint.d32); \
 } while (0)
 
 	dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
@@ -4366,7 +4363,8 @@ do { \
 	dwc_ep_t *dwc_ep;
 	dctl_data_t dctl = {.d32 = 0 };
 	gintmsk_data_t gintmsk = {.d32 = 0 };
-
+	doepint_data_t doepint_temp = {.d32 = 0};
+	dev_dma_desc_sts_t status = {.d32 = 0};
 
 	DWC_DEBUGPL(DBG_PCDV, "%s()\n", __func__);
 
@@ -4403,19 +4401,18 @@ do { \
 
 						if (core_if->snpsid >= OTG_CORE_REV_3_00a
 							&& core_if->dma_enable == 0) {
-							doepint_data_t doepint;
-							doepint.d32 = DWC_READ_REG32(&core_if->dev_if->
+							doepint_data_t doepint_temp2;
+							doepint_temp2.d32 = DWC_READ_REG32(&core_if->dev_if->
 														out_ep_regs[0]->doepint);
-							if (pcd->ep0state == EP0_IDLE && doepint.b.sr) {
+							if (pcd->ep0state == EP0_IDLE && doepint_temp2.b.sr) {
 								CLEAR_OUT_EP_INTR(core_if, epnum, sr);
-								if (doepint.b.stsphsercvd)
+								if (doepint_temp2.b.stsphsercvd)
 									CLEAR_OUT_EP_INTR(core_if, epnum, stsphsercvd);
 								goto exit_xfercompl;
 							}
 						}
 						/* In case of DDMA  look at SR bit to go to the Data Stage */
 						if (core_if->dma_desc_enable) {
-							dev_dma_desc_sts_t status = {.d32 = 0};
 							if (pcd->ep0state == EP0_IDLE) {
 								status.d32 = core_if->dev_if->setup_desc_addr[core_if->
 											dev_if->setup_desc_index]->status.d32;
@@ -4447,7 +4444,6 @@ do { \
 								}
 							} else {
 								dwc_otg_pcd_request_t *req;
-								dev_dma_desc_sts_t status = {.d32 = 0};
 								diepint_data_t diepint0;
 								diepint0.d32 = DWC_READ_REG32(&core_if->dev_if->
 															in_ep_regs[0]->diepint);
@@ -4512,7 +4508,6 @@ do { \
  						}
 						if (core_if->snpsid >= OTG_CORE_REV_3_00a && core_if->dma_enable
 							&& core_if->dma_desc_enable == 0) {
-							doepint_data_t doepint_temp = {.d32 = 0};
 							deptsiz0_data_t doeptsize0 = {.d32 = 0 };
 							doepint_temp.d32 = DWC_READ_REG32(&core_if->dev_if->
 															out_ep_regs[ep->dwc_ep.num]->doepint);
@@ -4577,7 +4572,6 @@ retry:
 							} else {
 								dwc_otg_pcd_request_t *req;
 								diepint_data_t diepint0 = {.d32 = 0};
-								doepint_data_t doepint_temp = {.d32 = 0};
 								depctl_data_t diepctl0;
 								diepint0.d32 = DWC_READ_REG32(&core_if->dev_if->
 																in_ep_regs[0]->diepint);
@@ -4763,7 +4757,6 @@ exit_xfercompl:
 				}
 				if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_ISOC)
 				{
-					dctl_data_t dctl;
 					dwc_otg_pcd_request_t *req = 0;
 
 					dctl.d32 = DWC_READ_REG32(&core_if->dev_if->

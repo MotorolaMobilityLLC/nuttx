@@ -3532,7 +3532,7 @@ void dwc_otg_ep_deactivate(dwc_otg_core_if_t * core_if, dwc_ep_t * ep)
 	depctl.d32 = DWC_READ_REG32(addr);
 	if (core_if->dma_enable && ep->type == DWC_OTG_EP_TYPE_ISOC
 	    && depctl.b.epena) {
-		depctl_data_t depctl = {.d32 = 0 };
+		depctl.d32 = 0;
 		if (ep->is_in) {
 			diepint_data_t diepint = {.d32 = 0 };
 

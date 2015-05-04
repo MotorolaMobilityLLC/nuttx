@@ -1332,7 +1332,7 @@ int32_t dwc_otg_handle_usb_suspend_intr(dwc_otg_core_if_t * core_if)
 			gotgctl_data_t gotgctl = {.d32 = 0 };
 			gotgctl.d32 = DWC_READ_REG32(&core_if->core_global_regs->gotgctl);
 			if (gotgctl.b.devhnpen && core_if->otg_ver == 1){
-				gotgctl_data_t gotgctl = {.d32 = 0 };
+				gotgctl.d32 = 0;
 				dwc_mdelay(5);
 				/**@todo Is the gotgctl.devhnpen cleared
 				 * by a USB Reset? */
@@ -1527,10 +1527,10 @@ static inline uint32_t dwc_otg_read_common_intr(dwc_otg_core_if_t * core_if)
 /* MACRO for clearing interupt bits in GPWRDN register */
 #define CLEAR_GPWRDN_INTR(__core_if,__intr) \
 do { \
-		gpwrdn_data_t gpwrdn = {.d32=0}; \
-		gpwrdn.b.__intr = 1; \
+		gpwrdn_data_t __gpwrdn = {.d32=0}; \
+		__gpwrdn.b.__intr = 1; \
 		DWC_MODIFY_REG32(&__core_if->core_global_regs->gpwrdn, \
-		0, gpwrdn.d32); \
+		0, __gpwrdn.d32); \
 } while (0)
 
 /**
@@ -1613,7 +1613,7 @@ int32_t dwc_otg_handle_common_intr(void *dev)
 			if (core_if->power_down == 2)
 				core_if->hibernation_suspend = -1;
 			else if (core_if->power_down == 3 && core_if->xhib == 2) {
-				gpwrdn_data_t gpwrdn = {.d32 = 0 };
+				gpwrdn_data_t gpwrdn_temp = {.d32 = 0 };
 				pcgcctl_data_t pcgcctl = {.d32 = 0 };
 				dctl_data_t dctl = {.d32 = 0 };
 
@@ -1623,8 +1623,8 @@ int32_t dwc_otg_handle_common_intr(void *dev)
 				DWC_DEBUGPL(DBG_ANY,
 					    "RESTORE DONE generated\n");
 
-				gpwrdn.b.restore = 1;
-				DWC_MODIFY_REG32(&core_if->core_global_regs->gpwrdn, gpwrdn.d32, 0);
+				gpwrdn_temp.b.restore = 1;
+				DWC_MODIFY_REG32(&core_if->core_global_regs->gpwrdn, gpwrdn_temp.d32, 0);
 				dwc_udelay(10);
 
 				pcgcctl.b.rstpdwnmodule = 1;

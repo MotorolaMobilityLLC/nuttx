@@ -953,7 +953,7 @@ static void dwc_otg_pcd_reinit(dwc_otg_pcd_t * pcd)
 	hwcfg1 = (GET_CORE_IF(pcd))->hwcfg1.d32 >> 3;
 	for (i = 1; in_ep_cntr < num_in_eps; i++) {
 		if ((hwcfg1 & 0x1) == 0) {
-			dwc_otg_pcd_ep_t *ep = &pcd->in_ep[in_ep_cntr];
+			ep = &pcd->in_ep[in_ep_cntr];
 			in_ep_cntr++;
 			/**
 			 * @todo NGS: Add direction to EP, based on contents
@@ -971,7 +971,7 @@ static void dwc_otg_pcd_reinit(dwc_otg_pcd_t * pcd)
 	hwcfg1 = (GET_CORE_IF(pcd))->hwcfg1.d32 >> 2;
 	for (i = 1; out_ep_cntr < num_out_eps; i++) {
 		if ((hwcfg1 & 0x1) == 0) {
-			dwc_otg_pcd_ep_t *ep = &pcd->out_ep[out_ep_cntr];
+			ep = &pcd->out_ep[out_ep_cntr];
 			out_ep_cntr++;
 			/**
 			 * @todo NGS: Add direction to EP, based on contents
