@@ -421,7 +421,7 @@ static void put_request(struct list_head *list, struct usbdev_req_s *req)
 }
 
 static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
-                   void *payload, size_t len)
+                   const void *payload, size_t len)
 {
     int ret;
 
@@ -459,7 +459,8 @@ static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
  * @return 0 in success or -EINVAL if len is too big
  */
 
-int unipro_to_usb(struct apbridge_dev_s *priv, void *payload, size_t len)
+int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
+                  size_t len)
 {
     if (len > APBRIDGE_REQ_SIZE)
         return -EINVAL;
@@ -475,7 +476,7 @@ int unipro_to_usb(struct apbridge_dev_s *priv, void *payload, size_t len)
  * @return 0 in success or -EINVAL if len is too big
  */
 
-int svc_to_usb(struct apbridge_dev_s *priv, void *payload, size_t len)
+int svc_to_usb(struct apbridge_dev_s *priv, const void *payload, size_t len)
 {
     if (len > APBRIDGE_EPINTIN_MXPACKET)
         return -EINVAL;

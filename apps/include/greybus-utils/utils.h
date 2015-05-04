@@ -35,9 +35,9 @@
 #include <apps/greybus-utils/debug.h>
 #include <apps/greybus-utils/manifest.h>
 
-static inline int gb_packet_size(char *rbuf)
+static inline int gb_packet_size(const char *rbuf)
 {
-   struct gb_operation_hdr *hdr = (struct gb_operation_hdr *)rbuf;
+   const struct gb_operation_hdr *hdr = (const struct gb_operation_hdr *)rbuf;
    return hdr->size;
 }
 

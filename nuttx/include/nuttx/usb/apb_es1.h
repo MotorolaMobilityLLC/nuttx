@@ -12,8 +12,8 @@ struct apbridge_usb_driver
   int (*init)(struct apbridge_dev_s *dev);
 };
 
-int unipro_to_usb(struct apbridge_dev_s *dev, void *payload, size_t size);
-int svc_to_usb(struct apbridge_dev_s *dev, void *payload, size_t len);
+int unipro_to_usb(struct apbridge_dev_s *dev, const void *payload, size_t size);
+int svc_to_usb(struct apbridge_dev_s *dev, const void *payload, size_t len);
 
 void usb_wait(struct apbridge_dev_s *dev);
 int usbdev_apbinitialize(struct apbridge_usb_driver *driver);
