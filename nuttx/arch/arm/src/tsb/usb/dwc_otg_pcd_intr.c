@@ -509,7 +509,6 @@ int32_t dwc_otg_pcd_handle_np_tx_fifo_empty_intr(dwc_otg_pcd_t * pcd)
 {
 	dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
 	dwc_otg_core_global_regs_t *global_regs = core_if->core_global_regs;
-	dwc_otg_dev_in_ep_regs_t *ep_regs;
 	gnptxsts_data_t txstatus = {.d32 = 0 };
 	gintsts_data_t gintsts;
 
@@ -523,8 +522,6 @@ int32_t dwc_otg_pcd_handle_np_tx_fifo_empty_intr(dwc_otg_pcd_t * pcd)
 	ep = get_in_ep(pcd, epnum);
 
 	DWC_DEBUGPL(DBG_PCD, "NP TxFifo Empty: %d \n", epnum);
-
-	ep_regs = core_if->dev_if->in_ep_regs[epnum];
 
 	len = ep->dwc_ep.xfer_len - ep->dwc_ep.xfer_count;
 	if (len > ep->dwc_ep.maxpacket) {
@@ -573,7 +570,6 @@ static int32_t write_empty_tx_fifo(dwc_otg_pcd_t * pcd, uint32_t epnum)
 {
 	dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
 	dwc_otg_dev_if_t *dev_if = core_if->dev_if;
-	dwc_otg_dev_in_ep_regs_t *ep_regs;
 	dtxfsts_data_t txstatus = {.d32 = 0 };
 	dwc_otg_pcd_ep_t *ep = 0;
 	uint32_t len = 0;
@@ -582,8 +578,6 @@ static int32_t write_empty_tx_fifo(dwc_otg_pcd_t * pcd, uint32_t epnum)
 	ep = get_in_ep(pcd, epnum);
 
 	DWC_DEBUGPL(DBG_PCD, "Dedicated TxFifo Empty: %d \n", epnum);
-
-	ep_regs = core_if->dev_if->in_ep_regs[epnum];
 
 	len = ep->dwc_ep.xfer_len - ep->dwc_ep.xfer_count;
 
@@ -3953,7 +3947,6 @@ static void handle_xfercompl_iso_ddma (dwc_otg_dev_if_t *dev_if, dwc_otg_pcd_ep_
 	 dwc_ep_t *dwc_ep;
 	 uint32_t doepdma;
 	 dwc_dma_t dma_desc_addr;
-	 dwc_otg_dev_dma_desc_t *dma_desc;
 	 int index = 0;
 	 uint8_t epnum;
 
@@ -4016,7 +4009,6 @@ static void handle_xfercompl_iso_ddma (dwc_otg_dev_if_t *dev_if, dwc_otg_pcd_ep_
 			 depctl.b.epdis = 1;
 			 DWC_MODIFY_REG32(&dev_if->out_ep_regs[epnum]->doepctl, 0, depctl.d32);
 		 }
-		 dma_desc = dwc_ep->desc_addr + dwc_ep->iso_desc_first;
 		 if (!depctl.b.epena) {
 			 if (dwc_ep->use_add_buf) {
 				 DWC_DEBUGPL(DBG_PCD, "go to second buffer \n");
@@ -4092,7 +4084,7 @@ do { \
 	/* Service the Device IN interrupts for each endpoint */
 	while (ep_intr) {
 		if (ep_intr & 0x1) {
-			uint32_t empty_msk;
+			__attribute__((unused)) uint32_t empty_msk;
 			/* Get EP pointer */
 			ep = get_in_ep(pcd, epnum);
 			dwc_ep = &ep->dwc_ep;
@@ -4737,11 +4729,7 @@ exit_xfercompl:
 
 			}
 			if (doepint.b.stsphsercvd) {
-				deptsiz0_data_t deptsiz;
 				CLEAR_OUT_EP_INTR(core_if, epnum, stsphsercvd);
-				deptsiz.d32 =
-					DWC_READ_REG32(&core_if->dev_if->
-					out_ep_regs[0]->doeptsiz);
 				if ((core_if->dma_desc_enable) || (core_if->dma_enable &&
 					core_if->snpsid >= OTG_CORE_REV_3_00a)) {
 						do_setup_in_status_phase(pcd);
@@ -4776,7 +4764,6 @@ exit_xfercompl:
 				if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_ISOC)
 				{
 					dctl_data_t dctl;
-					gintmsk_data_t intr_mask = {.d32 = 0};
 					dwc_otg_pcd_request_t *req = 0;
 
 					dctl.d32 = DWC_READ_REG32(&core_if->dev_if->
@@ -4784,9 +4771,6 @@ exit_xfercompl:
 					dctl.b.cgoutnak = 1;
 					DWC_WRITE_REG32(&core_if->dev_if->dev_global_regs->dctl,
 						dctl.d32);
-
-					intr_mask.d32 = 0;
-					intr_mask.b.incomplisoout = 1;
 
 					/* Get any pending requests */
 					if (!DWC_CIRCLEQ_EMPTY(&ep->queue)) {
@@ -5102,7 +5086,6 @@ int32_t dwc_otg_pcd_handle_incomplete_isoc_out_intr(dwc_otg_pcd_t * pcd)
 	/** @todo implement ISR */
 	gintmsk_data_t intr_mask = {.d32 = 0 };
 	dwc_otg_core_if_t *core_if;
-	deptsiz_data_t deptsiz = {.d32 = 0 };
 	depctl_data_t depctl = {.d32 = 0 };
 	dctl_data_t dctl = {.d32 = 0 };
 	dwc_ep_t *dwc_ep = NULL;
@@ -5115,8 +5098,6 @@ int32_t dwc_otg_pcd_handle_incomplete_isoc_out_intr(dwc_otg_pcd_t * pcd)
 			DWC_READ_REG32(&core_if->dev_if->out_ep_regs[dwc_ep->num]->doepctl);
 		if (depctl.b.epena && depctl.b.dpid == (core_if->frame_num & 0x1)) {
 			core_if->dev_if->isoc_ep = dwc_ep;	
-			deptsiz.d32 =
-					DWC_READ_REG32(&core_if->dev_if->out_ep_regs[dwc_ep->num]->doeptsiz);
 				break;
 		}
 	}
@@ -5246,9 +5227,6 @@ int32_t dwc_otg_pcd_handle_out_nak_effective(dwc_otg_pcd_t * pcd)
 	if (dev_if->isoc_ep) {
 		dwc_ep_t *dwc_ep = (dwc_ep_t *) dev_if->isoc_ep;
 		uint32_t epnum = dwc_ep->num;
-		doepint_data_t doepint;
-		doepint.d32 =
-		    DWC_READ_REG32(&dev_if->out_ep_regs[dwc_ep->num]->doepint);
 		dev_if->isoc_ep = NULL;
 		doepctl.d32 =
 		    DWC_READ_REG32(&dev_if->out_ep_regs[epnum]->doepctl);

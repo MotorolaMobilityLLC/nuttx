@@ -1147,7 +1147,7 @@ int32_t dwc_otg_handle_disconnect_intr(dwc_otg_core_if_t * core_if)
  */
 int32_t dwc_otg_handle_usb_suspend_intr(dwc_otg_core_if_t * core_if)
 {
-	dsts_data_t dsts;
+	__attribute__((unused)) dsts_data_t dsts;
 	gintsts_data_t gintsts;
 	dcfg_data_t dcfg;
 

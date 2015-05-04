@@ -1643,7 +1643,6 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t * core_if)
 	fifosize_data_t ptxfifosize;
 	uint16_t rxfsiz, nptxfsiz;
 	gdfifocfg_data_t gdfifocfg = {.d32 = 0 };
-	hwcfg3_data_t hwcfg3 = {.d32 = 0 };
 	gotgctl_data_t gotgctl = {.d32 = 0 };
 
 	/* Restart the Phy Clock */
@@ -1811,7 +1810,6 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t * core_if)
 			 * allocated FIFO space here due to ep 0 OUT always keeping enabled
 			 */
 			gdfifocfg.d32 = DWC_READ_REG32(&global_regs->gdfifocfg);
-			hwcfg3.d32 = DWC_READ_REG32(&global_regs->ghwcfg3);
 			gdfifocfg.b.gdfifocfg = (DWC_READ_REG32(&global_regs->ghwcfg3) >> 16);
 			DWC_WRITE_REG32(&global_regs->gdfifocfg, gdfifocfg.d32);
 			if (core_if->snpsid <= OTG_CORE_REV_2_94a) {
@@ -3239,7 +3237,7 @@ uint32_t calc_frame_interval(dwc_otg_core_if_t * core_if)
  */
 void dwc_otg_read_setup_packet(dwc_otg_core_if_t * core_if, uint32_t * dest)
 {
-	device_grxsts_data_t status;
+	__attribute__((unused)) device_grxsts_data_t status;
 	/* Get the 8 bytes of a setup transaction data */
 
 	/* Pop 2 DWORDS off the receive data FIFO into memory */
@@ -3709,15 +3707,12 @@ static void init_dma_desc_chain(dwc_otg_core_if_t * core_if, dwc_ep_t * ep)
 static int32_t write_isoc_tx_fifo(dwc_otg_core_if_t * core_if, dwc_ep_t * dwc_ep)
 {
 	dwc_otg_dev_if_t *dev_if = core_if->dev_if;
-	dwc_otg_dev_in_ep_regs_t *ep_regs;
 	dtxfsts_data_t txstatus = {.d32 = 0 };
 	uint32_t len = 0;
 	int epnum = dwc_ep->num;
 	int dwords;
 
 	DWC_DEBUGPL(DBG_PCD, "Dedicated TxFifo Empty: %d \n", epnum);
-
-	ep_regs = core_if->dev_if->in_ep_regs[epnum];
 
 	len = dwc_ep->xfer_len - dwc_ep->xfer_count;
 
@@ -4373,12 +4368,9 @@ void dwc_otg_ep0_continue_transfer(dwc_otg_core_if_t * core_if, dwc_ep_t * ep)
 	if (ep->is_in == 1) {
 		dwc_otg_dev_in_ep_regs_t *in_regs =
 		    core_if->dev_if->in_ep_regs[0];
-		gnptxsts_data_t tx_status = {.d32 = 0 };
 
-		tx_status.d32 =
-		    DWC_READ_REG32(&core_if->core_global_regs->gnptxsts);
 		/** @todo Should there be check for room in the Tx
-		 * Status Queue.  If not remove the code above this comment. */
+		 * Status Queue. */
 
 		depctl.d32 = DWC_READ_REG32(&in_regs->diepctl);
 		deptsiz.d32 = DWC_READ_REG32(&in_regs->dieptsiz);
@@ -6241,8 +6233,6 @@ int dwc_otg_set_param_dev_perio_tx_fifo_size(dwc_otg_core_if_t * core_if,
 					     int32_t val, int fifo_num)
 {
 	int retval = 0;
-	gintsts_data_t gintsts;
-	gintsts.d32 = DWC_READ_REG32(&core_if->core_global_regs->gintsts);
 
 	if (DWC_OTG_PARAM_TEST(val, 4, 768)) {
 		DWC_WARN("Wrong value for dev_perio_tx_fifo_size\n");

@@ -1074,11 +1074,8 @@ static void start_xfer_tasklet_func(void *data)
 	dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
 
 	int i;
-	depctl_data_t diepctl;
 
 	DWC_DEBUGPL(DBG_PCDV, "Start xfer tasklet\n");
-
-	diepctl.d32 = DWC_READ_REG32(&core_if->dev_if->in_ep_regs[0]->diepctl);
 
 	if (pcd->ep0.queue_sof) {
 		pcd->ep0.queue_sof = 0;
@@ -1087,10 +1084,6 @@ static void start_xfer_tasklet_func(void *data)
 	}
 
 	for (i = 0; i < core_if->dev_if->num_in_eps; i++) {
-		depctl_data_t diepctl;
-		diepctl.d32 =
-		    DWC_READ_REG32(&core_if->dev_if->in_ep_regs[i]->diepctl);
-
 		if (pcd->in_ep[i].queue_sof) {
 			pcd->in_ep[i].queue_sof = 0;
 			start_next_request(&pcd->in_ep[i]);
@@ -1858,7 +1851,6 @@ void dwc_otg_pcd_start_iso_ddma(dwc_otg_core_if_t * core_if, dwc_otg_pcd_ep_t * 
 static void program_next_iso_request_ddma (dwc_otg_pcd_ep_t * ep, dwc_otg_pcd_request_t * req)
 {
 	dwc_otg_dev_dma_desc_t *dma_desc;
-	dwc_dma_t dma_desc_addr;
 	uint32_t frame_num = 0;
 	uint32_t nat;
 	uint32_t index;
@@ -1878,11 +1870,9 @@ static void program_next_iso_request_ddma (dwc_otg_pcd_ep_t * ep, dwc_otg_pcd_re
 
 	if (ep->dwc_ep.use_add_buf) {
 		dma_desc = &ep->dwc_ep.desc_addr1[ep->dwc_ep.iso_desc_second];
-		dma_desc_addr = ep->dwc_ep.dma_desc_addr1;
 		ep->dwc_ep.iso_desc_second += 1;
 	}  else {
 		dma_desc = &ep->dwc_ep.desc_addr[ep->dwc_ep.iso_desc_first];
-		dma_desc_addr = ep->dwc_ep.dma_desc_addr;
 		ep->dwc_ep.iso_desc_first += 1;
 	}
 	nat = UGETW(ep->desc->wMaxPacketSize);
