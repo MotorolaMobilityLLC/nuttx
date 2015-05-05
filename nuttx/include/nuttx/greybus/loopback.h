@@ -26,31 +26,12 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LOOPBACK_GB_H__
-#define __LOOPBACK_GB_H__
+#ifndef __LOOPBACK__H__
+#define __LOOPBACK__H__
 
-#include <nuttx/list.h>
-#include <nuttx/greybus/types.h>
-
-/* Greybus loopback request types */
-#define	GB_LOOPBACK_TYPE_PROTOCOL_VERSION		0x01
-#define	GB_LOOPBACK_TYPE_PING				0x02
-#define	GB_LOOPBACK_TYPE_TRANSFER			0x03
-
-/* version request has no payload */
-struct gb_loopback_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
-struct gb_loopback_transfer_request {
-	__le32	len;
-	__u8    data[0];
-};
-
-struct gb_loopback_transfer_response {
-	__u8    data[0];
-};
+int gb_loopback_status(unsigned int cportid);
+int gb_loopback_reset(unsigned int cportid);
+int gb_loopback_transfer_host(unsigned int cportid, size_t size);
+int gb_loopback_ping_host(unsigned int cportid);
 
 #endif
-
