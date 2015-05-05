@@ -42,8 +42,7 @@
 
 #include <nuttx/power/pm.h>
 
-#include "up_internal.h"
-#include "stm32_pm.h"
+#include <arch/board/board.h>
 
 #ifdef CONFIG_PM
 
@@ -87,6 +86,14 @@
 
 void up_pminitialize(void)
 {
+  uint32_t regval;
+
+  /* Enable USART2 in Stop Mode */
+
+  regval  = getreg32(STM32_USART2_CR1);
+  regval |= USART_CR1_UESM;
+  putreg32(regval, STM32_USART2_CR1);
+
   /* Then initialize the NuttX power management subsystem proper */
 
   pm_initialize();

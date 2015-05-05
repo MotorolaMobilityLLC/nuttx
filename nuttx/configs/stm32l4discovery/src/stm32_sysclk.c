@@ -73,6 +73,19 @@ void stm32_board_clockconfig(void)
 
   if (timeout > 0)
     {
+      /* Set USART2 to use HSI clock */
+
+      regval  = getreg32(STM32_RCC_CCIPR);
+      regval &= ~RCC_CCIPR_USART2SEL_MASK;
+      regval |= RCC_CCIPR_USART2SEL_HSI;
+      putreg32(regval, STM32_RCC_CCIPR);
+
+      /* Select HSI oscillator as wakeup from stop clock */
+
+      regval  = getreg32(STM32_RCC_CFGR);
+      regval |= RCC_CFGR_STOPWUCK;
+      putreg32(regval, STM32_RCC_CFGR);
+
       /* Set the HCLK source/divider */
 
       regval = getreg32(STM32_RCC_CFGR);
