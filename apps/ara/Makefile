@@ -72,6 +72,7 @@ SUBDIRS  += bdbpm
 SUBDIRS  += springpm
 SUBDIRS  += pinshare
 SUBDIRS  += usb-host
+SUBDIRS  += gb_loopback
 
 # Sub-directories that might need context setup.  Directories may need
 # context setup for a variety of reasons, but the most common is because
@@ -88,7 +89,11 @@ CNTXTDIRS += gpio
 CNTXTDIRS += bdbpm
 CNTXTDIRS += springpm
 CNTXTDIRS += pinshare
+<<<<<<< HEAD
 CNTXTDIRS += usb-host
+=======
+CNTXTDIRS += gb_loopback
+>>>>>>> 24e918b... test apps: add gb_loopback
 endif
 
 all: nothing

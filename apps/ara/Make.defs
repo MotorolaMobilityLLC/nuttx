@@ -122,3 +122,7 @@ endif
 ifeq ($(CONFIG_ARA_USB_HOST),y)
 CONFIGURED_APPS += ara/usb-host
 endif
+
+ifeq ($(CONFIG_ARA_GB_LOOPBACK),y)
+CONFIGURED_APPS += ara/gb_loopback
+endif

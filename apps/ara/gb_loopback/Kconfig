@@ -1,0 +1,20 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config ARA_GB_LOOPBACK
+	bool "Ara gb_loopback app"
+	default n
+	depends on ARCH_CHIP_TSB
+	---help---
+		Enable the Ara gb_loopback test program
+
+config ARA_GB_LOOPBACK_PROGNAME
+	string "Program name"
+	default "gb_loopback"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
