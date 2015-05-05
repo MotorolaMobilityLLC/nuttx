@@ -70,6 +70,14 @@ static struct device tsb_device_table[] = {
         .id             = 0,
     },
 #endif
+#ifdef CONFIG_ARCH_CHIP_USB_HCD
+    {
+        .type           = DEVICE_TYPE_USB_HCD,
+        .name           = "dwc2_hcd",
+        .desc           = "DWC2 USB Host controller",
+        .id             = 0,
+    },
+#endif
 };
 
 int tsb_device_table_register(void)

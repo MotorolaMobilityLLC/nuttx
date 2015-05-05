@@ -23,6 +23,7 @@ config ARCH_CHIP_GPBRIDGE
 	select ARCH_CORTEXM3
 	select TSB_GPBRIDGE
 	select ARCH_HAVE_UART
+	select ARCH_HAVE_USB_HOST
 	---help---
 		Toshiba GPBridge
 
@@ -57,6 +58,7 @@ config ARCH_CHIP_USB_HCD
 	bool "USB Host Support"
 	depends on ARCH_CHIP_GPBRIDGE
 	default y if ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
 	select ARCH_CHIP_USB_COMMON
 	---help---
 		Synopsys USB Host Controller Driver
