@@ -133,6 +133,26 @@ EXTERN int stm32_pmstandby(void);
 
 EXTERN void stm32_pmsleep(bool sleeponexit);
 
+/****************************************************************************
+ * Name: stm32_pmlpr
+ *
+ * Description:
+ *   Enter Low-Power Run (LPR) mode.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Zero means that LPR was successfully entered. Otherwise, LPR mode was not
+ *   entered and a negated errno value is returned to indicate the cause of the
+ *   failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STM32_STM32L4X6
+EXTERN int stm32_pmlpr(void);
+#endif
+
 #undef EXTERN
 #ifdef __cplusplus
 }

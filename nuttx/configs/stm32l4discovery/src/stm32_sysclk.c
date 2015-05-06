@@ -46,6 +46,21 @@ void stm32_board_clockconfig(void)
   uint32_t regval;
   volatile int32_t timeout;
 
+  /* Disable Low-Power Run if previously enabled */
+
+  regval = getreg32(STM32_PWR_CR1);
+  if (regval & PWR_CR1_LPR)
+    {
+      regval &= ~PWR_CR1_LPR;
+      putreg32(regval, STM32_PWR_CR1);
+
+      /* Wait until regulator is ready in main mode (MR) */
+
+      while (getreg32(STM32_PWR_SR2) & PWR_SR2_REGLPF)
+        {
+        }
+    }
+
   /* Enable Internal High-Speed Clock (HSI) */
 
   regval  = getreg32(STM32_RCC_CR);
@@ -132,6 +147,13 @@ void stm32_board_clockconfig(void)
       while ((getreg32(STM32_RCC_CFGR) & RCC_CFGR_SWS_MASK) != RCC_CFGR_SWS_HSI)
         {
         }
+
+      /* Select regulator voltage Range 2 (for frequencies up to 26 MHz) */
+
+      regval  = getreg32(STM32_PWR_CR1);
+      regval &= ~PWR_CR1_VOS_MASK;
+      regval |= PWR_CR1_VOS_RANGE2;
+      putreg32(regval, STM32_PWR_CR1);
     }
 }
 

@@ -148,6 +148,17 @@
 #define PWR_CR3_APC             (1 << 10) /* Bit 10: Apply pull-up and pull-down configuration */
 #define PWR_CR3_EIWF            (1 << 15) /* Bit 15: Enable internal wakeup line */
 
+/* Power status register 2 */
+
+#define PWR_SR2_REGLPS          (1 << 8)  /* Bit 8:  Low-power regulator started */
+#define PWR_SR2_REGLPF          (1 << 9)  /* Bit 9:  Low-power regulator flag */
+#define PWR_SR2_VOSF            (1 << 10) /* Bit 10: Voltage scaling flag */
+#define PWR_SR2_PVDO            (1 << 11) /* Bit 11: Power voltage detector output */
+#define PWR_SR2_PVMO1           (1 << 12) /* Bit 12: Peripheral voltage monitoring output: VDDIO2 vs 1.2 V */
+#define PWR_SR2_PVMO2           (1 << 13) /* Bit 13: Peripheral voltage monitoring output: VDDA vs 0.9 V */
+#define PWR_SR2_PVMO3           (1 << 14) /* Bit 14: Peripheral voltage monitoring output: VDDA vs 1.62 V */
+#define PWR_SR2_PVMO4           (1 << 15) /* Bit 15: Peripheral voltage monitoring output: VDDA vs 2.2 V */
+
 /* Power status clear register */
 
 #define PWR_SCR_CWUF1           (1 << 0)  /* Bit 0:  Clear wakeup flag 1 */

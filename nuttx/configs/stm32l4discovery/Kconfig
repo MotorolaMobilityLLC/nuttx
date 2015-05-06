@@ -5,6 +5,14 @@
 
 if ARCH_BOARD_STM32L4_DISCOVERY
 
-# Nothing for now
+config PM_IDLEENTER_COUNT
+	int "Number of IDLE time slices to enter IDLE mode from NORMAL"
+	default 10
+	depends on PM
+
+config PM_STANDBYENTER_COUNT
+	int "Number of IDLE time slices to enter STANDBY mode from IDLE"
+	default 5
+	depends on PM
 
 endif

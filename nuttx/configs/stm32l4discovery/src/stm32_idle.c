@@ -94,8 +94,23 @@ static void stm32_idlepm(void)
       switch (newstate)
         {
         case PM_NORMAL:
+          {
+#ifdef CONFIG_ARCH_BOARD_STM32_CUSTOM_CLOCKCONFIG
+            if (oldstate == PM_IDLE)
+              {
+                /* Resume normal operation */
+                stm32_clockenable();
+              }
+#endif
+          }
+          break;
+
         case PM_IDLE:
           {
+#ifdef CONFIG_ARCH_BOARD_STM32_CUSTOM_CLOCKCONFIG
+            /* Enter Low-Power Run mode */
+            stm32_pmlpr();
+#endif
           }
           break;
 

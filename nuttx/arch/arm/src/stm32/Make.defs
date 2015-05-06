@@ -190,6 +190,10 @@ endif
 
 ifeq ($(CONFIG_PM),y)
 CHIP_CSRCS += stm32_pmstop.c stm32_pmstandby.c stm32_pmsleep.c
+
+ifeq ($(CONFIG_STM32_STM32L4X6),y)
+CHIP_CSRCS += stm32_pmlpr.c
+endif
 endif
 
 ifneq ($(CONFIG_ARCH_CUSTOM_PMINIT),y)
