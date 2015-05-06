@@ -183,7 +183,7 @@ int tca6408_reset(bool en)
     return 0;
 }
 
-void tca6408_set_direction_in(uint8_t which)
+void tca6408_set_direction_in(void *driver_data, uint8_t which)
 {
     uint8_t addr;
     uint8_t reg;
@@ -225,7 +225,8 @@ int tca6408_set_default_outputs(uint8_t dflt)
     return 0;
 }
 
-void tca6408_set_direction_out(uint8_t which, uint8_t value)
+void tca6408_set_direction_out(void *driver_data, uint8_t which,
+                               uint8_t value)
 {
     uint8_t addr;
     uint8_t reg;
@@ -251,10 +252,10 @@ void tca6408_set_direction_out(uint8_t which, uint8_t value)
     if (ret != 0)
         return;
 
-    tca6408_set(which, value);
+    tca6408_set(driver_data, which, value);
 }
 
-int tca6408_get_direction(uint8_t which)
+int tca6408_get_direction(void *driver_data, uint8_t which)
 {
     uint8_t addr = g_tca6408.addr;
     uint8_t direction;
@@ -332,7 +333,7 @@ int tca6408_get_polarity_inverted(uint8_t which)
     return polarity;
 }
 
-void tca6408_set(uint8_t which, uint8_t val)
+void tca6408_set(void *driver_data, uint8_t which, uint8_t val)
 {
     uint8_t addr = g_tca6408.addr;
     uint8_t reg;
@@ -408,7 +409,7 @@ static void tca6408_registers_update(void)
     intstat_update(in);
 }
 
-uint8_t tca6408_get(uint8_t which)
+uint8_t tca6408_get(void *driver_data, uint8_t which)
 {
     uint8_t in;
     uint8_t addr = g_tca6408.addr;
@@ -433,24 +434,24 @@ uint8_t tca6408_get(uint8_t which)
     return in;
 }
 
-uint8_t tca6408_line_count(void)
+uint8_t tca6408_line_count(void *driver_data)
 {
     return TCA6408_NR_GPIO;
 }
 
-int tca6408_gpio_mask_irq(uint8_t which)
+int tca6408_gpio_mask_irq(void *driver_data, uint8_t which)
 {
     g_tca6408.mask |= (1 << which);
     return 0;
 }
 
-int tca6408_gpio_unmask_irq(uint8_t which)
+int tca6408_gpio_unmask_irq(void *driver_data, uint8_t which)
 {
     g_tca6408.mask &= ~(1 << which);
     return 0;
 }
 
-int tca6408_gpio_clear_interrupt(uint8_t which)
+int tca6408_gpio_clear_interrupt(void *driver_data, uint8_t which)
 {
     g_tca6408.intstat &= ~(1 << which);
     return 0;
@@ -479,7 +480,8 @@ static void tca6408_set_gpio_level(uint8_t which, int level)
     g_tca6408.level |= level << shift;
 }
 
-static int tca6408_set_gpio_triggering(uint8_t which, int trigger)
+static int tca6408_set_gpio_triggering(void *driver_data, uint8_t which,
+                                       int trigger)
 {
     switch (trigger) {
     case IRQ_TYPE_NONE:
@@ -522,7 +524,7 @@ static void _tca6408_gpio_irq_handler(void *data)
             if ((irqstat & 1) == 1) {
                 base = g_tca6408.gpio_base[pin];
                 g_tca6408.irq_vector[pin] (base + pin, context);
-                tca6408_gpio_clear_interrupt(pin);
+                tca6408_gpio_clear_interrupt(NULL, pin);
             }
         }
 
@@ -548,7 +550,8 @@ static int tca6408_gpio_irq_handler(int irq, void *context)
     return OK;
 }
 
-int tca6408_gpio_irqattach(uint8_t which, xcpt_t isr, uint8_t base)
+int tca6408_gpio_irqattach(void *driver_data, uint8_t which, xcpt_t isr,
+                           uint8_t base)
 {
     irqstate_t flags;
 
@@ -571,12 +574,12 @@ int tca6408_gpio_irqattach(uint8_t which, xcpt_t isr, uint8_t base)
     return OK;
 }
 
-void tca6408_activate(uint8_t which)
+void tca6408_activate(void *driver_data, uint8_t which)
 {
 
 }
 
-void tca6408_deactivate(uint8_t which)
+void tca6408_deactivate(void *driver_data, uint8_t which)
 {
 
 }
@@ -608,7 +611,7 @@ static void *tca6408_polling(void *data)
 }
 
 void tca6408_init(struct i2c_dev_s *dev, uint8_t addr,
-                  uint8_t reset, uint8_t irq)
+                  uint8_t reset, uint8_t irq, void *driver_data)
 {
     g_tca6408.dev = dev;
     g_tca6408.addr = addr;
@@ -627,6 +630,6 @@ void tca6408_init(struct i2c_dev_s *dev, uint8_t addr,
     gpio_clear_interrupt(g_tca6408.irq);
     gpio_unmask_irq(g_tca6408.irq);
 
-    register_gpio_chip(&tca6408_gpio_ops, -1);
+    register_gpio_chip(&tca6408_gpio_ops, -1, NULL);
     pthread_create(&g_tca6408.thread, NULL, tca6408_polling, NULL);
 }

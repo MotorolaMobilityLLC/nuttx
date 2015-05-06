@@ -71,61 +71,61 @@ static xcpt_t tsb_gpio_irq_vector[NR_GPIO_IRQS];
 static uint8_t tsb_gpio_irq_gpio_base[NR_GPIO_IRQS];
 static volatile uint32_t refcount;
 
-int tsb_gpio_get_direction(uint8_t which)
+int tsb_gpio_get_direction(void *driver_data, uint8_t which)
 {
     uint32_t dir = getreg32(GPIO_DIR);
     return !(dir & (1 << which));
 }
 
-void tsb_gpio_direction_in(uint8_t which)
+void tsb_gpio_direction_in(void *driver_data, uint8_t which)
 {
     putreg32(1 << which, GPIO_DIRIN);
 }
 
-void tsb_gpio_direction_out(uint8_t which, uint8_t value)
+void tsb_gpio_direction_out(void *driver_data, uint8_t which, uint8_t value)
 {
-    tsb_gpio_set_value(which, value);
+    tsb_gpio_set_value(NULL, which, value);
     putreg32(1 << which, GPIO_DIROUT);
 }
 
-void tsb_gpio_activate(uint8_t which)
+void tsb_gpio_activate(void *driver_data, uint8_t which)
 {
     tsb_gpio_initialize();
 }
 
-uint8_t tsb_gpio_get_value(uint8_t which)
+uint8_t tsb_gpio_get_value(void *driver_data, uint8_t which)
 {
     return !!(getreg32(GPIO_DATA) & (1 << which));
 }
 
-void tsb_gpio_set_value(uint8_t which, uint8_t value)
+void tsb_gpio_set_value(void *driver_data, uint8_t which, uint8_t value)
 {
     putreg32(1 << which, value ? GPIO_ODATASET : GPIO_ODATACLR);
 }
 
-void tsb_gpio_deactivate(uint8_t which)
+void tsb_gpio_deactivate(void *driver_data, uint8_t which)
 {
     tsb_gpio_uninitialize();
 }
 
-uint8_t tsb_gpio_line_count(void)
+uint8_t tsb_gpio_line_count(void *driver_data)
 {
     return NR_GPIO_IRQS;
 }
 
-int tsb_gpio_mask_irq(uint8_t which)
+int tsb_gpio_mask_irq(void *driver_data, uint8_t which)
 {
     putreg32(1 << which, GPIO_INTMASKSET);
     return 0;
 }
 
-int tsb_gpio_unmask_irq(uint8_t which)
+int tsb_gpio_unmask_irq(void *driver_data, uint8_t which)
 {
     putreg32(1 << which, GPIO_INTMASKCLR);
     return 0;
 }
 
-int tsb_gpio_clear_interrupt(uint8_t which)
+int tsb_gpio_clear_interrupt(void *driver_data, uint8_t which)
 {
     putreg32(1 << which, GPIO_RAWINTSTAT);
     return 0;
@@ -141,7 +141,7 @@ uint32_t tsb_gpio_get_interrupt(void)
     return getreg32(GPIO_INTSTAT);
 }
 
-int tsb_set_gpio_triggering(uint8_t which, int trigger)
+int tsb_set_gpio_triggering(void *driver_data, uint8_t which, int trigger)
 {
     int tsb_trigger;
     uint32_t reg = GPIO_INTCTRL0 + ((which >> 1) & 0xfc);
@@ -204,7 +204,7 @@ static int tsb_gpio_irq_handler(int irq, void *context)
     return 0;
 }
 
-int tsb_gpio_irqattach(uint8_t irq, xcpt_t isr, uint8_t base)
+int tsb_gpio_irqattach(void *driver_data, uint8_t irq, xcpt_t isr, uint8_t base)
 {
     irqstate_t flags;
 
@@ -297,7 +297,7 @@ struct gpio_ops_s tsb_gpio_ops = {
     .clear_interrupt = tsb_gpio_clear_interrupt,
 };
 
-int tsb_gpio_register(void)
+int tsb_gpio_register(void *driver_data)
 {
-    return register_gpio_chip(&tsb_gpio_ops, 0);
+    return register_gpio_chip(&tsb_gpio_ops, 0, NULL);
 }

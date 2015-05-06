@@ -42,7 +42,13 @@ struct list_head g_gpio_chip = {
     .next = &g_gpio_chip,
 };
 
-int register_gpio_chip(struct gpio_ops_s *ops, int base)
+/**
+ * @brief Register a driver to the gpio_chip framework
+ *
+ * driver_data is a unique handle passed to register and unregister the
+ * driver
+ */
+int register_gpio_chip(struct gpio_ops_s *ops, int base, void *driver_data)
 {
     struct list_head *iter;
     struct gpio_chip_s *chip;
@@ -62,27 +68,26 @@ int register_gpio_chip(struct gpio_ops_s *ops, int base)
         return -ENOMEM;
 
     chip->base = base;
-    chip->end = base + ops->line_count();
+    chip->end = base + ops->line_count(driver_data);
     chip->ops = ops;
+    chip->driver_data = driver_data;
 
-    g_gpio_line_count += ops->line_count();
+    g_gpio_line_count += ops->line_count(driver_data);
 
     list_add(&g_gpio_chip, &chip->list);
 
     return 0;
 }
 
-int unregister_gpio_chip(struct gpio_ops_s *ops)
+int unregister_gpio_chip(void *driver_data)
 {
     struct list_head *iter, *iter_next;
     struct gpio_chip_s *chip;
 
-    DEBUGASSERT(ops);
-
     list_foreach_safe(&g_gpio_chip, iter, iter_next) {
         chip = list_entry(iter, struct gpio_chip_s, list);
-        if (chip->ops == ops) {
-            g_gpio_line_count -= chip->ops->line_count();
+        if (chip->driver_data == driver_data) {
+            g_gpio_line_count -= chip->ops->line_count(driver_data);
             list_del(iter);
             free(chip);
         }
@@ -109,7 +114,7 @@ static struct gpio_chip_s *get_gpio_chip(uint8_t *which)
 int gpio_get_direction(uint8_t which)
 {
     struct gpio_chip_s *chip = get_gpio_chip(&which);
-    return chip->ops->get_direction(which);
+    return chip->ops->get_direction(chip->driver_data, which);
 }
 
 void gpio_direction_in(uint8_t which)
@@ -118,7 +123,7 @@ void gpio_direction_in(uint8_t which)
 
     DEBUGASSERT(chip);
     DEBUGASSERT(chip->ops->direction_in);
-    chip->ops->direction_in(which);
+    chip->ops->direction_in(chip->driver_data, which);
 }
 
 void gpio_direction_out(uint8_t which, uint8_t value)
@@ -127,7 +132,7 @@ void gpio_direction_out(uint8_t which, uint8_t value)
 
     DEBUGASSERT(chip);
     DEBUGASSERT(chip->ops->direction_out);
-    chip->ops->direction_out(which, value);
+    chip->ops->direction_out(chip->driver_data, which, value);
 }
 
 void gpio_activate(uint8_t which)
@@ -136,7 +141,7 @@ void gpio_activate(uint8_t which)
 
     DEBUGASSERT(chip);
     DEBUGASSERT(chip->ops->activate);
-    chip->ops->activate(which);
+    chip->ops->activate(chip->driver_data, which);
 }
 
 uint8_t gpio_get_value(uint8_t which)
@@ -145,7 +150,7 @@ uint8_t gpio_get_value(uint8_t which)
 
     DEBUGASSERT(chip);
     DEBUGASSERT(chip->ops->get_value);
-    return chip->ops->get_value(which);
+    return chip->ops->get_value(chip->driver_data, which);
 }
 
 void gpio_set_value(uint8_t which, uint8_t value)
@@ -154,7 +159,7 @@ void gpio_set_value(uint8_t which, uint8_t value)
 
     DEBUGASSERT(chip);
     DEBUGASSERT(chip->ops->set_value);
-    chip->ops->set_value(which, value);
+    chip->ops->set_value(chip->driver_data, which, value);
 }
 
 int gpio_set_debounce(uint8_t which, uint16_t delay)
@@ -170,7 +175,7 @@ void gpio_deactivate(uint8_t which)
 
     DEBUGASSERT(chip);
     DEBUGASSERT(chip->ops->deactivate);
-    chip->ops->deactivate(which);
+    chip->ops->deactivate(chip->driver_data, which);
 }
 
 uint8_t gpio_line_count(void)
@@ -184,7 +189,8 @@ int gpio_irqattach(uint8_t which, xcpt_t isr)
 
     DEBUGASSERT(chip);
     if (chip->ops->irqattach)
-        return chip->ops->irqattach(which, isr, chip->base);
+        return chip->ops->irqattach(chip->driver_data, which, isr,
+                                    chip->base);
     return -EINVAL;
 }
 
@@ -194,7 +200,7 @@ int set_gpio_triggering(uint8_t which, int trigger)
 
     DEBUGASSERT(chip);
     if (chip->ops->set_triggering)
-        return chip->ops->set_triggering(which, trigger);
+        return chip->ops->set_triggering(chip->driver_data, which, trigger);
     return -EINVAL;
 }
 
@@ -204,7 +210,7 @@ int gpio_mask_irq(uint8_t which)
 
     DEBUGASSERT(chip);
     if (chip->ops->mask_irq)
-        return chip->ops->mask_irq(which);
+        return chip->ops->mask_irq(chip->driver_data, which);
     return -EINVAL;
 }
 
@@ -214,7 +220,7 @@ int gpio_unmask_irq(uint8_t which)
 
     DEBUGASSERT(chip);
     if (chip->ops->unmask_irq)
-        return chip->ops->unmask_irq(which);
+        return chip->ops->unmask_irq(chip->driver_data, which);
     return -EINVAL;
 }
 
@@ -224,7 +230,7 @@ int gpio_clear_interrupt(uint8_t which)
 
     DEBUGASSERT(chip);
     if (chip->ops->clear_interrupt)
-        return chip->ops->clear_interrupt(which);
+        return chip->ops->clear_interrupt(chip->driver_data, which);
     return -EINVAL;
 }
 

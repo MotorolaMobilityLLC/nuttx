@@ -74,11 +74,11 @@ int lg4892_gpio_init(void)
     tca6408_set_default_outputs(0);
 
     lldbg("configure pins as output.\n");
-    tca6408_set_direction_out(APB2_LCD_VDD_EN, 0);
-    tca6408_set_direction_out(APB2_LCD_VDDI_EN, 0);
-    tca6408_set_direction_out(APB2_LCD_ENP, 0);
-    tca6408_set_direction_out(APB2_LCD_RST, 0);
-    tca6408_set_direction_out(APB2_TP_RST, 0);
+    tca6408_set_direction_out(NULL, APB2_LCD_VDD_EN, 0);
+    tca6408_set_direction_out(NULL, APB2_LCD_VDDI_EN, 0);
+    tca6408_set_direction_out(NULL, APB2_LCD_ENP, 0);
+    tca6408_set_direction_out(NULL, APB2_LCD_RST, 0);
+    tca6408_set_direction_out(NULL, APB2_TP_RST, 0);
 
     return 0;
 }
@@ -88,42 +88,42 @@ int lg4892_enable(bool enable)
 {
     if (enable) {
         lldbg("enable LCD_VDD_EN\n");
-        tca6408_set(APB2_LCD_VDD_EN, 1);
+        tca6408_set(NULL, APB2_LCD_VDD_EN, 1);
         usleep(LG4892_T_VDD_TO_VDDIO);
 
         lldbg("enable LCD_VDDI_EN\n");
-        tca6408_set(APB2_LCD_VDDI_EN, 1);
+        tca6408_set(NULL, APB2_LCD_VDDI_EN, 1);
         usleep(LG4892_T_VDDIO_TO_DDVDH + LG4892_T_DDVDH_TO_DDVDN);
 
         lldbg("release LCD_RST\n");
-        tca6408_set(APB2_LCD_RST, 1);
+        tca6408_set(NULL, APB2_LCD_RST, 1);
         usleep(LG4892_T_RESET_TO_1ST_COMMAND);
         lldbg("LCD Panel powered ON and out of reset.\n");
 
         lldbg("enable LCD_ENP\n");
-        tca6408_set(APB2_LCD_ENP, 1);
+        tca6408_set(NULL, APB2_LCD_ENP, 1);
         usleep(LG4892_T_DDVDN_TO_RESET);
 
         lldbg("enable TP_RST\n");
-        tca6408_set(APB2_TP_RST, 1);
+        tca6408_set(NULL, APB2_TP_RST, 1);
     } else {
         lldbg("disable TP_RST\n");
-        tca6408_set(APB2_TP_RST, 0);
+        tca6408_set(NULL, APB2_TP_RST, 0);
 
         lldbg("disable LCD_ENP\n");
-        tca6408_set(APB2_LCD_ENP, 0);
+        tca6408_set(NULL, APB2_LCD_ENP, 0);
         usleep(LG4892_T_DDVDN_TO_DDVDH + LG4892_T_DDVDH_TO_VDDIO);
 
         lldbg("assert LCD_RST\n");
-        tca6408_set(APB2_LCD_RST, 0);
+        tca6408_set(NULL, APB2_LCD_RST, 0);
         usleep(LG4892_T_RESET_TO_DDVDN);
 
         lldbg("disable LCD_VDDI_EN\n");
-        tca6408_set(APB2_LCD_VDDI_EN, 0);
+        tca6408_set(NULL, APB2_LCD_VDDI_EN, 0);
         usleep(LG4892_T_VDDIO_TO_VDD);
 
         lldbg("disable LCD_VDD_EN\n");
-        tca6408_set(APB2_LCD_VDD_EN, 0);
+        tca6408_set(NULL, APB2_LCD_VDD_EN, 0);
         lldbg("LCD Panel powered OFF.\n");
     }
 

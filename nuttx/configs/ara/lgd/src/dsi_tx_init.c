@@ -519,7 +519,8 @@ int display_init(void)
     struct i2c_dev_s *dev;
 
     dev = up_i2cinitialize(0);
-    tca6408_init(dev, TCA6408_U72, TCA6408_U72_RST_GPIO, TCA6408_U72_INT_GPIO);
+    tca6408_init(dev, TCA6408_U72, TCA6408_U72_RST_GPIO, TCA6408_U72_INT_GPIO,
+                 NULL);
     gb_i2c_set_dev(dev);
 
     pwm_enable();

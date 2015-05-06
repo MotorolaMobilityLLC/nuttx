@@ -43,12 +43,12 @@ static pthread_t g_display_thread;
 void press_powerkey(void)
 {
     tsb_gpio_initialize();
-    tsb_gpio_direction_out(0, 1);
+    tsb_gpio_direction_out(NULL, 0, 1);
 }
 
 void depress_powerkey(void)
 {
-    tsb_gpio_direction_out(0, 0);
+    tsb_gpio_direction_out(NULL, 0, 0);
     tsb_gpio_uninitialize();
 }
 

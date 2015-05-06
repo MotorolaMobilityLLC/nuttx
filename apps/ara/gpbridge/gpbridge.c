@@ -19,7 +19,7 @@
 
 int bridge_main(int argc, char *argv[])
 {
-    tsb_gpio_register();
+    tsb_gpio_register(NULL);
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
     display_init();
 #endif

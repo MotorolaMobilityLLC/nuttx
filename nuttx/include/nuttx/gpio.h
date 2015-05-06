@@ -41,25 +41,27 @@
 
 struct gpio_ops_s
 {
-    int (*get_direction)(uint8_t which);
-    void (*direction_in)(uint8_t which);
-    void (*direction_out)(uint8_t which, uint8_t value);
-    void (*activate)(uint8_t which);
-    uint8_t (*get_value)(uint8_t which);
-    void (*set_value)(uint8_t which, uint8_t value);
-    void (*deactivate)(uint8_t which);
-    uint8_t (*line_count)(void);
-    int (*irqattach)(uint8_t which, xcpt_t isr, uint8_t base);
-    int (*set_triggering)(uint8_t which, int trigger);
-    int (*mask_irq)(uint8_t which);
-    int (*unmask_irq)(uint8_t which);
-    int (*clear_interrupt)(uint8_t which);
+    int (*get_direction)(void *driver_data, uint8_t which);
+    void (*direction_in)(void *driver_data, uint8_t which);
+    void (*direction_out)(void *driver_data, uint8_t which, uint8_t value);
+    void (*activate)(void *driver_data, uint8_t which);
+    uint8_t (*get_value)(void *driver_data, uint8_t which);
+    void (*set_value)(void *driver_data, uint8_t which, uint8_t value);
+    void (*deactivate)(void *driver_data, uint8_t which);
+    uint8_t (*line_count)(void *driver_data);
+    int (*irqattach)(void *driver_data, uint8_t which, xcpt_t isr,
+                     uint8_t base);
+    int (*set_triggering)(void *driver_data, uint8_t which, int trigger);
+    int (*mask_irq)(void *driver_data, uint8_t which);
+    int (*unmask_irq)(void *driver_data, uint8_t which);
+    int (*clear_interrupt)(void *driver_data, uint8_t which);
 };
 
 struct gpio_chip_s
 {
     struct list_head list;
     struct gpio_ops_s *ops;
+    void *driver_data;
     uint8_t base;
     uint8_t end;
 };
@@ -79,8 +81,8 @@ int gpio_mask_irq(uint8_t which);
 int gpio_unmask_irq(uint8_t which);
 int gpio_clear_interrupt(uint8_t which);
 
-int register_gpio_chip(struct gpio_ops_s *ops, int base);
-int unregister_gpio_chip(struct gpio_ops_s *ops);
+int register_gpio_chip(struct gpio_ops_s *ops, int base, void *driver_data);
+int unregister_gpio_chip(void *driver_data);
 
 #endif
 

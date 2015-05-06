@@ -28,6 +28,7 @@
  * @brief STM32 GPIO Chip Driver
  *
  * STM32 has 16 GPIO pins per port. Pin A0 is pin 0, pin B0 is pin 16 etc.
+ * @author Jean Pihet
  */
 
 #include <nuttx/config.h>
@@ -58,7 +59,7 @@ static int map_pin_nr_to_cfgset(uint8_t pin, uint32_t *cfgset)
     return 0;
 }
 
-void stm32_gpio_set_direction_in(uint8_t pin)
+void stm32_gpio_set_direction_in(void *driver_data, uint8_t pin)
 {
     uint32_t cfgset;
     int ret;
@@ -80,7 +81,7 @@ void stm32_gpio_set_direction_in(uint8_t pin)
         lldbg("%s: stm32_configgpio returns %d\n", ret);
 }
 
-void stm32_gpio_set_direction_out(uint8_t pin, uint8_t value)
+void stm32_gpio_set_direction_out(void *driver_data, uint8_t pin, uint8_t value)
 {
     uint32_t cfgset;
     int ret;
@@ -107,12 +108,12 @@ void stm32_gpio_set_direction_out(uint8_t pin, uint8_t value)
 }
 
 // STM32 GPIO API does not have a direction query function
-int stm32_gpio_get_direction(uint8_t pin)
+int stm32_gpio_get_direction(void *driver_data, uint8_t pin)
 {
     return -EOPNOTSUPP;
 }
 
-void stm32_gpio_set(uint8_t pin, uint8_t val)
+void stm32_gpio_set(void *driver_data, uint8_t pin, uint8_t val)
 {
     uint32_t cfgset;
     int ret;
@@ -128,7 +129,7 @@ void stm32_gpio_set(uint8_t pin, uint8_t val)
     stm32_gpiowrite(cfgset, val);
 }
 
-uint8_t stm32_gpio_get(uint8_t pin)
+uint8_t stm32_gpio_get(void *driver_data, uint8_t pin)
 {
     uint32_t cfgset;
     int ret;
@@ -144,18 +145,18 @@ uint8_t stm32_gpio_get(uint8_t pin)
     return stm32_gpioread(cfgset);
 }
 
-uint8_t stm32_gpio_line_count(void)
+uint8_t stm32_gpio_line_count(void *driver_data)
 {
     return STM32_NGPIO + 1;
 }
 
-void stm32_gpio_activate(uint8_t pin)
+void stm32_gpio_activate(void *driver_data, uint8_t pin)
 {
 
 }
 
 // Configure pin as input floating
-void stm32_gpio_deactivate(uint8_t pin)
+void stm32_gpio_deactivate(void *driver_data, uint8_t pin)
 {
     uint32_t cfgset;
     int ret;
@@ -184,7 +185,7 @@ struct gpio_ops_s stm32_gpio_ops = {
 
 void stm32_gpio_init(void)
 {
-    register_gpio_chip(&stm32_gpio_ops, 0);
+    register_gpio_chip(&stm32_gpio_ops, 0, &stm32_gpio_ops);
 }
 
 void stm32_gpio_deinit(void)
