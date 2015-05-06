@@ -260,15 +260,10 @@ int svc_init(void) {
 
     dbg_info("Initializing SVC\n");
 
-    // Allocate and zero the sw struct
-    sw = zalloc(sizeof(struct tsb_switch));
-    if (!sw)
-        return -ENOMEM;
-
     /*
      * Board-specific initialization, all boards must define this.
      */
-    info = board_init(sw);
+    info = board_init();
     if (!info) {
         dbg_error("%s: No board information provided.\n", __func__);
         goto error0;
@@ -289,10 +284,7 @@ int svc_init(void) {
     }
 
     /* Init Switch */
-    sw = switch_init(sw,
-                     info->sw_vreg,
-                     info->sw_reset,
-                     info->sw_irq);
+    sw = switch_init(&info->sw_data);
     if (!sw) {
         dbg_error("%s: Failed to initialize switch.\n", __func__);
         goto error2;
@@ -313,7 +305,7 @@ int svc_init(void) {
      */
     rc = switch_irq_enable(sw, true);
     if (rc && (rc != -EOPNOTSUPP)) {
-        goto error2;
+        goto error3;
     }
 
     /* Enable interrupts for all Unipro ports */
@@ -322,28 +314,26 @@ int svc_init(void) {
 
     return 0;
 
+error3:
+    switch_exit(sw);
+    the_svc.sw = NULL;
 error2:
-    switch_irq_enable(sw, false);
     interface_exit();
 error1:
-    board_exit(sw);
+    board_exit();
 error0:
-    free(sw);
-    the_svc.sw = NULL;
     return -1;
 }
 
 void svc_exit(void) {
-    if (the_svc.sw)
+    if (the_svc.sw) {
         switch_exit(the_svc.sw);
+        the_svc.sw = NULL;
+    }
 
     interface_exit();
 
-    if (the_svc.sw)
-        board_exit(the_svc.sw);
-
-    free(the_svc.sw);
-    the_svc.sw = NULL;
+    board_exit();
     the_svc.board_info = NULL;
 }
 

@@ -58,9 +58,6 @@
 #define IO_EXP_IRQ          (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | \
                              GPIO_PORTA | GPIO_PIN0)
 
-/* SPI CS */
-#define TSB_SW_CS           (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_SET | \
-                             GPIO_PORTA | GPIO_PIN4)
 
 /* I/O Expanders: I2C bus and addresses */
 #define IOEXP_I2C_BUS       2
@@ -281,16 +278,23 @@ static struct ara_board_info bdb2a_board_info = {
     .interfaces = bdb2a_interfaces,
     .nr_interfaces = ARRAY_SIZE(bdb2a_interfaces),
     .nr_spring_interfaces = SPRING_INTERFACES_COUNT,
-    .sw_vreg = &sw_vreg,
-    .sw_reset = (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP |
-                 GPIO_OUTPUT_CLEAR | GPIO_PORTE | GPIO_PIN14),
-    .sw_irq   = (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | GPIO_PORTI | GPIO_PIN9),
+
+    .sw_data = {
+        .vreg = &sw_vreg,
+        .gpio_reset = (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP |
+                       GPIO_OUTPUT_CLEAR | GPIO_PORTE | GPIO_PIN14),
+        .gpio_irq   = (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | GPIO_PORTI | GPIO_PIN9),
+        .rev        = SWITCH_REV_ES2,
+        .bus        = SW_SPI_PORT,
+        .spi_cs     = (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_SET | \
+                       GPIO_PORTA | GPIO_PIN4)
+    },
 
     .io_expanders = bdb2a_io_expanders,
     .nr_io_expanders = ARRAY_SIZE(bdb2a_io_expanders),
 };
 
-struct ara_board_info *board_init(struct tsb_switch *sw) {
+struct ara_board_info *board_init(void) {
     int i;
 
     /* Pretty lights */
@@ -302,9 +306,6 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
     stm32_configgpio(IO_RESET1);
     stm32_gpiowrite(IO_RESET, false);
     stm32_gpiowrite(IO_RESET1, false);
-
-    stm32_configgpio(TSB_SW_CS);
-    stm32_gpiowrite(TSB_SW_CS, true);
 
     /*
      * Register the STM32 GPIOs to Gpio Chip
@@ -318,15 +319,15 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
      * Configure the switch reset and power supply lines.
      * Hold all the lines low while we turn on the power rails.
      */
-    vreg_config(bdb2a_board_info.sw_vreg);
-    stm32_configgpio(bdb2a_board_info.sw_reset);
+    vreg_config(&sw_vreg);
+    stm32_configgpio(bdb2a_board_info.sw_data.gpio_reset);
     up_udelay(POWER_SWITCH_OFF_STAB_TIME_US);
 
     /*
      * Enable 1P1 and 1P8, used by the I/O Expanders.
      * This also enables the switch power supplies.
      */
-    vreg_get(bdb2a_board_info.sw_vreg);
+    vreg_get(&sw_vreg);
 
     /* Register the TCA64xx I/O Expanders GPIOs to Gpio Chip */
     for (i = 0; i < bdb2a_board_info.nr_io_expanders; i++) {
@@ -351,20 +352,11 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
         }
     }
 
-    /* Initialize the SPI bus to the Switch; alloc driver data */
-    if (tsb_switch_es2_init(sw, SW_SPI_PORT)) {
-        return NULL;
-    }
-
     return &bdb2a_board_info;
 }
 
-void board_exit(struct tsb_switch *sw) {
+void board_exit(void) {
     int i;
-
-    /* Deinit the Switch */
-    tsb_switch_es2_exit(sw);
-
     /* First unregister the TCA64xx I/O Expanders and associated I2C bus(ses) */
     for (i = 0; i < bdb2a_board_info.nr_io_expanders; i++) {
         struct io_expander_info *io_exp = &bdb2a_board_info.io_expanders[i];
@@ -377,34 +369,8 @@ void board_exit(struct tsb_switch *sw) {
     }
 
     /* Disable 1V1 and 1V8, used by the I/O Expanders and the Switch */
-    vreg_put(sw->vreg);
+    vreg_put(&sw_vreg);
 
     /* Lastly unregister the GPIO Chip driver */
     stm32_gpio_deinit();
-}
-
-/*
- * Required callbacks for NuttX SPI1
- */
-void stm32_spi1select(struct spi_dev_s *dev, enum spi_dev_e devid, bool selected) {
-    if (devid == SW_SPI_ID) {
-        dbg_insane("%s(): CS %s\n", __func__,
-                   selected ? "asserted" : "de-asserted");
-
-        /*
-         * SW-472: The STM32 SPI peripheral does not delay until the last
-         * falling edge of SCK, instead dropping RXNE as soon as the rising
-         * edge is clocked out.
-         * Manually add a hacked delay in these cases...
-         */
-        if ((!selected) && (SWITCH_SPI_FREQUENCY < 8000000))
-                up_udelay(2);
-
-        /* Set the GPIO low to select and high to de-select */
-        stm32_gpiowrite(TSB_SW_CS, !selected);
-    }
-}
-
-uint8_t stm32_spi1status(struct spi_dev_s *dev, enum spi_dev_e devid) {
-    return (devid == SW_SPI_ID) ? SPI_STATUS_PRESENT : 0;
 }

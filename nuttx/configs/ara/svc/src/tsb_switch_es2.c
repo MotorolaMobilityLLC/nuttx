@@ -58,7 +58,6 @@
 
 struct sw_es2_priv {
     struct spi_dev_s    *spi_dev;
-    unsigned int        id;
     uint8_t             *rxbuf;
 };
 
@@ -106,6 +105,8 @@ static uint16_t unipro_irq_attr[] = {
     TSB_DME_LINKSTARTUPCNF,
     TSB_MAILBOX
 };
+
+static void es2_spi_select(struct tsb_switch *sw, int select);
 
 static int es2_transfer_check_ncp_write_status(uint8_t *status_block,
                                                size_t size)
@@ -211,7 +212,6 @@ static int es2_transfer(struct tsb_switch *sw,
 {
     struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
-    unsigned int id = priv->id;
     unsigned int size, rcv_done = 0;
     bool null_rxbuf;
     int ret = OK;
@@ -241,7 +241,7 @@ static int es2_transfer(struct tsb_switch *sw,
 
 
     SPI_LOCK(spi_dev, true);
-    SPI_SELECT(spi_dev, id, true);
+    es2_spi_select(sw, true);
     /* Write */
     SPI_SNDBLOCK(spi_dev, write_header, sizeof write_header);
     SPI_SNDBLOCK(spi_dev, tx_buf, tx_size);
@@ -326,7 +326,7 @@ static int es2_transfer(struct tsb_switch *sw,
     } while (!rcv_done && !null_rxbuf);
 
  out:
-    SPI_SELECT(spi_dev, id, false);
+    es2_spi_select(sw, false);
     SPI_LOCK(spi_dev, false);
 
     return ret;
@@ -481,17 +481,16 @@ static int es2_fixup_mphy(struct tsb_switch *sw)
 }
 
 /* Switch communication init procedure */
-static int es2_init_seq(struct tsb_switch *sw)
+int es2_init_seq(struct tsb_switch *sw)
 {
     struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
-    unsigned int id = priv->id;
     const char init_reply[] = { INIT, LNUL };
     int i, rc = -1;
 
 
     SPI_LOCK(spi_dev, true);
-    SPI_SELECT(spi_dev, id, true);
+    es2_spi_select(sw, true);
 
     // Delay needed before the switch is ready on the SPI bus
     up_udelay(SWITCH_SPI_INIT_DELAY);
@@ -509,7 +508,7 @@ static int es2_init_seq(struct tsb_switch *sw)
             rc = 0;
     }
 
-    SPI_SELECT(spi_dev, id, false);
+    es2_spi_select(sw, false);
     SPI_LOCK(spi_dev, false);
 
     if (rc) {
@@ -648,7 +647,7 @@ static int es2_switch_irq_enable(struct tsb_switch *sw, bool enable)
 {
     if (enable) {
         // Enable switch interrupt sources and install handler
-        if (!sw->irq) {
+        if (!sw->pdata->gpio_irq) {
             dbg_error("%s: no Switch context\n", __func__);
             return -EINVAL;
         }
@@ -657,7 +656,7 @@ static int es2_switch_irq_enable(struct tsb_switch *sw, bool enable)
          * Configure switch IRQ line: rising edge; install handler
          * and pass the tsb_switch struct to the handler
          */
-        stm32_gpiosetevent_priv(sw->irq, true, false, true,
+        stm32_gpiosetevent_priv(sw->pdata->gpio_irq, true, false, true,
                                 switch_irq_handler, sw);
 
         // Enable the switch internal interrupt sources
@@ -696,7 +695,7 @@ static int es2_switch_irq_enable(struct tsb_switch *sw, bool enable)
         }
     } else {
         // Disable switch interrupt
-        stm32_gpiosetevent_priv(sw->irq, false, false, false, NULL, NULL);
+        stm32_gpiosetevent_priv(sw->pdata->gpio_irq, false, false, false, NULL, NULL);
     }
 
     return OK;
@@ -1388,6 +1387,9 @@ int tsb_switch_es2_init(struct tsb_switch *sw, unsigned int spi_bus)
 
     dbg_info("Initializing ES2 switch...\n");
 
+    stm32_configgpio(sw->pdata->spi_cs);
+    stm32_gpiowrite(sw->pdata->spi_cs, true);
+
     spi_dev = up_spiinitialize(spi_bus);
     if (!spi_dev) {
         dbg_error("%s: Failed to initialize spi device\n", __func__);
@@ -1409,7 +1411,6 @@ int tsb_switch_es2_init(struct tsb_switch *sw, unsigned int spi_bus)
     }
 
     priv->spi_dev = spi_dev;
-    priv->id = SW_SPI_ID;
 
     sw->priv = priv;
     sw->ops = &es2_ops;
@@ -1440,4 +1441,29 @@ void tsb_switch_es2_exit(struct tsb_switch *sw) {
     free(priv);
     sw->priv = NULL;
     sw->ops = NULL;
+}
+
+
+/*
+ * Required callbacks for NuttX SPI1. unused.
+ */
+void stm32_spi1select(struct spi_dev_s *dev, enum spi_dev_e devid, bool selected) {
+}
+
+uint8_t stm32_spi1status(struct spi_dev_s *dev, enum spi_dev_e devid) {
+    return SPI_STATUS_PRESENT;
+}
+
+static void es2_spi_select(struct tsb_switch *sw, int select) {
+    /*
+     * SW-472: The STM32 SPI peripheral does not delay until the last
+     * falling edge of SCK, instead dropping RXNE as soon as the rising
+     * edge is clocked out.
+     * Manually add a hacked delay in these cases...
+     */
+    if ((!select) && (SWITCH_SPI_FREQUENCY < 8000000))
+        up_udelay(2);
+
+    /* Set the GPIO low to select and high to de-select */
+    stm32_gpiowrite(sw->pdata->spi_cs, !select);
 }

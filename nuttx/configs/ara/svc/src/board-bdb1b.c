@@ -265,16 +265,20 @@ static struct ara_board_info bdb1b_board_info = {
     .nr_interfaces = ARRAY_SIZE(bdb1b_interfaces),
     .nr_spring_interfaces = SPRING_INTERFACES_COUNT,
 
-    .sw_vreg = &sw_vreg,
-    .sw_reset = (GPIO_OUTPUT | GPIO_OUTPUT_CLEAR |
-                 GPIO_PORTE | GPIO_PIN14),
-    .sw_irq   = (GPIO_PORTI | GPIO_PIN9),
+    .sw_data = {
+        .vreg = &sw_vreg,
+        .gpio_reset = (GPIO_OUTPUT | GPIO_OUTPUT_CLEAR |
+                       GPIO_PORTE | GPIO_PIN14),
+        .gpio_irq   = (GPIO_PORTI | GPIO_PIN9),
+        .rev        = SWITCH_REV_ES1,
+        .bus        = SWITCH_I2C_BUS,
+    },
 
     .io_expanders = bdb1b_io_expanders,
     .nr_io_expanders = ARRAY_SIZE(bdb1b_io_expanders),
 };
 
-struct ara_board_info *board_init(struct tsb_switch *sw) {
+struct ara_board_info *board_init(void) {
     int i;
 
     /* Pretty lights */
@@ -299,15 +303,15 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
      * Configure the switch reset and power supply lines.
      * Hold all the lines low while we turn on the power rails.
      */
-    vreg_config(bdb1b_board_info.sw_vreg);
-    stm32_configgpio(bdb1b_board_info.sw_reset);
+    vreg_config(&sw_vreg);
+    stm32_configgpio(bdb1b_board_info.sw_data.gpio_reset);
     up_udelay(POWER_SWITCH_OFF_STAB_TIME_US);
 
     /*
      * Enable 1P1 and 1P8, used by the I/O Expanders.
      * This also enables the switch power supplies.
      */
-    vreg_get(bdb1b_board_info.sw_vreg);
+    vreg_get(&sw_vreg);
 
     /* Register the TCA64xx I/O Expanders GPIOs to Gpio Chip */
     for (i = 0; i < bdb1b_board_info.nr_io_expanders; i++) {
@@ -332,19 +336,12 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
         }
     }
 
-    /* Initialize the I2C bus to the Switch; alloc driver data */
-    if (tsb_switch_es1_init(sw, SWITCH_I2C_BUS)) {
-        return NULL;
-    }
-
     return &bdb1b_board_info;
 }
 
-void board_exit(struct tsb_switch *sw) {
+void board_exit(void) {
     int i;
 
-    /* Deinit the Switch */
-    tsb_switch_es1_exit(sw);
 
     /* First unregister the TCA64xx I/O Expanders and associated I2C bus(ses) */
     for (i = 0; i < bdb1b_board_info.nr_io_expanders; i++) {
@@ -358,7 +355,7 @@ void board_exit(struct tsb_switch *sw) {
     }
 
     /* Disable 1V1 and 1V8, used by the I/O Expanders */
-    vreg_put(sw->vreg);
+    vreg_put(&sw_vreg);
 
     /* Lastly unregister the GPIO Chip driver */
     stm32_gpio_deinit();
