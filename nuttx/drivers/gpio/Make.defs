@@ -67,6 +67,9 @@ CSRCS += gpio_chip.c
 ifeq ($(CONFIG_GPIO_TCA6408),y)
     CSRCS += tca6408.c
 endif
+ifeq ($(CONFIG_GPIO_TCA64XX),y)
+    CSRCS += tca64xx.c
+endif
 
 endif
 
