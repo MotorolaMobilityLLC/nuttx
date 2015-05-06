@@ -1306,7 +1306,7 @@ static int switch_irq_pending_worker(int argc, char *argv[])
     struct tsb_switch *sw = (struct tsb_switch *) strtol(argv[1], NULL, 16);
 
     if (!sw) {
-        dbg_error("%s: no Switch context\n");
+        dbg_error("%s: no Switch context\n", __func__);
         return ERROR;
     }
 
@@ -1327,14 +1327,14 @@ static int switch_irq_pending_worker(int argc, char *argv[])
 static int create_switch_irq_worker(struct tsb_switch *sw)
 {
     const char* argv[2];
-    char buf[(sizeof(void *) / sizeof(char)) + 1];
+    char buf[16];
     int ret;
 
     sprintf(buf, "%p", sw);
     argv[0] = buf;
     argv[1] = NULL;
 
-    ret = task_create("irq_worker",
+    ret = task_create("switch_irq_worker",
                       IRQ_WORKER_DEFPRIO, IRQ_WORKER_STACKSIZE,
                       switch_irq_pending_worker,
                       (char * const*) argv);
