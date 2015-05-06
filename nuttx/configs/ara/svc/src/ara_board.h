@@ -29,9 +29,23 @@
 #ifndef  _ARA_BOARD_H_
 #define  _ARA_BOARD_H_
 
+#include "nuttx/gpio/tca64xx.h"
+
 #include "tsb_switch.h"
 
+struct io_expander_info {
+    void *io_exp_driver_data;
+    uint32_t reset;
+    uint32_t irq;
+    int gpio_base;
+    struct i2c_dev_s *i2c_dev;
+    uint8_t i2c_bus;
+    uint8_t i2c_addr;
+    tca64xx_part part;
+};
+
 struct ara_board_info {
+    /* Interfaces */
     struct interface **interfaces;
     size_t nr_interfaces;
     size_t nr_spring_interfaces;
@@ -42,7 +56,9 @@ struct ara_board_info {
     unsigned int sw_reset;
     unsigned int sw_irq;
 
-    unsigned int svc_irq;
+    /* IO Expanders data */
+    struct io_expander_info *io_expanders;
+    size_t nr_io_expanders;
 };
 
 struct ara_board_info *board_init(struct tsb_switch *);

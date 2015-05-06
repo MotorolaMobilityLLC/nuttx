@@ -35,9 +35,12 @@
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
 #include <nuttx/util.h>
+#include <nuttx/i2c.h>
 
 #include "nuttx/gpio/stm32_gpio_chip.h"
+#include "nuttx/gpio/tca64xx.h"
 
+#include "up_debug.h"
 #include "ara_board.h"
 #include "interface.h"
 #include "tsb_switch_driver_es1.h"
@@ -49,14 +52,32 @@
 #define SVC_LED_RED         (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_PORTA | \
                              GPIO_OUTPUT_SET | GPIO_PIN7)
 
-#define IO_EXP_MODE         (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
-                             GPIO_OUTPUT_CLEAR)
-#define IO_RESET            (IO_EXP_MODE | GPIO_PORTE | GPIO_PIN0)
-#define IO_RESET1           (IO_EXP_MODE | GPIO_PORTE | GPIO_PIN1)
+#define IO_RESET            (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
+                             GPIO_PORTE | GPIO_PIN0)
+#define IO_RESET1           (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
+                             GPIO_PORTE | GPIO_PIN1)
+#define IO_EXP_IRQ          (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | \
+                             GPIO_PORTA | GPIO_PIN0)
 
 #define VREG_DEFAULT_MODE           (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_CLEAR)
 /* Spring pins are active low */
 #define SPRING_VREG_DEFAULT_MODE    (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_SET)
+
+/* I/O Expanders: I2C bus and addresses */
+#define IOEXP_I2C_BUS       2
+#define IOEXP_U90_I2C_ADDR  0x21
+#define IOEXP_U96_I2C_ADDR  0x20
+#define IOEXP_U135_I2C_ADDR 0x23
+
+/* GPIO Chip pins */
+#define STM32_GPIO_CHIP_START   0
+#define STM32_GPIO_CHIP_NR      140
+#define U90_GPIO_CHIP_START     (STM32_GPIO_CHIP_START + STM32_GPIO_CHIP_NR)
+#define U90_GPIO_CHIP_NR        16
+#define U96_GPIO_CHIP_START     (U90_GPIO_CHIP_START + U90_GPIO_CHIP_NR)
+#define U96_GPIO_CHIP_NR        16
+#define U135_GPIO_CHIP_START    (U96_GPIO_CHIP_START + U96_GPIO_CHIP_NR)
+#define U135_GPIO_CHIP_NR       24
 
 /*
  * How long to leave hold each regulator before the next.
@@ -191,6 +212,33 @@ static struct interface *bdb1b_interfaces[] = {
     &bb8_interface,
 };
 
+static struct io_expander_info bdb1b_io_expanders[] = {
+        {
+            .part       = TCA6416_PART,
+            .i2c_bus    = IOEXP_I2C_BUS,
+            .i2c_addr   = IOEXP_U90_I2C_ADDR,
+            .reset      = IO_RESET1,
+            .irq        = TCA64XX_IO_UNUSED,
+            .gpio_base  = U90_GPIO_CHIP_START,
+        },
+        {
+            .part       = TCA6416_PART,
+            .i2c_bus    = IOEXP_I2C_BUS,
+            .i2c_addr   = IOEXP_U96_I2C_ADDR,
+            .reset      = IO_RESET,
+            .irq        = IO_EXP_IRQ,
+            .gpio_base  = U96_GPIO_CHIP_START,
+        },
+        {
+            .part       = TCA6424_PART,
+            .i2c_bus    = IOEXP_I2C_BUS,
+            .i2c_addr   = IOEXP_U135_I2C_ADDR,
+            .reset      = TCA64XX_IO_UNUSED,
+            .irq        = TCA64XX_IO_UNUSED,
+            .gpio_base  = U135_GPIO_CHIP_START,
+        }
+};
+
 static struct ara_board_info bdb1b_board_info = {
     .interfaces = bdb1b_interfaces,
     .nr_interfaces = ARRAY_SIZE(bdb1b_interfaces),
@@ -202,10 +250,12 @@ static struct ara_board_info bdb1b_board_info = {
                  GPIO_PORTE | GPIO_PIN14),
     .sw_irq   = (GPIO_PORTI | GPIO_PIN9),
 
-    .svc_irq = (GPIO_PORTA | GPIO_PIN0),
+    .io_expanders = bdb1b_io_expanders,
+    .nr_io_expanders = ARRAY_SIZE(bdb1b_io_expanders),
 };
 
 struct ara_board_info *board_init(struct tsb_switch *sw) {
+    int i;
 
     /* Pretty lights */
     stm32_configgpio(SVC_LED_RED);
@@ -217,21 +267,62 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
     stm32_gpiowrite(IO_RESET, false);
     stm32_gpiowrite(IO_RESET1, false);
 
-    // Register the GPIO Chip driver
-    stm32_gpio_init();
-
-    // Initialize the Switch
+    // Initialize the SPI bus to the Switch; alloc driver data
     if (tsb_switch_es1_init(sw, SWITCH_I2C_BUS)) {
         return NULL;
+    }
+
+    /*
+     * Register the STM32 GPIOs to Gpio Chip
+     *
+     * This needs to happen before the I/O Expanders registration, which
+     * uses some STM32 pins
+     */
+    stm32_gpio_init();
+
+    // Register the TCA64xx I/O Expanders GPIOs to Gpio Chip
+    for (i = 0; i < bdb1b_board_info.nr_io_expanders; i++) {
+        struct io_expander_info *io_exp = &bdb1b_board_info.io_expanders[i];
+
+        io_exp->i2c_dev = up_i2cinitialize(io_exp->i2c_bus);
+        if (!io_exp->i2c_dev) {
+            dbg_error("%s(): Failed to get I/O Expander I2C bus %u\n",
+                      __func__, io_exp->i2c_bus);
+        } else {
+            if (tca64xx_init(&io_exp->io_exp_driver_data,
+                             io_exp->part,
+                             io_exp->i2c_dev,
+                             io_exp->i2c_addr,
+                             io_exp->reset,
+                             io_exp->irq,
+                             io_exp->gpio_base) < 0) {
+                dbg_error("%s(): Failed to register I/O Expander(0x%02x)\n",
+                          __func__, io_exp->i2c_addr);
+                up_i2cuninitialize(io_exp->i2c_dev);
+            }
+        }
     }
 
     return &bdb1b_board_info;
 }
 
 void board_exit(struct tsb_switch *sw) {
+    int i;
+
     // Deinit the Switch
     tsb_switch_es1_exit(sw);
 
-    // Unegister the GPIO Chip driver
+    // First unregister the TCA64xx I/O Expanders and associated I2C bus(ses)
+    for (i = 0; i < bdb1b_board_info.nr_io_expanders; i++) {
+        struct io_expander_info *io_exp = &bdb1b_board_info.io_expanders[i];
+
+        if (io_exp->io_exp_driver_data)
+            tca64xx_deinit(io_exp->io_exp_driver_data);
+
+        if (io_exp->i2c_dev)
+            up_i2cuninitialize(io_exp->i2c_dev);
+    }
+
+    // Lastly unregister the GPIO Chip driver
     stm32_gpio_deinit();
 }
