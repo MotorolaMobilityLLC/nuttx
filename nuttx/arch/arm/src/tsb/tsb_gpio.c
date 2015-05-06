@@ -60,7 +60,11 @@
 #define GPIO_INTCTRL2       (GPIO_BASE + 0x38)
 #define GPIO_INTCTRL3       (GPIO_BASE + 0x3c)
 
+#if defined(CONFIG_TSB_CHIP_REV_ES1)
 #define NR_GPIO_IRQS 16
+#else
+#define NR_GPIO_IRQS 27
+#endif
 
 /* A table of handlers for each GPIO interrupt */
 static xcpt_t tsb_gpio_irq_vector[NR_GPIO_IRQS];
