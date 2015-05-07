@@ -3,12 +3,12 @@
 # see misc/tools/kconfig-language.txt.
 #
 
-config APBRIDGE_UNIPRO
-	bool "APBridge FW with UniPro layer"
+config APBRIDGE
+	bool "APBridge FW"
 	select GREYBUS_UTILS
 	default n
 
 config APBRIDGE_GBSIM
 	bool "Enable GBSIM mode"
-	depends on APBRIDGE_UNIPRO
+	depends on APBRIDGE
 	default n
