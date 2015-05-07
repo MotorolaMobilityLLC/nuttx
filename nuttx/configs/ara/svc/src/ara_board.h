@@ -33,6 +33,16 @@
 
 #include "tsb_switch.h"
 
+/* GPIO Chip pins */
+#define STM32_GPIO_CHIP_START   0
+#define STM32_GPIO_CHIP_NR      140
+#define U90_GPIO_CHIP_START     (STM32_GPIO_CHIP_START + STM32_GPIO_CHIP_NR)
+#define U90_GPIO_CHIP_NR        16
+#define U96_GPIO_CHIP_START     (U90_GPIO_CHIP_START + U90_GPIO_CHIP_NR)
+#define U96_GPIO_CHIP_NR        16
+#define U135_GPIO_CHIP_START    (U96_GPIO_CHIP_START + U96_GPIO_CHIP_NR)
+#define U135_GPIO_CHIP_NR       24
+
 struct io_expander_info {
     void *io_exp_driver_data;
     uint32_t reset;

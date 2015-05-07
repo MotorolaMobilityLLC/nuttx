@@ -69,16 +69,6 @@
 #define IOEXP_U96_I2C_ADDR  0x20
 #define IOEXP_U135_I2C_ADDR 0x23
 
-/* GPIO Chip pins */
-#define STM32_GPIO_CHIP_START   0
-#define STM32_GPIO_CHIP_NR      140
-#define U90_GPIO_CHIP_START     (STM32_GPIO_CHIP_START + STM32_GPIO_CHIP_NR)
-#define U90_GPIO_CHIP_NR        16
-#define U96_GPIO_CHIP_START     (U90_GPIO_CHIP_START + U90_GPIO_CHIP_NR)
-#define U96_GPIO_CHIP_NR        16
-#define U135_GPIO_CHIP_START    (U96_GPIO_CHIP_START + U96_GPIO_CHIP_NR)
-#define U135_GPIO_CHIP_NR       24
-
 /*
  * How long to leave hold each regulator before the next.
  */
