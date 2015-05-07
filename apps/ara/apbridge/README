@@ -1,0 +1,11 @@
+APBridge application is the USB <=> UniPro glue.
+The main role of application is to init UniPro, USB and the glue and perform
+transfer between USB and UniPro.
+
+This application can work without UniPro (disable CONFIG_APBRIDGE_UNIPRO).
+If UniPro is disabled, greybus-core is built and instead of transferring data
+between USB and UniPro, data are passed directly to greybus-core.
+This is useful for USB development (remove any issue related to UniPro) and for
+protocol development. You can develop and test a new protocol using only one
+bridge.
+It's like gbsim but instead of running on Linux, it run in firmware.
