@@ -40,8 +40,12 @@
 #include <string.h>
 #include <errno.h>
 #include <nuttx/i2c.h>
-#include <tca6424.h>
-#include <up_debug.h>
+
+#include <nuttx/gpio.h>
+#include <nuttx/gpio/tca64xx.h>
+
+#include "up_debug.h"
+#include "ara_board.h"
 
 #define VSW_1P1_PLL_I2C_ADDR        0x42
 #define VSW_1P1_CORE_I2C_ADDR       0x41
@@ -69,13 +73,15 @@
 #define PWRM_I2C_BUS                2
 #define U135_IO_EXPANDER_ADDR       0x23
 
-#define I2C_INA230_SEL1_A           17
-#define I2C_INA230_SEL1_B           18
-#define I2C_INA230_SEL1_INH         19
+enum {
+    I2C_INA230_SEL1_A               = U135_GPIO_CHIP_START + 17,
+    I2C_INA230_SEL1_B,
+    I2C_INA230_SEL1_INH,
 
-#define I2C_INA230_SEL2_A           20
-#define I2C_INA230_SEL2_B           21
-#define I2C_INA230_SEL2_INH         22
+    I2C_INA230_SEL2_A,
+    I2C_INA230_SEL2_B,
+    I2C_INA230_SEL2_INH,
+};
 
 #define INA230_SHUNT_VALUE          2 /* mohm */
 
@@ -114,7 +120,6 @@ static const uint8_t bdbpm_i2c_addr[DEV_MAX_RAIL_COUNT][DEV_COUNT] = {
 };
 
 static struct i2c_dev_s *i2c_dev;
-static tca6424_device *tca6424_dev;
 static uint32_t bdbpm_current_lsb;
 static ina230_conversion_time bdbpm_ct;
 static ina230_avg_count bdbpm_avg_count;
@@ -367,67 +372,61 @@ int bdbpm_device_id(const char *name, uint8_t *dev)
  */
 static int bdbpm_ina230_select(uint8_t dev)
 {
-    int ret = 0;
-
     if (dev == current_dev) {
         dbg_verbose("%s(): device already selected (%u).\n", __func__, dev);
         return 0;
     }
 
     /* First inhibit all lines, to make sure there is no short/collision */
-    ret = tca6424_set(tca6424_dev, I2C_INA230_SEL1_INH, 1);
-    ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_INH, 1);
+    gpio_set_value(I2C_INA230_SEL1_INH, 1);
+    gpio_set_value(I2C_INA230_SEL2_INH, 1);
 
     switch (dev) {
     case DEV_SW:
         dbg_verbose("%s(): dev=%s select U97\n",
                     __func__, bdbpm_dev_name(dev));
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_A, 0);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_B, 0);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_INH, 0);
+        gpio_set_value(I2C_INA230_SEL1_A, 0);
+        gpio_set_value(I2C_INA230_SEL1_B, 0);
+        gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB1:
         dbg_verbose("%s(): dev=%s select U97\n",
                     __func__, bdbpm_dev_name(dev));
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_A, 1);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_B, 0);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_INH, 0);
+        gpio_set_value(I2C_INA230_SEL1_A, 1);
+        gpio_set_value(I2C_INA230_SEL1_B, 0);
+        gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB2:
         dbg_verbose("%s(): dev=%s select U97\n",
                     __func__, bdbpm_dev_name(dev));
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_A, 0);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_B, 1);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_INH, 0);
+        gpio_set_value(I2C_INA230_SEL1_A, 0);
+        gpio_set_value(I2C_INA230_SEL1_B, 1);
+        gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB3:
         dbg_verbose("%s(): dev=%s select U97\n",
                     __func__, bdbpm_dev_name(dev));
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_A, 1);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_B, 1);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_INH, 0);
+        gpio_set_value(I2C_INA230_SEL1_A, 1);
+        gpio_set_value(I2C_INA230_SEL1_B, 1);
+        gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_GPB1:
         dbg_verbose("%s(): dev=%s select U103\n",
                     __func__, bdbpm_dev_name(dev));
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_A, 0);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_B, 0);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_INH, 0);
+        gpio_set_value(I2C_INA230_SEL2_A, 0);
+        gpio_set_value(I2C_INA230_SEL2_B, 0);
+        gpio_set_value(I2C_INA230_SEL2_INH, 0);
         break;
     case DEV_GPB2:
         dbg_verbose("%s(): dev=%s select U103\n",
                     __func__, bdbpm_dev_name(dev));
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_A, 1);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_B, 0);
-        ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_INH, 0);
+        gpio_set_value(I2C_INA230_SEL2_A, 1);
+        gpio_set_value(I2C_INA230_SEL2_B, 0);
+        gpio_set_value(I2C_INA230_SEL2_INH, 0);
         break;
     default:
         dbg_error("%s(): invalid device! (%u)\n", __func__, dev);
         return -EINVAL;
-    }
-    if (ret) {
-        dbg_error("%s(): failed! (%d)\n", __func__, ret);
-        return -EIO;
     }
 
     /* Save current selected device */
@@ -511,8 +510,6 @@ int bdbpm_init(uint32_t current_lsb_uA,
                ina230_conversion_time ct,
                ina230_avg_count avg_count)
 {
-    int ret;
-
     dbg_verbose("%s(): Initializing with options lsb=%uuA, ct=%u, avg_count=%u...\n",
                 __func__, current_lsb_uA, ct, avg_count);
     /* Initialize I2C internal structs */
@@ -536,41 +533,23 @@ int bdbpm_init(uint32_t current_lsb_uA,
     bdbpm_ct = ct;
     bdbpm_avg_count = avg_count;
 
-    /* Setup U135 GPIO expander */
-    tca6424_dev = tca6424_init(i2c_dev, U135_IO_EXPANDER_ADDR);
-    if (!tca6424_dev) {
-        dbg_error("%s(): failed to get tca6424 device!\n", __func__);
-        up_i2cuninitialize(i2c_dev);
-        return -ENOMEM;
-    }
     current_dev = -1;
-    ret = tca6424_set_direction_out(tca6424_dev, I2C_INA230_SEL1_A);
-    ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_A, 1);
 
-    ret |= tca6424_set_direction_out(tca6424_dev, I2C_INA230_SEL1_B);
-    ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_B, 1);
+    /*
+     * Setup I/O selection pins on U135
+     *
+     * Note: U135 is registered to gpio_chip from the board code
+     */
+    gpio_direction_out(I2C_INA230_SEL1_A, 1);
+    gpio_direction_out(I2C_INA230_SEL1_B, 1);
+    gpio_direction_out(I2C_INA230_SEL1_INH, 1);
+    gpio_direction_out(I2C_INA230_SEL2_A, 1);
+    gpio_direction_out(I2C_INA230_SEL2_B, 1);
+    gpio_direction_out(I2C_INA230_SEL2_INH, 1);
 
-    ret |= tca6424_set_direction_out(tca6424_dev, I2C_INA230_SEL1_INH);
-    ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL1_INH, 1);
+    dbg_verbose("%s(): done.\n", __func__);
 
-    ret |= tca6424_set_direction_out(tca6424_dev, I2C_INA230_SEL2_A);
-    ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_A, 1);
-
-    ret |= tca6424_set_direction_out(tca6424_dev, I2C_INA230_SEL2_B);
-    ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_B, 1);
-
-    ret |= tca6424_set_direction_out(tca6424_dev, I2C_INA230_SEL2_INH);
-    ret |= tca6424_set(tca6424_dev, I2C_INA230_SEL2_INH, 1);
-
-    if (ret) {
-        dbg_error("%s(): failed with error %s!\n", __func__, ret);
-        up_i2cuninitialize(i2c_dev);
-        ret = -EIO;
-    } else {
-        dbg_verbose("%s(): done.\n", __func__);
-    }
-
-    return ret;
+    return OK;
 }
 
 /**
@@ -579,13 +558,12 @@ int bdbpm_init(uint32_t current_lsb_uA,
  */
 void bdbpm_deinit(void)
 {
-    tca6424_set(tca6424_dev, I2C_INA230_SEL1_A, 1);
-    tca6424_set(tca6424_dev, I2C_INA230_SEL1_B, 1);
-    tca6424_set(tca6424_dev, I2C_INA230_SEL1_INH, 1);
-    tca6424_set(tca6424_dev, I2C_INA230_SEL2_A, 1);
-    tca6424_set(tca6424_dev, I2C_INA230_SEL2_B, 1);
-    tca6424_set(tca6424_dev, I2C_INA230_SEL2_INH, 1);
-    tca6424_deinit(tca6424_dev);
+    gpio_set_value(I2C_INA230_SEL1_A, 1);
+    gpio_set_value(I2C_INA230_SEL1_B, 1);
+    gpio_set_value(I2C_INA230_SEL1_INH, 1);
+    gpio_set_value(I2C_INA230_SEL2_A, 1);
+    gpio_set_value(I2C_INA230_SEL2_B, 1);
+    gpio_set_value(I2C_INA230_SEL2_INH, 1);
 
     /* Release I2C resource */
     up_i2cuninitialize(i2c_dev);
