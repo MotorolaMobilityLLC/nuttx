@@ -40,7 +40,7 @@
 #define SLICE_REG_INT_UNIPRO   0x02
 
 #define SLICE_REG_SVC_RX_SZ       8
-#define SLICE_REG_UNIPRO_SZ      16
+#define SLICE_REG_UNIPRO_SZ      32
 
 struct slice_svc_msg
 {
