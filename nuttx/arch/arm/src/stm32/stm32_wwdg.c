@@ -788,7 +788,7 @@ void stm32_wwdginitialize(FAR const char *devpath)
 
   (void)watchdog_register(devpath, (FAR struct watchdog_lowerhalf_s *)priv);
 
-  /* When the microcontroller enters debug mode (Cortex™-M4F core halted),
+  /* When the microcontroller enters debug mode (Cortex-M4F core halted),
    * the WWDG counter either continues to work normally or stops, depending
    * on DBG_WWDG_STOP configuration bit in DBG module.
    */
@@ -802,6 +802,10 @@ void stm32_wwdginitialize(FAR const char *devpath)
       uint32_t cr = getreg32(STM32_DBGMCU_APB1_FZ);
       cr |= DBGMCU_APB1_WWDGSTOP;
       putreg32(cr, STM32_DBGMCU_APB1_FZ);
+#elif defined(CONFIG_STM32_STM32L4X6)
+      uint32_t cr = getreg32(STM32_DBGMCU_APB1_FZ1);
+      cr |= DBGMCU_APB1_WWDGSTOP;
+      putreg32(cr, STM32_DBGMCU_APB1_FZ1);
 #else /* if defined(CONFIG_STM32_STM32F10XX) */
       uint32_t cr = getreg32(STM32_DBGMCU_CR);
       cr |= DBGMCU_CR_WWDGSTOP;
