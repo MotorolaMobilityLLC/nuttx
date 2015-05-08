@@ -15,7 +15,7 @@
 #include <arch/board/cdsi0_reg_def.h>
 #include <arch/tsb/pwm.h>
 
-#include <nuttx/gpio/tca6408.h>
+#include <nuttx/gpio/tca64xx.h>
 #include <arch/board/lg4892.h>
 
 #include <apps/greybus-utils/utils.h>
@@ -517,10 +517,27 @@ struct display_panel lg4892_panel = {
 int display_init(void)
 {
     struct i2c_dev_s *dev;
+    void *driver_data;
 
     dev = up_i2cinitialize(0);
-    tca6408_init(dev, TCA6408_U72, TCA6408_U72_RST_GPIO, TCA6408_U72_INT_GPIO,
-                 NULL);
+    if (!dev) {
+        lowsyslog("%s(): Failed to get I/O Expander I2C bus 0\n", __func__);
+        return -ENODEV;
+    } else {
+        if (tca64xx_init(&driver_data,
+                         TCA6408_PART,
+                         dev,
+                         TCA6408_U72,
+                         TCA6408_U72_RST_GPIO,
+                         TCA6408_U72_INT_GPIO,
+                         TCA6408_GPIO_BASE) < 0) {
+                lowsyslog("%s(): Failed to register I/O Expander(0x%02x)\n",
+                          __func__, TCA6408_U72);
+                up_i2cuninitialize(dev);
+                return -ENODEV;
+        }
+    }
+
     gb_i2c_set_dev(dev);
 
     pwm_enable();

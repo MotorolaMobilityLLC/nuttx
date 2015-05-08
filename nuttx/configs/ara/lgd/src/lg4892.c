@@ -29,21 +29,22 @@
  */
 
 #include <nuttx/config.h>
+#include <nuttx/gpio.h>
 #include <unistd.h>
 #include <debug.h>
 
 #include <arch/board/lg4892.h>
-#include <nuttx/gpio/tca6408.h>
 
-#define APB2_I2C0               0
-
-#define APB2_LCD_VDD_EN         0x00
-#define APB2_LCD_VDDI_EN        0x01
-#define APB2_LCD_ENP            0x02
-#define APB2_DSI_LCD_TE0        0x03
-#define APB2_LCD_RST            0x04
-#define APB2_TP_INT_N           0x05
-#define APB2_TP_RST             0x06
+/* TCA6408 I/O Expander pins */
+enum {
+    APB2_LCD_VDD_EN             = TCA6408_GPIO_BASE,
+    APB2_LCD_VDDI_EN,
+    APB2_LCD_ENP,
+    APB2_DSI_LCD_TE0,
+    APB2_LCD_RST,
+    APB2_TP_INT_N,
+    APB2_TP_RST,
+};
 
 /* usleep() resolution is 1us. Delays rounded to higher 1us */
 /* Power-up Timings */
@@ -67,18 +68,18 @@
 /* Initialize GPIO expander that handles LCD panel dedicated IOs. */
 int lg4892_gpio_init(void)
 {
-    lldbg("reset U72 (controlling LCD power supply).\n");
-    tca6408_reset(0);
+    int i;
 
-    lldbg("configure default outputs as 0.\n");
-    tca6408_set_default_outputs(0);
+    lldbg("configure U72 (for LCD power supply): default outputs as 0.\n");
+    for (i = APB2_LCD_VDD_EN; i <= APB2_TP_RST; i++)
+        gpio_set_value(i, 0);
 
     lldbg("configure pins as output.\n");
-    tca6408_set_direction_out(NULL, APB2_LCD_VDD_EN, 0);
-    tca6408_set_direction_out(NULL, APB2_LCD_VDDI_EN, 0);
-    tca6408_set_direction_out(NULL, APB2_LCD_ENP, 0);
-    tca6408_set_direction_out(NULL, APB2_LCD_RST, 0);
-    tca6408_set_direction_out(NULL, APB2_TP_RST, 0);
+    gpio_direction_out(APB2_LCD_VDD_EN, 0);
+    gpio_direction_out(APB2_LCD_VDDI_EN, 0);
+    gpio_direction_out(APB2_LCD_ENP, 0);
+    gpio_direction_out(APB2_LCD_RST, 0);
+    gpio_direction_out(APB2_TP_RST, 0);
 
     return 0;
 }
@@ -88,42 +89,42 @@ int lg4892_enable(bool enable)
 {
     if (enable) {
         lldbg("enable LCD_VDD_EN\n");
-        tca6408_set(NULL, APB2_LCD_VDD_EN, 1);
+        gpio_set_value(APB2_LCD_VDD_EN, 1);
         usleep(LG4892_T_VDD_TO_VDDIO);
 
         lldbg("enable LCD_VDDI_EN\n");
-        tca6408_set(NULL, APB2_LCD_VDDI_EN, 1);
+        gpio_set_value(APB2_LCD_VDDI_EN, 1);
         usleep(LG4892_T_VDDIO_TO_DDVDH + LG4892_T_DDVDH_TO_DDVDN);
 
         lldbg("release LCD_RST\n");
-        tca6408_set(NULL, APB2_LCD_RST, 1);
+        gpio_set_value(APB2_LCD_RST, 1);
         usleep(LG4892_T_RESET_TO_1ST_COMMAND);
         lldbg("LCD Panel powered ON and out of reset.\n");
 
         lldbg("enable LCD_ENP\n");
-        tca6408_set(NULL, APB2_LCD_ENP, 1);
+        gpio_set_value(APB2_LCD_ENP, 1);
         usleep(LG4892_T_DDVDN_TO_RESET);
 
         lldbg("enable TP_RST\n");
-        tca6408_set(NULL, APB2_TP_RST, 1);
+        gpio_set_value(APB2_TP_RST, 1);
     } else {
         lldbg("disable TP_RST\n");
-        tca6408_set(NULL, APB2_TP_RST, 0);
+        gpio_set_value(APB2_TP_RST, 0);
 
         lldbg("disable LCD_ENP\n");
-        tca6408_set(NULL, APB2_LCD_ENP, 0);
+        gpio_set_value(APB2_LCD_ENP, 0);
         usleep(LG4892_T_DDVDN_TO_DDVDH + LG4892_T_DDVDH_TO_VDDIO);
 
         lldbg("assert LCD_RST\n");
-        tca6408_set(NULL, APB2_LCD_RST, 0);
+        gpio_set_value(APB2_LCD_RST, 0);
         usleep(LG4892_T_RESET_TO_DDVDN);
 
         lldbg("disable LCD_VDDI_EN\n");
-        tca6408_set(NULL, APB2_LCD_VDDI_EN, 0);
+        gpio_set_value(APB2_LCD_VDDI_EN, 0);
         usleep(LG4892_T_VDDIO_TO_VDD);
 
         lldbg("disable LCD_VDD_EN\n");
-        tca6408_set(NULL, APB2_LCD_VDD_EN, 0);
+        gpio_set_value(APB2_LCD_VDD_EN, 0);
         lldbg("LCD Panel powered OFF.\n");
     }
 

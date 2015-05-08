@@ -21,6 +21,6 @@ config APB2
 	bool
 	depends on !APB1
 	default y
-	select GPIO_TCA6408
+	select GPIO_TCA64XX
 
 endif
