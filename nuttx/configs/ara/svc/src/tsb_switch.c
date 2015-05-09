@@ -34,6 +34,7 @@
 #define DBG_COMP    DBG_SWITCH
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
+#include <nuttx/greybus/unipro.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -581,12 +582,14 @@ int switch_if_dev_id_set(struct tsb_switch *sw,
         return -EINVAL;
     }
 
-    rc = switch_dme_peer_set(sw, port_id, N_DEVICEID, NCP_SELINDEX_NULL, dev_id);
+    rc = switch_dme_peer_set(sw, port_id, N_DEVICEID,
+                             UNIPRO_SELINDEX_NULL, dev_id);
     if (rc) {
         return rc;
     }
 
-    rc = switch_dme_peer_set(sw, port_id, N_DEVICEID_VALID, NCP_SELINDEX_NULL, 1);
+    rc = switch_dme_peer_set(sw, port_id, N_DEVICEID_VALID,
+                             UNIPRO_SELINDEX_NULL, 1);
     if (rc) {
         /* do what on failure? */
         return rc;
@@ -661,7 +664,7 @@ int switch_setup_routing_table(struct tsb_switch *sw,
                   port_id_0);
         /* Undo deviceid_valid on failure */
         switch_dme_peer_set(sw, port_id_0, N_DEVICEID_VALID,
-                            NCP_SELINDEX_NULL, 0);
+                            UNIPRO_SELINDEX_NULL, 0);
         return rc;
     }
 
@@ -672,7 +675,7 @@ int switch_setup_routing_table(struct tsb_switch *sw,
                   port_id_1);
         /* Undo deviceid_valid on failure */
         switch_dme_peer_set(sw, port_id_1, N_DEVICEID_VALID,
-                            NCP_SELINDEX_NULL, 0);
+                            UNIPRO_SELINDEX_NULL, 0);
         return rc;
     }
 
@@ -801,7 +804,7 @@ static int switch_detect_devices(struct tsb_switch *sw,
         if (*link_status & (1 << i)) {
             for (j = 0; j < ARRAY_SIZE(attr_to_read); j++) {
                 if (switch_dme_peer_get(sw, i, attr_to_read[j],
-                                        NCP_SELINDEX_NULL, &attr_value)) {
+                                        UNIPRO_SELINDEX_NULL, &attr_value)) {
                     dbg_error("%s: Failed to read attr(0x%x) from portID %d\n",
                               __func__, attr_to_read[j], i);
                 } else {
@@ -866,7 +869,7 @@ static int switch_prep_for_series_change(struct tsb_switch *sw,
     }
 
     /* Grab the current power mode. */
-    rc = switch_dme_get(sw, port_id, PA_PWRMODE, NCP_SELINDEX_NULL,
+    rc = switch_dme_get(sw, port_id, PA_PWRMODE, UNIPRO_SELINDEX_NULL,
                         &cur_pwr_mode);
     if (rc) {
         dbg_error("%s(): can't check current power mode state\n", __func__);
@@ -945,11 +948,11 @@ static int switch_configure_link_tx(struct tsb_switch *sw,
      * configuration. */
     if (tx->upro_mode != UNIPRO_MODE_UNCHANGED) {
         rc = switch_dme_set(sw, port_id, PA_TXGEAR,
-                            NCP_SELINDEX_NULL, tx->upro_gear) ||
+                            UNIPRO_SELINDEX_NULL, tx->upro_gear) ||
             switch_dme_set(sw, port_id, PA_TXTERMINATION,
-                           NCP_SELINDEX_NULL, tx_term) ||
+                           UNIPRO_SELINDEX_NULL, tx_term) ||
             switch_dme_set(sw, port_id, PA_ACTIVETXDATALANES,
-                           NCP_SELINDEX_NULL, tx->upro_nlanes);
+                           UNIPRO_SELINDEX_NULL, tx->upro_nlanes);
     }
     return rc;
 }
@@ -964,11 +967,11 @@ static int switch_configure_link_rx(struct tsb_switch *sw,
      */
     if (rx->upro_mode != UNIPRO_MODE_UNCHANGED) {
         rc = switch_dme_set(sw, port_id, PA_RXGEAR,
-                            NCP_SELINDEX_NULL, rx->upro_gear) ||
+                            UNIPRO_SELINDEX_NULL, rx->upro_gear) ||
             switch_dme_set(sw, port_id, PA_RXTERMINATION,
-                           NCP_SELINDEX_NULL, rx_term) ||
+                           UNIPRO_SELINDEX_NULL, rx_term) ||
             switch_dme_set(sw, port_id, PA_ACTIVERXDATALANES,
-                           NCP_SELINDEX_NULL, rx->upro_nlanes);
+                           UNIPRO_SELINDEX_NULL, rx->upro_nlanes);
     }
     return rc;
 }
@@ -983,7 +986,7 @@ static int switch_configure_link_user_data
         rc = switch_dme_set(sw,
                             port_id,
                             PA_PWRMODEUSERDATA0,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             udata->upro_pwr_fc0_protection_timeout);
         if (rc) {
             return rc;
@@ -993,7 +996,7 @@ static int switch_configure_link_user_data
         rc = switch_dme_set(sw,
                             port_id,
                             PA_PWRMODEUSERDATA1,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             udata->upro_pwr_tc0_replay_timeout);
         if (rc) {
             return rc;
@@ -1003,7 +1006,7 @@ static int switch_configure_link_user_data
         rc = switch_dme_set(sw,
                             port_id,
                             PA_PWRMODEUSERDATA2,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             udata->upro_pwr_afc0_req_timeout);
         if (rc) {
             return rc;
@@ -1013,7 +1016,7 @@ static int switch_configure_link_user_data
         rc = switch_dme_set(sw,
                             port_id,
                             PA_PWRMODEUSERDATA3,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             udata->upro_pwr_fc1_protection_timeout);
         if (rc) {
             return rc;
@@ -1023,7 +1026,7 @@ static int switch_configure_link_user_data
         rc = switch_dme_set(sw,
                             port_id,
                             PA_PWRMODEUSERDATA4,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             udata->upro_pwr_tc1_replay_timeout);
         if (rc) {
             return rc;
@@ -1033,7 +1036,7 @@ static int switch_configure_link_user_data
         rc = switch_dme_set(sw,
                             port_id,
                             PA_PWRMODEUSERDATA5,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             udata->upro_pwr_afc1_req_timeout);
     }
     return rc;
@@ -1049,7 +1052,7 @@ static int switch_configure_link_tsbdata
         rc = switch_dme_set(sw,
                             port_id,
                             DME_FC0PROTECTIONTIMEOUTVAL,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             tcfg->tsb_fc0_protection_timeout);
         if (rc) {
             return rc;
@@ -1059,7 +1062,7 @@ static int switch_configure_link_tsbdata
         rc = switch_dme_set(sw,
                             port_id,
                             DME_TC0REPLAYTIMEOUTVAL,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             tcfg->tsb_tc0_replay_timeout);
         if (rc) {
             return rc;
@@ -1069,7 +1072,7 @@ static int switch_configure_link_tsbdata
         rc = switch_dme_set(sw,
                             port_id,
                             DME_AFC0REQTIMEOUTVAL,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             tcfg->tsb_afc0_req_timeout);
         if (rc) {
             return rc;
@@ -1079,7 +1082,7 @@ static int switch_configure_link_tsbdata
         rc = switch_dme_set(sw,
                             port_id,
                             DME_FC1PROTECTIONTIMEOUTVAL,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             tcfg->tsb_fc1_protection_timeout);
         if (rc) {
             return rc;
@@ -1089,7 +1092,7 @@ static int switch_configure_link_tsbdata
         rc = switch_dme_set(sw,
                             port_id,
                             DME_TC1REPLAYTIMEOUTVAL,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             tcfg->tsb_tc1_replay_timeout);
         if (rc) {
             return rc;
@@ -1099,7 +1102,7 @@ static int switch_configure_link_tsbdata
         rc = switch_dme_set(sw,
                             port_id,
                             DME_AFC1REQTIMEOUTVAL,
-                            NCP_SELINDEX_NULL,
+                            UNIPRO_SELINDEX_NULL,
                             tcfg->tsb_afc1_req_timeout);
     }
     return rc;
@@ -1115,7 +1118,7 @@ static int switch_apply_power_mode(struct tsb_switch *sw,
 
     dbg_insane("%s(): enter, port=%u, pwr_mode=0x%x\n", __func__, port_id,
                pwr_mode);
-    rc = switch_dme_set(sw, port_id, PA_PWRMODE, NCP_SELINDEX_NULL,
+    rc = switch_dme_set(sw, port_id, PA_PWRMODE, UNIPRO_SELINDEX_NULL,
                         pwr_mode);
     if (rc) {
         dbg_error("%s(): can't set PA_PWRMODE (0x%x) to 0x%x: %d\n",
@@ -1129,7 +1132,7 @@ static int switch_apply_power_mode(struct tsb_switch *sw,
          * FIXME other error handling (UniPro specification 5.7.12.5).
          */
         rc = switch_dme_get(sw, port_id, TSB_DME_POWERMODEIND,
-                            NCP_SELINDEX_NULL, &val);
+                            UNIPRO_SELINDEX_NULL, &val);
         if (rc) {
             dbg_error("%s: failed to read power mode indication: %d\n",
                       __func__,
@@ -1187,7 +1190,7 @@ static int switch_apply_power_mode(struct tsb_switch *sw,
     rc = switch_dme_peer_get(sw,
                              port_id,
                              T_CONNECTIONSTATE,
-                             NCP_SELINDEX_NULL,
+                             UNIPRO_SELINDEX_NULL,
                              &val);
 
  out:
@@ -1263,7 +1266,7 @@ int switch_configure_link(struct tsb_switch *sw,
 
     /* Handle scrambling. */
     rc = switch_dme_set(sw, port_id, PA_SCRAMBLING,
-                        NCP_SELINDEX_NULL, scrambling);
+                        UNIPRO_SELINDEX_NULL, scrambling);
     if (rc) {
         goto out;
     }

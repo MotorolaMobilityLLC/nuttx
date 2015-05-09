@@ -97,7 +97,6 @@
 
 /* NCP field values */
 #define NCP_RESERVED                (0x00)
-#define NCP_SELINDEX_NULL           (0x00)
 
 /* Unipro attributes values */
 #define PA_CONN_TX_DATA_LANES_NR        (2)
