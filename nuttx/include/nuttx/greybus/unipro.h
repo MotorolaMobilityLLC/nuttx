@@ -36,6 +36,11 @@
  */
 
 /*
+ * "Don't care" selector index
+ */
+#define UNIPRO_SELINDEX_NULL 0
+
+/*
  * L1 attributes
  */
 #define TX_HSMODE_CAPABILITY                     0x0001
