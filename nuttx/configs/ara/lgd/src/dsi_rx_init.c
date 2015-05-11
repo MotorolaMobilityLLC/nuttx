@@ -39,19 +39,19 @@
 #define AL_RX_BRG_CSI_DT3_VAL                           0x00000000
 
 #define PS_HOLD_GPIO    8
-
+#define POWERKEY_GPIO   0
 
 static pthread_t g_display_thread;
 
 void press_powerkey(void)
 {
     tsb_gpio_initialize();
-    tsb_gpio_direction_out(NULL, 0, 1);
+    tsb_gpio_direction_out(NULL, POWERKEY_GPIO, 1);
 }
 
 void depress_powerkey(void)
 {
-    tsb_gpio_direction_out(NULL, 0, 0);
+    tsb_gpio_direction_out(NULL, POWERKEY_GPIO, 0);
     tsb_gpio_uninitialize();
 }
 
