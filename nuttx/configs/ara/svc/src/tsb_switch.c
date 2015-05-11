@@ -1242,10 +1242,19 @@ int switch_configure_link(struct tsb_switch *sw,
     }
 
     /* Changes to a link's HS series require special preparation, and
-     * involve restrictions on the power mode to apply next. */
+     * involve restrictions on the power mode to apply next.
+     *
+     * Handle that properly before setting PA_HSSERIES. */
     if (cfg->upro_hs_ser != UNIPRO_HS_SERIES_UNCHANGED) {
         rc = switch_prep_for_series_change(sw, port_id, cfg, &pwr_mode);
         if (rc) {
+            goto out;
+        }
+        rc = switch_dme_set(sw, port_id, PA_HSSERIES, UNIPRO_SELINDEX_NULL,
+                            cfg->upro_hs_ser);
+        if (rc) {
+            dbg_error("%s(): can't change PA_HSSeries: %d\n",
+                      __func__, rc);
             goto out;
         }
     }
