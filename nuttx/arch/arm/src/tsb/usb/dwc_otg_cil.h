@@ -1157,9 +1157,9 @@ do { \
  */
 #define disable_hc_int(_hc_regs_, _intr_) \
 do { \
-	hcintmsk_data_t hcintmsk = {.d32 = 0}; \
-	hcintmsk.b._intr_ = 1; \
-	DWC_MODIFY_REG32(&(_hc_regs_)->hcintmsk, hcintmsk.d32, 0); \
+	hcintmsk_data_t __hcintmsk = {.d32 = 0}; \
+	__hcintmsk.b._intr_ = 1; \
+	DWC_MODIFY_REG32(&(_hc_regs_)->hcintmsk, __hcintmsk.d32, 0); \
 } while (0)
 
 /**

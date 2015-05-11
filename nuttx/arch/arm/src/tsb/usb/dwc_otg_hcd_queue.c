@@ -155,7 +155,7 @@ static uint32_t calc_bus_time(int speed, int is_in, int is_isoc, int bytecount)
 #define SCHEDULE_SLOP 10
 void qh_init(dwc_otg_hcd_t * hcd, dwc_otg_qh_t * qh, dwc_otg_hcd_urb_t * urb)
 {
-	char *speed, *type;
+	__attribute__((unused)) char *speed, *type;
 	int dev_speed;
 	uint32_t hub_addr, hub_port;
 
