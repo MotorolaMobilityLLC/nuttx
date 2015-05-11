@@ -37,24 +37,18 @@
 #include <apps/greybus-utils/utils.h>
 #include <apps/nsh.h>
 #include <arch/tsb/gpio.h>
-#include <arch/tsb/unipro.h>
 
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
 #include <arch/board/dsi.h>
 #endif
 
-/*
- * TODO
- * Already defined in tsb_unipro.c
- */
-
-#define CPORTID_CDSI0    (16)
-#define CPORTID_CDSI1    (17)
+#include "apbridge_backend.h"
 
 #define IID_LENGTH 7
 
 static struct apbridge_dev_s *g_usbdev = NULL;
 static pthread_t g_svc_thread;
+static struct apbridge_backend apbridge_backend;
 
 static int usb_to_unipro(struct apbridge_dev_s *dev,
                          void *payload, size_t size)
@@ -74,17 +68,24 @@ static int usb_to_unipro(struct apbridge_dev_s *dev,
     hdr->pad[0] = 0;
     hdr->pad[1] = 0;
 
-    return unipro_send(cportid, payload, size);
+    return apbridge_backend.usb_to_unipro(cportid, payload, size);
 }
 
 static int usb_to_svc(struct apbridge_dev_s *dev, void *payload, size_t size)
 {
     gb_dump(payload, size);
 
-    return svc_handle(payload, size);
+    return apbridge_backend.usb_to_svc(payload, size);
 }
 
-static int recv_from_unipro(unsigned int cportid, void *payload, size_t len)
+static int recv_from_svc(void *payload, size_t len)
+{
+    gb_dump(payload, len);
+
+    return svc_to_usb(g_usbdev, payload, len);
+}
+
+int recv_from_unipro(unsigned int cportid, void *payload, size_t len)
 {
     struct gb_operation_hdr *hdr = payload;
 
@@ -104,13 +105,6 @@ static int recv_from_unipro(unsigned int cportid, void *payload, size_t len)
     return unipro_to_usb(g_usbdev, payload, len);
 }
 
-static int recv_from_svc(void *buf, size_t length)
-{
-    gb_dump(buf, length);
-
-    return svc_to_usb(g_usbdev, buf, length);
-}
-
 static void manifest_event(unsigned char *manifest_file, int manifest_number)
 {
     char iid[IID_LENGTH];
@@ -119,27 +113,17 @@ static void manifest_event(unsigned char *manifest_file, int manifest_number)
     send_svc_event(0, iid, manifest_file);
 }
 
-static struct unipro_driver unipro_driver = {
-    .name = "APBridge",
-    .rx_handler = recv_from_unipro,
-};
-
 static void *svc_sim_fn(void *p_data)
 {
     struct apbridge_dev_s *priv = p_data;
-    int i;
 
     usb_wait(priv);
-    for (i = 0; i < CPORT_MAX; i++) {
-        /* This cports are already allocated for display and camera */
-        if (i == CPORTID_CDSI0 || i == CPORTID_CDSI1)
-            continue;
-        unipro_init_cport(i);
-        unipro_driver_register(&unipro_driver, i);
-    }
+    apbridge_backend.init();
     send_svc_handshake();
     send_ap_id(0);
+
     foreach_manifest(manifest_event);
+
     return NULL;
 }
 
@@ -167,6 +151,7 @@ int bridge_main(int argc, char *argv[])
 #endif
 
     svc_register(recv_from_svc);
+    apbridge_backend_register(&apbridge_backend);
     usbdev_apbinitialize(&usb_driver);
 
 #ifdef CONFIG_EXAMPLES_NSH

@@ -8,3 +8,7 @@ config APBRIDGE_UNIPRO
 	select GREYBUS_UTILS
 	default n
 
+config APBRIDGE_GBSIM
+	bool "Enable GBSIM mode"
+	depends on APBRIDGE_UNIPRO
+	default n
