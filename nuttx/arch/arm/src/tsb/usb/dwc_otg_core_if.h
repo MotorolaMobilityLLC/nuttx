@@ -109,7 +109,11 @@ extern int32_t dwc_otg_get_param_dma_enable(dwc_otg_core_if_t * core_if);
 extern int dwc_otg_set_param_dma_desc_enable(dwc_otg_core_if_t * core_if,
 					     int32_t val);
 extern int32_t dwc_otg_get_param_dma_desc_enable(dwc_otg_core_if_t * core_if);
+#if defined(CONFIG_ARCH_CHIP_USB_HCD)
+#define dwc_param_dma_desc_enable_default 0
+#else
 #define dwc_param_dma_desc_enable_default 1
+#endif
 
 /** The DMA Burst size (applicable only for External DMA
  * Mode). 1, 4, 8 16, 32, 64, 128, 256 (default 32)
