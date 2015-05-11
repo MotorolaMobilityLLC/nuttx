@@ -50,15 +50,14 @@ static struct apbridge_dev_s *g_usbdev = NULL;
 static pthread_t g_svc_thread;
 static struct apbridge_backend apbridge_backend;
 
-static int usb_to_unipro(struct apbridge_dev_s *dev,
-                         void *payload, size_t size)
+static int usb_to_unipro(struct apbridge_dev_s *dev, void *buf, size_t len)
 {
-    struct gb_operation_hdr *hdr = payload;
+    struct gb_operation_hdr *hdr = buf;
     unsigned int cportid;
 
-    gb_dump(payload, size);
+    gb_dump(buf, len);
 
-    if (size < sizeof(*hdr))
+    if (len < sizeof(*hdr))
         return -EPROTO;
 
     /*
@@ -68,33 +67,33 @@ static int usb_to_unipro(struct apbridge_dev_s *dev,
     hdr->pad[0] = 0;
     hdr->pad[1] = 0;
 
-    return apbridge_backend.usb_to_unipro(cportid, payload, size);
+    return apbridge_backend.usb_to_unipro(cportid, buf, len);
 }
 
-static int usb_to_svc(struct apbridge_dev_s *dev, void *payload, size_t size)
+static int usb_to_svc(struct apbridge_dev_s *dev, void *buf, size_t len)
 {
-    gb_dump(payload, size);
+    gb_dump(buf, len);
 
-    return apbridge_backend.usb_to_svc(payload, size);
+    return apbridge_backend.usb_to_svc(buf, len);
 }
 
-static int recv_from_svc(void *payload, size_t len)
+static int recv_from_svc(void *buf, size_t len)
 {
-    gb_dump(payload, len);
+    gb_dump(buf, len);
 
-    return svc_to_usb(g_usbdev, payload, len);
+    return svc_to_usb(g_usbdev, buf, len);
 }
 
-int recv_from_unipro(unsigned int cportid, void *payload, size_t len)
+int recv_from_unipro(unsigned int cportid, void *buf, size_t len)
 {
-    struct gb_operation_hdr *hdr = payload;
+    struct gb_operation_hdr *hdr = (void *)buf;
 
     /*
      * FIXME: Remove when UniPro driver provides the actual buffer length.
      */
-    len = gb_packet_size(payload);
+    len = gb_packet_size(buf);
 
-    gb_dump(payload, len);
+    gb_dump(buf, len);
 
     /* Store the cport id in the header pad bytes (if we have a header). */
     if (len >= sizeof(*hdr)) {
@@ -102,7 +101,7 @@ int recv_from_unipro(unsigned int cportid, void *payload, size_t len)
         hdr->pad[1] = (cportid >> 8) & 0xff;
     }
 
-    return unipro_to_usb(g_usbdev, payload, len);
+    return unipro_to_usb(g_usbdev, buf, len);
 }
 
 static void manifest_event(unsigned char *manifest_file, int manifest_number)
