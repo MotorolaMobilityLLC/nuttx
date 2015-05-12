@@ -219,9 +219,11 @@ enum ctrlreq_state {
 
 /* Request helpers *********************************************************/
 
-static int usbclass_allocreq_buf(struct usbdev_req_s *req,
+static int usbclass_allocreq_buf(struct usbdev_ep_s *ep,
+                                 struct usbdev_req_s *req,
                                  uint16_t len);
-static void usbclass_freereq_buf(struct usbdev_req_s *req);
+static void usbclass_freereq_buf(struct usbdev_ep_s *ep,
+                                 struct usbdev_req_s *req);
 static struct usbdev_req_s *usbclass_allocreq(struct usbdev_ep_s *ep,
                                               uint16_t len);
 static void usbclass_freereq(struct usbdev_ep_s *ep,
@@ -493,7 +495,9 @@ int svc_to_usb(struct apbridge_dev_s *priv, void *payload, size_t len)
  *
  ****************************************************************************/
 
-static int usbclass_allocreq_buf(struct usbdev_req_s *req, uint16_t len)
+static int usbclass_allocreq_buf(struct usbdev_ep_s *ep,
+                                 struct usbdev_req_s *req,
+                                 uint16_t len)
 {
     req->len = len;
     req->buf = EP_ALLOCBUFFER(ep, len);
@@ -521,7 +525,7 @@ static struct usbdev_req_s *usbclass_allocreq(struct usbdev_ep_s *ep,
             req->len = 0;
             req->buf = NULL;
         } else {
-            if (usbclass_allocreq_buf(req, len)) {
+            if (usbclass_allocreq_buf(ep, req, len)) {
                 EP_FREEREQ(ep, req);
                 req = NULL;
             }
@@ -538,7 +542,8 @@ static struct usbdev_req_s *usbclass_allocreq(struct usbdev_ep_s *ep,
  *
  ****************************************************************************/
 
-static void usbclass_freereq_buf(struct usbdev_req_s *req)
+static void usbclass_freereq_buf(struct usbdev_ep_s *ep,
+                                 struct usbdev_req_s *req)
 {
     if (req->buf != NULL) {
         EP_FREEBUFFER(ep, req->buf);
@@ -559,7 +564,7 @@ static void usbclass_freereq_buf(struct usbdev_req_s *req)
 static void usbclass_freereq(struct usbdev_ep_s *ep, struct usbdev_req_s *req)
 {
     if (ep != NULL && req != NULL) {
-        usbclass_freereq_buf(req);
+        usbclass_freereq_buf(ep, req);
         EP_FREEREQ(ep, req);
     }
 }
