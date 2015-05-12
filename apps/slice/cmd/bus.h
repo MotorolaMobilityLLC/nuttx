@@ -44,7 +44,7 @@
 
 #define SLICE_NUM_CPORTS         16
 
-struct slice_svc_msg
+struct slice_tx_msg
 {
     uint8_t *buf;
     int size;
@@ -58,8 +58,7 @@ struct slice_bus_data
     struct list_head reg_svc_tx_fifo;
     uint8_t reg_svc_rx[SLICE_REG_SVC_RX_SZ];
 
-    uint8_t reg_unipro_tx_size;
-    uint8_t *reg_unipro_tx;
+    struct list_head reg_unipro_tx_fifo;
     uint8_t reg_unipro_rx[SLICE_REG_UNIPRO_SZ];
 
     /* Maps slice cport numbers to base cport numbers */

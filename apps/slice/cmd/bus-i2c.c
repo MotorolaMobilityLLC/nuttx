@@ -106,7 +106,7 @@ static int bus_i2c_read_cb(void *v)
 static int bus_i2c_write_cb(void *v)
 {
   struct slice_bus_i2c_data *slf = (struct slice_bus_i2c_data *)v;
-  struct slice_svc_msg *m;
+  struct slice_tx_msg *m;
   uint8_t val = 0;
 
   if (slf->reg == SLICE_REG_INT)
@@ -115,7 +115,7 @@ static int bus_i2c_write_cb(void *v)
     }
   else if ((slf->reg == SLICE_REG_SVC) && !list_is_empty(&slf->bus->reg_svc_tx_fifo))
     {
-      m = list_entry(slf->bus->reg_svc_tx_fifo.next, struct slice_svc_msg, list);
+      m = list_entry(slf->bus->reg_svc_tx_fifo.next, struct slice_tx_msg, list);
       val = m->buf[slf->reg_idx];
       slf->reg_idx = (slf->reg_idx + 1) % m->size;
       if (slf->reg_idx == 0)
@@ -128,17 +128,19 @@ static int bus_i2c_write_cb(void *v)
           free(m);
         }
     }
-  else if ((slf->reg == SLICE_REG_UNIPRO) && slf->bus->reg_unipro_tx)
+  else if ((slf->reg == SLICE_REG_UNIPRO) && !list_is_empty(&slf->bus->reg_unipro_tx_fifo))
     {
-      val = slf->bus->reg_unipro_tx[slf->reg_idx];
-      slf->reg_idx = (slf->reg_idx + 1) % slf->bus->reg_unipro_tx_size;
+      m = list_entry(slf->bus->reg_unipro_tx_fifo.next, struct slice_tx_msg, list);
+      val = m->buf[slf->reg_idx];
+      slf->reg_idx = (slf->reg_idx + 1) % m->size;
       if (slf->reg_idx == 0)
         {
           /* host has read entire Unipro message */
-          bus_interrupt(slf->bus, SLICE_REG_INT_UNIPRO, false);
-          slf->bus->reg_unipro_tx_size = 0;
-          free(slf->bus->reg_unipro_tx);
-          slf->bus->reg_unipro_tx = NULL;
+          list_del(slf->bus->reg_unipro_tx_fifo.next);
+          bus_interrupt(slf->bus, SLICE_REG_INT_UNIPRO,
+                        !list_is_empty(&slf->bus->reg_unipro_tx_fifo));
+          free(m->buf);
+          free(m);
         }
     }
 

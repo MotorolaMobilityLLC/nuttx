@@ -54,7 +54,6 @@ void bus_interrupt(struct slice_bus_data *slf, uint8_t int_mask, bool assert)
   else
     slf->reg_int &= ~(int_mask);
 
-  logd("set = %d\n", slf->reg_int > 0);
   slice_host_int_set(slf->reg_int > 0);
 }
 
@@ -99,23 +98,22 @@ void bus_greybus_from_base(struct slice_bus_data *slf, size_t len)
 
 int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
 {
+  struct slice_tx_msg *m;
   struct slice_unipro_msg_tx *umsg;
-  size_t total_len = len + sizeof(struct slice_unipro_msg_tx);
   int i;
 
-  logd("slice_cport=%d, ap_cport=%d, len=%d, total_len=%d\n",
-       cportid, bus_data.to_base_cport[cportid], len, total_len);
+  m = malloc(sizeof(struct slice_tx_msg));
+  if (!m)
+      return -ENOMEM;
 
-  if (bus_data.reg_unipro_tx)
+  m->size = len + sizeof(struct slice_unipro_msg_tx);
+  umsg = malloc(m->size);
+  if (!umsg)
     {
-      // TODO: Check if a FIFO is needed, or if only one message is received at a time.
-      logd("Dropping message\n");
+      free(m);
       return -ENOMEM;
     }
-
-  umsg = malloc(total_len);
-  if (!umsg)
-      return -ENOMEM;
+  m->buf = (uint8_t *)umsg;
 
   umsg->ap_cport = bus_data.to_base_cport[cportid];
   memcpy(umsg->data, buf, len);
@@ -128,10 +126,12 @@ int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
     }
   umsg->checksum = ~umsg->checksum + 1;
 
+  logd("slice_cport=%d, ap_cport=%d, len=%d, m->size=%d, fifo_empty=%d\n",
+       cportid, bus_data.to_base_cport[cportid], len, m->size,
+       list_is_empty(&bus_data.reg_unipro_tx_fifo));
   gb_dump(umsg->data, len);
 
-  bus_data.reg_unipro_tx_size = total_len;
-  bus_data.reg_unipro_tx = (uint8_t *)umsg;
+  list_add(&bus_data.reg_unipro_tx_fifo, &m->list);
   bus_interrupt(&bus_data, SLICE_REG_INT_UNIPRO, true);
 
   return 0;
@@ -139,12 +139,12 @@ int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
 
 int bus_svc_to_base(void *buf, size_t length)
 {
-  struct slice_svc_msg *m;
+  struct slice_tx_msg *m;
 
   bool was_empty = list_is_empty(&bus_data.reg_svc_tx_fifo);
   logd("length=%d, fifo_empty=%d\n", length, was_empty);
 
-  m = malloc(sizeof(struct slice_svc_msg));
+  m = malloc(sizeof(struct slice_tx_msg));
   if (m)
     {
       m->buf = malloc(length);
@@ -169,34 +169,35 @@ int bus_svc_to_base(void *buf, size_t length)
 int bus_init(void)
 {
   list_init(&bus_data.reg_svc_tx_fifo);
+  list_init(&bus_data.reg_unipro_tx_fifo);
 
   return bus_i2c_init(&bus_data);
 }
 
-void bus_cleanup(void)
+static void bus_cleanup_list(struct list_head *head)
 {
   struct list_head *iter;
   struct list_head *iter_next;
-  struct slice_svc_msg *m;
+  struct slice_tx_msg *m;
 
-  // Deassert interrupt line
-  bus_interrupt(&bus_data, SLICE_REG_INT_SVC | SLICE_REG_INT_UNIPRO, false);
-
-  // Drop Unipro message (if present)
-  if (bus_data.reg_unipro_tx)
+  list_foreach_safe(head, iter, iter_next)
     {
-      bus_data.reg_unipro_tx_size = 0;
-      free(bus_data.reg_unipro_tx);
-      bus_data.reg_unipro_tx = NULL;
-    }
-
-  // Drop all SVC messages (if any)
-  list_foreach_safe(&bus_data.reg_svc_tx_fifo, iter, iter_next)
-    {
-      m = list_entry(iter, struct slice_svc_msg, list);
+      m = list_entry(iter, struct slice_tx_msg, list);
       list_del(iter);
       free(m->buf);
       free(m);
     }
+}
+
+void bus_cleanup(void)
+{
+  // Deassert interrupt line
+  bus_interrupt(&bus_data, SLICE_REG_INT_SVC | SLICE_REG_INT_UNIPRO, false);
+
+  // Drop all Unipro messages (if any)
+  bus_cleanup_list(&bus_data.reg_unipro_tx_fifo);
+
+  // Drop all SVC messages (if any)
+  bus_cleanup_list(&bus_data.reg_svc_tx_fifo);
 }
 
