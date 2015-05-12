@@ -56,9 +56,11 @@
 static uint32_t refresh_rate = DEFAULT_REFRESH_RATE;
 static uint32_t loopcount = DEFAULT_LOOPCOUNT;
 static uint8_t continuous = DEFAULT_CONTINUOUS;
+static bool csv_export = false;
 static uint8_t user_spring_id = 0;
 static uint8_t avg_count = ADC_DEFAULT_AVG_SAMPLE_COUNT;
 static int32_t *measurements_uA;
+static uint32_t timestamp = 0;
 static uint8_t spring_start, spring_end;
 static char separator[128];
 
@@ -76,6 +78,7 @@ static void springpm_main_usage(void)
                    DEFAULT_REFRESH_RATE / 1000);
             printf("         -l: select number of power measurements (default: 1).\n");
             printf("         -c: select continuous power measurements mode (default: disabled).\n");
+            printf("         -x: export power measurements as .csv trace instead of table.\n");
             printf("         -h: print help.\n\n");
 }
 
@@ -145,10 +148,11 @@ static int pwrm_main_get_user_options(int argc, char **argv)
     continuous = DEFAULT_CONTINUOUS;
     user_spring_id = 0;
     avg_count = ADC_DEFAULT_AVG_SAMPLE_COUNT;
+    csv_export = false;
 
     dbg_verbose("%s(): retrieving user options...\n", __func__);
     optind = 1;
-    while ((c = getopt(argc, argv, "hcs:n:u:l:")) != 255) {
+    while ((c = getopt(argc, argv, "xhcs:n:u:l:")) != 255) {
         switch (c) {
         case 's':
             user_spring_id = springpm_main_optarg_to_spring_id(optarg);
@@ -199,6 +203,11 @@ static int pwrm_main_get_user_options(int argc, char **argv)
             } else {
                 dbg_verbose("Looping %u times.\n", loopcount);
             }
+            break;
+
+        case 'x':
+            csv_export = true;
+            printf("Using .csv format to display power measurements.\n");
             break;
 
         case 'h':
@@ -253,24 +262,55 @@ static void springpm_main_display_measurements(void)
 {
     uint8_t spring;
 
-    if (user_spring_id == 0) {
-        /* All spring selected for measurements */
-        /* Draw table header in console */
-        printf("%s\n", separator);
-        printf("| Spring   |     Current      |\n", separator);
-        printf("|          | Consumption (mA) |\n", separator);
-        printf("%s\n", separator);
-
-        /* Loop through all spring */
-        for (spring = spring_start; spring < spring_end; spring++) {
-            /* Print result */
-            printf("| %-8s |     %-12d |\n", spwrm_get_name(spring),
-                   measurements_uA[spring] / 1000);
+    if ((csv_export) && (timestamp == 0)) {
+        /* Display .csv trace header */
+        if (user_spring_id == 0) {
+            printf("%-14s", "Timestamp (ms)");
+            /* Loop through all springs */
+            for (spring = spring_start; spring < spring_end; spring++) {
+                printf(", %-8s (mA)", spwrm_get_name(spring));
+            }
+            printf("\n");
+        } else {
+            printf("%-14s, %-8s (mA)\n",
+                   "Timestamp (ms)", spwrm_get_name(user_spring_id));
         }
-        printf("%s\n\n", separator);
+    }
+
+    if (user_spring_id == 0) {
+        /* All springs selected for measurements */
+        if (!csv_export) {
+            /* Draw table header in console */
+            printf("%s\n", separator);
+            printf("| Spring   |     Current      |\n", separator);
+            printf("|          | Consumption (mA) |\n", separator);
+            printf("%s\n", separator);
+
+            /* Loop through all springs */
+            for (spring = spring_start; spring < spring_end; spring++) {
+                /* Print result */
+                printf("| %-8s |     %-12d |\n", spwrm_get_name(spring),
+                       measurements_uA[spring] / 1000);
+            }
+            printf("%s\n\n", separator);
+        } else {
+            /* Print result in .csv format */
+            /* Loop through all springs */
+            printf("%14u", timestamp / 1000);
+            for (spring = spring_start; spring < spring_end; spring++) {
+                printf(", %13d", measurements_uA[spring] / 1000);
+            }
+            printf("\n");
+        }
     } else {
-        /* Print result */
-        printf("%d\n", measurements_uA[user_spring_id] / 1000);
+        if (!csv_export) {
+            /* Print result */
+            printf("%d\n", measurements_uA[user_spring_id] / 1000);
+        } else {
+            /* Print result in .csv format */
+            printf("%14u, %13d\n", timestamp / 1000,
+                   measurements_uA[user_spring_id] / 1000);
+        }
     }
 }
 
@@ -296,7 +336,8 @@ int springpm_main(int argc, char *argv[])
     }
 
     /* Init global variables accordingly */
-    measurements_uA = (int32_t) malloc((spwrm_get_count() + 1) * sizeof(int32_t));
+    timestamp = 0;
+    measurements_uA = (int32_t *) malloc((spwrm_get_count() + 1) * sizeof(int32_t));
     if (!measurements_uA) {
         fprintf(stderr, "Failed to allocate memory!\n\n");
         return -ENOMEM;
@@ -314,7 +355,7 @@ int springpm_main(int argc, char *argv[])
     }
 
     /* Clear terminal only in case of periodic measurements */
-    if ((continuous) || (loopcount > 1)) {
+    if ((!csv_export) && ((continuous) || (loopcount > 1))) {
         printf("\033[2J\033[1;1H");
     }
 
@@ -324,14 +365,16 @@ int springpm_main(int argc, char *argv[])
             break;
         }
         springpm_main_display_measurements();
-
+        timestamp += refresh_rate;
         if (!continuous) {
             loopcount--;
         }
         if (loopcount != 0) {
             usleep(refresh_rate);
-            /* Clear terminal */
-            printf("\033[2J\033[1;1H");
+            if (!csv_export) {
+                /* Clear terminal */
+                printf("\033[2J\033[1;1H");
+            }
         }
     } while (loopcount != 0);
 
