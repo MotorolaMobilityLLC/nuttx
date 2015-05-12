@@ -49,8 +49,75 @@
 #define TSB_HSIC_DMPULLDOWN             (1 << 1)
 
 static dwc_otg_device_t *g_dev;
-static struct dwc_otg_hcd_function_ops hcd_fops;
 struct mm_heap_s g_usb_dma_heap;
+
+static int _hub_info(dwc_otg_hcd_t *hcd, void *urb_handle, uint32_t *hub_addr,
+                     uint32_t *port_addr)
+{
+    struct urb *urb = urb_handle;
+
+    if (!urb) {
+        return -EINVAL;
+    }
+
+    if (hub_addr) {
+        *hub_addr = urb->devnum;
+    }
+
+    if (port_addr) {
+        *port_addr = urb->dev_ttport;
+    }
+
+    return 0;
+}
+
+
+static int _speed(dwc_otg_hcd_t *hcd, void *urb_handle)
+{
+    struct urb *urb = urb_handle;
+
+    if (!urb) {
+        return -EINVAL;
+    }
+
+    return urb->dev_speed;
+}
+
+static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
+             dwc_otg_hcd_urb_t *dwc_urb, int32_t status)
+{
+    struct urb *urb = urb_handle;
+
+    if (!hcd || !urb || !dwc_urb) {
+        return -EINVAL;
+    }
+
+    urb->actual_length = dwc_otg_hcd_urb_get_actual_length(dwc_urb);
+    urb->status = status;
+
+    free(dwc_urb);
+    urb->hcpriv = NULL;
+
+    /*
+     * spinlock is held by hcd driver, release it before calling
+     * the complete callback and reacquire it afterward.
+     */
+    DWC_SPINUNLOCK(hcd->lock);
+
+    if (urb->complete) {
+        urb->complete(urb);
+    }
+
+    DWC_SPINLOCK(hcd->lock);
+
+    return 0;
+}
+
+static struct dwc_otg_hcd_function_ops hcd_fops = {
+    .hub_info = _hub_info,
+    .speed = _speed,
+    .complete = _complete,
+};
 
 /**
  * HSIC IRQ Handler
@@ -322,9 +389,84 @@ static int hub_control(struct device *dev, uint16_t typeReq, uint16_t wValue,
                                    (uint8_t*) buf, wLength);
 }
 
+/**
+ * Enqueue a URB that will be sent to a device
+ *
+ * Note: This API doesn't support URB with no complete function. This has been
+ * done on purpose in order to simplify the buffer management.
+ *
+ * @param dev usb host device
+ * @param urb urb to send
+ * @return 0 if successfully enqueued.
+ */
+static int urb_enqueue(struct device *dev, struct urb *urb)
+{
+    int retval;
+    uint8_t ep_type;
+    int number_of_packets = 0;
+    dwc_otg_hcd_urb_t *dwc_urb;
+
+    if (!urb->complete) {
+        return -EINVAL;
+    }
+
+    switch (urb->pipe.type) {
+    case USB_HOST_PIPE_CONTROL:
+        ep_type = USB_HOST_ENDPOINT_XFER_CONTROL;
+        break;
+
+    case USB_HOST_PIPE_ISOCHRONOUS:
+        ep_type = USB_HOST_ENDPOINT_XFER_ISOC;
+        break;
+
+    case USB_HOST_PIPE_BULK:
+        ep_type = USB_HOST_ENDPOINT_XFER_BULK;
+        break;
+
+    case USB_HOST_PIPE_INTERRUPT:
+        ep_type = USB_HOST_ENDPOINT_XFER_INT;
+        break;
+
+    default:
+        return -EINVAL;
+    }
+
+    dwc_urb = dwc_otg_hcd_urb_alloc(g_dev->hcd, number_of_packets, 0);
+    if (!dwc_urb) {
+        return -ENOMEM;
+    }
+
+    urb->hcpriv = dwc_urb;
+
+    dwc_otg_hcd_urb_set_pipeinfo(dwc_urb,
+                                 urb->pipe.device,
+                                 urb->pipe.endpoint, ep_type,
+                                 urb->pipe.direction,
+                                 urb->maxpacket);
+
+    dwc_otg_hcd_urb_set_params(dwc_urb, urb, urb->buffer,
+                               (dwc_dma_t) urb->buffer, urb->length,
+                               &urb->setup_packet,
+                               (dwc_dma_t) &urb->setup_packet,
+                               urb->flags, urb->interval);
+
+    retval = dwc_otg_hcd_urb_enqueue(g_dev->hcd, dwc_urb, &urb->hcpriv_ep, 0);
+    if (retval) {
+        goto error_enqueue;
+    }
+
+    return 0;
+
+error_enqueue:
+    free(dwc_urb);
+
+    return retval;
+}
+
 static struct device_usb_hcd_type_ops tsb_usb_hcd_type_ops = {
     .start = hcd_start,
     .stop = hcd_stop,
+    .urb_enqueue = urb_enqueue,
     .hub_control = hub_control,
 };
 
