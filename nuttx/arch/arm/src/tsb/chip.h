@@ -1,7 +1,22 @@
 #ifndef __ARCH_ARM_TSB_CHIP_H
 #define __ARCH_ARM_TSB_CHIP_H
 
+#include <nuttx/config.h>
 #include <arch/tsb/chip.h>
+
+
+/* Buffer RAM */
+
+#ifdef CONFIG_TSB_CHIP_REV_ES1
+#define BUFRAM_BANK_SIZE 0x8000
+#else
+#define BUFRAM_BANK_SIZE 0xC000
+#endif
+
+#define BUFRAM0_BASE    0x20000000
+#define BUFRAM1_BASE    (BUFRAM0_BASE + BUFRAM_BANK_SIZE)
+#define BUFRAM2_BASE    (BUFRAM1_BASE + BUFRAM_BANK_SIZE)
+#define BUFRAM3_BASE    (BUFRAM2_BASE + BUFRAM_BANK_SIZE)
 
 /* AP/GP Bridge peripherals memory map */
 
