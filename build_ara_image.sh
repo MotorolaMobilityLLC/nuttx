@@ -33,8 +33,6 @@ fi
 board=$1
 image=$2
 
-ARA_MAKE_BUILD_NAME_UNIQUE=0
-
 # determine NuttX top level folder absolute path
 TOPDIR="`dirname \"$0\"`"  # relative
 TOPDIR="`( cd \"$TOPDIR/nuttx\" && pwd )`"  # absolutized and normalized
@@ -45,83 +43,60 @@ if [ -z "$TOPDIR" ] ; then
   exit $ARA_BUILD_CONFIG_ERR_NO_NUTTX_TOPDIR
 fi
 
-# set path to image config
-configpath=${TOPDIR}/configs/${board}/${image}
-if [ ! -d "${configpath}" ]; then
-  echo "Build config '${configpath}' does not exist"
-  exit $ARA_BUILD_CONFIG_ERR_CONFIG_NOT_FOUND
-fi
+build_image_from_defconfig() {
+  # configpath, defconfigFile, buildname, buildbase
+  # must be defined on entry
 
-# set build output path
-buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
+  echo "Build config file   : $defconfigFile"
+  echo "Build name          : '$buildname'"
 
-# create build name from config
-# substitute "-" for "/"
-board=$(echo "$board" | sed -e "s#/#-#")
-image=$(echo "$image" | sed -e "s#/#-#")
+  # define paths used during build process
+  ARA_BUILD_CONFIG_PATH="$buildbase/$buildname/config"
+  ARA_BUILD_IMAGE_PATH="$buildbase/$buildname/image"
+  ARA_BUILD_TOPDIR="$buildbase/$buildname"
 
-buildname=${board}-${image}
-# uniquify build name with time stamp
-if [ $ARA_MAKE_BUILD_NAME_UNIQUE == 1 ]; then
-  buildname=${buildname}-`date +"%Y%m%d-%H%M%S"`
-fi
+  echo "Build output folder : $ARA_BUILD_TOPDIR"
+  echo "Image output folder : $ARA_BUILD_IMAGE_PATH"
 
-# full path to defconfig file
-defconfigFile="${configpath}/defconfig"
+  # delete build tree if it already exists
+  if [ -d $ARA_BUILD_TOPDIR ] ; then
+    rm -rf $ARA_BUILD_TOPDIR
+  fi
 
-echo "Build config file   : $defconfigFile"
-echo "Build name          : '$buildname'"
+  # create folder structure in build output tree
+  mkdir -p "$ARA_BUILD_CONFIG_PATH"
+  mkdir -p "$ARA_BUILD_IMAGE_PATH"
+  mkdir -p "$ARA_BUILD_TOPDIR"
 
-# define paths used during build process
-ARA_BUILD_CONFIG_PATH="$buildbase/$buildname/config"
-ARA_BUILD_IMAGE_PATH="$buildbase/$buildname/image"
-ARA_BUILD_TOPDIR="$buildbase/$buildname"
+  # Copy nuttx tree to build tree
+  cp -r ./nuttx $ARA_BUILD_TOPDIR/nuttx
+  cp -r ./apps $ARA_BUILD_TOPDIR/apps
+  cp -r ./misc $ARA_BUILD_TOPDIR/misc
+  cp -r ./NxWidgets $ARA_BUILD_TOPDIR/NxWidgets
 
-echo "Build output folder : $ARA_BUILD_TOPDIR"
-echo "Image output folder : $ARA_BUILD_IMAGE_PATH"
+  # copy Make.defs to build output tree
+  if ! install -m 644 -p ${configpath}/Make.defs ${ARA_BUILD_TOPDIR}/nuttx/Make.defs  >/dev/null 2>&1; then
+      echo "Warning: Failed to copy Make.defs"
+  fi
 
-# delete build tree if it already exists
-if [ -d $ARA_BUILD_TOPDIR ] ; then
-   rm -rf $ARA_BUILD_TOPDIR
-fi
+  # copy setenv.sh to build output tree
+  if  install -p ${configpath}/setenv.sh ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh >/dev/null 2>&1; then
+  chmod 755 "${ARA_BUILD_TOPDIR}/nuttx/setenv.sh"
+  fi
 
-# create folder structure in build output tree
-mkdir -p "$ARA_BUILD_CONFIG_PATH"
-mkdir -p "$ARA_BUILD_IMAGE_PATH"
-mkdir -p "$ARA_BUILD_TOPDIR"
+  # copy defconfig to build output tree
+  if ! install -m 644 -p ${defconfigFile} ${ARA_BUILD_TOPDIR}/nuttx/.config ; then
+      echo "ERROR: Failed to copy defconfig"
+      exit $ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED
+  fi
 
-# Copy nuttx tree to build tree
-cp -r ./nuttx $ARA_BUILD_TOPDIR/nuttx
-cp -r ./apps $ARA_BUILD_TOPDIR/apps
-cp -r ./misc $ARA_BUILD_TOPDIR/misc
-cp -r ./NxWidgets $ARA_BUILD_TOPDIR/NxWidgets
+  # save config files
+  cp ${ARA_BUILD_TOPDIR}/nuttx/.config   ${ARA_BUILD_CONFIG_PATH}/.config > /dev/null 2>&1
+  cp ${ARA_BUILD_TOPDIR}/nuttx/Make.defs ${ARA_BUILD_CONFIG_PATH}/Make.defs > /dev/null 2>&1
+  cp ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh  ${ARA_BUILD_CONFIG_PATH}/setenv.sh > /dev/null 2>&1
 
-# copy Make.defs to build output tree
-if ! install -m 644 -p ${configpath}/Make.defs ${ARA_BUILD_TOPDIR}/nuttx/Make.defs ; then
-    echo "Warning: Failed to copy Make.defs"
-#    exit $ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED
-fi
+  MAKE_RESULT=1
 
-# copy setenv.sh to build output tree
-if  install -p ${configpath}/setenv.sh ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh ; then
- chmod 755 "${ARA_BUILD_TOPDIR}/nuttx/setenv.sh"
-fi
-
-# copy defconfig to build output tree
-if ! install -m 644 -p ${defconfigFile} ${ARA_BUILD_TOPDIR}/nuttx/.config ; then
-    echo "ERROR: Failed to copy defconfig"
-    exit $ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED
-fi
-
-# save config files
-cp ${ARA_BUILD_TOPDIR}/nuttx/.config   ${ARA_BUILD_CONFIG_PATH}/.config > /dev/null 2>&1
-cp ${ARA_BUILD_TOPDIR}/nuttx/Make.defs ${ARA_BUILD_CONFIG_PATH}/Make.defs > /dev/null 2>&1
-cp ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh  ${ARA_BUILD_CONFIG_PATH}/setenv.sh > /dev/null 2>&1 
-
-#echo "Build configured"
-MAKE_RESULT=1
-
-build_image() {
   echo -n "Building '$buildname'" ...
   pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
   make --always-make -r -f Makefile.unix | tee $ARA_BUILD_TOPDIR/build.log 2>&1
@@ -131,6 +106,7 @@ build_image() {
   else
     MAKE_RESULT=0
   fi
+
   popd > /dev/null
 }
 
@@ -155,14 +131,28 @@ copy_image_files() {
   done
 }
 
-build_image
-
+# set build output path
+buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
+# set path to image config
+configpath=${TOPDIR}/configs/${board}/${image}
+if [ ! -d "${configpath}" ]; then
+  echo "Build config '${configpath}' does not exist"
+  exit $ARA_BUILD_CONFIG_ERR_CONFIG_NOT_FOUND
+fi
+# create build name from config
+# substitute "-" for "/"
+board=$(echo "$board" | sed -e "s#/#-#")
+image=$(echo "$image" | sed -e "s#/#-#")
+buildname=${board}-${image}
+# full path to defconfig file
+defconfigFile="${configpath}/defconfig"
+build_image_from_defconfig
 if [ $MAKE_RESULT -eq 0 ] ; then
-  echo "Build failed"
+  echo "Build '$buildname' failed"
   exit 1
 fi
 
-echo "Build succeeded"
+echo "Build '$buildname' succeeded"
 copy_image_files
 clean_build
 echo "Build complete"
