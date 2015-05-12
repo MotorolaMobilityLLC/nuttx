@@ -86,8 +86,15 @@ void bus_greybus_from_base(struct slice_bus_data *slf, size_t len)
         }
     }
 
-  slf->reg_unipro_rx_cport = umsg->ap_cport;
-  greybus_rx_handler(umsg->slice_cport, umsg->data, len - 3);
+  if (umsg->slice_cport < SLICE_NUM_CPORTS)
+    {
+      /* Save base cport so response can be sent back correctly */
+      slf->to_base_cport[umsg->slice_cport] = umsg->ap_cport;
+
+      greybus_rx_handler(umsg->slice_cport, umsg->data, len - 3);
+    }
+  else
+    logd("Invalid cport number\n");
 }
 
 int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
@@ -97,7 +104,7 @@ int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
   int i;
 
   logd("slice_cport=%d, ap_cport=%d, len=%d, total_len=%d\n",
-       cportid, bus_data.reg_unipro_rx_cport, len, total_len);
+       cportid, bus_data.to_base_cport[cportid], len, total_len);
 
   if (bus_data.reg_unipro_tx)
     {
@@ -110,7 +117,7 @@ int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
   if (!umsg)
       return -ENOMEM;
 
-  umsg->ap_cport = bus_data.reg_unipro_rx_cport;
+  umsg->ap_cport = bus_data.to_base_cport[cportid];
   memcpy(umsg->data, buf, len);
 
   // Calculate the checksum
