@@ -23,15 +23,22 @@ Where:
 
 "
 
+buildall=0
+
+# check for "all" parameter
+if [ "$1" = "all" ] ; then
+  echo "Building all configurations"
+  buildall=1
 # validate parameters for board & image are present
-if [ "$#" -ne 2 ] ; then
+elif  [ "$#" -ne 2 ] ; then
   echo "Required parameters not specified."
   echo "$USAGE"
   exit $ARA_BUILD_CONFIG_ERR_BAD_PARAMS
+#capture parameters for board  & image
+else
+  board=$1
+  image=$2
 fi
-
-board=$1
-image=$2
 
 # determine NuttX top level folder absolute path
 TOPDIR="`dirname \"$0\"`"  # relative
@@ -130,6 +137,44 @@ copy_image_files() {
     rm -f $ARA_BUILD_TOPDIR/nuttx/$fn >/dev/null 2>&1
   done
 }
+
+if [ $buildall -eq 1 ] ; then
+  # set build output path
+  buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
+  # build list of defconfigs
+  defconfig_list=$(find $TOPDIR/configs/bdb -iname defconfig)
+  defconfig_list+=" "
+  defconfig_list+=$(find $TOPDIR/configs/ara  -iname defconfig)
+  defconfig_list+=" "
+  defconfig_list+=$(find $TOPDIR/configs/endo  -iname defconfig)
+  # process list of defconfigs
+  for cfg in $defconfig_list; do
+    # save full path to defconfig
+    defconfigFile=${cfg}
+    # get abs path to defconfig
+    configpath=$(readlink -f $(dirname "$cfg"))
+    #create build name
+    buildname=$(readlink -f $(dirname "$cfg"))
+    #strip abs path
+    buildname=$(echo "$buildname" | sed -e "s:^$TOPDIR/configs/::")
+    # repl slash with dash
+    buildname=$(echo "$buildname" | sed -e "s#/#-#g")
+    # build the image
+    build_image_from_defconfig
+    # check build result
+    if [ $MAKE_RESULT -eq 0 ] ; then
+      echo "Build '$buildname' failed"
+      exit 1
+    fi
+    echo "Build '$buildname' succeeded"
+    copy_image_files
+    clean_build
+  done
+  echo "Build all configurations succeeded"
+  exit 0
+fi
+
+# build from board+image params
 
 # set build output path
 buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
