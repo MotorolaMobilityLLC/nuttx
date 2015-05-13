@@ -136,6 +136,12 @@ copy_image_files() {
     cp $ARA_BUILD_TOPDIR/nuttx/$fn $ARA_BUILD_TOPDIR/image/$fn  >/dev/null 2>&1
     rm -f $ARA_BUILD_TOPDIR/nuttx/$fn >/dev/null 2>&1
   done
+  # if bridge image (i.e. *not* an svc image)
+  # expand image to 2M using truncate utility
+  # for more info, run "truncate --help"
+  if [ -z $(echo $buildname | grep "svc")  ] ; then
+    truncate -s 2M $ARA_BUILD_TOPDIR/image/nuttx.bin
+  fi
 }
 
 if [ $buildall -eq 1 ] ; then
