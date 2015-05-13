@@ -62,11 +62,13 @@ static pwr_measure measurements[DEV_COUNT][DEV_MAX_RAIL_COUNT];
 static uint32_t refresh_rate = DEFAULT_REFRESH_RATE;
 static uint32_t loopcount = DEFAULT_LOOPCOUNT;
 static uint8_t continuous = DEFAULT_CONTINUOUS;
+static bool csv_export = false;
 static uint8_t user_dev_id = DEV_COUNT;
 static uint8_t user_rail_id = DEV_MAX_RAIL_COUNT;
 static uint32_t current_lsb;
 static ina230_conversion_time conversion_time;
 static ina230_avg_count avg_count;
+static uint32_t timestamp = 0;
 static char separator[512];
 static char header[512];
 
@@ -101,6 +103,7 @@ static void usage(void)
             printf("         -u: display refresh rate in milliseconds (default: 500).\n");
             printf("         -l: select number of power measurements (default: 1).\n");
             printf("         -c: select continuous power measurements mode (default: disabled).\n");
+            printf("         -x: export power measurements as .csv trace instead of table.\n");
             printf("         -h: print help.\n\n");
 }
 
@@ -259,10 +262,11 @@ static int bdbpm_main_get_user_options(int argc, char **argv)
     current_lsb = DEFAULT_CURRENT_LSB;
     conversion_time = DEFAULT_CONVERSION_TIME;
     avg_count = DEFAULT_AVG_SAMPLE_COUNT;
+    csv_export = false;
 
     dbg_verbose("%s(): retrieving user options...\n", __func__);
     optind = 1;
-    while ((c = getopt(argc, argv, "hcd:r:l:u:i:t:n:")) != 255) {
+    while ((c = getopt(argc, argv, "xhcd:r:l:u:i:t:n:")) != 255) {
         switch (c) {
         case 'd':
             ret = bdbpm_device_id(optarg, &user_dev_id);
@@ -355,6 +359,11 @@ static int bdbpm_main_get_user_options(int argc, char **argv)
             }
             break;
 
+        case 'x':
+            csv_export = true;
+            printf("Using .csv format to display power measurements.\n");
+            break;
+
         case 'h':
         default:
             return -EINVAL;
@@ -444,49 +453,72 @@ static void bdbpm_main_display_measurements(void)
     uint8_t r_start, r_end;
     uint8_t d, r;
     int max_rcount;
+    char s[23];
 
-    printf("%s\n", separator);
-    printf("%s\n", header);
-
-    max_rcount = bdbpm_main_get_max_rail_count();
     bdbpm_main_get_device_list(&d_start, &d_end);
-    for (d = d_start; d < d_end; d++) {
-        printf("| %-11s |", bdbpm_dev_name(d));
-        bdbpm_main_get_rail_list(d, &r_start, &r_end);
-        for (r = 0; r < max_rcount; r++) {
-            if ((r_start + r) < r_end) {
-                printf(" %-18s |", bdbpm_rail_name(d, r_start + r));
-            } else {
-                printf(" %-18s |", "");
+    if (csv_export) {
+        if (timestamp == 0) {
+            printf("%-14s", "Timestamp (ms)");
+            for (d = d_start; d < d_end; d++) {
+                bdbpm_main_get_rail_list(d, &r_start, &r_end);
+                for (r = r_start; r < r_end; r++) {
+                    sprintf(s, "%s (mW)", bdbpm_rail_name(d, r));
+                    printf(", %23s", s);
+                }
+            }
+            printf("\n");
+        }
+        printf("%14u", timestamp / 1000);
+        for (d = d_start; d < d_end; d++) {
+            bdbpm_main_get_rail_list(d, &r_start, &r_end);
+            for (r = r_start; r < r_end; r++) {
+                printf(", %23d", measurements[d][r].uW);
             }
         }
         printf("\n");
+    } else {
+        printf("%s\n", separator);
+        printf("%s\n", header);
 
-        printf("| %-11s |", "");
-        for (r = 0; r < max_rcount; r++) {
-            if ((r_start + r) < r_end) {
-                printf(" V (uV): %-10d |", measurements[d][r_start + r].uV);
-            } else {
-                printf(" %-18s |", "");
+        max_rcount = bdbpm_main_get_max_rail_count();
+        for (d = d_start; d < d_end; d++) {
+            printf("| %-11s |", bdbpm_dev_name(d));
+            bdbpm_main_get_rail_list(d, &r_start, &r_end);
+            for (r = 0; r < max_rcount; r++) {
+                if ((r_start + r) < r_end) {
+                    printf(" %-18s |", bdbpm_rail_name(d, r_start + r));
+                } else {
+                    printf(" %-18s |", "");
+                }
             }
-        }
-        printf("\n| %-11s |", "");
-        for (r = 0; r < max_rcount; r++) {
-            if ((r_start + r) < r_end) {
-                printf(" I (uA): %-10d |", measurements[d][r_start + r].uA);
-            } else {
-                printf(" %-18s |", "");
+            printf("\n");
+
+            printf("| %-11s |", "");
+            for (r = 0; r < max_rcount; r++) {
+                if ((r_start + r) < r_end) {
+                    printf(" V (mV): %-10d |", measurements[d][r_start + r].uV);
+                } else {
+                    printf(" %-18s |", "");
+                }
             }
-        }
-        printf("\n| %-11s |", "");
-        for (r = 0; r < max_rcount; r++) {
-            if ((r_start + r) < r_end) {
-                printf(" P (uW): %-10d |", measurements[d][r_start + r].uW);
-            } else {
-                printf(" %-18s |", "");
+            printf("\n| %-11s |", "");
+            for (r = 0; r < max_rcount; r++) {
+                if ((r_start + r) < r_end) {
+                    printf(" I (uA): %-10d |", measurements[d][r_start + r].uA);
+                } else {
+                    printf(" %-18s |", "");
+                }
             }
+            printf("\n| %-11s |", "");
+            for (r = 0; r < max_rcount; r++) {
+                if ((r_start + r) < r_end) {
+                    printf(" P (uW): %-10d |", measurements[d][r_start + r].uW);
+                } else {
+                    printf(" %-18s |", "");
+                }
+            }
+            printf("\n%s\n", separator);
         }
-        printf("\n%s\n", separator);
     }
 }
 
@@ -500,6 +532,8 @@ static int bdbpm_main_init(void)
     uint8_t d_start, d_end;
     uint8_t r_start, r_end;
     int ret;
+
+    timestamp = 0;
 
     /* Init library */
     ret = bdbpm_init(current_lsb, conversion_time, avg_count);
@@ -605,7 +639,7 @@ int bdbpm_main(int argc, char *argv[])
     }
 
     printf("\nGetting power measurements...\n\n");
-    if ((continuous) || (loopcount > 1)) {
+    if ((!csv_export) && ((continuous) || (loopcount > 1))) {
          /* Clear terminal */
         printf("\033[2J\033[1;1H");
     }
@@ -618,13 +652,16 @@ int bdbpm_main(int argc, char *argv[])
 
         bdbpm_main_display_measurements();
 
+        timestamp += refresh_rate;
         if (!continuous) {
             loopcount -= 1;
         }
         if (loopcount != 0) {
             usleep(refresh_rate);
-            /* Clear terminal */
-            printf("\033[2J\033[1;1H");
+            if (!csv_export) {
+                /* Clear terminal */
+                printf("\033[2J\033[1;1H");
+            }
         }
     } while (loopcount != 0);
     printf("\n");
