@@ -10,6 +10,7 @@ Make.dep
 .*.kate-swp
 core
 .gdbinit
+.dir-locals.el
 cscope.out
 misc/tools/kconfig-frontends
 .built
