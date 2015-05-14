@@ -54,6 +54,7 @@ extern const struct attr_name_group unipro_l2_attr_group;
 extern const struct attr_name_group unipro_l3_attr_group;
 extern const struct attr_name_group unipro_l4_attr_group;
 extern const struct attr_name_group unipro_dme_attr_group;
+extern const struct attr_name_group unipro_tsb_attr_group;
 
 const char* attr_get_name(uint16_t attr);
 

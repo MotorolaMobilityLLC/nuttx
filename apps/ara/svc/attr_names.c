@@ -31,6 +31,7 @@
 #include <stddef.h>
 
 #include <nuttx/greybus/unipro.h>
+#include <nuttx/greybus/tsb_unipro.h>
 
 #define TO_ATTR_NAME(a) {.attr = a, .name = #a}
 
@@ -295,6 +296,69 @@ static const struct attr_name unipro_dme_attrs[] = {
     {.attr = 0, .name = NULL},
 };
 
+static const struct attr_name unipro_tsb_attrs[] = {
+    TO_ATTR_NAME(TSB_DME_DDBL2_A),
+    TO_ATTR_NAME(TSB_DME_DDBL2_B),
+    TO_ATTR_NAME(TSB_MAILBOX),
+    TO_ATTR_NAME(TSB_DME_LAYERENABLEREQ),
+    TO_ATTR_NAME(TSB_DME_LAYERENABLECNF),
+    TO_ATTR_NAME(TSB_DME_RESETREQ),
+    TO_ATTR_NAME(TSB_DME_RESETCNF),
+    TO_ATTR_NAME(TSB_DME_ENDPOINTRESETREQ),
+    TO_ATTR_NAME(TSB_DME_ENDPOINTRESETCNF),
+    TO_ATTR_NAME(TSB_DME_ENDPOINTRESETIND),
+    TO_ATTR_NAME(TSB_DME_LINKSTARTUPREQ),
+    TO_ATTR_NAME(TSB_DME_LINKSTARTUPCNF),
+    TO_ATTR_NAME(TSB_DME_LINKSTARTUPIND),
+    TO_ATTR_NAME(TSB_DME_LINKLOSTIND),
+    TO_ATTR_NAME(TSB_DME_HIBERNATEENTERREQ),
+    TO_ATTR_NAME(TSB_DME_HIBERNATEENTERCNF),
+    TO_ATTR_NAME(TSB_DME_HIBERNATEENTERIND),
+    TO_ATTR_NAME(TSB_DME_HIBERNATEEXITREQ),
+    TO_ATTR_NAME(TSB_DME_HIBERNATEEXITCNF),
+    TO_ATTR_NAME(TSB_DME_HIBERNATEEXITIND),
+    TO_ATTR_NAME(TSB_DME_POWERMODEIND),
+    TO_ATTR_NAME(TSB_DME_TESTMODEREQ),
+    TO_ATTR_NAME(TSB_DME_TESTMODECNF),
+    TO_ATTR_NAME(TSB_DME_TESTMODEIND),
+    TO_ATTR_NAME(TSB_DME_ERRORPHYIND),
+    TO_ATTR_NAME(TSB_DME_ERRORPAIND),
+    TO_ATTR_NAME(TSB_DME_ERRORDIND),
+    TO_ATTR_NAME(TSB_DME_ERRORNIND),
+    TO_ATTR_NAME(TSB_DME_ERRORTIND),
+    TO_ATTR_NAME(TSB_INTERRUPTENABLE),
+    TO_ATTR_NAME(TSB_INTERRUPTSTATUS),
+    TO_ATTR_NAME(TSB_L2STATUS),
+    TO_ATTR_NAME(TSB_POWERSTATE),
+    TO_ATTR_NAME(TSB_TXBURSTCLOSUREDELAY),
+    TO_ATTR_NAME(TSB_MPHYCFGUPDT),
+    TO_ATTR_NAME(TSB_ADJUSTTRAILINGCLOCKS),
+    TO_ATTR_NAME(TSB_SUPPRESSRREQ),
+    TO_ATTR_NAME(TSB_L2TIMEOUT),
+    TO_ATTR_NAME(TSB_MAXSEGMENTCONFIG),
+    TO_ATTR_NAME(TSB_TBD),
+    TO_ATTR_NAME(TSB_RBD),
+    TO_ATTR_NAME(TSB_DEBUGTXBYTECOUNT),
+    TO_ATTR_NAME(TSB_DEBUGRXBYTECOUNT),
+    TO_ATTR_NAME(TSB_DEBUGINVALIDBYTEENABLE),
+    TO_ATTR_NAME(TSB_DEBUGLINKSTARTUP),
+    TO_ATTR_NAME(TSB_DEBUGPWRCHANGE),
+    TO_ATTR_NAME(TSB_DEBUGSTATES),
+    TO_ATTR_NAME(TSB_DEBUGCOUNTER0),
+    TO_ATTR_NAME(TSB_DEBUGCOUNTER1),
+    TO_ATTR_NAME(TSB_DEBUGCOUNTER0MASK),
+    TO_ATTR_NAME(TSB_DEBUGCOUNTER1MASK),
+    TO_ATTR_NAME(TSB_DEBUGCOUNTERCONTROL),
+    TO_ATTR_NAME(TSB_DEBUGCOUNTEROVERFLOW),
+    TO_ATTR_NAME(TSB_DEBUGOMC),
+    TO_ATTR_NAME(TSB_DEBUGCOUNTERBMASK),
+    TO_ATTR_NAME(TSB_DEBUGSAVECONFIGTIME),
+    TO_ATTR_NAME(TSB_DEBUGCLOCKENABLE),
+    TO_ATTR_NAME(TSB_DEEPSTALLCFG),
+    TO_ATTR_NAME(TSB_DEEPSTALLSTATUS),
+    {.attr = 0, .name = NULL},
+};
+
 const struct attr_name_group unipro_l1_attr_group = {
     .attr_names = unipro_l1_attrs,
     .group_name = "PHY layer (L1)",
@@ -323,6 +387,11 @@ const struct attr_name_group unipro_l4_attr_group = {
 const struct attr_name_group unipro_dme_attr_group = {
     .attr_names = unipro_dme_attrs,
     .group_name = "DME",
+};
+
+const struct attr_name_group unipro_tsb_attr_group = {
+    .attr_names = unipro_tsb_attrs,
+    .group_name = "TSB",
 };
 
 static const char* attr_group_get_name(uint16_t attr,
@@ -369,5 +438,10 @@ const char* attr_get_name(uint16_t attr)
     if (ret) {
         return ret;
     }
-    return attr_group_get_name(attr, &unipro_dme_attr_group);
+    ret = attr_group_get_name(attr, &unipro_dme_attr_group);
+    if (ret) {
+        return ret;
+    }
+
+    return attr_group_get_name(attr, &unipro_tsb_attr_group);
 }

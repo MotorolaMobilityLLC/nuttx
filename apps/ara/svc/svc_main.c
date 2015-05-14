@@ -479,6 +479,7 @@ static void dme_io_usage(void) {
     printk("                      \"L3\" (network layer),\n");
     printk("                      \"L4\" (transport layer),\n");
     printk("                      \"DME\" (DME),\n");
+    printk("                      \"TSB\" (Toshiba-specific attributes),\n");
     printk("                      \"all\" (all of the above).\n");
     printk("                    If missing, default is \"all\".\n");
     printk("                    If <attrs> is \"L4\", -P is implied.\n");
@@ -582,7 +583,7 @@ static int dme_io_set(struct tsb_switch *sw, uint8_t port,
 
 static int dme_io(int argc, char *argv[]) {
     enum {
-        NONE, ALL, ONE, L1, L1_5, L2, L3, L4, L5, LD,
+        NONE, ALL, ONE, L1, L1_5, L2, L3, L4, L5, LD, TSB
     };
     int which_attrs = NONE;
     const char opts[] = "a:s:p:Ph"; /* TODO: add an -S option for switch number
@@ -646,6 +647,8 @@ static int dme_io(int argc, char *argv[]) {
                 peer = 1;
             } else if (!strcmp(optarg, "dme") || !strcmp(optarg, "DME")) {
                 which_attrs = LD;
+            } else if (!strcmp(optarg, "tsb") || !strcmp(optarg, "TSB")) {
+                which_attrs = TSB;
             } else {
                 end = NULL;
                 attr = strtoul(optarg, &end, 16);
@@ -742,7 +745,7 @@ static int dme_io(int argc, char *argv[]) {
     if (read) {
         int rc;
         int i;
-        const struct attr_name_group *attr_name_groups[6] = {0};
+        const struct attr_name_group *attr_name_groups[7] = {0};
         int n_attr_name_groups;
         switch (which_attrs) {
         case ONE:
@@ -757,10 +760,12 @@ static int dme_io(int argc, char *argv[]) {
             if (peer) {
                 attr_name_groups[4] = &unipro_l4_attr_group;
                 attr_name_groups[5] = &unipro_dme_attr_group;
-                n_attr_name_groups = 6;
+                attr_name_groups[6] = &unipro_tsb_attr_group;
+                n_attr_name_groups = 7;
             } else {
                 attr_name_groups[4] = &unipro_dme_attr_group;
-                n_attr_name_groups = 5;
+                attr_name_groups[5] = &unipro_tsb_attr_group;
+                n_attr_name_groups = 6;
             }
             break;
         case L1:
@@ -785,6 +790,10 @@ static int dme_io(int argc, char *argv[]) {
             break;
         case LD:
             attr_name_groups[0] = &unipro_dme_attr_group;
+            n_attr_name_groups = 1;
+            break;
+        case TSB:
+            attr_name_groups[0] = &unipro_tsb_attr_group;
             n_attr_name_groups = 1;
             break;
         default:
