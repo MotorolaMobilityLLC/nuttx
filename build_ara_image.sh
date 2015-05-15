@@ -15,7 +15,11 @@ echo "Project Ara firmware image builder"
 
 USAGE="
 
-USAGE: ${0} <board-name> <config-name>
+USAGE:
+    (1) rebuild specific image config
+        ${0} <board-name> <config-name>
+    (2) rebuild all image configs under configs/ara|bdb|endo
+        ${0} all
 
 Where:
   <board-name> is the name of the board in the configs directory
@@ -76,10 +80,10 @@ build_image_from_defconfig() {
   mkdir -p "$ARA_BUILD_TOPDIR"
 
   # Copy nuttx tree to build tree
-  cp -r ./nuttx $ARA_BUILD_TOPDIR/nuttx
-  cp -r ./apps $ARA_BUILD_TOPDIR/apps
-  cp -r ./misc $ARA_BUILD_TOPDIR/misc
-  cp -r ./NxWidgets $ARA_BUILD_TOPDIR/NxWidgets
+  cp -r $TOPDIR/../nuttx $ARA_BUILD_TOPDIR/nuttx
+  cp -r $TOPDIR/../apps $ARA_BUILD_TOPDIR/apps
+  cp -r $TOPDIR/../misc $ARA_BUILD_TOPDIR/misc
+  cp -r $TOPDIR/../NxWidgets $ARA_BUILD_TOPDIR/NxWidgets
 
   # copy Make.defs to build output tree
   if ! install -m 644 -p ${configpath}/Make.defs ${ARA_BUILD_TOPDIR}/nuttx/Make.defs  >/dev/null 2>&1; then
@@ -144,9 +148,10 @@ copy_image_files() {
   fi
 }
 
+# set build output path
+buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
+
 if [ $buildall -eq 1 ] ; then
-  # set build output path
-  buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
   # build list of defconfigs
   defconfig_list=$(find $TOPDIR/configs/bdb -iname defconfig)
   defconfig_list+=" "
@@ -182,8 +187,6 @@ fi
 
 # build from board+image params
 
-# set build output path
-buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
 # set path to image config
 configpath=${TOPDIR}/configs/${board}/${image}
 if [ ! -d "${configpath}" ]; then
