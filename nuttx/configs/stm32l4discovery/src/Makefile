@@ -46,6 +46,10 @@ ifeq ($(CONFIG_HAVE_CXX),y)
 CSRCS += stm32_cxxinitialize.c
 endif
 
+ifeq ($(CONFIG_ARCH_LEDS),y)
+CSRCS += stm32_autoleds.c
+endif
+
 ifeq ($(CONFIG_WATCHDOG),y)
 CSRCS += stm32_watchdog.c
 endif

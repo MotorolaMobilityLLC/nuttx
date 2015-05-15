@@ -109,7 +109,11 @@ bool slice_gb_gpios_swap(uint8_t which, uint32_t *new)
 
 void stm32_boardinitialize(void)
 {
-  /* Nothing to do */
+  /* Configure on-board LEDs if LED support has been selected. */
+
+#ifdef CONFIG_ARCH_LEDS
+  board_led_initialize();
+#endif
 }
 
 /****************************************************************************
