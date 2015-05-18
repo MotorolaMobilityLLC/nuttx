@@ -37,3 +37,4 @@ include ${TOPDIR}/.config
 include ${TOPDIR}/tools/Config.mk
 include ${TOPDIR}/arch/arm/src/armv7-m/Toolchain.defs
 include $(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/tsb-makefile.common
+MANIFEST_REQUIRED=y

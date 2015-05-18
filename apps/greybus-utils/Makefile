@@ -116,6 +116,12 @@ ifeq ($(CONFIG_CUSTOM_MANIFEST), y)
  MANIFEST = $(subst ",,$(CONFIG_MANIFEST))
 endif
 
+ifdef MANIFEST_REQUIRED
+ ifndef MANIFEST
+  $(error MANIFEST unspecified or does not exist!)
+ endif
+endif
+
 comma:= ,
 empty:=
 space:= $(empty) $(empty)
