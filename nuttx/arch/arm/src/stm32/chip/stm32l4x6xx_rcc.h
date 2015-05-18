@@ -382,6 +382,12 @@
 
 /* Peripherals independent clock configuration register (incomplete) */
 
+#define RCC_CCIPR_USART1SEL_SHIFT    (0)       /* Bits 0-1: USART1 clock source selection */
+#define RCC_CCIPR_USART1SEL_MASK     (3 << RCC_CCIPR_USART1SEL_SHIFT)
+#  define RCC_CCIPR_USART1SEL_PCLK   (0 << RCC_CCIPR_USART1SEL_SHIFT) /* 00: PCLK selected as USART1 clock */
+#  define RCC_CCIPR_USART1SEL_SYSCLK (1 << RCC_CCIPR_USART1SEL_SHIFT) /* 01: SYSCLK selected as USART1 clock */
+#  define RCC_CCIPR_USART1SEL_HSI    (2 << RCC_CCIPR_USART1SEL_SHIFT) /* 10: HSI clock selected as USART1 clock */
+#  define RCC_CCIPR_USART1SEL_LSE    (3 << RCC_CCIPR_USART1SEL_SHIFT) /* 11: LSE clock selected as USART1 clock */
 #define RCC_CCIPR_USART2SEL_SHIFT    (2)       /* Bits 2-3: USART2 clock source selection */
 #define RCC_CCIPR_USART2SEL_MASK     (3 << RCC_CCIPR_USART2SEL_SHIFT)
 #  define RCC_CCIPR_USART2SEL_PCLK   (0 << RCC_CCIPR_USART2SEL_SHIFT) /* 00: PCLK selected as USART2 clock */
