@@ -16,3 +16,8 @@ config GREYBUS_BATTERY_PHY
 config GREYBUS_LOOPBACK_PHY
 	bool "Loopback support"
 	default n
+
+config GREYBUS_VIBRATOR
+	bool "Vibrator support"
+	select GPIO
+	default n

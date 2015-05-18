@@ -77,15 +77,17 @@ struct svc_interface_device_id {
 /*
  * Default routes used on BDB1B demo
  */
-#define DEV_ID_APB1             (1)
-#define DEV_ID_APB2             (2)
-#define DEV_ID_SPRING6          (8)
-#define DEMO_GPIO_APB1_CPORT    (0)
-#define DEMO_GPIO_APB2_CPORT    (5)
-#define DEMO_I2C_APB1_CPORT     (1)
-#define DEMO_I2C_APB2_CPORT     (4)
-#define DEMO_DSI_APB1_CPORT     (16)
-#define DEMO_DSI_APB2_CPORT     (16)
+#define DEV_ID_APB1              (1)
+#define DEV_ID_APB2              (2)
+#define DEV_ID_SPRING6           (8)
+#define DEMO_GPIO_APB1_CPORT     (0)
+#define DEMO_GPIO_APB2_CPORT     (5)
+#define DEMO_I2C_APB1_CPORT      (1)
+#define DEMO_I2C_APB2_CPORT      (4)
+#define DEMO_DSI_APB1_CPORT      (16)
+#define DEMO_DSI_APB2_CPORT      (16)
+#define DEMO_VIBRATOR_APB1_CPORT (2)
+#define DEMO_VIBRATOR_APB2_CPORT (3)
 
 /* Interface name to deviceID mapping table */
 static struct svc_interface_device_id devid[] = {
@@ -111,6 +113,14 @@ static struct unipro_connection conn[] = {
         .cport_id0  = DEMO_I2C_APB1_CPORT,
         .device_id1 = DEV_ID_APB2,
         .cport_id1  = DEMO_I2C_APB2_CPORT,
+        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
+    },
+    // APB1, CPort 2 <-> APB2, CPort 3, for Vibrator
+    {
+        .device_id0 = DEV_ID_APB1,
+        .cport_id0  = DEMO_VIBRATOR_APB1_CPORT,
+        .device_id1 = DEV_ID_APB2,
+        .cport_id1  = DEMO_VIBRATOR_APB2_CPORT,
         .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
     },
     // APB1, CPort 16 <-> APB2, CPort 16, for DSI
