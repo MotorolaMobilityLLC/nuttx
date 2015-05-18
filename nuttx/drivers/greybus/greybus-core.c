@@ -213,7 +213,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     if (!g_cport[cport].driver || !g_cport[cport].driver->op_handlers)
         return 0;
 
-    if (sizeof(*hdr) > size || hdr->size > size)
+    if (sizeof(*hdr) > size || hdr->size > size || sizeof(*hdr) > hdr->size)
         return -EINVAL; /* Dropping garbage request */
 
     op_handler = find_operation_handler(hdr->type, cport);
