@@ -44,8 +44,6 @@
 #include "stm32.h"
 #include "up_debug.h"
 #include "tsb_switch.h"
-#include "tsb_switch_driver_es1.h"
-#include "tsb_switch_driver_es2.h"
 
 #define IRQ_WORKER_DEFPRIO          50
 #define IRQ_WORKER_STACKSIZE        2048
@@ -132,27 +130,27 @@ static void switch_power_on_reset(struct tsb_switch *sw) {
     /*
      * Hold all the lines low while we turn on the power rails.
      */
-    stm32_configgpio(sw->pdata->gpio_1p1);
-    stm32_configgpio(sw->pdata->gpio_1p8);
-    stm32_configgpio(sw->pdata->gpio_reset);
+    stm32_configgpio(sw->vreg_1p1);
+    stm32_configgpio(sw->vreg_1p8);
+    stm32_configgpio(sw->reset);
     up_udelay(POWER_SWITCH_OFF_STABILISATION_TIME_US);
 
     /* First 1V1, wait for stabilisation */
-    stm32_gpiowrite(sw->pdata->gpio_1p1, true);
+    stm32_gpiowrite(sw->vreg_1p1, true);
     up_udelay(POWER_SWITCH_ON_STABILISATION_TIME_US);
     /* Then 1V8, wait for stabilisation */
-    stm32_gpiowrite(sw->pdata->gpio_1p8, true);
+    stm32_gpiowrite(sw->vreg_1p8, true);
     up_udelay(POWER_SWITCH_OFF_STABILISATION_TIME_US);
 
     /* release reset */
-    stm32_gpiowrite(sw->pdata->gpio_reset, true);
+    stm32_gpiowrite(sw->reset, true);
     sleep(SWITCH_SETTLE_TIME_S);
 }
 
 static void switch_power_off(struct tsb_switch *sw) {
-    stm32_gpiowrite(sw->pdata->gpio_1p1, false);
-    stm32_gpiowrite(sw->pdata->gpio_1p8, false);
-    stm32_gpiowrite(sw->pdata->gpio_reset, false);
+    stm32_gpiowrite(sw->vreg_1p1, false);
+    stm32_gpiowrite(sw->vreg_1p8, false);
+    stm32_gpiowrite(sw->reset, false);
 }
 
 
@@ -1367,47 +1365,37 @@ static int destroy_switch_irq_worker(struct tsb_switch *sw)
 
 /**
  * @brief Initialize the switch and set default SVC<->Switch route
- * @param sw pdata platform-specific data for this switch
- * @returns pointer to initialized switch instance on success, NULL on error
+ * @param sw switch context
+ * @param vreg_1p1 gpio for 1p1 regulator
+ * @param vreg_1p8 gpio for 1p8 regulator
+ * @param reset gpio for reset line
+ * @param irq gpio for switch irq
  */
-struct tsb_switch *switch_init(struct tsb_switch_data *pdata) {
-    struct tsb_switch *sw ;
+struct tsb_switch *switch_init(struct tsb_switch *sw,
+                               unsigned int vreg_1p1,
+                               unsigned int vreg_1p8,
+                               unsigned int reset,
+                               unsigned int irq) {
     unsigned int attr_value, link_status;
     int rc;
 
     dbg_verbose("%s: Initializing switch\n", __func__);
-
-    if (!pdata) {
-        return NULL;
-    }
-
-    sw = zalloc(sizeof(struct tsb_switch));
     if (!sw) {
-        return NULL;
+        goto error;
     }
 
-    sw->pdata = pdata;
+    if (!vreg_1p1 || !vreg_1p8 || !reset || !irq) {
+        goto error;
+    }
+
+    sw->vreg_1p1 = vreg_1p1;
+    sw->vreg_1p8 = vreg_1p8;
+    sw->reset = reset;
+    sw->irq = irq;
     sem_init(&sw->sw_irq_lock, 0, 0);
     sw->sw_irq_worker_exit = false;
 
     switch_power_on_reset(sw);
-
-    switch (sw->pdata->rev) {
-    case SWITCH_REV_ES1:
-        if (tsb_switch_es1_init(sw, sw->pdata->bus)) {
-            goto error;
-        }
-        break;
-    case SWITCH_REV_ES2:
-        // Initialize the SPI port
-        if (tsb_switch_es2_init(sw, sw->pdata->bus)) {
-            goto error;
-        }
-        break;
-    default:
-        dbg_error("Unsupported switch revision: %u\n", sw->pdata->rev);
-        goto error;
-    };
 
     rc = switch_init_comm(sw);
     if (rc && (rc != -EOPNOTSUPP)) {
@@ -1463,7 +1451,9 @@ struct tsb_switch *switch_init(struct tsb_switch_data *pdata) {
     return sw;
 
 error:
-    switch_exit(sw);
+    if (sw) {
+        switch_exit(sw);
+    }
     dbg_error("%s: Failed to initialize switch.\n", __func__);
 
     return NULL;
@@ -1478,19 +1468,5 @@ void switch_exit(struct tsb_switch *sw) {
     switch_irq_enable(sw, false);
     destroy_switch_irq_worker(sw);
     dev_ids_destroy(sw);
-
-    switch (sw->pdata->rev) {
-    case SWITCH_REV_ES1:
-        tsb_switch_es1_exit(sw);
-        break;
-    case SWITCH_REV_ES2:
-        tsb_switch_es2_exit(sw);
-        break;
-    default:
-        dbg_error("Unsupported switch revision: %u\n", sw->pdata->rev);
-        break;
-    };
-
     switch_power_off(sw);
-    free(sw);
 }

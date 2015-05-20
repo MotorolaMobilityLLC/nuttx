@@ -252,7 +252,10 @@ struct tsb_switch_ops {
 struct tsb_switch {
     void                    *priv;
     struct tsb_switch_ops   *ops;
-    struct tsb_switch_data  *pdata;
+    unsigned int            vreg_1p1;
+    unsigned int            vreg_1p8;
+    unsigned int            irq;
+    unsigned int            reset;
     sem_t                   sw_irq_lock;
     int                     worker_id;
     bool                    sw_irq_worker_exit;
@@ -370,24 +373,11 @@ int switch_setup_routing_table(struct tsb_switch *sw,
 
 int switch_dump_routing_table(struct tsb_switch *sw);
 
-/*
- * Platform specific data for switch initialization
- */
-struct tsb_switch_data {
-    unsigned int gpio_1p1;
-    unsigned int gpio_1p8;
-    unsigned int gpio_reset;
-    unsigned int gpio_irq;
-    unsigned int rev;
-    unsigned int bus;
-};
-
-enum {
-    SWITCH_REV_ES1 = 1,
-    SWITCH_REV_ES2 = 2
-};
-
-struct tsb_switch *switch_init(struct tsb_switch_data *pdata);
+struct tsb_switch *switch_init(struct tsb_switch *,
+                               unsigned int vreg_1p1,
+                               unsigned int vreg_1p8,
+                               unsigned int reset,
+                               unsigned int irq);
 void switch_exit(struct tsb_switch*);
 
 /*

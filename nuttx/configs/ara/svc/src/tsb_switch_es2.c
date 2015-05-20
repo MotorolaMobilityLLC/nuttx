@@ -481,7 +481,7 @@ static int es2_fixup_mphy(struct tsb_switch *sw)
 }
 
 /* Switch communication init procedure */
-int es2_init_seq(struct tsb_switch *sw)
+static int es2_init_seq(struct tsb_switch *sw)
 {
     struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
@@ -648,7 +648,7 @@ static int es2_switch_irq_enable(struct tsb_switch *sw, bool enable)
 {
     if (enable) {
         // Enable switch interrupt sources and install handler
-        if (!sw->pdata->gpio_irq) {
+        if (!sw->irq) {
             dbg_error("%s: no Switch context\n", __func__);
             return -EINVAL;
         }
@@ -657,7 +657,7 @@ static int es2_switch_irq_enable(struct tsb_switch *sw, bool enable)
          * Configure switch IRQ line: rising edge; install handler
          * and pass the tsb_switch struct to the handler
          */
-        stm32_gpiosetevent_priv(sw->pdata->gpio_irq, true, false, true,
+        stm32_gpiosetevent_priv(sw->irq, true, false, true,
                                 switch_irq_handler, sw);
 
         // Enable the switch internal interrupt sources
@@ -696,7 +696,7 @@ static int es2_switch_irq_enable(struct tsb_switch *sw, bool enable)
         }
     } else {
         // Disable switch interrupt
-        stm32_gpiosetevent_priv(sw->pdata->gpio_irq, false, false, false, NULL, NULL);
+        stm32_gpiosetevent_priv(sw->irq, false, false, false, NULL, NULL);
     }
 
     return OK;

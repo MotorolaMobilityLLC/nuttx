@@ -234,21 +234,18 @@ static struct ara_board_info bdb1b_board_info = {
     .nr_interfaces = ARRAY_SIZE(bdb1b_interfaces),
     .nr_spring_interfaces = SPRING_INTERFACES_COUNT,
 
-    .sw_data = {
-        .gpio_1p1   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN9),
-        .gpio_1p8   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN6),
-        .gpio_reset = (GPIO_OUTPUT | GPIO_OUTPUT_CLEAR |
-                       GPIO_PORTE | GPIO_PIN14),
-        .gpio_irq   = (GPIO_PORTI | GPIO_PIN9),
-        .rev        = SWITCH_REV_ES1,
-        .bus        = SWITCH_I2C_BUS,
-    },
+    .sw_1p1   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN9),
+    .sw_1p8   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN6),
+    .sw_reset = (GPIO_OUTPUT | GPIO_OUTPUT_CLEAR |
+                 GPIO_PORTE | GPIO_PIN14),
+    .sw_irq   = (GPIO_PORTI | GPIO_PIN9),
 
     .io_expanders = bdb1b_io_expanders,
     .nr_io_expanders = ARRAY_SIZE(bdb1b_io_expanders),
 };
 
-struct ara_board_info *board_init(void) {
+struct ara_board_info *board_init(struct tsb_switch *sw) {
+    int i;
 
     /* Pretty lights */
     stm32_configgpio(SVC_LED_RED);
@@ -259,6 +256,11 @@ struct ara_board_info *board_init(void) {
     stm32_configgpio(IO_RESET1);
     stm32_gpiowrite(IO_RESET, false);
     stm32_gpiowrite(IO_RESET1, false);
+
+    // Initialize the SPI bus to the Switch; alloc driver data
+    if (tsb_switch_es1_init(sw, SWITCH_I2C_BUS)) {
+        return NULL;
+    }
 
     /*
      * Register the STM32 GPIOs to Gpio Chip
@@ -294,8 +296,11 @@ struct ara_board_info *board_init(void) {
     return &bdb1b_board_info;
 }
 
-void board_exit(void) {
+void board_exit(struct tsb_switch *sw) {
     int i;
+
+    // Deinit the Switch
+    tsb_switch_es1_exit(sw);
 
     // First unregister the TCA64xx I/O Expanders and associated I2C bus(ses)
     for (i = 0; i < bdb1b_board_info.nr_io_expanders; i++) {

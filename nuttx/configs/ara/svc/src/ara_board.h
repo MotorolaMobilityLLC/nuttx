@@ -61,15 +61,18 @@ struct ara_board_info {
     size_t nr_spring_interfaces;
 
     /* Switch data */
-    struct tsb_switch_data sw_data;
+    unsigned int sw_1p1;
+    unsigned int sw_1p8;
+    unsigned int sw_reset;
+    unsigned int sw_irq;
 
     /* IO Expanders data */
     struct io_expander_info *io_expanders;
     size_t nr_io_expanders;
 };
 
-struct ara_board_info *board_init(void);
-void board_exit(void);
+struct ara_board_info *board_init(struct tsb_switch *);
+void board_exit(struct tsb_switch *);
 
 #endif
 
