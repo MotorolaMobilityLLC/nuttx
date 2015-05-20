@@ -34,7 +34,6 @@
 #include "svc_msg.h"
 #include "greybus_manifest.h"
 
-int verbose;
 static int state = GBEMU_IDLE;
 static sem_t svc_lock;
 
@@ -166,12 +165,13 @@ static int get_interface_id(char *fname)
 void send_svc_event(int type, char *name, void *priv)
 {
     char *hpe;
+    int iid;
 
     hpe = get_manifest_blob(priv);
     if (type == 0) {
         if (hpe) {
             parse_manifest_blob(hpe);
-            int iid = get_interface_id(name);
+            iid = get_interface_id(name);
             if (iid > 0) {
                 gb_info("%s interface detected\n", name);
                 send_hot_plug(hpe, iid);
@@ -185,7 +185,7 @@ void send_svc_event(int type, char *name, void *priv)
         } else
             gb_error("missing manifest blob, no hotplug event sent\n");
     } else if (type == 1) {
-        int iid = get_interface_id(name);
+        iid = get_interface_id(name);
         if (iid > 0) {
             manifest_release(hpe);
             send_hot_unplug(iid);
