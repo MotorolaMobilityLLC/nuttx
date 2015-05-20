@@ -166,7 +166,4 @@ struct greybus_manifest {
     struct greybus_descriptor descriptors[0];
 } __packed;
 
-char *get_manifest_blob(void *data);
-void parse_manifest_blob(char *hpe);
-
 #endif                          /* __GREYBUS_MANIFEST_H */
