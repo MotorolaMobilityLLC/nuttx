@@ -61,15 +61,16 @@ void send_hot_plug(char *hpe, int iid)
     struct svc_msg *msg = (struct svc_msg *)hpe;
     struct greybus_manifest_header *mh =
         (struct greybus_manifest_header *)(hpe + HP_BASE_SIZE);
+    u16 manifest_size = le16toh(mh->size);
 
     msg->header.function_id = SVC_FUNCTION_HOTPLUG;
     msg->header.message_type = SVC_MSG_DATA;
-    msg->header.payload_length = mh->size + 2;
+    msg->header.payload_length = htole16(manifest_size + 2);
     msg->hotplug.hotplug_event = SVC_HOTPLUG_EVENT;
     msg->hotplug.interface_id = iid;
 
     /* Write out hotplug message with manifest payload */
-    svc_int_write(hpe, HP_BASE_SIZE + mh->size);
+    svc_int_write(hpe, HP_BASE_SIZE + manifest_size);
 
     gb_debug("SVC->AP hotplug event (plug) sent\n");
 }
@@ -80,7 +81,7 @@ void send_hot_unplug(int iid)
 
     msg.header.function_id = SVC_FUNCTION_HOTPLUG;
     msg.header.message_type = SVC_MSG_DATA;
-    msg.header.payload_length = 2;
+    msg.header.payload_length = htole16(2);
     msg.hotplug.hotplug_event = SVC_HOTUNPLUG_EVENT;
     msg.hotplug.interface_id = iid;
 
