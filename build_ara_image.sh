@@ -106,17 +106,11 @@ build_image_from_defconfig() {
   cp ${ARA_BUILD_TOPDIR}/nuttx/Make.defs ${ARA_BUILD_CONFIG_PATH}/Make.defs > /dev/null 2>&1
   cp ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh  ${ARA_BUILD_CONFIG_PATH}/setenv.sh > /dev/null 2>&1
 
-  MAKE_RESULT=1
-
   echo -n "Building '$buildname'" ...
   pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
   make --always-make -r -f Makefile.unix | tee $ARA_BUILD_TOPDIR/build.log 2>&1
 
-  if [ $? -eq 0 ] ; then
-    MAKE_RESULT=1
-  else
-    MAKE_RESULT=0
-  fi
+  MAKE_RESULT=${PIPESTATUS[0]}
 
   popd > /dev/null
 }
@@ -173,7 +167,7 @@ if [ $buildall -eq 1 ] ; then
     # build the image
     build_image_from_defconfig
     # check build result
-    if [ $MAKE_RESULT -eq 0 ] ; then
+    if [ $MAKE_RESULT -ne 0 ] ; then
       echo "Build '$buildname' failed"
       exit 1
     fi
@@ -201,7 +195,7 @@ buildname=${board}-${image}
 # full path to defconfig file
 defconfigFile="${configpath}/defconfig"
 build_image_from_defconfig
-if [ $MAKE_RESULT -eq 0 ] ; then
+if [ $MAKE_RESULT -ne 0 ] ; then
   echo "Build '$buildname' failed"
   exit 1
 fi
