@@ -155,7 +155,7 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
                 op->callback(operation);
                 op->response_buffer = NULL;
             }
-            gb_operation_destroy(op);
+            gb_operation_unref(op);
             continue;
         }
 
@@ -166,7 +166,7 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
         operation->request = op;
         if (op->callback)
             op->callback(operation);
-        gb_operation_destroy(op);
+        gb_operation_unref(op);
         break;
     }
 }
