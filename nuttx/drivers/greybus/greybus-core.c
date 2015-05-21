@@ -322,13 +322,16 @@ int gb_operation_send_request(struct gb_operation *operation,
             atomic_inc(&request_id);
         clock_gettime(CLOCK_REALTIME, &operation->time);
         operation->callback = callback;
+        gb_operation_ref(operation);
         list_add(&g_cport[operation->cport].tx_fifo, &operation->list);
     }
 
     retval = transport_backend->send(operation->cport,
                                      operation->request_buffer, hdr->size);
-    if (need_response && retval)
+    if (need_response && retval) {
         list_del(&operation->list);
+        gb_operation_unref(operation);
+    }
 
     return retval;
 }
