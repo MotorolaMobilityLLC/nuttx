@@ -132,6 +132,7 @@ static bool gb_operation_has_timedout(struct gb_operation *operation)
 static void gb_process_response(struct gb_operation_hdr *hdr,
                                 struct gb_operation *operation)
 {
+    irqstate_t flags;
     struct list_head *iter, *iter_next;
     struct gb_operation *op;
     struct gb_operation_hdr *op_hdr;
@@ -146,7 +147,10 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
 
         // Destroy all the operation that have timedout
         if (gb_operation_has_timedout(op)) {
+            flags = irqsave();
             list_del(iter);
+            irqrestore(flags);
+
             if (op->callback) {
                 timedout_hdr.id = op_hdr->id;
                 timedout_hdr.type = TYPE_RESPONSE_FLAG | op_hdr->type;
@@ -162,7 +166,10 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
         if (hdr->id != op_hdr->id)
             continue;
 
+        flags = irqsave();
         list_del(iter);
+        irqrestore(flags);
+
         operation->request = op;
         if (op->callback)
             op->callback(operation);
@@ -309,12 +316,15 @@ int gb_operation_send_request(struct gb_operation *operation,
 {
     struct gb_operation_hdr *hdr = operation->request_buffer;
     int retval = 0;
+    irqstate_t flags;
 
     DEBUGASSERT(operation);
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->send);
 
     hdr->id = 0;
+
+    flags = irqsave();
 
     if (need_response) {
         hdr->id = atomic_inc(&request_id);
@@ -332,6 +342,8 @@ int gb_operation_send_request(struct gb_operation *operation,
         list_del(&operation->list);
         gb_operation_unref(operation);
     }
+
+    irqrestore(flags);
 
     return retval;
 }
