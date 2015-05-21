@@ -39,7 +39,7 @@ CFLAGS		+= -I$(TOPDIR)/sched
 ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
-CSRCS		= up_boot.c up_debug.c svc.c interface.c
+CSRCS		= up_boot.c up_debug.c svc.c interface.c vreg.c
 CSRCS		+= tsb_switch.c
 CSRCS		+= ina230.c
 
