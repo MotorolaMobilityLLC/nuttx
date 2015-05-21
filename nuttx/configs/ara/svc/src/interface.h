@@ -35,11 +35,7 @@
 
 #include <errno.h>
 
-struct vreg_data {
-    unsigned int gpio;
-    unsigned int hold_time;   // Assertion duration, in us
-    unsigned int active_high; // Active-high to assert
-};
+#include "vreg.h"
 
 /*
  * Structure storing information about how spring current measurement HW
@@ -60,8 +56,7 @@ struct interface {
                                          * (like on an endo, or an interface
                                          * block on a BDB). */
     unsigned int flags;
-    struct vreg_data *vregs;
-    size_t nr_vregs;
+    struct vreg *vreg;
     bool power_state;
     unsigned int wake_out;
     struct pm_data *pm;
@@ -110,20 +105,6 @@ uint32_t interface_pm_get_spin(struct interface *iface);
 /*
  * Macro magic.
  */
-#define INIT_VREG_DATA(g, t)                                   \
-    {                                                          \
-        .gpio = (VREG_DEFAULT_MODE | g),                       \
-        .hold_time = t,                                        \
-        .active_high = 1,                                      \
-    }
-
-#define INIT_SPRING_VREG_DATA(g)                               \
-    {                                                          \
-        .gpio = (SPRING_VREG_DEFAULT_MODE | g),                \
-        .hold_time = 0,                                        \
-        .active_high = 0,                                      \
-    }
-
 #define INIT_SPRING_PM_DATA(_adc, _chan, _spin)                \
     {                                                          \
         .adc = _adc,                                           \
@@ -133,17 +114,19 @@ uint32_t interface_pm_get_spin(struct interface *iface);
 
 #define __MAKE_BB_WAKEOUT(n) WAKEOUT_SPRING ## n
 #define MAKE_BB_WAKEOUT(n) __MAKE_BB_WAKEOUT(n)
-#define __MAKE_BB_VREG(n) bb ## n ## _vregs
-#define MAKE_BB_VREG(n) __MAKE_BB_VREG(n)
+#define __MAKE_BB_VREG_DATA(n) bb ## n ## _vreg_data
+#define MAKE_BB_VREG_DATA(n) __MAKE_BB_VREG_DATA(n)
 #define __MAKE_BB_PM(n) bb ## n ## _pm
 #define MAKE_BB_PM(n) __MAKE_BB_PM(n)
 #define __MAKE_BB_INTERFACE(n) bb ## n ## _interface
 #define MAKE_BB_INTERFACE(n) __MAKE_BB_INTERFACE(n)
+
 #define DECLARE_SPRING_INTERFACE(number, gpio, portid,         \
                                  pm_adc, pm_chan, pm_spin)     \
-    static struct vreg_data MAKE_BB_VREG(number)[] = {         \
-        INIT_SPRING_VREG_DATA(gpio)                            \
+    static struct vreg_data MAKE_BB_VREG_DATA(number)[] = {    \
+        INIT_ACTIVE_LOW_VREG_DATA(gpio, 0)                     \
     };                                                         \
+    DECLARE_VREG(spring ## number, MAKE_BB_VREG_DATA(number))  \
                                                                \
     static struct pm_data MAKE_BB_PM(number)[] = {             \
         INIT_SPRING_PM_DATA(pm_adc, pm_chan, pm_spin)          \
@@ -152,8 +135,7 @@ uint32_t interface_pm_get_spin(struct interface *iface);
     static struct interface MAKE_BB_INTERFACE(number) = {      \
         .name = "spring" #number,                              \
         .flags = ARA_IFACE_FLAG_BLOCK,                         \
-        .vregs = MAKE_BB_VREG(number),                         \
-        .nr_vregs = ARRAY_SIZE(MAKE_BB_VREG(number)),          \
+        .vreg = &MAKE_VREG(spring ## number),                  \
         .switch_portid = portid,                               \
         .wake_out = MAKE_BB_WAKEOUT(number),                   \
         .pm = MAKE_BB_PM(number),                              \
@@ -161,12 +143,12 @@ uint32_t interface_pm_get_spin(struct interface *iface);
 
 #define __MAKE_INTERFACE(n) n ## _interface
 #define MAKE_INTERFACE(n) __MAKE_INTERFACE(n)
-#define DECLARE_INTERFACE(_name, gpios, portid, _wake_out)     \
+#define DECLARE_INTERFACE(_name, vreg_data, portid, _wake_out) \
+    DECLARE_VREG(_name, vreg_data)                             \
     static struct interface MAKE_INTERFACE(_name) = {          \
         .name = #_name,                                        \
         .flags = ARA_IFACE_FLAG_BUILTIN,                       \
-        .vregs = gpios,                                        \
-        .nr_vregs = ARRAY_SIZE(gpios),                         \
+        .vreg = &MAKE_VREG(_name),                             \
         .switch_portid = portid,                               \
         .wake_out = _wake_out,                                 \
         .pm = NULL,                                            \

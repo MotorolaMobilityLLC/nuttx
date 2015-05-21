@@ -40,6 +40,7 @@
 #include "stm32.h"
 #include "up_debug.h"
 #include "interface.h"
+#include "vreg.h"
 
 #define POWER_OFF_TIME_IN_US            (500000)
 #define WAKEOUT_PULSE_DURATION_IN_US    (100000)
@@ -54,21 +55,15 @@ static unsigned int nr_spring_interfaces;
  * to their default states.
  * @param iface interface to configure
  */
-static int interface_config(struct interface *iface) {
-    unsigned int i;
+static int interface_config(struct interface *iface)
+{
     int rc = 0;
 
     dbg_verbose("Configuring interface %s.\n",
             iface->name ? iface->name : "unknown");
 
-    for (i = 0; i < iface->nr_vregs; i++) {
-        if (stm32_configgpio(iface->vregs[i].gpio) < 0) {
-            dbg_error("%s: Failed to configure vregs pins for interface %s\n",
-                      __func__, iface->name ? iface->name : "unknown");
-            // Let other pins to be configured
-            rc = -1;
-        }
-    }
+    /* Configure default state for the regulator pins */
+    rc = vreg_config(iface->vreg);
 
     /*
      * Configure WAKEOUT as input, floating so that it does not interfere
@@ -92,20 +87,15 @@ static int interface_config(struct interface *iface) {
  * @brief Turn on the power to this interface
  * @returns: 0 on success, <0 on error
  */
-int interface_pwr_enable(struct interface *iface) {
-    unsigned int i;
-
+int interface_pwr_enable(struct interface *iface)
+{
     if (!iface) {
         return -ENODEV;
     }
 
     dbg_verbose("Enabling interface %s.\n",
                 iface->name ? iface->name : "unknown");
-
-    for (i = 0; i < iface->nr_vregs; i++) {
-        stm32_gpiowrite(iface->vregs[i].gpio, iface->vregs[i].active_high);
-        up_udelay(iface->vregs[i].hold_time);
-    }
+    vreg_get(iface->vreg);
 
     /* Update state */
     iface->power_state = true;
@@ -118,20 +108,15 @@ int interface_pwr_enable(struct interface *iface) {
  * @brief Turn off the power to this interface
  * @returns: 0 on success, <0 on error
  */
-int interface_pwr_disable(struct interface *iface) {
-    unsigned int i;
-
+int interface_pwr_disable(struct interface *iface)
+{
     if (!iface) {
         return -ENODEV;
     }
 
     dbg_verbose("Disabling interface %s.\n",
                 iface->name ? iface->name : "unknown");
-
-
-    for (i = 0; i < iface->nr_vregs; i++) {
-        stm32_gpiowrite(iface->vregs[i].gpio, !iface->vregs[i].active_high);
-    }
+    vreg_put(iface->vreg);
 
     /* Update state */
     iface->power_state = false;
