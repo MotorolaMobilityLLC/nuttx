@@ -41,6 +41,7 @@
 #include "interface.h"
 #include "tsb_switch.h"
 #include "svc.h"
+#include "vreg.h"
 
 static struct svc the_svc;
 struct svc *ara_svc = &the_svc;
@@ -289,8 +290,7 @@ int svc_init(void) {
 
     /* Init Switch */
     sw = switch_init(sw,
-                     info->sw_1p1,
-                     info->sw_1p8,
+                     info->sw_vreg,
                      info->sw_reset,
                      info->sw_irq);
     if (!sw) {

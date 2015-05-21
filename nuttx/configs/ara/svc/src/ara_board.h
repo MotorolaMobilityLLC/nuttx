@@ -31,6 +31,7 @@
 
 #include "nuttx/gpio/tca64xx.h"
 
+#include "vreg.h"
 #include "tsb_switch.h"
 
 /* GPIO Chip pins */
@@ -61,8 +62,7 @@ struct ara_board_info {
     size_t nr_spring_interfaces;
 
     /* Switch data */
-    unsigned int sw_1p1;
-    unsigned int sw_1p8;
+    struct vreg *sw_vreg;
     unsigned int sw_reset;
     unsigned int sw_irq;
 

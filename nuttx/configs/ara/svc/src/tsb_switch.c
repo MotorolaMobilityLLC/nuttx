@@ -44,14 +44,12 @@
 #include "stm32.h"
 #include "up_debug.h"
 #include "tsb_switch.h"
+#include "vreg.h"
 
 #define IRQ_WORKER_DEFPRIO          50
 #define IRQ_WORKER_STACKSIZE        2048
 
-/* Switch power supply times (1V1, 1V8), in us */
-#define POWER_SWITCH_ON_STABILISATION_TIME_US  (50000)
-#define POWER_SWITCH_OFF_STABILISATION_TIME_US (10000)
-#define SWITCH_SETTLE_TIME_S                   (1)
+#define SWITCH_SETTLE_TIME_S        (1)
 
 /*
  * CportID and peerCPortID for L4 access by the SVC
@@ -126,30 +124,22 @@ static void dev_ids_destroy(struct tsb_switch *sw) {
     memset(sw->dev_ids, INVALID_PORT, sizeof(sw->dev_ids));
 }
 
-static void switch_power_on_reset(struct tsb_switch *sw) {
-    /*
-     * Hold all the lines low while we turn on the power rails.
-     */
-    stm32_configgpio(sw->vreg_1p1);
-    stm32_configgpio(sw->vreg_1p8);
-    stm32_configgpio(sw->reset);
-    up_udelay(POWER_SWITCH_OFF_STABILISATION_TIME_US);
+static void switch_power_on_reset(struct tsb_switch *sw)
+{
+    /* Enable the switch power supplies regulator */
+    vreg_get(sw->vreg);
 
-    /* First 1V1, wait for stabilisation */
-    stm32_gpiowrite(sw->vreg_1p1, true);
-    up_udelay(POWER_SWITCH_ON_STABILISATION_TIME_US);
-    /* Then 1V8, wait for stabilisation */
-    stm32_gpiowrite(sw->vreg_1p8, true);
-    up_udelay(POWER_SWITCH_OFF_STABILISATION_TIME_US);
-
-    /* release reset */
+    /* Release reset */
     stm32_gpiowrite(sw->reset, true);
     sleep(SWITCH_SETTLE_TIME_S);
 }
 
-static void switch_power_off(struct tsb_switch *sw) {
-    stm32_gpiowrite(sw->vreg_1p1, false);
-    stm32_gpiowrite(sw->vreg_1p8, false);
+static void switch_power_off(struct tsb_switch *sw)
+{
+    /* Release the switch power supplies regulator */
+    vreg_put(sw->vreg);
+
+    /* Assert reset */
     stm32_gpiowrite(sw->reset, false);
 }
 
@@ -1372,8 +1362,7 @@ static int destroy_switch_irq_worker(struct tsb_switch *sw)
  * @param irq gpio for switch irq
  */
 struct tsb_switch *switch_init(struct tsb_switch *sw,
-                               unsigned int vreg_1p1,
-                               unsigned int vreg_1p8,
+                               struct vreg *sw_vreg,
                                unsigned int reset,
                                unsigned int irq) {
     unsigned int attr_value, link_status;
@@ -1384,12 +1373,11 @@ struct tsb_switch *switch_init(struct tsb_switch *sw,
         goto error;
     }
 
-    if (!vreg_1p1 || !vreg_1p8 || !reset || !irq) {
+    if (!sw_vreg || !reset || !irq) {
         goto error;
     }
 
-    sw->vreg_1p1 = vreg_1p1;
-    sw->vreg_1p8 = vreg_1p8;
+    sw->vreg = sw_vreg;
     sw->reset = reset;
     sw->irq = irq;
     sem_init(&sw->sw_irq_lock, 0, 0);

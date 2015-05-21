@@ -252,8 +252,7 @@ struct tsb_switch_ops {
 struct tsb_switch {
     void                    *priv;
     struct tsb_switch_ops   *ops;
-    unsigned int            vreg_1p1;
-    unsigned int            vreg_1p8;
+    struct vreg             *vreg;
     unsigned int            irq;
     unsigned int            reset;
     sem_t                   sw_irq_lock;
@@ -373,9 +372,8 @@ int switch_setup_routing_table(struct tsb_switch *sw,
 
 int switch_dump_routing_table(struct tsb_switch *sw);
 
-struct tsb_switch *switch_init(struct tsb_switch *,
-                               unsigned int vreg_1p1,
-                               unsigned int vreg_1p8,
+struct tsb_switch *switch_init(struct tsb_switch *sw,
+                               struct vreg *vreg,
                                unsigned int reset,
                                unsigned int irq);
 void switch_exit(struct tsb_switch*);

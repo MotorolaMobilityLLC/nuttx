@@ -58,11 +58,6 @@
 #define IO_EXP_IRQ          (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | \
                              GPIO_PORTA | GPIO_PIN0)
 
-#define VREG_DEFAULT_MODE   (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_CLEAR)
-/* Spring pins are active low */
-#define SPRING_VREG_DEFAULT_MODE    (GPIO_OUTPUT | GPIO_PUSHPULL | \
-                                     GPIO_OUTPUT_SET)
-
 /* SPI CS */
 #define TSB_SW_CS           (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_SET | \
                              GPIO_PORTA | GPIO_PIN4)
@@ -78,9 +73,13 @@
 /*
  * How long to leave hold each regulator before the next.
  */
-#define HOLD_TIME_1P1   (50000)     // 0-100ms before 1p2, 1p8
-#define HOLD_TIME_1P8   (0)
-#define HOLD_TIME_1P2   (0)
+#define HOLD_TIME_1P1                   (50000) // 0-100ms before 1p2, 1p8
+#define HOLD_TIME_1P8                   (0)
+#define HOLD_TIME_1P2                   (0)
+
+#define HOLD_TIME_SW_1P1                (50000) // 50ms for 1P1
+#define HOLD_TIME_SW_1P8                (10000) // 10ms for 1P8
+#define POWER_SWITCH_OFF_STAB_TIME_US   (10000) // 10ms switch off
 
 #define WAKEOUT_APB1    (GPIO_FLOAT | GPIO_PORTE | GPIO_PIN8)
 #define WAKEOUT_APB2    (GPIO_FLOAT | GPIO_PORTE | GPIO_PIN12)
@@ -219,6 +218,18 @@ static struct interface *bdb2a_interfaces[] = {
     &bb8_interface,
 };
 
+/*
+ * Switch power supplies.
+ * Note: 1P8 is also used by the I/O Expanders.
+ */
+static struct vreg_data sw_vreg_data[] = {
+    // Switch 1P1
+    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTH | GPIO_PIN9, HOLD_TIME_SW_1P1),
+    // Switch 1P8
+    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTH | GPIO_PIN6, HOLD_TIME_SW_1P8)
+};
+DECLARE_VREG(sw, sw_vreg_data);
+
 static struct io_expander_info bdb2a_io_expanders[] = {
         {
             .part       = TCA6416_PART,
@@ -250,9 +261,7 @@ static struct ara_board_info bdb2a_board_info = {
     .interfaces = bdb2a_interfaces,
     .nr_interfaces = ARRAY_SIZE(bdb2a_interfaces),
     .nr_spring_interfaces = SPRING_INTERFACES_COUNT,
-
-    .sw_1p1   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN9),
-    .sw_1p8   = (VREG_DEFAULT_MODE | GPIO_PORTH | GPIO_PIN6),
+    .sw_vreg = &sw_vreg,
     .sw_reset = (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP |
                  GPIO_OUTPUT_CLEAR | GPIO_PORTE | GPIO_PIN14),
     .sw_irq   = (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | GPIO_PORTI | GPIO_PIN9),
@@ -276,6 +285,19 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
 
     stm32_configgpio(TSB_SW_CS);
     stm32_gpiowrite(TSB_SW_CS, true);
+
+    /*
+     * Configure the switch reset and power supply lines.
+     * Hold all the lines low while we turn on the power rails.
+     */
+    vreg_config(bdb2a_board_info.sw_vreg);
+    stm32_configgpio(bdb2a_board_info.sw_reset);
+    up_udelay(POWER_SWITCH_OFF_STAB_TIME_US);
+    /*
+     * Enable 1P1 and 1P8, used by the I/O Expanders.
+     * This also enables the switch power supplies.
+     */
+    vreg_get(bdb2a_board_info.sw_vreg);
 
     // Initialize the SPI bus to the Switch; alloc driver data
     if (tsb_switch_es2_init(sw, SW_SPI_PORT)) {
@@ -335,6 +357,11 @@ void board_exit(struct tsb_switch *sw) {
 
     // Lastly unregister the GPIO Chip driver
     stm32_gpio_deinit();
+
+    /*
+     * Disable 1V1 and 1V8, used by the I/O Expanders.
+     */
+    vreg_put(sw->vreg);
 }
 
 /*
