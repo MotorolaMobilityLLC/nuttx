@@ -573,4 +573,5 @@ ifneq ($(APPDIR),)
 endif
 
 cscope:
-	cscope -R -b -k -q -P$(ROOT_DIR) -s$(ROOT_DIR)
+	find $(TOPDIR) -name "*.[hcS]" > cscope.files
+	cscope -b
