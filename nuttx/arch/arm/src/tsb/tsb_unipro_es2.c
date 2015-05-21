@@ -28,6 +28,11 @@
  * @brief MIPI UniPro stack for ES2 Bridges
  */
 
+#include <string.h>
+#include <nuttx/util.h>
+#include <nuttx/irq.h>
+#include <nuttx/arch.h>
+
 #include <nuttx/greybus/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
 
@@ -40,6 +45,101 @@
 #include "tsb_scm.h"
 #include "tsb_unipro_es2.h"
 #include "tsb_es2_mphy_fixups.h"
+
+#ifdef UNIPRO_DEBUG
+#define DBG_UNIPRO(fmt, ...) lldbg(fmt, __VA_ARGS__)
+#else
+#define DBG_UNIPRO(fmt, ...) ((void)0)
+#endif
+
+#define TRANSFER_MODE          (2)
+#define TRANSFER_MODE_2_CTRL_0 (0xAAAAAAAA) // Transfer mode 2 for CPorts 0-15
+/*
+ * CPorts 16-43 are present on the AP Bridge only.  CPorts 16 and 17 are
+ * reserved for camera and display use, and we leave their transfer mode
+ * at the power-on default of Mode 1.
+ */
+#define TRANSFER_MODE_2_CTRL_1 (0xAAAAAAA5) // Transfer mode 2 for CPorts 18-31
+#define TRANSFER_MODE_2_CTRL_2 (0x00AAAAAA) // Transfer mode 2 for CPorts 32-43
+
+struct cport {
+    struct unipro_driver *driver;
+    uint8_t *tx_buf;                // TX region for this CPort
+    uint8_t *rx_buf;                // RX region for this CPort
+    unsigned int cportid;
+    int connected;
+};
+
+#define CPORT_RX_BUF_BASE         (0x20000000U)
+#define CPORT_RX_BUF_SIZE         (CPORT_BUF_SIZE)
+#define CPORT_RX_BUF(cport)       (void*)(CPORT_RX_BUF_BASE + \
+                                      (CPORT_RX_BUF_SIZE * cport))
+#define CPORT_TX_BUF_BASE         (0x50000000U)
+#define CPORT_TX_BUF_SIZE         (0x20000U)
+#define CPORT_TX_BUF(cport)       (uint8_t*)(CPORT_TX_BUF_BASE + \
+                                      (CPORT_TX_BUF_SIZE * cport))
+#define CPORT_EOM_BIT(cport)      (cport->tx_buf + (CPORT_TX_BUF_SIZE - 1))
+
+#define DECLARE_CPORT(id) {            \
+    .tx_buf      = CPORT_TX_BUF(id),   \
+    .rx_buf      = CPORT_RX_BUF(id),   \
+    .cportid     = id,                 \
+    .connected   = 0,                  \
+}
+
+#define CPORTID_CDSI0    (16)
+#define CPORTID_CDSI1    (17)
+
+/*
+ * FIXME: We could allocate and size this array at runtime, based on the type
+ *        of bridge.
+ */
+static struct cport cporttable[] = {
+    DECLARE_CPORT(0),  DECLARE_CPORT(1),  DECLARE_CPORT(2),  DECLARE_CPORT(3),
+    DECLARE_CPORT(4),  DECLARE_CPORT(5),  DECLARE_CPORT(6),  DECLARE_CPORT(7),
+    DECLARE_CPORT(8),  DECLARE_CPORT(9),  DECLARE_CPORT(10), DECLARE_CPORT(11),
+    DECLARE_CPORT(12), DECLARE_CPORT(13), DECLARE_CPORT(14), DECLARE_CPORT(15),
+    DECLARE_CPORT(16), DECLARE_CPORT(17), DECLARE_CPORT(18), DECLARE_CPORT(19),
+    DECLARE_CPORT(20), DECLARE_CPORT(21), DECLARE_CPORT(22), DECLARE_CPORT(23),
+    DECLARE_CPORT(24), DECLARE_CPORT(25), DECLARE_CPORT(26), DECLARE_CPORT(27),
+    DECLARE_CPORT(28), DECLARE_CPORT(29), DECLARE_CPORT(30), DECLARE_CPORT(31),
+    DECLARE_CPORT(32), DECLARE_CPORT(33), DECLARE_CPORT(34), DECLARE_CPORT(35),
+    DECLARE_CPORT(36), DECLARE_CPORT(37), DECLARE_CPORT(38), DECLARE_CPORT(39),
+    DECLARE_CPORT(40), DECLARE_CPORT(41), DECLARE_CPORT(42), DECLARE_CPORT(43),
+};
+
+#define GPBRIDGE_CPORT_MAX 16 // number of CPorts available on the GPBridges
+static inline unsigned int cport_max(void) {
+    /*
+     * Reduce the run-time CPort count to what's available on the
+     * GPBridges, unless we can determine that we're running on an
+     * APBridge.
+     */
+    return ((tsb_get_product_id() == tsb_pid_apbridge) ?
+            CPORT_MAX : GPBRIDGE_CPORT_MAX);
+}
+
+static inline struct cport *cport_handle(unsigned int cportid) {
+    if (cportid >= cport_max() || cportid == CPORTID_CDSI0 ||
+        cportid == CPORTID_CDSI1) {
+        return NULL;
+    } else {
+        return &cporttable[cportid];
+    }
+}
+
+#define irqn_to_cport(irqn)          cport_handle((irqn - TSB_IRQ_UNIPRO_RX_EOM00))
+#define cportid_to_irqn(cportid)     (TSB_IRQ_UNIPRO_RX_EOM00 + cportid)
+
+/* Helpers */
+static uint32_t cport_get_status(struct cport*);
+static inline void clear_rx_interrupt(struct cport*);
+static inline void enable_rx_interrupt(struct cport*);
+static void configure_transfer_mode(int);
+static void dump_regs(void);
+
+/* irq handlers */
+static int irq_rx_eom(int, void*);
 
 /*
  * "Map" constants for M-PHY fixups.
@@ -136,14 +236,51 @@ static int es2_fixup_mphy(void)
     return 0;
 }
 
-static uint32_t cport_get_status(unsigned int cport) {
+/**
+ * @brief Read CPort status from unipro controller
+ * @param cport cport to retrieve status for
+ * @return 0: CPort is configured and usable
+ *         1: CPort is not connected
+ *         2: reserved
+ *         3: CPort is connected to a TC which is not present in the peer
+ *          Unipro node
+ */
+static uint32_t cport_get_status(struct cport *cport) {
     uint32_t val;
+    unsigned int cportid = cport->cportid;
     uint32_t reg;
 
-    reg = CPORT_STATUS_0 + ((cport/16) << 2);
+    reg = CPORT_STATUS_0 + ((cportid/16) << 2);
     val = unipro_read(reg);
-    val >>= ((cport % 16) << 1);
+    val >>= ((cportid % 16) << 1);
     return (val & (0x3));
+}
+
+/**
+ * @brief Enable a CPort that has a connected connection.
+ */
+static int configure_connected_cport(unsigned int cportid) {
+    int ret = 0;
+    struct cport *cport;
+    unsigned int rc;
+
+    cport = cport_handle(cportid);
+    if (!cport) {
+        return -EINVAL;
+    }
+    rc = cport_get_status(cport);
+    switch (rc) {
+    case CPORT_STATUS_CONNECTED:
+        cport->connected = 1;
+        break;
+    case CPORT_STATUS_UNCONNECTED:
+        ret = -ENOTCONN;
+        break;
+    default:
+        lldbg("Unexpected status: CP%d: status: 0x%u\n", cportid, rc);
+        ret = -EIO;
+    }
+    return ret;
 }
 
 /**
@@ -190,6 +327,123 @@ static int unipro_attr_access(uint16_t attr,
     }
 
     return 0;
+}
+
+/**
+ * @brief Clear UniPro interrupts on a given cport
+ * @param cport cport
+ */
+static inline void clear_rx_interrupt(struct cport *cport) {
+    unsigned int cportid = cport->cportid;
+    unipro_write(AHM_RX_EOM_INT_BEF_REG(cportid),
+                 AHM_RX_EOM_INT_BEF(cportid));
+}
+
+/**
+ * @brief Enable UniPro RX interrupts on a given cport
+ * @param cport cport
+ */
+static inline void enable_rx_interrupt(struct cport *cport) {
+    unsigned int cportid = cport->cportid;
+    uint32_t reg = AHM_RX_EOM_INT_EN_REG(cportid);
+    uint32_t bit = AHM_RX_EOM_INT_EN(cportid);
+
+    unipro_write(reg, unipro_read(reg) | bit);
+}
+
+/**
+ * @brief RX EOM interrupt handler
+ * @param irq irq number
+ * @param context register context (unused)
+ */
+static int irq_rx_eom(int irq, void *context) {
+    struct cport *cport = irqn_to_cport(irq);
+    void *data = cport->rx_buf;
+    uint32_t transferred_size;
+    (void)context;
+
+    DEBUGASSERT(cport->driver);
+    transferred_size = unipro_read(CPB_RX_TRANSFERRED_DATA_SIZE_00 +
+                                   (cport->cportid * sizeof(uint32_t)));
+    DBG_UNIPRO("cport: %u driver: %s size=%u payload=0x%x\n",
+                cport->cportid,
+                cport->driver->name,
+                data);
+
+    if (cport->driver->rx_handler) {
+        cport->driver->rx_handler(cport->cportid, data,
+                                  (size_t)transferred_size);
+    }
+    clear_rx_interrupt(cport);
+
+    /* Restart the flow of received data */
+    unipro_write(REG_RX_PAUSE_SIZE_00 + (cport->cportid * sizeof(uint32_t)),
+                 (1 << 31) | CPORT_BUF_SIZE);
+
+    return 0;
+}
+
+/**
+ * @brief Clear and disable UniPro interrupt
+ */
+static void clear_int(unsigned int cportid) {
+    unsigned int i;
+    uint32_t int_en;
+
+    i = cportid * 2;
+    if (cportid < 16) {
+        unipro_write(AHM_RX_EOM_INT_BEF_0, 0x3 << i);
+        int_en = unipro_read(AHM_RX_EOM_INT_EN_0);
+        int_en &= ~(0x3 << i);
+        unipro_write(AHM_RX_EOM_INT_EN_0, int_en);
+    } else if (cportid < 32) {
+        unipro_write(AHM_RX_EOM_INT_BEF_1, 0x3 << i);
+        int_en = unipro_read(AHM_RX_EOM_INT_EN_1);
+        int_en &= ~(0x3 << i);
+        unipro_write(AHM_RX_EOM_INT_EN_1, int_en);
+    } else {
+        unipro_write(AHM_RX_EOM_INT_BEF_2, 0x3 << i);
+        int_en = unipro_read(AHM_RX_EOM_INT_EN_2);
+        int_en &= ~(0x3 << i);
+        unipro_write(AHM_RX_EOM_INT_EN_2, int_en);
+    }
+    tsb_irq_clear_pending(cportid_to_irqn(cportid));
+}
+
+/**
+ * @brief Enable EOM interrupt on cport
+ */
+static void enable_int(unsigned int cportid) {
+    struct cport *cport;
+    unsigned int irqn;
+
+    cport = cport_handle(cportid);
+    if (!cport || !cport->connected) {
+        return;
+    }
+
+    irqn = cportid_to_irqn(cportid);
+    enable_rx_interrupt(cport);
+    irq_attach(irqn, irq_rx_eom);
+    up_enable_irq(irqn);
+}
+
+static void configure_transfer_mode(int mode) {
+    /*
+     * Set transfer mode 2
+     */
+    switch (mode) {
+    case 2:
+        unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_2_CTRL_0);
+        if (tsb_get_product_id() == tsb_pid_apbridge) {
+            unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_2_CTRL_1);
+            unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_2_CTRL_2);
+        }
+        break;
+    default:
+        lldbg("Unsupported transfer mode: %u\n", mode);
+        break;
+    }
 }
 
 /**
@@ -269,6 +523,10 @@ static void dump_regs(void) {
     lldbg("Unipro Registers:\n");
     lldbg("========================================\n");
     REG_DBG(AHM_MODE_CTRL_0);
+    if (tsb_get_product_id() == tsb_pid_apbridge) {
+        REG_DBG(AHM_MODE_CTRL_1);
+        REG_DBG(AHM_MODE_CTRL_2);
+    }
     REG_DBG(AHM_ADDRESS_00);
     REG_DBG(REG_RX_PAUSE_SIZE_00);
     REG_DBG(CPB_RX_TRANSFERRED_DATA_SIZE_00);
@@ -286,8 +544,8 @@ static void dump_regs(void) {
 
     lldbg("Connected CPorts:\n");
     lldbg("========================================\n");
-    for (i = 0; i < CPORT_MAX; i++) {
-        val = cport_get_status(i);
+    for (i = 0; i < cport_max(); i++) {
+        val = cport_get_status(cport_handle(i));
 
         if (val == CPORT_STATUS_CONNECTED) {
             lldbg("CPORT %u:\n", i);
@@ -326,7 +584,46 @@ void unipro_info(void)
  */
 int unipro_init_cport(unsigned int cportid)
 {
-    return -ENOSYS;
+    int ret;
+    irqstate_t flags;
+    struct cport *cport = cport_handle(cportid);
+
+    if (cport->connected)
+        return 0;
+
+    /*
+     * Initialize cport.
+     */
+    ret = configure_connected_cport(cportid);
+    if (ret)
+        return ret;
+
+    /*
+     * FIXME: We presently specify a fixed receive buffer address
+     *        for each CPort.  That approach won't work for a
+     *        pipelined zero-copy system.
+     */
+    unipro_write(AHM_ADDRESS_00 + (cportid * sizeof(uint32_t)),
+                 (uint32_t)CPORT_RX_BUF(cportid));
+
+    /* Start the flow of received data */
+    unipro_write(REG_RX_PAUSE_SIZE_00 + (cportid * sizeof(uint32_t)),
+                 (1 << 31) | CPORT_BUF_SIZE);
+
+    /*
+     * Clear any pending EOM interrupts, then enable them.
+     * TODO: Defer interrupt enable until driver registration?
+     */
+    flags = irqsave();
+    clear_int(cportid);
+    enable_int(cportid);
+    irqrestore(flags);
+
+#ifdef UNIPRO_DEBUG
+    unipro_info();
+#endif
+
+    return 0;
 }
 
 /**
@@ -334,9 +631,36 @@ int unipro_init_cport(unsigned int cportid)
  */
 void unipro_init(void)
 {
+    unsigned int i;
+
+    DEBUGASSERT(ARRAY_SIZE(cporttable) <= 44);
+
     if (es2_fixup_mphy()) {
         lldbg("Failed to apply M-PHY fixups (results in link instability at HS-G1).\n");
     }
+
+    /*
+     * Set transfer mode 2 on all cports
+     * Receiver choses address for received message
+     * Header is delivered transparently to receiver (and used to carry the first eight
+     * L4 payload bytes)
+     */
+    DEBUGASSERT(TRANSFER_MODE == 2);
+    configure_transfer_mode(TRANSFER_MODE);
+
+    /*
+     * Initialize connected cports.
+     */
+    unipro_write(UNIPRO_INT_EN, 0x0);
+    for (i = 0; i < cport_max(); i++) {
+        unipro_init_cport(i);
+    }
+    unipro_write(UNIPRO_INT_EN, 0x1);
+
+#ifdef UNIPRO_DEBUG
+    unipro_info();
+#endif
+    lldbg("UniPro enabled\n");
 }
 
 /**
@@ -348,7 +672,47 @@ void unipro_init(void)
  */
 int unipro_send(unsigned int cportid, const void *buf, size_t len)
 {
-    return -ENOSYS;
+    struct cport *cport;
+
+    if (len > CPORT_BUF_SIZE) {
+        return -EINVAL;
+    }
+
+    cport = cport_handle(cportid);
+    if (!cport) {
+        return -EINVAL;
+    }
+
+    if (!cport->connected) {
+        lldbg("CP%d unconnected\n", cport->cportid);
+        return -EPIPE;
+    }
+
+    DEBUGASSERT(TRANSFER_MODE == 2);
+
+    /*
+     * FIXME: In the future, when this driver enables E2EFC, we will need to
+     *        keep in mind the ES2 Bridge Silicon limiation that a minimum of
+     *        8 bytes must be transmitted while E2EFC is active.
+     */
+
+    DBG_UNIPRO("Sending %u bytes to CP%d\n", len, cport->cportid);
+
+    /*
+     * Copy buf into the TX_BUF region for this CPort
+     *
+     * Note 1: For ES2 Transfer Mode 2, the 8 byte "header" is carried across
+     * unchanged, and we use it to hold (up to) the first 8 payload bytes.
+     *
+     * Note 2: We are only permitted to write to &cport->tx_buf[0] once per
+     *         transfer.
+     */
+    memcpy(cport->tx_buf, buf, len);
+
+    /* Hit EOM */
+    putreg8(1, CPORT_EOM_BIT(cport));
+
+    return 0;
 }
 
 /**
@@ -395,5 +759,21 @@ int unipro_attr_write(uint16_t attr,
  */
 int unipro_driver_register(struct unipro_driver *driver, unsigned int cportid)
 {
-    return -ENOSYS;
+    struct cport *cport = cport_handle(cportid);
+    if (!cport) {
+        return -ENODEV;
+    }
+
+    if (cport->driver) {
+        lldbg("ERROR: Already registered by: %s\n",
+              cport->driver->name);
+        return -EEXIST;
+    }
+
+    cport->driver = driver;
+
+    lldbg("Registered driver %s on %sconnected CP%u\n",
+          cport->driver->name, cport->connected ? "" : "un",
+          cport->cportid);
+    return 0;
 }

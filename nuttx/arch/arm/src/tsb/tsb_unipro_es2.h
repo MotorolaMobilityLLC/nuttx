@@ -31,7 +31,8 @@
 
 #define CPORT_STATUS_0                         0x00000000
     #define CPORT_STATUS_CONNECTED                  (0x0)
-    #define CPORT_STATUS_DISCONNECTED               (0x1)
+    #define CPORT_STATUS_UNCONNECTED                (0x1)
+    #define CPORT_STATUS_BADTC                      (0x3)
 #define CPORT_STATUS_1                         0x00000004
 #define CPORT_STATUS_2                         0x00000008
 #define CPORT_CREDIT_0                         0x0000000C
@@ -70,6 +71,9 @@
 #define AHM_RX_EOM_INT_EN_0                    0x0000023C
 #define AHM_RX_EOM_INT_EN_1                    0x00000240
 #define AHM_RX_EOM_INT_EN_2                    0x00000244
+# define AHM_RX_EOM_INT_EN_REG(id) \
+    (AHM_RX_EOM_INT_EN_0 + ((id / 16) * sizeof(uint32_t)))
+# define AHM_RX_EOM_INT_EN(id)        (1 << (2 * (id % 16)))
 #define AHM_RX_EOT_INT_EN_0                    0x00000248
 #define AHM_RX_EOT_INT_EN_1                    0x0000024C
 #define UNIPRO_INT_BEF                         0x00000300
@@ -90,6 +94,10 @@
 #define AHM_RX_EOM_INT_BEF_2                   0x00000344
 #define AHM_RX_EOT_INT_BEF_0                   0x00000348
 #define AHM_RX_EOT_INT_BEF_1                   0x0000034C
+# define AHM_RX_EOM_INT_BEF_REG(id) \
+    (AHM_RX_EOM_INT_BEF_0 + ((id / 16) * sizeof(uint32_t)))
+# define AHM_RX_EOM_INT_BEF(id)       (1 << (2 * (id % 16)))
+#define UNIPRO_LUP_LINKSUP_STOP              (UNIPRO_REG_BASE + 0x0400)
 #define LUP_LINKSUP_STOP                       0x00000400
 #define LUP_LINKSUP_RESTART                    0x00000404
 #define A2D_ATTRACS_MSTR_CTRL                  0x00000500
