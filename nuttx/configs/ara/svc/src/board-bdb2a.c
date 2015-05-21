@@ -135,14 +135,14 @@
 /*
  * Built-in bridge voltage regulator list
  */
-static struct vreg_data apb1_vregs[] = {
+static struct vreg_data apb1_vreg_data[] = {
     INIT_BOOTRET_DATA(GPIO_PORTF | GPIO_PIN12),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN4, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN5, HOLD_TIME_1P8),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN6, HOLD_TIME_1P2),
 };
 
-static struct vreg_data apb2_vregs[] = {
+static struct vreg_data apb2_vreg_data[] = {
     INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN3),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN11, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN10, HOLD_TIME_1P8),
@@ -150,7 +150,7 @@ static struct vreg_data apb2_vregs[] = {
     INIT_VREG_DATA(GPIO_PORTC | GPIO_PIN6, 0),              // 2p8_tp
 };
 
-static struct vreg_data apb3_vregs[] = {
+static struct vreg_data apb3_vreg_data[] = {
     INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN4),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN12, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTE | GPIO_PIN15, HOLD_TIME_1P8),
@@ -158,14 +158,14 @@ static struct vreg_data apb3_vregs[] = {
     INIT_VREG_DATA(GPIO_PORTC | GPIO_PIN7, 0),              // 2p8
 };
 
-static struct vreg_data gpb1_vregs[] =  {
+static struct vreg_data gpb1_vreg_data[] =  {
     INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN6),
     INIT_VREG_DATA(GPIO_PORTB | GPIO_PIN5, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTC | GPIO_PIN3, HOLD_TIME_1P8),
     INIT_VREG_DATA(GPIO_PORTC | GPIO_PIN2, HOLD_TIME_1P2),
 };
 
-static struct vreg_data gpb2_vregs[] = {
+static struct vreg_data gpb2_vreg_data[] = {
     INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN7),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN7, HOLD_TIME_1P1),
     INIT_VREG_DATA(GPIO_PORTD | GPIO_PIN9, HOLD_TIME_1P8),
@@ -175,11 +175,11 @@ static struct vreg_data gpb2_vregs[] = {
 /*
  * Interfaces on this board
  */
-DECLARE_INTERFACE(apb1, apb1_vregs, 0, WAKEOUT_APB1);
-DECLARE_INTERFACE(apb2, apb2_vregs, 1, WAKEOUT_APB2);
-DECLARE_INTERFACE(apb3, apb3_vregs, 2, WAKEOUT_APB3);
-DECLARE_INTERFACE(gpb1, gpb1_vregs, 3, WAKEOUT_GPB1);
-DECLARE_INTERFACE(gpb2, gpb2_vregs, 4, WAKEOUT_GPB2);
+DECLARE_INTERFACE(apb1, apb1_vreg_data, 0, WAKEOUT_APB1);
+DECLARE_INTERFACE(apb2, apb2_vreg_data, 1, WAKEOUT_APB2);
+DECLARE_INTERFACE(apb3, apb3_vreg_data, 2, WAKEOUT_APB3);
+DECLARE_INTERFACE(gpb1, gpb1_vreg_data, 3, WAKEOUT_GPB1);
+DECLARE_INTERFACE(gpb2, gpb2_vreg_data, 4, WAKEOUT_GPB2);
 
 #define SPRING_INTERFACES_COUNT     8
 DECLARE_SPRING_INTERFACE(1, (GPIO_PORTI | GPIO_PIN2), 9,
