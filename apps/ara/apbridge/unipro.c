@@ -64,12 +64,14 @@ static void unipro_backend_init(void)
 {
     int i;
 
-    /* Try to init any other cports */
+    /* unipro_init() will initialize any non-display, non-camera CPorts */
+    unipro_init();
+
+    /* Now register a driver for those CPorts */
     for (i = 0; i < CPORT_MAX; i++) {
-        /* This cports are already allocated for display and camera */
+        /* These cports are already allocated for display and camera */
         if (i == CPORTID_CDSI0 || i == CPORTID_CDSI1)
             continue;
-        unipro_init_cport(i);
         unipro_driver_register(&unipro_driver, i);
     }
 }
