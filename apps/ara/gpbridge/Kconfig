@@ -6,4 +6,5 @@
 config GPBRIDGE
 	bool "GPBridge FW with UniPro layer"
 	select GREYBUS_UTILS
+	select GREYBUS_CONTROL_PROTOCOL
 	default n

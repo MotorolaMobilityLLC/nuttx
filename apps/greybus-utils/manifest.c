@@ -40,6 +40,7 @@
 #include "svc_msg.h"
 #include "greybus_manifest.h"
 
+extern void gb_control_register(int cport);
 extern void gb_gpio_register(int cport);
 extern void gb_i2c_register(int cport);
 extern void gb_battery_register(int cport);
@@ -102,6 +103,13 @@ void enable_cports(void)
         gb_cport = list_entry(iter, struct gb_cport, list);
         id = gb_cport->id;
         protocol = gb_cport->protocol;
+
+#ifdef CONFIG_GREYBUS_CONTROL_PROTOCOL
+        if (protocol == GREYBUS_PROTOCOL_CONTROL) {
+            gb_info("Registering CONTROL greybus driver.\n");
+            gb_control_register(id);
+        }
+#endif
 
 #ifdef CONFIG_GREYBUS_GPIO_PHY
         if (protocol == GREYBUS_PROTOCOL_GPIO) {

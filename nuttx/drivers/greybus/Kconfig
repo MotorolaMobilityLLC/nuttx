@@ -1,3 +1,7 @@
+config GREYBUS_CONTROL_PROTOCOL
+	bool "Control Protocol support"
+	default n
+
 config GREYBUS_GPIO_PHY
 	bool "GPIO PHY support"
 	select GPIO
