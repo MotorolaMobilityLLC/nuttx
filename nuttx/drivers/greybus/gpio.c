@@ -179,18 +179,6 @@ static uint8_t gb_gpio_set_debounce(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_gpio_irq_ack(struct gb_operation *operation)
-{
-    struct gb_gpio_irq_ack_request *request =
-        gb_operation_get_request_payload(operation);
-
-    if (request->which >= gpio_line_count())
-        return GB_OP_INVALID;
-
-    gpio_clear_interrupt(request->which);
-    return GB_OP_SUCCESS;
-}
-
 static uint8_t gb_gpio_irq_mask(struct gb_operation *operation)
 {
     struct gb_gpio_irq_mask_request *request =
@@ -287,7 +275,6 @@ static struct gb_operation_handler gb_gpio_handlers[] = {
     GB_HANDLER(GB_GPIO_TYPE_SET_VALUE, gb_gpio_set_value),
     GB_HANDLER(GB_GPIO_TYPE_SET_DEBOUNCE, gb_gpio_set_debounce),
     GB_HANDLER(GB_GPIO_TYPE_IRQ_TYPE, gb_gpio_irq_type),
-    GB_HANDLER(GB_GPIO_TYPE_IRQ_ACK, gb_gpio_irq_ack),
     GB_HANDLER(GB_GPIO_TYPE_IRQ_MASK, gb_gpio_irq_mask),
     GB_HANDLER(GB_GPIO_TYPE_IRQ_UNMASK, gb_gpio_irq_unmask),
 };
