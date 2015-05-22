@@ -20,14 +20,14 @@ string = Project Ara
 id = 2
 string = Simple Loopback Interface
 
-; GPIO protocol on CPort 0
-[cport-descriptor "0"]
+; Loopback protocol on CPort 4
+[cport-descriptor "4"]
 bundle = 0
 id = 4
 protocol = 0x11
 
-; GPIO protocol on CPort 1
-[cport-descriptor "1"]
+; Loopback protocol on CPort 5
+[cport-descriptor "5"]
 bundle = 0
 id = 5
 protocol = 0x11
