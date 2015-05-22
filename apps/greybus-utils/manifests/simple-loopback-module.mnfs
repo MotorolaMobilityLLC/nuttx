@@ -20,19 +20,30 @@ string = Project Ara
 id = 2
 string = Simple Loopback Interface
 
+; Control protocol on CPort 2
+[cport-descriptor "2"]
+bundle = 0
+id = 2
+protocol = 0x00
+
+; Control protocol Bundle 0
+[bundle-descriptor "0"]
+class = 0
+id = 0
+
 ; Loopback protocol on CPort 4
 [cport-descriptor "4"]
-bundle = 0
+bundle = 1
 id = 4
 protocol = 0x11
 
 ; Loopback protocol on CPort 5
 [cport-descriptor "5"]
-bundle = 0
+bundle = 1
 id = 5
 protocol = 0x11
 
-; Bundle 0
-[bundle-descriptor "0"]
-id = 0
+; Bundle 1
+[bundle-descriptor "1"]
+id = 1
 class = 0x00
