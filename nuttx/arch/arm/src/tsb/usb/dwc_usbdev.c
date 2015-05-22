@@ -285,7 +285,7 @@ static void *dwc_epallocbuffer(struct usbdev_ep_s *ep, uint16_t size)
 }
 static void dwc_epfreebuffer(struct usbdev_ep_s *ep, void *buf)
 {
-    DWC_DMA_FREE(0, buf, NULL);
+    DWC_DMA_FREE(0, buf, (dwc_dma_t) NULL);
 }
 #endif
 
