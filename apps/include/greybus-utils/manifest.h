@@ -52,6 +52,7 @@ void parse_manifest_blob(char *hpe);
 void enable_manifest(char *name, void *priv, int device_id);
 void release_manifest_blob(char *hpe);
 struct list_head *get_manifest_cports(void);
+int get_manifest_size(void);
 
 #endif
 

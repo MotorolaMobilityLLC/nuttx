@@ -32,6 +32,7 @@
 #include <stdbool.h>
 #include <errno.h>
 
+#include <arch/byteorder.h>
 #include <arch/tsb/unipro.h>
 #include <apps/greybus-utils/utils.h>
 #include <nuttx/util.h>
@@ -357,4 +358,12 @@ void enable_manifest(char *name, void *priv, int device_id)
 struct list_head *get_manifest_cports(void)
 {
     return &g_greybus.cports;
+}
+
+int get_manifest_size(void)
+{
+    struct greybus_manifest_header *mh =
+        (struct greybus_manifest_header *) get_manifest_blob(NULL);
+
+    return mh ? le16_to_cpu(mh->size) : 0;
 }
