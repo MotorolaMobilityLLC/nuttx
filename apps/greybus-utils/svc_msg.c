@@ -57,21 +57,18 @@ void send_svc_handshake(void)
     gb_debug("SVC->AP handshake sent\n");
 }
 
-void send_hot_plug(char *hpe, int iid)
+void send_hot_plug(int iid)
 {
-    struct svc_msg *msg = (struct svc_msg *)hpe;
-    struct greybus_manifest_header *mh =
-        (struct greybus_manifest_header *)(hpe + HP_BASE_SIZE);
-    size_t manifest_size = le16toh(mh->size);
+    struct svc_msg msg;
 
-    msg->header.function_id = SVC_FUNCTION_HOTPLUG;
-    msg->header.message_type = SVC_MSG_DATA;
-    msg->header.payload_length = htole16(manifest_size + 2);
-    msg->hotplug.hotplug_event = SVC_HOTPLUG_EVENT;
-    msg->hotplug.interface_id = iid;
+    msg.header.function_id = SVC_FUNCTION_HOTPLUG;
+    msg.header.message_type = SVC_MSG_DATA;
+    msg.header.payload_length = htole16(HP_PAYLOAD_SIZE);
+    msg.hotplug.hotplug_event = SVC_HOTPLUG_EVENT;
+    msg.hotplug.interface_id = iid;
 
     /* Write out hotplug message with manifest payload */
-    svc_int_write(hpe, HP_BASE_SIZE + manifest_size);
+    svc_int_write(&msg, HP_MSG_SIZE);
 
     gb_debug("SVC->AP hotplug event (plug) sent\n");
 }
@@ -82,12 +79,12 @@ void send_hot_unplug(int iid)
 
     msg.header.function_id = SVC_FUNCTION_HOTPLUG;
     msg.header.message_type = SVC_MSG_DATA;
-    msg.header.payload_length = htole16(2);
+    msg.header.payload_length = htole16(HP_PAYLOAD_SIZE);
     msg.hotplug.hotplug_event = SVC_HOTUNPLUG_EVENT;
     msg.hotplug.interface_id = iid;
 
     /* Write out hotplug message */
-    svc_int_write(&msg, HP_BASE_SIZE);
+    svc_int_write(&msg, HP_MSG_SIZE);
 
     gb_debug("SVC->AP hotplug event (unplug) sent\n");
 }
@@ -175,7 +172,7 @@ void send_svc_event(int type, char *name, void *priv)
             iid = get_interface_id(name);
             if (iid > 0) {
                 gb_info("%s interface detected\n", name);
-                send_hot_plug(hpe, iid);
+                send_hot_plug(iid);
                 /*
                  * FIXME: hardcoded
                  * device ID

@@ -44,6 +44,10 @@ typedef uint8_t __u8;
 
 /* SVC message header + 2 bytes of payload */
 #define HP_BASE_SIZE            sizeof(struct svc_msg_header) + 2
+#define HP_PAYLOAD_SIZE         (sizeof(struct svc_function_hotplug))
+#define HP_MSG_SIZE             (sizeof(struct svc_msg_header) +        \
+                                        HP_PAYLOAD_SIZE)
+
 #define HS_PAYLOAD_SIZE         (sizeof(struct svc_function_handshake))
 #define HS_MSG_SIZE             (sizeof(struct svc_msg_header) +        \
                                         HS_PAYLOAD_SIZE)
@@ -142,7 +146,6 @@ enum svc_function_hotplug_event {
 struct svc_function_hotplug {
     __u8 hotplug_event;         /* enum svc_function_hotplug_event */
     __u8 interface_id;
-    __u8 data[0];
 } __packed;
 
 enum svc_function_power_type {
