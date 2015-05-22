@@ -489,7 +489,7 @@ static int switch_cport_connect(struct tsb_switch *sw,
     if (rc) {
         return rc;
     }
-    rc = switch_dme_peer_set(sw, c->port_id0, T_CPORTMODE,
+    rc = switch_dme_peer_set(sw, c->port_id1, T_CPORTMODE,
                              c->cport_id1, CPORT_MODE_APPLICATION);
     if (rc) {
         return rc;
