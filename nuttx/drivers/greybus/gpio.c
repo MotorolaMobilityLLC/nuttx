@@ -216,7 +216,6 @@ int gb_gpio_irq_event(int irq, FAR void *context)
     /* Mask the irq to not spam the host */
     gpio_mask_irq(request->which);
     gb_operation_send_request_sync(operation);
-    gpio_clear_interrupt(request->which);
     gpio_unmask_irq(request->which);
 
     gb_operation_destroy(operation);
