@@ -210,6 +210,9 @@ int gb_gpio_irq_event(int irq, FAR void *context)
 
     operation = gb_operation_create(g_gpio_cport, GB_GPIO_TYPE_IRQ_EVENT,
                                     sizeof(*request));
+    if (!operation)
+        return OK;
+
     request = gb_operation_get_request_payload(operation);
     request->which = irq;
 
