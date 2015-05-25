@@ -216,10 +216,11 @@ int gb_gpio_irq_event(int irq, FAR void *context)
     request = gb_operation_get_request_payload(operation);
     request->which = irq;
 
-    /* Mask the irq to not spam the host */
-    gpio_mask_irq(request->which);
-    gb_operation_send_request_sync(operation);
-    gpio_unmask_irq(request->which);
+    /* Host is responsible for unmasking. */
+    gpio_mask_irq(irq);
+
+    /* Send unidirectional operation. */
+    gb_operation_send_request(operation, NULL, false);
 
     gb_operation_destroy(operation);
 
