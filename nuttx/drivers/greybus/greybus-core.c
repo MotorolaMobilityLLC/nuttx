@@ -185,9 +185,12 @@ static void *gb_pending_message_worker(void *data)
     struct gb_operation *operation;
     struct list_head *head;
     struct gb_operation_hdr *hdr;
+    int retval;
 
     while (1) {
-        sem_wait(&g_cport[cportid].rx_fifo_lock);
+        retval = sem_wait(&g_cport[cportid].rx_fifo_lock);
+        if (retval < 0)
+            continue;
 
         flags = irqsave();
         head = g_cport[cportid].rx_fifo.next;
@@ -364,9 +367,11 @@ int gb_operation_send_request_sync(struct gb_operation *operation)
     if (retval)
         return retval;
 
-    sem_wait(&operation->sync_sem);
+    do {
+        retval = sem_wait(&operation->sync_sem);
+    } while (retval < 0 && errno == EINTR);
 
-    return 0;
+    return retval;
 }
 
 int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
