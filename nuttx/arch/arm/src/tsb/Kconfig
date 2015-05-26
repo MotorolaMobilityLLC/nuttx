@@ -118,6 +118,14 @@ config ARCH_CHIP_DEVICE_PWM
 	---help---
 		TSB PWM controller driver
 
+config ARCH_CHIP_DEVICE_SPI
+	bool "SPI Master Support"
+	depends on ARCH_CHIP_APBRIDGE || ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
+	default n
+	---help---
+		TSB SPI Master Driver
+
 choice
 	prompt "Drive Strength for the TRACE Signals"
 	default TSB_TRACE_DRIVESTRENGTH_MAX

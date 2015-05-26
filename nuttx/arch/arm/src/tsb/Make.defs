@@ -71,3 +71,7 @@ endif
 ifeq ($(CONFIG_ARCH_CHIP_USB_HCD),y)
 CHIP_CSRCS += tsb_usb.c
 endif
+
+ifeq ($(CONFIG_ARCH_CHIP_DEVICE_SPI),y)
+CHIP_CSRCS += tsb_spi.c
+endif
