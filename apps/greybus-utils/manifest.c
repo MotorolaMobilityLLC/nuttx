@@ -51,6 +51,7 @@ extern void gb_pwm_register(int cport);
 extern void gb_i2s_mgmt_register(int cport);
 extern void gb_i2s_receiver_register(int cport);
 extern void gb_i2s_transmitter_register(int cport);
+extern void gb_spi_register(int cport);
 
 struct greybus {
     struct list_head cports;
@@ -174,6 +175,13 @@ void enable_cports(void)
         } else if (protocol == GREYBUS_PROTOCOL_I2S_TRANSMITTER) {
             gb_info("Registering I2S TRANSMITTER greybus driver.\n");
             gb_i2s_transmitter_register(id);
+        }
+#endif
+
+#ifdef CONFIG_GREYBUS_SPI_PHY
+        if (protocol == GREYBUS_PROTOCOL_SPI) {
+            gb_info("Registering SPI greybus driver.\n");
+            gb_spi_register(id);
         }
 #endif
     }
