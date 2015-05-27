@@ -104,7 +104,7 @@ static ssize_t semihosting_read(struct file *filep, char *buffer, size_t buflen)
 
     nread = semihosting_syscall(SYSCALL_READ, &params[0]);
 
-    return !nread ? buflen : nread;
+    return buflen - nread;
 }
 
 static ssize_t semihosting_write(struct file *filep, const char *buffer,
