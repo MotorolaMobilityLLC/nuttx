@@ -44,6 +44,7 @@
 #define TSB_SCM_SOFTRESETRELEASE0       0x00000100
 #define TSB_SCM_CLOCKGATING0            0x00000200
 #define TSB_SCM_CLOCKENABLE0            0x00000300
+#define TSB_SCM_PID                     0x00000704 // named MODULEID1 in ES1
 #define TSB_SCM_PINSHARE                0x00000800
 #define TSB_IO_DRIVE_STRENGTH0          0x00000A00
 
@@ -119,6 +120,11 @@ enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id)
     return (enum tsb_drivestrength)
         ((scm_read(TSB_IO_DRIVE_STRENGTH0 + DRIVESTRENGTH_OFFSET(ds_id)) &
           DRIVESTRENGTH_MASK(ds_id)) >> DRIVESTRENGTH_SHIFT(ds_id));
+}
+
+enum tsb_product_id tsb_get_product_id(void)
+{
+    return (enum tsb_product_id)scm_read(TSB_SCM_PID);
 }
 
 /* Debug code for command line tool usage */

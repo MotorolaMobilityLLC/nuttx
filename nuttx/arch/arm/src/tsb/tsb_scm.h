@@ -165,6 +165,18 @@ enum tsb_drivestrength {
 #define TSB_I2S_DRIVESTRENGTH     (TSB_SCM_REG1 | 0)
 #endif
 
+/*
+ * SCM PID Register values from efuse data (very early silicon reads 0)
+ * Note: In ES1 documentation, this register was named MODULEID1.
+ */
+
+enum tsb_product_id {
+    tsb_pid_unknown = 0,
+    tsb_pid_apbridge = 1,
+    tsb_pid_gpbridge = 2,
+    tsb_pid_switch = 3
+};
+
 #define CLK_OFFSET(clk) (((clk >> 22) & 0xfc))
 #define CLK_MASK(clk)   (1 << (clk & 0x1f))
 
@@ -198,5 +210,6 @@ void tsb_clr_pinshare(uint32_t pin);
 uint32_t tsb_get_pinshare(void);
 void tsb_set_drivestrength(uint32_t ds_id, enum tsb_drivestrength value);
 enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id);
+enum tsb_product_id tsb_get_product_id(void);
 
 #endif /* __ARCH_ARM_SRC_TSB_TSB_SCM_H */
