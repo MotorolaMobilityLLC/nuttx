@@ -33,6 +33,8 @@
 #include <nuttx/util.h>
 #include <nuttx/greybus/unipro.h>
 
+#include <apps/greybus-utils/utils.h>
+
 #include <arch/board/board.h>
 
 #include <sys/wait.h>
@@ -118,71 +120,62 @@ static struct svc_interface_device_id devid[] = {
 };
 
 /* Connections table */
-static struct unipro_connection conn[] = {
-#if defined(CONFIG_SVC_ROUTE_DEFAULT)
-    // APB1, CPort 0 <-> APB2, CPort 5, for GPIO
-    {
-        .device_id0 = DEV_ID_APB1,
-        .cport_id0  = DEMO_GPIO_APB1_CPORT,
-        .device_id1 = DEV_ID_APB2,
-        .cport_id1  = DEMO_GPIO_APB2_CPORT,
-        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
-    },
-    // APB1, CPort 1 <-> APB2, CPort 4, for I2C
-    {
-        .device_id0 = DEV_ID_APB1,
-        .cport_id0  = DEMO_I2C_APB1_CPORT,
-        .device_id1 = DEV_ID_APB2,
-        .cport_id1  = DEMO_I2C_APB2_CPORT,
-        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
-    },
-    // APB1, CPort 2 <-> APB2, CPort 3, for Vibrator
-    {
-        .device_id0 = DEV_ID_APB1,
-        .cport_id0  = DEMO_VIBRATOR_APB1_CPORT,
-        .device_id1 = DEV_ID_APB2,
-        .cport_id1  = DEMO_VIBRATOR_APB2_CPORT,
-        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
-    },
-    // APB1, CPort 16 <-> APB2, CPort 16, for DSI
-    {
-        .device_id0 = DEV_ID_APB1,
-        .cport_id0  = DEMO_DSI_APB1_CPORT,
-        .device_id1 = DEV_ID_APB2,
-        .cport_id1  = DEMO_DSI_APB2_CPORT,
-        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
-    },
-#elif defined(CONFIG_SVC_ROUTE_SPRING6_APB2)
-    // SPRING6, CPort 0 <-> APB2, CPort 5, for GPIO
-    {
-        .device_id0 = DEV_ID_SPRING6,
-        .cport_id0  = DEMO_GPIO_APB1_CPORT,
-        .device_id1 = DEV_ID_APB2,
-        .cport_id1  = DEMO_GPIO_APB2_CPORT,
-        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
-    },
-    // SPRING6, CPort 1 <-> APB2, CPort 4, for I2C
-    {
-        .device_id0 = DEV_ID_SPRING6,
-        .cport_id0  = DEMO_I2C_APB1_CPORT,
-        .device_id1 = DEV_ID_APB2,
-        .cport_id1  = DEMO_I2C_APB2_CPORT,
-        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
-    },
-    // SPRING6, CPort 16 <-> APB2, CPort 16, for DSI
-    {
-        .device_id0 = DEV_ID_SPRING6,
-        .cport_id0  = DEMO_DSI_APB1_CPORT,
-        .device_id1 = DEV_ID_APB2,
-        .cport_id1  = DEMO_DSI_APB2_CPORT,
-        .flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N
-    },
-#endif
-};
+static struct unipro_connection *conn;
 
+static int setup_routes_from_manifest(void)
+{
+    struct list_head *cports, *iter;
+    struct gb_cport *gb_cport;
+    uint8_t device_id0;
+    int hd_cport_max;
+    int hd_cport = 0;
+
+    cports = get_manifest_cports();
+    hd_cport_max = list_count(cports) + 1;
+    conn = zalloc(hd_cport_max * sizeof(*conn));
+    if (!conn) {
+        return 0;
+    }
+
+#if defined(CONFIG_SVC_ROUTE_DEFAULT)
+    device_id0 = DEV_ID_APB1;
+#elif defined(CONFIG_SVC_ROUTE_SPRING6_APB2)
+    device_id0 = DEV_ID_SPRING6;
+#endif
+
+    list_foreach(cports, iter) {
+        gb_cport = list_entry(iter, struct gb_cport, list);
+        conn[hd_cport].device_id0 = device_id0;
+        conn[hd_cport].cport_id0  = hd_cport;
+        conn[hd_cport].device_id1 = gb_cport->device_id;
+        conn[hd_cport].cport_id1  = gb_cport->id;
+        conn[hd_cport].flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N;
+        hd_cport++;
+    }
+
+    conn[hd_cport].device_id0 = device_id0;
+    conn[hd_cport].cport_id0  = DEMO_DSI_APB1_CPORT;
+    conn[hd_cport].device_id1 = DEV_ID_APB2;
+    conn[hd_cport].cport_id1  = DEMO_DSI_APB2_CPORT;
+    conn[hd_cport].flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N;
+    hd_cport++;
+
+    return hd_cport;
+}
+
+#define IID_LENGTH 7
+static void manifest_enable(unsigned char *manifest_file,
+                            int device_id, int manifest_number)
+{
+    char iid[IID_LENGTH];
+
+    snprintf(iid, IID_LENGTH, "IID-%d", manifest_number + 1);
+    enable_manifest(iid, manifest_file, device_id);
+}
 
 static int setup_default_routes(struct tsb_switch *sw) {
     int i, j, rc;
+    int conn_size;
     uint8_t port_id_0, port_id_1;
     bool port_id_0_found, port_id_1_found;
     struct interface *iface;
@@ -216,8 +209,13 @@ static int setup_default_routes(struct tsb_switch *sw) {
         }
     }
 
+    foreach_manifest(manifest_enable);
+    conn_size = setup_routes_from_manifest();
+    if (!conn_size)
+        return -1;
+
     /* Connections setup */
-    for (i = 0; i < ARRAY_SIZE(conn); i++) {
+    for (i = 0; i < conn_size; i++) {
         /* Look up local and peer portIDs for the given deviceIDs */
         port_id_0 = port_id_1 = 0;
         port_id_0_found = port_id_1_found = false;
