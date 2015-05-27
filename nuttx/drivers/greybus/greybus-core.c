@@ -498,6 +498,22 @@ malloc_error:
     return NULL;
 }
 
+size_t gb_operation_get_request_payload_size(struct gb_operation *operation)
+{
+    struct gb_operation_hdr *hdr;
+
+    if (!operation || !operation->request_buffer) {
+        return 0;
+    }
+
+    hdr = operation->request_buffer;
+    if (hdr->size < sizeof(*hdr)) {
+        return 0;
+    }
+
+    return hdr->size - sizeof(*hdr);
+}
+
 int gb_init(struct gb_transport_backend *transport)
 {
     int i;
