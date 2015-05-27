@@ -28,10 +28,9 @@
 
 MEMORY
 {
+    rom  (rx)  : ORIGIN = 0x00000000, LENGTH = 320K
     sram (rwx) : ORIGIN = 0x10000000, LENGTH = 320K
 }
-
-REGION_ALIAS("REGION_TEXT", sram);
 
 INCLUDE tsb_common.ld
 

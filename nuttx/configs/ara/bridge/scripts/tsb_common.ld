@@ -35,7 +35,7 @@ SECTIONS
         *(.bootstrap.vector)
         *(.bootstrap.loader)
         _spi_stext = ABSOLUTE(.);
-    } > REGION_TEXT
+    } > rom
 
     .text : {
         _stext = ABSOLUTE(.);
@@ -51,7 +51,7 @@ SECTIONS
         *(.gcc_except_table)
         *(.gnu.linkonce.r.*)
         _etext = ABSOLUTE(.);
-    } > sram AT > REGION_TEXT
+    } > sram AT > rom
 
     _stext_lma = LOADADDR(.text);
     _text_size = SIZEOF(.text);
@@ -80,7 +80,7 @@ SECTIONS
         *(.gnu.linkonce.d.*)
         CONSTRUCTORS
         _edata = ABSOLUTE(.);
-    } > sram AT > REGION_TEXT
+    } > sram AT > rom
 
     _sdata_lma = LOADADDR(.data);
 
@@ -94,7 +94,7 @@ SECTIONS
 
     .bootstrap : {
         *(.bootstrap)
-    } > sram AT > REGION_TEXT
+    } > sram AT > rom
 
     _bootstrap_lma = LOADADDR(.bootstrap);
     _bootstrap_vma = ADDR(.bootstrap);
