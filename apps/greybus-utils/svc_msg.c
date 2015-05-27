@@ -172,7 +172,6 @@ void send_svc_event(int type, char *name, void *priv)
     hpe = get_manifest_blob(priv);
     if (type == 0) {
         if (hpe) {
-            parse_manifest_blob(hpe);
             iid = get_interface_id(name);
             if (iid > 0) {
                 gb_info("%s interface detected\n", name);
