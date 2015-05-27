@@ -75,11 +75,6 @@ config ARA_USB_DEBUG
 	bool "Enable DWC Debug"
 	depends on ARCH_CHIP_USB_PCD || ARCH_CHIP_USB_HCD
 
-config TSB_SPIROM
-	bool
-	default y if BOOT_COPYTORAM
-	select ARCH_RAMVECTORS
-
 config TSB_PINSHARE_ETM
 	bool "Enable ETM PINSHARE at Boot"
 	depends on ARCH_CHIP_TSB

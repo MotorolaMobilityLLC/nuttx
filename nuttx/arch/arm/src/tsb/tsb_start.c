@@ -3,7 +3,6 @@
 #include <arch/board/board.h>
 #include "up_arch.h"
 #include "up_internal.h"
-#include "ram_vectors.h"
 #include "nvic.h"
 
 #include "tsb_scm.h"
@@ -16,30 +15,34 @@
 #endif
 
 void tsb_start(void);
+static void copy_data_section_to_ram(void);
 
 extern uint32_t _stext_lma;
 extern uint32_t _sdata_lma;
 
 void __start(void) __attribute__((section(".bootstrap.loader")));
 
-void __start(void) {
-#ifdef CONFIG_BOOT_COPYTORAM
+void __start(void)
+{
     extern void bootstrap(void);
     bootstrap();
-#endif
+    copy_data_section_to_ram();
 
     tsb_start();
 }
 
-void tsb_start(void) {
+static void copy_data_section_to_ram(void)
+{
     uint32_t *dst;
-    __attribute__((unused)) const uint32_t *src;
+    const uint32_t *src;
 
-#ifdef CONFIG_BOOT_COPYTORAM
     for (src = &_sdata_lma, dst = &_sdata; dst < &_edata;) {
         *dst++ = *src++;
     }
-#endif
+}
+
+void tsb_start(void) {
+    uint32_t *dst;
 
     /* Zero .bss */
     for (dst = &_sbss; dst < &_ebss;) {
@@ -49,9 +52,6 @@ void tsb_start(void) {
     /* Relocate vector table (eg from bootrom) */
     extern uint32_t _vectors;
     putreg32((uint32_t)&_vectors, NVIC_VECTAB);
-#ifdef CONFIG_ARCH_RAMVECTORS
-    up_ramvec_initialize();
-#endif
 
     /* Configure clocks */
     tsb_clk_init();

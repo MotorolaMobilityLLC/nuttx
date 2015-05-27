@@ -32,14 +32,14 @@ ENTRY(_spi_stext)
 SECTIONS
 {
     .bootstrap.loader : {
-        *(.vectors)
+        *(.bootstrap.vector)
         *(.bootstrap.loader)
         _spi_stext = ABSOLUTE(.);
     } > REGION_TEXT
 
     .text : {
         _stext = ABSOLUTE(.);
-        *(.ram_vectors)
+        *(.vectors)
         *(.text .text.*)
         *(.fixup)
         *(.gnu.warning)

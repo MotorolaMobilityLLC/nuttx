@@ -19,7 +19,7 @@
 .type	Reset_Handler, %function
 Reset_Handler:
     ldr sp, =IDLE_STACK
-    b __start
+    b tsb_start
 
 
 .section	.rodata, "a"
@@ -38,5 +38,9 @@ Reset_Handler:
 g_idle_topstack:
     .word	HEAP_BASE
     .size	g_idle_topstack, .-g_idle_topstack
+
+.section .bootstrap.vector
+    .word   IDLE_STACK
+    .word __start
 
 .end
