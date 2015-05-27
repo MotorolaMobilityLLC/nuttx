@@ -36,9 +36,9 @@
 #include <nuttx/device.h>
 
 enum device_resource_type {
-    DEVICE_RESOUCE_TYPE_INVALID,
-    DEVICE_RESOUCE_TYPE_REGS,
-    DEVICE_RESOUCE_TYPE_IRQ,
+    DEVICE_RESOURCE_TYPE_INVALID,
+    DEVICE_RESOURCE_TYPE_REGS,
+    DEVICE_RESOURCE_TYPE_IRQ,
 };
 
 struct device_resource {

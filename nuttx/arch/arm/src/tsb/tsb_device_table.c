@@ -43,7 +43,7 @@
 static struct device_resource tsb_plla_resources[] = {
     {
         .name   = "reg_base",
-        .type   = DEVICE_RESOUCE_TYPE_REGS,
+        .type   = DEVICE_RESOURCE_TYPE_REGS,
         .start  = SYSCTL_BASE + TSB_PLLA_CG_BRIDGE_OFFSET,
         .count  = TSB_PLLA_SIZE,
     },
