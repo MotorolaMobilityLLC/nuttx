@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2015 Motorola Mobility, LLC.
+ * Copyright (c) 2015 Google Inc.
  * All rights reserved.
+ * Author: Benoit Cousson <bcousson@baylibre.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -31,11 +32,13 @@
 #include <stdlib.h>
 
 #include <nuttx/greybus/greybus.h>
+#include <apps/greybus-utils/utils.h>
 
 #include "battery-gb.h"
 
-#define GB_BATTERY_VERSION_MAJOR     0
-#define GB_BATTERY_VERSION_MINOR     1
+/* Version of the Greybus battery protocol we support */
+#define GB_BATTERY_VERSION_MAJOR    0x00
+#define GB_BATTERY_VERSION_MINOR    0x01
 
 extern uint8_t gb_battery_driver_technology(__le32 *technology);
 extern uint8_t gb_battery_driver_status(__le16 *status);
@@ -52,18 +55,23 @@ static uint8_t gb_battery_protocol_version(struct gb_operation *operation)
 {
     struct gb_battery_proto_version_response *response;
 
+    gb_info("%s()\n", __func__);
+
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
     response->major = GB_BATTERY_VERSION_MAJOR;
     response->minor = GB_BATTERY_VERSION_MINOR;
+
     return GB_OP_SUCCESS;
 }
 
 static uint8_t gb_battery_technology(struct gb_operation *operation)
 {
     struct gb_battery_technology_response *response;
+
+    gb_info("%s()\n", __func__);
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
@@ -76,6 +84,8 @@ static uint8_t gb_battery_status(struct gb_operation *operation)
 {
     struct gb_battery_status_response *response;
 
+    gb_info("%s()\n", __func__);
+
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
@@ -87,16 +97,20 @@ static uint8_t gb_battery_max_voltage(struct gb_operation *operation)
 {
     struct gb_battery_max_voltage_response *response;
 
+    gb_info("%s()\n", __func__);
+
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    return gb_battery_driver_max_voltage(&response->max_voltage);
+    return gb_battery_driver_max_voltage(&response->voltage);
 }
 
 static uint8_t gb_battery_percent_capacity(struct gb_operation *operation)
 {
-    struct gb_battery_percent_capacity_response *response;
+    struct gb_battery_capacity_response *response;
+
+    gb_info("%s()\n", __func__);
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
@@ -109,6 +123,8 @@ static uint8_t gb_battery_temperature(struct gb_operation *operation)
 {
     struct gb_battery_temperature_response *response;
 
+    gb_info("%s()\n", __func__);
+
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
@@ -119,6 +135,8 @@ static uint8_t gb_battery_temperature(struct gb_operation *operation)
 static uint8_t gb_battery_voltage(struct gb_operation *operation)
 {
     struct gb_battery_voltage_response *response;
+
+    gb_info("%s()\n", __func__);
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
@@ -131,6 +149,8 @@ static uint8_t gb_battery_current(struct gb_operation *operation)
 {
     struct gb_battery_current_response *response;
 
+    gb_info("%s()\n", __func__);
+
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
@@ -142,6 +162,8 @@ static uint8_t gb_battery_capacity(struct gb_operation *operation)
 {
     struct gb_battery_capacity_response *response;
 
+    gb_info("%s()\n", __func__);
+
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
@@ -149,9 +171,11 @@ static uint8_t gb_battery_capacity(struct gb_operation *operation)
     return gb_battery_driver_capacity(&response->capacity);
 }
 
-static uint8_t gb_battery_shutdown_temperature(struct gb_operation *operation)
+static uint8_t gb_battery_shutdowntemp(struct gb_operation *operation)
 {
-    struct gb_battery_shutdown_temp_response *response;
+    struct gb_battery_temperature_response *response;
+
+    gb_info("%s()\n", __func__);
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
@@ -160,6 +184,7 @@ static uint8_t gb_battery_shutdown_temperature(struct gb_operation *operation)
     return gb_battery_driver_shutdown_temperature(&response->temperature);
 }
 
+
 static int gb_battery_init(unsigned int cport)
 {
     // No common initialization required. Call driver specific init.
@@ -167,16 +192,16 @@ static int gb_battery_init(unsigned int cport)
 }
 
 static struct gb_operation_handler gb_battery_handlers[] = {
-    GB_HANDLER(GB_BATTERY_PROTOCOL_VERSION, gb_battery_protocol_version),
-    GB_HANDLER(GB_BATTERY_TECHNOLOGY, gb_battery_technology),
-    GB_HANDLER(GB_BATTERY_STATUS, gb_battery_status),
-    GB_HANDLER(GB_BATTERY_MAX_VOLTAGE, gb_battery_max_voltage),
-    GB_HANDLER(GB_BATTERY_PERCENT_CAPACITY, gb_battery_percent_capacity),
-    GB_HANDLER(GB_BATTERY_TEMPERATURE, gb_battery_temperature),
-    GB_HANDLER(GB_BATTERY_VOLTAGE, gb_battery_voltage),
-    GB_HANDLER(GB_BATTERY_CURRENT, gb_battery_current),
-    GB_HANDLER(GB_BATTERY_CAPACITY, gb_battery_capacity),
-    GB_HANDLER(GB_BATTERY_SHUTDOWN_TEMPERATURE, gb_battery_shutdown_temperature),
+    GB_HANDLER(GB_BATTERY_TYPE_PROTOCOL_VERSION, gb_battery_protocol_version),
+    GB_HANDLER(GB_BATTERY_TYPE_TECHNOLOGY, gb_battery_technology),
+    GB_HANDLER(GB_BATTERY_TYPE_STATUS, gb_battery_status),
+    GB_HANDLER(GB_BATTERY_TYPE_MAX_VOLTAGE, gb_battery_max_voltage),
+    GB_HANDLER(GB_BATTERY_TYPE_PERCENT_CAPACITY, gb_battery_percent_capacity),
+    GB_HANDLER(GB_BATTERY_TYPE_TEMPERATURE, gb_battery_temperature),
+    GB_HANDLER(GB_BATTERY_TYPE_VOLTAGE, gb_battery_voltage),
+    GB_HANDLER(GB_BATTERY_TYPE_CURRENT, gb_battery_current),
+    GB_HANDLER(GB_BATTERY_TYPE_CAPACITY, gb_battery_capacity),
+    GB_HANDLER(GB_BATTERY_TYPE_SHUTDOWN_TEMP, gb_battery_shutdowntemp),
 };
 
 static struct gb_driver gb_battery_driver = {
@@ -187,6 +212,6 @@ static struct gb_driver gb_battery_driver = {
 
 void gb_battery_register(int cport)
 {
+    gb_info("%s()\n", __func__);
     gb_register_driver(cport, &gb_battery_driver);
 }
-
