@@ -49,10 +49,10 @@
 #include "wdog.h"
 
 /*
- * Module ID of the slice. This is required for the Greybus SVC message to the
+ * Interface ID of the slice. This is required for the Greybus SVC message to the
  * base. Slices (currently) don't have multiple modules, so always send ID 1.
  */
-#define SLICE_MID           "MID-1"
+#define SLICE_IID           "IID-1"
 
 /*
  * Priority to report to PM framework when reporting activity. Report high
@@ -111,7 +111,7 @@ static void *slice_cmd_base_present_worker(void *v)
           if (base_present)
             {
               send_svc_handshake();
-              send_svc_event(0, SLICE_MID, NULL);
+              send_svc_event(0, SLICE_IID, NULL);
               enable_cports();
             }
           else
