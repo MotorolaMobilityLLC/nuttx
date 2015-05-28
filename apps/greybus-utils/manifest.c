@@ -35,11 +35,13 @@
 #include <arch/tsb/unipro.h>
 #include <apps/greybus-utils/utils.h>
 #include <nuttx/util.h>
+#include <nuttx/list.h>
 
 #include "svc_msg.h"
 #include "greybus_manifest.h"
 
 struct gb_cport {
+    struct list_head list;
     int id;
     int protocol;
 };
@@ -51,13 +53,13 @@ extern void gb_loopback_register(int cport);
 extern void gb_vibrator_register(int cport);
 
 struct greybus {
-    /* TODO use a list instead */
-    int cports_bmp;
-    struct gb_cport cports[CPORT_MAX];
+    struct list_head cports;
     struct greybus_driver *drv;
 };
 
-struct greybus g_greybus;
+struct greybus g_greybus = {
+    .cports = { &g_greybus.cports, &g_greybus.cports}
+};
 
 unsigned char *manifest_files[] = { MANIFEST };
 
@@ -71,67 +73,73 @@ void foreach_manifest(void (manifest_handler)
 
 static void *alloc_cport(void)
 {
-    int i = 0;
-    while (i < CPORT_MAX) {
-        if ((g_greybus.cports_bmp & (1 << i)) == 0) {
-            g_greybus.cports_bmp |= 1 << i;
-            return &g_greybus.cports[i];
-        }
-        i++;
-    }
-    return NULL;
+    struct gb_cport *gb_cport;
+
+    gb_cport = malloc(sizeof(struct gb_cport));
+    if (!gb_cport)
+        return NULL;
+
+    list_add(&g_greybus.cports, &gb_cport->list);
+    return gb_cport;
 }
 
 static void free_cport(int cportid)
 {
-    g_greybus.cports_bmp &= ~(1 << cportid);
+    struct gb_cport *gb_cport;
+    struct list_head *iter, *next;
+    list_foreach_safe(&g_greybus.cports, iter, next) {
+        gb_cport = list_entry(iter, struct gb_cport, list);
+        if (gb_cport->id == cportid) {
+            list_del(iter);
+            free(gb_cport);
+        }
+    }
 }
 
 void enable_cports(void)
 {
-    int i = 0;
+    struct list_head *iter;
+    struct gb_cport *gb_cport;
     __attribute__((unused)) int id;
     __attribute__((unused)) int protocol;
-    while (i < CPORT_MAX) {
-        if (g_greybus.cports_bmp & (1 << i)) {
-            id = g_greybus.cports[i].id;
-            protocol = g_greybus.cports[i].protocol;
+    list_foreach(&g_greybus.cports, iter) {
+        gb_cport = list_entry(iter, struct gb_cport, list);
+        id = gb_cport->id;
+        protocol = gb_cport->protocol;
 
 #ifdef CONFIG_GREYBUS_GPIO_PHY
-            if (protocol == GREYBUS_PROTOCOL_GPIO) {
-                gb_info("Registering GPIO greybus driver.\n");
-                gb_gpio_register(id);
-            }
+        if (protocol == GREYBUS_PROTOCOL_GPIO) {
+            gb_info("Registering GPIO greybus driver.\n");
+            gb_gpio_register(id);
+        }
 #endif
 
 #ifdef CONFIG_GREYBUS_I2C_PHY
-            if (protocol == GREYBUS_PROTOCOL_I2C) {
-                gb_info("Registering I2C greybus driver.\n");
-                gb_i2c_register(id);
-            }
+        if (protocol == GREYBUS_PROTOCOL_I2C) {
+            gb_info("Registering I2C greybus driver.\n");
+            gb_i2c_register(id);
+        }
 #endif
 
 #ifdef CONFIG_GREYBUS_BATTERY_PHY
-            if (protocol == GREYBUS_PROTOCOL_BATTERY) {
-                gb_info("Registering BATTERY greybus driver.\n");
-                gb_battery_register(id);
-            }
+        if (protocol == GREYBUS_PROTOCOL_BATTERY) {
+            gb_info("Registering BATTERY greybus driver.\n");
+            gb_battery_register(id);
+        }
 #endif
 
 #ifdef CONFIG_GREYBUS_LOOPBACK_PHY
-            if (protocol == GREYBUS_PROTOCOL_LOOPBACK) {
-                gb_info("Registering Loopback greybus driver.\n");
-                gb_loopback_register(id);
-            }
+        if (protocol == GREYBUS_PROTOCOL_LOOPBACK) {
+            gb_info("Registering Loopback greybus driver.\n");
+            gb_loopback_register(id);
+        }
 #endif
 #ifdef CONFIG_GREYBUS_VIBRATOR
-            if (protocol == GREYBUS_PROTOCOL_VIBRATOR) {
-                gb_info("Registering VIBRATOR greybus driver.\n");
-                gb_vibrator_register(id);
-            }
-#endif
+        if (protocol == GREYBUS_PROTOCOL_VIBRATOR) {
+            gb_info("Registering VIBRATOR greybus driver.\n");
+            gb_vibrator_register(id);
         }
-        i++;
+#endif
     }
 }
 
