@@ -55,3 +55,14 @@ void list_del(struct list_head *head)
     head->next->prev = head->prev;
     head->prev = head->next = head;
 }
+
+int list_count(struct list_head *head)
+{
+    int count = 0;
+    struct list_head *iter;
+
+    list_foreach(head, iter) {
+        count++;
+    }
+    return count;
+}

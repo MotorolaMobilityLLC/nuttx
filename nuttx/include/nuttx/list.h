@@ -43,6 +43,7 @@ void list_init(struct list_head *head);
 void list_add(struct list_head *head, struct list_head *node);
 void list_del(struct list_head *head);
 bool list_is_empty(struct list_head *head);
+int list_count(struct list_head *head);
 
 #define list_entry(n, s, f) ((void*) (((uint8_t*) (n)) - offsetof(s, f)))
 
