@@ -85,22 +85,32 @@ void bus_greybus_from_base(struct slice_bus_data *slf, size_t len)
         }
     }
 
-  if (umsg->slice_cport < SLICE_NUM_CPORTS)
+  if (umsg->bundle_cport < SLICE_NUM_CPORTS)
     {
       /* Save base cport so response can be sent back correctly */
-      slf->to_base_cport[umsg->slice_cport] = umsg->ap_cport;
+      slf->to_base_cport[umsg->bundle_cport] = umsg->hd_cport;
 
-      greybus_rx_handler(umsg->slice_cport, umsg->data, len - 3);
+      greybus_rx_handler(umsg->bundle_cport, umsg->data, len - 3);
     }
   else
     logd("Invalid cport number\n");
+}
+
+static inline uint8_t calc_checksum(uint8_t *data, size_t len)
+{
+  uint8_t chksum = 0;
+  int i;
+
+  // Calculate the checksum
+  for (i = 0; i < len; i++)
+      chksum += data[i];
+  return ~chksum + 1;
 }
 
 int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
 {
   struct slice_tx_msg *m;
   struct slice_unipro_msg_tx *umsg;
-  int i;
 
   m = malloc(sizeof(struct slice_tx_msg));
   if (!m)
@@ -115,18 +125,12 @@ int bus_greybus_to_base(unsigned int cportid, const void *buf, size_t len)
     }
   m->buf = (uint8_t *)umsg;
 
-  umsg->ap_cport = bus_data.to_base_cport[cportid];
+  umsg->checksum = 0;
+  umsg->hd_cport = bus_data.to_base_cport[cportid];
   memcpy(umsg->data, buf, len);
+  umsg->checksum = calc_checksum((uint8_t *)umsg, m->size);
 
-  // Calculate the checksum
-  umsg->checksum = umsg->ap_cport;
-  for (i = 0; i < len; ++i)
-    {
-      umsg->checksum += umsg->data[i];
-    }
-  umsg->checksum = ~umsg->checksum + 1;
-
-  logd("slice_cport=%d, ap_cport=%d, len=%d, m->size=%d, fifo_empty=%d\n",
+  logd("bundle_cport=%d, hd_cport=%d, len=%d, m->size=%d, fifo_empty=%d\n",
        cportid, bus_data.to_base_cport[cportid], len, m->size,
        list_is_empty(&bus_data.reg_unipro_tx_fifo));
   gb_dump(umsg->data, len);

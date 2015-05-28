@@ -68,17 +68,31 @@ struct slice_bus_data
 struct slice_unipro_msg_rx
 {
     __u8    checksum;
-    __u8    slice_cport;
-    __u8    ap_cport;
+    __u8    bundle_cport;
+    __u8    hd_cport;
     __u8    data[0];
 };
+
+static inline void dump_slice_unipro_msg_rx(const char *func,
+        const struct slice_unipro_msg_rx *rx)
+{
+    lowsyslog("%s: RX: checksum = 0x%02x, bundle_cport = 0x%02x, hd_cport = 0x%02x\n",
+            func,  rx->checksum, rx->bundle_cport, rx->hd_cport);
+}
 
 struct slice_unipro_msg_tx
 {
     __u8    checksum;
-    __u8    ap_cport;
+    __u8    hd_cport;
     __u8    data[0];
 };
+
+static inline void dump_slice_unipro_msg_tx(const char *func,
+        const struct slice_unipro_msg_tx *tx)
+{
+    lowsyslog("%s: TX: checksum = 0x%02x, hd_cport = 0x%02x\n",
+            func,  tx->checksum, tx->hd_cport);
+}
 
 /* Initialize the bus to the host/base/core. */
 int bus_init(void);
