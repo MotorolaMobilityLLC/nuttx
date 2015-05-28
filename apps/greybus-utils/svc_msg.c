@@ -61,7 +61,7 @@ void send_hot_plug(char *hpe, int iid)
     struct svc_msg *msg = (struct svc_msg *)hpe;
     struct greybus_manifest_header *mh =
         (struct greybus_manifest_header *)(hpe + HP_BASE_SIZE);
-    u16 manifest_size = le16toh(mh->size);
+    size_t manifest_size = le16toh(mh->size);
 
     msg->header.function_id = SVC_FUNCTION_HOTPLUG;
     msg->header.message_type = SVC_MSG_DATA;
