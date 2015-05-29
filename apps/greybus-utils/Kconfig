@@ -30,6 +30,18 @@ config MANIFEST
 	string "manifest name"
 	depends on CUSTOM_MANIFEST
 
+config DST_DEVID
+  int "destination device id"
+  depends on !CUSTOM_MANIFEST && (ARCH_BOARD_ARA_BDB1B_SVC || ARCH_BOARD_ARA_BDB2A_SVC)
+  ---help---
+    Select the destination APBridge.
+    Set to:
+     - 1 for APB1
+     - 2 for APB2
+     - 3 for APB3
+     - 4 for GPB1
+     - 5 for GPB2
+
 config SVC_MSG
 	bool "Enable Greybus SVC Protocol"
 

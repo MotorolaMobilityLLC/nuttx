@@ -112,8 +112,15 @@ ifeq ($(CONFIG_MANIFEST_GPIO_I2C_VIBRATOR), y)
  MANIFEST = simple-gpio-i2c-vibrator-module
 endif
 
+ifeq ($(CONFIG_DST_DEVID), )
+CONFIG_DST_DEVID := 1
+endif
+
 ifeq ($(CONFIG_CUSTOM_MANIFEST), y)
  MANIFEST = $(subst ",,$(CONFIG_MANIFEST))
+else
+ MANIFEST_COPY := $(MANIFEST)
+ MANIFEST = $(CONFIG_DST_DEVID),$(MANIFEST_COPY)
 endif
 
 ifdef MANIFEST_REQUIRED
@@ -125,11 +132,18 @@ endif
 comma:= ,
 empty:=
 space:= $(empty) $(empty)
+semicolon:= ;
+
+DEVID_LIST:= 1 2 3 4 5 8
 
 MANIFEST_TMP = $(subst -,_,$(MANIFEST))
-MANIFEST_TMP2 = $(addsuffix _mnfb, $(MANIFEST_TMP))
-MANIFEST_DEFINE = $(addprefix manifests_, $(MANIFEST_TMP2))
-MANIFEST_LIST = $(subst $(comma),$(space),$(MANIFEST))
+MANIFEST_TMP2 = $(subst $(semicolon),$(space),$(MANIFEST_TMP))
+MANIFEST_TMP3 = $(subst $(comma),$(comma)manifests_, $(MANIFEST_TMP2))
+MANIFEST_TMP4 = $(addsuffix _mnfb}$(comma), $(MANIFEST_TMP3))
+MANIFEST_DEFINE = $(addprefix {, $(MANIFEST_TMP4))
+MANIFEST_DEVID_LIST = $(subst $(semicolon),$(space),$(MANIFEST))
+MANIFEST_DEVID_LIST2 = $(subst $(comma),$(space),$(MANIFEST_DEVID_LIST))
+MANIFEST_LIST = $(filter-out $(DEVID_LIST), $(MANIFEST_DEVID_LIST2))
 MANIFESTS = $(addprefix manifests/, $(MANIFEST_LIST))
 MNFS = $(addsuffix .mnfs, $(MANIFESTS))
 MNFB = $(addsuffix .mnfb, $(MANIFESTS))

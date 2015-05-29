@@ -104,11 +104,13 @@ int recv_from_unipro(unsigned int cportid, void *buf, size_t len)
     return unipro_to_usb(g_usbdev, buf, len);
 }
 
-static void manifest_event(unsigned char *manifest_file, int manifest_number)
+static void manifest_event(unsigned char *manifest_file,
+                           int device_id, int manifest_number)
 {
     char iid[IID_LENGTH];
 
     snprintf(iid, IID_LENGTH, "IID-%d", manifest_number + 1);
+    printf("send manifest %d\n", manifest_number);
     send_svc_event(0, iid, manifest_file);
 }
 

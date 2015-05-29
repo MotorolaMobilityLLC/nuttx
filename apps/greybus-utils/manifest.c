@@ -55,14 +55,14 @@ struct greybus g_greybus = {
     .cports = { &g_greybus.cports, &g_greybus.cports}
 };
 
-unsigned char *manifest_files[] = { MANIFEST };
+struct manifest_file manifest_files[] = { MANIFEST };
+static int g_device_id;
 
-void foreach_manifest(void (manifest_handler)
-                       (unsigned char *manifest_file, int manifest_number))
+void foreach_manifest(manifest_handler handler)
 {
     int i = 0;
     for (i = 0; i < ARRAY_SIZE(manifest_files); i++)
-        manifest_handler(manifest_files[i], i);
+        handler(manifest_files[i].bin, manifest_files[i].id, i);
 }
 
 static void *alloc_cport(void)
@@ -198,6 +198,7 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
                 cport = alloc_cport();
                 cport->id = desc->cport.id;
                 cport->protocol = desc->cport.protocol_id;
+                cport->device_id = g_device_id;
                 gb_debug("cport_id = %d\n", cport->id);
             } else {
                 free_cport(desc->cport.id);
@@ -318,7 +319,7 @@ char *get_manifest_blob(void *data)
     struct greybus_manifest_header *mh;
 
     if (!data)
-        data = manifest_files[0];
+        data = manifest_files[0].bin;
 
     memcpy(&size, data, 2);
     if (!(hpb = malloc(HP_BASE_SIZE + size))) {
@@ -349,12 +350,13 @@ void release_manifest_blob(char *hpe)
     manifest_release(mh, le16toh(mh->size));
 }
 
-void enable_manifest(char *name, void *priv)
+void enable_manifest(char *name, void *priv, int device_id)
 {
     char *hpe;
 
     hpe = get_manifest_blob(priv);
     if (hpe) {
+        g_device_id = device_id;
         parse_manifest_blob(hpe);
         int iid = get_interface_id(name);
         if (iid > 0) {

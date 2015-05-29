@@ -69,12 +69,13 @@ struct gb_transport_backend gb_unipro_backend = {
     .send = gbsim_recv_from_unipro,
 };
 
-static void manifest_enable(unsigned char *manifest_file, int manifest_number)
+static void manifest_enable(unsigned char *manifest_file,
+                            int device_id, int manifest_number)
 {
     char iid[IID_LENGTH];
 
     snprintf(iid, IID_LENGTH, "IID-%d", manifest_number + 1);
-    enable_manifest(iid, NULL);
+    enable_manifest(iid, NULL, device_id);
 }
 
 

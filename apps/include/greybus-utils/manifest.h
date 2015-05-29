@@ -35,13 +35,21 @@ struct gb_cport {
     struct list_head list;
     int id;
     int protocol;
+    int device_id;
 };
 
-void foreach_manifest(void (manifest_handler)(unsigned char *manifest_file, int manifest_number));
+struct manifest_file {
+    int id;
+    unsigned char *bin;
+};
+
+typedef void (*manifest_handler)(unsigned char *manifest_file,
+                                 int device_id, int manifest_number);
+void foreach_manifest(manifest_handler handler);
 void enable_cports(void);
 char *get_manifest_blob(void *data);
 void parse_manifest_blob(char *hpe);
-void enable_manifest(char *name, void *priv);
+void enable_manifest(char *name, void *priv, int device_id);
 void release_manifest_blob(char *hpe);
 struct list_head *get_manifest_cports(void);
 
