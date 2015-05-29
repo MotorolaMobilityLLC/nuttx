@@ -35,16 +35,9 @@
 #include <arch/tsb/unipro.h>
 #include <apps/greybus-utils/utils.h>
 #include <nuttx/util.h>
-#include <nuttx/list.h>
 
 #include "svc_msg.h"
 #include "greybus_manifest.h"
-
-struct gb_cport {
-    struct list_head list;
-    int id;
-    int protocol;
-};
 
 extern void gb_gpio_register(int cport);
 extern void gb_i2c_register(int cport);

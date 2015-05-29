@@ -29,6 +29,14 @@
 #ifndef _GREYBUS_UTILS_MANIFEST_H_
 #define _GREYBUS_UTILS_MANIFEST_H_
 
+#include <nuttx/list.h>
+
+struct gb_cport {
+    struct list_head list;
+    int id;
+    int protocol;
+};
+
 void foreach_manifest(void (manifest_handler)(unsigned char *manifest_file, int manifest_number));
 void enable_cports(void);
 void parse_manifest_blob(char *hpe);
