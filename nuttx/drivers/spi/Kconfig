@@ -5,6 +5,12 @@
 
 if SPI
 
+config SPI_SLAVE
+	bool "SPI Slave mode"
+	default n
+	---help---
+		Set if SPI to be configured in slave mode.
+
 config SPI_OWNBUS
 	bool "SPI single device"
 	default n
