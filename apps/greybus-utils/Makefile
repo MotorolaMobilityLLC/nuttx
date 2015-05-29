@@ -163,10 +163,10 @@ $(AOBJS): %$(OBJEXT): %.S
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
-$(MNFB): $(MNFS)
+%.mnfb: %.mnfs
 	$(shell manifesto $<)
 
-$(MNFC): $(MNFB)
+%.c: %.mnfb
 	$(shell xxd -i $< > $@)
 
 .built: $(OBJS)
