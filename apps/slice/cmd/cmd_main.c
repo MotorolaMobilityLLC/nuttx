@@ -121,6 +121,9 @@ static void *slice_cmd_base_present_worker(void *v)
 
               // Cleanup any messages that were never sent to base
               bus_cleanup();
+
+              // Cleanup manifest
+              release_manifest_blob(get_manifest_blob(NULL));
             }
         }
 
