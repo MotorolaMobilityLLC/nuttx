@@ -43,6 +43,7 @@ char *get_manifest_blob(void *data);
 void parse_manifest_blob(char *hpe);
 void enable_manifest(char *name, void *priv);
 void release_manifest_blob(char *hpe);
+struct list_head *get_manifest_cports(void);
 
 #endif
 

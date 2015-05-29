@@ -367,3 +367,8 @@ void enable_manifest(char *name, void *priv)
         gb_error("missing manifest blob, no hotplug event sent\n");
     }
 }
+
+struct list_head *get_manifest_cports(void)
+{
+    return &g_greybus.cports;
+}
