@@ -41,6 +41,30 @@
 #define UNIPRO_SELINDEX_NULL 0
 
 /*
+ * Result codes for UniPro DME accesses
+ */
+#define UNIPRO_CONFIGRESULT_SUCCESS           0 /* Access successful */
+#define UNIPRO_CONFIGRESULT_INVALID_ATTR      1 /* Attribute is invalid,
+                                                 * unimplemented, or
+                                                 * STATIC and doesn't support
+                                                 * setting. */
+#define UNIPRO_CONFIGRESULT_INVALID_ATTR_VAL  2 /* Attribute is settable,
+                                                 * but invalid value was
+                                                 * written. */
+#define UNIPRO_CONFIGRESULT_READ_ONLY_ATTR    3 /* Attribute is read-only. */
+#define UNIPRO_CONFIGRESULT_WRITE_ONLY_ATTR   4 /* Attribute is write-only. */
+#define UNIPRO_CONFIGRESULT_BAD_INDEX         5 /* CPort in selector index
+                                                 * is out of range. */
+#define UNIPRO_CONFIGRESULT_LOCKED_ATTR       6 /* CPort attribute is settable,
+                                                 * but CPort is connected. */
+#define UNIPRO_CONFIGRESULT_BAD_TEST_FEATURE  7 /* Test feature selector index
+                                                 * is out of range. */
+#define UNIPRO_CONFIGRESULT_PEER_COMM_FAILURE 8 /* Peer I/O error. */
+#define UNIPRO_CONFIGRESULT_BUSY              9 /* Previous attr operation
+                                                 * hasn't been completed. */
+#define UNIPRO_CONFIGRESULT_DME_FAILURE       10 /* Layer addressed by DME */
+
+/*
  * L1 attributes
  */
 #define TX_HSMODE_CAPABILITY                     0x0001
