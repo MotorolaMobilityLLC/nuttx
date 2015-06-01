@@ -44,6 +44,7 @@ enum device_state {
     DEVICE_STATE_REMOVING,
 };
 
+struct device_usb_hcd_type_ops;
 struct device_hsic_type_ops;
 struct device_pll_type_ops;
 
@@ -54,6 +55,7 @@ struct device_driver_ops {
     void    (*close)(struct device *dev);
     union {
         struct device_pll_type_ops     *pll;
+        struct device_usb_hcd_type_ops *usb_hcd;
         struct device_hsic_type_ops    *hsic;
     } type_ops;
 };

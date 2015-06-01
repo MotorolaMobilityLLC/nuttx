@@ -38,7 +38,87 @@
 
 #include <nuttx/device.h>
 
+#define DEVICE_TYPE_USB_HCD     "usb-hcd"
 #define DEVICE_TYPE_HSIC_DEVICE "hsic-device"
+
+struct device_usb_hcd_type_ops {
+    int (*start)(struct device *dev);
+    void (*stop)(struct device *dev);
+    int (*hub_control)(struct device *dev, uint16_t typeReq, uint16_t wValue,
+                       uint16_t wIndex, char *buf, uint16_t wLength);
+};
+
+/**
+ * Start the USB HCD
+ *
+ * @param dev HCD device
+ * @return 0 if successful
+ */
+static inline int device_usb_hcd_start(struct device *dev)
+{
+    DEBUGASSERT(dev);
+    DEBUGASSERT(dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.usb_hcd);
+
+    if (dev->state != DEVICE_STATE_OPEN) {
+        return -ENODEV;
+    }
+
+    if (dev->driver->ops->type_ops.usb_hcd->start) {
+        return dev->driver->ops->type_ops.usb_hcd->start(dev);
+    }
+
+    return -ENOSYS;
+}
+
+/**
+ * Stop the USB HCD
+ *
+ * @param dev HCD device
+ * @return 0 if successful
+ */
+static inline void device_usb_hcd_stop(struct device *dev)
+{
+    DEBUGASSERT(dev);
+    DEBUGASSERT(dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.usb_hcd);
+
+    if (dev->state != DEVICE_STATE_OPEN) {
+        return;
+    }
+
+    if (dev->driver->ops->type_ops.usb_hcd->stop) {
+        dev->driver->ops->type_ops.usb_hcd->stop(dev);
+    }
+}
+
+/**
+ * Communicate with the root hub
+ *
+ * @param dev HCD device
+ * @return 0 if successful
+ */
+static inline int device_usb_hcd_hub_control(struct device *dev,
+                                             uint16_t typeReq, uint16_t wValue,
+                                             uint16_t wIndex, char *buf,
+                                             uint16_t wLength)
+{
+    DEBUGASSERT(dev);
+    DEBUGASSERT(dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.usb_hcd);
+
+    if (dev->state != DEVICE_STATE_OPEN) {
+        return -ENODEV;
+    }
+
+    if (dev->driver->ops->type_ops.usb_hcd->hub_control) {
+        return dev->driver->ops->type_ops.usb_hcd->hub_control(dev, typeReq,
+                                                               wValue, wIndex,
+                                                               buf, wLength);
+    }
+
+    return -ENOSYS;
+}
 
 struct device_hsic_type_ops {
     int (*reset)(struct device *dev);
