@@ -1175,6 +1175,10 @@ config NSH_MMCSDSPIPORTNO
 
 comment "Board-Specific Options"
 
+if ARCH_BOARD_ARA_BRIDGE
+source "configs/ara/bridge/Kconfig"
+endif
+
 if ARCH_BOARD_AMBER
 source "configs/amber/Kconfig"
 endif

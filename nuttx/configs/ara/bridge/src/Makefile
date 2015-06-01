@@ -40,6 +40,10 @@ CSRCS		+= up_pwm.c
 endif
 
 
+ifeq ($(CONFIG_ARA_BRIDGE_HAVE_USB4624),y)
+CSRCS		+= usb4624.c
+endif
+
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
