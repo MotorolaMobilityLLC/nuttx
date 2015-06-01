@@ -30,6 +30,11 @@
 
 #include <nuttx/device.h>
 
+extern struct device_driver usb4624_driver;
+
 void tsb_driver_register(void)
 {
+#ifdef CONFIG_ARA_BRIDGE_HAVE_USB4624
+    device_register_driver(&usb4624_driver);
+#endif
 }

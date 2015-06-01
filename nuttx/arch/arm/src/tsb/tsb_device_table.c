@@ -33,6 +33,7 @@
 #include <nuttx/device_resource.h>
 #include <nuttx/device_table.h>
 #include <nuttx/device_pll.h>
+#include <nuttx/usb.h>
 
 #include "chip.h"
 
@@ -59,6 +60,14 @@ static struct device tsb_device_table[] = {
         .id             = 0,
         .resources      = tsb_plla_resources,
         .resource_count = ARRAY_SIZE(tsb_plla_resources),
+    },
+#endif
+#ifdef CONFIG_ARA_BRIDGE_HAVE_USB4624
+    {
+        .type           = DEVICE_TYPE_HSIC_DEVICE,
+        .name           = "usb4624",
+        .desc           = "USB4624 HSIC Hub",
+        .id             = 0,
     },
 #endif
 };
