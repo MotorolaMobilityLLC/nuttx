@@ -5,6 +5,7 @@
 
 config SLICE_SPI_REG
 	bool "Slice SPI Reg"
+	depends on SPI_SLAVE
 	default n
 	---help---
 		Enable the Slice Register Based Slave
@@ -18,5 +19,11 @@ config SLICE_SPI_REG_PROGNAME
 	---help---
 		This is the name of the program that will be use when the NSH ELF
 		program is installed.
+
+config SLICE_SPI_REG_BUS
+	int "SPI Bus Number"
+	default 1
+	---help---
+		SPI bus to use for slave device (default 1).
 
 endif

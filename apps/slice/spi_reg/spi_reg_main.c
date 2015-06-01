@@ -7,8 +7,6 @@
 #include <nuttx/spi/spi.h>
 #include <stdio.h>
 
-#define SPI_SLAVE_BUS  1
-
 #define EXTRA_FMT "%s: "
 #define EXTRA_ARG ,__FUNCTION__
 #define logd(format, ...) \
@@ -109,7 +107,7 @@ int slice_spi_reg_main(int argc, char *argv[])
 {
   FAR struct spi_dev_s *dev1;
 
-  dev1 = up_spiinitialize(SPI_SLAVE_BUS);
+  dev1 = up_spiinitialize(CONFIG_SLICE_SPI_REG_BUS);
   slice_self.dev = dev1;
 
 #ifdef CONFIG_SPI_SLAVE
