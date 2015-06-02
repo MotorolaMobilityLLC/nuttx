@@ -49,20 +49,6 @@
 /************************************************************************************
  * Definitions
  ************************************************************************************/
-/* An analog pin is not supported so makes a good N/A value */
-#define GB_GPIO_UNDEFINED GPIO_ANALOG
-
-struct gb_gpio_s {
-  uint32_t cfgset[2];
-};
-
-static struct gb_gpio_s gb_gpios[] = {
-  { .cfgset = { GPIO_SLICE_APBE_WAKE_IN,    GPIO_SLICE_APBE_WAKE_OUT    }},
-  { .cfgset = { GPIO_SLICE_APBE_BOOTRET_IN, GPIO_SLICE_APBE_BOOTRET_OUT }},
-  { .cfgset = { GPIO_SLICE_APBE_PWR_EN_IN,  GPIO_SLICE_APBE_PWR_EN_OUT  }},
-  { .cfgset = { GPIO_SLICE_APBE_RST_N_IN ,  GPIO_SLICE_APBE_RST_N_OUT   }},
-
-};
 
 /************************************************************************************
  * Private Functions
@@ -71,31 +57,6 @@ static struct gb_gpio_s gb_gpios[] = {
 /************************************************************************************
  * Public Functions
  ************************************************************************************/
-uint8_t slice_gb_gpios_count(void)
-{
-  return (uint8_t)(sizeof(gb_gpios) / sizeof(struct gb_gpio_s));
-}
-
-uint32_t slice_gb_gpios_get_cfgset(uint8_t which)
-{
-  return gb_gpios[which].cfgset[0];
-}
-
-/* if allowed, swap the primary and secondary configurations */
-bool slice_gb_gpios_swap(uint8_t which, uint32_t *new)
-{
-  uint32_t cs = gb_gpios[which].cfgset[0];
-  uint32_t cs_sv = gb_gpios[which].cfgset[1];
-
-  if (cs_sv == GB_GPIO_UNDEFINED)
-    return false;
-
-  *new = cs_sv;
-  gb_gpios[which].cfgset[0] = cs_sv;
-  gb_gpios[which].cfgset[1] = cs;
-
-  return true;
-}
 
 /************************************************************************************
  * Name: stm32_boardinitialize

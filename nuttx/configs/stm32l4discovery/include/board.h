@@ -182,40 +182,6 @@
 #define DMACHAN_SPI1_RX DMACHAN_SPI1_RX_1
 #define DMACHAN_SPI1_TX DMACHAN_SPI1_TX_1
 
-/* Slice ****************************************************************************/
-#define GPIO_SLICE_CHG_CE_N       (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN1)
-#define GPIO_SLICE_BASE_DET_N     (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTA|GPIO_PIN3)
-
-#define GPIO_SLICE_APBE_WAKE_IN   (GPIO_INPUT|GPIO_PULLDOWN|GPIO_PORTA|GPIO_PIN15)
-#define GPIO_SLICE_APBE_WAKE_OUT  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN15)
-
-#define GPIO_SLICE_SL_BPLUS_EN    (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTB|GPIO_PIN1)
-
-#define GPIO_SLICE_APBE_BOOTRET_IN (GPIO_INPUT|GPIO_FLOAT|GPIO_PORTB|GPIO_PIN2)
-#define GPIO_SLICE_APBE_BOOTRET_OUT (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                     GPIO_OUTPUT_CLEAR|GPIO_PORTB|GPIO_PIN2)
-
-#define GPIO_SLICE_SL_VBUS_EN_SW  (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTB|GPIO_PIN5)
-
-#define GPIO_SLICE_APBE_PWR_EN_IN  (GPIO_INPUT|GPIO_FLOAT|GPIO_PORTB|GPIO_PIN9)
-#define GPIO_SLICE_APBE_PWR_EN_OUT (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                    GPIO_OUTPUT_CLEAR|GPIO_PORTB|GPIO_PIN9)
-
-
-#define GPIO_SLICE_CORE_INT       (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN13)
-
-#define GPIO_SLICE_VIB_EN         (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_SET|GPIO_PORTH|GPIO_PIN1)
-
-#define GPIO_SLICE_APBE_RST_N_IN   (GPIO_INPUT|GPIO_FLOAT|GPIO_PORTH|GPIO_PIN1)
-#define GPIO_SLICE_APBE_RST_N_OUT     (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_SET|GPIO_PORTH|GPIO_PIN1)
-
-
 /************************************************************************************
  * Public Data
  ************************************************************************************/
@@ -234,9 +200,6 @@ extern "C"
 /************************************************************************************
  * Public Function Prototypes
  ************************************************************************************/
-uint8_t slice_gb_gpios_count(void);
-uint32_t slice_gb_gpios_get_cfgset(uint8_t ndx);
-bool slice_gb_gpios_swap(uint8_t which, uint32_t *new);
 
 /************************************************************************************
  * Name: stm32_boardinitialize
