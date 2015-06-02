@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <pthread.h>
 
 #include <nuttx/greybus/loopback.h>
 
@@ -45,8 +46,8 @@ int gb_loopback_main(int argc, char *argv[])
     int size = 0;
     int cport = -1;
     int monitor = 0;
-    int ms = -1;
-    int fail = 0;
+    int ms = 1000;
+    struct gb_loopback *gb_loopback;
 
     int c;
     while ((c = getopt (argc, argv, "t:s:c:mw:n:")) != -1) {
@@ -79,30 +80,49 @@ int gb_loopback_main(int argc, char *argv[])
         }
     }
 
-    printf("Start transfer\n");
-    gb_loopback_reset(cport);
-    while(i > 0) {
-        if (type == 1) {
-            if (gb_loopback_ping_host(cport)) {
-                fail++;
-            }
+    if (cport == -1) {
+        struct list_head *iter;
+
+        list_foreach(&gb_loopbacks, iter) {
+            gb_loopback = list_to_loopback(iter);
+            if (gb_loopback_cport_conf(gb_loopback, type, size, ms))
+                continue;
+            if (type == 0) {
+                if (gb_loopback_status(gb_loopback)) {
+                    printf("Transfer failed on cport %d: %d"
+                           " packet were lost or corrupted.\n",
+                           gb_loopback_to_cport(gb_loopback),
+                           gb_loopback_status(gb_loopback));
+                } else {
+                    printf("transfer succeed on cport %d\n",
+                           gb_loopback_to_cport(gb_loopback));
+                }
+             } else {
+                    printf("Start transfer on cport %d\n",
+                           gb_loopback_to_cport(gb_loopback));
+             }
         }
-        if (type == 2) {
-            if (gb_loopback_ping_transfer(cport, size)) {
-                fail++;
-            }
+    } else {
+        gb_loopback = cport_to_loopback(cport);
+        if (gb_loopback_cport_conf(gb_loopback, type, size, ms)) {
+            return -EINVAL;
         }
-        i--;
+        if (type == 0) {
+            if (gb_loopback_status(gb_loopback)) {
+                printf("Transfer failed on cport %d: %d"
+                       " packet were lost or corrupted.\n",
+                       cport, gb_loopback_status(gb_loopback));
+            } else {
+                printf("transfer succeed on cport %d\n", cport);
+            }
+        } else {
+            printf("Start transfer on cport %d\n", cport);
+        }
+
     }
 
-    printf("Wait for pending transfer\n");
-    sleep(2);
-    if (gb_loopback_status(cport) || fail) {
-        printf("Transfer failed: %d packet were lost or corrupted.\n",
-               gb_loopback_status(cport));
-        printf("Transfer failed due to memory errors: %d\n",fail);
-    } else {
-        printf("Transfer succeed\n");
+    if (monitor == 1) {
+        printf("monitor is not curretly supported!\n");
     }
 
     return 0;
