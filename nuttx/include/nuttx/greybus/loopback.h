@@ -29,9 +29,19 @@
 #ifndef __LOOPBACK__H__
 #define __LOOPBACK__H__
 
-int gb_loopback_status(unsigned int cportid);
-int gb_loopback_reset(unsigned int cportid);
-int gb_loopback_transfer_host(unsigned int cportid, size_t size);
-int gb_loopback_ping_host(unsigned int cportid);
+#include <nuttx/list.h>
+
+struct gb_loopback;
+
+extern struct list_head gb_loopbacks;
+
+struct gb_loopback *cport_to_loopback(unsigned int cportid);
+struct gb_loopback *list_to_loopback(struct list_head *iter);
+unsigned int gb_loopback_to_cport(struct gb_loopback *gb_loopback);
+int gb_loopback_cport_conf(struct gb_loopback *gb_loopback,
+                           int type, size_t size, int ms);
+int gb_loopback_status(struct gb_loopback *gb_loopback);
+int gb_loopback_transfer_host(struct gb_loopback *gb_loopback, size_t size);
+int gb_loopback_ping_host(struct gb_loopback *gb_loopback);
 
 #endif

@@ -34,14 +34,21 @@
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/loopback.h>
 #include "loopback-gb.h"
+#include <arch/tsb/unipro.h>
 
 #define GB_LOOPBACK_VERSION_MAJOR 0
 #define GB_LOOPBACK_VERSION_MINOR 1
 
 struct gb_loopback {
     struct list_head list;
-    unsigned int cportid;
+    int ms;
+    int type;
+    int enomem;
+    size_t size;
     unsigned int error;
+    unsigned int cportid;
+    pthread_t thread;
+    pthread_mutex_t mutex;
 };
 
 struct list_head gb_loopbacks = {
@@ -49,7 +56,47 @@ struct list_head gb_loopbacks = {
     .prev = &gb_loopbacks,
 };
 
-static struct gb_loopback *cport_to_loopback(unsigned int cportid)
+void *gb_loopback_fn(void *data)
+{
+    int ms;
+    int type;
+    size_t size;
+    struct gb_loopback *gb_loopback = data;
+
+    while(1) {
+        if (gb_loopback->type == 0) {
+            sleep(1);
+            continue;
+        }
+
+        /* mutex lock */
+        ms = gb_loopback->ms;
+        type = gb_loopback->type;
+        size = gb_loopback->size;
+        /* mutex unlock */
+        if (type == 1) {
+            if (gb_loopback_ping_host(gb_loopback)) {
+                gb_loopback->enomem++;
+            }
+        }
+        if (type == 2) {
+            if (gb_loopback_transfer_host(gb_loopback, size)) {
+                gb_loopback->enomem++;
+            }
+        }
+        if (ms) {
+            usleep(ms*1000);
+        }
+    }
+    return NULL;
+}
+
+struct gb_loopback *list_to_loopback(struct list_head *iter)
+{
+    return list_entry(iter, struct gb_loopback, list);
+}
+
+struct gb_loopback *cport_to_loopback(unsigned int cportid)
 {
     struct list_head *iter;
     struct gb_loopback *gb_loopback;
@@ -61,6 +108,37 @@ static struct gb_loopback *cport_to_loopback(unsigned int cportid)
     }
 
     return NULL;
+}
+
+unsigned int gb_loopback_to_cport(struct gb_loopback *gb_loopback)
+{
+    return gb_loopback->cportid;
+}
+
+static int gb_loopback_reset(struct gb_loopback *gb_loopback)
+{
+    if (!gb_loopback) {
+        return -EINVAL;
+    }
+
+    gb_loopback->error = 0;
+    gb_loopback->enomem = 0;
+
+    return 0;
+}
+
+int gb_loopback_cport_conf(struct gb_loopback *gb_loopback,
+                           int type, size_t size, int ms)
+{
+    gb_loopback_reset(gb_loopback);
+    /* mutex lock*/
+    if (gb_loopback == NULL)
+        return 1;
+    gb_loopback->type = type;
+    gb_loopback->size = size;
+    gb_loopback->ms = ms;
+    /* mutex unlock */
+    return 0;
 }
 
 static uint8_t gb_loopback_protocol_version(struct gb_operation *operation)
@@ -113,24 +191,24 @@ static void gb_loopback_transfer_sync(struct gb_operation *operation)
         gb_loopback->error += 1;
 }
 
-int gb_loopback_transfer_host(unsigned int cportid, size_t size)
+int gb_loopback_transfer_host(struct gb_loopback *gb_loopback, size_t size)
 {
     int i;
     struct gb_operation *operation;
-    struct gb_loopback *gb_loopback;
     struct gb_loopback_transfer_request *request;
 
-    gb_loopback = cport_to_loopback(cportid);
     if (!gb_loopback) {
         return -EINVAL;
     }
 
-    operation = gb_operation_create(cportid, GB_LOOPBACK_TYPE_TRANSFER,
+    operation = gb_operation_create(gb_loopback->cportid,
+                                    GB_LOOPBACK_TYPE_TRANSFER,
                                     sizeof(*request) + size);
     if (!operation)
         return -ENOMEM;
 
     request = gb_operation_get_request_payload(operation);
+    request->len = size;
     for (i = 0; i < size; i++) {
         request->data[i] = rand() & 0xff;
     }
@@ -141,11 +219,12 @@ int gb_loopback_transfer_host(unsigned int cportid, size_t size)
     return OK;
 }
 
-int gb_loopback_ping_host(unsigned int cportid)
+int gb_loopback_ping_host(struct gb_loopback *gb_loopback)
 {
     struct gb_operation *operation;
 
-    operation = gb_operation_create(cportid, GB_LOOPBACK_TYPE_PING, 1);
+    operation = gb_operation_create(gb_loopback->cportid,
+                                    GB_LOOPBACK_TYPE_PING, 1);
     if (!operation)
         return -ENOMEM;
     gb_operation_send_request_sync(operation);
@@ -154,30 +233,14 @@ int gb_loopback_ping_host(unsigned int cportid)
     return OK;
 }
 
-int gb_loopback_status(unsigned int cportid)
+int gb_loopback_status(struct gb_loopback *gb_loopback)
 {
-    struct gb_loopback *gb_loopback;
-    gb_loopback = cport_to_loopback(cportid);
     if (!gb_loopback) {
         return -EINVAL;
     }
 
-    return gb_loopback->error;
+    return gb_loopback->error + gb_loopback->enomem;
 }
-
-int gb_loopback_reset(unsigned int cportid)
-{
-    struct gb_loopback *gb_loopback;
-    gb_loopback = cport_to_loopback(cportid);
-    if (!gb_loopback) {
-        return -EINVAL;
-    }
-
-    gb_loopback->error = 0;
-
-    return OK;
-}
-
 
 static struct gb_operation_handler gb_loopback_handlers[] = {
     GB_HANDLER(GB_LOOPBACK_TYPE_PROTOCOL_VERSION,
@@ -197,6 +260,8 @@ void gb_loopback_register(int cport)
     if (gb_loopback) {
         gb_loopback->cportid = cport;
         list_add(&gb_loopbacks, &gb_loopback->list);
+        pthread_create(&gb_loopback->thread, NULL, gb_loopback_fn,
+                       (pthread_addr_t)gb_loopback);
     }
     gb_register_driver(cport, &loopback_driver);
 }

@@ -52,5 +52,11 @@ struct gb_loopback_transfer_response {
 	__u8    data[0];
 };
 
+struct gb_loopback_sync_transfer {
+	__le32	len;
+	__le32	chksum;
+	__u8    data[0];
+};
+
 #endif
 
