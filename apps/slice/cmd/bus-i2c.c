@@ -36,8 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <arch/stm32/slice.h>
-
 #include <apps/greybus-utils/manifest.h>
 #include <apps/greybus-utils/svc.h>
 #include <apps/greybus-utils/utils.h>

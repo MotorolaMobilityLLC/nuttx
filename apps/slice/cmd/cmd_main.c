@@ -38,7 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <arch/stm32/slice.h>
+#include <arch/board/slice.h>
 
 #include <apps/greybus-utils/manifest.h>
 #include <apps/greybus-utils/svc.h>
@@ -148,9 +148,9 @@ static void slice_cmd_init(void)
     {
       logd("Failed to create pthread for interrupts!\n");
     }
-  else if (slice_init(slice_cmd_base_present_isr) != OK)
+  else if (slice_irq_register(slice_cmd_base_present_isr) != OK)
     {
-      logd("Failed to configure GPIOs!\n");
+      logd("Failed to register IRQ!\n");
     }
 #ifdef CONFIG_PM
   else if (pm_register(&slice_cmd_pmcb) != OK)

@@ -30,7 +30,7 @@
 #include <debug.h>
 #include <stdlib.h>
 
-#include <arch/stm32/slice.h>
+#include <arch/board/slice.h>
 
 #include <nuttx/greybus/greybus.h>
 
