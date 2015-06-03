@@ -27,7 +27,7 @@
  */
 
 #include <nuttx/config.h>
-#include <nuttx/build_info.h>
+#include <nuttx/ara_build_info.h>
 #include <arch/tsb/unipro.h>
 #include <debug.h>
 
@@ -40,14 +40,14 @@
 #define ARA_FW_VERSION "unknown"
 #endif
 
-#ifndef ARA_FW_BUILD_INFO
-#define ARA_FW_BUILD_INFO "unknown"
+#ifndef ARA_BUILD_INFO
+#define ARA_BUILD_INFO "unknown"
 #endif
 
 void tsb_boardinitialize(void) {
     early_dbg("\n********************************************************************************\n");
     early_dbg("Ara Bridge FW version: %s\n", ARA_FW_VERSION);
-    early_dbg("Build: %s\n", ARA_FW_BUILD_INFO);
+    early_dbg("Build: %s\n", ARA_BUILD_INFO);
     early_dbg("Chip Revision: %s\n", CONFIG_TSB_CHIP_REV);
 
 #if defined CONFIG_BOOT_COPYTORAM
