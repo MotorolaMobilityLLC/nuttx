@@ -1241,6 +1241,13 @@ int switch_configure_link(struct tsb_switch *sw,
         goto out;
     }
 
+    /* Sanity-check the configuration. */
+    if (!(switch_active_cfg_is_sane(tx, PA_CONN_TX_DATA_LANES_NR) &&
+          switch_active_cfg_is_sane(rx, PA_CONN_RX_DATA_LANES_NR))) {
+        rc = -EINVAL;
+        goto out;
+    }
+
     /* Changes to a link's HS series require special preparation, and
      * involve restrictions on the power mode to apply next. */
     if (cfg->upro_hs_ser != UNIPRO_HS_SERIES_UNCHANGED) {
@@ -1248,13 +1255,6 @@ int switch_configure_link(struct tsb_switch *sw,
         if (rc) {
             goto out;
         }
-    }
-
-    /* Sanity-check the configuration. */
-    if (!(switch_active_cfg_is_sane(tx, PA_CONN_TX_DATA_LANES_NR) &&
-          switch_active_cfg_is_sane(rx, PA_CONN_RX_DATA_LANES_NR))) {
-        rc = -EINVAL;
-        goto out;
     }
 
     /* Apply TX and RX link reconfiguration as needed. */
