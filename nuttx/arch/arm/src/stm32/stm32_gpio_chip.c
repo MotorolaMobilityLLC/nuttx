@@ -46,6 +46,7 @@
 #define lldbg(x...)
 
 
+/* Private data and functions */
 static bool stm32_gpio_chip_initalized = false;
 
 // Map pin number to cfgset used by the STM32 GPIO framework
@@ -61,7 +62,7 @@ static int map_pin_nr_to_cfgset(uint8_t pin, uint32_t *cfgset)
     return 0;
 }
 
-void stm32_gpio_set_direction_in(void *driver_data, uint8_t pin)
+static void stm32_gpio_set_direction_in(void *driver_data, uint8_t pin)
 {
     uint32_t cfgset;
     int ret;
@@ -83,7 +84,8 @@ void stm32_gpio_set_direction_in(void *driver_data, uint8_t pin)
         lldbg("%s: stm32_configgpio returns %d\n", ret);
 }
 
-void stm32_gpio_set_direction_out(void *driver_data, uint8_t pin, uint8_t value)
+static void stm32_gpio_set_direction_out(void *driver_data, uint8_t pin,
+                                         uint8_t value)
 {
     uint32_t cfgset;
     int ret;
@@ -110,12 +112,12 @@ void stm32_gpio_set_direction_out(void *driver_data, uint8_t pin, uint8_t value)
 }
 
 // STM32 GPIO API does not have a direction query function
-int stm32_gpio_get_direction(void *driver_data, uint8_t pin)
+static int stm32_gpio_get_direction(void *driver_data, uint8_t pin)
 {
     return -EOPNOTSUPP;
 }
 
-void stm32_gpio_set(void *driver_data, uint8_t pin, uint8_t val)
+static void stm32_gpio_set(void *driver_data, uint8_t pin, uint8_t val)
 {
     uint32_t cfgset;
     int ret;
@@ -131,7 +133,7 @@ void stm32_gpio_set(void *driver_data, uint8_t pin, uint8_t val)
     stm32_gpiowrite(cfgset, val);
 }
 
-uint8_t stm32_gpio_get(void *driver_data, uint8_t pin)
+static uint8_t stm32_gpio_get(void *driver_data, uint8_t pin)
 {
     uint32_t cfgset;
     int ret;
@@ -147,18 +149,18 @@ uint8_t stm32_gpio_get(void *driver_data, uint8_t pin)
     return stm32_gpioread(cfgset);
 }
 
-uint8_t stm32_gpio_line_count(void *driver_data)
+static uint8_t stm32_gpio_line_count(void *driver_data)
 {
     return STM32_NGPIO + 1;
 }
 
-void stm32_gpio_activate(void *driver_data, uint8_t pin)
+static void stm32_gpio_activate(void *driver_data, uint8_t pin)
 {
 
 }
 
 // Configure pin as input floating
-void stm32_gpio_deactivate(void *driver_data, uint8_t pin)
+static void stm32_gpio_deactivate(void *driver_data, uint8_t pin)
 {
     uint32_t cfgset;
     int ret;
@@ -174,7 +176,7 @@ void stm32_gpio_deactivate(void *driver_data, uint8_t pin)
     stm32_unconfiggpio(cfgset);
 }
 
-struct gpio_ops_s stm32_gpio_ops = {
+static struct gpio_ops_s stm32_gpio_ops = {
     .direction_in =     stm32_gpio_set_direction_in,
     .direction_out =    stm32_gpio_set_direction_out,
     .get_direction =    stm32_gpio_get_direction,
@@ -185,6 +187,7 @@ struct gpio_ops_s stm32_gpio_ops = {
     .line_count =       stm32_gpio_line_count,
 };
 
+/* Public functions */
 void stm32_gpio_init(void)
 {
     if (stm32_gpio_chip_initalized) {
