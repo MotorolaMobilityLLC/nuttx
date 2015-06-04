@@ -38,6 +38,7 @@
 #include <string.h>
 #include <nuttx/gpio/stm32_gpio_chip.h>
 #include <nuttx/gpio.h>
+#include <nuttx/util.h>
 
 #include "stm32_gpio.h"
 
@@ -45,11 +46,21 @@
 #undef lldbg
 #define lldbg(x...)
 
+#define STM32_GPIO_FLAG_RISING      BIT(0)
+#define STM32_GPIO_FLAG_FALLING     BIT(1)
+
+/* Internal struct for IRQ edges and ISR management */
+struct stm32_gpio_internal {
+    xcpt_t isr;
+    uint8_t flags;
+};
+
 
 /* Private data and functions */
 static bool stm32_gpio_chip_initalized = false;
+static struct stm32_gpio_internal stm32_gpio[STM32_NGPIO + 1];
 
-// Map pin number to cfgset used by the STM32 GPIO framework
+/* Map pin number to cfgset used by the STM32 GPIO framework */
 static int map_pin_nr_to_cfgset(uint8_t pin, uint32_t *cfgset)
 {
     if (pin > STM32_NGPIO)
@@ -176,6 +187,136 @@ static void stm32_gpio_deactivate(void *driver_data, uint8_t pin)
     stm32_unconfiggpio(cfgset);
 }
 
+static int stm32_gpio_irqattach(void *driver_data, uint8_t pin, xcpt_t isr,
+                                uint8_t base)
+{
+    uint32_t cfgset;
+    int ret = 0;
+
+    lldbg("%s: pin=%hhu, handler=%p\n", __func__, pin_nr, isr);
+
+    ret = map_pin_nr_to_cfgset(pin, &cfgset);
+    if (ret) {
+        lldbg("%s: Invalid pin %hhu\n", pin);
+        return ret;
+    }
+
+    /*
+     * Install the handler for the pin.
+     *
+     * The IRQ line config is done in stm32_gpiosetevent.
+     * By default cfgset is set as input, floating.
+     */
+    stm32_gpio[pin].isr = isr;
+    stm32_gpiosetevent(cfgset,
+                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
+                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
+                       true,
+                       stm32_gpio[pin].isr);
+
+    return ret;
+}
+
+static int stm32_gpio_set_triggering(void *driver_data, uint8_t pin,
+                                     int trigger)
+{
+    uint32_t cfgset;
+    int ret = 0;
+
+    lldbg("%s: pin=%hhu, trigger=0x%x\n", __func__, pin, trigger);
+
+    ret = map_pin_nr_to_cfgset(pin, &cfgset);
+    if (ret) {
+        lldbg("%s: Invalid pin %hhu\n", pin);
+        return ret;
+    }
+
+    switch(trigger) {
+    case IRQ_TYPE_NONE:
+        stm32_gpio[pin].flags &= ~(STM32_GPIO_FLAG_RISING);
+        stm32_gpio[pin].flags &= ~(STM32_GPIO_FLAG_FALLING);
+        break;
+    case IRQ_TYPE_EDGE_RISING:
+        stm32_gpio[pin].flags |= STM32_GPIO_FLAG_RISING;
+        stm32_gpio[pin].flags &= ~(STM32_GPIO_FLAG_FALLING);
+        break;
+    case IRQ_TYPE_EDGE_FALLING:
+        stm32_gpio[pin].flags &= ~(STM32_GPIO_FLAG_RISING);
+        stm32_gpio[pin].flags |= STM32_GPIO_FLAG_FALLING;
+        break;
+    case IRQ_TYPE_EDGE_BOTH:
+        stm32_gpio[pin].flags |= STM32_GPIO_FLAG_RISING;
+        stm32_gpio[pin].flags |= STM32_GPIO_FLAG_FALLING;
+        break;
+    /* Level IRQ: not supported by low level STM32 gpio support */
+    case IRQ_TYPE_LEVEL_HIGH:
+    case IRQ_TYPE_LEVEL_LOW:
+    default:
+        return -EINVAL;
+    }
+
+    /* Install handler with edge triggering settings */
+    stm32_gpiosetevent(cfgset,
+                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
+                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
+                       true,
+                       stm32_gpio[pin].isr);
+
+    return ret;
+}
+
+static int stm32_gpio_mask_irq(void *driver_data, uint8_t pin)
+{
+    uint32_t cfgset;
+    int ret = 0;
+
+    lldbg("%s: pin=%hhu\n", __func__, pin);
+
+    ret = map_pin_nr_to_cfgset(pin, &cfgset);
+    if (ret) {
+        lldbg("%s: Invalid pin %hhu\n", pin);
+        return ret;
+    }
+
+    /* Mask interrupt */
+    stm32_gpiosetevent(cfgset,
+                       false,
+                       false,
+                       true,
+                       stm32_gpio[pin].isr);
+
+    return ret;
+}
+
+static int stm32_gpio_unmask_irq(void *driver_data, uint8_t pin)
+{
+    uint32_t cfgset;
+    int ret = 0;
+
+    lldbg("%s: pin=%hhu\n", __func__, pin);
+
+    ret = map_pin_nr_to_cfgset(pin, &cfgset);
+    if (ret) {
+        lldbg("%s: Invalid pin %hhu\n", pin);
+        return ret;
+    }
+
+    /* Re-install handler */
+    stm32_gpiosetevent(cfgset,
+                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
+                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
+                       true,
+                       stm32_gpio[pin].isr);
+
+    return ret;
+}
+
+static int stm32_gpio_clear_interrupt(void *driver_data, uint8_t which)
+{
+    /* Clear IRQ: automatically done in STM32 GPIO low-level code */
+    return 0;
+}
+
 static struct gpio_ops_s stm32_gpio_ops = {
     .direction_in =     stm32_gpio_set_direction_in,
     .direction_out =    stm32_gpio_set_direction_out,
@@ -185,17 +326,32 @@ static struct gpio_ops_s stm32_gpio_ops = {
     .set_value =        stm32_gpio_set,
     .deactivate =       stm32_gpio_deactivate,
     .line_count =       stm32_gpio_line_count,
+    .irqattach =        stm32_gpio_irqattach,
+    .set_triggering =   stm32_gpio_set_triggering,
+    .mask_irq =         stm32_gpio_mask_irq,
+    .unmask_irq =       stm32_gpio_unmask_irq,
+    .clear_interrupt =  stm32_gpio_clear_interrupt,
 };
 
 /* Public functions */
 void stm32_gpio_init(void)
 {
+    int i;
+
     if (stm32_gpio_chip_initalized) {
         lldbg("%s: already initialized, exiting\n", __func__);
         return;
     }
 
+    /* Init internal data: default edge triggering and ISR */
+    for (i = 0; i < (STM32_NGPIO + 1); i++) {
+        stm32_gpio[i].isr = NULL;
+        stm32_gpio[i].flags = 0;
+    }
+
+    /* Register to gpio_chip */
     register_gpio_chip(&stm32_gpio_ops, STM32_GPIO_CHIP_BASE, &stm32_gpio_ops);
+
     stm32_gpio_chip_initalized = true;
 }
 
@@ -206,6 +362,8 @@ void stm32_gpio_deinit(void)
         return;
     }
 
+    /* Unregister to gpio_chip */
     unregister_gpio_chip(&stm32_gpio_ops);
+
     stm32_gpio_chip_initalized = false;
 }
