@@ -397,8 +397,6 @@ const struct attr_name_group unipro_tsb_attr_group = {
 static const char* attr_group_get_name(uint16_t attr,
                                        const struct attr_name_group *group)
 {
-    uint16_t a;
-    const char *n;
     const struct attr_name *an = group->attr_names;
     while (an->name) {
         if (attr == an->attr) {

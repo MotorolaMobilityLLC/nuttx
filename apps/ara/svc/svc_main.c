@@ -540,7 +540,7 @@ static int dme_io_dump(struct tsb_switch *sw, uint8_t port,
 }
 
 static int dme_io_set(struct tsb_switch *sw, uint8_t port,
-                      char *attr_str, uint16_t attr, uint32_t val,
+                      const char *attr_str, uint16_t attr, uint32_t val,
                       uint16_t selector, int peer) {
     int rc;
 
