@@ -179,6 +179,9 @@
 #define stm32_spi1select NULL
 #define stm32_spi1status NULL
 
+#define DMACHAN_SPI1_RX DMACHAN_SPI1_RX_1
+#define DMACHAN_SPI1_TX DMACHAN_SPI1_TX_1
+
 /* Slice ****************************************************************************/
 #define GPIO_SLICE_CHG_CE_N       (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
                                    GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN1)

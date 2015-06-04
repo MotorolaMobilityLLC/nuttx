@@ -102,7 +102,7 @@ bool slice_gb_gpios_swap(uint8_t which, uint32_t *new)
  *
  * Description:
  *   All STM32 architectures must provide the following entry point.  This entry point
- *   is called early in the intitialization -- after all memory has been configured
+ *   is called early in the initialization -- after all memory has been configured
  *   and mapped but before any devices have been initialized.
  *
  ************************************************************************************/
@@ -113,6 +113,11 @@ void stm32_boardinitialize(void)
 
 #ifdef CONFIG_ARCH_LEDS
   board_led_initialize();
+#endif
+
+#ifdef CONFIG_STM32_SPI_DMA
+  /* set up DMA Channels for SPI */
+  putreg32(DMA1_CSELR_CHAN2_SPI1_RX | DMA1_CSELR_CHAN3_SPI1_TX, STM32_DMA1_CSELR);
 #endif
 }
 

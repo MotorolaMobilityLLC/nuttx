@@ -28,8 +28,11 @@ static int slice_reg_read_cb(void *v)
 {
   struct slice_reg_data *slf = (struct slice_reg_data *)v;
   FAR struct spi_dev_s *dev = slf->dev;
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
   uint8_t val;
+
   SPI_SLAVE_READ(dev, &val);
+
   if (slf->addr < 0)
     {
       if (val < SLICE_NUM_REGS)
@@ -42,17 +45,23 @@ static int slice_reg_read_cb(void *v)
         slf->regs[slf->addr] = val;
         slf->addr = (slf->addr + 1) % SLICE_NUM_REGS;
     }
+#endif
+#ifdef CONFIG_STM32_SPI_DMA
+  SPI_EXCHANGE(dev,slf->regs, slf->regs, sizeof(slf->regs));
+#endif
   return 0;
 }
 
 /* called when master is reading from slave */
 static int slice_reg_write_cb(void *v)
 {
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
   struct slice_reg_data *slf = (struct slice_reg_data *)v;
   FAR struct spi_dev_s *dev = slf->dev;
   uint8_t val = 0x55;
 
   SPI_SLAVE_WRITE(dev, &val);
+#endif
   return 0;
 }
 
@@ -110,6 +119,9 @@ int slice_spi_reg_main(int argc, char *argv[])
 
   dump_regs();
 
+#ifdef CONFIG_STM32_SPI_DMA
+  SPI_EXCHANGE(dev1,slice_self.regs, slice_self.regs, sizeof(slice_self.regs));
+#endif
   return 0;
 }
 

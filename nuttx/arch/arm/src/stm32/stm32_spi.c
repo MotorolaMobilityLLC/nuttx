@@ -102,7 +102,7 @@
 
 #  if defined(CONFIG_SPI_DMAPRIO)
 #    define SPI_DMA_PRIO  CONFIG_SPI_DMAPRIO
-#  elif defined(CONFIG_STM32_STM32F10XX) || defined(CONFIG_STM32_STM32L15XX)
+#  elif defined(CONFIG_STM32_STM32F10XX) || defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32L4X6)
 #    define SPI_DMA_PRIO  DMA_CCR_PRIMED
 #  elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX)
 #    define SPI_DMA_PRIO  DMA_SCR_PRIMED
@@ -110,7 +110,7 @@
 #    error "Unknown STM32 DMA"
 #  endif
 
-#  if defined(CONFIG_STM32_STM32F10XX) || defined(CONFIG_STM32_STM32L15XX)
+#  if defined(CONFIG_STM32_STM32F10XX) || defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32L4X6)
 #    if (SPI_DMA_PRIO & ~DMA_CCR_PL_MASK) != 0
 #      error "Illegal value for CONFIG_SPI_DMAPRIO"
 #    endif
@@ -826,7 +826,11 @@ static int spi_registercallback(FAR struct spi_dev_s *dev, struct spi_cb_ops_s *
 
 static inline bool spi_16bitmode(FAR struct stm32_spidev_s *priv)
 {
+#ifdef CONFIG_STM32_STM32L4X6
+  return ((spi_getreg(priv, STM32_SPI_CR2_OFFSET) & SPI_CR2_DS_MASK) == SPI_CR2_DS_16BIT);
+#else
   return ((spi_getreg(priv, STM32_SPI_CR1_OFFSET) & SPI_CR1_DFF) != 0);
+#endif
 }
 
 /************************************************************************************
@@ -924,10 +928,18 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 {
   FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)arg;
 
-  /* Wake-up the SPI driver */
+  if (priv->mode_type == SPI_MODE_TYPE_MASTER)
+    {
+      /* Wake-up the SPI driver */
 
-  priv->rxresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
-  spi_dmarxwakeup(priv);
+      priv->rxresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
+      spi_dmarxwakeup(priv);
+    }
+  else
+    {
+      if (priv->cb_ops && priv->cb_ops->read)
+        priv->cb_ops->read(priv->cb_v);
+    }
 }
 #endif
 
@@ -944,10 +956,18 @@ static void spi_dmatxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 {
   FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)arg;
 
-  /* Wake-up the SPI driver */
+  if (priv->mode_type == SPI_MODE_TYPE_MASTER)
+    {
+      /* Wake-up the SPI driver */
 
-  priv->txresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
-  spi_dmatxwakeup(priv);
+      priv->txresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
+      spi_dmatxwakeup(priv);
+    }
+  else
+    {
+      if (priv->cb_ops && priv->cb_ops->write)
+        priv->cb_ops->write(priv->cb_v);
+    }
 }
 #endif
 
@@ -1108,7 +1128,6 @@ static void spi_modifycr1(FAR struct stm32_spidev_s *priv, uint16_t setbits, uin
   spi_putreg(priv, STM32_SPI_CR1_OFFSET, cr1);
 }
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
 /************************************************************************************
  * Name: spi_modifycr2
  *
@@ -1133,7 +1152,6 @@ static void spi_modifycr2(FAR struct stm32_spidev_s *priv, uint16_t setbits, uin
   cr2 |= setbits;
   spi_putreg(priv, STM32_SPI_CR2_OFFSET, cr2);
 }
-#endif
 
 /************************************************************************************
  * Name: spi_lock
@@ -1628,10 +1646,13 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       spi_dmarxstart(priv);
       spi_dmatxstart(priv);
 
-      /* Then wait for each to complete */
+      if (priv->mode_type == SPI_MODE_TYPE_MASTER)
+        {
+          /* Then wait for each to complete */
 
-      spi_dmarxwait(priv);
-      spi_dmatxwait(priv);
+          spi_dmarxwait(priv);
+          spi_dmatxwait(priv);
+        }
     }
 }
 #endif /* CONFIG_STM32_SPI_DMA */
@@ -1947,12 +1968,18 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
        *   8-bit:                         DFF=0
        *   MSB tranmitted first:          LSBFIRST=0
        *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
+       *   For DMA                        SSI=0 SSM=0
        *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
        */
-
+#ifdef CONFIG_STM32_SPI_DMA
+      clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_MSTR|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
+                SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE|SPI_CR1_SSI|SPI_CR1_SSM;
+      setbits = 0;
+#else
       clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_MSTR|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
                 SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
       setbits = SPI_CR1_SSI|SPI_CR1_SSM;
+#endif
       spi_modifycr1(priv, setbits, clrbits);
     }
   else
@@ -2016,8 +2043,13 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
   spi_putreg(priv, STM32_SPI_CR2_OFFSET, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
 #endif
 
+  if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+    {
+      spi_modifycr2(priv, SPI_CR2_FRXTH, 0);
+    }
+
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
-  spi_modifycr2(priv, SPI_CR2_FRXTH | SPI_CR2_RXNEIE, 0);
+  spi_modifycr2(priv, SPI_CR2_RXNEIE, 0);
   irq_attach(priv->spiirq, priv->isr);
   up_enable_irq(priv->spiirq);
 #endif

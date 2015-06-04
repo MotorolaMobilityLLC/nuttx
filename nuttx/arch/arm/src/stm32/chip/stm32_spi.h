@@ -157,23 +157,23 @@
 #define SPI_CR2_TXEIE             (1 << 7)  /* Bit 7: Tx buffer empty interrupt enable */
 
 #if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
-#define SPI_CR1_DS_SHIFT          (8)       /* Bits 8-11:  Data size */
-#define SPI_CR1_DS_MASK           (15 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_4BIT         (3 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_5BIT         (4 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_6BIT         (5 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_7BIT         (6 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_8BIT         (7 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_9BIT         (8 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_10BIT        (9 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_11BIT        (10 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_12BIT        (11 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_13BIT        (12 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_14BIT        (13 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_15BIT        (14 << SPI_CR1_DS_SHIFT)
-#  define SPI_CR1_DS_16BIT        (15 << SPI_CR1_DS_SHIFT)
+#define SPI_CR2_DS_SHIFT          (8)       /* Bits 8-11:  Data size */
+#define SPI_CR2_DS_MASK           (15 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_4BIT         (3 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_5BIT         (4 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_6BIT         (5 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_7BIT         (6 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_8BIT         (7 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_9BIT         (8 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_10BIT        (9 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_11BIT        (10 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_12BIT        (11 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_13BIT        (12 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_14BIT        (13 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_15BIT        (14 << SPI_CR2_DS_SHIFT)
+#  define SPI_CR2_DS_16BIT        (15 << SPI_CR2_DS_SHIFT)
 #define SPI_CR2_FRXTH             (1 << 12) /* Bit 12: FIFO reception threshold */
-#define SPI_CR2_LDMARX            (1 << 13) /* Bit 13: Last DMA transfer for receptione */
+#define SPI_CR2_LDMARX            (1 << 13) /* Bit 13: Last DMA transfer for reception */
 #define SPI_CR2_LDMATX            (1 << 14) /* Bit 14: Last DMA transfer for transmission */
 #endif
 
