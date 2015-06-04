@@ -323,35 +323,33 @@ static int get_interface_id(char *fname)
     return iid;
 }
 
-char *get_manifest_blob(void *data)
+void *get_manifest_blob(void *data)
 {
     return data ? data : manifest_files[0].bin;
 }
 
-void parse_manifest_blob(char *hpe)
+void parse_manifest_blob(void *manifest)
 {
-    struct greybus_manifest_header *mh =
-        (struct greybus_manifest_header *)(hpe + HP_BASE_SIZE);
+    struct greybus_manifest_header *mh = manifest;
 
     manifest_parse(mh, le16toh(mh->size));
 }
 
-void release_manifest_blob(char *hpe)
+void release_manifest_blob(void *manifest)
 {
-    struct greybus_manifest_header *mh =
-        (struct greybus_manifest_header *)(hpe + HP_BASE_SIZE);
+    struct greybus_manifest_header *mh = manifest;
 
     manifest_release(mh, le16toh(mh->size));
 }
 
 void enable_manifest(char *name, void *priv, int device_id)
 {
-    char *hpe;
+    void *manifest;
 
-    hpe = get_manifest_blob(priv);
-    if (hpe) {
+    manifest = get_manifest_blob(priv);
+    if (manifest) {
         g_device_id = device_id;
-        parse_manifest_blob(hpe);
+        parse_manifest_blob(manifest);
         int iid = get_interface_id(name);
         if (iid > 0) {
             gb_info("%s interface inserted\n", name);
@@ -370,8 +368,7 @@ struct list_head *get_manifest_cports(void)
 
 int get_manifest_size(void)
 {
-    struct greybus_manifest_header *mh =
-        (struct greybus_manifest_header *) get_manifest_blob(NULL);
+    struct greybus_manifest_header *mh = get_manifest_blob(NULL);
 
     return mh ? le16_to_cpu(mh->size) : 0;
 }

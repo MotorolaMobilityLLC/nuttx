@@ -42,8 +42,6 @@ typedef uint8_t __u8;
 #define GREYBUS_VERSION_MAJOR	0x00
 #define GREYBUS_VERSION_MINOR	0x01
 
-/* SVC message header + 2 bytes of payload */
-#define HP_BASE_SIZE            sizeof(struct svc_msg_header) + 2
 #define HP_PAYLOAD_SIZE         (sizeof(struct svc_function_hotplug))
 #define HP_MSG_SIZE             (sizeof(struct svc_msg_header) +        \
                                         HP_PAYLOAD_SIZE)

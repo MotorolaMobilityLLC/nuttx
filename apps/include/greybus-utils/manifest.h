@@ -47,10 +47,10 @@ typedef void (*manifest_handler)(unsigned char *manifest_file,
                                  int device_id, int manifest_number);
 void foreach_manifest(manifest_handler handler);
 void enable_cports(void);
-char *get_manifest_blob(void *data);
-void parse_manifest_blob(char *hpe);
+void *get_manifest_blob(void *data);
+void parse_manifest_blob(void *manifest);
 void enable_manifest(char *name, void *priv, int device_id);
-void release_manifest_blob(char *hpe);
+void release_manifest_blob(void *manifest);
 struct list_head *get_manifest_cports(void);
 int get_manifest_size(void);
 

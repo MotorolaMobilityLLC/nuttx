@@ -163,12 +163,13 @@ static int get_interface_id(char *fname)
 
 void send_svc_event(int type, char *name, void *priv)
 {
-    char *hpe;
+    void *manifest;
     int iid;
 
-    hpe = get_manifest_blob(priv);
+    manifest = get_manifest_blob(priv);
     if (type == 0) {
-        if (hpe) {
+        if (manifest) {
+            parse_manifest_blob(manifest);
             iid = get_interface_id(name);
             if (iid > 0) {
                 gb_info("%s interface detected\n", name);
@@ -185,7 +186,7 @@ void send_svc_event(int type, char *name, void *priv)
     } else if (type == 1) {
         iid = get_interface_id(name);
         if (iid > 0) {
-            release_manifest_blob(hpe);
+            release_manifest_blob(manifest);
             send_hot_unplug(iid);
             gb_info("%s interface removed\n", name);
         } else
