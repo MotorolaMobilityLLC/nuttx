@@ -46,6 +46,8 @@
 #define lldbg(x...)
 
 
+static bool stm32_gpio_chip_initalized = false;
+
 // Map pin number to cfgset used by the STM32 GPIO framework
 static int map_pin_nr_to_cfgset(uint8_t pin, uint32_t *cfgset)
 {
@@ -185,10 +187,22 @@ struct gpio_ops_s stm32_gpio_ops = {
 
 void stm32_gpio_init(void)
 {
+    if (stm32_gpio_chip_initalized) {
+        lldbg("%s: already initialized, exiting\n", __func__);
+        return;
+    }
+
     register_gpio_chip(&stm32_gpio_ops, STM32_GPIO_CHIP_BASE, &stm32_gpio_ops);
+    stm32_gpio_chip_initalized = true;
 }
 
 void stm32_gpio_deinit(void)
 {
+    if (!stm32_gpio_chip_initalized) {
+        lldbg("%s: not initialized, exiting\n", __func__);
+        return;
+    }
+
     unregister_gpio_chip(&stm32_gpio_ops);
+    stm32_gpio_chip_initalized = false;
 }
