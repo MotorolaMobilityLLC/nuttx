@@ -29,15 +29,19 @@
 #ifndef  _ARA_BOARD_H_
 #define  _ARA_BOARD_H_
 
+#include "nuttx/gpio/stm32_gpio_chip.h"
 #include "nuttx/gpio/tca64xx.h"
 
 #include "vreg.h"
 #include "tsb_switch.h"
 
-/* GPIO Chip pins */
-#define STM32_GPIO_CHIP_START   0
+/*
+ * GPIO Chip pins
+ *
+ * STM32 GPIO starts at STM32_GPIO_CHIP_BASE
+ */
 #define STM32_GPIO_CHIP_NR      140
-#define U90_GPIO_CHIP_START     (STM32_GPIO_CHIP_START + STM32_GPIO_CHIP_NR)
+#define U90_GPIO_CHIP_START     (STM32_GPIO_CHIP_BASE + STM32_GPIO_CHIP_NR)
 #define U90_GPIO_CHIP_NR        16
 #define U96_GPIO_CHIP_START     (U90_GPIO_CHIP_START + U90_GPIO_CHIP_NR)
 #define U96_GPIO_CHIP_NR        16
@@ -45,7 +49,7 @@
 #define U135_GPIO_CHIP_NR       24
 
 /* GPIO Chip pin number macro */
-#define STM32_GPIO_PIN(p)       (STM32_GPIO_CHIP_START + (p))
+#define STM32_GPIO_PIN(p)       (STM32_GPIO_CHIP_BASE + (p))
 #define U90_GPIO_PIN(p)         (U90_GPIO_CHIP_START + (p))
 #define U96_GPIO_PIN(p)         (U96_GPIO_CHIP_START + (p))
 #define U135_GPIO_PIN(p)        (U135_GPIO_CHIP_START + (p))

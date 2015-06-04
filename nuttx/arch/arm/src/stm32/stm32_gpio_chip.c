@@ -185,7 +185,7 @@ struct gpio_ops_s stm32_gpio_ops = {
 
 void stm32_gpio_init(void)
 {
-    register_gpio_chip(&stm32_gpio_ops, 0, &stm32_gpio_ops);
+    register_gpio_chip(&stm32_gpio_ops, STM32_GPIO_CHIP_BASE, &stm32_gpio_ops);
 }
 
 void stm32_gpio_deinit(void)

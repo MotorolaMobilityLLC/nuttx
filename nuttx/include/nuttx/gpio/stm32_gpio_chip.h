@@ -31,6 +31,9 @@
 #ifndef _STM32_GPIO_GPIO_H_
 #define _STM32_GPIO_GPIO_H_
 
+/* Base in gpio_chip. Always set as 0 */
+#define STM32_GPIO_CHIP_BASE    0
+
 void stm32_gpio_init(void);
 void stm32_gpio_deinit(void);
 
