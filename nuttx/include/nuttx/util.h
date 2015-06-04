@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005, 2006, 2007 Cisco Systems.  All rights reserved.
  * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
@@ -50,6 +52,22 @@
     #define _ALIGNBYTES    (sizeof(uint32_t) - 1)
     #define ALIGN(p)       ((typeof(p))(((unsigned)(p) + _ALIGNBYTES) & \
                                         ~_ALIGNBYTES))
+#endif
+
+#ifndef MIN
+    #define MIN(a, b) ({        \
+        typeof(a) _a = (a);     \
+        typeof(b) _b = (b);     \
+        _a < _b ? _a : _b;      \
+    })
+#endif
+
+#ifndef MAX
+    #define MAX(a, b) ({        \
+        typeof(a) _a = (a);     \
+        typeof(b) _b = (b);     \
+        _a > _b ? _a : _b;      \
+    })
 #endif
 
 #endif
