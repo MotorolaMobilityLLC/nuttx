@@ -108,7 +108,7 @@ build_image_from_defconfig() {
 
   echo -n "Building '$buildname'" ...
   pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
-  make --always-make -r -f Makefile.unix | tee $ARA_BUILD_TOPDIR/build.log 2>&1
+  make --always-make -r -f Makefile.unix  2>&1 | tee $ARA_BUILD_TOPDIR/build.log
 
   MAKE_RESULT=${PIPESTATUS[0]}
 
