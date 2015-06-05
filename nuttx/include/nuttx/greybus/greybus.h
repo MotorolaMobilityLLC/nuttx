@@ -154,6 +154,7 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
 void gb_operation_ref(struct gb_operation *operation);
 void gb_operation_unref(struct gb_operation *operation);
 size_t gb_operation_get_request_payload_size(struct gb_operation *operation);
+uint8_t gb_operation_get_request_result(struct gb_operation *operation);
 int greybus_rx_handler(unsigned int, void*, size_t);
 
 void gb_control_register(int cport);
