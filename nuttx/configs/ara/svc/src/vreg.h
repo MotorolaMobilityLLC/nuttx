@@ -40,9 +40,10 @@
 
 /* Regulator control GPIO */
 struct vreg_data {
-    unsigned int gpio;
+    unsigned int gpio;        // GPIO number, conforming to GPIO Chip
     unsigned int hold_time;   // Assertion duration, in us
     unsigned int active_high; // Active-high to assert
+    unsigned int def_val;     // Default value at init
 };
 
 /* Voltage regulator management struct */
@@ -62,26 +63,23 @@ bool vreg_get_pwr_state(struct vreg *);
 /*
  * Macro magic.
  */
-#define VREG_ACTIVE_HIGH_DEFAULT_MODE   (GPIO_OUTPUT | GPIO_PUSHPULL | \
-                                         GPIO_OUTPUT_CLEAR)
-/* Spring pins are active low */
-#define VREG_ACTIVE_LOW_DEFAULT_MODE    (GPIO_OUTPUT | GPIO_PUSHPULL | \
-                                         GPIO_OUTPUT_SET)
 
 /* Helper for the generic active high regulator */
 #define INIT_ACTIVE_HIGH_VREG_DATA(g, t)                       \
     {                                                          \
-        .gpio = (VREG_ACTIVE_HIGH_DEFAULT_MODE | g),           \
+        .gpio = g,                                             \
         .hold_time = t,                                        \
         .active_high = 1,                                      \
+        .def_val = 0,                                          \
     }
 
 /* Helper for the generic active low regulator */
 #define INIT_ACTIVE_LOW_VREG_DATA(g, t)                        \
     {                                                          \
-        .gpio = (VREG_ACTIVE_LOW_DEFAULT_MODE | g),            \
+        .gpio = g,                                             \
         .hold_time = t,                                        \
         .active_high = 0,                                      \
+        .def_val = 1,                                          \
     }
 
 /* vreg build helper */

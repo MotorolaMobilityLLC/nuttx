@@ -35,10 +35,10 @@
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
+#include <nuttx/gpio.h>
 
 #include <errno.h>
 
-#include "stm32.h"
 #include "up_debug.h"
 #include "vreg.h"
 
@@ -62,15 +62,12 @@ int vreg_config(struct vreg *vreg) {
             rc = -EINVAL;
             break;
         }
-        dbg_insane("%s: %s vreg, gpio %08x\n", __func__,
+        dbg_insane("%s: %s vreg, gpio %d\n", __func__,
                    vreg->name ? vreg->name : "unknown",
                    vreg->vregs[i].gpio);
-        if (stm32_configgpio(vreg->vregs[i].gpio) < 0) {
-            dbg_error("%s: Failed to configure vregs pins for regulator %s\n",
-                      __func__, vreg->name ? vreg->name : "unknown");
-            // Let other pins to be configured
-            rc = -1;
-        }
+        // First set default value then switch line to output mode
+        gpio_set_value(vreg->vregs[i].gpio, vreg->vregs[i].def_val);
+        gpio_direction_out(vreg->vregs[i].gpio, vreg->vregs[i].def_val);
     }
 
     atomic_init(&vreg->use_count, 0);
@@ -98,11 +95,11 @@ int vreg_get(struct vreg *vreg) {
                 rc = -EINVAL;
                 break;
             }
-            dbg_insane("%s: %s vreg, gpio %08x to %d, hold %dus\n", __func__,
+            dbg_insane("%s: %s vreg, gpio %d to %d, hold %dus\n", __func__,
                        vreg->name ? vreg->name : "unknown",
                        vreg->vregs[i].gpio, !!vreg->vregs[i].active_high,
                        vreg->vregs[i].hold_time);
-            stm32_gpiowrite(vreg->vregs[i].gpio, vreg->vregs[i].active_high);
+            gpio_set_value(vreg->vregs[i].gpio, vreg->vregs[i].active_high);
             up_udelay(vreg->vregs[i].hold_time);
         }
     }
@@ -141,7 +138,7 @@ int vreg_put(struct vreg *vreg) {
             dbg_insane("%s: %s vreg, gpio %08x to %d\n", __func__,
                        vreg->name ? vreg->name : "unknown",
                        vreg->vregs[i].gpio, !vreg->vregs[i].active_high);
-            stm32_gpiowrite(vreg->vregs[i].gpio, !vreg->vregs[i].active_high);
+            gpio_set_value(vreg->vregs[i].gpio, !vreg->vregs[i].active_high);
         }
 
         /* Update state */

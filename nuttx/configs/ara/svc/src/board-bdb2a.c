@@ -62,8 +62,6 @@
 #define TSB_SW_CS           (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_SET | \
                              GPIO_PORTA | GPIO_PIN4)
 
-#define BOOTRET_MODE        (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_CLEAR)
-
 /* I/O Expanders: I2C bus and addresses */
 #define IOEXP_I2C_BUS       2
 #define IOEXP_U90_I2C_ADDR  0x21
@@ -94,11 +92,14 @@
 #define WAKEOUT_SPRING6 (GPIO_FLOAT | GPIO_PORTB | GPIO_PIN15)
 #define WAKEOUT_SPRING7 (GPIO_FLOAT | GPIO_PORTH | GPIO_PIN10)
 #define WAKEOUT_SPRING8 (GPIO_FLOAT | GPIO_PORTH | GPIO_PIN15)
+
+/* Bootret pins: active low, enabled by default */
 #define INIT_BOOTRET_DATA(g)        \
     {                               \
-        .gpio = (BOOTRET_MODE | g), \
+        .gpio = g,                  \
         .hold_time = 0,             \
         .active_high = 0,           \
+        .def_val = 0,               \
     }
 
 /* ADC Channels and GPIOs used for Spring Current Measurements */
@@ -135,40 +136,57 @@
  * Built-in bridge voltage regulator list
  */
 static struct vreg_data apb1_vreg_data[] = {
-    INIT_BOOTRET_DATA(GPIO_PORTF | GPIO_PIN12),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN4, HOLD_TIME_1P1),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN5, HOLD_TIME_1P8),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN6, HOLD_TIME_1P2),
+    INIT_BOOTRET_DATA(STM32_GPIO_PIN(GPIO_PORTF | GPIO_PIN12)),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN4),
+                               HOLD_TIME_1P1),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN5),
+                               HOLD_TIME_1P8),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN6),
+                               HOLD_TIME_1P2),
 };
 
 static struct vreg_data apb2_vreg_data[] = {
-    INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN3),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN11, HOLD_TIME_1P1),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN10, HOLD_TIME_1P8),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTE | GPIO_PIN7, HOLD_TIME_1P2),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTC | GPIO_PIN6, 0),      // 2p8_tp
+    INIT_BOOTRET_DATA(STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN3)),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN11),
+                               HOLD_TIME_1P1),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN10),
+                               HOLD_TIME_1P8),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTE | GPIO_PIN7),
+                               HOLD_TIME_1P2),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTC | GPIO_PIN6),
+                               0),  // 2p8_tp
 };
 
 static struct vreg_data apb3_vreg_data[] = {
-    INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN4),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN12, HOLD_TIME_1P1),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTE | GPIO_PIN15, HOLD_TIME_1P8),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTE | GPIO_PIN13, HOLD_TIME_1P2),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTC | GPIO_PIN7, 0),      // 2p8
+    INIT_BOOTRET_DATA(STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN4)),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN12),
+                               HOLD_TIME_1P1),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTE | GPIO_PIN15),
+                               HOLD_TIME_1P8),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTE | GPIO_PIN13),
+                               HOLD_TIME_1P2),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTC | GPIO_PIN7),
+                               0),  // 2p8
 };
 
 static struct vreg_data gpb1_vreg_data[] =  {
-    INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN6),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTB | GPIO_PIN5, HOLD_TIME_1P1),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTC | GPIO_PIN3, HOLD_TIME_1P8),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTC | GPIO_PIN2, HOLD_TIME_1P2),
+    INIT_BOOTRET_DATA(STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN6)),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTB | GPIO_PIN5),
+                               HOLD_TIME_1P1),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTC | GPIO_PIN3),
+                               HOLD_TIME_1P8),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTC | GPIO_PIN2),
+                               HOLD_TIME_1P2),
 };
 
 static struct vreg_data gpb2_vreg_data[] = {
-    INIT_BOOTRET_DATA(GPIO_PORTG | GPIO_PIN7),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN7, HOLD_TIME_1P1),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN9, HOLD_TIME_1P8),
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTD | GPIO_PIN8, HOLD_TIME_1P2),
+    INIT_BOOTRET_DATA(STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN7)),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN7),
+                               HOLD_TIME_1P1),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN9),
+                               HOLD_TIME_1P8),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTD | GPIO_PIN8),
+                               HOLD_TIME_1P2),
 };
 
 /*
@@ -181,21 +199,21 @@ DECLARE_INTERFACE(gpb1, gpb1_vreg_data, 3, WAKEOUT_GPB1);
 DECLARE_INTERFACE(gpb2, gpb2_vreg_data, 4, WAKEOUT_GPB2);
 
 #define SPRING_INTERFACES_COUNT     8
-DECLARE_SPRING_INTERFACE(1, (GPIO_PORTI | GPIO_PIN2), 9,
+DECLARE_SPRING_INTERFACE(1, STM32_GPIO_PIN(GPIO_PORTI | GPIO_PIN2), 9,
                          SPRING1_ADC, SPRING1_SENSE_CHANNEL, SPRING1_SIGN_PIN);
-DECLARE_SPRING_INTERFACE(2, (GPIO_PORTF | GPIO_PIN14), 10,
+DECLARE_SPRING_INTERFACE(2, STM32_GPIO_PIN(GPIO_PORTF | GPIO_PIN14), 10,
                          SPRING2_ADC, SPRING2_SENSE_CHANNEL, SPRING2_SIGN_PIN);
-DECLARE_SPRING_INTERFACE(3, (GPIO_PORTF | GPIO_PIN13), 11,
+DECLARE_SPRING_INTERFACE(3, STM32_GPIO_PIN(GPIO_PORTF | GPIO_PIN13), 11,
                          SPRING3_ADC, SPRING3_SENSE_CHANNEL, SPRING3_SIGN_PIN);
-DECLARE_SPRING_INTERFACE(4, (GPIO_PORTF | GPIO_PIN11), 6,
+DECLARE_SPRING_INTERFACE(4, STM32_GPIO_PIN(GPIO_PORTF | GPIO_PIN11), 6,
                          SPRING4_ADC, SPRING4_SENSE_CHANNEL, SPRING4_SIGN_PIN);
-DECLARE_SPRING_INTERFACE(5, (GPIO_PORTG | GPIO_PIN15), 7,
+DECLARE_SPRING_INTERFACE(5, STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN15), 7,
                          SPRING5_ADC, SPRING5_SENSE_CHANNEL, SPRING5_SIGN_PIN);
-DECLARE_SPRING_INTERFACE(6, (GPIO_PORTG | GPIO_PIN12), 8,
+DECLARE_SPRING_INTERFACE(6, STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN12), 8,
                          SPRING6_ADC, SPRING6_SENSE_CHANNEL, SPRING6_SIGN_PIN);
-DECLARE_SPRING_INTERFACE(7, (GPIO_PORTG | GPIO_PIN13), 5,
+DECLARE_SPRING_INTERFACE(7, STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN13), 5,
                          SPRING7_ADC, SPRING7_SENSE_CHANNEL, SPRING7_SIGN_PIN);
-DECLARE_SPRING_INTERFACE(8, (GPIO_PORTG | GPIO_PIN15), 13,
+DECLARE_SPRING_INTERFACE(8, STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN15), 13,
                          SPRING8_ADC, SPRING8_SENSE_CHANNEL, SPRING8_SIGN_PIN);
 
 /*
@@ -224,9 +242,11 @@ static struct interface *bdb2a_interfaces[] = {
  */
 static struct vreg_data sw_vreg_data[] = {
     // Switch 1P1
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTH | GPIO_PIN9, HOLD_TIME_SW_1P1),
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTH | GPIO_PIN9),
+                               HOLD_TIME_SW_1P1),
     // Switch 1P8
-    INIT_ACTIVE_HIGH_VREG_DATA(GPIO_PORTH | GPIO_PIN6, HOLD_TIME_SW_1P8)
+    INIT_ACTIVE_HIGH_VREG_DATA(STM32_GPIO_PIN(GPIO_PORTH | GPIO_PIN6),
+                               HOLD_TIME_SW_1P8),
 };
 DECLARE_VREG(sw, sw_vreg_data);
 
@@ -287,24 +307,6 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
     stm32_gpiowrite(TSB_SW_CS, true);
 
     /*
-     * Configure the switch reset and power supply lines.
-     * Hold all the lines low while we turn on the power rails.
-     */
-    vreg_config(bdb2a_board_info.sw_vreg);
-    stm32_configgpio(bdb2a_board_info.sw_reset);
-    up_udelay(POWER_SWITCH_OFF_STAB_TIME_US);
-    /*
-     * Enable 1P1 and 1P8, used by the I/O Expanders.
-     * This also enables the switch power supplies.
-     */
-    vreg_get(bdb2a_board_info.sw_vreg);
-
-    // Initialize the SPI bus to the Switch; alloc driver data
-    if (tsb_switch_es2_init(sw, SW_SPI_PORT)) {
-        return NULL;
-    }
-
-    /*
      * Register the STM32 GPIOs to Gpio Chip
      *
      * This needs to happen before the I/O Expanders registration, which
@@ -312,7 +314,21 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
      */
     stm32_gpio_init();
 
-    // Register the TCA64xx I/O Expanders GPIOs to Gpio Chip
+    /*
+     * Configure the switch reset and power supply lines.
+     * Hold all the lines low while we turn on the power rails.
+     */
+    vreg_config(bdb2a_board_info.sw_vreg);
+    stm32_configgpio(bdb2a_board_info.sw_reset);
+    up_udelay(POWER_SWITCH_OFF_STAB_TIME_US);
+
+    /*
+     * Enable 1P1 and 1P8, used by the I/O Expanders.
+     * This also enables the switch power supplies.
+     */
+    vreg_get(bdb2a_board_info.sw_vreg);
+
+    /* Register the TCA64xx I/O Expanders GPIOs to Gpio Chip */
     for (i = 0; i < bdb2a_board_info.nr_io_expanders; i++) {
         struct io_expander_info *io_exp = &bdb2a_board_info.io_expanders[i];
 
@@ -335,16 +351,21 @@ struct ara_board_info *board_init(struct tsb_switch *sw) {
         }
     }
 
+    /* Initialize the SPI bus to the Switch; alloc driver data */
+    if (tsb_switch_es2_init(sw, SW_SPI_PORT)) {
+        return NULL;
+    }
+
     return &bdb2a_board_info;
 }
 
 void board_exit(struct tsb_switch *sw) {
     int i;
 
-    // Deinit the Switch
+    /* Deinit the Switch */
     tsb_switch_es2_exit(sw);
 
-    // First unregister the TCA64xx I/O Expanders and associated I2C bus(ses)
+    /* First unregister the TCA64xx I/O Expanders and associated I2C bus(ses) */
     for (i = 0; i < bdb2a_board_info.nr_io_expanders; i++) {
         struct io_expander_info *io_exp = &bdb2a_board_info.io_expanders[i];
 
@@ -355,13 +376,11 @@ void board_exit(struct tsb_switch *sw) {
             up_i2cuninitialize(io_exp->i2c_dev);
     }
 
-    // Lastly unregister the GPIO Chip driver
-    stm32_gpio_deinit();
-
-    /*
-     * Disable 1V1 and 1V8, used by the I/O Expanders.
-     */
+    /* Disable 1V1 and 1V8, used by the I/O Expanders and the Switch */
     vreg_put(sw->vreg);
+
+    /* Lastly unregister the GPIO Chip driver */
+    stm32_gpio_deinit();
 }
 
 /*
