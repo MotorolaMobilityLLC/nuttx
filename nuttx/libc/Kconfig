@@ -549,5 +549,5 @@ config LIB_SLCDCODEC
 		interface must be accessible by end user programs.
 
 config LIB_RING_BUF
-    bool
-    default n
+	bool
+	default n

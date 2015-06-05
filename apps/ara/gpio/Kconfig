@@ -17,7 +17,7 @@ config ARA_GPIO_PROGNAME
 	default "gpio"
 	depends on BUILD_KERNEL
 	---help---
-		This is the name of the program that will be use when the NSH ELF
-		program is installed.
+		This is the name of the program that will be use when the
+		NSH ELF program is installed.
 
 endif

@@ -12,8 +12,8 @@ source "$APPSDIR/ara/Kconfig"
 endmenu
 
 menuconfig GREYBUS_UTILS
-    bool "Greybus utility"
-    default n
+	bool "Greybus utility"
+	default n
 
 if GREYBUS_UTILS
 source "$APPSDIR/greybus-utils/Kconfig"

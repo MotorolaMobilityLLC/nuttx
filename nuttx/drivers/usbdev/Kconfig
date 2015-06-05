@@ -194,15 +194,15 @@ config APBRIDGE_PRODUCTID
 	hex "Product ID"
 
 config APB_USB_LOG
-  bool "Send APB log over usb"
+	bool "Send APB log over usb"
 
 config USB_LOG_BUFFER_SIZE
-  int "Size of log buffer"
-  default 4096
-  depends on APB_USB_LOG
+	int "Size of log buffer"
+	default 4096
+	depends on APB_USB_LOG
 config HSIC_HUB_RESET
-  bool "Reset the HSIC HUB"
-  default n
+	bool "Reset the HSIC HUB"
+	default n
 endif
 
 config PL2303

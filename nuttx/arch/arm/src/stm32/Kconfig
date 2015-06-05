@@ -3570,5 +3570,5 @@ endmenu
 endif # STM32_LTDC
 
 config GPIO_CHIP_STM32
-    bool "STM32 GPIO Chip support"
-    default n
+	bool "STM32 GPIO Chip support"
+	default n

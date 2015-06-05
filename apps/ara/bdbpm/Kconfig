@@ -43,7 +43,7 @@ config ARA_SVC_BDBPM_PROGNAME
 	default "bdbpm"
 	depends on BUILD_KERNEL
 	---help---
-		This is the name of the program that will be use when the NSH ELF
-		program is installed.
+		This is the name of the program that will be use when the
+		NSH ELF program is installed.
 
 endif

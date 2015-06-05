@@ -70,24 +70,24 @@ config ARCH_CHIP_USB_PCD
 		Synopsys USB Device Driver
 
 config ARA_USB_DEBUG
-  bool "Enable DWC Debug"
-  depends on ARCH_CHIP_USB_PCD || ARCH_CHIP_USB_HCD
+	bool "Enable DWC Debug"
+	depends on ARCH_CHIP_USB_PCD || ARCH_CHIP_USB_HCD
 
 config TSB_SPIROM
-    bool
-    default y if BOOT_COPYTORAM
-    select ARCH_RAMVECTORS
+	bool
+	default y if BOOT_COPYTORAM
+	select ARCH_RAMVECTORS
 
 config TSB_PINSHARE_ETM
-    bool "Enable ETM PINSHARE at Boot"
-    depends on ARCH_CHIP_TSB
-    default n
+	bool "Enable ETM PINSHARE at Boot"
+	depends on ARCH_CHIP_TSB
+	default n
 	---help---
 		Enable ETM PINSHARE at Boot Instead of I2S
 
 config ARCH_CHIP_DEVICE_PLL
-    bool
-    default n
+	bool
+	default n
 
 choice
 	prompt "Drive Strength for the TRACE Signals"

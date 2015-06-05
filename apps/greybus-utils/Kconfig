@@ -4,32 +4,32 @@
 #
 
 config GREYBUS_DEBUG
-  bool "Enable verbose log"
+	bool "Enable verbose log"
 
 choice
-  prompt "Select a predefined Manifest"
+	prompt "Select a predefined Manifest"
 config MANIFEST_GPIO
-  bool "GPIO"
+	bool "GPIO"
 config MANIFEST_I2C
-  bool "I2C"
+	bool "I2C"
 config MANIFEST_GPIO_I2C
-  bool "I2C and GPIO"
+	bool "I2C and GPIO"
 config MANIFEST_BATTERY_GPIO_I2C
-  bool "Battery, GPIO and I2C"
+	bool "Battery, GPIO and I2C"
 config MANIFEST_LOOPBACK
-  bool "Loopback"
+	bool "Loopback"
 config MANIFEST_VIBRATOR
-  bool "Vibrator"
+	bool "Vibrator"
 config MANIFEST_GPIO_I2C_VIBRATOR
-  bool "GPIO, I2C, and Vibrator"
+	bool "GPIO, I2C, and Vibrator"
 config CUSTOM_MANIFEST
-  bool "Custom manifest"
+	bool "Custom manifest"
 endchoice
 
 config MANIFEST
-  string "manifest name"
-  depends on CUSTOM_MANIFEST
+	string "manifest name"
+	depends on CUSTOM_MANIFEST
 
 config SVC_MSG
-  bool "Enable Greybus SVC Protocol"
+	bool "Enable Greybus SVC Protocol"
 

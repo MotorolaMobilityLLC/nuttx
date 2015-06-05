@@ -6,9 +6,9 @@
 if ARCH_BOARD_ARA_LGD
 
 config BOARD_HAVE_DISPLAY
-  bool
-  default y
-  select GPIO
+	bool
+	default y
+	select GPIO
 
 config APB1
 	bool "APBridge1 on BDB"

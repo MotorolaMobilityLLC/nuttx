@@ -9,7 +9,8 @@ config ARA_BRIDGE_PINSHARE
 	default y if DEBUG
 	depends on ARCH_CHIP_TSB
 	---help---
-		Enable the Ara PINSHARE program.  Reads, sets, and clears PINSHARE.
+		Enable the Ara PINSHARE program.  Reads, sets, and clears
+		PINSHARE.
 
 
 if ARA_BRIDGE_PINSHARE

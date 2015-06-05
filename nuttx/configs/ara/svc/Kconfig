@@ -4,9 +4,9 @@
 #
 
 choice
-    prompt "Select a route config"
+	prompt "Select a route config"
 config SVC_ROUTE_DEFAULT
-    bool "APB1 to APB2"
+	bool "APB1 to APB2"
 config SVC_ROUTE_SPRING6_APB2
-    bool "AP Module to APB2"
+	bool "AP Module to APB2"
 endchoice

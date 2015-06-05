@@ -17,7 +17,7 @@ config ARA_UNIPRO_MAIN_PROGNAME
 	default "unipro"
 	depends on BUILD_KERNEL
 	---help---
-		This is the name of the program that will be use when the NSH ELF
-		program is installed.
+		This is the name of the program that will be use when the
+		NSH ELF program is installed.
 
 endif
