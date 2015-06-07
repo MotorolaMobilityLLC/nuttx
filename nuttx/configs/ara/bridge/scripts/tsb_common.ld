@@ -32,15 +32,16 @@ ENTRY(_spi_stext)
 SECTIONS
 {
     .bootstrap.loader : {
-        *(.bootstrap.vector)
-        *(.bootstrap.loader)
+        KEEP(*(.bootstrap.vector))
+        KEEP(*(.bootstrap.loader))
         _spi_stext = ABSOLUTE(.);
     } > rom
 
     .text : {
         _stext = ABSOLUTE(.);
         *(.vectors)
-        *(.text .text.*)
+        KEEP(*(.text))
+        *(.text.*)
         *(.fixup)
         *(.gnu.warning)
         *(.rodata .rodata.*)
