@@ -461,7 +461,8 @@ struct spi_ops_s
   int     (*registercallback)(FAR struct spi_dev_s *dev, spi_mediachange_t callback,
                               void *arg);
 #ifdef CONFIG_SPI_SLAVE
-  int    (*slaveregistercallback)(FAR struct spi_dev_s *dev, struct spi_cb_ops_s *cb_ops, void *v);
+  int    (*slaveregistercallback)(FAR struct spi_dev_s *dev,
+                                  const struct spi_cb_ops_s *cb_ops, void *v);
   int    (*slave_write)(FAR struct spi_dev_s *dev, const uint8_t *buffer);
   int    (*slave_read)(FAR struct spi_dev_s *dev, uint8_t *buffer);
 #endif

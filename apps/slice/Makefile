@@ -8,7 +8,7 @@
 
 # Sub-directories
 
-SUBDIRS = cmd spi_reg
+SUBDIRS = cmd diet spi_reg
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 CNTXTDIRS = cmd spi_reg

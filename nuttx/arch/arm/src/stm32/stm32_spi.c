@@ -205,7 +205,7 @@ struct stm32_spidev_s
   int		   (*isr)(int, void *);     /* Interrupt handler */
 #endif
 #ifdef CONFIG_SPI_SLAVE
-  struct spi_cb_ops_s *cb_ops; /* spi dev callbacks */
+  const struct spi_cb_ops_s *cb_ops; /* spi dev callbacks */
   void *cb_v;                  /* Data pointer for spi dev callbacks */
 #endif
 #endif
@@ -262,7 +262,8 @@ static void        spi_recvblock(FAR struct spi_dev_s *dev, FAR void *rxbuffer,
 #ifdef CONFIG_SPI_SLAVE
 static int spi_write_slave(FAR struct spi_dev_s *dev, const uint8_t *buffer);
 static int spi_read_slave(FAR struct spi_dev_s *dev, uint8_t *buffer);
-static int spi_registercallback(FAR struct spi_dev_s *dev, struct spi_cb_ops_s *cb_ops, void *v);
+static int spi_registercallback(FAR struct spi_dev_s *dev,
+                                const struct spi_cb_ops_s *cb_ops, void *v);
 #endif
 
 /* Initialization */
@@ -801,7 +802,8 @@ static int spi_read_slave(FAR struct spi_dev_s *dev, uint8_t *buffer)
  * Description:
  *
  *******************************************************************************/
-static int spi_registercallback(FAR struct spi_dev_s *dev, struct spi_cb_ops_s *cb_ops, void *v)
+static int spi_registercallback(FAR struct spi_dev_s *dev,
+                                const struct spi_cb_ops_s *cb_ops, void *v)
 {
   FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
   priv->cb_ops = cb_ops;

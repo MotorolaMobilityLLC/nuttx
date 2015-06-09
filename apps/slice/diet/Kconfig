@@ -1,0 +1,9 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config SLICE_DIET
+	bool "Diet Slice"
+	select GREYBUS_UTILS
+	default n

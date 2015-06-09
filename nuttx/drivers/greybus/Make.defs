@@ -41,6 +41,10 @@ CSRCS += control-gpb.c
 endif
 endif
 
+ifeq ($(CONFIG_GREYBUS_SLICE),y)
+include greybus$(DELIM)slice$(DELIM)Make.defs
+endif
+
 ifeq ($(CONFIG_GREYBUS_GPIO_PHY),y)
 CSRCS += gpio.c
 endif

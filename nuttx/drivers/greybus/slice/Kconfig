@@ -1,0 +1,12 @@
+choice
+	prompt "Select a Slice bus"
+config GREYBUS_SLICE_SPI
+	bool "SPI"
+endchoice
+
+config GREYBUS_SLICE_PORT
+	int "Slice Port Number"
+	default 1
+	---help---
+		Bus port to use to communicate with base (default 1).
+
