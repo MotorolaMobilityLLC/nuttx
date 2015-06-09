@@ -596,6 +596,7 @@ static int u16550_setup(struct uart_dev_s *dev)
   struct u16550_s *priv = (struct u16550_s*)dev->priv;
   uint16_t div;
   uint32_t lcr;
+  uint32_t mcr;
 
   /* Clear fifos */
 
@@ -647,6 +648,10 @@ static int u16550_setup(struct uart_dev_s *dev)
     {
       lcr |= (UART_LCR_PEN|UART_LCR_EPS);
     }
+
+  /* Set up the MCR */
+  mcr = UART_MCR_DTR | UART_MCR_RTS;
+  u16550_serialout(priv, UART_MCR_OFFSET, mcr);
 
   /* Enter DLAB=1 */
 
