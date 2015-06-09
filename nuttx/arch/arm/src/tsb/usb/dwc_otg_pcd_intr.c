@@ -1329,7 +1329,7 @@ int32_t dwc_otg_pcd_handle_ep_fetsusp_intr(dwc_otg_pcd_t * pcd)
 static inline void ep0_do_stall(dwc_otg_pcd_t * pcd, const int err_val)
 {
 	dwc_otg_pcd_ep_t *ep0 = &pcd->ep0;
-	usb_device_request_t *ctrl = &pcd->setup_pkt->req;
+	__attribute__((unused)) usb_device_request_t *ctrl = &pcd->setup_pkt->req;
 	DWC_WARN("req %02x.%02x protocol STALL; err %d\n",
 		 ctrl->bmRequestType, ctrl->bRequest, err_val);
 

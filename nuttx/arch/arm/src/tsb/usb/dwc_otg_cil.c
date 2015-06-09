@@ -2725,7 +2725,7 @@ void hc_xfer_timeout(void *ptr)
 void ep_xfer_timeout(void *ptr)
 {
 	ep_xfer_info_t *xfer_info = NULL;
-	int ep_num = 0;
+	__attribute__((unused)) int ep_num = 0;
 	dctl_data_t dctl = {.d32 = 0 };
 	gintsts_data_t gintsts = {.d32 = 0 };
 	gintmsk_data_t gintmsk = {.d32 = 0 };
@@ -4766,7 +4766,7 @@ void dwc_otg_read_packet(dwc_otg_core_if_t * core_if,
 void dwc_otg_dump_dev_registers(dwc_otg_core_if_t * core_if)
 {
 	int i;
-	volatile uint32_t *addr;
+	__attribute__((unused)) volatile uint32_t *addr;
 
 	DWC_PRINTF("Device Global Registers\n");
 	addr = &core_if->dev_if->dev_global_regs->dcfg;
@@ -4930,7 +4930,7 @@ void dwc_otg_dump_spram(dwc_otg_core_if_t * core_if)
 void dwc_otg_dump_host_registers(dwc_otg_core_if_t * core_if)
 {
 	int i;
-	volatile uint32_t *addr;
+	__attribute__((unused)) volatile uint32_t *addr;
 
 	DWC_PRINTF("Host Global Registers\n");
 	addr = &core_if->host_if->host_global_regs->hcfg;
@@ -4999,8 +4999,8 @@ void dwc_otg_dump_host_registers(dwc_otg_core_if_t * core_if)
 void dwc_otg_dump_global_registers(dwc_otg_core_if_t * core_if)
 {
 	int i, ep_num;
-	volatile uint32_t *addr;
-	char *txfsiz;
+	__attribute__((unused)) volatile uint32_t *addr;
+	__attribute__((unused)) char *txfsiz;
 
 	DWC_PRINTF("Core Global Registers\n");
 	addr = &core_if->core_global_regs->gotgctl;

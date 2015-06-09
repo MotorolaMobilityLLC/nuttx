@@ -317,6 +317,18 @@ extern void __DWC_DEBUG(char *format, ...)
 /**
  * Prints out a Debug message.
  */
+#ifdef CONFIG_DWC_QUIET
+#define DWC_WARN(x...)
+#define DWC_ERROR(x...)
+#define DWC_DEBUG(x...)
+#define DWC_INFO(x...)
+
+#define __DWC_WARN(x...)
+#define __DWC_ERROR(x...)
+#define DWC_PRINTF(x...)
+#undef __DWC_DEBUG
+#define __DWC_DEBUG(x...)
+#else
 #define DWC_DEBUG(_format, _args...) __DWC_DEBUG("DEBUG:%s:%s: " _format "\n", \
 						 __func__, dwc_irq(), ## _args)
 #define dwc_debug DWC_DEBUG
@@ -342,6 +354,8 @@ extern void __DWC_DEBUG(char *format, ...)
 #define DWC_PROTO_ERROR(_format, _args...) __DWC_WARN("ERROR:%s:%s:%d: " _format "\n", \
 						dwc_irq(), __func__, __LINE__, ## _args)
 #define dwc_proto_error DWC_PROTO_ERROR
+
+#endif
 
 #ifdef DEBUG
 /** Prints out a exception error message if the _expr expression fails.  Disabled

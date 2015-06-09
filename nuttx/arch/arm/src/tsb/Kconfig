@@ -189,3 +189,7 @@ config TSB_TRACE_DRIVESTRENGTH_MAX
 		Selects the highest possible drive strength for the TRACE signals
 
 endchoice
+
+config DWC_QUIET
+	bool "Make DWC driver quiet (no printf)"
+	default n

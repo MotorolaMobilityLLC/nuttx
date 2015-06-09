@@ -54,6 +54,12 @@
 #include "dwc_os.h"
 #include "dwc_list.h"
 
+#ifdef CONFIG_DWC_QUIET
+#undef __DWC_WARN
+#undef __DWC_ERROR
+#undef DWC_PRINTF
+#endif
+
 /* MISC */
 
 static inline uint32_t msecs_to_ticks(uint32_t time)
