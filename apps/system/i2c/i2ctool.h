@@ -142,6 +142,7 @@ struct i2ctool_s
   uint8_t  regaddr;    /* [-r regaddr] is the I2C device register address */
   uint8_t  width;      /* [-w width] is the data width (8 or 16) */
   bool     start;      /* [-s|n], send|don't send start between command and data */
+  bool     onetransfer;/* [-o|t], use one or two transfers for a set */
   bool     autoincr;   /* [-i|j], Auto increment|don't increment regaddr on repititions */
   uint32_t freq;       /* [-f freq] I2C frequency */
 

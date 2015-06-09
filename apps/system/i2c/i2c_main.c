@@ -141,6 +141,9 @@ static int i2ccmd_help(FAR struct i2ctool_s *i2ctool, int argc, char **argv)
   i2ctool_printf(i2ctool, "  [-s|n], send/don't send start between command and data.  "
                           "Default: -n Current: %s\n",
                  i2ctool->start ? "-s" : "-n");
+  i2ctool_printf(i2ctool, "  [-o|t], use one or two transfers for a set.  "
+                          "Default: -t Current: %s\n",
+                 i2ctool->onetransfer ? "-o" : "-t");
   i2ctool_printf(i2ctool, "  [-i|j], Auto increment|don't increment regaddr on repititions.  "
                           "Default: NO Current: %s\n",
                  i2ctool->autoincr ? "YES" : "NO");
@@ -369,7 +372,7 @@ int i2c_main(int argc, char *argv[])
       g_i2ctool.addr = CONFIG_I2CTOOL_MINADDR;
     }
 
-  if (g_i2ctool.regaddr < CONFIG_I2CTOOL_MAXREGADDR)
+  if (g_i2ctool.regaddr > CONFIG_I2CTOOL_MAXREGADDR)
     {
       g_i2ctool.regaddr = 0;
     }

@@ -56,6 +56,8 @@
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+static int i2ctool_set_onetransfer(FAR struct i2ctool_s *i2ctool,
+                FAR struct i2c_dev_s *dev, uint8_t regaddr, uint16_t value);
 
 /****************************************************************************
  * Private Data
@@ -93,7 +95,7 @@ int i2ccmd_set(FAR struct i2ctool_s *i2ctool, int argc, FAR char **argv)
 
   for (argndx = 1; argndx < argc; )
     {
-      /* Break out of the look when the last option has been parsed */
+      /* Break out of the loop when the last option has been parsed */
 
       ptr = argv[argndx];
       if (*ptr != '-')
@@ -186,7 +188,14 @@ int i2ccmd_set(FAR struct i2ctool_s *i2ctool, int argc, FAR char **argv)
     {
       /* Write to the I2C bus */
 
-      ret = i2ctool_set(i2ctool, dev, regaddr, (uint16_t)value);
+      if (i2ctool->onetransfer)
+        {
+          ret = i2ctool_set_onetransfer(i2ctool, dev, regaddr, (uint16_t)value);
+        }
+      else
+        {
+          ret = i2ctool_set(i2ctool, dev, regaddr, (uint16_t)value);
+        }
 
       /* Display the result */
 
@@ -221,10 +230,40 @@ int i2ccmd_set(FAR struct i2ctool_s *i2ctool, int argc, FAR char **argv)
   return ret;
 }
 
+static int i2ctool_set_onetransfer(FAR struct i2ctool_s *i2ctool,
+                FAR struct i2c_dev_s *dev, uint8_t regaddr, uint16_t value)
+{
+  int ret;
+  uint8_t buf[3];
+  uint8_t *p = buf;
+  struct i2c_msg_s msg;
+
+  /* Set up payload */
+  *p++ = regaddr;
+  if (i2ctool->width == 8)
+    {
+      *p++ = (value >> 0) & 0xFF;
+    }
+  else
+    {
+      *p++ = (value >> 8) & 0xFF;
+      *p++ = (value >> 0) & 0xFF;
+    }
+
+  /* Set up transfer */
+  msg.addr   = i2ctool->addr;
+  msg.flags  = 0;
+  msg.buffer = buf;
+  msg.length = p - buf;
+
+  ret = I2C_TRANSFER(dev, &msg, 1);
+
+  return ret;
+}
+
 /****************************************************************************
  * Name: i2ctool_set
  ****************************************************************************/
-
 int i2ctool_set(FAR struct i2ctool_s *i2ctool, FAR struct i2c_dev_s *dev,
                 uint8_t regaddr, uint16_t value)
 {

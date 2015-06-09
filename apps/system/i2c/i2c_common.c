@@ -130,6 +130,10 @@ int common_args(FAR struct i2ctool_s *i2ctool, FAR char **arg)
         i2ctool->start = false;
         return 1;
 
+      case 'o':
+        i2ctool->onetransfer = true;
+        return 1;
+
       case 'r':
         ret = arg_hex(arg, &value);
         if (value < 0 || value > CONFIG_I2CTOOL_MAXREGADDR)
@@ -142,6 +146,10 @@ int common_args(FAR struct i2ctool_s *i2ctool, FAR char **arg)
 
       case 's':
         i2ctool->start = true;
+        return 1;
+
+      case 't':
+        i2ctool->onetransfer = false;
         return 1;
 
       case 'w':
