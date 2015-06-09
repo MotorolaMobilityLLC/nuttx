@@ -164,10 +164,10 @@ $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
 %.mnfb: %.mnfs
-	$(shell manifesto $<)
+	manifesto $<
 
 %.c: %.mnfb
-	$(shell xxd -i $< > $@)
+	xxd -i $< > $@
 
 .built: $(OBJS)
 	$(call ARCHIVE, $(BIN), $(OBJS))
