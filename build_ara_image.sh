@@ -11,23 +11,48 @@ ARA_BUILD_CONFIG_ERR_NO_NUTTX_TOPDIR=2
 ARA_BUILD_CONFIG_ERR_CONFIG_NOT_FOUND=3
 ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED=4
 
+# Other build configuration.
+ARA_BUILD_PARALLEL=1            # controls make's -j flag
+
 echo "Project Ara firmware image builder"
 
 USAGE="
 
 USAGE:
     (1) rebuild specific image config
-        ${0} <board-name> <config-name>
+        ${0} [-j N] <board-name> <config-name>
     (2) rebuild all image configs under configs/ara|bdb|endo
-        ${0} all
+        ${0} [-j N] all
 
-Where:
+Options:
+  -j N: do a parallel build with N processes
+
+Arguments:
   <board-name> is the name of the board in the configs directory
   <config-name> is the name of the board configuration sub-directory
 
 "
 
 buildall=0
+
+while getopts "j:" opt; do
+    case $opt in
+        j)
+            ARA_BUILD_PARALLEL=${OPTARG}
+            ;;
+        \?)
+            echo "Unknown option: -$OPTARG." >&2
+            echo $USAGE
+            exit $ARA_BUILD_CONFIG_ERR_BAD_PARAMS
+            ;;
+        :)
+            echo "Missing required argument for -$OPTARG." >&2
+            echo $USAGE
+            exit $ARA_BUILD_CONFIG_ERR_BAD_PARAMS
+            ;;
+    esac
+done
+shift $((OPTIND-1))
 
 # check for "all" parameter
 if [ "$1" = "all" ] ; then
@@ -108,7 +133,7 @@ build_image_from_defconfig() {
 
   echo -n "Building '$buildname'" ...
   pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
-  make --always-make -r -f Makefile.unix  2>&1 | tee $ARA_BUILD_TOPDIR/build.log
+  make  -j ${ARA_BUILD_PARALLEL} --always-make -r -f Makefile.unix  2>&1 | tee $ARA_BUILD_TOPDIR/build.log
 
   MAKE_RESULT=${PIPESTATUS[0]}
 
