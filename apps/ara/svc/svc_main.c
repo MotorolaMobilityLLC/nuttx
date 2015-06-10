@@ -743,7 +743,7 @@ static int dme_io(int argc, char *argv[]) {
      * Do the I/O.
      */
     if (read) {
-        int rc;
+        int rc = 0;
         int i;
         const struct attr_name_group *attr_name_groups[7] = {0};
         int n_attr_name_groups;
