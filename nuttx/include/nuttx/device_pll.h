@@ -52,6 +52,9 @@ struct device_pll_type_ops {
  */
 static inline int device_pll_start(struct device *dev)
 {
+    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.pll);
+
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
 
@@ -69,6 +72,9 @@ static inline int device_pll_start(struct device *dev)
  */
 static inline int device_pll_stop(struct device *dev)
 {
+    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.pll);
+
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
 
@@ -88,6 +94,9 @@ static inline int device_pll_stop(struct device *dev)
 static inline int device_pll_set_frequency(struct device *dev,
                                            uint32_t frequency)
 {
+    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.pll);
+
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
 
