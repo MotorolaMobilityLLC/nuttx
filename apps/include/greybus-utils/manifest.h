@@ -39,8 +39,10 @@ struct gb_cport {
 
 void foreach_manifest(void (manifest_handler)(unsigned char *manifest_file, int manifest_number));
 void enable_cports(void);
+char *get_manifest_blob(void *data);
 void parse_manifest_blob(char *hpe);
 void enable_manifest(char *name, void *priv);
+void release_manifest_blob(char *hpe);
 
 #endif
 

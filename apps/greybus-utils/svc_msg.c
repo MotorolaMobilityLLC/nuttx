@@ -31,6 +31,7 @@
 #include <string.h>
 #include <debug.h>
 
+#include <apps/greybus-utils/manifest.h>
 #include "svc_msg.h"
 #include "greybus_manifest.h"
 
@@ -188,7 +189,7 @@ void send_svc_event(int type, char *name, void *priv)
     } else if (type == 1) {
         iid = get_interface_id(name);
         if (iid > 0) {
-            manifest_release(hpe);
+            release_manifest_blob(hpe);
             send_hot_unplug(iid);
             gb_info("%s interface removed\n", name);
         } else

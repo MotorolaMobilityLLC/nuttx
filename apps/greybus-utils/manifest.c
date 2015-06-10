@@ -341,6 +341,14 @@ void parse_manifest_blob(char *hpe)
     manifest_parse(mh, le16toh(mh->size));
 }
 
+void release_manifest_blob(char *hpe)
+{
+    struct greybus_manifest_header *mh =
+        (struct greybus_manifest_header *)(hpe + HP_BASE_SIZE);
+
+    manifest_release(mh, le16toh(mh->size));
+}
+
 void enable_manifest(char *name, void *priv)
 {
     char *hpe;
