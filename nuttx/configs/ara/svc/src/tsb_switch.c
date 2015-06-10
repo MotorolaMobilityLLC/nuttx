@@ -326,6 +326,66 @@ int switch_irq_handler(struct tsb_switch *sw) {
     return sw->ops->switch_irq_handler(sw);
 }
 
+static int switch_set_port_l4attr(struct tsb_switch *sw,
+                                  uint8_t portid,
+                                  uint16_t attrid,
+                                  uint16_t selector,
+                                  uint32_t val) {
+    int rc;
+
+    if (portid == SWITCH_PORT_ID) {
+        rc = switch_dme_set(sw, portid, attrid, selector, val);
+    } else {
+        rc = switch_dme_peer_set(sw, portid, attrid, selector, val);
+    }
+
+    return rc;
+}
+
+static int switch_get_port_l4attr(struct tsb_switch *sw,
+                                  uint8_t portid,
+                                  uint16_t attrid,
+                                  uint16_t selector,
+                                  uint32_t *val) {
+    int rc;
+
+    if (portid == SWITCH_PORT_ID) {
+        rc = switch_dme_get(sw, portid, attrid, selector, val);
+    } else {
+        rc = switch_dme_peer_get(sw, portid, attrid, selector, val);
+    }
+
+    return rc;
+}
+
+
+static int switch_set_pair_attr(struct tsb_switch *sw,
+                                struct unipro_connection *c,
+                                uint16_t attrid,
+                                uint32_t val0,
+                                uint32_t val1) {
+    int rc;
+    rc = switch_set_port_l4attr(sw,
+            c->port_id0,
+            attrid,
+            c->cport_id0,
+            val0);
+    if (rc) {
+        return rc;
+    }
+
+    rc = switch_set_port_l4attr(sw,
+            c->port_id1,
+            attrid,
+            c->cport_id1,
+            val1);
+    if (rc) {
+        return rc;
+    }
+
+    return 0;
+}
+
 static int switch_cport_connect(struct tsb_switch *sw,
                                 struct unipro_connection *c) {
     int e2efc_enabled = (!!(c->flags & CPORT_FLAGS_E2EFC) == 1);
@@ -333,13 +393,7 @@ static int switch_cport_connect(struct tsb_switch *sw,
     int rc = 0;
 
     /* Disable any existing connection(s). */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_CONNECTIONSTATE,
-                             c->cport_id0, 0x0);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_CONNECTIONSTATE,
-                             c->cport_id1, 0x0);
+    rc = switch_set_pair_attr(sw, c, T_CONNECTIONSTATE, 0, 0);
     if (rc) {
         return rc;
     }
@@ -347,13 +401,11 @@ static int switch_cport_connect(struct tsb_switch *sw,
     /*
      * Point each device at the other.
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_PEERDEVICEID,
-                             c->cport_id0, c->device_id1);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_PEERDEVICEID,
-                             c->cport_id1, c->device_id0);
+    rc = switch_set_pair_attr(sw,
+                              c,
+                              T_PEERDEVICEID,
+                              c->device_id1,
+                              c->device_id0);
     if (rc) {
         return rc;
     }
@@ -361,13 +413,7 @@ static int switch_cport_connect(struct tsb_switch *sw,
     /*
      * Point each CPort at the other.
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_PEERCPORTID,
-                             c->cport_id0, c->cport_id1);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_PEERCPORTID,
-                             c->cport_id1, c->cport_id0);
+    rc = switch_set_pair_attr(sw, c, T_PEERCPORTID, c->cport_id1, c->cport_id0);
     if (rc) {
         return rc;
     }
@@ -375,13 +421,7 @@ static int switch_cport_connect(struct tsb_switch *sw,
     /*
      * Match up traffic classes.
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_TRAFFICCLASS,
-                             c->cport_id0, c->tc);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_TRAFFICCLASS,
-                             c->cport_id1, c->tc);
+    rc = switch_set_pair_attr(sw, c, T_TRAFFICCLASS, c->tc, c->tc);
     if (rc) {
         return rc;
     }
@@ -389,13 +429,11 @@ static int switch_cport_connect(struct tsb_switch *sw,
     /*
      * Make sure the protocol IDs are equal. (We don't use them otherwise.)
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_PROTOCOLID,
-                             c->cport_id0, CPORT_DEFAULT_T_PROTOCOLID);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_PROTOCOLID,
-                             c->cport_id1, CPORT_DEFAULT_T_PROTOCOLID);
+    rc = switch_set_pair_attr(sw,
+                              c,
+                              T_PROTOCOLID,
+                              CPORT_DEFAULT_T_PROTOCOLID,
+                              CPORT_DEFAULT_T_PROTOCOLID);
     if (rc) {
         return rc;
     }
@@ -407,23 +445,20 @@ static int switch_cport_connect(struct tsb_switch *sw,
      * enabled, so don't change them to different values unless you
      * also patch up the E2EFC case, below.
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_TXTOKENVALUE,
-                             c->cport_id0, CPORT_DEFAULT_TOKENVALUE);
+    rc = switch_set_pair_attr(sw,
+                              c,
+                              T_TXTOKENVALUE,
+                              CPORT_DEFAULT_TOKENVALUE,
+                              CPORT_DEFAULT_TOKENVALUE);
     if (rc) {
         return rc;
     }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_TXTOKENVALUE,
-                             c->cport_id1, CPORT_DEFAULT_TOKENVALUE);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id0, T_RXTOKENVALUE,
-                             c->cport_id0, CPORT_DEFAULT_TOKENVALUE);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_RXTOKENVALUE,
-                             c->cport_id1, CPORT_DEFAULT_TOKENVALUE);
+
+    rc = switch_set_pair_attr(sw,
+                              c,
+                              T_RXTOKENVALUE,
+                              CPORT_DEFAULT_TOKENVALUE,
+                              CPORT_DEFAULT_TOKENVALUE);
     if (rc) {
         return rc;
     }
@@ -435,13 +470,7 @@ static int switch_cport_connect(struct tsb_switch *sw,
      * (E2EFC needs to be the same on both sides, which is handled by
      * having a single flags value for now.)
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_CPORTFLAGS,
-                             c->cport_id0, c->flags);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_CPORTFLAGS,
-                             c->cport_id1, c->flags);
+    rc = switch_set_pair_attr(sw, c, T_CPORTFLAGS, c->flags, c->flags);
     if (rc) {
         return rc;
     }
@@ -452,24 +481,31 @@ static int switch_cport_connect(struct tsb_switch *sw,
      * T_LocalBufferSpace.
      */
     if (e2efc_enabled || (!e2efc_enabled && csd_enabled)) {
-        uint32_t cport0_local, cport1_local;
-        rc = switch_dme_peer_get(sw, c->port_id0, T_LOCALBUFFERSPACE,
-                                 c->cport_id0, &cport0_local);
+        uint32_t cport0_local = 0;
+        uint32_t cport1_local = 0;
+        rc = switch_get_port_l4attr(sw,
+                c->port_id0,
+                T_LOCALBUFFERSPACE,
+                c->cport_id0,
+                &cport0_local);
         if (rc) {
             return rc;
         }
-        rc = switch_dme_peer_get(sw, c->port_id1, T_LOCALBUFFERSPACE,
-                                 c->cport_id1, &cport1_local);
+
+        rc = switch_get_port_l4attr(sw,
+                c->port_id1,
+                T_LOCALBUFFERSPACE,
+                c->cport_id1,
+                &cport1_local);
         if (rc) {
             return rc;
         }
-        rc = switch_dme_peer_set(sw, c->port_id0, T_PEERBUFFERSPACE,
-                                 c->cport_id0, cport1_local);
-        if (rc) {
-            return rc;
-        }
-        rc = switch_dme_peer_set(sw, c->port_id1, T_PEERBUFFERSPACE,
-                                 c->cport_id1, cport0_local);
+
+        rc = switch_set_pair_attr(sw,
+                                  c,
+                                  T_LOCALBUFFERSPACE,
+                                  cport0_local,
+                                  cport1_local);
         if (rc) {
             return rc;
         }
@@ -478,13 +514,11 @@ static int switch_cport_connect(struct tsb_switch *sw,
     /*
      * Ensure the CPorts aren't in test mode.
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_CPORTMODE,
-                             c->cport_id0, CPORT_MODE_APPLICATION);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_CPORTMODE,
-                             c->cport_id1, CPORT_MODE_APPLICATION);
+    rc = switch_set_pair_attr(sw,
+                              c,
+                              T_CPORTMODE,
+                              CPORT_MODE_APPLICATION,
+                              CPORT_MODE_APPLICATION);
     if (rc) {
         return rc;
     }
@@ -492,13 +526,7 @@ static int switch_cport_connect(struct tsb_switch *sw,
     /*
      * Clear out the credits to send on each side.
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_CREDITSTOSEND,
-                             c->cport_id0, 0);
-    if (rc) {
-        return rc;
-    }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_CREDITSTOSEND,
-                             c->cport_id1, 0);
+    rc = switch_set_pair_attr(sw, c, T_CREDITSTOSEND, 0, 0);
     if (rc) {
         return rc;
     }
@@ -506,27 +534,21 @@ static int switch_cport_connect(struct tsb_switch *sw,
     /*
      * XXX Toshiba-specific TSB_MaxSegmentConfig (move to bridge ASIC code.)
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, TSB_MAXSEGMENTCONFIG,
-                             c->cport_id0, CPORT_DEFAULT_TSB_MAXSEGMENTCONFIG);
+    rc = switch_set_pair_attr(sw,
+                              c,
+                              TSB_MAXSEGMENTCONFIG,
+                              CPORT_DEFAULT_TSB_MAXSEGMENTCONFIG,
+                              CPORT_DEFAULT_TSB_MAXSEGMENTCONFIG);
     if (rc) {
         return rc;
     }
-    rc = switch_dme_peer_set(sw, c->port_id1, TSB_MAXSEGMENTCONFIG,
-                             c->cport_id1, CPORT_DEFAULT_TSB_MAXSEGMENTCONFIG);
-    if (rc) {
-        return rc;
-    }
-
     /*
      * Establish the connections!
      */
-    rc = switch_dme_peer_set(sw, c->port_id0, T_CONNECTIONSTATE,
-                             c->cport_id0, 1);
+    rc = switch_set_pair_attr(sw, c, T_CONNECTIONSTATE, 1, 1);
     if (rc) {
         return rc;
     }
-    rc = switch_dme_peer_set(sw, c->port_id1, T_CONNECTIONSTATE,
-                             c->cport_id1, 1);
 
     return rc;
 }
