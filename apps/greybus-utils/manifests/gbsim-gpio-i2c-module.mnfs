@@ -13,12 +13,12 @@ product-string-id = 2
 ; Interface vendor string (id can't be 0)
 [string-descriptor "1"]
 id = 1
-string = "Project Ara"
+string = Project Ara
 
 ; Interface product string (id can't be 0)
 [string-descriptor "2"]
 id = 2
-string = "Simple GPIO and I2C Interface"
+string = Simple GPIO and I2C Interface
 
 ; GPIO protocol on CPort 0
 [cport-descriptor "0"]

@@ -9,12 +9,12 @@ version-minor = 1
 ; Interface vendor string (id can't be 0)
 [string-descriptor "1"]
 id = 1
-string = "Project Ara"
+string = Project Ara
 
 ; Interface product string (id can't be 0)
 [string-descriptor "2"]
 id = 2
-string = "Vibrator Interface"
+string = Vibrator Interface
 
 ; GPIO protocol on CPort 5
 [cport-descriptor "5"]
