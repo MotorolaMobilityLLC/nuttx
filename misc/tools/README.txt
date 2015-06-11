@@ -245,13 +245,6 @@ windows IS POSSIBLE, I have done it in a few minutes."
 
 - Sebastien Lorquet
 
-Buildroot
----------
-As of 2014-3-7, the kconfig-frontends tools have been included in the
-buildroot tool set.  This means that in one package you can build GCC tools
-that are especially tuned for NuttX and all of the support tools that you
-need ROMFS, configuration, and NXFLAT.
-
 osmocon
 =======
 

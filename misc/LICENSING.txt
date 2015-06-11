@@ -9,11 +9,6 @@ directory have have other license restrictions.
 The licensing of the components of this directory are summarized
 below:
 
-  buildroot:
-    Description:  GNU toolchain build environment.  Derived from
-      http://buildroot.uclibc.org/
-    License: GPLv2
-
   pascal:
     Description:  Pascal compiler with NuttX runtime add-on.
     License: BSD
