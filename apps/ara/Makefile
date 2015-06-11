@@ -63,29 +63,41 @@
 
 # Sub-directories
 
-SUBDIRS  = debug epm etm svc unipro lg
-SUBDIRS  += apbridge gpbridge
-SUBDIRS  += svc_power
-SUBDIRS  += pwm
-SUBDIRS  += gpio
-SUBDIRS  += bdbpm
-SUBDIRS  += springpm
-SUBDIRS  += pinshare
-SUBDIRS  += usb-host
-SUBDIRS  += gb_loopback
+SUBDIRS  = apbridge
+SUBDIRS += bdbpm
+SUBDIRS += debug
+SUBDIRS += epm
+SUBDIRS += etm
+SUBDIRS += gb_loopback
+SUBDIRS += gpbridge
+SUBDIRS += gpio
+SUBDIRS += lg
+SUBDIRS += pinshare
+SUBDIRS += pwm
+SUBDIRS += springpm
+SUBDIRS += svc
+SUBDIRS += svc_power
+SUBDIRS += unipro
+SUBDIRS += usb-host
 
 # Sub-directories that might need context setup.  Directories may need
 # context setup for a variety of reasons, but the most common is because
 # the example may be built as an NSH built-in function.
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
-CNTXTDIRS += debug epm etm pwm svc unipro lg
-CNTXTDIRS += gpio
 CNTXTDIRS += bdbpm
-CNTXTDIRS += springpm
-CNTXTDIRS += pinshare
-CNTXTDIRS += usb-host
+CNTXTDIRS += debug
+CNTXTDIRS += epm
+CNTXTDIRS += etm
 CNTXTDIRS += gb_loopback
+CNTXTDIRS += gpio
+CNTXTDIRS += lg
+CNTXTDIRS += pinshare
+CNTXTDIRS += pwm
+CNTXTDIRS += springpm
+CNTXTDIRS += svc
+CNTXTDIRS += unipro
+CNTXTDIRS += usb-host
 endif
 
 all: nothing
