@@ -1440,6 +1440,8 @@ struct tsb_switch *switch_init(struct tsb_switch_data *pdata) {
     sem_init(&sw->sw_irq_lock, 0, 0);
     sw->sw_irq_worker_exit = false;
 
+    list_init(&sw->listeners);
+
     switch_power_on_reset(sw);
 
     switch (sw->pdata->rev) {
@@ -1543,4 +1545,32 @@ void switch_exit(struct tsb_switch *sw) {
 
     switch_power_off(sw);
     free(sw);
+}
+
+int switch_event_register_listener(struct tsb_switch *sw,
+                                   struct tsb_switch_event_listener *l) {
+    if (!sw || !sw) {
+        return -EINVAL;
+    }
+
+    list_init(&l->entry);
+    list_add(&sw->listeners, &l->entry);
+    return 0;
+}
+
+
+int tsb_switch_event_notify(struct tsb_switch *sw,
+                            struct tsb_switch_event *event) {
+
+    struct list_head *node, *next;
+    struct tsb_switch_event_listener *l;
+
+    list_foreach_safe(&sw->listeners, node, next) {
+        l = list_entry(node, struct tsb_switch_event_listener, entry);
+        if (l->cb) {
+            l->cb(event);
+        }
+    }
+
+    return 0;
 }

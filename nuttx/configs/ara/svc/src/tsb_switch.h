@@ -258,7 +258,23 @@ struct tsb_switch {
     int                     worker_id;
     bool                    sw_irq_worker_exit;
     uint8_t                 dev_ids[SWITCH_PORT_MAX];
+
+    struct list_head        listeners;
 };
+
+enum_tsb_switch_event type;
+
+struct tsb_switch_event {
+    enum tsb_switch_event_type type;
+};
+
+struct tsb_switch_event_listener {
+    struct list_head entry;
+    int (*cb)(struct tsb_switch_event *event);
+};
+
+int switch_event_register_listener(struct tsb_switch *sw,
+                                   struct tsb_switch_event_listener *l);
 
 int switch_if_dev_id_set(struct tsb_switch *sw,
                          uint8_t port_id,
