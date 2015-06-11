@@ -87,6 +87,23 @@ struct sw_es2_priv {
 #define WSTATUS3_TXENTFIFOFULL_MASK    (0x02)
 #define WSTATUS3_TXDATAFIFOFULL_MASK   (0x01)
 
+#define IRQ_STATUS_ENDPOINTRESETIND     (0x0)
+#define IRQ_STATUS_LINKSTARTUPIND       (0x1)
+#define IRQ_STATUS_LINKLOSTIND          (0x2)
+#define IRQ_STATUS_HIBERNATEENTERIND    (0x3)
+#define IRQ_STATUS_HIBERNATEEXITIND     (0x4)
+#define IRQ_STATUS_POWERMODEIND         (0x5)
+#define IRQ_STATUS_TESTMODEIND          (0x6)
+#define IRQ_STATUS_ERRORPHYIND          (0x7)
+#define IRQ_STATUS_ERRORPAIND           (0x8)
+#define IRQ_STATUS_ERRORDIND            (0x9)
+#define IRQ_STATUS_ERRORNIND            (0xa)
+#define IRQ_STATUS_ERRORTIND            (0xb)
+#define IRQ_STATUS_PAINITERROR          (0xc)
+#define IRQ_STATUS_DEBUGCOUNTEROVERFLOW (0xd)
+#define IRQ_STATUS_LINKSTARTUPCNF       (0xe)
+#define IRQ_STATUS_MAILBOX              (0xf)
+
 /* Attributes as sources of interrupts from the Unipro ports */
 static uint16_t unipro_irq_attr[] = {
     TSB_DME_ENDPOINTRESETIND,
