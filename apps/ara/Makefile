@@ -78,11 +78,6 @@ SUBDIRS  += gb_loopback
 # context setup for a variety of reasons, but the most common is because
 # the example may be built as an NSH built-in function.
 
-CNTXTDIRS = debug epm etm pwm svc unipro lg
-CNTXTDIRS += gpio
-CNTXTDIRS += pinshare
-CNTXTDIRS += usb-host
-
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 CNTXTDIRS += debug epm etm pwm svc unipro lg
 CNTXTDIRS += gpio
