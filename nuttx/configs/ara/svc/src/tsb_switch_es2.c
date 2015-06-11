@@ -57,6 +57,8 @@
  * later switch increases SWITCH_UNIPORT_MAX */
 #define ES2_SWITCH_NUM_UNIPORTS 14
 
+#define ES2_IRQ_MAX    16
+
 struct sw_es2_priv {
     struct spi_dev_s    *spi_dev;
     uint8_t             *rxbuf;
@@ -622,7 +624,7 @@ int es2_switch_irq_handler(struct tsb_switch *sw)
                            i, port_irq_status);
 
                 // Read the attributes associated to the interrupt sources
-                for (j = 0; j < 15; j++) {
+                for (j = 0; j < ES2_IRQ_MAX; j++) {
                     if ((port_irq_status & (1 << j)) && unipro_irq_attr[j]) {
                         if (switch_dme_get(sw, i, unipro_irq_attr[j], 0x0,
                                            &attr_value)) {
