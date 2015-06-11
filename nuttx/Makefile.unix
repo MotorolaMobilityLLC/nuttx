@@ -54,6 +54,10 @@ export Q := @
 endif
 endif
 
+# Don't print out the directory we are changing into to cut
+# down on the noise level of a build.
+MAKEFLAGS += --no-print-directory
+
 # Default tools
 
 ifeq ($(DIRLINK),)
