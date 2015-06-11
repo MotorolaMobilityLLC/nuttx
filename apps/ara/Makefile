@@ -89,11 +89,8 @@ CNTXTDIRS += gpio
 CNTXTDIRS += bdbpm
 CNTXTDIRS += springpm
 CNTXTDIRS += pinshare
-<<<<<<< HEAD
 CNTXTDIRS += usb-host
-=======
 CNTXTDIRS += gb_loopback
->>>>>>> 24e918b... test apps: add gb_loopback
 endif
 
 all: nothing
