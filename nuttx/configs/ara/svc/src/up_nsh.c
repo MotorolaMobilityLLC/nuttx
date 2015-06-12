@@ -37,19 +37,9 @@
 /****************************************************************************
  * Included Files
  ****************************************************************************/
-#define DBG_COMP DBG_DBG     /* DBG_COMP macro of the component */
-
 #include <nuttx/config.h>
-
-#include <stdbool.h>
 #include <stdio.h>
-#include <syslog.h>
-#include <errno.h>
 
-#include "up_debug.h"
-#include "svc.h"
-
-#include "stm32.h"
 
 /****************************************************************************
  * Name: nsh_archinitialize
@@ -59,10 +49,6 @@
  *
  ****************************************************************************/
 
-#define RETRY_TIME_S    (5)
-
-int nsh_archinitialize(void)
-{
-    svc_init();
+int nsh_archinitialize(void) {
 	return OK;
 }

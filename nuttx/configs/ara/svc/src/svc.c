@@ -35,6 +35,8 @@
 
 #include <arch/board/board.h>
 
+#include <apps/nsh.h>
+
 #include "string.h"
 #include "ara_board.h"
 #include "up_debug.h"
@@ -342,13 +344,21 @@ static int svcd_main(int argc, char **argv) {
     return rc;
 }
 
-void svc_init(void) {
+/*
+ * System entrypoint. CONFIG_USER_ENTRYPOINT should point to this function.
+ */
+int svc_init(int argc, char **argv) {
     int rc;
 
     rc = svcd_start();
     if (rc) {
-        return;
+        return rc;
     }
+
+    /*
+     * Now start the shell.
+     */
+    return nsh_main(argc, argv);
 }
 
 int svcd_start(void) {
@@ -359,7 +369,7 @@ int svcd_start(void) {
     rc = task_create("svcd", SVCD_PRIORITY, SVCD_STACK_SIZE, svcd_main, NULL);
     if (rc == ERROR) {
         dbg_error("failed to start svcd\n");
-        return -1;
+        return rc;
     }
 
     return 0;

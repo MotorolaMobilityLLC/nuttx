@@ -36,7 +36,6 @@ struct svc {
 
 extern struct svc *ara_svc;
 
-void svc_init(void);
 int svcd_start(void);
 void svcd_stop(void);
 
