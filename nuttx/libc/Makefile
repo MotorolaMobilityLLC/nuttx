@@ -139,6 +139,7 @@ endif
 	$(Q) touch $@
 
 depend: .depend
+	@true
 
 # Clean most derived files, retaining the configuration
 

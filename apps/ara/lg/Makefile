@@ -78,6 +78,8 @@ ROOTDEPPATH = --dep-path .
 VPATH =
 
 all: .built
+	@true
+
 .PHONY: clean depend distclean
 
 $(AOBJS): %$(OBJEXT): %.S
@@ -111,12 +113,14 @@ context: $(BUILTIN_REGISTRY)$(DELIM)$(APPNAME)_main.bdat
 else
 context:
 endif
+	@true
 
 .depend: Makefile $(SRCS)
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
 depend: .depend
+	@true
 
 clean:
 	$(call DELFILE, .built)

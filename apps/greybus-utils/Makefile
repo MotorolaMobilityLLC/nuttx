@@ -155,6 +155,8 @@ VPATH =
 # Build targets
 
 all: .built
+	@true
+
 .PHONY: context .depend depend clean distclean
 
 $(AOBJS): %$(OBJEXT): %.S
@@ -176,6 +178,7 @@ $(COBJS): %$(OBJEXT): %.c
 install:
 
 context:
+	@true
 
 manifest.o: $(MNFC) manifest.c
 	$(call COMPILE, -DMANIFEST="$(MANIFEST_DEFINE)" $(MNFC_INCLUDES) manifest.c, manifest.o)
@@ -185,6 +188,7 @@ manifest.o: $(MNFC) manifest.c
 	@touch $@
 
 depend: .depend
+	@true
 
 clean:
 	$(call DELFILE, .built)

@@ -62,7 +62,9 @@ VPATH		=
 
 # Build Targets
 
-all:	.built
+all: .built
+	@true
+
 .PHONY: context depend clean distclean
 
 $(AOBJS): %$(OBJEXT): %.S
@@ -116,6 +118,7 @@ context:
 	$(Q) touch $@
 
 depend: .depend
+	@true
 
 clean:
 	$(Q) $(MAKE) -C registry clean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"

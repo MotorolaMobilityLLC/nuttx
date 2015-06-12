@@ -127,6 +127,8 @@ VPATH =
 # Build targets
 
 all: .built
+	@true
+
 .PHONY: context .depend depend clean distclean
 
 $(AOBJS): %$(OBJEXT): %.S
@@ -142,6 +144,7 @@ $(COBJS): %$(OBJEXT): %.c
 install:
 
 context:
+	@true
 
 .depend: Makefile $(SRCS)
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep

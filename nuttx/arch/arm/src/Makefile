@@ -210,6 +210,7 @@ endif
 	$(Q) touch $@
 
 depend: .depend
+	@true
 
 clean:
 ifeq ($(BOARDMAKE),y)

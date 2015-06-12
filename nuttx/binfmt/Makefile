@@ -100,6 +100,7 @@ $(BIN): $(BINFMT_OBJS)
 	$(Q) touch $@
 
 depend: .depend
+	@true
 
 clean:
 	$(call DELFILE, $(BIN))

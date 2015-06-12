@@ -83,6 +83,8 @@ STACKSIZE = 2048
 # Build targets
 
 all: .built
+	@true
+
 .PHONY: context .depend depend clean distclean
 
 $(AOBJS): %$(OBJEXT): %.S
@@ -116,6 +118,7 @@ context: $(BUILTIN_REGISTRY)$(DELIM)$(APPNAME)_main.bdat
 else
 context:
 endif
+	@true
 
 .depend: Makefile $(SRCS)
 	$(Q) $(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep

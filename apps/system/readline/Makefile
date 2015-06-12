@@ -75,6 +75,8 @@ ROOTDEPPATH = --dep-path .
 VPATH =
 
 all: .built
+	@true
+
 .PHONY: context depend clean distclean
 
 $(AOBJS): %$(OBJEXT): %.S
@@ -92,6 +94,7 @@ $(COBJS): %$(OBJEXT): %.c
 install:
 
 context:
+	@true
 
 # Dependency build phase target
 
@@ -100,6 +103,7 @@ context:
 	$(Q) touch $@
 
 depend: .depend
+	@true
 
 # Housekeeping targets
 

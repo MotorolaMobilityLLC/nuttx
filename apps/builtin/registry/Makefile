@@ -51,6 +51,7 @@ all:
 install:
 
 context: .updated
+	@true
 
 depend:
 

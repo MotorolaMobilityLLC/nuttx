@@ -114,6 +114,8 @@ BIN = libapps$(LIBEXT)
 # Build targets
 
 all: $(BIN)
+	@true
+
 .PHONY: import install context .depdirs depend clean distclean
 
 define SDIR_template

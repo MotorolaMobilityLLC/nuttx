@@ -86,6 +86,8 @@ STACKSIZE = 2048
 VPATH =
 
 all: .built
+	@true
+
 .PHONY: context clean depend distclean
 
 $(AOBJS): %$(OBJEXT): %.S
@@ -112,12 +114,14 @@ install:
 endif
 
 context:
+	@true
 
 .depend: Makefile $(SRCS)
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
 depend: .depend
+	@true
 
 clean:
 	$(call DELFILE, .built)

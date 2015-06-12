@@ -89,6 +89,8 @@ endif
 # Build targets
 
 all: .built
+	@true
+
 .PHONY: context .depend depend clean distclean
 
 ifneq ($(ASRCS),)

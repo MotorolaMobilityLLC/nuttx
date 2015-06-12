@@ -146,6 +146,7 @@ $(BIN):	$(OBJS)
 	$(Q) touch $@
 
 depend: .depend
+	@true
 
 clean:
 	$(call DELFILE, $(BIN))
