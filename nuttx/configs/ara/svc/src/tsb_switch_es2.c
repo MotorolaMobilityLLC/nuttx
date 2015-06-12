@@ -51,17 +51,18 @@
 
 #define SWITCH_SPI_INIT_DELAY   (700)   // us
 
-#define RXBUF_SIZE  272
 
 /* This is provided to apply port-dependent M-PHY fixups, in case a
  * later switch increases SWITCH_UNIPORT_MAX */
 #define ES2_SWITCH_NUM_UNIPORTS 14
 
 #define ES2_IRQ_MAX    16
+/* 16-byte max delay + 5-byte header + 272-byte max payload + 2-byte footer */
+#define ES2_CPORT_RX_MAX_SIZE        (16 + 5 + 272 + 2)
 
 struct sw_es2_priv {
     struct spi_dev_s    *spi_dev;
-    uint8_t             *rxbuf;
+    uint8_t             rxbuf[ES2_CPORT_RX_MAX_SIZE];
 };
 
 #define LNUL        (0x00)
@@ -1474,13 +1475,6 @@ int tsb_switch_es2_init(struct tsb_switch *sw, unsigned int spi_bus)
         goto error;
     }
 
-    priv->rxbuf = malloc(RXBUF_SIZE);
-    if (!priv->rxbuf) {
-        dbg_error("%s: Failed to alloc the RX buffer\n", __func__);
-        rc = -ENOMEM;
-        goto error;
-    }
-
     priv->spi_dev = spi_dev;
 
     sw->priv = priv;
@@ -1507,8 +1501,6 @@ void tsb_switch_es2_exit(struct tsb_switch *sw) {
         return;
 
     priv = sw->priv;
-    if (priv)
-        free(priv->rxbuf);
     free(priv);
     sw->priv = NULL;
     sw->ops = NULL;
