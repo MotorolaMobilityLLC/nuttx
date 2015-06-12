@@ -544,6 +544,7 @@ static int switch_cport_disconnect(struct tsb_switch *sw,
     return rc0 || rc1;
 }
 
+#if !CONFIG_ARCH_BOARD_ARA_BDB2A_SVC
 static int switch_link_power_set_default(struct tsb_switch *sw,
                                          uint8_t port_id) {
     int rc;
@@ -564,6 +565,8 @@ static int switch_link_power_set_default(struct tsb_switch *sw,
 
     return rc;
 }
+#endif
+
 /**
  * @brief Assign a device id to a given port id
  */
