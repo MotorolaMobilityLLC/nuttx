@@ -96,6 +96,7 @@ CNTXTDIRS += pinshare
 CNTXTDIRS += pwm
 CNTXTDIRS += springpm
 CNTXTDIRS += svc
+CNTXTDIRS += svc_power
 CNTXTDIRS += unipro
 CNTXTDIRS += usb-host
 endif
