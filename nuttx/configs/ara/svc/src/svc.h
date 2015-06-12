@@ -29,9 +29,22 @@
 #ifndef  _SVC_H_
 #define  _SVC_H_
 
+#include <pthread.h>
+
+enum svc_state {
+    SVC_STATE_STOPPED,
+    SVC_STATE_RUNNING,
+};
+
 struct svc {
     struct tsb_switch *sw;
     struct ara_board_info *board_info;
+
+    enum svc_state state;
+    int stop;
+    pid_t svcd_pid;
+    pthread_mutex_t lock;
+    pthread_cond_t cv;
 };
 
 extern struct svc *svc;

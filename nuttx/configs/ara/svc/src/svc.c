@@ -35,6 +35,7 @@
 
 #include <arch/board/board.h>
 
+#include <sys/wait.h>
 #include <apps/nsh.h>
 
 #include "string.h"
@@ -50,6 +51,14 @@
 
 static struct svc the_svc;
 struct svc *svc = &the_svc;
+
+/* state helpers */
+#define svcd_state_running() (svc->state == SVC_STATE_RUNNING)
+#define svcd_state_stopped() (svc->state == SVC_STATE_STOPPED)
+static inline void svcd_set_state(enum svc_state state){
+    svc->state = state;
+}
+
 
 /*
  * Static connections table
@@ -263,13 +272,6 @@ static int svcd_startup(void) {
     struct tsb_switch *sw;
     int i, rc;
 
-    if (svc->sw) {
-        dbg_info("SVC already initialized, aborting\n");
-        return 0;
-    }
-
-    dbg_info("Initializing SVC\n");
-
     /*
      * Board-specific initialization, all boards must define this.
      */
@@ -335,12 +337,44 @@ error0:
     return -1;
 }
 
+static int svcd_cleanup(void) {
+    interface_exit();
+
+    switch_exit(svc->sw);
+    svc->sw = NULL;
+
+    board_exit();
+    svc->board_info = NULL;
+
+    return 0;
+}
+
+
 static int svcd_main(int argc, char **argv) {
     (void)argc;
     (void)argv;
-    int rc;
+    int rc = 0;
 
+    pthread_mutex_lock(&svc->lock);
     rc = svcd_startup();
+    if (rc < 0) {
+        goto done;
+    }
+
+    while (!svc->stop) {
+        pthread_cond_wait(&svc->cv, &svc->lock);
+        /* check to see if we were told to stop */
+        if (svc->stop) {
+            dbg_verbose("svc stop requested\n");
+            break;
+        }
+    };
+
+    rc = svcd_cleanup();
+
+done:
+    svcd_set_state(SVC_STATE_STOPPED);
+    pthread_mutex_unlock(&svc->lock);
     return rc;
 }
 
@@ -349,6 +383,14 @@ static int svcd_main(int argc, char **argv) {
  */
 int svc_init(int argc, char **argv) {
     int rc;
+
+    svc->sw = NULL;
+    svc->board_info = NULL;
+    svc->svcd_pid = 0;
+    svc->stop = 0;
+    pthread_mutex_init(&svc->lock, NULL);
+    pthread_cond_init(&svc->cv, NULL);
+    svcd_set_state(SVC_STATE_STOPPED);
 
     rc = svcd_start();
     if (rc) {
@@ -364,26 +406,55 @@ int svc_init(int argc, char **argv) {
 int svcd_start(void) {
     int rc;
 
+    pthread_mutex_lock(&svc->lock);
     dbg_info("starting svcd\n");
+    if (!svcd_state_stopped()) {
+        dbg_info("svcd already started\n");
+        pthread_mutex_unlock(&svc->lock);
+        return -EBUSY;
+    }
 
     rc = task_create("svcd", SVCD_PRIORITY, SVCD_STACK_SIZE, svcd_main, NULL);
     if (rc == ERROR) {
         dbg_error("failed to start svcd\n");
         return rc;
     }
+    svc->svcd_pid = rc;
+
+    svc->stop = 0;
+    svcd_set_state(SVC_STATE_RUNNING);
+    pthread_mutex_unlock(&svc->lock);
 
     return 0;
 }
 
 void svcd_stop(void) {
-    if (svc->sw) {
-        switch_exit(svc->sw);
-        svc->sw = NULL;
+    int status;
+    int rc;
+    pid_t pid_tmp;
+
+    pthread_mutex_lock(&svc->lock);
+    dbg_verbose("stopping svcd\n");
+
+    pid_tmp = svc->svcd_pid;
+
+    if (!svcd_state_running()) {
+        dbg_info("svcd not running\n");
+        pthread_mutex_unlock(&svc->lock);
+        return;
     }
 
-    interface_exit();
+    /* signal main thread to stop */
+    svc->stop = 1;
+    pthread_cond_signal(&svc->cv);
+    pthread_mutex_unlock(&svc->lock);
 
-    board_exit();
-    svc->board_info = NULL;
+    /* wait for the svcd to stop */
+    rc = waitpid(pid_tmp, &status, 0);
+    if (rc != pid_tmp) {
+        dbg_error("failed to stop svcd\n");
+    } else {
+        dbg_info("svcd stopped\n");
+    }
 }
 
