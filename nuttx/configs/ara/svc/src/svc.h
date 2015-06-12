@@ -34,7 +34,7 @@ struct svc {
     struct ara_board_info *board_info;
 };
 
-extern struct svc *ara_svc;
+extern struct svc *svc;
 
 int svcd_start(void);
 void svcd_stop(void);

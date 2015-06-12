@@ -126,7 +126,7 @@ static int link_test_port_v(uint8_t port,
                             unsigned int flags,
                             enum unipro_hs_series series,
                             int verbose) {
-    struct tsb_switch *sw = ara_svc->sw;
+    struct tsb_switch *sw = svc->sw;
     struct unipro_link_cfg cfg = {
         .upro_hs_ser = hs ? series : UNIPRO_HS_SERIES_UNCHANGED,
     };
@@ -447,7 +447,7 @@ static int link_test(int argc, char *argv[]) {
 
 static int link_status(int argc, char *argv[]) {
     uint32_t link_status;
-    struct tsb_switch *sw = ara_svc->sw;
+    struct tsb_switch *sw = svc->sw;
     int rc;
 
     if (argc != 2) {
@@ -589,7 +589,7 @@ static int dme_io(int argc, char *argv[]) {
     const char opts[] = "a:s:p:Ph"; /* TODO: add an -S option for switch number
                                      * when multiple switches are available
                                      * ... */
-    struct tsb_switch *sw = ara_svc->sw; /* and get the right switch here. */
+    struct tsb_switch *sw = svc->sw; /* and get the right switch here. */
     uint16_t selector = 0;
     int peer = 0;
     char *end;

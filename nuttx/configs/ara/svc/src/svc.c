@@ -49,7 +49,7 @@
 #define SVCD_STACK_SIZE    (2048)
 
 static struct svc the_svc;
-struct svc *ara_svc = &the_svc;
+struct svc *svc = &the_svc;
 
 /*
  * Static connections table
@@ -263,7 +263,7 @@ static int svcd_startup(void) {
     struct tsb_switch *sw;
     int i, rc;
 
-    if (the_svc.sw) {
+    if (svc->sw) {
         dbg_info("SVC already initialized, aborting\n");
         return 0;
     }
@@ -278,7 +278,7 @@ static int svcd_startup(void) {
         dbg_error("%s: No board information provided.\n", __func__);
         goto error0;
     }
-    the_svc.board_info = info;
+    svc->board_info = info;
 
     /* Init Switch */
     sw = switch_init(&info->sw_data);
@@ -286,7 +286,7 @@ static int svcd_startup(void) {
         dbg_error("%s: Failed to initialize switch.\n", __func__);
         goto error1;
     }
-    the_svc.sw = sw;
+    svc->sw = sw;
 
     /* Power on all provided interfaces */
     if (!info->interfaces) {
@@ -328,7 +328,7 @@ error3:
     interface_exit();
 error2:
     switch_exit(sw);
-    the_svc.sw = NULL;
+    svc->sw = NULL;
 error1:
     board_exit();
 error0:
@@ -376,14 +376,14 @@ int svcd_start(void) {
 }
 
 void svcd_stop(void) {
-    if (the_svc.sw) {
-        switch_exit(the_svc.sw);
-        the_svc.sw = NULL;
+    if (svc->sw) {
+        switch_exit(svc->sw);
+        svc->sw = NULL;
     }
 
     interface_exit();
 
     board_exit();
-    the_svc.board_info = NULL;
+    svc->board_info = NULL;
 }
 
