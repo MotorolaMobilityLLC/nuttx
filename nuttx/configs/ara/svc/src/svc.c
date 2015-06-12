@@ -276,26 +276,26 @@ int svc_init(void) {
     }
     the_svc.board_info = info;
 
+    /* Init Switch */
+    sw = switch_init(&info->sw_data);
+    if (!sw) {
+        dbg_error("%s: Failed to initialize switch.\n", __func__);
+        goto error1;
+    }
+    the_svc.sw = sw;
+
     /* Power on all provided interfaces */
     if (!info->interfaces) {
         dbg_error("%s: No interface information provided\n", __func__);
-        goto error1;
+        goto error2;
     }
 
     rc = interface_init(info->interfaces,
                         info->nr_interfaces, info->nr_spring_interfaces);
     if (rc < 0) {
         dbg_error("%s: Failed to initialize interfaces\n", __func__);
-        goto error1;
-    }
-
-    /* Init Switch */
-    sw = switch_init(&info->sw_data);
-    if (!sw) {
-        dbg_error("%s: Failed to initialize switch.\n", __func__);
         goto error2;
     }
-    the_svc.sw = sw;
 
     /* Set up default routes */
     rc = setup_default_routes(sw);
@@ -321,10 +321,10 @@ int svc_init(void) {
     return 0;
 
 error3:
+    interface_exit();
+error2:
     switch_exit(sw);
     the_svc.sw = NULL;
-error2:
-    interface_exit();
 error1:
     board_exit();
 error0:
