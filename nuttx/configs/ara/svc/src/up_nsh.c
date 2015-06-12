@@ -63,16 +63,6 @@
 
 int nsh_archinitialize(void)
 {
-    int rc = 0;
-    do {
-        rc = svc_init();
-        if (rc < 0) {
-            dbg_error("%s: SVC Initialization failed. Retrying in %u",
-                      __func__,
-                      RETRY_TIME_S);
-            sleep(RETRY_TIME_S);
-        }
-    } while (rc < 0);
-
+    svc_init();
 	return OK;
 }

@@ -59,8 +59,8 @@
 #define INVALID -1
 enum {
     HELP,
-    INIT,
-    EXIT,
+    START,
+    STOP,
     LINKTEST,
     LINKSTATUS,
     DME_IO,
@@ -75,8 +75,8 @@ struct command {
 
 static const struct command commands[] = {
     [HELP] = {'h', "help", "print this usage and exit"},
-    [INIT] = {'i', "init", "initialize switch and SVC"},
-    [EXIT] = {'e', "exit", "exit/de-initialize SVC"},
+    [START] = {'i', "start", "start svcd"},
+    [STOP] = {'e', "stop", "stop svcd"},
     [LINKTEST] = {'l', "linktest",
                   "test UniPro link power mode configuration"},
     [LINKSTATUS] = {'s', "linkstatus", "print UniPro link status bit mask"},
@@ -851,11 +851,11 @@ static int ara_svc_main(int argc, char *argv[]) {
     switch (cmd) {
     case HELP:
         usage(EXIT_SUCCESS);
-    case INIT:
-        svc_init();
+    case START:
+        svcd_start();
         break;
-    case EXIT:
-        svc_exit();
+    case STOP:
+        svcd_stop();
         break;
     case LINKTEST:
         rc = link_test(argc, argv);

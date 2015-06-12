@@ -43,6 +43,9 @@
 #include "svc.h"
 #include "vreg.h"
 
+#define SVCD_PRIORITY      (60)
+#define SVCD_STACK_SIZE    (2048)
+
 static struct svc the_svc;
 struct svc *ara_svc = &the_svc;
 
@@ -253,8 +256,7 @@ static int setup_default_routes(struct tsb_switch *sw) {
     return 0;
 }
 
-
-int svc_init(void) {
+static int svcd_startup(void) {
     struct ara_board_info *info;
     struct tsb_switch *sw;
     int i, rc;
@@ -331,7 +333,39 @@ error0:
     return -1;
 }
 
-void svc_exit(void) {
+static int svcd_main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    int rc;
+
+    rc = svcd_startup();
+    return rc;
+}
+
+void svc_init(void) {
+    int rc;
+
+    rc = svcd_start();
+    if (rc) {
+        return;
+    }
+}
+
+int svcd_start(void) {
+    int rc;
+
+    dbg_info("starting svcd\n");
+
+    rc = task_create("svcd", SVCD_PRIORITY, SVCD_STACK_SIZE, svcd_main, NULL);
+    if (rc == ERROR) {
+        dbg_error("failed to start svcd\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+void svcd_stop(void) {
     if (the_svc.sw) {
         switch_exit(the_svc.sw);
         the_svc.sw = NULL;
