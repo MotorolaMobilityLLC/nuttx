@@ -59,6 +59,18 @@ config GREYBUS_BATTERY
 	bool "Battery support"
 	default n
 
+config GREYBUS_I2S_MGMT_PHY
+	bool "Audio support"
+	default n
+
+config GREYBUS_I2S_TX_PHY
+	bool "Audio support"
+	default n
+
+config GREYBUS_I2S_AUDIO
+	bool "Audio support"
+	default n
+
 if GREYBUS_BATTERY
 choice
   prompt "Select a battery driver"
