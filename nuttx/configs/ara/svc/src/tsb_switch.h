@@ -262,10 +262,19 @@ struct tsb_switch {
     struct list_head        listeners;
 };
 
-enum_tsb_switch_event type;
+enum tsb_switch_event_type {
+    TSB_SWITCH_EVENT_MAILBOX,
+};
 
 struct tsb_switch_event {
     enum tsb_switch_event_type type;
+
+    union {
+        struct tsb_switch_event_mbox {
+            uint32_t port;
+            uint32_t val;
+        } mbox;
+    };
 };
 
 struct tsb_switch_event_listener {

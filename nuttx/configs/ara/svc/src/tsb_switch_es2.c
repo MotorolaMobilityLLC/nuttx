@@ -634,6 +634,21 @@ int es2_switch_irq_handler(struct tsb_switch *sw)
                             dbg_insane("IRQ: Port %d line %d asserted, attr(0x%04x)=0x%04x\n",
                                        i, j, unipro_irq_attr[j], attr_value);
                         }
+
+                        uint32_t irq_type = j;
+                        uint32_t port = i;
+                        switch (irq_type) {
+                        case IRQ_STATUS_MAILBOX: {
+                            struct tsb_switch_event e;
+                            e.type = TSB_SWITCH_EVENT_MAILBOX;
+                            e.mbox.port = port;
+                            e.mbox.val = attr_value;
+                            tsb_switch_event_notify(sw, &e);
+                            break;
+                        }
+                        default:
+                            break;
+                        }
                     }
                 }
             }
