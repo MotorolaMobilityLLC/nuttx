@@ -223,17 +223,13 @@ static int es2_transfer_check_ncp_write_status(uint8_t *status_block,
     return 0;
 }
 
-/* Transfer function for NCP port */
-static int es2_transfer(struct tsb_switch *sw,
-                        uint8_t *tx_buf,
-                        size_t tx_size,
-                        uint8_t *rx_buf,
-                        size_t rx_size)
-{
+static int es2_write(struct tsb_switch *sw,
+                     uint8_t cportid,
+                     uint8_t *tx_buf,
+                     size_t tx_size) {
     struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
-    unsigned int size, rcv_done = 0;
-    bool null_rxbuf;
+    unsigned int size;
     int ret = OK;
 
     uint8_t write_header[] = {
@@ -249,18 +245,6 @@ static int es2_transfer(struct tsb_switch *sw,
         LNUL,
     };
 
-    uint8_t read_header[] = {
-        LNUL,
-        STRR,
-        NCP_CPORT,
-        0,      // LENM
-        0,      // LENL
-        ENDP,
-        LNUL
-    };
-
-
-    SPI_LOCK(spi_dev, true);
     es2_spi_select(sw, true);
     /* Write */
     SPI_SNDBLOCK(spi_dev, write_header, sizeof write_header);
@@ -287,6 +271,35 @@ static int es2_transfer(struct tsb_switch *sw,
     if (ret) {
         goto out;
     }
+
+out:
+    es2_spi_select(sw, false);
+    return ret;
+}
+
+static int es2_read(struct tsb_switch *sw,
+                    uint8_t cportid,
+                    uint8_t *rx_buf,
+                    size_t rx_size) {
+    struct sw_es2_priv *priv = sw->priv;
+    struct spi_dev_s *spi_dev = priv->spi_dev;
+    size_t size;
+    int rcv_done = 0;
+    bool null_rxbuf;
+    int ret = 0;
+
+    uint8_t read_header[] = {
+        LNUL,
+        STRR,
+        NCP_CPORT,
+        0,      // LENM
+        0,      // LENL
+        ENDP,
+        LNUL
+    };
+
+
+    es2_spi_select(sw, true);
 
     // Read CNF and retry if NACK received
     do {
@@ -345,11 +358,35 @@ static int es2_transfer(struct tsb_switch *sw,
 
     } while (!rcv_done && !null_rxbuf);
 
- out:
     es2_spi_select(sw, false);
-    SPI_LOCK(spi_dev, false);
 
     return ret;
+}
+
+static int es2_ncp_transfer(struct tsb_switch *sw,
+                            uint8_t *tx_buf,
+                            size_t tx_size,
+                            uint8_t *rx_buf,
+                            size_t rx_size) {
+    int rc;
+
+
+    /* Send the request */
+    rc = es2_write(sw, NCP_CPORT, tx_buf, tx_size);
+    if (rc) {
+        dbg_error("%s() write failed: rc=%d\n", __func__, rc);
+        return rc;
+    }
+
+    /* Read the CNF */
+    rc = es2_read(sw, NCP_CPORT, rx_buf, rx_size);
+    if (rc) {
+        dbg_error("%s() read failed: rc=%d\n", __func__, rc);
+        return rc;
+    }
+
+
+    return rc;
 }
 
 static uint32_t es2_mphy_trim_fixup_value(uint32_t mphy_trim[4], uint8_t port)
@@ -782,8 +819,8 @@ static int es2_set(struct tsb_switch *sw,
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d, val=0x%04x\n",
                 __func__, port_id, attrid, select_index, val);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): portId=%u, attrId=0x%04x failed: rc=%d\n",
                   __func__, port_id, attrid, rc);
@@ -830,8 +867,8 @@ static int es2_get(struct tsb_switch *sw,
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d\n",
                 __func__, port_id, attrid, select_index);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
@@ -882,8 +919,8 @@ static int es2_peer_set(struct tsb_switch *sw,
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d, val=0x%04x\n",
                 __func__, port_id, attrid, select_index, val);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *)  &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *)  &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): portId=%u, attrId=0x%04x failed: rc=%d\n",
                   __func__, port_id, attrid, rc);
@@ -930,8 +967,8 @@ static int es2_peer_get(struct tsb_switch *sw,
     dbg_verbose("%s(): portId=%d, attrId=0x%04x, selectIndex=%d\n",
                  __func__, port_id, attrid, select_index);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
@@ -974,8 +1011,8 @@ static int es2_lut_set(struct tsb_switch *sw,
     dbg_verbose("%s(): unipro_portid=%d, lutAddress=%d, destPortId=%d\n",
                 __func__, unipro_portid, lut_address, dest_portid);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): unipro_portid=%d, destPortId=%d failed: rc=%d\n",
                   __func__, unipro_portid, dest_portid, rc);
@@ -1019,8 +1056,8 @@ static int es2_lut_get(struct tsb_switch *sw,
     dbg_verbose("%s(): unipro_portid=%d, lutAddress=%d, destPortId=%d\n",
                 __func__, unipro_portid, lut_address, *dest_portid);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): unipro_portid=%d, destPortId=%d failed: rc=%d\n",
                   __func__, unipro_portid, dest_portid, rc);
@@ -1101,8 +1138,8 @@ static int es2_sys_ctrl_set(struct tsb_switch *sw,
 
     dbg_verbose("%s(): sc_addr=0x%x, val=0x%x (%d)",
                 __func__, sc_addr, val, val);
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t*)&cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t*)&cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): sc_addr=0x%x, val=0x%x (%d) failed: %d",
                   __func__, sc_addr, val, val, rc);
@@ -1137,8 +1174,8 @@ static int es2_sys_ctrl_get(struct tsb_switch *sw,
 
     dbg_verbose("%s(): sc_addr=0x%x\n", __func__, sc_addr);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *)&cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *)&cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): sc_addr=0x%x failed: %d\n", __func__, rc);
         return rc;
@@ -1185,8 +1222,8 @@ static int es2_dev_id_mask_set(struct tsb_switch *sw,
 
     memcpy(req.mask, mask, sizeof(req.mask));
 
-    rc = es2_transfer(sw, (uint8_t *) &req, sizeof(req),
-                      (uint8_t *) &cnf, sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, (uint8_t *) &req, sizeof(req),
+                         (uint8_t *) &cnf, sizeof(struct cnf));
     if (rc) {
         dbg_error("%s()failed: rc=%d\n", __func__, rc);
         return rc;
@@ -1226,8 +1263,8 @@ static int es2_dev_id_mask_get(struct tsb_switch *sw,
 
     dbg_verbose("%s(%d)\n", __func__, unipro_portid);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s()failed: rc=%d\n", __func__, rc);
         return rc;
@@ -1272,8 +1309,8 @@ static int es2_switch_attr_set(struct tsb_switch *sw,
 
     dbg_verbose("%s(): attrId=0x%04x\n", __func__, attrid);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
@@ -1312,8 +1349,8 @@ static int es2_switch_attr_get(struct tsb_switch *sw,
 
     dbg_verbose("%s(): attrId=0x%04x\n", __func__, attrid);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
+                          sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): attrId=0x%04x failed: rc=%d\n", __func__, attrid, rc);
         return rc;
@@ -1363,8 +1400,7 @@ static int es2_switch_id_set(struct tsb_switch *sw,
                 dis,
                 irt);
 
-    rc = es2_transfer(sw, req, sizeof(req), (uint8_t *) &cnf,
-                      sizeof(struct cnf));
+    rc = es2_ncp_transfer(sw, req, sizeof(req), (uint8_t*)&cnf, sizeof(cnf));
     if (rc) {
         dbg_error("%s() failed: rc=%d\n", __func__, rc);
         return rc;
