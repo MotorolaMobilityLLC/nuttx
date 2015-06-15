@@ -68,6 +68,7 @@ struct sw_es2_priv {
 #define LNUL        (0x00)
 #define STRW        (0x01)
 #define STRR        (0x02)
+#define SRPT        (0x03)
 #define NACK        (0x04)
 #define ENDP        (0x06)
 #define INIT        (0x08)
@@ -217,6 +218,63 @@ static int es2_transfer_check_write_status(uint8_t *status_block,
                  __func__);
         return -EAGAIN;
     }
+    return 0;
+}
+
+/* 19 bytes for entire report (7+12) and max 16 bytes of delay */
+#define SRPT_SIZE           (19 + 16)
+#define SRPT_REPORT_SIZE    (12)
+
+struct __attribute__ ((__packed__)) srpt_read_status_report {
+    unsigned char raw[SRPT_REPORT_SIZE];
+    size_t rx_fifo_size; // number of bytes available in the rx buffer
+    size_t tx_fifo_size; // bytes available for enqueue in the tx buffer
+};
+
+/**
+ * @brief retrieve the state of the cport spi fifo
+ */
+static int es2_read_status(struct tsb_switch *sw,
+                           unsigned int cport,
+                           struct srpt_read_status_report *status) {
+    struct sw_es2_priv *priv = sw->priv;
+    struct spi_dev_s *spi_dev = priv->spi_dev;
+    unsigned int offset;
+    struct srpt_read_status_report *rpt = NULL;
+    uint8_t *rxbuf = priv->rxbuf;
+
+    const char srpt_cmd[] = {HNUL, SRPT, cport, 0, 0, ENDP, HNUL};
+    const char srpt_report_header[] = {HNUL, SRPT, cport, 0x00, 0xC};
+
+    es2_spi_select(sw, true);
+    SPI_SNDBLOCK(spi_dev, srpt_cmd, sizeof srpt_cmd);
+    SPI_EXCHANGE(spi_dev, NULL, rxbuf, SRPT_SIZE);
+    es2_spi_select(sw, false);
+
+    /* find the header */
+    for (offset = 0; offset < (SRPT_SIZE - SRPT_REPORT_SIZE); offset++) {
+        if (!memcmp(srpt_report_header,
+                    &rxbuf[offset],
+                    sizeof srpt_report_header)) {
+            /* jump past the header */
+            rpt = (struct srpt_read_status_report *)
+                  &rxbuf[offset + sizeof srpt_report_header];
+            break;
+        }
+    }
+
+    if (!rpt) {
+        return -ENOMSG;
+    }
+
+    /* fill in the report and parse useful fields */
+    if (status) {
+        memcpy(status, rpt, SRPT_REPORT_SIZE);
+
+        status->tx_fifo_size = ((rpt->raw[8] << 8) | rpt->raw[9]);
+        status->rx_fifo_size = 576 - ((rpt->raw[10] << 8) | rpt->raw[11]);
+    }
+
     return 0;
 }
 
