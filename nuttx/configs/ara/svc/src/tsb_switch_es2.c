@@ -129,8 +129,8 @@ static uint16_t unipro_irq_attr[] = {
 
 static void es2_spi_select(struct tsb_switch *sw, int select);
 
-static int es2_transfer_check_ncp_write_status(uint8_t *status_block,
-                                               size_t size)
+static int es2_transfer_check_write_status(uint8_t *status_block,
+                                           size_t size)
 {
     size_t i;
     __attribute__((packed))
@@ -172,11 +172,7 @@ static int es2_transfer_check_ncp_write_status(uint8_t *status_block,
     /*
      * Sanity check the header and footer.
      */
-    if (w_status->cport != NCP_CPORT) {
-        dbg_error("%s: unexpected cport %u in write status (expected %d)\n",
-                  __func__, w_status->cport, NCP_CPORT);
-        return -EPROTO;
-    } else if (be16_to_cpu(w_status->len) != sizeof(w_status->status)) {
+    if (be16_to_cpu(w_status->len) != sizeof(w_status->status)) {
         dbg_error("%s: unexpected write status length %u (expected %u)\n",
                   __func__, be16_to_cpu(w_status->len),
                   (unsigned int)sizeof(w_status->status));
@@ -236,7 +232,7 @@ static int es2_write(struct tsb_switch *sw,
     uint8_t write_header[] = {
         LNUL,
         STRW,
-        NCP_CPORT,
+        cportid,
         (tx_size & 0xFF00) >> 8,
         (tx_size & 0xFF),
     };
@@ -267,8 +263,8 @@ static int es2_write(struct tsb_switch *sw,
     }
 
     // Parse the write status and bail on error.
-    ret = es2_transfer_check_ncp_write_status(priv->rxbuf,
-                                              SWITCH_WRITE_STATUS_NNULL);
+    ret = es2_transfer_check_write_status(priv->rxbuf,
+                                          SWITCH_WRITE_STATUS_NNULL);
     if (ret) {
         goto out;
     }
@@ -292,7 +288,7 @@ static int es2_read(struct tsb_switch *sw,
     uint8_t read_header[] = {
         LNUL,
         STRR,
-        NCP_CPORT,
+        cportid,
         0,      // LENM
         0,      // LENL
         ENDP,
