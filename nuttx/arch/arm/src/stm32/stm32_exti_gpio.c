@@ -65,6 +65,7 @@ struct stm32_exti_handlers_priv_t {
         xcpt_t stm32_exti_callback;
         xcpt_priv_t stm32_exti_callback_priv;
     } handler;
+    uint32_t pin;
     void *priv;
     bool priv_enabled;
 };
@@ -102,7 +103,8 @@ static int stm32_exti0_isr(int irq, void *context)
   } else {
     if (stm32_exti_handlers[0].handler.stm32_exti_callback_priv) {
           ret = stm32_exti_handlers[0].handler.stm32_exti_callback_priv(
-                     irq, context, stm32_exti_handlers[0].priv);
+                    stm32_exti_handlers[0].pin, context,
+                    stm32_exti_handlers[0].priv);
     }
   }
 
@@ -126,7 +128,8 @@ static int stm32_exti1_isr(int irq, void *context)
   } else {
     if (stm32_exti_handlers[1].handler.stm32_exti_callback_priv) {
           ret = stm32_exti_handlers[1].handler.stm32_exti_callback_priv(
-                     irq, context, stm32_exti_handlers[1].priv);
+                    stm32_exti_handlers[1].pin, context,
+                    stm32_exti_handlers[1].priv);
     }
   }
 
@@ -150,7 +153,8 @@ static int stm32_exti2_isr(int irq, void *context)
   } else {
     if (stm32_exti_handlers[2].handler.stm32_exti_callback_priv) {
           ret = stm32_exti_handlers[2].handler.stm32_exti_callback_priv(
-                     irq, context, stm32_exti_handlers[2].priv);
+                    stm32_exti_handlers[2].pin, context,
+                    stm32_exti_handlers[2].priv);
     }
   }
 
@@ -174,7 +178,8 @@ static int stm32_exti3_isr(int irq, void *context)
   } else {
     if (stm32_exti_handlers[3].handler.stm32_exti_callback_priv) {
           ret = stm32_exti_handlers[3].handler.stm32_exti_callback_priv(
-                     irq, context, stm32_exti_handlers[3].priv);
+                    stm32_exti_handlers[3].pin, context,
+                    stm32_exti_handlers[3].priv);
     }
   }
 
@@ -198,7 +203,8 @@ static int stm32_exti4_isr(int irq, void *context)
   } else {
     if (stm32_exti_handlers[4].handler.stm32_exti_callback_priv) {
           ret = stm32_exti_handlers[4].handler.stm32_exti_callback_priv(
-                     irq, context, stm32_exti_handlers[4].priv);
+                    stm32_exti_handlers[4].pin, context,
+                    stm32_exti_handlers[4].priv);
     }
   }
 
@@ -239,7 +245,8 @@ static int stm32_exti_multiisr(int irq, void *context, int first, int last)
           } else {
             if (stm32_exti_handlers[pin].handler.stm32_exti_callback_priv) {
               tmp = stm32_exti_handlers[pin].handler.stm32_exti_callback_priv(
-                         irq, context, stm32_exti_handlers[pin].priv);
+                        stm32_exti_handlers[pin].pin, context,
+                        stm32_exti_handlers[pin].priv);
             }
           }
           if (tmp != OK)
@@ -436,6 +443,7 @@ xcpt_priv_t stm32_gpiosetevent_priv(uint32_t pinset, bool risingedge,
   /* Get the previous GPIO IRQ handler; Save the new IRQ handler. */
   oldhandler = stm32_exti_handlers[pin].handler.stm32_exti_callback_priv;
   stm32_exti_handlers[pin].handler.stm32_exti_callback_priv = func;
+  stm32_exti_handlers[pin].pin = pin;
   stm32_exti_handlers[pin].priv = priv;
   stm32_exti_handlers[pin].priv_enabled = true;
 
