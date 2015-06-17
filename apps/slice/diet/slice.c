@@ -38,6 +38,7 @@
 int slice_main(int argc, char *argv[])
 {
     enable_manifest("IID-1", NULL);
+    slice_attach_init();
     slice_network_init();
     enable_cports();
 

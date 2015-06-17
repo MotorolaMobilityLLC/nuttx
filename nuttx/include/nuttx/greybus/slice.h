@@ -29,6 +29,45 @@
 #ifndef _GREYBUS_SLICE_H_
 #define _GREYBUS_SLICE_H_
 
+#include <stdbool.h>
+
+/* The type of the base attach/detach callback function */
+
+typedef void (*slice_attach_t)(FAR void *arg, bool attached);
+
+/****************************************************************************
+ * Name: slice_attach_init
+ *
+ * Description:
+ *   Initialize the Slice attach notifications.
+ *
+ * Input Parameter:
+ *   (None)
+ *
+ * Returned Value:
+ *   0 on success or negative errno on failure
+ *
+ ****************************************************************************/
+
+int slice_attach_init(void);
+
+/****************************************************************************
+ * Name: slice_attach_register
+ *
+ * Description:
+ *   Register for Slice attach/detach notifications.
+ *
+ * Input Parameters:
+ *   callback - Function to call on Slice attach/detach events.
+ *   arg      - Parameter to pass to callback function.
+ *
+ * Returned Value:
+ *   0 on success or negative errno on failure
+ *
+ ****************************************************************************/
+
+int slice_attach_register(slice_attach_t callback, void *arg);
+
 /****************************************************************************
  * Name: slice_network_init
  *
