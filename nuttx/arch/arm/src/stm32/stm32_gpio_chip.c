@@ -41,6 +41,7 @@
 #include <nuttx/util.h>
 
 #include "stm32_gpio.h"
+#include "stm32_exti.h"
 
 /* disable the verbose debug output */
 #undef lldbg
@@ -193,7 +194,7 @@ static int stm32_gpio_irqattach(void *driver_data, uint8_t pin, xcpt_t isr,
     uint32_t cfgset;
     int ret = 0;
 
-    lldbg("%s: pin=%hhu, handler=%p\n", __func__, pin_nr, isr);
+    lldbg("%s: pin=%hhu, handler=%p\n", __func__, pin, isr);
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
@@ -208,11 +209,12 @@ static int stm32_gpio_irqattach(void *driver_data, uint8_t pin, xcpt_t isr,
      * By default cfgset is set as input, floating.
      */
     stm32_gpio[pin].isr = isr;
-    stm32_gpiosetevent(cfgset,
-                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
-                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
-                       true,
-                       stm32_gpio[pin].isr);
+    stm32_gpiosetevent_priv(cfgset,
+                            stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
+                            stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
+                            true,
+                            (xcpt_priv_t) stm32_gpio[pin].isr,
+                            NULL);
 
     return ret;
 }
@@ -256,11 +258,12 @@ static int stm32_gpio_set_triggering(void *driver_data, uint8_t pin,
     }
 
     /* Install handler with edge triggering settings */
-    stm32_gpiosetevent(cfgset,
-                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
-                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
-                       true,
-                       stm32_gpio[pin].isr);
+    stm32_gpiosetevent_priv(cfgset,
+                            stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
+                            stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
+                            true,
+                            (xcpt_priv_t) stm32_gpio[pin].isr,
+                            NULL);
 
     return ret;
 }
@@ -279,11 +282,12 @@ static int stm32_gpio_mask_irq(void *driver_data, uint8_t pin)
     }
 
     /* Mask interrupt */
-    stm32_gpiosetevent(cfgset,
-                       false,
-                       false,
-                       true,
-                       stm32_gpio[pin].isr);
+    stm32_gpiosetevent_priv(cfgset,
+                            false,
+                            false,
+                            true,
+                            (xcpt_priv_t) stm32_gpio[pin].isr,
+                            NULL);
 
     return ret;
 }
@@ -302,11 +306,12 @@ static int stm32_gpio_unmask_irq(void *driver_data, uint8_t pin)
     }
 
     /* Re-install handler */
-    stm32_gpiosetevent(cfgset,
-                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
-                       stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
-                       true,
-                       stm32_gpio[pin].isr);
+    stm32_gpiosetevent_priv(cfgset,
+                            stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
+                            stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
+                            true,
+                            (xcpt_priv_t) stm32_gpio[pin].isr,
+                            NULL);
 
     return ret;
 }
