@@ -89,8 +89,6 @@ typedef struct {
 
 extern dbg_ctrl_t dbg_ctrl;
 
-/* Debug buffer, dynamically allocated/freed */
-extern char *dbg_msg;
 /* Small statically allocated buffer, use as a rescue in case of OOM */
 extern char dbg_rescue[DBG_RESCUE_SIZE];
 
@@ -110,20 +108,13 @@ extern char dbg_rescue[DBG_RESCUE_SIZE];
  * Debug dump function, to be used by components code.
  * Every caller has to define its own DBG_COMP macro.
  */
-#define dbg_pr(level, fmt, ...)                                     \
-    if ((dbg_ctrl.comp & DBG_COMP) &&                               \
-        (level >= dbg_ctrl.lvl)) {                                  \
-            if (asprintf(&dbg_msg, "[%s] " fmt, xstr(DBG_COMP),     \
-                         ##__VA_ARGS__) > 0) {                      \
-                printk(dbg_msg);                                    \
-                free(dbg_msg);                                      \
-            } else {                                                \
-                snprintf(dbg_rescue, DBG_RESCUE_SIZE, "OOM: %s\n",  \
-                         __func__);                                 \
-                printk(dbg_rescue);                                 \
-            }                                                       \
-    }
 
+
+#define dbg_pr(level, fmt, ...)                            \
+   if ((dbg_ctrl.comp & DBG_COMP) &&                       \
+       (level >= dbg_ctrl.lvl)) {                          \
+       printk("[" xstr(DBG_COMP) "]: " fmt, ##__VA_ARGS__); \
+   }                                                       \
 /* Pretty print of an uint8_t buffer */
 static inline void dbg_print_buf(uint32_t level, uint8_t *buf, uint32_t size)
 {
