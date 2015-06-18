@@ -100,50 +100,29 @@ struct unipro_buffer {
                                       (CPORT_TX_BUF_SIZE * cport))
 #define CPORT_EOM_BIT(cport)      (cport->tx_buf + (CPORT_TX_BUF_SIZE - 1))
 
-#define DECLARE_CPORT(id) {            \
-    .tx_buf      = CPORT_TX_BUF(id),   \
-    .rx_buf      = CPORT_RX_BUF(id),   \
-    .cportid     = id,                 \
-    .connected   = 0,                  \
-}
-
 #define CPORTID_CDSI0    (16)
 #define CPORTID_CDSI1    (17)
 
 #define CPB_TX_BUFFER_SPACE_MASK        ((uint32_t) 0x0000007F)
 #define CPB_TX_BUFFER_SPACE_OFFSET_MASK CPB_TX_BUFFER_SPACE_MASK
 
-/*
- * FIXME: We could allocate and size this array at runtime, based on the type
- *        of bridge.
- */
-static struct cport cporttable[] = {
-    DECLARE_CPORT(0),  DECLARE_CPORT(1),  DECLARE_CPORT(2),  DECLARE_CPORT(3),
-    DECLARE_CPORT(4),  DECLARE_CPORT(5),  DECLARE_CPORT(6),  DECLARE_CPORT(7),
-    DECLARE_CPORT(8),  DECLARE_CPORT(9),  DECLARE_CPORT(10), DECLARE_CPORT(11),
-    DECLARE_CPORT(12), DECLARE_CPORT(13), DECLARE_CPORT(14), DECLARE_CPORT(15),
-    DECLARE_CPORT(16), DECLARE_CPORT(17), DECLARE_CPORT(18), DECLARE_CPORT(19),
-    DECLARE_CPORT(20), DECLARE_CPORT(21), DECLARE_CPORT(22), DECLARE_CPORT(23),
-    DECLARE_CPORT(24), DECLARE_CPORT(25), DECLARE_CPORT(26), DECLARE_CPORT(27),
-    DECLARE_CPORT(28), DECLARE_CPORT(29), DECLARE_CPORT(30), DECLARE_CPORT(31),
-    DECLARE_CPORT(32), DECLARE_CPORT(33), DECLARE_CPORT(34), DECLARE_CPORT(35),
-    DECLARE_CPORT(36), DECLARE_CPORT(37), DECLARE_CPORT(38), DECLARE_CPORT(39),
-    DECLARE_CPORT(40), DECLARE_CPORT(41), DECLARE_CPORT(42), DECLARE_CPORT(43),
-};
+static struct cport *cporttable;
 
+#define APBRIDGE_CPORT_MAX 44 // number of CPorts available on the APBridges
 #define GPBRIDGE_CPORT_MAX 16 // number of CPorts available on the GPBridges
-static inline unsigned int cport_max(void) {
+
+unsigned int unipro_cport_count(void) {
     /*
      * Reduce the run-time CPort count to what's available on the
      * GPBridges, unless we can determine that we're running on an
      * APBridge.
      */
     return ((tsb_get_product_id() == tsb_pid_apbridge) ?
-            CPORT_MAX : GPBRIDGE_CPORT_MAX);
+            APBRIDGE_CPORT_MAX : GPBRIDGE_CPORT_MAX);
 }
 
 static inline struct cport *cport_handle(unsigned int cportid) {
-    if (cportid >= cport_max() || cportid == CPORTID_CDSI0 ||
+    if (cportid >= unipro_cport_count() || cportid == CPORTID_CDSI0 ||
         cportid == CPORTID_CDSI1) {
         return NULL;
     } else {
@@ -616,7 +595,7 @@ static void dump_regs(void) {
 
     lldbg("Connected CPorts:\n");
     lldbg("========================================\n");
-    for (i = 0; i < cport_max(); i++) {
+    for (i = 0; i < unipro_cport_count(); i++) {
         val = cport_get_status(cport_handle(i));
 
         if (val == CPORT_STATUS_CONNECTED) {
@@ -788,7 +767,7 @@ static void *unipro_tx_worker(void *data)
         do {
             is_busy = false;
 
-            for (i = 0; i < cport_max(); i++) {
+            for (i = 0; i < unipro_cport_count(); i++) {
                 /* Browse all CPorts sending any pending buffers */
                 retval = unipro_send_tx_buffer(cport_handle(i));
                 if (retval == -EBUSY) {
@@ -813,8 +792,8 @@ void unipro_init(void)
     unsigned int i;
     int retval;
     struct cport *cport;
+    size_t table_size = sizeof(struct cport) * unipro_cport_count();
 
-    DEBUGASSERT(ARRAY_SIZE(cporttable) <= 44);
 
     sem_init(&worker.tx_fifo_lock, 0, 0);
 
@@ -824,11 +803,18 @@ void unipro_init(void)
         return;
     }
 
-    for (i = 0; i < cport_max(); i++) {
-        cport = cport_handle(i);
-        if (cport) {
-            list_init(&cport->tx_fifo);
-        }
+    cporttable = zalloc(table_size);
+    if (!cporttable) {
+        return;
+    }
+
+    for (i = 0; i < unipro_cport_count(); i++) {
+        cport = &cporttable[i];
+        cport->tx_buf = CPORT_TX_BUF(i);
+        cport->rx_buf = CPORT_RX_BUF(i);
+        cport->cportid = i;
+        cport->connected = 0;
+        list_init(&cport->tx_fifo);
     }
 
     if (es2_fixup_mphy()) {
@@ -848,7 +834,7 @@ void unipro_init(void)
      * Initialize connected cports.
      */
     unipro_write(UNIPRO_INT_EN, 0x0);
-    for (i = 0; i < cport_max(); i++) {
+    for (i = 0; i < unipro_cport_count(); i++) {
         unipro_init_cport(i);
     }
     unipro_write(UNIPRO_INT_EN, 0x1);

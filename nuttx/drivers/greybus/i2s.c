@@ -74,8 +74,6 @@
 #define GB_I2S_VERSION_MAJOR            0
 #define GB_I2S_VERSION_MINOR            1
 
-#define GB_I2S_CPORT_INVALID            (CPORT_MAX + 1)
-
 #define GB_I2S_BUNDLE_0_ID              0
 #define GB_I2S_BUNDLE_0_DEV_ID          0
 

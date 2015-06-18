@@ -103,7 +103,8 @@ static struct cport cporttable[] = {
 
 static inline struct cport *cport_handle(uint16_t cportid) {
     // 16 and 17 are reserved for CDSI
-    if (cportid >= CPORT_MAX || cportid == CPORTID_CDSI0 || cportid == CPORTID_CDSI1) {
+    if (cportid >= unipro_cport_count() ||
+        cportid == CPORTID_CDSI0 || cportid == CPORTID_CDSI1) {
         return NULL;
     } else {
         return &cporttable[cportid];
@@ -349,7 +350,7 @@ static void dump_regs(void) {
 
     lldbg("Active CPort Configuration:\n");
     lldbg("========================================\n");
-    for (i = 0; i < CPORT_MAX; i++) {
+    for (i = 0; i < unipro_cport_count(); i++) {
         cport = cport_handle(i);
         if (!cport) {
             continue;
@@ -386,6 +387,12 @@ static void dump_regs(void) {
 /*
  * public interfaces
  */
+
+unsigned int unipro_cport_count(void) {
+    /* HACK: just putting this here to keep the build from breaking on
+     * ES1, which will (hopefully) be gone soon. */
+    return 32;
+}
 
 /**
  * @brief Print out a bunch of debug information on the console
@@ -462,7 +469,7 @@ void unipro_init(void) {
      * Initialize connected cports.
      */
     putreg32(0x0, UNIPRO_UNIPRO_INT_EN);
-    for (i = 0; i < CPORT_MAX; i++) {
+    for (i = 0; i < unipro_cport_count(); i++) {
         unipro_init_cport(i);
     }
     putreg32(0x1, UNIPRO_UNIPRO_INT_EN);
@@ -498,7 +505,7 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len) {
     struct cport *cport;
     char *data = (char*)buf;
 
-    if (cportid >= CPORT_MAX || len > CPORT_BUF_SIZE) {
+    if (cportid >= unipro_cport_count() || len > CPORT_BUF_SIZE) {
         return -EINVAL;
     }
 

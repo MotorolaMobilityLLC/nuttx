@@ -69,7 +69,7 @@ struct gb_tape_record_header {
 };
 
 static atomic_t request_id;
-static struct gb_cport_driver g_cport[CPORT_MAX];
+static struct gb_cport_driver *g_cport;
 static struct gb_transport_backend *transport_backend;
 static struct gb_tape_mechanism *gb_tape;
 static int gb_tape_fd = -EBADFD;
@@ -334,7 +334,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     struct gb_operation_handler *op_handler;
     size_t hdr_size;
 
-    if (cport >= CPORT_MAX || !data) {
+    if (cport >= unipro_cport_count() || !data) {
         gb_error("Invalid cport number: %u\n", cport);
         return -EINVAL;
     }
@@ -397,7 +397,7 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
 
     gb_debug("Registering Greybus driver on CP%u\n", cport);
 
-    if (cport >= CPORT_MAX) {
+    if (cport >= unipro_cport_count()) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -470,7 +470,7 @@ int gb_listen(unsigned int cport)
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->listen);
 
-    if (cport >= CPORT_MAX) {
+    if (cport >= unipro_cport_count()) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -488,7 +488,7 @@ int gb_stop_listening(unsigned int cport)
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->stop_listening);
 
-    if (cport >= CPORT_MAX) {
+    if (cport >= unipro_cport_count()) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -709,7 +709,7 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
     struct gb_operation *operation;
     struct gb_operation_hdr *hdr;
 
-    if (cport >= CPORT_MAX)
+    if (cport >= unipro_cport_count())
         return NULL;
 
     operation = malloc(sizeof(*operation));
@@ -780,8 +780,8 @@ int gb_init(struct gb_transport_backend *transport)
     if (!transport)
         return -EINVAL;
 
-    memset(&g_cport, 0, sizeof(g_cport));
-    for (i = 0; i < CPORT_MAX; i++) {
+    g_cport = zalloc(sizeof(struct gb_cport_driver) * unipro_cport_count());
+    for (i = 0; i < unipro_cport_count(); i++) {
         sem_init(&g_cport[i].rx_fifo_lock, 0, 0);
         list_init(&g_cport[i].rx_fifo);
         list_init(&g_cport[i].tx_fifo);

@@ -33,12 +33,6 @@
 
 #include <stdlib.h>
 
-#ifdef CONFIG_TSB_CHIP_REV_ES1
-#define CPORT_MAX                   (32)
-#elif defined(CONFIG_TSB_CHIP_REV_ES2)
-#define CPORT_MAX                   (44)
-#endif
-
 #define CPORT_BUF_SIZE              (1024)
 
 typedef int (*unipro_send_completion_t)(int status, const void *buf,
@@ -51,6 +45,7 @@ struct unipro_driver {
                       size_t len);
 };
 
+unsigned int unipro_cport_count(void);
 void unipro_init(void);
 int unipro_init_cport(unsigned int cportid);
 void unipro_info(void);
