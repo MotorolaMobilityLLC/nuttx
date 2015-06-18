@@ -41,6 +41,10 @@ ifeq ($(CONFIG_GREYBUS_SLICE_SPI),y)
 CSRCS += datalink-spi.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_SLICE_I2C),y)
+CSRCS += datalink-i2c.c
+endif
+
 # Include Slice build support
 
 DEPPATH += --dep-path greybus$(DELIM)slice

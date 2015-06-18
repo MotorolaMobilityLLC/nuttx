@@ -2,6 +2,9 @@ choice
 	prompt "Select a Slice bus"
 config GREYBUS_SLICE_SPI
 	bool "SPI"
+
+config GREYBUS_SLICE_I2C
+	bool "I2C"
 endchoice
 
 config GREYBUS_SLICE_PORT
@@ -10,3 +13,10 @@ config GREYBUS_SLICE_PORT
 	---help---
 		Bus port to use to communicate with base (default 1).
 
+if GREYBUS_SLICE_I2C
+
+config GREYBUS_SLICE_I2C_ADDR
+	int "Slice I2C Address"
+	default 0x55
+
+endif
