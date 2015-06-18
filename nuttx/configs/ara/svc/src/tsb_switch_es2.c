@@ -37,6 +37,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/spi/spi.h>
 
+#include <pthread.h>
 #include <errno.h>
 #include <string.h>
 
@@ -61,6 +62,7 @@
 #define ES2_CPORT_RX_MAX_SIZE        (16 + 5 + 272 + 2)
 
 struct es2_cport {
+    pthread_mutex_t lock;
     uint8_t rxbuf[ES2_CPORT_RX_MAX_SIZE];
 };
 
@@ -444,23 +446,27 @@ static int es2_ncp_transfer(struct tsb_switch *sw,
                             size_t tx_size,
                             uint8_t *rx_buf,
                             size_t rx_size) {
+    struct sw_es2_priv *priv = sw->priv;
     int rc;
 
+    pthread_mutex_lock(&priv->ncp_cport.lock);
 
     /* Send the request */
     rc = es2_write(sw, CPORT_NCP, tx_buf, tx_size);
     if (rc) {
         dbg_error("%s() write failed: rc=%d\n", __func__, rc);
-        return rc;
+        goto done;
     }
 
     /* Read the CNF */
     rc = es2_read(sw, CPORT_NCP, rx_buf, rx_size);
     if (rc) {
         dbg_error("%s() read failed: rc=%d\n", __func__, rc);
-        return rc;
+        goto done;
     }
 
+done:
+    pthread_mutex_unlock(&priv->ncp_cport.lock);
 
     return rc;
 }
@@ -1552,6 +1558,9 @@ int tsb_switch_es2_init(struct tsb_switch *sw, unsigned int spi_bus)
     }
 
     priv->spi_dev = spi_dev;
+    pthread_mutex_init(&priv->ncp_cport.lock, NULL);
+    pthread_mutex_init(&priv->data_cport4.lock, NULL);
+    pthread_mutex_init(&priv->data_cport5.lock, NULL);
 
     sw->priv = priv;
     sw->ops = &es2_ops;
