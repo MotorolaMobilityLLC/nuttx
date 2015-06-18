@@ -28,8 +28,8 @@
  * @author Mark Greer
  */
 
-#ifndef __ARCH_ARM_DEVICE_PLL_H
-#define __ARCH_ARM_DEVICE_PLL_H
+#ifndef __INCLUDE_NUTTX_DEVICE_PLL_H
+#define __INCLUDE_NUTTX_DEVICE_PLL_H
 
 #include <errno.h>
 
@@ -106,4 +106,4 @@ static inline int device_pll_set_frequency(struct device *dev,
     return -ENOSYS;
 }
 
-#endif /* __ARCH_ARM_DEVICE_PLL_H */
+#endif /* __INCLUDE_NUTTX_DEVICE_PLL_H */
