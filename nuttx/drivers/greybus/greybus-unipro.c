@@ -29,7 +29,7 @@
  */
 
 #include <errno.h>
-#include <arch/tsb/unipro.h>
+#include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 

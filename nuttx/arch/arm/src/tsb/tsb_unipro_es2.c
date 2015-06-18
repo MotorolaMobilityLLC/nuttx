@@ -34,10 +34,10 @@
 #include <nuttx/arch.h>
 #include <nuttx/list.h>
 
+#include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
 
-#include <arch/tsb/unipro.h>
 #include <arch/tsb/irq.h>
 #include <errno.h>
 

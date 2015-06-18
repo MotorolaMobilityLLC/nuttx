@@ -63,8 +63,7 @@
 #include <nuttx/logbuffer.h>
 #include <nuttx/gpio.h>
 #include <nuttx/greybus/greybus.h>
-
-#include <arch/tsb/unipro.h>
+#include <nuttx/unipro/unipro.h>
 #include <arch/byteorder.h>
 
 /****************************************************************************

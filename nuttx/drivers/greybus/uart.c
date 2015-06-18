@@ -39,7 +39,7 @@
 #include <nuttx/config.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/greybus/greybus.h>
-#include <arch/tsb/unipro.h>
+#include <nuttx/unipro/unipro.h>
 #include <apps/greybus-utils/utils.h>
 #include <arch/byteorder.h>
 

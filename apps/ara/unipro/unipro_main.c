@@ -28,7 +28,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/greybus/tsb_unipro.h>
-#include <arch/tsb/unipro.h>
+#include <nuttx/unipro/unipro.h>
 
 #include <stdio.h>
 #include <string.h>

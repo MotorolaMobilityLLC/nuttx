@@ -32,9 +32,9 @@
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/util.h>
-#include <arch/tsb/unipro.h>
 #include <nuttx/greybus/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
+#include <nuttx/unipro/unipro.h>
 #include <debug.h>
 
 #include <stdint.h>

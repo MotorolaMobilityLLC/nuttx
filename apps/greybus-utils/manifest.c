@@ -33,7 +33,6 @@
 #include <errno.h>
 
 #include <arch/byteorder.h>
-#include <arch/tsb/unipro.h>
 #include <apps/greybus-utils/utils.h>
 #include <nuttx/util.h>
 

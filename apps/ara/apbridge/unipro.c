@@ -30,7 +30,7 @@
 
 #include <errno.h>
 #include <arch/tsb/gpio.h>
-#include <arch/tsb/unipro.h>
+#include <nuttx/unipro/unipro.h>
 #include <nuttx/usb/apb_es1.h>
 #include <apps/greybus-utils/utils.h>
 

@@ -29,7 +29,7 @@
 #ifndef APBRIDGE_BACKEND_H
 #define APBRIDGE_BACKEND_H
 
-#include <arch/tsb/unipro.h>
+#include <nuttx/unipro/unipro.h>
 
 struct apbridge_backend {
     int (*usb_to_unipro)(unsigned int cportid, void *buf, size_t len,

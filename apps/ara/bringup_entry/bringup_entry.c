@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arch/tsb/unipro.h>
+#include <nuttx/unipro/unipro.h>
 
 #include <apps/nsh.h>
 

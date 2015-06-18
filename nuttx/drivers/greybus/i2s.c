@@ -65,9 +65,9 @@
 #include <nuttx/wdog.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/unipro/unipro.h>
 
 #include <arch/byteorder.h>
-#include <arch/tsb/unipro.h>
 
 #include "i2s-gb.h"
 

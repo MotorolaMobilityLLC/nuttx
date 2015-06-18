@@ -36,7 +36,6 @@
 #include <errno.h>
 #include <pthread.h>
 
-#include <arch/tsb/unipro.h>
 #include <apps/greybus-utils/utils.h>
 #include <apps/ara/service_mgr.h>
 #include <apps/ara/gb_loopback.h>
