@@ -61,7 +61,7 @@ static inline int device_pll_start(struct device *dev)
     if (dev->driver->ops->type_ops.pll->start)
         return dev->driver->ops->type_ops.pll->start(dev);
 
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -81,7 +81,7 @@ static inline int device_pll_stop(struct device *dev)
     if (dev->driver->ops->type_ops.pll->stop)
         return dev->driver->ops->type_ops.pll->stop(dev);
 
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -103,7 +103,7 @@ static inline int device_pll_set_frequency(struct device *dev,
     if (dev->driver->ops->type_ops.pll->set_frequency)
         return dev->driver->ops->type_ops.pll->set_frequency(dev, frequency);
 
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 #endif /* __ARCH_ARM_DEVICE_PLL_H */
