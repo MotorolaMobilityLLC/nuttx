@@ -124,7 +124,9 @@ enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id)
 
 enum tsb_product_id tsb_get_product_id(void)
 {
-    return (enum tsb_product_id)scm_read(TSB_SCM_PID);
+    /* cache the value to avoid repeated efuse reads */
+    static enum tsb_product_id pid;
+    return pid ? pid : (pid = (enum tsb_product_id)scm_read(TSB_SCM_PID));
 }
 
 /* Debug code for command line tool usage */
