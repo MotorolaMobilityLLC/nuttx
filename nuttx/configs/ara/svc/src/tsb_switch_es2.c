@@ -60,9 +60,15 @@
 /* 16-byte max delay + 5-byte header + 272-byte max payload + 2-byte footer */
 #define ES2_CPORT_RX_MAX_SIZE        (16 + 5 + 272 + 2)
 
+struct es2_cport {
+    uint8_t rxbuf[ES2_CPORT_RX_MAX_SIZE];
+};
+
 struct sw_es2_priv {
     struct spi_dev_s    *spi_dev;
-    uint8_t             rxbuf[ES2_CPORT_RX_MAX_SIZE];
+    struct es2_cport ncp_cport;
+    struct es2_cport data_cport4;
+    struct es2_cport data_cport5;
 };
 
 #define LNUL        (0x00)
@@ -74,7 +80,9 @@ struct sw_es2_priv {
 #define INIT        (0x08)
 #define HNUL        (0xff)
 
-#define NCP_CPORT   (0x03)
+#define CPORT_NCP   (0x03)
+#define CPORT_DATA4 (0x04)
+#define CPORT_DATA5 (0x05)
 
 #define TSB_MPHY_MAP (0x7F)
     #define TSB_MPHY_MAP_TSB_REGISTER_1 (0x01)
@@ -129,6 +137,18 @@ static uint16_t unipro_irq_attr[] = {
 };
 
 static void es2_spi_select(struct tsb_switch *sw, int select);
+
+static inline uint8_t *cport_to_rxbuf(struct sw_es2_priv *priv, unsigned int cportid) {
+    switch (cportid) {
+    case CPORT_NCP:
+        return priv->ncp_cport.rxbuf;
+    case CPORT_DATA4:
+        return priv->data_cport4.rxbuf;
+    case CPORT_DATA5:
+        return priv->data_cport5.rxbuf;
+    };
+    return NULL;
+}
 
 static int es2_transfer_check_write_status(uint8_t *status_block,
                                            size_t size)
@@ -241,7 +261,7 @@ static int es2_read_status(struct tsb_switch *sw,
     struct spi_dev_s *spi_dev = priv->spi_dev;
     unsigned int offset;
     struct srpt_read_status_report *rpt = NULL;
-    uint8_t *rxbuf = priv->rxbuf;
+    uint8_t *rxbuf = cport_to_rxbuf(priv, cport);
 
     const char srpt_cmd[] = {HNUL, SRPT, cport, 0, 0, ENDP, HNUL};
     const char srpt_report_header[] = {HNUL, SRPT, cport, 0x00, 0xC};
@@ -284,6 +304,7 @@ static int es2_write(struct tsb_switch *sw,
                      size_t tx_size) {
     struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
+    uint8_t *rxbuf = cport_to_rxbuf(priv, cportid);
     unsigned int size;
     int ret = OK;
 
@@ -306,12 +327,12 @@ static int es2_write(struct tsb_switch *sw,
     SPI_SNDBLOCK(spi_dev, tx_buf, tx_size);
     SPI_SNDBLOCK(spi_dev, write_trailer, sizeof write_trailer);
     // Wait write status, send NULL frames while waiting
-    SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf, SWITCH_WRITE_STATUS_NNULL);
+    SPI_EXCHANGE(spi_dev, NULL, rxbuf, SWITCH_WRITE_STATUS_NNULL);
 
     dbg_insane("Write payload:\n");
     dbg_print_buf(DBG_INSANE, tx_buf, tx_size);
     dbg_insane("Write status:\n");
-    dbg_print_buf(DBG_INSANE, priv->rxbuf, SWITCH_WRITE_STATUS_NNULL);
+    dbg_print_buf(DBG_INSANE, rxbuf, SWITCH_WRITE_STATUS_NNULL);
 
     // Make sure we use 16-bit frames
     size = sizeof write_header + tx_size + sizeof write_trailer
@@ -321,7 +342,7 @@ static int es2_write(struct tsb_switch *sw,
     }
 
     // Parse the write status and bail on error.
-    ret = es2_transfer_check_write_status(priv->rxbuf,
+    ret = es2_transfer_check_write_status(rxbuf,
                                           SWITCH_WRITE_STATUS_NNULL);
     if (ret) {
         goto out;
@@ -338,6 +359,7 @@ static int es2_read(struct tsb_switch *sw,
                     size_t rx_size) {
     struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
+    uint8_t *rxbuf = cport_to_rxbuf(priv, cportid);
     size_t size;
     int rcv_done = 0;
     bool null_rxbuf;
@@ -353,7 +375,6 @@ static int es2_read(struct tsb_switch *sw,
         LNUL
     };
 
-
     es2_spi_select(sw, true);
 
     // Read CNF and retry if NACK received
@@ -361,14 +382,14 @@ static int es2_read(struct tsb_switch *sw,
         // Read the CNF
         size = SWITCH_WAIT_REPLY_LEN + rx_size + sizeof read_header;
         SPI_SNDBLOCK(spi_dev, read_header, sizeof read_header);
-        SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf, size - sizeof read_header);
+        SPI_EXCHANGE(spi_dev, NULL, rxbuf, size - sizeof read_header);
         /* Make sure we use 16-bit frames */
         if (size & 0x1) {
             SPI_SEND(spi_dev, LNUL);
         }
 
         dbg_insane("RX Data:\n");
-        dbg_print_buf(DBG_INSANE, priv->rxbuf, size);
+        dbg_print_buf(DBG_INSANE, rxbuf, size);
 
         if (!rx_buf) {
             break;
@@ -388,18 +409,18 @@ static int es2_read(struct tsb_switch *sw,
 
         for (i = 0; i < size; i++) {
             // Detect an all-[LH]NULs RX buffer
-            if ((priv->rxbuf[i] != LNUL) && (priv->rxbuf[i] != HNUL)) {
+            if ((rxbuf[i] != LNUL) && (rxbuf[i] != HNUL)) {
                 null_rxbuf = false;
             }
             // Check for STRR or NACK
-            if (priv->rxbuf[i] == STRR) {
+            if (rxbuf[i] == STRR) {
                 // STRR found, parse the reply length and data
-                resp_start = &priv->rxbuf[i];
+                resp_start = &rxbuf[i];
                 size_t resp_len = resp_start[2] << 8 | resp_start[3];
                 memcpy(rx_buf, &resp_start[4], resp_len);
                 rcv_done = 1;
                 break;
-            } else if (priv->rxbuf[i] == NACK) {
+            } else if (rxbuf[i] == NACK) {
                 // NACK found, retry the CNF read
                 break;
             }
@@ -427,14 +448,14 @@ static int es2_ncp_transfer(struct tsb_switch *sw,
 
 
     /* Send the request */
-    rc = es2_write(sw, NCP_CPORT, tx_buf, tx_size);
+    rc = es2_write(sw, CPORT_NCP, tx_buf, tx_size);
     if (rc) {
         dbg_error("%s() write failed: rc=%d\n", __func__, rc);
         return rc;
     }
 
     /* Read the CNF */
-    rc = es2_read(sw, NCP_CPORT, rx_buf, rx_size);
+    rc = es2_read(sw, CPORT_NCP, rx_buf, rx_size);
     if (rc) {
         dbg_error("%s() read failed: rc=%d\n", __func__, rc);
         return rc;
@@ -598,6 +619,7 @@ int es2_init_seq(struct tsb_switch *sw)
     struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
     const char init_reply[] = { INIT, LNUL };
+    uint8_t *rxbuf = cport_to_rxbuf(priv, CPORT_NCP);
     int i, rc = -1;
 
 
@@ -609,14 +631,14 @@ int es2_init_seq(struct tsb_switch *sw)
 
     SPI_SEND(spi_dev, INIT);
     SPI_SEND(spi_dev, INIT);
-    SPI_EXCHANGE(spi_dev, NULL, priv->rxbuf, SWITCH_WAIT_REPLY_LEN);
+    SPI_EXCHANGE(spi_dev, NULL, rxbuf, SWITCH_WAIT_REPLY_LEN);
 
     dbg_insane("Init RX Data:\n");
-    dbg_print_buf(DBG_INSANE, priv->rxbuf, SWITCH_WAIT_REPLY_LEN);
+    dbg_print_buf(DBG_INSANE, rxbuf, SWITCH_WAIT_REPLY_LEN);
 
     // Check for the transition from INIT to LNUL after sending INITs
     for (i = 0; i < SWITCH_WAIT_REPLY_LEN - 1; i++) {
-        if (!memcmp(priv->rxbuf + i, init_reply, sizeof(init_reply)))
+        if (!memcmp(rxbuf + i, init_reply, sizeof(init_reply)))
             rc = 0;
     }
 
