@@ -156,7 +156,7 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
                 timedout_hdr.type = TYPE_RESPONSE_FLAG | op_hdr->type;
 
                 op->response_buffer = &timedout_hdr;
-                op->callback(operation);
+                op->callback(op);
                 op->response_buffer = NULL;
             }
             gb_operation_unref(op);
