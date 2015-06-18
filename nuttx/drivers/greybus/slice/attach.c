@@ -134,7 +134,7 @@ int slice_attach_init(void)
 {
   int ret;
 
-  slice_attach_data = malloc(sizeof(struct slice_attach_data_s));
+  slice_attach_data = zalloc(sizeof(struct slice_attach_data_s));
   if (!slice_attach_data)
       return -ENOMEM;
 

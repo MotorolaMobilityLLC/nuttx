@@ -33,11 +33,22 @@
 #include <arch/board/slice.h>
 
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/slice.h>
 
 #include "vendor-moto-gb.h"
 
 #define GB_VENDOR_MOTO_VERSION_MAJOR     0
 #define GB_VENDOR_MOTO_VERSION_MINOR     1
+
+static void attach_cb(FAR void *arg, bool attached)
+{
+  if (!attached)
+    {
+      /* Ensure that base charging is disabled */
+      slice_vbus_en_sw(false);
+      dbg("Base charging is disabled\n");
+    }
+}
 
 static uint8_t gb_vendor_moto_protocol_version(struct gb_operation *operation)
 {
@@ -65,7 +76,7 @@ static uint8_t gb_vendor_moto_charge_base(struct gb_operation *operation)
 
 static int gb_vendor_moto_init(unsigned int cport)
 {
-    // Nothing to do: GPIO is already configured
+    slice_attach_register(attach_cb, NULL);
     return 0;
 }
 

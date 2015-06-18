@@ -27,6 +27,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <debug.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -35,6 +36,7 @@
 
 #include <arch/board/slice.h>
 
+#include <nuttx/greybus/slice.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/list.h>
 #include <nuttx/spi/spi.h>
@@ -121,6 +123,34 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
 
 out:
   irqrestore(flags);
+}
+
+static void attach_cb(FAR void *arg, bool attached)
+{
+  FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)arg;
+  struct list_head *iter;
+  struct list_head *iter_next;
+  struct slice_fifo_node *node;
+
+  dbg("attached=%d\n", attached);
+
+  if (attached)
+    {
+      setup_exchange(priv);
+    }
+  else
+    {
+      /* TODO: Cancel SPI transaction */
+
+      /* Cleanup any unsent messages */
+      list_foreach_safe(&priv->tx_fifo, iter, iter_next)
+        {
+          node = list_entry(iter, struct slice_fifo_node, list);
+          list_del(iter);
+          free(node->packet);
+          free(node);
+        }
+    }
 }
 
 /*
@@ -245,8 +275,7 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
   slice_spi_dl.spi = spi;
   list_init(&slice_spi_dl.tx_fifo);
 
-  /* TODO: Register for attach callbacks (call spi exchange on attach, cleanup
-   * fifo and cancel spi transaction on detach */
+  slice_attach_register(attach_cb, &slice_spi_dl);
 
   return (FAR struct slice_dl_s *)&slice_spi_dl;
 }
