@@ -179,8 +179,8 @@ static void gb_loopback_transfer_sync(struct gb_operation *operation)
     struct gb_loopback_transfer_response *response;
     struct gb_loopback_transfer_request *request;
 
-    request = gb_operation_get_request_payload(operation->request);
-    response = gb_operation_get_request_payload(operation);
+    request = gb_operation_get_request_payload(operation);
+    response = gb_operation_get_request_payload(operation->response);
 
     gb_loopback = cport_to_loopback(operation->cport);
     if (!gb_loopback) {

@@ -82,7 +82,7 @@ struct gb_operation {
     void *priv_data;
     struct list_head list;
 
-    struct gb_operation *request;
+    struct gb_operation *response;
 };
 
 struct gb_driver {
@@ -126,6 +126,10 @@ static inline void*
 gb_operation_get_request_payload(struct gb_operation *operation)
 {
     return (char*)operation->request_buffer + sizeof(struct gb_operation_hdr);
+}
+
+static inline struct gb_operation *gb_operation_get_response_op(struct gb_operation *op) {
+    return op->response;
 }
 
 int gb_init(struct gb_transport_backend *transport);

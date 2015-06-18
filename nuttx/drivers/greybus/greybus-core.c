@@ -170,9 +170,10 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
         list_del(iter);
         irqrestore(flags);
 
-        operation->request = op;
+        /* attach this response with the original request */
+        op->response = operation;
         if (op->callback)
-            op->callback(operation);
+            op->callback(op);
         gb_operation_unref(op);
         break;
     }
@@ -353,7 +354,7 @@ int gb_operation_send_request(struct gb_operation *operation,
 
 static void gb_operation_callback_sync(struct gb_operation *operation)
 {
-    sem_post(&operation->request->sync_sem);
+    sem_post(&operation->sync_sem);
 }
 
 int gb_operation_send_request_sync(struct gb_operation *operation)
