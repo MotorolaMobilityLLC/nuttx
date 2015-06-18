@@ -60,6 +60,8 @@
 #define ES2_IRQ_MAX    16
 /* 16-byte max delay + 5-byte header + 272-byte max payload + 2-byte footer */
 #define ES2_CPORT_RX_MAX_SIZE        (16 + 5 + 272 + 2)
+#define ES2_CPORT_NCP_MAX_PAYLOAD    (256)
+#define ES2_CPORT_DATA_MAX_PAYLOAD   (272)
 
 struct es2_cport {
     pthread_mutex_t lock;
@@ -306,6 +308,7 @@ static int es2_write(struct tsb_switch *sw,
                      size_t tx_size) {
     struct sw_es2_priv *priv = sw->priv;
     struct spi_dev_s *spi_dev = priv->spi_dev;
+    struct srpt_read_status_report rpt;
     uint8_t *rxbuf = cport_to_rxbuf(priv, cportid);
     unsigned int size;
     int ret = OK;
@@ -322,6 +325,35 @@ static int es2_write(struct tsb_switch *sw,
         ENDP,
         LNUL,
     };
+
+    switch (cportid) {
+    case CPORT_NCP:
+        if (tx_size >= ES2_CPORT_NCP_MAX_PAYLOAD) {
+            return -ENOMEM;
+        }
+        break;
+    case CPORT_DATA4:
+    case CPORT_DATA5:
+        /*
+         * Must read the fifo status for data to ensure there is enough space.
+         */
+        ret = es2_read_status(sw, cportid, &rpt);
+        if (ret) {
+            return ret;
+        }
+
+        /* messages greater than one fifo's worth are not supported */
+        if (tx_size >= ES2_CPORT_DATA_MAX_PAYLOAD) {
+            return -EINVAL;
+        }
+
+        if (tx_size >= rpt.tx_fifo_size) {
+            return -ENOMEM;
+        }
+        break;
+    default:
+        return -EINVAL;
+    }
 
     es2_spi_select(sw, true);
     /* Write */
