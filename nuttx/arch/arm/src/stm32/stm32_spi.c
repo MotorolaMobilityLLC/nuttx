@@ -345,7 +345,9 @@ static const struct spi_ops_s g_sp1iops =
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
     .slave_read       = spi_read_slave,
+#ifdef CONFIG_STM32_SPI_DMA
     .slave_dma_cancel    = spi_rxtxdmastop_slave,
+#endif
 #endif
 };
 
@@ -395,7 +397,9 @@ static const struct spi_ops_s g_sp2iops =
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
     .slave_read       = spi_read_slave,
+#ifdef CONFIG_STM32_SPI_DMA
     .slave_dma_cancel    = spi_rxtxdmastop_slave,
+#endif
 #endif
 
 };
@@ -446,7 +450,9 @@ static const struct spi_ops_s g_sp3iops =
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
     .slave_read       = spi_read_slave,
+#ifdef CONFIG_STM32_SPI_DMA
     .slave_dma_cancel    = spi_rxtxdmastop_slave,
+#endif
 #endif
 };
 
@@ -496,7 +502,9 @@ static const struct spi_ops_s g_sp4iops =
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
     .slave_read       = spi_read_slave,
+#ifdef CONFIG_STM32_SPI_DMA
     .slave_dma_cancel    = spi_rxtxdmastop_slave,
+#endif
 #endif
 };
 
@@ -546,7 +554,9 @@ static const struct spi_ops_s g_sp5iops =
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
     .slave_read       = spi_read_slave,
+#ifdef CONFIG_STM32_SPI_DMA
     .slave_dma_cancel    = spi_rxtxdmastop_slave,
+#endif
 #endif
 };
 
@@ -596,7 +606,9 @@ static const struct spi_ops_s g_sp6iops =
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
     .slave_read       = spi_read_slave,
+#ifdef CONFIG_STM32_SPI_DMA
     .slave_dma_cancel    = spi_rxtxdmastop_slave,
+#endif
 #endif
 };
 
@@ -1127,6 +1139,8 @@ static inline void spi_dmatxstart(FAR struct stm32_spidev_s *priv)
 static inline void spi_rxtxdmastop_slave(FAR struct spi_dev_s *dev)
 {
   FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
+
+  spi_modifycr1(priv, SPI_CR1_SSM, 0);
   stm32_dmastop(priv->txdma);
   stm32_dmastop(priv->rxdma);
 }
