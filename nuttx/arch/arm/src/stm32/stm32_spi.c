@@ -223,6 +223,7 @@ static inline void spi_putreg(FAR struct stm32_spidev_s *priv, uint8_t offset,
 static inline uint16_t spi_readword(FAR struct stm32_spidev_s *priv);
 static inline void spi_writeword(FAR struct stm32_spidev_s *priv, uint16_t byte);
 static inline bool spi_16bitmode(FAR struct stm32_spidev_s *priv);
+static void spi_modifycr1(FAR struct stm32_spidev_s *priv, uint16_t setbits, uint16_t clrbits);
 
 /* DMA support */
 
@@ -239,6 +240,7 @@ static void        spi_dmatxsetup(FAR struct stm32_spidev_s *priv,
                                   FAR const void *txbuffer, FAR const void *txdummy, size_t nwords);
 static inline void spi_dmarxstart(FAR struct stm32_spidev_s *priv);
 static inline void spi_dmatxstart(FAR struct stm32_spidev_s *priv);
+static inline void spi_rxtxdmastop_slave(FAR struct spi_dev_s *dev);
 #endif
 
 /* SPI methods */
@@ -342,7 +344,8 @@ static const struct spi_ops_s g_sp1iops =
 #ifdef CONFIG_SPI_SLAVE
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave
+    .slave_read       = spi_read_slave,
+    .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 };
 
@@ -391,7 +394,8 @@ static const struct spi_ops_s g_sp2iops =
 #ifdef CONFIG_SPI_SLAVE
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave
+    .slave_read       = spi_read_slave,
+    .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 
 };
@@ -441,7 +445,8 @@ static const struct spi_ops_s g_sp3iops =
 #ifdef CONFIG_SPI_SLAVE
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave
+    .slave_read       = spi_read_slave,
+    .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 };
 
@@ -490,7 +495,8 @@ static const struct spi_ops_s g_sp4iops =
 #ifdef CONFIG_SPI_SLAVE
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave
+    .slave_read       = spi_read_slave,
+    .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 };
 
@@ -539,7 +545,8 @@ static const struct spi_ops_s g_sp5iops =
 #ifdef CONFIG_SPI_SLAVE
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave
+    .slave_read       = spi_read_slave,
+    .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 };
 
@@ -588,7 +595,8 @@ static const struct spi_ops_s g_sp6iops =
 #ifdef CONFIG_SPI_SLAVE
     .slaveregistercallback = spi_registercallback,
     .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave
+    .slave_read       = spi_read_slave,
+    .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 };
 
@@ -939,6 +947,7 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
     }
   else
     {
+      spi_modifycr1(priv, SPI_CR1_SSM, 0);
       if (priv->cb_ops && priv->cb_ops->read)
         priv->cb_ops->read(priv->cb_v);
     }
@@ -1102,6 +1111,24 @@ static inline void spi_dmatxstart(FAR struct stm32_spidev_s *priv)
 {
   priv->txresult = 0;
   stm32_dmastart(priv->txdma, spi_dmatxcallback, priv, false);
+}
+#endif
+
+
+/************************************************************************************
+ * Name: spi_dma_end_slave
+ *
+ * Description:
+ *   End DMA transaction.
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_STM32_SPI_DMA
+static inline void spi_rxtxdmastop_slave(FAR struct spi_dev_s *dev)
+{
+  FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
+  stm32_dmastop(priv->txdma);
+  stm32_dmastop(priv->rxdma);
 }
 #endif
 
@@ -1638,6 +1665,11 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       spivdbg("txbuffer=%p rxbuffer=%p nwords=%d\n", txbuffer, rxbuffer, nwords);
       DEBUGASSERT(priv && priv->spibase);
 
+      /* Cancel previous setup */
+
+      stm32_dmastop(priv->txdma);
+      stm32_dmastop(priv->rxdma);
+
       /* Setup DMAs */
 
       spi_dmarxsetup(priv, rxbuffer, &rxdummy, nwords);
@@ -1654,6 +1686,10 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
 
           spi_dmarxwait(priv);
           spi_dmatxwait(priv);
+        }
+      else
+        {
+          spi_modifycr1(priv, 0, SPI_CR1_SSM);
         }
     }
 }
@@ -1973,15 +2009,9 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
        *   For DMA                        SSI=0 SSM=0
        *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
        */
-#ifdef CONFIG_STM32_SPI_DMA
-      clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_MSTR|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
-                SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE|SPI_CR1_SSI|SPI_CR1_SSM;
-      setbits = 0;
-#else
       clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_MSTR|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
                 SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
       setbits = SPI_CR1_SSI|SPI_CR1_SSM;
-#endif
       spi_modifycr1(priv, setbits, clrbits);
     }
   else

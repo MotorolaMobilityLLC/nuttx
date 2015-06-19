@@ -389,9 +389,26 @@
 
 #define SPI_SLAVE_READ(d,b) ((d)->ops->slave_read(d,b))
 
+/****************************************************************************
+ * Name: SPI_SLAVE_DMA_CANCEL
+ *
+ * Description:
+ *   Cancel the DMA transaction.
+ *
+ * Input Parameters:
+ *   dev    - Device-specific state data
+ *
+ * Returned Value:
+ *   0: success, <0: A negated errno
+ *
+ ****************************************************************************/
+
+#define SPI_SLAVE_DMA_CANCEL(d) ((d)->ops->slave_dma_cancel(d))
+
 /* SPI Mode type defines */
 #define SPI_MODE_TYPE_MASTER	1
 #define SPI_MODE_TYPE_SLAVE	0
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -465,6 +482,7 @@ struct spi_ops_s
                                   const struct spi_cb_ops_s *cb_ops, void *v);
   int    (*slave_write)(FAR struct spi_dev_s *dev, const uint8_t *buffer);
   int    (*slave_read)(FAR struct spi_dev_s *dev, uint8_t *buffer);
+  void   (*slave_dma_cancel)(FAR struct spi_dev_s *dev);
 #endif
 
 };
