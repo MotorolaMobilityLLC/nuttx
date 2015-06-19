@@ -49,7 +49,6 @@ config FS_WRITABLE
 	default n
 
 source fs/mmap/Kconfig
-source fs/fat/Kconfig
 source fs/nfs/Kconfig
 source fs/nxffs/Kconfig
 source fs/romfs/Kconfig

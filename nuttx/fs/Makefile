@@ -137,7 +137,6 @@ ifeq ($(CONFIG_FS_AUTOMOUNTER),y)
 CSRCS += fs_automount.c
 endif
 
-include fat/Make.defs
 include romfs/Make.defs
 include nxffs/Make.defs
 include nfs/Make.defs
