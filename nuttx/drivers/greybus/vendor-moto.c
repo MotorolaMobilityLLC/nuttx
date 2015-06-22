@@ -33,13 +33,16 @@
 #include <arch/board/slice.h>
 
 #include <nuttx/greybus/greybus.h>
+#ifdef CONFIG_GREYBUS_SLICE
 #include <nuttx/greybus/slice.h>
+#endif
 
 #include "vendor-moto-gb.h"
 
 #define GB_VENDOR_MOTO_VERSION_MAJOR     0
 #define GB_VENDOR_MOTO_VERSION_MINOR     1
 
+#ifdef CONFIG_GREYBUS_SLICE
 static void attach_cb(FAR void *arg, bool attached)
 {
   if (!attached)
@@ -49,6 +52,7 @@ static void attach_cb(FAR void *arg, bool attached)
       dbg("Base charging is disabled\n");
     }
 }
+#endif
 
 static uint8_t gb_vendor_moto_protocol_version(struct gb_operation *operation)
 {
@@ -76,7 +80,9 @@ static uint8_t gb_vendor_moto_charge_base(struct gb_operation *operation)
 
 static int gb_vendor_moto_init(unsigned int cport)
 {
+#ifdef CONFIG_GREYBUS_SLICE
     slice_attach_register(attach_cb, NULL);
+#endif
     return 0;
 }
 
