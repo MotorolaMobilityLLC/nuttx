@@ -36,6 +36,7 @@
 
 #include <arch/board/slice.h>
 
+#include <nuttx/gpio.h>
 #include <nuttx/greybus/slice.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/list.h>
@@ -47,16 +48,18 @@
 /* Size of payload of individual SPI packet (in bytes) */
 #define SLICE_SPI_MSG_PAYLOAD_SZ (32)
 
+#define HDR_BIT_VALID (0x01 << 7)
+#define HDR_BIT_MORE  (0x01 << 6)
+#define HDR_BIT_RSVD  (0x3F << 0)
+
 struct slice_spi_msg
 {
-  __u8    valid:1;
-  __u8    more:1;
-  __u8    reserved:6;
+  __u8    hdr_bits;
   __u8    data[SLICE_SPI_MSG_PAYLOAD_SZ];
 
   /* Temporary placeholder. Will be calculated and added automatically by HW */
   __le16  crc16;
-};
+} __packed;
 
 struct slice_fifo_node
 {
@@ -73,6 +76,7 @@ struct slice_spi_dl_s
   struct list_head tx_fifo;      /* List of messages to send */
 
   __u8 rx_buf[sizeof(struct slice_spi_msg)];
+  __u8 tx_dummy_buf[sizeof(struct slice_spi_msg)];
   __u8 *tx_buf;
 
   /*
@@ -91,22 +95,33 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
 
   flags = irqsave();
 
-  /* Check that active exchange can be interrupted */
-  if (priv->tx_buf)
+  dbg("tx_fifo=%d\n", list_count(&priv->tx_fifo));
+
+  /* Verify not already setup to tranceive packet */
+  if (!gpio_get_value(GPIO_SLICE_RDY_N))
     {
-      /* Already setup to transmit packet. Do nothing. */
+      dbg("Already setup to tranceive packet. Do nothing.\n");
       goto out;
     }
 
-  /* TODO: Investigate if cancel must be called here */
+  /* Only setup exchange if base has asserted wake */
+  if (gpio_get_value(GPIO_SLICE_WAKE_N))
+    {
+      dbg("WAKE not asserted\n");
+      goto out;
+    }
 
   if (list_is_empty(&priv->tx_fifo))
     {
-      /* Setup to only RX data */
-      SPI_RECVBLOCK(priv->spi, priv->rx_buf, sizeof(struct slice_spi_msg));
+      dbg("RX only\n");
+
+      SPI_EXCHANGE(priv->spi, priv->tx_dummy_buf, priv->rx_buf,
+                   sizeof(struct slice_spi_msg));
     }
   else
     {
+      dbg("RX and TX\n");
+
       head = priv->tx_fifo.next;
       list_del(priv->tx_fifo.next);
 
@@ -118,10 +133,13 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
                    sizeof(struct slice_spi_msg));
     }
 
+  /* Signal to base that we're ready to tranceive */
+  gpio_set_value(GPIO_SLICE_RDY_N, 0);
+
+out:
   /* Set the base interrupt line if data is available to be sent. */
   slice_host_int_set(priv->tx_buf != NULL);
 
-out:
   irqrestore(flags);
 }
 
@@ -132,15 +150,12 @@ static void attach_cb(FAR void *arg, bool attached)
   struct list_head *iter_next;
   struct slice_fifo_node *node;
 
-  dbg("attached=%d\n", attached);
+  if (!attached)
+    {
+      dbg("Cleaning up datalink\n");
 
-  if (attached)
-    {
-      setup_exchange(priv);
-    }
-  else
-    {
-      /* TODO: Cancel SPI transaction */
+      /* Cancel SPI transaction */
+      SPI_SLAVE_DMA_CANCEL(priv->spi);
 
       /* Cleanup any unsent messages */
       list_foreach_safe(&priv->tx_fifo, iter, iter_next)
@@ -162,13 +177,18 @@ static int txn_finished_cb(void *v)
   FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)v;
   struct slice_spi_msg *m = (struct slice_spi_msg *)priv->rx_buf;
 
+  dbg("Tranceive complete\n");
+
+  /* Deassert ready line to base */
+  gpio_set_value(GPIO_SLICE_RDY_N, 1);
+
   if (priv->tx_buf)
     {
       free(priv->tx_buf);
       priv->tx_buf = NULL;
     }
 
-  if (!m->valid)
+  if (!(m->hdr_bits & HDR_BIT_VALID))
     {
       /* Received a dummy packet - nothing to do! */
       goto done;
@@ -184,7 +204,7 @@ static int txn_finished_cb(void *v)
          SLICE_SPI_MSG_PAYLOAD_SZ);
   priv->rcvd_payload_idx += SLICE_SPI_MSG_PAYLOAD_SZ;
 
-  if (m->more)
+  if (m->hdr_bits & HDR_BIT_MORE)
     {
       /* Need additional packets */
       goto done;
@@ -215,12 +235,14 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
   size_t remaining = len;
   irqstate_t flags;
 
+  dbg("len=%d\n", len);
+
   if (len > SLICE_DL_PAYLOAD_MAX_SZ)
       return -E2BIG;
 
   while (remaining > 0)
     {
-      m = malloc(sizeof(struct slice_spi_msg));
+      m = zalloc(sizeof(struct slice_spi_msg));
       if (!m)
           return -ENOMEM;
 
@@ -231,8 +253,8 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
           return -ENOMEM;
         }
 
-      m->valid = 1;
-      m->more = (remaining > SLICE_SPI_MSG_PAYLOAD_SZ);
+      m->hdr_bits |= HDR_BIT_VALID;
+      m->hdr_bits |= (remaining > SLICE_SPI_MSG_PAYLOAD_SZ) ? HDR_BIT_MORE : 0;
       memcpy(m->data, buf, MIN(len, SLICE_SPI_MSG_PAYLOAD_SZ));
       m->crc16 = 0; /* TODO enable HW CRC */
       node->packet = m;
@@ -258,6 +280,14 @@ static struct slice_spi_dl_s slice_spi_dl =
   .dl  = { &slice_dl_ops },
 };
 
+static int wake_isr(int irq, void *context)
+{
+  dbg("Wake signal asserted by base\n");
+  setup_exchange(&slice_spi_dl);
+
+  return OK;
+}
+
 FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
 {
   FAR struct spi_dev_s *spi;
@@ -274,6 +304,13 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
   slice_spi_dl.cb = cb;
   slice_spi_dl.spi = spi;
   list_init(&slice_spi_dl.tx_fifo);
+
+  /* RDY GPIO must be initialized before the WAKE interrupt */
+  gpio_direction_out(GPIO_SLICE_RDY_N, 1);
+
+  gpio_direction_in(GPIO_SLICE_WAKE_N);
+  gpio_irqattach(GPIO_SLICE_WAKE_N, wake_isr);
+  set_gpio_triggering(GPIO_SLICE_WAKE_N, IRQ_TYPE_EDGE_FALLING);
 
   slice_attach_register(attach_cb, &slice_spi_dl);
 
