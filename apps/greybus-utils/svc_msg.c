@@ -194,7 +194,6 @@ void send_svc_event(int type, char *name, void *priv)
         } else
             gb_error("invalid interface ID, no hotplug unplug event sent\n");
     }
-    free(hpe);
 }
 
 void svc_register(size_t(*handler) (void *data, size_t size))

@@ -316,24 +316,7 @@ static int get_interface_id(char *fname)
 
 char *get_manifest_blob(void *data)
 {
-    uint16_t size;
-    char *hpb;
-    struct greybus_manifest_header *mh;
-
-    if (!data)
-        data = manifest_files[0].bin;
-
-    memcpy(&size, data, 2);
-    if (!(hpb = malloc(HP_BASE_SIZE + size))) {
-        gb_error("failed to allocate hotplug buffer\n");
-        goto out;
-    }
-
-    mh = (struct greybus_manifest_header *)(hpb + HP_BASE_SIZE);
-    memcpy(mh, data, size);
-
- out:
-    return hpb;
+    return data ? data : manifest_files[0].bin;
 }
 
 void parse_manifest_blob(char *hpe)
@@ -363,7 +346,6 @@ void enable_manifest(char *name, void *priv, int device_id)
         int iid = get_interface_id(name);
         if (iid > 0) {
             gb_info("%s interface inserted\n", name);
-            free(hpe);
         } else {
             gb_error("invalid interface ID, no hotplug plug event sent\n");
         }
