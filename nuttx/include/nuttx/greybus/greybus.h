@@ -64,6 +64,7 @@ struct gb_operation_handler {
 struct gb_transport_backend {
     void (*init)(void);
     int (*listen)(unsigned int cport);
+    int (*stop_listening)(unsigned int cport);
     int (*send)(unsigned int cport, const void *buf, size_t len);
 };
 
@@ -135,6 +136,9 @@ static inline struct gb_operation *gb_operation_get_response_op(struct gb_operat
 int gb_init(struct gb_transport_backend *transport);
 int gb_unipro_init(void);
 int gb_register_driver(unsigned int cport, struct gb_driver *driver);
+
+int gb_listen(unsigned int cport);
+int gb_stop_listening(unsigned int cport);
 
 void gb_operation_destroy(struct gb_operation *operation);
 void *gb_operation_alloc_response(struct gb_operation *operation, size_t size);

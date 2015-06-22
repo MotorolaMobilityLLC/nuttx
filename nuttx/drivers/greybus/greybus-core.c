@@ -253,9 +253,6 @@ int gb_register_driver(unsigned int cport, struct gb_driver *driver)
     pthread_attr_t *thread_attr_ptr = &thread_attr;
     int retval;
 
-    DEBUGASSERT(transport_backend);
-    DEBUGASSERT(transport_backend->listen);
-
     if (cport >= CPORT_MAX || !driver)
         return -EINVAL;
 
@@ -296,14 +293,9 @@ int gb_register_driver(unsigned int cport, struct gb_driver *driver)
     thread_attr_ptr = NULL;
 
     g_cport[cport].driver = driver;
-    retval = transport_backend->listen(cport);
-    if (retval)
-        goto listen_error;
 
     return 0;
 
-listen_error:
-    g_cport[cport].driver = NULL;
 pthread_create_error:
 pthread_attr_setstacksize_error:
     if (thread_attr_ptr != NULL)
@@ -312,6 +304,30 @@ pthread_attr_init_error:
     if (driver->exit)
         driver->exit(cport);
     return retval;
+}
+
+int gb_listen(unsigned int cport)
+{
+    DEBUGASSERT(transport_backend);
+    DEBUGASSERT(transport_backend->listen);
+
+    if (cport >= CPORT_MAX || !g_cport[cport].driver) {
+        return -EINVAL;
+    }
+
+    return transport_backend->listen(cport);
+}
+
+int gb_stop_listening(unsigned int cport)
+{
+    DEBUGASSERT(transport_backend);
+    DEBUGASSERT(transport_backend->stop_listening);
+
+    if (cport >= CPORT_MAX || !g_cport[cport].driver) {
+        return -EINVAL;
+    }
+
+    return transport_backend->stop_listening(cport);
 }
 
 int gb_operation_send_request(struct gb_operation *operation,

@@ -51,10 +51,16 @@ static int gb_unipro_listen(unsigned int cport)
     return ret;
 }
 
+static int gb_unipro_stop_listening(unsigned int cport)
+{
+    return unipro_driver_unregister(cport);
+}
+
 struct gb_transport_backend gb_unipro_backend = {
     .init = unipro_init,
     .send = unipro_send,
     .listen = gb_unipro_listen,
+    .stop_listening = gb_unipro_stop_listening,
 };
 
 int gb_unipro_init(void)

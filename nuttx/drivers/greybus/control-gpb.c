@@ -87,24 +87,28 @@ static uint8_t gb_control_get_manifest(struct gb_operation *operation)
 
 static uint8_t gb_control_connected(struct gb_operation *operation)
 {
-//    struct gb_control_connected_request *request =
-//        gb_operation_get_request_payload(operation);
+    int retval;
+    struct gb_control_connected_request *request =
+        gb_operation_get_request_payload(operation);
 
-    // TODO
-    //
-    // Inform gpb that the cport is connected now.
+    retval = gb_listen(request->cport_id);
+    if (retval) {
+        return GB_OP_INVALID;
+    }
 
     return GB_OP_SUCCESS;
 }
 
 static uint8_t gb_control_disconnected(struct gb_operation *operation)
 {
-//    struct gb_control_connected_request *request =
-//        gb_operation_get_request_payload(operation);
+    int retval;
+    struct gb_control_connected_request *request =
+        gb_operation_get_request_payload(operation);
 
-    // TODO
-    //
-    // Inform gpb that the cport is disconnected now.
+    retval = gb_stop_listening(request->cport_id);
+    if (retval) {
+        return GB_OP_INVALID;
+    }
 
     return GB_OP_SUCCESS;
 }
@@ -126,4 +130,5 @@ struct gb_driver control_driver = {
 void gb_control_register(int cport)
 {
     gb_register_driver(cport, &control_driver);
+    gb_listen(cport);
 }

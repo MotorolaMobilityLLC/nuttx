@@ -580,3 +580,15 @@ int unipro_driver_register(struct unipro_driver *driver, unsigned int cportid) {
     lldbg("Registered driver %s on CP%u\n", cport->driver->name, cport->cportid);
     return 0;
 }
+
+int unipro_driver_unregister(unsigned int cportid)
+{
+    struct cport *cport = cport_handle(cportid);
+    if (!cport) {
+        return -ENODEV;
+    }
+
+    cport->driver = NULL;
+
+    return 0;
+}
