@@ -31,6 +31,7 @@
 #include <nuttx/greybus/greybus.h>
 #include "gpio-gb.h"
 
+#include <arch/byteorder.h>
 #include <nuttx/gpio.h>
 
 #define GB_GPIO_VERSION_MAJOR 0
@@ -172,7 +173,7 @@ static uint8_t gb_gpio_set_debounce(struct gb_operation *operation)
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
 
-    ret = gpio_set_debounce(request->which, request->usec);
+    ret = gpio_set_debounce(request->which, le16_to_cpu(request->usec));
     if (ret)
         return GB_OP_UNKNOWN_ERROR;
 
