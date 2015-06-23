@@ -34,6 +34,7 @@
 #include <nuttx/greybus/greybus.h>
 #include <apps/greybus-utils/utils.h>
 #include <nuttx/gpio.h>
+#include <arch/byteorder.h>
 
 #include "vibrator-gb.h"
 
@@ -67,7 +68,7 @@ static uint8_t gb_vibrator_vibrator_on(struct gb_operation *operation)
     gpio_activate(GB_VIBRATOR_DUMMY_GPIO);
     gpio_set_value(GB_VIBRATOR_DUMMY_GPIO, 1);
 
-    usleep(request->timeout_ms);
+    usleep(le16_to_cpu(request->timeout_ms));
 
     gpio_deactivate(GB_VIBRATOR_DUMMY_GPIO);
 
