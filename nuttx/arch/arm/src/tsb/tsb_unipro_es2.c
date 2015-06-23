@@ -362,7 +362,12 @@ static int irq_rx_eom(int irq, void *context) {
     uint32_t transferred_size;
     (void)context;
 
-    DEBUGASSERT(cport->driver);
+    if (!cport->driver) {
+        lldbg("dropping message on cport %hu where no driver is registered",
+              cport->cportid);
+        return -ENODEV;
+    }
+
     transferred_size = unipro_read(CPB_RX_TRANSFERRED_DATA_SIZE_00 +
                                    (cport->cportid * sizeof(uint32_t)));
     DBG_UNIPRO("cport: %u driver: %s size=%u payload=0x%x\n",
