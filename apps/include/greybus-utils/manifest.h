@@ -47,7 +47,7 @@ typedef void (*manifest_handler)(unsigned char *manifest_file,
                                  int device_id, int manifest_number);
 void foreach_manifest(manifest_handler handler);
 void enable_cports(void);
-void *get_manifest_blob(void *data);
+void *get_manifest_blob(void);
 void parse_manifest_blob(void *manifest);
 void enable_manifest(char *name, void *priv, int device_id);
 void release_manifest_blob(void *manifest);

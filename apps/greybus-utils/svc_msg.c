@@ -161,12 +161,10 @@ static int get_interface_id(char *fname)
     return iid;
 }
 
-void send_svc_event(int type, char *name, void *priv)
+void send_svc_event(int type, char *name, void *manifest)
 {
-    void *manifest;
     int iid;
 
-    manifest = get_manifest_blob(priv);
     if (type == 0) {
         if (manifest) {
             parse_manifest_blob(manifest);

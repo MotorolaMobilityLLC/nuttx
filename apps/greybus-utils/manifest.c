@@ -355,9 +355,9 @@ static int get_interface_id(char *fname)
     return iid;
 }
 
-void *get_manifest_blob(void *data)
+void *get_manifest_blob(void)
 {
-    return data ? data : manifest_files[0].bin;
+    return manifest_files[0].bin;
 }
 
 void parse_manifest_blob(void *manifest)
@@ -378,7 +378,7 @@ void enable_manifest(char *name, void *priv, int device_id)
 {
     void *manifest;
 
-    manifest = get_manifest_blob(priv);
+    manifest = get_manifest_blob();
     if (manifest) {
         g_device_id = device_id;
         parse_manifest_blob(manifest);
@@ -400,7 +400,7 @@ struct list_head *get_manifest_cports(void)
 
 int get_manifest_size(void)
 {
-    struct greybus_manifest_header *mh = get_manifest_blob(NULL);
+    struct greybus_manifest_header *mh = get_manifest_blob();
 
     return mh ? le16_to_cpu(mh->size) : 0;
 }

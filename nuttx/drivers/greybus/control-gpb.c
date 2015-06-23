@@ -76,7 +76,7 @@ static uint8_t gb_control_get_manifest(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    mh = get_manifest_blob(NULL);
+    mh = get_manifest_blob();
     if (!mh)
         return GB_OP_INVALID;
 

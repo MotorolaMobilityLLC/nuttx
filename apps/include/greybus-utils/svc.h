@@ -31,7 +31,7 @@
 
 void svc_register(int (*handler)(void *data, size_t size));
 void send_svc_handshake(void);
-void send_svc_event(int type, char *name, void *priv);
+void send_svc_event(int type, char *name, void *manifest);
 int svc_handle(void *payload, int size);
 void send_ap_id(int iid);
 
