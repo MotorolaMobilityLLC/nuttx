@@ -40,7 +40,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include <arch/armv7-m/byteorder.h>
+#include <arch/byteorder.h>
 
 #include "stm32.h"
 #include "up_debug.h"

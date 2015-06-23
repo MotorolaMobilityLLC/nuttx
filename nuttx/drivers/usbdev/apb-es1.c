@@ -65,7 +65,7 @@
 #include <nuttx/greybus/greybus.h>
 
 #include <arch/tsb/unipro.h>
-#include <arch/armv7-m/byteorder.h>
+#include <arch/byteorder.h>
 
 /****************************************************************************
  * Pre-processor Definitions

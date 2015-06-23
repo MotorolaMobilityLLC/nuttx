@@ -39,7 +39,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/mm/mm.h>
 #include <nuttx/wqueue.h>
-#include <arch/armv7-m/byteorder.h>
+#include <arch/byteorder.h>
 
 #ifdef DWC_CCLIB
 # include "dwc_cc.h"

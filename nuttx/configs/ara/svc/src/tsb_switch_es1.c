@@ -36,7 +36,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/i2c.h>
 
-#include <arch/armv7-m/byteorder.h>
+#include <arch/byteorder.h>
 
 #include <errno.h>
 #include <string.h>
