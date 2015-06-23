@@ -31,6 +31,7 @@
 #include <debug.h>
 #include <stdlib.h>
 
+#include <arch/byteorder.h>
 #include <nuttx/greybus/greybus.h>
 #include <apps/greybus-utils/utils.h>
 
@@ -67,7 +68,7 @@ static uint8_t gb_battery_technology(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->technology = GB_BATTERY_TECH_LIPO;
+    response->technology = cpu_to_le32(GB_BATTERY_TECH_LIPO);
 
     return GB_OP_SUCCESS;
 }
@@ -82,7 +83,7 @@ static uint8_t gb_battery_status(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->status = GB_BATTERY_STATUS_FULL;
+    response->status = cpu_to_le16(GB_BATTERY_STATUS_FULL);
 
     return GB_OP_SUCCESS;
 }
@@ -97,7 +98,7 @@ static uint8_t gb_battery_max_voltage(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->voltage = 3800;
+    response->voltage = cpu_to_le32(3800);
 
     return GB_OP_SUCCESS;
 }
@@ -112,7 +113,7 @@ static uint8_t gb_battery_percent_capacity(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->capacity = 100;
+    response->capacity = cpu_to_le32(100);
 
     return GB_OP_SUCCESS;
 }
@@ -127,7 +128,7 @@ static uint8_t gb_battery_temperature(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->temperature = 25;
+    response->temperature = cpu_to_le32(25);
 
     return GB_OP_SUCCESS;
 }
@@ -142,7 +143,7 @@ static uint8_t gb_battery_voltage(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->voltage = 3000;
+    response->voltage = cpu_to_le32(3000);
 
     return GB_OP_SUCCESS;
 }
@@ -164,7 +165,7 @@ static uint8_t gb_battery_capacity(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->capacity = 150;
+    response->capacity = cpu_to_le32(150);
 
     return GB_OP_SUCCESS;
 }
@@ -179,7 +180,7 @@ static uint8_t gb_battery_shutdowntemp(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->temperature = 50;
+    response->temperature = cpu_to_le32(50);
 
     return GB_OP_SUCCESS;
 }
