@@ -36,6 +36,7 @@
 #include <arch/board/slice.h>
 #include <arch/irq.h>
 
+#include <nuttx/gpio.h>
 #include <nuttx/greybus/slice.h>
 #include <nuttx/list.h>
 #include <nuttx/power/pm.h>
@@ -58,7 +59,7 @@ struct slice_attach_data_s
   pthread_t attach_thread;
   struct list_head notify_list;
   sem_t attach_lock;
-  bool base_attached;
+  int base_attached;
 };
 
 static struct slice_attach_data_s *slice_attach_data;
@@ -66,7 +67,7 @@ static struct slice_attach_data_s *slice_attach_data;
 static void *base_attach_worker(void *v)
 {
   struct slice_attach_data_s *ad = (struct slice_attach_data_s *)v;
-  bool base_attached;
+  int base_attached;
   struct list_head *iter;
   struct list_head *iter_next;
   struct notify_node_s *node;
@@ -76,7 +77,7 @@ static void *base_attach_worker(void *v)
       pm_activity(PM_SLICE_ACTIVITY);
       usleep(100000);
 
-      base_attached = slice_is_base_present();
+      base_attached = gpio_get_value(GPIO_SLICE_SL_BPLUS_EN);
 
       if (ad->base_attached != base_attached)
         {
@@ -149,6 +150,9 @@ int slice_attach_init(void)
       return ret;
     }
 
-  return slice_irq_register(base_attach_isr);
+  gpio_irqattach(GPIO_SLICE_SL_BPLUS_EN, base_attach_isr);
+  set_gpio_triggering(GPIO_SLICE_SL_BPLUS_EN, IRQ_TYPE_EDGE_BOTH);
+
+  return 0;
 }
 
