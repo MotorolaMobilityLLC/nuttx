@@ -73,5 +73,9 @@ CHIP_CSRCS += tsb_usb.c
 endif
 
 ifeq ($(CONFIG_ARCH_CHIP_DEVICE_SPI),y)
+ifeq ($(CONFIG_ARCH_CHIP_DEVICE_SPI_BITBANG),y)
+CHIP_CSRCS += tsb_spi_bitbang.c
+else
 CHIP_CSRCS += tsb_spi.c
+endif
 endif
