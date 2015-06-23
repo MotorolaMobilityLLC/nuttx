@@ -35,6 +35,7 @@
 #include <debug.h>
 #include <nuttx/config.h>
 #include <arch/board/board.h>
+#include <nuttx/util.h>
 
 #include "up_arch.h"
 #include "tsb_scm.h"
@@ -167,9 +168,6 @@ struct clk_info clk_names[] = {
     { TSB_CLK_CDSI0_RX_APB, "cdsi0_rx_apb" },
     { TSB_CLK_CDSI0_REF,    "cdsi0_ref" },
 };
-
-/* TODO: Need to be moved in a common header */
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 void tsb_clk_dump(void)
 {

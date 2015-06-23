@@ -36,6 +36,7 @@
 
 #include <arch/atomic.h>
 #include <nuttx/list.h>
+#include <nuttx/util.h>
 
 struct gb_operation;
 
@@ -159,9 +160,5 @@ void gb_gpio_register(int cport);
 void gb_i2c_register(int cport);
 int gb_i2c_set_dev(struct i2c_dev_s *dev);
 struct  i2c_dev_s *gb_i2c_get_dev(void);
-
-#ifndef ARRAY_SIZE
-    #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
 
 #endif /* _GREYBUS_H_ */

@@ -314,9 +314,4 @@
 #define UNIPRO_RX_SW_RESET_30                (UNIPRO_REG_BASE + 0x1178)
 #define UNIPRO_RX_SW_RESET_31                (UNIPRO_REG_BASE + 0x117C)
 
-/* TODO: doesn't belong here */
-#ifndef ARRAY_SIZE
-    #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
-
 #endif
