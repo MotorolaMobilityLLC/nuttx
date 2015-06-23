@@ -62,7 +62,7 @@ static bool stm32_gpio_chip_initalized = false;
 static struct stm32_gpio_internal stm32_gpio[STM32_NGPIO + 1];
 
 /* Map pin number to cfgset used by the STM32 GPIO framework */
-static int map_pin_nr_to_cfgset(uint8_t pin, uint32_t *cfgset)
+int weak_function map_pin_nr_to_cfgset(uint8_t pin, uint32_t *cfgset)
 {
     if (pin > STM32_NGPIO)
         return -EINVAL;
