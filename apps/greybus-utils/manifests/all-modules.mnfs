@@ -1,0 +1,126 @@
+;
+; Manifest for all Protocols
+;
+
+[manifest-header]
+version-major = 0
+version-minor = 1
+
+[interface-descriptor]
+vendor-string-id = 1
+product-string-id = 2
+
+; Interface vendor string (id can't be 0)
+[string-descriptor "1"]
+id = 1
+string = Project Ara
+
+; Interface product string (id can't be 0)
+[string-descriptor "2"]
+id = 2
+string = All Modules
+
+; Control protocol on CPort 2
+[cport-descriptor "2"]
+bundle = 0
+id = 2
+protocol = 0x00
+
+; Control protocol Bundle 0
+[bundle-descriptor "0"]
+class = 0
+id = 0
+
+; GPIO protocol on CPort 3
+[cport-descriptor "3"]
+bundle = 1
+id = 3
+protocol = 0x02
+
+; I2C protocol on CPort 4
+[cport-descriptor "4"]
+bundle = 1
+id = 4
+protocol = 0x03
+
+; UART protocol on CPort 5
+[cport-descriptor "5"]
+bundle = 1
+id = 5
+protocol = 0x04
+
+; Skipping HID (0x05)
+
+; USB protocol on CPort 6
+[cport-descriptor "6"]
+bundle = 1
+id = 6
+protocol = 0x06
+
+; SDIO protocol on CPort 7
+[cport-descriptor "7"]
+bundle = 1
+id = 7
+protocol = 0x07
+
+; BATTERY protocol on CPort 8
+[cport-descriptor "8"]
+bundle = 1
+id = 8
+protocol = 0x08
+
+; PWM protocol on CPort 9
+[cport-descriptor "9"]
+bundle = 1
+id = 9
+protocol = 0x09
+
+; I2S_MGMT protocol on CPort 10
+[cport-descriptor "10"]
+bundle = 1
+id = 10
+protocol = 0x0a
+
+; SPI protocol on CPort 11
+[cport-descriptor "11"]
+bundle = 1
+id = 11
+protocol = 0x0b
+
+; DISPLAY (0x0c) automatically set up by SVC to use CPort 16
+
+; Skipping CAMERA (0x0d)
+
+; Skipping SENSOR (0x0e)
+
+; Skipping LED (0x0f)
+
+; VIBRATOR protocol on CPort 12
+[cport-descriptor "12"]
+bundle = 1
+id = 12
+protocol = 0x10
+
+; LOOPBACK protocol on CPort 13
+[cport-descriptor "13"]
+bundle = 1
+id = 13
+protocol = 0x11
+
+; I2S_RECEIVER protocol on CPort 14
+[cport-descriptor "14"]
+bundle = 1
+id = 14
+protocol = 0x12
+
+; I2S_TRANSMITTER protocol on CPort 15
+[cport-descriptor "15"]
+bundle = 1
+id = 15
+protocol = 0x13
+
+; Bundle 1
+; It is unclear what the 'class' field should be set to
+[bundle-descriptor "1"]
+id = 1
+class = 1

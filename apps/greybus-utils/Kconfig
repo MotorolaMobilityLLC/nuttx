@@ -8,20 +8,8 @@ config GREYBUS_DEBUG
 
 choice
 	prompt "Select a predefined Manifest"
-config MANIFEST_GPIO
-	bool "GPIO"
-config MANIFEST_I2C
-	bool "I2C"
-config MANIFEST_GPIO_I2C
-	bool "I2C and GPIO"
-config MANIFEST_BATTERY_GPIO_I2C
-	bool "Battery, GPIO and I2C"
-config MANIFEST_LOOPBACK
-	bool "Loopback"
-config MANIFEST_VIBRATOR
-	bool "Vibrator"
-config MANIFEST_GPIO_I2C_VIBRATOR
-	bool "GPIO, I2C, and Vibrator"
+config MANIFEST_ALL
+	bool "All Protocols"
 config CUSTOM_MANIFEST
 	bool "Custom manifest"
 endchoice

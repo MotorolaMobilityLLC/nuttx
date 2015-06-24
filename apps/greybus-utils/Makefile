@@ -80,36 +80,8 @@ COBJS = $(CSRCS:.c=$(OBJEXT))
 SRCS = $(ASRCS) $(CSRCS)
 OBJS = $(AOBJS) $(COBJS)
 
-ifeq ($(CONFIG_MANIFEST_GPIO), y)
- MANIFEST = simple-gpio-module
-endif
-
-ifeq ($(CONFIG_MANIFEST_I2C), y)
- MANIFEST = simple-i2c-module
-endif
-
-ifeq ($(CONFIG_MANIFEST_GPIO_I2C), y)
- MANIFEST = simple-gpio-i2c-module
-endif
-
-ifeq ($(CONFIG_MANIFEST_BATTERY_GPIO_I2C), y)
- MANIFEST = simple-battery-gpio-i2c-module
-endif
-
-ifeq ($(CONFIG_MANIFEST_LOOPBACK), y)
- MANIFEST = simple-loopback-module
-endif
-
-ifeq ($(CONFIG_MANIFEST_CONSOLE), y)
- MANIFEST = simple-uart-module
-endif
-
-ifeq ($(CONFIG_MANIFEST_VIBRATOR), y)
- MANIFEST = vibrator
-endif
-
-ifeq ($(CONFIG_MANIFEST_GPIO_I2C_VIBRATOR), y)
- MANIFEST = simple-gpio-i2c-vibrator-module
+ifeq ($(CONFIG_MANIFEST_ALL), y)
+ MANIFEST = all-modules
 endif
 
 ifeq ($(CONFIG_DST_DEVID), )
