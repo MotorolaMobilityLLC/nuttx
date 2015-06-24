@@ -28,6 +28,7 @@
  * Author: Fabien Parent <fparent@baylibre.com>
  */
 
+#include <arch/byteorder.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/usb.h>
 #include "usb-gb.h"
@@ -86,26 +87,33 @@ static uint8_t gb_usb_hub_control(struct gb_operation *operation)
     struct gb_usb_hub_control_response *response;
     struct gb_usb_hub_control_request *request =
         gb_operation_get_request_payload(operation);
+    uint16_t typeReq;
+    uint16_t wValue;
+    uint16_t wIndex;
+    uint16_t wLength;
+    int status;
 
     if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
         return GB_OP_INVALID;
     }
 
+    typeReq = le16_to_cpu(request->typeReq);
+    wValue = le16_to_cpu(request->wValue);
+    wIndex = le16_to_cpu(request->wIndex);
+    wLength = le16_to_cpu(request->wLength);
+
     response =
-        gb_operation_alloc_response(operation,
-                                    sizeof(*response) + request->wLength);
+        gb_operation_alloc_response(operation, sizeof(*response) + wLength);
     if (!response) {
         return GB_OP_NO_MEMORY;
     }
 
-    gb_usb_debug("%s(%hX, %hX, %hX, %hX)\n", __func__, request->typeReq,
-                 request->wValue, request->wIndex, request->wLength);
+    gb_usb_debug("%s(%hX, %hX, %hX, %hX)\n", __func__, typeReq, wValue, wIndex,
+                 wLength);
 
-    response->status = device_usb_hcd_hub_control(usbdev, request->typeReq,
-                                                  request->wValue,
-                                                  request->wIndex,
-                                                  (char*) response->buf,
-                                                  request->wLength);
+    status = device_usb_hcd_hub_control(usbdev, typeReq, wValue,  wIndex,
+                                        (char*) response->buf, wLength);
+    response->status = cpu_to_le32(status);
 
     return GB_OP_SUCCESS;
 }
