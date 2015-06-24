@@ -42,9 +42,6 @@
 
 /* Debug control internal data */
 dbg_ctrl_t dbg_ctrl = { DBG_ALL, DBG_INFO };
-/* Debug buffer, dynamically allocated/freed */
-char *dbg_msg;
-char dbg_rescue[DBG_RESCUE_SIZE];
 
 
 /* Get the level and components to enable debug for */
