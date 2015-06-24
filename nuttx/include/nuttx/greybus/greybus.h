@@ -37,6 +37,7 @@
 #include <arch/atomic.h>
 #include <nuttx/list.h>
 #include <nuttx/util.h>
+#include <nuttx/greybus/types.h>
 
 struct gb_operation;
 
@@ -97,11 +98,11 @@ struct gb_driver {
 };
 
 struct gb_operation_hdr {
-    uint16_t size;
-    uint16_t id;
-    uint8_t type;
-    uint8_t result; /* present in response only */
-    uint8_t pad[2];
+    __le16 size;
+    __le16 id;
+    __u8 type;
+    __u8 result; /* present in response only */
+    __u8 pad[2];
 };
 
 enum gb_operation_result {

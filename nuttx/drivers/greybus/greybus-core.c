@@ -35,6 +35,7 @@
 
 #include <arch/tsb/unipro.h>
 #include <arch/atomic.h>
+#include <arch/byteorder.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -219,6 +220,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     struct gb_operation *op;
     struct gb_operation_hdr *hdr = data;
     struct gb_operation_handler *op_handler;
+    size_t hdr_size;
 
     if (cport >= CPORT_MAX || !data)
         return -EINVAL;
@@ -226,8 +228,15 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     if (!g_cport[cport].driver || !g_cport[cport].driver->op_handlers)
         return 0;
 
-    if (sizeof(*hdr) > size || hdr->size > size || sizeof(*hdr) > hdr->size)
+    if (sizeof(*hdr) > size) {
         return -EINVAL; /* Dropping garbage request */
+    }
+
+    hdr_size = le16_to_cpu(hdr->size);
+
+    if (hdr_size > size || sizeof(*hdr) > hdr_size) {
+        return -EINVAL; /* Dropping garbage request */
+    }
 
     gb_dump(data, size);
 
@@ -237,11 +246,11 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
         return 0;
     }
 
-    op = gb_operation_create(cport, 0, hdr->size - sizeof(*hdr));
+    op = gb_operation_create(cport, 0, hdr_size - sizeof(*hdr));
     if (!op)
         return -ENOMEM;
 
-    memcpy(op->request_buffer, data, hdr->size);
+    memcpy(op->request_buffer, data, hdr_size);
 
     flags = irqsave(); // useless if IRQ's priorities are correct
     list_add(&g_cport[cport].rx_fifo, &op->list);
@@ -351,9 +360,9 @@ int gb_operation_send_request(struct gb_operation *operation,
     flags = irqsave();
 
     if (need_response) {
-        hdr->id = atomic_inc(&request_id);
+        hdr->id = cpu_to_le16(atomic_inc(&request_id));
         if (hdr->id == 0) /* ID 0 is for request with no response */
-            hdr->id = atomic_inc(&request_id);
+            hdr->id = cpu_to_le16(atomic_inc(&request_id));
         clock_gettime(CLOCK_REALTIME, &operation->time);
         operation->callback = callback;
         gb_operation_ref(operation);
@@ -362,7 +371,8 @@ int gb_operation_send_request(struct gb_operation *operation,
 
     gb_dump(operation->request_buffer, hdr->size);
     retval = transport_backend->send(operation->cport,
-                                     operation->request_buffer, hdr->size);
+                                     operation->request_buffer,
+                                     le16_to_cpu(hdr->size));
     if (need_response && retval) {
         list_del(&operation->list);
         gb_operation_unref(operation);
@@ -423,7 +433,7 @@ int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
     gb_dump(operation->response_buffer, resp_hdr->size);
     retval = transport_backend->send(operation->cport,
                                      operation->response_buffer,
-                                     resp_hdr->size);
+                                     le16_to_cpu(resp_hdr->size));
     if (retval) {
         if (has_allocated_response) {
             free(operation->response_buffer);
@@ -452,7 +462,7 @@ void *gb_operation_alloc_response(struct gb_operation *operation, size_t size)
     req_hdr = operation->request_buffer;
     resp_hdr = operation->response_buffer;
 
-    resp_hdr->size = size + sizeof(*resp_hdr);
+    resp_hdr->size = cpu_to_le16(size + sizeof(*resp_hdr));
     resp_hdr->id = req_hdr->id;
     resp_hdr->type = TYPE_RESPONSE_FLAG | req_hdr->type;
     return gb_operation_get_response_payload(operation);
@@ -512,7 +522,7 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
 
     memset(operation->request_buffer, 0, req_size + sizeof(*hdr));
     hdr = operation->request_buffer;
-    hdr->size = req_size + sizeof(*hdr);
+    hdr->size = cpu_to_le16(req_size + sizeof(*hdr));
     hdr->type = type;
 
     list_init(&operation->list);
@@ -533,11 +543,11 @@ size_t gb_operation_get_request_payload_size(struct gb_operation *operation)
     }
 
     hdr = operation->request_buffer;
-    if (hdr->size < sizeof(*hdr)) {
+    if (le16_to_cpu(hdr->size) < sizeof(*hdr)) {
         return 0;
     }
 
-    return hdr->size - sizeof(*hdr);
+    return le16_to_cpu(hdr->size) - sizeof(*hdr);
 }
 
 int gb_init(struct gb_transport_backend *transport)
