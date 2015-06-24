@@ -40,6 +40,7 @@
 #include <nuttx/greybus/slice.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/list.h>
+#include <nuttx/power/pm.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/util.h>
 
@@ -51,6 +52,9 @@
 #define HDR_BIT_VALID (0x01 << 7)
 #define HDR_BIT_MORE  (0x01 << 6)
 #define HDR_BIT_RSVD  (0x3F << 0)
+
+/* Priority to report to PM framework when WAKE line asserted. */
+#define PM_ACTIVITY_WAKE 10
 
 struct slice_spi_msg
 {
@@ -86,6 +90,26 @@ struct slice_spi_dl_s
   __u8 rcvd_payload[SLICE_DL_PAYLOAD_MAX_SZ];
   int rcvd_payload_idx;
 };
+
+#ifdef CONFIG_PM
+static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
+{
+  /*
+   * Do not allow standby when WAKE line is asserted. Need to stay awake to
+   * reply to commands.
+   */
+  if ((state >= PM_STANDBY) && !gpio_get_value(GPIO_SLICE_WAKE_N))
+      return -EIO;
+
+  return OK;
+}
+
+static struct pm_callback_s pm_callback =
+{
+  /* Only need to receive the prepare callback */
+  .prepare = pm_prepare,
+};
+#endif
 
 static void setup_exchange(FAR struct slice_spi_dl_s *priv)
 {
@@ -283,6 +307,8 @@ static struct slice_spi_dl_s slice_spi_dl =
 static int wake_isr(int irq, void *context)
 {
   dbg("Wake signal asserted by base\n");
+
+  pm_activity(PM_ACTIVITY_WAKE);
   setup_exchange(&slice_spi_dl);
 
   return OK;
@@ -313,6 +339,13 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
   set_gpio_triggering(GPIO_SLICE_WAKE_N, IRQ_TYPE_EDGE_FALLING);
 
   slice_attach_register(attach_cb, &slice_spi_dl);
+
+#ifdef CONFIG_PM
+  if (pm_register(&pm_callback) != OK)
+    {
+      dbg("Failed register to power management!\n");
+    }
+#endif
 
   return (FAR struct slice_dl_s *)&slice_spi_dl;
 }
