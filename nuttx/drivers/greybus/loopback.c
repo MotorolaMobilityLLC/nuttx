@@ -35,6 +35,7 @@
 #include <nuttx/greybus/loopback.h>
 #include "loopback-gb.h"
 #include <arch/tsb/unipro.h>
+#include <arch/byteorder.h>
 
 #define GB_LOOPBACK_VERSION_MAJOR 0
 #define GB_LOOPBACK_VERSION_MINOR 1
@@ -159,12 +160,13 @@ static uint8_t gb_loopback_transfer(struct gb_operation *operation)
     struct gb_loopback_transfer_response *response;
     struct gb_loopback_transfer_request *request =
         gb_operation_get_request_payload(operation);
+    size_t request_length = le32_to_cpu(request->len);
 
     response = gb_operation_alloc_response(operation,
-                                           sizeof(*response) + request->len);
+                                           sizeof(*response) + request_length);
     if(!response)
         return GB_OP_NO_MEMORY;
-    memcpy(response->data, request->data, request->len);
+    memcpy(response->data, request->data, request_length);
     return GB_OP_SUCCESS;
 }
 
@@ -187,7 +189,7 @@ static void gb_loopback_transfer_sync(struct gb_operation *operation)
         return;
     }
 
-    if (memcmp(request->data, response->data, request->len))
+    if (memcmp(request->data, response->data, le32_to_cpu(request->len)))
         gb_loopback->error += 1;
 }
 
@@ -208,7 +210,7 @@ int gb_loopback_transfer_host(struct gb_loopback *gb_loopback, size_t size)
         return -ENOMEM;
 
     request = gb_operation_get_request_payload(operation);
-    request->len = size;
+    request->len = cpu_to_le32(size);
     for (i = 0; i < size; i++) {
         request->data[i] = rand() & 0xff;
     }
