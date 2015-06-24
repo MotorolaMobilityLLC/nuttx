@@ -30,6 +30,7 @@
 #include <debug.h>
 #include <stdlib.h>
 
+#include <arch/byteorder.h>
 #include <nuttx/i2c.h>
 #include <nuttx/greybus/greybus.h>
 
@@ -67,9 +68,9 @@ static uint8_t gb_i2c_protocol_functionality(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->functionality = I2C_FUNC_I2C |
-                              I2C_FUNC_SMBUS_READ_BYTE |
-                              I2C_FUNC_SMBUS_WRITE_BYTE;
+    response->functionality = cpu_to_le32(I2C_FUNC_I2C |
+                                          I2C_FUNC_SMBUS_READ_BYTE |
+                                          I2C_FUNC_SMBUS_WRITE_BYTE);
 
     return GB_OP_SUCCESS;
 }
@@ -99,15 +100,15 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
 
     request = (struct gb_i2c_transfer_req *)
                   gb_operation_get_request_payload(operation);
-    op_count = request->op_count;
+    op_count = le16_to_cpu(request->op_count);
     write_data = (uint8_t *)&request->desc[op_count];
 
     for (i = 0; i < op_count; i++) {
         desc = &request->desc[i];
-        read_op = (desc->flags & I2C_M_RD) ? true : false;
+        read_op = (le16_to_cpu(desc->flags) & I2C_M_RD) ? true : false;
 
         if (read_op)
-            size += desc->size;
+            size += le16_to_cpu(desc->size);
     }
 
     msg = malloc(sizeof(struct i2c_msg_s) * op_count);
@@ -120,19 +121,19 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
     }
     for (i = 0; i < op_count; i++) {
         desc = &request->desc[i];
-        read_op = (desc->flags & I2C_M_RD) ? true : false;
+        read_op = (le16_to_cpu(desc->flags) & I2C_M_RD) ? true : false;
 
         msg[i].flags = 0;
-        msg[i].addr = desc->addr;
+        msg[i].addr = le16_to_cpu(desc->addr);
         if (read_op) {
             msg[i].flags |= I2C_M_READ;
             msg[i].buffer = &response->data[read_count];
-            read_count += desc->size;
+            read_count += le16_to_cpu(desc->size);
         } else {
             msg[i].buffer = write_data;
-            write_data += desc->size;
+            write_data += le16_to_cpu(desc->size);
         }
-        msg[i].length = desc->size;
+        msg[i].length = le16_to_cpu(desc->size);
     }
     ret = I2C_TRANSFER(i2c_dev, msg, op_count);
     free(msg);
