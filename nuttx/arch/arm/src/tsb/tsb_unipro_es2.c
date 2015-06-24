@@ -277,7 +277,7 @@ static int configure_connected_cport(unsigned int cportid) {
         ret = -ENOTCONN;
         break;
     default:
-        lldbg("Unexpected status: CP%d: status: 0x%u\n", cportid, rc);
+        lldbg("Unexpected status: CP%u: status: 0x%u\n", cportid, rc);
         ret = -EIO;
     }
     return ret;
