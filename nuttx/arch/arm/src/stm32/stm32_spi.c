@@ -200,6 +200,7 @@ struct stm32_spidev_s
   uint32_t         actual;     /* Actual clock frequency */
   int8_t           nbits;      /* Width of word in bits (8 or 16) */
   uint8_t          mode;       /* Mode 0,1,2,3 */
+#endif
   uint8_t          mode_type;  /* Master or Slave */
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   int		   (*isr)(int, void *);     /* Interrupt handler */
@@ -207,7 +208,6 @@ struct stm32_spidev_s
 #ifdef CONFIG_SPI_SLAVE
   const struct spi_cb_ops_s *cb_ops; /* spi dev callbacks */
   void *cb_v;                  /* Data pointer for spi dev callbacks */
-#endif
 #endif
 };
 
