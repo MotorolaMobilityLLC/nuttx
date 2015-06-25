@@ -15,3 +15,5 @@ cscope.out
 misc/tools/kconfig-frontends
 .built
 build
+nuttx/configs/ara/common/src/ara_build_info_priv.h
+

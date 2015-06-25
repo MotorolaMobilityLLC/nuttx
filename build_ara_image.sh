@@ -132,6 +132,7 @@ build_image_from_defconfig() {
   cp ${ARA_BUILD_TOPDIR}/nuttx/setenv.sh  ${ARA_BUILD_CONFIG_PATH}/setenv.sh > /dev/null 2>&1
 
   echo -n "Building '$buildname'" ...
+  export ARA_BUILD_NAME=$buildname
   pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
   make  -j ${ARA_BUILD_PARALLEL} --always-make -r -f Makefile.unix  2>&1 | tee $ARA_BUILD_TOPDIR/build.log
 
