@@ -91,23 +91,15 @@ struct svc_interface_device_id {
     bool found;
 };
 
-/*
- * Default routes used on BDB1B demo
- */
 #define DEV_ID_APB1              (1)
 #define DEV_ID_APB2              (2)
 #define DEV_ID_APB3              (3)
 #define DEV_ID_GPB1              (4)
 #define DEV_ID_GPB2              (5)
 #define DEV_ID_SPRING6           (8)
-#define DEMO_GPIO_APB1_CPORT     (0)
-#define DEMO_GPIO_APB2_CPORT     (5)
-#define DEMO_I2C_APB1_CPORT      (1)
-#define DEMO_I2C_APB2_CPORT      (4)
-#define DEMO_DSI_APB1_CPORT      (16)
-#define DEMO_DSI_APB2_CPORT      (16)
-#define DEMO_VIBRATOR_APB1_CPORT (2)
-#define DEMO_VIBRATOR_APB2_CPORT (3)
+
+#define DSI_APB1_CPORT           (16)
+#define DSI_APB2_CPORT           (16)
 
 /* Interface name to deviceID mapping table */
 static struct svc_interface_device_id devid[] = {
@@ -154,9 +146,9 @@ static int setup_routes_from_manifest(void)
     }
 
     conn[hd_cport].device_id0 = device_id0;
-    conn[hd_cport].cport_id0  = DEMO_DSI_APB1_CPORT;
+    conn[hd_cport].cport_id0  = DSI_APB1_CPORT;
     conn[hd_cport].device_id1 = DEV_ID_APB2;
-    conn[hd_cport].cport_id1  = DEMO_DSI_APB2_CPORT;
+    conn[hd_cport].cport_id1  = DSI_APB2_CPORT;
     conn[hd_cport].flags      = CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N;
     hd_cport++;
 
