@@ -91,12 +91,23 @@ struct svc_interface_device_id {
     bool found;
 };
 
+/*
+ * Keep the Device IDs here and the Device IDs descriptions in
+ * apps/greybus-utils/Kconfig and apps/greybus-utils/Makefile in sync.
+ */
 #define DEV_ID_APB1              (1)
 #define DEV_ID_APB2              (2)
 #define DEV_ID_APB3              (3)
 #define DEV_ID_GPB1              (4)
 #define DEV_ID_GPB2              (5)
-#define DEV_ID_SPRING6           (8)
+#define DEV_ID_SPRING1           (6)
+#define DEV_ID_SPRING2           (7)
+#define DEV_ID_SPRING3           (8)
+#define DEV_ID_SPRING4           (9)
+#define DEV_ID_SPRING5           (10)
+#define DEV_ID_SPRING6           (11)
+#define DEV_ID_SPRING7           (12)
+#define DEV_ID_SPRING8           (13)
 
 #define DSI_APB1_CPORT           (16)
 #define DSI_APB2_CPORT           (16)
@@ -108,7 +119,14 @@ static struct svc_interface_device_id devid[] = {
     { "apb3", DEV_ID_APB3 },
     { "gpb1", DEV_ID_GPB1 },
     { "gpb2", DEV_ID_GPB2 },
+    { "spring1", DEV_ID_SPRING1 },
+    { "spring2", DEV_ID_SPRING2 },
+    { "spring3", DEV_ID_SPRING3 },
+    { "spring4", DEV_ID_SPRING4 },
+    { "spring5", DEV_ID_SPRING5 },
     { "spring6", DEV_ID_SPRING6 },
+    { "spring7", DEV_ID_SPRING7 },
+    { "spring8", DEV_ID_SPRING8 },
 };
 
 /* Connections table */

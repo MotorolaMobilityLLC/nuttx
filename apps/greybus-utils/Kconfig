@@ -24,11 +24,19 @@ config DST_DEVID
   ---help---
     Select the destination APBridge.
     Set to:
-     - 1 for APB1
-     - 2 for APB2
-     - 3 for APB3
-     - 4 for GPB1
-     - 5 for GPB2
+     -  1 for APB1
+     -  2 for APB2
+     -  3 for APB3
+     -  4 for GPB1
+     -  5 for GPB2
+     -  6 for Spring1
+     -  7 for Spring2
+     -  8 for Spring3
+     -  9 for Spring4
+     - 10 for Spring5
+     - 11 for Spring6
+     - 12 for Spring7
+     - 13 for Spring8
 
 config SVC_MSG
 	bool "Enable Greybus SVC Protocol"

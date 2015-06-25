@@ -106,7 +106,23 @@ empty:=
 space:= $(empty) $(empty)
 semicolon:= ;
 
-DEVID_LIST:= 1 2 3 4 5 8
+# Device ID -> Bridge/Spring Mapping
+# (keep this list in sync with the help in Kconfig and Device ID
+# definitions in nuttx/configs/ara/svc/src/svc.c):
+#	 1 -> APB1
+#	 2 -> APB2
+#	 3 -> APB3
+#	 4 -> GPB1
+#	 5 -> GPB2
+#	 6 -> Spring1
+#	 7 -> Spring2
+#	 8 -> Spring3
+#	 9 -> Spring4
+#	10 -> Spring5
+#	11 -> Spring6
+#	12 -> Spring7
+#	13 -> Spring8
+DEVID_LIST:= $(shell seq -s ' ' 13)
 
 MANIFEST_TMP = $(subst -,_,$(MANIFEST))
 MANIFEST_TMP2 = $(subst $(semicolon),$(space),$(MANIFEST_TMP))
