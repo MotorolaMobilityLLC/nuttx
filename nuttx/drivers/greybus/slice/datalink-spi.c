@@ -155,6 +155,9 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
 
       SPI_EXCHANGE(priv->spi, priv->tx_buf, priv->rx_buf,
                    sizeof(struct slice_spi_msg));
+
+      /* Deassert interrupt line (if appropriate) before asserting RDY */
+      slice_host_int_set(!list_is_empty(&priv->tx_fifo));
     }
 
   /* Signal to base that we're ready to tranceive */
@@ -162,7 +165,7 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
 
 out:
   /* Set the base interrupt line if data is available to be sent. */
-  slice_host_int_set(priv->tx_buf != NULL);
+  slice_host_int_set(!list_is_empty(&priv->tx_fifo));
 
   irqrestore(flags);
 }
@@ -201,7 +204,7 @@ static int txn_finished_cb(void *v)
   FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)v;
   struct slice_spi_msg *m = (struct slice_spi_msg *)priv->rx_buf;
 
-  dbg("Tranceive complete\n");
+  dbg("Tranceive complete: hdr_bits=0x%02X\n", m->hdr_bits);
 
   /* Deassert ready line to base */
   gpio_set_value(GPIO_SLICE_RDY_N, 1);
