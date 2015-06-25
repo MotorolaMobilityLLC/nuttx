@@ -1,5 +1,4 @@
 /************************************************************************************
- * configs/stm3240g-eval/src/up_boot.c
  *
  *   Copyright (C) 2011-2013 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -38,6 +37,7 @@
  ************************************************************************************/
 
 #include <nuttx/config.h>
+#include <ara_build_info.h>
 
 #include <debug.h>
 
@@ -172,7 +172,7 @@ static int board_initthread(int argc, char *argv[])
 
 void stm32_boardinitialize(void)
 {
-	printk("%s\n", __func__);
+    ara_show_build_info();
 }
 
 /****************************************************************************
@@ -182,7 +182,7 @@ void stm32_boardinitialize(void)
  *   If CONFIG_BOARD_INITIALIZE is selected, then an additional
  *   initialization call will be performed in the boot-up sequence to a
  *   function called board_initialize().  board_initialize() will be
- *   called immediately after up_intiialize() is called and just before the
+ *   called immediately after up_initialize() is called and just before the
  *   initial application is started.  This additional initialization phase
  *   may be used, for example, to initialize board-specific device drivers.
  *

@@ -33,8 +33,9 @@
 ############################################################################
 
 -include $(TOPDIR)/Make.defs
+include $(TOPDIR)/configs/ara/common/Make.defs
 
-CFLAGS		+= -I$(TOPDIR)/sched
+CFLAGS		+= -I$(TOPDIR)/sched -I$(ARACOMMON_INCLUDE)
 
 ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
@@ -76,7 +77,7 @@ else
   CFLAGS	+= -I$(ARCH_SRCDIR)/chip -I$(ARCH_SRCDIR)/common -I$(ARCH_SRCDIR)/armv7-m
 endif
 
-all: libboard$(LIBEXT)
+all: $(ARACOMMON_LIB) libboard$(LIBEXT)
 
 $(AOBJS): %$(OBJEXT): %.S
 	$(call ASSEMBLE, $<, $@)
@@ -84,8 +85,8 @@ $(AOBJS): %$(OBJEXT): %.S
 $(COBJS) $(LINKOBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
-libboard$(LIBEXT): $(OBJS)
-	$(call ARCHIVE, $@, $(OBJS))
+libboard$(LIBEXT): $(OBJS) $(ARACOMMON_LIB)
+	$(call ARACOMMON_LINK, $@, $(OBJS))
 
 .depend: Makefile $(SRCS)
 	$(Q) $(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
