@@ -212,6 +212,5 @@ static struct gb_driver gb_battery_driver = {
 
 void gb_battery_register(int cport)
 {
-    gb_info("%s()\n", __func__);
     gb_register_driver(cport, &gb_battery_driver);
 }
