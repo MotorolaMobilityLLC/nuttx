@@ -31,6 +31,7 @@
 #include <nuttx/config.h>
 #include <nuttx/list.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 
 #include <arch/tsb/unipro.h>
 #include <arch/atomic.h>
@@ -227,6 +228,8 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     if (sizeof(*hdr) > size || hdr->size > size || sizeof(*hdr) > hdr->size)
         return -EINVAL; /* Dropping garbage request */
 
+    gb_dump(data, size);
+
     op_handler = find_operation_handler(hdr->type, cport);
     if (op_handler && op_handler->fast_handler) {
         op_handler->fast_handler(cport, data);
@@ -356,6 +359,7 @@ int gb_operation_send_request(struct gb_operation *operation,
         list_add(&g_cport[operation->cport].tx_fifo, &operation->list);
     }
 
+    gb_dump(operation->request_buffer, hdr->size);
     retval = transport_backend->send(operation->cport,
                                      operation->request_buffer, hdr->size);
     if (need_response && retval) {
@@ -415,6 +419,7 @@ int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
     resp_hdr = operation->response_buffer;
     resp_hdr->result = result;
 
+    gb_dump(operation->response_buffer, resp_hdr->size);
     retval = transport_backend->send(operation->cport,
                                      operation->response_buffer,
                                      resp_hdr->size);
