@@ -36,6 +36,9 @@
 #include <arch/tsb/gpio.h>
 #include <arch/board/cdsi0_offs_def.h>
 #include <arch/board/cdsi0_reg_def.h>
+#ifdef CONFIG_FOR_GOOGLE_IO_DEMO
+#include <arch/board/ov5645.h>
+#endif
 
 #define AL_RX_BRG_MODE_VAL                              0x00000003
 #define AL_RX_BRG_CSI_INFO_VAL                          0x00000000
@@ -225,6 +228,9 @@ void ov5645_csi_init(struct cdsi_dev *dev)
 
     /* Wait Line Initialization finish */
     rdata1 = cdsi_read(dev, CDSI0_CDSIRX_LPRX_STATE_INT_STAT_OFFS);
+#ifdef CONFIG_FOR_GOOGLE_IO_DEMO
+    ov5645_init(0);
+#endif
     while ((rdata1 &
             CDSI0_CDSIRX_LPRX_STATE_INT_STAT_LINEINITDONE_MASK) == 0x0) {
         rdata1 = cdsi_read(dev, CDSI0_CDSIRX_LPRX_STATE_INT_STAT_OFFS);

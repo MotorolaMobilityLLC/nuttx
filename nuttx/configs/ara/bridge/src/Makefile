@@ -39,7 +39,7 @@ CSRCS		= up_boot.c
 ifeq ($(CONFIG_APB_AP),y)
 CSRCS   += csi_tx_init.c
 else ifeq ($(CONFIG_APB_CAMERA),y)
-CSRCS   += csi_rx_init.c
+CSRCS   += csi_rx_init.c ov5645.c
 endif
 
 ifeq ($(CONFIG_PWM),y)

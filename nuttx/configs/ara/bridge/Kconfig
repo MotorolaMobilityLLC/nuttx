@@ -56,4 +56,9 @@ config CAMERA_RX_CDSI1
 	bool "Initialize csi-2 rx on CDSI1"
 endchoice
 
+config FOR_GOOGLE_IO_DEMO
+	bool "Start stream for Google I/O Demo"
+	depends on ARA_BRIDGE_HAVE_CAMERA && APB_CAMERA
+	default n
+
 endif
