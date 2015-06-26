@@ -43,6 +43,7 @@ endif
 
 ifeq ($(CONFIG_GREYBUS_SLICE),y)
 include greybus$(DELIM)slice$(DELIM)Make.defs
+CSRCS += control-gpb.c
 endif
 
 ifeq ($(CONFIG_GREYBUS_GPIO_PHY),y)
