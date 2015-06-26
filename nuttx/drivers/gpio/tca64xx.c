@@ -780,20 +780,19 @@ static void _tca64xx_gpio_irq_handler(void *data)
 {
     struct tca64xx_platform_data *tca64xx = data;
     void *context = data;
-    uint32_t in, irqstat;
+    uint32_t irqstat;
     uint16_t base;
     int pin;
     uint8_t nr_gpios = get_nr_gpios(tca64xx->part);
 
     tca64xx_registers_update(data);
     irqstat = tca64xx_gpio_get_interrupt(data);
-    in = tca64xx->in;
 
     while (irqstat) {
         /* Now process each IRQ pending in the GPIO */
-        for (pin = 0; pin < nr_gpios && irqstat != 0;
-             pin++, irqstat >>= 1, in >>= 1) {
-            if ((irqstat & 1) == 1) {
+        for (pin = 0; (pin < nr_gpios) && (irqstat != 0);
+             pin++, irqstat >>= 1) {
+            if (irqstat & 1) {
                 base = tca64xx->gpio_base[pin];
                 tca64xx->irq_vector[pin] (base + pin, context);
                 tca64xx_gpio_clear_interrupt(data, pin);
