@@ -17,11 +17,19 @@
 #include <arch/board/dsi.h>
 #endif
 
+#ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
+#include <arch/board/csi.h>
+#endif
+
 int bridge_main(int argc, char *argv[])
 {
     tsb_gpio_register(NULL);
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
     display_init();
+#endif
+
+#ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
+    camera_init();
 #endif
 
     tsb_device_table_register();

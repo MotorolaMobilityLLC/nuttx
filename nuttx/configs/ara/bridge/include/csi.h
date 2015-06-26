@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
@@ -24,43 +24,14 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * @brief OV5645 Camera Sensor Driver
  */
 
-#ifndef __ARCH_ARM_INCLUDE_TSB_DSI_H
-#define __ARCH_ARM_INCLUDE_TSB_DSI_H
+#ifndef __OV_CSI_H__
+#define __OV_CSI_H__
 
-#define TSB_CDSI0 0
-#define TSB_CDSI1 1
+int camera_init(void);
 
-#define TSB_CDSI_RX 0
-#define TSB_CDSI_TX 1
-
-struct cdsi_dev
-{
-    uint32_t base;
-    int tx;
-};
-
-struct display_panel
-{
-    /* platform callback to initialize cdsi */
-    void (*cdsi_panel_init)(struct cdsi_dev *dev);
-};
-
-struct camera_sensor
-{
-    /* platform callback to initialize cdsi */
-    void (*cdsi_sensor_init)(struct cdsi_dev *dev);
-};
-
-void cdsi_write(struct cdsi_dev *dev, uint32_t addr, uint32_t v);
-uint32_t cdsi_read(struct cdsi_dev *dev, uint32_t addr);
-
-struct cdsi_dev *dsi_initialize(struct display_panel *panel, int dsi, int tx);
-void dsi_uninitialize(struct cdsi_dev *dev);
-
-struct cdsi_dev *csi_initialize(struct camera_sensor *sensor, int dsi, int tx);
-void csi_uninitialize(struct cdsi_dev *dev);
-
-#endif
+#endif /* __OV_CSI_H__ */
 

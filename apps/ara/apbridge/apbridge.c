@@ -42,6 +42,10 @@
 #include <arch/board/dsi.h>
 #endif
 
+#ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
+#include <arch/board/csi.h>
+#endif
+
 #include "apbridge_backend.h"
 
 #define IID_LENGTH 7
@@ -147,13 +151,20 @@ static struct apbridge_usb_driver usb_driver = {
 int bridge_main(int argc, char *argv[])
 {
     tsb_gpio_register(NULL);
-#ifdef CONFIG_BOARD_HAVE_DISPLAY
-    display_init();
-#endif
 
     svc_register(recv_from_svc);
     apbridge_backend_register(&apbridge_backend);
     usbdev_apbinitialize(&usb_driver);
+
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+    display_init();
+#endif
+
+    sleep(1);
+
+#ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
+    camera_init();
+#endif
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");

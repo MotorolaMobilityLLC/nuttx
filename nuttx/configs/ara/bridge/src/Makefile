@@ -36,6 +36,12 @@ AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c
 
+ifeq ($(CONFIG_APB_AP),y)
+CSRCS   += csi_tx_init.c
+else ifeq ($(CONFIG_APB_CAMERA),y)
+CSRCS   += csi_rx_init.c
+endif
+
 ifeq ($(CONFIG_PWM),y)
 CSRCS		+= up_pwm.c
 endif

@@ -136,3 +136,34 @@ void dsi_uninitialize(struct cdsi_dev *dev)
 {
     cdsi_uninitialize(dev);
 }
+
+/**
+ * @brief Initialize cdsi in csi mode
+ * @param sensor Sensor to register
+ * @param cdsi The cdsi block to initialize
+ * @param tx 0 if csi work in rx mode or 1 for tx mode
+ * @return a cdsi_dev pointer or NULL on any faillure.
+ */
+struct cdsi_dev *csi_initialize(struct camera_sensor *sensor, int cdsi, int tx)
+{
+    struct cdsi_dev *dev;
+
+    dev = cdsi_initialize(cdsi, tx);
+    if (!dev)
+        return NULL;
+
+    if (sensor->cdsi_sensor_init) {
+        sensor->cdsi_sensor_init(dev);
+    }
+
+    return dev;
+}
+
+/**
+ * @brief Uninitialize csi
+ * @param dev Pointer to cdsi to uninitialize
+ */
+void csi_uninitialize(struct cdsi_dev *dev)
+{
+    cdsi_uninitialize(dev);
+}

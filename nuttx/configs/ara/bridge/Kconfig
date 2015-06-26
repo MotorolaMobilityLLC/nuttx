@@ -24,8 +24,36 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+if ARCH_BOARD_ARA_BRIDGE
+
 config ARA_BRIDGE_HAVE_USB4624
 	bool
 	depends on ARCH_CHIP_USB_HCD
 	depends on DEVICE_CORE
 	default y
+
+config ARA_BRIDGE_HAVE_CAMERA
+	bool "Camera support for Board"
+	default n
+	select GPIO
+	select I2C
+
+choice
+	prompt "Select a bridge firmware configuration"
+	depends on ARA_BRIDGE_HAVE_CAMERA
+config APB_AP
+	bool "APBridge for AP Module"
+config APB_CAMERA
+	bool "APBridge for Camera Module"
+endchoice
+
+choice
+	prompt "Select CDSI0 or CDSI1 for rx"
+	depends on ARA_BRIDGE_HAVE_CAMERA && APB_CAMERA
+config CAMERA_RX_CDSI0
+	bool "Initialize csi-2 rx on CDSI0"
+config CAMERA_RX_CDSI1
+	bool "Initialize csi-2 rx on CDSI1"
+endchoice
+
+endif
