@@ -95,6 +95,14 @@ config ARCH_CHIP_TSB_PLL
 	---help---
 		TSB PLL Controller Driver
 
+config ARCH_CHIP_DEVICE_PWM
+	bool "Enable PWM at Boot"
+	depends on ARCH_CHIP_APBRIDGE || ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
+	default n
+	---help---
+		TSB PWM controller driver
+
 choice
 	prompt "Drive Strength for the TRACE Signals"
 	default TSB_TRACE_DRIVESTRENGTH_MAX

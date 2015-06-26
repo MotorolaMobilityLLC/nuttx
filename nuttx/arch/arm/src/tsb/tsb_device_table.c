@@ -33,9 +33,13 @@
 #include <nuttx/device_resource.h>
 #include <nuttx/device_table.h>
 #include <nuttx/device_pll.h>
+#include <nuttx/device_pwm.h>
 #include <nuttx/usb.h>
 
+#include <arch/irq.h>
+
 #include "chip.h"
+#include "tsb_pwm.h"
 
 #ifdef CONFIG_ARCH_CHIP_DEVICE_PLL
 #define TSB_PLLA_CG_BRIDGE_OFFSET    0x900
@@ -50,6 +54,30 @@ static struct device_resource tsb_plla_resources[] = {
     },
 };
 #endif
+
+#ifdef CONFIG_ARCH_CHIP_DEVICE_PWM
+static struct device_resource tsb_pwm_resources[] = {
+    {
+        .name   = "pwm0",
+        .type   = DEVICE_RESOURCE_TYPE_REGS,
+        .start  = TSB_PWM0,
+        .count  = 20,
+    },
+    {
+        .name   = "pwm1",
+        .type   = DEVICE_RESOURCE_TYPE_REGS,
+        .start  = TSB_PWM1,
+        .count  = 20,
+    },
+    {
+        .name   = "pwmint",
+        .type   = DEVICE_RESOURCE_TYPE_IRQ,
+        .start  = TSB_IRQ_PWM,
+        .count  = 1,
+    },
+};
+#endif
+
 
 static struct device tsb_device_table[] = {
 #ifdef CONFIG_ARCH_CHIP_DEVICE_PLL
@@ -76,6 +104,17 @@ static struct device tsb_device_table[] = {
         .name           = "dwc2_hcd",
         .desc           = "DWC2 USB Host controller",
         .id             = 0,
+    },
+#endif
+
+#ifdef CONFIG_ARCH_CHIP_DEVICE_PWM
+    {
+        .type           = DEVICE_TYPE_PWM_HW,
+        .name           = "tsb_pwm",
+        .desc           = "TSB PWM Controller",
+        .id             = 0,
+        .resources      = tsb_pwm_resources,
+        .resource_count = ARRAY_SIZE(tsb_pwm_resources),
     },
 #endif
 };
