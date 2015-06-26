@@ -278,7 +278,7 @@ static uint8_t get_input_reg(tca64xx_part part, uint8_t which)
     return reg + (which / 8);
 }
 
-static struct tca64xx_platform_data *get_pdata(int irq)
+static struct tca64xx_platform_data *get_pdata(uint32_t irq)
 {
     struct list_head *iter;
     struct tca64xx_platform_data *tca64xx;
