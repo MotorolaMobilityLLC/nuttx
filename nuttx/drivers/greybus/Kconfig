@@ -30,3 +30,8 @@ config GREYBUS_USB_HOST_PHY
 	bool "USB Host PHY support"
 	depends on ARCH_HAVE_USB_HOST
 	default n
+
+config GREYBUS_PWM_PHY
+	bool "PWM PHY support"
+	select DEVICE_CORE
+	default n

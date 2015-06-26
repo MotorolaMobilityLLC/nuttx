@@ -61,6 +61,10 @@ ifeq ($(CONFIG_GREYBUS_USB_HOST_PHY),y)
 CSRCS += usb.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_PWM_PHY),y)
+CSRCS += pwm-protocol.c
+endif
+
 DEPPATH += --dep-path greybus
 VPATH += :greybus
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)greybus}
