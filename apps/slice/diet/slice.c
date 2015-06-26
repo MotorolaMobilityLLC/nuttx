@@ -35,9 +35,11 @@
 #include <apps/greybus-utils/utils.h>
 #include <apps/nsh.h>
 
+#define MANIFEST_DEVICE_ID 2
+
 int slice_main(int argc, char *argv[])
 {
-    enable_manifest("IID-1", NULL);
+    enable_manifest("IID-1", NULL, MANIFEST_DEVICE_ID);
     slice_attach_init();
     slice_network_init();
     enable_cports();
