@@ -689,17 +689,6 @@ config ARCH_BOARD_STM3220G_EVAL
 		STMicro STM3220G-EVAL development board based on the STMicro STM32F407IG
 		microcontroller (ARM Cortex-M3).
 
-config ARCH_BOARD_ARA_BDB_SVC
-	bool "ARA Big Dev Board SVC"
-	depends on ARCH_CHIP_STM32F407IG
-	---help---
-		The ARA SVC is based on the STMicro STM32F417IG
-		microcontroller (ARM Cortex-M4 with FPU + crypto).
-		This options selects the support for the SVC on the Big Dev
-		Board (BDB) form factor.
-		The supported hardware revision is BDB1 rev A.
-		This port uses a GNU Cortex-M4 toolchain (such as CodeSourcery).
-
 config ARCH_BOARD_ARA_BDB1B_SVC
 	bool "ARA SVC in BDB1B"
 	depends on ARCH_CHIP_STM32F407IG
@@ -724,16 +713,6 @@ config ARCH_BOARD_ARA_BDB2A_SVC
 		(ARM Cortex-M4 with FPU + crypto).
 		This options selects the support for the SVC on the BDB2A
 		development platform.
-		This port uses a GNU Cortex-M4 toolchain (such as CodeSourcery).
-
-config ARCH_BOARD_ARA_ENDO_SVC
-	bool "ARA SVC in Endo"
-	depends on ARCH_CHIP_STM32F407IG
-	---help---
-		The ARA SVC is based on the STMicro STM32F417IG microcontroller
-		(ARM Cortex-M4 with FPU + crypto).
-		This options selects the support for the SVC in the Endo form
-		factor.
 		This port uses a GNU Cortex-M4 toolchain (such as CodeSourcery).
 
 config ARCH_BOARD_STM3240G_EVAL
@@ -972,12 +951,6 @@ config ARCH_BOARD_SIM
 		This port does not support interrupts or a real timer (and hence no
 		round robin scheduler)  Otherwise, it is complete.
 
-config ARCH_BOARD_BDB
-	bool "Quanta BDB"
-	depends on ARCH_CHIP_TSB
-	---help---
-		BDB
-
 config ARCH_BOARD_ARA_BRIDGE
 	bool "Toshiba Bridge configuration"
 	depends on ARCH_CHIP_TSB
@@ -1090,8 +1063,6 @@ config ARCH_BOARD
 	default "stm3210e-eval"       if ARCH_BOARD_STM3210E_EVAL
 	default "stm3220g-eval"       if ARCH_BOARD_STM3220G_EVAL
 	default "stm3240g-eval"       if ARCH_BOARD_STM3240G_EVAL
-	default "bdb/svc"             if ARCH_BOARD_ARA_BDB_SVC
-	default "endo/svc"            if ARCH_BOARD_ARA_ENDO_SVC
 	default "ara/svc"             if ARCH_BOARD_ARA_BDB1B_SVC
 	default "ara/svc"             if ARCH_BOARD_ARA_BDB2A_SVC
 	default "ara/lgd"             if ARCH_BOARD_ARA_LGD
@@ -1451,9 +1422,6 @@ source "configs/zkit-arm-1769/Kconfig"
 endif
 if ARCH_BOARD_SIM
 source "configs/sim/Kconfig"
-endif
-if ARCH_BOARD_BDB
-source "configs/bdb/Kconfig"
 endif
 if ARCH_BOARD_ARA_LGD
 source "configs/ara/lgd/Kconfig"

@@ -21,7 +21,7 @@ USAGE="
 USAGE:
     (1) rebuild specific image config
         ${0} [-j N] <board-name> <config-name>
-    (2) rebuild all image configs under configs/ara|bdb|endo
+    (2) rebuild all image configs under configs/ara
         ${0} [-j N] all
 
 Options:
@@ -173,11 +173,7 @@ buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
 
 if [ $buildall -eq 1 ] ; then
   # build list of defconfigs
-  defconfig_list=$(find $TOPDIR/configs/bdb -iname defconfig)
-  defconfig_list+=" "
-  defconfig_list+=$(find $TOPDIR/configs/ara  -iname defconfig)
-  defconfig_list+=" "
-  defconfig_list+=$(find $TOPDIR/configs/endo  -iname defconfig)
+  defconfig_list=$(find $TOPDIR/configs/ara  -iname defconfig)
   # process list of defconfigs
   for cfg in $defconfig_list; do
     # save full path to defconfig
