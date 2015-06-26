@@ -939,22 +939,22 @@ int tca64xx_init(void **driver_data, tca64xx_part part, struct i2c_dev_s *dev,
         set_gpio_triggering(tca64xx->irq, IRQ_TYPE_EDGE_BOTH);
         gpio_clear_interrupt(tca64xx->irq);
         gpio_unmask_irq(tca64xx->irq);
-    }
 
-    // Create polling worker
-    tca64xx->worker_exit = false;
-    sprintf(buf, "%p", tca64xx);
-    argv[0] = buf;
-    argv[1] = NULL;
-    ret = task_create("tca64xx_worker",
-                      WORKER_DEFPRIO, WORKER_STACKSIZE,
-                      tca64xx_polling_worker,
-                      (char * const*) argv);
-    if (ret == ERROR) {
-        lldbg_error("%s: Failed to create polling worker\n", __func__);
-        return ERROR;
+        /* Create polling worker */
+        tca64xx->worker_exit = false;
+        sprintf(buf, "%p", tca64xx);
+        argv[0] = buf;
+        argv[1] = NULL;
+        ret = task_create("tca64xx_worker",
+                          WORKER_DEFPRIO, WORKER_STACKSIZE,
+                          tca64xx_polling_worker,
+                          (char * const*) argv);
+        if (ret == ERROR) {
+            lldbg_error("%s: Failed to create polling worker\n", __func__);
+            return ERROR;
+        }
+        tca64xx->worker_id = ret;
     }
-    tca64xx->worker_id = ret;
 
     *driver_data = tca64xx;
 
@@ -972,8 +972,17 @@ void tca64xx_deinit(void *driver_data)
         return;
     }
 
-    // Unregister IRQ
+    /* Unregister IRQ */
     if (tca64xx->irq != TCA64XX_IO_UNUSED) {
+        /* Destroy polling worker */
+        if (tca64xx->worker_id > 0) {
+            tca64xx->worker_exit = true;
+            ret = waitpid(tca64xx->worker_id, &status, 0);
+            if (ret < 0) {
+                lldbg_error("%s: waitpid failed with ret=%d\n", __func__, ret);
+            }
+        }
+        /* Unregister IRQ */
         gpio_mask_irq(tca64xx->irq);
         gpio_irqattach(tca64xx->irq, NULL);
         list_foreach_safe(&tca64xx_irq_pdata_list, iter, iter_next) {
@@ -984,16 +993,9 @@ void tca64xx_deinit(void *driver_data)
         }
     }
 
-    // Unregister gpio_chip
+    /* Unregister gpio_chip */
     unregister_gpio_chip(driver_data);
 
-    // Destroy polling worker
-    tca64xx->worker_exit = true;
-    ret = waitpid(tca64xx->worker_id, &status, 0);
-    if (ret < 0) {
-        lldbg_error("%s: waitpid failed with ret=%d\n", __func__, ret);
-    }
-
-    // Free driver data
+    /* Free driver data */
     free(driver_data);
 }
