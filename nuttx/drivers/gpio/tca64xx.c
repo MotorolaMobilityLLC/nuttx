@@ -285,8 +285,9 @@ static struct tca64xx_platform_data *get_pdata(uint32_t irq)
 
     list_foreach(&tca64xx_irq_pdata_list, iter) {
         tca64xx = list_entry(iter, struct tca64xx_platform_data, list);
-        if ((tca64xx->irq != TCA64XX_IO_UNUSED) && (tca64xx->irq == irq))
+        if ((tca64xx->irq != TCA64XX_IO_UNUSED) && (tca64xx->irq == irq)) {
             return tca64xx;
+        }
     }
     return NULL;
 }
@@ -392,7 +393,8 @@ void tca64xx_set(void *driver_data, uint8_t which, uint8_t value)
     uint8_t reg, val;
     int ret;
 
-    lldbg("%s: addr=0x%02hhX, which=%hhu, val=%hhu\n", __func__, tca64xx->addr, which, val);
+    lldbg("%s: addr=0x%02hhX, which=%hhu, val=%hhu\n", __func__,
+          tca64xx->addr, which, val);
     /* Set output pins default value (before configuring it as output)
      *
      * The Output Port Register (register 1) shows the outgoing logic
@@ -459,17 +461,20 @@ void tca64xx_set_direction_out(void *driver_data, uint8_t which, uint8_t value)
      * cleared to 0, the corresponding port pin is enabled as an output.
      */
     reg = get_config_reg(tca64xx->part, which);
-    if (reg < 0)
+    if (reg < 0) {
         return;
+    }
     ret = i2c_get(tca64xx, reg, &val);
-    if (ret != 0)
+    if (ret != 0) {
         return;
+    }
     lldbg("%s: current cfg=0x%02X\n", __func__, val);
     val &= ~(1 << (which % 8));
     lldbg("%s: new cfg=0x%02X\n", __func__, val);
     ret = i2c_set(tca64xx, reg, val);
-    if (ret != 0)
+    if (ret != 0) {
         return;
+    }
 
     tca64xx_set(driver_data, which, value);
 }
@@ -490,11 +495,13 @@ int tca64xx_get_direction(void *driver_data, uint8_t which)
      * cleared to 0, the corresponding port pin is enabled as an output.
      */
     reg = get_config_reg(tca64xx->part, which);
-    if (reg < 0)
+    if (reg < 0) {
         return reg;
+    }
     ret = i2c_get(tca64xx, reg, &direction);
-    if (ret != 0)
+    if (ret != 0) {
         return -EIO;
+    }
     direction = (direction & (1 << (which % 8))) >> (which % 8);
 
     return direction;
@@ -507,8 +514,8 @@ int tca64xx_set_polarity_inverted(void *driver_data, uint8_t which,
     uint8_t reg, polarity;
     int ret;
 
-    lldbg("%s: addr=0x%02hhX, which=%hhu inverted=%hhu\n", __func__, tca64xx->addr, which,
-          inverted);
+    lldbg("%s: addr=0x%02hhX, which=%hhu inverted=%hhu\n", __func__,
+          tca64xx->addr, which, inverted);
     /* Configure pin polarity inversion
      *
      * The Polarity Inversion Register (register 2) allows
@@ -519,11 +526,13 @@ int tca64xx_set_polarity_inverted(void *driver_data, uint8_t which,
      * port pin's original polarity is retained.
      */
     reg = get_polarity_reg(tca64xx->part, which);
-    if (reg < 0)
+    if (reg < 0) {
         return reg;
+    }
     ret = i2c_get(tca64xx, reg, &polarity);
-    if (ret != 0)
+    if (ret != 0) {
         return -EIO;
+    }
     lldbg("%s: current polarity reg=0x%02hhX\n", __func__, polarity);
     if (inverted) {
         polarity |= (1 << (which % 8));
@@ -532,8 +541,9 @@ int tca64xx_set_polarity_inverted(void *driver_data, uint8_t which,
     }
     lldbg("%s: new polarity reg=0x%02hhX\n", __func__, polarity);
     ret = i2c_set(tca64xx, reg, polarity);
-    if (ret != 0)
+    if (ret != 0) {
         return -EIO;
+    }
 
     return 0;
 }
@@ -553,11 +563,13 @@ int tca64xx_get_polarity_inverted(void *driver_data, uint8_t which)
      * cleared to 0, the corresponding port pin is enabled as an output.
      */
     reg = get_polarity_reg(tca64xx->part, which);
-    if (reg < 0)
+    if (reg < 0) {
         return reg;
+    }
     ret = i2c_get(tca64xx, reg, &polarity);
-    if (ret != 0)
+    if (ret != 0) {
         return -EIO;
+    }
     lldbg("%s: polarity reg=0x%02hhX\n", __func__, polarity);
     polarity = (polarity & (1 << (which % 8))) >> (which % 8);
     lldbg("%s: polarity=0x%hhu\n", __func__, polarity);
@@ -599,15 +611,17 @@ static void intstat_update(void *driver_data, uint32_t in)
                 (!(in & 1) &&
                  tca64xx_irq_edge_trigger_is_falling(tca64xx, pin)) ||
                 ((in & 1) &&
-                 tca64xx_irq_edge_trigger_is_rising(tca64xx, pin)))
+                 tca64xx_irq_edge_trigger_is_rising(tca64xx, pin))) {
                 tca64xx->intstat |= 1 << pin;
+            }
         } else if (tca64xx_irq_type_is_level(tca64xx, pin)) {
             /* Trigger is set to level. Set intstat if in match level type. */
             if (((in & 1) &&
                  tca64xx_irq_level_trigger_is_high(tca64xx, pin)) ||
                 (!(in & 1) &&
-                 tca64xx_irq_level_trigger_is_low(tca64xx, pin)))
+                 tca64xx_irq_level_trigger_is_low(tca64xx, pin))) {
                 tca64xx->intstat |= 1 << pin;
+            }
         }
         diff >>= 1, in >>= 1;
     }
@@ -622,11 +636,13 @@ static void tca64xx_registers_update(void *driver_data)
 
     for (i = 0; i < (get_nr_gpios(tca64xx->part)); i += 8) {
         reg = get_input_reg(tca64xx->part, i);
-        if (reg < 0)
+        if (reg < 0) {
             return;
+        }
         ret = i2c_get(tca64xx, reg, &val);
-        if (ret != 0)
+        if (ret != 0) {
             return;
+        }
         in |= (val << i);
     }
     lldbg("%s: in=0x%08x\n", __func__, in);
@@ -647,11 +663,13 @@ uint8_t tca64xx_get(void *driver_data, uint8_t which)
      * read operation.
      */
     reg = get_input_reg(tca64xx->part, which);
-    if (reg < 0)
+    if (reg < 0) {
         return -EINVAL;
+    }
     ret = i2c_get(tca64xx, reg, &val);
-    if (ret != 0)
+    if (ret != 0) {
         return -EIO;
+    }
     lldbg("%s: input reg(0x%02hhX)=0x%02hhX\n", __func__, reg, val);
 
     in &= ~(0xFF << (which / 8));
@@ -708,10 +726,11 @@ static void tca64xx_set_gpio_trigger(void *driver_data, uint8_t which, int trigg
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
 
-    if (trigger)
+    if (trigger) {
         tca64xx->trigger |= TCA64XX_IRQ_TYPE_LEVEL << which;
-    else
+    } else {
         tca64xx->trigger &= ~(TCA64XX_IRQ_TYPE_LEVEL << which);
+    }
 }
 
 static void tca64xx_set_gpio_level(void *driver_data, uint8_t which, int level)
@@ -734,11 +753,13 @@ static int tca64xx_set_gpio_triggering(void *driver_data, uint8_t which,
         break;
     case IRQ_TYPE_EDGE_RISING:
         tca64xx_set_gpio_trigger(driver_data, which, TCA64XX_IRQ_TYPE_EDGE);
-        tca64xx_set_gpio_level(driver_data, which, TCA64XX_IRQ_TYPE_EDGE_RISING);
+        tca64xx_set_gpio_level(driver_data, which,
+                               TCA64XX_IRQ_TYPE_EDGE_RISING);
         break;
     case IRQ_TYPE_EDGE_FALLING:
         tca64xx_set_gpio_trigger(driver_data, which, TCA64XX_IRQ_TYPE_EDGE);
-        tca64xx_set_gpio_level(driver_data, which, TCA64XX_IRQ_TYPE_EDGE_FALLING);
+        tca64xx_set_gpio_level(driver_data, which,
+                               TCA64XX_IRQ_TYPE_EDGE_FALLING);
         break;
     case IRQ_TYPE_LEVEL_HIGH:
         tca64xx_set_gpio_trigger(driver_data, which, TCA64XX_IRQ_TYPE_LEVEL);
@@ -788,8 +809,9 @@ static int tca64xx_gpio_irq_handler(int irq, void *context)
 {
     struct tca64xx_platform_data *tca64xx = get_pdata(irq);
 
-    if (!tca64xx)
+    if (!tca64xx) {
         return -ENODEV;
+    }
 
     /*
      * We need to perform some i2c operations to get the gpios that cause
@@ -889,8 +911,9 @@ int tca64xx_init(void **driver_data, tca64xx_part part, struct i2c_dev_s *dev,
     }
 
     tca64xx = malloc(sizeof(struct tca64xx_platform_data));
-    if (!tca64xx)
+    if (!tca64xx) {
         return -ENOMEM;
+    }
 
     tca64xx->dev = dev;
     tca64xx->addr = addr;
@@ -968,8 +991,9 @@ void tca64xx_deinit(void *driver_data)
     // Destroy polling worker
     tca64xx->worker_exit = true;
     ret = waitpid(tca64xx->worker_id, &status, 0);
-    if (ret < 0)
+    if (ret < 0) {
         lldbg_error("%s: waitpid failed with ret=%d\n", __func__, ret);
+    }
 
     // Free driver data
     free(driver_data);
