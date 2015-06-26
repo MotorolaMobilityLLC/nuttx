@@ -154,6 +154,7 @@ CONFIG_ARCH_CHIP_USB_PCD=y
 # CONFIG_ARA_USB_DEBUG is not set
 # CONFIG_TSB_PINSHARE_ETM is not set
 # CONFIG_ARCH_CHIP_DEVICE_PLL is not set
+# CONFIG_ARCH_CHIP_DEVICE_PWM is not set
 
 #
 # Architecture Options
