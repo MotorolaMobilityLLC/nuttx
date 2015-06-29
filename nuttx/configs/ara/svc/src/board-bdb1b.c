@@ -52,12 +52,19 @@
 #define SVC_LED_RED         (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_PORTA | \
                              GPIO_OUTPUT_SET | GPIO_PIN7)
 
+/* U96 I/O Expander reset */
 #define IO_RESET            (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
                              GPIO_PORTE | GPIO_PIN0)
+
+/* U90 I/O Expander reset */
 #define IO_RESET1           (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
                              GPIO_PORTE | GPIO_PIN1)
-#define IO_EXP_IRQ          (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | \
-                             GPIO_PORTA | GPIO_PIN0)
+
+/* Main I/O Expander IRQ from U96 to SVC */
+#define U96_IO_EXP_IRQ      STM32_GPIO_PIN(GPIO_PORTA | GPIO_PIN0)
+
+/* I/O Expander IRQ from U90 cascaded to U96 */
+#define U90_IO_EXP_IRQ      U96_GPIO_PIN(7)
 
 /* I/O Expanders: I2C bus and addresses */
 #define IOEXP_I2C_BUS       2
@@ -237,18 +244,18 @@ static struct io_expander_info bdb1b_io_expanders[] = {
         {
             .part       = TCA6416_PART,
             .i2c_bus    = IOEXP_I2C_BUS,
-            .i2c_addr   = IOEXP_U90_I2C_ADDR,
-            .reset      = IO_RESET1,
-            .irq        = TCA64XX_IO_UNUSED,
-            .gpio_base  = U90_GPIO_CHIP_START,
+            .i2c_addr   = IOEXP_U96_I2C_ADDR,
+            .reset      = IO_RESET,
+            .irq        = U96_IO_EXP_IRQ,
+            .gpio_base  = U96_GPIO_CHIP_START,
         },
         {
             .part       = TCA6416_PART,
             .i2c_bus    = IOEXP_I2C_BUS,
-            .i2c_addr   = IOEXP_U96_I2C_ADDR,
-            .reset      = IO_RESET,
-            .irq        = IO_EXP_IRQ,
-            .gpio_base  = U96_GPIO_CHIP_START,
+            .i2c_addr   = IOEXP_U90_I2C_ADDR,
+            .reset      = IO_RESET1,
+            .irq        = U90_IO_EXP_IRQ,
+            .gpio_base  = U90_GPIO_CHIP_START,
         },
         {
             .part       = TCA6424_PART,
@@ -343,8 +350,12 @@ void board_exit(void) {
     int i;
 
 
-    /* First unregister the TCA64xx I/O Expanders and associated I2C bus(ses) */
-    for (i = 0; i < bdb1b_board_info.nr_io_expanders; i++) {
+    /*
+     * First unregister the TCA64xx I/O Expanders and associated I2C bus(ses).
+     * Done in reverse order from registration to account for IRQ chaining
+     * between I/O Expander chips.
+     */
+    for (i = bdb1b_board_info.nr_io_expanders - 1; i >= 0; i--) {
         struct io_expander_info *io_exp = &bdb1b_board_info.io_expanders[i];
 
         if (io_exp->io_exp_driver_data)
