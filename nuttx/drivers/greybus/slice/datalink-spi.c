@@ -67,7 +67,7 @@ struct slice_spi_msg
 
 struct slice_fifo_node
 {
-  void *packet;
+  __u8 *packet;
   struct list_head list;
 };
 
@@ -259,8 +259,10 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
   FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)dl;
   struct slice_spi_msg *m;
   struct slice_fifo_node *node;
-  size_t remaining = len;
+  int remaining = len;
   irqstate_t flags;
+  __u8 *dbuf = (__u8 *)buf;
+  int pl_size;
 
   dbg("len=%d\n", len);
 
@@ -280,17 +282,19 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
           return -ENOMEM;
         }
 
+      pl_size = MIN(remaining, SLICE_SPI_MSG_PAYLOAD_SZ);
       m->hdr_bits |= HDR_BIT_VALID;
       m->hdr_bits |= (remaining > SLICE_SPI_MSG_PAYLOAD_SZ) ? HDR_BIT_MORE : 0;
-      memcpy(m->data, buf, MIN(len, SLICE_SPI_MSG_PAYLOAD_SZ));
+      memcpy(m->data, dbuf, pl_size);
       m->crc16 = 0; /* TODO enable HW CRC */
-      node->packet = m;
+      node->packet = (__u8 *)m;
 
       flags = irqsave();
       list_add(&priv->tx_fifo, &node->list);
       irqrestore(flags);
 
-      remaining -= MIN(len, SLICE_SPI_MSG_PAYLOAD_SZ);
+      remaining -= pl_size;
+      dbuf += pl_size;
     }
 
   setup_exchange(priv);
@@ -352,4 +356,3 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
 
   return (FAR struct slice_dl_s *)&slice_spi_dl;
 }
-
