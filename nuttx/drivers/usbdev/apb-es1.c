@@ -875,7 +875,6 @@ static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config)
             list_del(iter);
             reqcontainer = list_entry(iter, struct apbridge_req_s, list);
             req = reqcontainer->req;
-            req->callback = usbclass_rdcomplete;
             ret = EP_SUBMIT(priv->ep[CONFIG_APBRIDGE_EPBULKOUT + i * 2],
                             req);
             iter = next;
