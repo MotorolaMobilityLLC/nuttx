@@ -300,6 +300,12 @@ static int svcd_startup(void) {
         goto error0;
     }
     svc->board_info = info;
+    rc = interface_early_init(info->interfaces,
+                              info->nr_interfaces, info->nr_spring_interfaces);
+    if (rc < 0) {
+        dbg_error("%s: Failed to power off interfaces\n", __func__);
+        goto error0;
+    }
 
     /* Init Switch */
     sw = switch_init(&info->sw_data);

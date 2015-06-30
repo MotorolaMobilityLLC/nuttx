@@ -355,7 +355,6 @@ int interface_init(struct interface **ints,
                    size_t nr_ints, size_t nr_spring_ints) {
     unsigned int i;
     int rc;
-    int fail = 0;
 
     dbg_info("Initializing all interfaces\n");
 
@@ -366,23 +365,6 @@ int interface_init(struct interface **ints,
     interfaces = ints;
     nr_interfaces = nr_ints;
     nr_spring_interfaces = nr_spring_ints;
-
-    for (i = 0; i < nr_interfaces; i++) {
-        rc = interface_config(interfaces[i]);
-        if (rc < 0) {
-            dbg_error("Failed to configure interface %s\n", interfaces[i]->name);
-            fail = 1;
-            /* Continue configuring remaining interfaces */
-            continue;
-        }
-    }
-
-    if (fail) {
-        return -1;
-    }
-
-    /* Let everything settle for a good long while.*/
-    up_udelay(POWER_OFF_TIME_IN_US);
 
     for (i = 0; i < nr_interfaces; i++) {
         rc = interface_pwr_enable(interfaces[i]);
