@@ -113,7 +113,9 @@ static uint8_t gb_usb_hub_control(struct gb_operation *operation)
 
     status = device_usb_hcd_hub_control(usbdev, typeReq, wValue,  wIndex,
                                         (char*) response->buf, wLength);
-    response->status = cpu_to_le32(status);
+    if (status) {
+        return GB_OP_UNKNOWN_ERROR;
+    }
 
     return GB_OP_SUCCESS;
 }

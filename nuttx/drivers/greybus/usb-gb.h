@@ -55,7 +55,6 @@ struct gb_usb_hub_control_request {
 };
 
 struct gb_usb_hub_control_response {
-	__le32 status;
 	__u8 buf[0];
 };
 
