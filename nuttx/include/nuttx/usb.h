@@ -115,6 +115,7 @@ struct device_usb_hcd_type_ops {
     int (*start)(struct device *dev);
     void (*stop)(struct device *dev);
     int (*urb_enqueue)(struct device *dev, struct urb *urb);
+    int (*urb_dequeue)(struct device *dev, struct urb *urb);
     int (*hub_control)(struct device *dev, uint16_t typeReq, uint16_t wValue,
                        uint16_t wIndex, char *buf, uint16_t wLength);
 };
@@ -211,6 +212,31 @@ static inline int device_usb_hcd_urb_enqueue(struct device *dev,
 
     if (dev->driver->ops->type_ops.usb_hcd->urb_enqueue) {
         return dev->driver->ops->type_ops.usb_hcd->urb_enqueue(dev, urb);
+    }
+
+    return -ENOSYS;
+}
+
+/**
+ * Dequeue URBs
+ *
+ * @param dev HCD device
+ * @param urb URB to dequeue
+ * @return 0 if successful
+ */
+static inline int device_usb_hcd_urb_dequeue(struct device *dev,
+                                             struct urb *urb)
+{
+    DEBUGASSERT(dev);
+    DEBUGASSERT(dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.usb_hcd);
+
+    if (dev->state != DEVICE_STATE_OPEN) {
+        return -ENODEV;
+    }
+
+    if (dev->driver->ops->type_ops.usb_hcd->urb_dequeue) {
+        return dev->driver->ops->type_ops.usb_hcd->urb_dequeue(dev, urb);
     }
 
     return -ENOSYS;
