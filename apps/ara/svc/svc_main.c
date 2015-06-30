@@ -132,6 +132,10 @@ static int link_test_port_v(uint8_t port,
     };
     bool auto_variant = flags & UNIPRO_LINK_CFGF_AUTO;
 
+    if (!sw) {
+        return -ENODEV;
+    }
+
     if (verbose) {
         printf("Port=%d, mode=%s, gear=%d, nlanes=%d, flags=0x%x, series=%s\n",
                port, hs ? "HS" : "PWM", gear, nlanes, flags,
@@ -198,6 +202,10 @@ static int link_test_torture(unsigned int nlanes) {
     const unsigned int trials_per_test = 500;
     struct interface *iface;
     int i;
+
+    if (!interface_get_count()) {
+        return -ENODEV;
+    }
 
     memset(fail_hs, 0, sizeof(fail_hs));
     memset(ok_hs, 0, sizeof(ok_hs));
@@ -450,6 +458,10 @@ static int link_status(int argc, char *argv[]) {
     struct tsb_switch *sw = svc->sw;
     int rc;
 
+    if (!sw) {
+        return -ENODEV;
+    }
+
     if (argc != 2) {
         printk("Ignoring unexpected arguments.\n");
     }
@@ -601,6 +613,10 @@ static int dme_io(int argc, char *argv[]) {
     char **args;
     int read;
     int c;
+
+    if (!sw) {
+        return -ENODEV;
+    }
 
     if (argc <= 2) {
         printk("BUG: invalid argument specification.\n");
