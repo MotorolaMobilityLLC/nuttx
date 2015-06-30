@@ -34,13 +34,14 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <arch/atomic.h>
 #include <arch/board/slice.h>
 
 #include <nuttx/gpio.h>
 #include <nuttx/greybus/slice.h>
 #include <nuttx/greybus/types.h>
-#include <nuttx/list.h>
 #include <nuttx/power/pm.h>
+#include <nuttx/ring_buf.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/util.h>
 
@@ -65,23 +66,17 @@ struct slice_spi_msg
   __le16  crc16;
 } __packed;
 
-struct slice_fifo_node
-{
-  __u8 *packet;
-  struct list_head list;
-};
-
 struct slice_spi_dl_s
 {
   struct slice_dl_s dl;          /* Externally visible part of the data link interface */
   FAR struct spi_dev_s *spi;     /* SPI handle */
 
   struct slice_dl_cb_s *cb;      /* Callbacks to network layer */
-  struct list_head tx_fifo;      /* List of messages to send */
+  atomic_t wake;                 /* Flag to indicate wake line asserted */
+  struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
+  struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
 
   __u8 rx_buf[sizeof(struct slice_spi_msg)];
-  __u8 tx_dummy_buf[sizeof(struct slice_spi_msg)];
-  __u8 *tx_buf;
 
   /*
    * Buffer to hold incoming payload (which could be spread across
@@ -114,12 +109,10 @@ static struct pm_callback_s pm_callback =
 static void setup_exchange(FAR struct slice_spi_dl_s *priv)
 {
   irqstate_t flags;
-  struct list_head *head;
-  struct slice_fifo_node *node;
+  struct ring_buf *rb;
 
   flags = irqsave();
-
-  dbg("tx_fifo=%d\n", list_count(&priv->tx_fifo));
+  rb = priv->txc_rb;
 
   /* Verify not already setup to tranceive packet */
   if (!gpio_get_value(GPIO_SLICE_RDY_N))
@@ -129,53 +122,54 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
     }
 
   /* Only setup exchange if base has asserted wake */
-  if (gpio_get_value(GPIO_SLICE_WAKE_N))
+  if (!atomic_get(&priv->wake))
     {
       dbg("WAKE not asserted\n");
       goto out;
     }
+  atomic_dec(&priv->wake);
 
-  if (list_is_empty(&priv->tx_fifo))
+  if (ring_buf_is_producers(rb))
     {
       dbg("RX only\n");
 
-      SPI_EXCHANGE(priv->spi, priv->tx_dummy_buf, priv->rx_buf,
-                   sizeof(struct slice_spi_msg));
+      /* Claim a ring buffer entry from the producer for the dummy packet */
+      ring_buf_pass(priv->txp_rb);
+      priv->txp_rb = ring_buf_get_next(priv->txp_rb);
     }
   else
     {
       dbg("RX and TX\n");
-
-      head = priv->tx_fifo.next;
-      list_del(priv->tx_fifo.next);
-
-      node = list_entry(head, struct slice_fifo_node, list);
-      priv->tx_buf = node->packet;
-      free(node);
-
-      SPI_EXCHANGE(priv->spi, priv->tx_buf, priv->rx_buf,
-                   sizeof(struct slice_spi_msg));
-
-      /* Deassert interrupt line (if appropriate) before asserting RDY */
-      slice_host_int_set(!list_is_empty(&priv->tx_fifo));
     }
+
+  SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb),
+               priv->rx_buf, sizeof(struct slice_spi_msg));
+
+  /* Deassert interrupt line (if appropriate) before asserting RDY */
+  rb = ring_buf_get_next(rb);
+  slice_host_int_set(ring_buf_is_consumers(rb));
 
   /* Signal to base that we're ready to tranceive */
   gpio_set_value(GPIO_SLICE_RDY_N, 0);
 
 out:
   /* Set the base interrupt line if data is available to be sent. */
-  slice_host_int_set(!list_is_empty(&priv->tx_fifo));
+  slice_host_int_set(ring_buf_is_consumers(rb));
 
   irqrestore(flags);
+}
+
+static void cleanup_txc_rb_entry(FAR struct slice_spi_dl_s *priv)
+{
+  memset(ring_buf_get_data(priv->txc_rb), 0, sizeof(struct slice_spi_msg));
+  ring_buf_reset(priv->txc_rb);
+  ring_buf_pass(priv->txc_rb);
+  priv->txc_rb = ring_buf_get_next(priv->txc_rb);
 }
 
 static void attach_cb(FAR void *arg, bool attached)
 {
   FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)arg;
-  struct list_head *iter;
-  struct list_head *iter_next;
-  struct slice_fifo_node *node;
 
   if (!attached)
     {
@@ -185,12 +179,9 @@ static void attach_cb(FAR void *arg, bool attached)
       SPI_SLAVE_DMA_CANCEL(priv->spi);
 
       /* Cleanup any unsent messages */
-      list_foreach_safe(&priv->tx_fifo, iter, iter_next)
+      while (ring_buf_is_consumers(priv->txc_rb))
         {
-          node = list_entry(iter, struct slice_fifo_node, list);
-          list_del(iter);
-          free(node->packet);
-          free(node);
+          cleanup_txc_rb_entry(priv);
         }
     }
 }
@@ -209,11 +200,8 @@ static int txn_finished_cb(void *v)
   /* Deassert ready line to base */
   gpio_set_value(GPIO_SLICE_RDY_N, 1);
 
-  if (priv->tx_buf)
-    {
-      free(priv->tx_buf);
-      priv->tx_buf = NULL;
-    }
+  /* Cleanup TX consumer ring buffer entry */
+  cleanup_txc_rb_entry(priv);
 
   if (!(m->hdr_bits & HDR_BIT_VALID))
     {
@@ -258,7 +246,6 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
 {
   FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)dl;
   struct slice_spi_msg *m;
-  struct slice_fifo_node *node;
   int remaining = len;
   irqstate_t flags;
   __u8 *dbuf = (__u8 *)buf;
@@ -269,33 +256,31 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
   if (len > SLICE_DL_PAYLOAD_MAX_SZ)
       return -E2BIG;
 
+  flags = irqsave();
   while (remaining > 0)
     {
-      m = zalloc(sizeof(struct slice_spi_msg));
-      if (!m)
-          return -ENOMEM;
-
-      node = malloc(sizeof(struct slice_fifo_node));
-      if (!node)
+      if (ring_buf_is_consumers(priv->txp_rb))
         {
-          free(m);
+          dbg("Ring buffer is full!\n");
+          irqrestore(flags);
           return -ENOMEM;
         }
+
+      m = ring_buf_get_data(priv->txp_rb);
 
       pl_size = MIN(remaining, SLICE_SPI_MSG_PAYLOAD_SZ);
       m->hdr_bits |= HDR_BIT_VALID;
       m->hdr_bits |= (remaining > SLICE_SPI_MSG_PAYLOAD_SZ) ? HDR_BIT_MORE : 0;
       memcpy(m->data, dbuf, pl_size);
-      m->crc16 = 0; /* TODO enable HW CRC */
-      node->packet = (__u8 *)m;
-
-      flags = irqsave();
-      list_add(&priv->tx_fifo, &node->list);
-      irqrestore(flags);
 
       remaining -= pl_size;
       dbuf += pl_size;
+
+      ring_buf_put(priv->txp_rb, sizeof(*m));
+      ring_buf_pass(priv->txp_rb);
+      priv->txp_rb = ring_buf_get_next(priv->txp_rb);
     }
+  irqrestore(flags);
 
   setup_exchange(priv);
   return 0;
@@ -316,6 +301,8 @@ static int wake_isr(int irq, void *context)
   dbg("Wake signal asserted by base\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
+
+  atomic_inc(&slice_spi_dl.wake);
   setup_exchange(&slice_spi_dl);
 
   return OK;
@@ -336,7 +323,13 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
 
   slice_spi_dl.cb = cb;
   slice_spi_dl.spi = spi;
-  list_init(&slice_spi_dl.tx_fifo);
+  slice_spi_dl.txp_rb = ring_buf_alloc_ring(
+      (SLICE_DL_PAYLOAD_MAX_SZ / SLICE_SPI_MSG_PAYLOAD_SZ) + 1 /* entries */,
+      0 /* headroom */, sizeof(struct slice_spi_msg) /* data len */,
+      0 /* tailroom */, NULL /* alloc_callback */, NULL /* free_callback */,
+      NULL /* arg */);
+  slice_spi_dl.txc_rb = slice_spi_dl.txp_rb;
+  atomic_init(&slice_spi_dl.wake, 0);
 
   /* RDY GPIO must be initialized before the WAKE interrupt */
   gpio_direction_out(GPIO_SLICE_RDY_N, 1);
