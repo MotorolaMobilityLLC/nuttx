@@ -90,6 +90,9 @@ struct cport {
 #define CPORTID_CDSI0    (16)
 #define CPORTID_CDSI1    (17)
 
+#define CPB_TX_BUFFER_SPACE_MASK        ((uint32_t) 0x0000007F)
+#define CPB_TX_BUFFER_SPACE_OFFSET_MASK CPB_TX_BUFFER_SPACE_MASK
+
 /*
  * FIXME: We could allocate and size this array at runtime, based on the type
  *        of bridge.
@@ -136,6 +139,10 @@ static uint32_t cport_get_status(struct cport*);
 static inline void clear_rx_interrupt(struct cport*);
 static inline void enable_rx_interrupt(struct cport*);
 static void configure_transfer_mode(int);
+static uint16_t unipro_get_tx_free_buffer_space(struct cport *cport);
+static inline void unipro_set_eom_flag(struct cport *cport);
+static int unipro_send_sync(unsigned int cportid,
+                            const void *buf, size_t len, bool som);
 static void dump_regs(void);
 
 /* irq handlers */
@@ -452,6 +459,33 @@ static void configure_transfer_mode(int mode) {
 }
 
 /**
+ * @brief           Return the free space in Unipro TX FIFO (in bytes)
+ * @return          free space in Unipro TX FIFO (in bytes)
+ * @param[in]       cport: CPort handle
+ */
+static uint16_t unipro_get_tx_free_buffer_space(struct cport *cport)
+{
+    unsigned int cportid = cport->cportid;
+    uint32_t tx_space;
+
+    tx_space = 8 * (unipro_read(CPB_TX_BUFFER_SPACE_REG(cportid)) &
+                    CPB_TX_BUFFER_SPACE_MASK);
+    tx_space -= 8 * (unipro_read(REG_TX_BUFFER_SPACE_OFFSET_REG(cportid)) &
+                     CPB_TX_BUFFER_SPACE_OFFSET_MASK);
+
+    return tx_space;
+}
+
+/**
+ * @brief           Set EOM (End Of Message) flag
+ * @param[in]       cport: CPort handle
+ */
+static inline void unipro_set_eom_flag(struct cport *cport)
+{
+    putreg8(1, CPORT_EOM_BIT(cport));
+}
+
+/**
  * @brief UniPro debug dump
  */
 static void dump_regs(void) {
@@ -681,7 +715,48 @@ void unipro_init(void)
  */
 int unipro_send(unsigned int cportid, const void *buf, size_t len)
 {
+    int ret, sent;
+    bool som;
     struct cport *cport;
+
+    if (len > CPORT_BUF_SIZE) {
+        return -EINVAL;
+    }
+
+    cport = cport_handle(cportid);
+    if (!cport) {
+        return -EINVAL;
+    }
+
+    for (som = true, sent = 0; sent < len;) {
+        ret = unipro_send_sync(cportid, buf + sent, len - sent, som);
+        if (ret < 0) {
+            return ret;
+        } else if (ret == 0) {
+            continue;
+        }
+        sent += ret;
+        som = false;
+    }
+    unipro_set_eom_flag(cport);
+
+    return 0;
+}
+
+/**
+ * @brief           Send data down to a CPort
+ * @return          number of bytes effectively sent (>= 0), or error code (< 0)
+ * @param[in]       cportid: cport to send down
+ * @param[in]       buf: data buffer
+ * @param[in]       len: size of data to send
+ * @param[in]       som: "start of message" flag
+ */
+static int unipro_send_sync(unsigned int cportid,
+                            const void *buf, size_t len, bool som)
+{
+    struct cport *cport;
+    uint16_t count;
+    uint8_t *tx_buf;
 
     if (len > CPORT_BUF_SIZE) {
         return -EINVAL;
@@ -700,28 +775,28 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len)
     DEBUGASSERT(TRANSFER_MODE == 2);
 
     /*
-     * FIXME: In the future, when this driver enables E2EFC, we will need to
-     *        keep in mind the ES2 Bridge Silicon limiation that a minimum of
-     *        8 bytes must be transmitted while E2EFC is active.
+     * If this is not the start of a new message,
+     * message data must be written to first address of CPort Tx Buffer + 1.
      */
+    if (!som) {
+        tx_buf = cport->tx_buf + sizeof(uint32_t);
+    } else {
+        tx_buf = cport->tx_buf;
+    }
 
-    DBG_UNIPRO("Sending %u bytes to CP%d\n", len, cport->cportid);
+    count = unipro_get_tx_free_buffer_space(cport);
+    if (!count) {
+        /* No free space in TX FIFO, cannot send anything. */
+        DBG_UNIPRO("No free space in CP%d Tx Buffer\n", cportid);
+        return 0;
+    } else if (count > len) {
+        count = len;
+    }
+    /* Copy message data in CPort Tx FIFO */
+    DBG_UNIPRO("Sending %u bytes to CP%d\n", count, cportid);
+    memcpy(tx_buf, buf, count);
 
-    /*
-     * Copy buf into the TX_BUF region for this CPort
-     *
-     * Note 1: For ES2 Transfer Mode 2, the 8 byte "header" is carried across
-     * unchanged, and we use it to hold (up to) the first 8 payload bytes.
-     *
-     * Note 2: We are only permitted to write to &cport->tx_buf[0] once per
-     *         transfer.
-     */
-    memcpy(cport->tx_buf, buf, len);
-
-    /* Hit EOM */
-    putreg8(1, CPORT_EOM_BIT(cport));
-
-    return 0;
+    return (int) count;
 }
 
 /**

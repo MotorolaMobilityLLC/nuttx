@@ -165,8 +165,12 @@
 #define AHM_MODE_CTRL_2                        0x00000618
 #define CPB_TX_E2EFC_EN_0                      0x0000061C
 #define CPB_TX_E2EFC_EN_1                      0x00000620
+#define CPB_TX_E2EFC_EN_REG(id) \
+    (CPB_TX_E2EFC_EN_0 + ((id / 32) * sizeof(uint32_t)))
 #define CPB_RX_E2EFC_EN_0                      0x00000624
 #define CPB_RX_E2EFC_EN_1                      0x00000628
+#define CPB_RX_E2EFC_EN_REG(id) \
+    (CPB_RX_E2EFC_EN_0 + ((id / 32) * sizeof(uint32_t)))
 #define TX_CLK_ENA_0                           0x0000062C
 #define TX_CLK_ENA_1                           0x00000630
 #define RX_CLK_ENA_0                           0x00000634
@@ -363,6 +367,8 @@
 #define CPB_TX_BUFFER_SPACE_41                 0x000010A4
 #define CPB_TX_BUFFER_SPACE_42                 0x000010A8
 #define CPB_TX_BUFFER_SPACE_43                 0x000010AC
+#define CPB_TX_BUFFER_SPACE_REG(id) \
+        (CPB_TX_BUFFER_SPACE_00 + (id * sizeof(uint32_t)))
 #define REG_TX_BUFFER_SPACE_OFFSET_00          0x00001100
 #define REG_TX_BUFFER_SPACE_OFFSET_01          0x00001104
 #define REG_TX_BUFFER_SPACE_OFFSET_02          0x00001108
@@ -407,6 +413,8 @@
 #define REG_TX_BUFFER_SPACE_OFFSET_41          0x000011A4
 #define REG_TX_BUFFER_SPACE_OFFSET_42          0x000011A8
 #define REG_TX_BUFFER_SPACE_OFFSET_43          0x000011AC
+#define REG_TX_BUFFER_SPACE_OFFSET_REG(id) \
+    (REG_TX_BUFFER_SPACE_OFFSET_00 + (id * sizeof(uint32_t)))
 #define REG_RX_PAUSE_SIZE_00                   0x00001200
 #define REG_RX_PAUSE_SIZE_01                   0x00001204
 #define REG_RX_PAUSE_SIZE_02                   0x00001208
