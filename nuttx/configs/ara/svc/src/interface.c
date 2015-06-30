@@ -297,6 +297,50 @@ uint32_t interface_pm_get_spin(struct interface *iface)
     return iface->pm->spin;
 }
 
+/**
+ * @brief Given a table of interfaces, power off all associated
+ *        power supplies
+ * @param interfaces table of interfaces to initialize
+ * @param nr_ints number of interfaces to initialize
+ * @param nr_spring_ints number of spring interfaces
+ * @returns: 0 on success, <0 on error
+ */
+int interface_early_init(struct interface **ints,
+                         size_t nr_ints, size_t nr_spring_ints) {
+    unsigned int i;
+    int rc;
+    int fail = 0;
+
+    dbg_info("Power off all interfaces\n");
+
+    if (!ints) {
+        return -ENODEV;
+    }
+
+    interfaces = ints;
+    nr_interfaces = nr_ints;
+    nr_spring_interfaces = nr_spring_ints;
+
+    for (i = 0; i < nr_interfaces; i++) {
+        rc = interface_config(interfaces[i]);
+        if (rc < 0) {
+            dbg_error("Failed to power interface %s\n", interfaces[i]->name);
+            fail = 1;
+            /* Continue configuring remaining interfaces */
+            continue;
+        }
+    }
+
+    if (fail) {
+        return -1;
+    }
+
+    /* Let everything settle for a good long while.*/
+    up_udelay(POWER_OFF_TIME_IN_US);
+
+    return 0;
+}
+
 
 /**
  * @brief Given a table of interfaces, initialize and enable all associated
