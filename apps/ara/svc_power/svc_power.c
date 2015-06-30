@@ -51,7 +51,7 @@ int power_main(int argc, char *argv[])
         printk("Power: Usage:\n");
         printk("  power p [interface_nr 0/1]  : get/set interface power\n");
         printk("  power v                     : validate Wake&Detect inputs\n");
-        printk("  power w interface_nr assert : assert or pulse WAKEOUT\n");
+        printk("  power w interface_nr 0/1    : pulse/assert WAKEOUT\n");
         printk("\n interface_nr is defined as:\n");
         printk("  index\tname\n");
 
@@ -113,7 +113,7 @@ int power_main(int argc, char *argv[])
                 break;
 
             printk("Power: %s WAKEOUT on interface(%02d) %s\n",
-                   state ? "pulse" : "assert", int_nr, iface->name);
+                   state ? "assert" : "pulse", int_nr, iface->name);
 
             return interface_generate_wakeout(iface, state);
         }
