@@ -90,10 +90,11 @@ struct slice_spi_dl_s
 static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
 {
   /*
-   * Do not allow standby when WAKE line is asserted. Need to stay awake to
-   * reply to commands.
+   * Do not allow standby when WAKE line or RDY line is asserted. Need to stay
+   * awake to reply to commands.
    */
-  if ((state >= PM_STANDBY) && !gpio_get_value(GPIO_SLICE_WAKE_N))
+  if ((state >= PM_STANDBY) &&
+      (!gpio_get_value(GPIO_SLICE_WAKE_N) || !gpio_get_value(GPIO_SLICE_RDY_N)))
       return -EIO;
 
   return OK;
