@@ -144,7 +144,7 @@ static inline int device_spi_lock(struct device *dev)
     if (dev->driver->ops->type_ops.spi->lock) {
         return dev->driver->ops->type_ops.spi->lock(dev);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -164,7 +164,7 @@ static inline int device_spi_unlock(struct device *dev)
     if (dev->driver->ops->type_ops.spi->unlock) {
         return dev->driver->ops->type_ops.spi->unlock(dev);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -185,7 +185,7 @@ static inline int device_spi_select(struct device *dev, int devid)
     if (dev->driver->ops->type_ops.spi->select) {
         return dev->driver->ops->type_ops.spi->select(dev, devid);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -206,7 +206,7 @@ static inline int device_spi_deselect(struct device *dev, int devid)
     if (dev->driver->ops->type_ops.spi->deselect) {
         return dev->driver->ops->type_ops.spi->deselect(dev, devid);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -228,7 +228,7 @@ static inline int device_spi_setfrequency(struct device *dev,
     if (dev->driver->ops->type_ops.spi->setfrequency) {
         return dev->driver->ops->type_ops.spi->setfrequency(dev, frequency);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -249,7 +249,7 @@ static inline int device_spi_setmode(struct device *dev, uint16_t mode)
     if (dev->driver->ops->type_ops.spi->setmode) {
         return dev->driver->ops->type_ops.spi->setmode(dev, mode);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -272,7 +272,7 @@ static inline int device_spi_setbits(struct device *dev, int nbits)
     if (dev->driver->ops->type_ops.spi->setbits) {
         return dev->driver->ops->type_ops.spi->setbits(dev, nbits);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -294,7 +294,7 @@ static inline int device_spi_exchange(struct device *dev,
     if (dev->driver->ops->type_ops.spi->exchange) {
         return dev->driver->ops->type_ops.spi->exchange(dev, transfer);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 /**
@@ -317,7 +317,7 @@ static inline int device_spi_getcaps(struct device *dev,
     if (dev->driver->ops->type_ops.spi->getcaps) {
         return dev->driver->ops->type_ops.spi->getcaps(dev, caps);
     }
-    return -EOPNOTSUPP;
+    return -ENOSYS;
 }
 
 #endif /* __ARCH_ARM_DEVICE_SPI_H */
