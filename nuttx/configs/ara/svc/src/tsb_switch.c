@@ -750,7 +750,7 @@ int switch_connection_create(struct tsb_switch *sw,
                                 c->cport_id0,
                                 c->port_id1,
                                 c->cport_id1);
-        dbg_error("%s: couldn't create connection: %d", __func__, rc);
+        dbg_error("%s: couldn't create connection: %d\n", __func__, rc);
         goto err0;
     }
 
@@ -932,7 +932,7 @@ static int switch_prep_for_series_change(struct tsb_switch *sw,
 static int switch_active_cfg_is_sane(const struct unipro_pwr_cfg *pcfg,
                                      unsigned max_nlanes) {
     if (pcfg->upro_nlanes > max_nlanes) {
-        dbg_error("%s(): attempt to use %u lanes, support at most %u",
+        dbg_error("%s(): attempt to use %u lanes, support at most %u\n",
                   __func__, pcfg->upro_nlanes, max_nlanes);
         return 0;
     }
@@ -940,19 +940,19 @@ static int switch_active_cfg_is_sane(const struct unipro_pwr_cfg *pcfg,
     case UNIPRO_FAST_MODE:      /* fall through */
     case UNIPRO_FASTAUTO_MODE:
         if (pcfg->upro_gear == 0 || pcfg->upro_gear > 3) {
-            dbg_error("%s(): invalid HS gear %u", __func__, pcfg->upro_gear);
+            dbg_error("%s(): invalid HS gear %u\n", __func__, pcfg->upro_gear);
             return 0;
         }
         break;
     case UNIPRO_SLOW_MODE:      /* fall through */
     case UNIPRO_SLOWAUTO_MODE:
         if (pcfg->upro_gear == 0 || pcfg->upro_gear > 7) {
-            dbg_error("%s(): invalid PWM gear %u", __func__, pcfg->upro_gear);
+            dbg_error("%s(): invalid PWM gear %u\n", __func__, pcfg->upro_gear);
             return 0;
         }
         break;
     default:
-        dbg_error("%s(): unexpected mode %u", __func__, pcfg->upro_mode);
+        dbg_error("%s(): unexpected mode %u\n", __func__, pcfg->upro_mode);
         return 0;
     }
     return 1;
