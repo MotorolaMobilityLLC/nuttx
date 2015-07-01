@@ -580,5 +580,5 @@ ifneq ($(APPDIR),)
 endif
 
 cscope:
-	find $(ROOT_DIR) -name "*.[hcS]" > cscope.files
-	cscope -b
+	find $(ROOT_DIR) -name "*.[hcS]" > $(ROOT_DIR)/cscope.files
+	(cd $(ROOT_DIR); cscope -b)
