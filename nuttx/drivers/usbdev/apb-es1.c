@@ -981,7 +981,6 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
     struct apbridge_dev_s *priv;
     struct apbridge_usb_driver *drv;
     struct gb_operation_hdr *hdr;
-    int ret;
     int ep_n;
     unsigned int cportid;
 
@@ -1025,12 +1024,6 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
                  (uint16_t) - req->result);
         break;
     };
-
-    ret = EP_SUBMIT(ep, req);
-
-    if (ret != OK) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSUBMIT), (uint16_t) - ret);
-    }
 }
 
 static void usbclass_wrcomplete(struct usbdev_ep_s *ep,

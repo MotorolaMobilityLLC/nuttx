@@ -45,9 +45,10 @@
 #define CPORTID_CDSI0    (16)
 #define CPORTID_CDSI1    (17)
 
-static int unipro_usb_to_unipro(unsigned int cportid, void *buf, size_t len)
+static int unipro_usb_to_unipro(unsigned int cportid, void *buf, size_t len,
+                                unipro_send_completion_t callback, void *priv)
 {
-    return unipro_send(cportid, buf, len);
+    return unipro_send_async(cportid, buf, len, callback, priv);
 }
 
 static int unipro_usb_to_svc(void *buf, size_t len)

@@ -54,6 +54,11 @@ static struct apbridge_dev_s *g_usbdev = NULL;
 static pthread_t g_svc_thread;
 static struct apbridge_backend apbridge_backend;
 
+static int release_buffer(int status, const void *buf, void *priv)
+{
+    return usb_release_buffer(priv, buf);
+}
+
 static int usb_to_unipro(struct apbridge_dev_s *dev, void *buf, size_t len)
 {
     struct gb_operation_hdr *hdr = buf;
@@ -71,7 +76,8 @@ static int usb_to_unipro(struct apbridge_dev_s *dev, void *buf, size_t len)
     hdr->pad[0] = 0;
     hdr->pad[1] = 0;
 
-    return apbridge_backend.usb_to_unipro(cportid, buf, len);
+    return apbridge_backend.usb_to_unipro(cportid, buf, len,
+                                          release_buffer, dev);
 }
 
 static int usb_to_svc(struct apbridge_dev_s *dev, void *buf, size_t len)
