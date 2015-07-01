@@ -516,6 +516,39 @@ int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
     return retval;
 }
 
+int usb_release_buffer(struct apbridge_dev_s *priv, const void *buf)
+{
+    struct list_head *iter, *next;
+    struct usbdev_req_s *req;
+    struct apbridge_req_s *reqcontainer;
+    int i, j;
+    int ret = 0;
+
+    iter = priv->rdreq.next;
+    next = iter->next;
+    for (i = 0; i < APBRIDGE_NBULKS; i++) {
+        for (j = 0; j < APBRIDGE_NREQS; j++) {
+            reqcontainer = list_entry(iter, struct apbridge_req_s, list);
+            req = reqcontainer->req;
+
+            if (req->buf == buf) {
+                ret = EP_SUBMIT(priv->ep[CONFIG_APBRIDGE_EPBULKOUT + i * 2],
+                                req);
+                if (ret != OK) {
+                    usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSUBMIT),
+                             (uint16_t) -ret);
+                }
+                return ret;
+            }
+
+            iter = next;
+            next = next->next;
+        }
+    }
+
+    return -EINVAL;
+}
+
 /**
  * @brief Send data that come from SVC to AP module
  * priv usb device.
@@ -876,7 +909,6 @@ static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config)
     next = iter->next;
     for (i = 0; i < APBRIDGE_NBULKS; i++) {
         for (j = 0; j < APBRIDGE_NREQS; j++) {
-            list_del(iter);
             reqcontainer = list_entry(iter, struct apbridge_req_s, list);
             req = reqcontainer->req;
             ret = EP_SUBMIT(priv->ep[CONFIG_APBRIDGE_EPBULKOUT + i * 2],
