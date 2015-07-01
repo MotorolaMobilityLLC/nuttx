@@ -32,9 +32,19 @@
 #include <arch/tsb/unipro.h>
 #include <nuttx/greybus/greybus.h>
 
+static int gb_unipro_rx_handler(unsigned int cport, void *data, size_t size)
+{
+    int retval;
+
+    retval = greybus_rx_handler(cport, data, size);
+    unipro_unpause_rx(cport);
+
+    return retval;
+}
+
 static struct unipro_driver greybus_driver = {
     .name = "greybus",
-    .rx_handler = greybus_rx_handler,
+    .rx_handler = gb_unipro_rx_handler,
 };
 
 static int gb_unipro_listen(unsigned int cport)

@@ -388,6 +388,18 @@ static int irq_rx_eom(int irq, void *context) {
     }
     clear_rx_interrupt(cport);
 
+    return 0;
+}
+
+int unipro_unpause_rx(unsigned int cportid)
+{
+    struct cport *cport;
+
+    cport = cport_handle(cportid);
+    if (!cport || !cport->connected) {
+        return -EINVAL;
+    }
+
     /* Restart the flow of received data */
     unipro_write(REG_RX_PAUSE_SIZE_00 + (cport->cportid * sizeof(uint32_t)),
                  (1 << 31) | CPORT_BUF_SIZE);

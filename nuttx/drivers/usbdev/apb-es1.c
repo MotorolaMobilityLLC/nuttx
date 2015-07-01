@@ -498,6 +498,7 @@ static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
 int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
                   size_t len)
 {
+    int retval;
     uint8_t epno;
     unsigned int cportid;
     struct gb_operation_hdr *hdr;
@@ -509,7 +510,10 @@ int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
     cportid = hdr->pad[1] << 8 | hdr->pad[0];
     epno = priv->cport_to_epin_n[cportid];
 
-    return _to_usb(priv, epno, payload, len);
+    retval = _to_usb(priv, epno, payload, len);
+    unipro_unpause_rx(cportid);
+
+    return retval;
 }
 
 /**

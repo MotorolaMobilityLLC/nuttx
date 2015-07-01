@@ -229,6 +229,11 @@ static int irq_rx_eom(int irq, void *context) {
     return 0;
 }
 
+int unipro_unpause_rx(unsigned int cportid)
+{
+    return -ENOSYS;
+}
+
 /**
  * @brief Clear and disable UniPro interrupt
  */
