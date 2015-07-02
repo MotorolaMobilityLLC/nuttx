@@ -172,6 +172,7 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
         irqrestore(flags);
 
         /* attach this response with the original request */
+        gb_operation_ref(operation);
         op->response = operation;
         if (op->callback)
             op->callback(op);
