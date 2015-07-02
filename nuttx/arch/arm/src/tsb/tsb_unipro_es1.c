@@ -471,6 +471,19 @@ void unipro_init(void) {
     lldbg("UniPro enabled\n");
 }
 
+int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
+                      unipro_send_completion_t callback, void *priv)
+{
+    int retval;
+
+    retval = unipro_send(cportid, buf, len);
+
+    if (callback)
+        callback(retval, buf, priv);
+
+    return 0;
+}
+
 /**
  * @brief send data down a CPort
  * @param cportid cport to send down
