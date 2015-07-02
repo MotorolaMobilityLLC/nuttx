@@ -483,6 +483,9 @@ void gb_operation_unref(struct gb_operation *operation)
 
     free(operation->request_buffer);
     free(operation->response_buffer);
+    if (operation->response) {
+        gb_operation_unref(operation->response);
+    }
     free(operation);
 }
 
