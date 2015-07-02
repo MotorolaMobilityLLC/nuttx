@@ -2651,6 +2651,7 @@ void up_serialinit(void)
 #ifdef CONFIG_PM
   ret = pm_register(&g_serialcb);
   DEBUGASSERT(ret == OK);
+  UNUSED(ret);
 #endif
 
   /* Register the console */
