@@ -49,7 +49,7 @@ void foreach_manifest(manifest_handler handler);
 void enable_cports(void);
 void *get_manifest_blob(void);
 void parse_manifest_blob(void *manifest);
-void enable_manifest(char *name, void *priv, int device_id);
+void enable_manifest(char *name, void *manifest, int device_id);
 void disable_manifest(char *name, void *priv, int device_id);
 void release_manifest_blob(void *manifest);
 struct list_head *get_manifest_cports(void);
