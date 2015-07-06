@@ -134,6 +134,14 @@ config ARCH_CHIP_DEVICE_SPI_BITBANG
 	---help---
 		TSB SPI Bit-Bang Device Driver
 
+config ARCH_CHIP_DEVICE_UART
+	bool "UART Support"
+	depends on ARCH_CHIP_APBRIDGE || ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
+	default n
+	---help---
+		TSB UART Driver
+
 choice
 	prompt "Drive Strength for the TRACE Signals"
 	default TSB_TRACE_DRIVESTRENGTH_MAX
