@@ -159,6 +159,7 @@ void gb_control_register(int cport);
 void gb_gpio_register(int cport);
 void gb_i2c_register(int cport);
 void gb_pwm_register(int cport);
+void gb_uart_register(int cport);
 int gb_i2c_set_dev(struct i2c_dev_s *dev);
 struct  i2c_dev_s *gb_i2c_get_dev(void);
 

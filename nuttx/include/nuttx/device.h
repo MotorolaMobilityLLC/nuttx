@@ -51,6 +51,7 @@ struct device_hsic_type_ops;
 struct device_pll_type_ops;
 struct device_pwm_type_ops;
 struct device_spi_type_ops;
+struct device_uart_type_ops;
 
 struct device_driver_ops {
     int     (*probe)(struct device *dev);
@@ -64,6 +65,7 @@ struct device_driver_ops {
         struct device_hsic_type_ops    *hsic;
         struct device_pwm_type_ops     *pwm;
         struct device_spi_type_ops     *spi;
+        struct device_uart_type_ops    *uart;
     } type_ops;
 };
 
