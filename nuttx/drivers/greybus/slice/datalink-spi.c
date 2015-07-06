@@ -176,6 +176,10 @@ static void attach_cb(FAR void *arg, bool attached)
     {
       dbg("Cleaning up datalink\n");
 
+      /* Reset GPIOs to initial state */
+      slice_host_int_set(false);
+      gpio_set_value(GPIO_SLICE_RDY_N, 1);
+
       /* Cancel SPI transaction */
       SPI_SLAVE_DMA_CANCEL(priv->spi);
 
