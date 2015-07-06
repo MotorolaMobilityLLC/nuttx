@@ -84,28 +84,11 @@ struct slice_spi_dl_s
    */
   __u8 rcvd_payload[SLICE_DL_PAYLOAD_MAX_SZ];
   int rcvd_payload_idx;
-};
 
 #ifdef CONFIG_PM
-static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
-{
-  /*
-   * Do not allow standby when WAKE line or RDY line is asserted. Need to stay
-   * awake to reply to commands.
-   */
-  if ((state >= PM_STANDBY) &&
-      (!gpio_get_value(GPIO_SLICE_WAKE_N) || !gpio_get_value(GPIO_SLICE_RDY_N)))
-      return -EIO;
-
-  return OK;
-}
-
-static struct pm_callback_s pm_callback =
-{
-  /* Only need to receive the prepare callback */
-  .prepare = pm_prepare,
-};
+  enum pm_state_e pmstate;       /* Current power management state */
 #endif
+};
 
 static void setup_exchange(FAR struct slice_spi_dl_s *priv)
 {
@@ -301,14 +284,56 @@ static struct slice_spi_dl_s slice_spi_dl =
   .dl  = { &slice_dl_ops },
 };
 
+#ifdef CONFIG_PM
+static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
+{
+  /*
+   * Do not allow standby when WAKE line or RDY line is asserted. Need to stay
+   * awake to reply to commands.
+   */
+  if ((state >= PM_STANDBY) &&
+      (!gpio_get_value(GPIO_SLICE_WAKE_N) || !gpio_get_value(GPIO_SLICE_RDY_N)))
+      return -EIO;
+
+  return OK;
+}
+
+static void pm_notify(struct pm_callback_s *cb, enum pm_state_e state)
+{
+  slice_spi_dl.pmstate = state;
+
+  /* If state is returned to normal and base has requested wake, setup for
+   * SPI exchange.
+   */
+  if ((PM_NORMAL == state) && atomic_get(&slice_spi_dl.wake))
+    {
+      setup_exchange(&slice_spi_dl);
+    }
+}
+
+static struct pm_callback_s pm_callback =
+{
+  .prepare = pm_prepare,
+  .notify = pm_notify,
+};
+#endif
+
 static int wake_isr(int irq, void *context)
 {
   dbg("Wake signal asserted by base\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
-
   atomic_inc(&slice_spi_dl.wake);
-  setup_exchange(&slice_spi_dl);
+
+#ifdef CONFIG_PM
+  /* If running at full speed ("normal"), go ahead and setup SPI exchange.
+   * else, wait until power management returns system state to normal.
+   */
+  if (PM_NORMAL == slice_spi_dl.pmstate)
+#endif
+    {
+      setup_exchange(&slice_spi_dl);
+    }
 
   return OK;
 }
