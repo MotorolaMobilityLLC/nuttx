@@ -157,7 +157,7 @@ int bridge_main(int argc, char *argv[])
     usbdev_apbinitialize(&usb_driver);
 
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
-    display_init();
+    display_init(NULL);
 #endif
 
     sleep(1);

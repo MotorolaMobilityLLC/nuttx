@@ -31,7 +31,7 @@
 #ifndef __LGD_DSI_H__
 #define __LGD_DSI_H__
 
-int display_init(void);
+int display_init(void *priv);
 
 #endif /* __LGD_DSI_H__ */
 

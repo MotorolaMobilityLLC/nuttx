@@ -31,8 +31,11 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/i2c.h>
+#include <nuttx/gpio/tca64xx.h>
 
 #include <stdio.h>
+#include <errno.h>
 
 #include <arch/tsb/gpio.h>
 #include <arch/tsb/unipro.h>
@@ -49,11 +52,50 @@
 #include <arch/board/csi.h>
 #endif
 
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+#define TCA6408_U72             0x20
+#define TCA6408_U72_INT_GPIO    0x03
+#define TCA6408_U72_RST_GPIO    0x04
+
+int io_expander_init(struct i2c_dev_s **dev)
+{
+    void *driver_data;
+
+    *dev = up_i2cinitialize(0);
+    if (!*dev) {
+        lowsyslog("%s(): Failed to get I/O Expander I2C bus 0\n", __func__);
+        return -ENODEV;
+    } else {
+        if (tca64xx_init(&driver_data,
+                         TCA6408_PART,
+                         *dev,
+                         TCA6408_U72,
+                         TCA6408_U72_RST_GPIO,
+                         TCA6408_U72_INT_GPIO,
+                         TCA6408_GPIO_BASE) < 0) {
+            lowsyslog("%s(): Failed to register I/O Expander(0x%02x)\n",
+                      __func__, TCA6408_U72);
+            up_i2cuninitialize(*dev);
+            return -ENODEV;
+        }
+    }
+
+    return 0;
+}
+#endif
+
 int bridge_main(int argc, char *argv[])
 {
-    tsb_gpio_register(NULL);
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
-    display_init();
+    struct i2c_dev_s *dev;
+#endif
+
+    tsb_gpio_register(NULL);
+
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+    io_expander_init(&dev);
+
+    display_init(dev);
 #endif
 
 #ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
