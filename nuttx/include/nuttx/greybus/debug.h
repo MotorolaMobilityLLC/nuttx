@@ -33,6 +33,20 @@
 #include <nuttx/config.h>
 #include <nuttx/greybus/types.h>
 
+#include <arch/irq.h>
+
+static inline void _gb_log(const char *fmt, ...)
+{
+    irqstate_t flags;
+    va_list ap;
+
+    va_start(ap, fmt);
+    flags = irqsave();
+    lowvsyslog(fmt, ap);
+    irqrestore(flags);
+    va_end(ap);
+}
+
 #ifdef CONFIG_GREYBUS_DEBUG
 static inline void _gb_dump(const char *func, __u8 *buf, size_t size)
 {
@@ -51,7 +65,7 @@ static inline void _gb_dump(const char *func, __u8 *buf, size_t size)
 #define gb_dump(buf, size) \
     _gb_dump(__func__, buf, size)
 #define gb_debug(fmt, ...) \
-    do { lowsyslog("[D] GB: " fmt, ##__VA_ARGS__); } while (0)
+    _gb_log("[D] GB: " fmt, ##__VA_ARGS__)
 #else
 #define gb_dump(buf, size) \
     do { } while (0)
@@ -61,9 +75,9 @@ static inline void _gb_dump(const char *func, __u8 *buf, size_t size)
 
 /* debug/info/error macros */
 #define gb_info(fmt, ...)                                            \
-    do { lowsyslog("[I] GB: " fmt, ##__VA_ARGS__); } while (0)
+    _gb_log("[D] GB: " fmt, ##__VA_ARGS__)
 #define gb_error(fmt, ...)                                           \
-    do { lowsyslog("[E] GB: " fmt, ##__VA_ARGS__); } while (0)
+    _gb_log("[D] GB: " fmt, ##__VA_ARGS__)
 
 #endif
 
