@@ -36,8 +36,7 @@ typedef uint8_t __u8;
 
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/types.h>
-
-#include <apps/greybus-utils/debug.h>
+#include <nuttx/greybus/debug.h>
 
 #define GREYBUS_VERSION_MAJOR	0x00
 #define GREYBUS_VERSION_MINOR	0x01

@@ -29,10 +29,10 @@
 #ifndef _GREYNUS_UTILS_UTILS_H_
 #define _GREYNUS_UTILS_UTILS_H_
 
+#include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 
 #include <apps/greybus-utils/svc.h>
-#include <apps/greybus-utils/debug.h>
 #include <apps/greybus-utils/manifest.h>
 
 static inline int gb_packet_size(const char *rbuf)
