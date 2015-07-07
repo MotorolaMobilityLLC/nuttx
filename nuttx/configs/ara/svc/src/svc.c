@@ -183,6 +183,15 @@ static void manifest_enable(unsigned char *manifest_file,
     enable_manifest(iid, manifest_file, device_id);
 }
 
+static void manifest_disable(unsigned char *manifest_file,
+                            int device_id, int manifest_number)
+{
+    char iid[IID_LENGTH];
+
+    snprintf(iid, IID_LENGTH, "IID-%d", manifest_number + 1);
+    disable_manifest(iid, manifest_file, device_id);
+}
+
 static int setup_default_routes(struct tsb_switch *sw) {
     int i, j, rc;
     int conn_size;
@@ -269,6 +278,8 @@ static int setup_default_routes(struct tsb_switch *sw) {
                       port_id_0, port_id_1);
         }
     }
+    free(conn);
+    foreach_manifest(manifest_disable);
 
     switch_dump_routing_table(sw);
 
