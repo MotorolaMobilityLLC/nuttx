@@ -108,15 +108,21 @@ static int network_listen(unsigned int cport)
   return 0;
 }
 
+static int network_stop_listening(unsigned int cport)
+{
+  /* Nothing to do */
+  return 0;
+}
+
 struct gb_transport_backend slice_network =
 {
   .init = network_init,
   .send = network_send,
   .listen = network_listen,
+  .stop_listening = network_stop_listening,
 };
 
 int slice_network_init(void)
 {
   return gb_init(&slice_network);
 }
-
