@@ -30,54 +30,43 @@
 #define _GREYBUS_UTILS_DEBUG_H_
 
 #include <debug.h>
+#include <sys/types.h>
 #include <nuttx/config.h>
 #include <nuttx/greybus/types.h>
 
 #include <arch/irq.h>
 
-static inline void _gb_log(const char *fmt, ...)
-{
-    irqstate_t flags;
-    va_list ap;
-
-    va_start(ap, fmt);
-    flags = irqsave();
-    lowvsyslog(fmt, ap);
-    irqrestore(flags);
-    va_end(ap);
-}
+#define GB_LOG_INFO     (0)
+#define GB_LOG_ERROR    (1)
+#define GB_LOG_WARNING  (2)
+#define GB_LOG_DEBUG    (4)
+#define GB_LOG_DUMP     (8)
 
 #ifdef CONFIG_GREYBUS_DEBUG
-static inline void _gb_dump(const char *func, __u8 *buf, size_t size)
-{
-    int i;
-    irqstate_t flags;
+#define gb_log(lvl, fmt, ...)                                       \
+    do {                                                            \
+        if (gb_log_level & lvl)                                     \
+            _gb_log(fmt, ##__VA_ARGS__);                            \
+    } while(0)
 
-    flags = irqsave();
-    lowsyslog("%s:\n", func);
-    for (i = 0; i < size; i++) {
-        lowsyslog( "%02x ", buf[i]);
-    }
-    lowsyslog("\n");
-    irqrestore(flags);
-}
-
-#define gb_dump(buf, size) \
-    _gb_dump(__func__, buf, size)
-#define gb_debug(fmt, ...) \
-    _gb_log("[D] GB: " fmt, ##__VA_ARGS__)
+extern int gb_log_level;
+void _gb_dump(const char *func, __u8 *buf, size_t size);
+void _gb_log(const char *fmt, ...);
 #else
-#define gb_dump(buf, size) \
-    do { } while (0)
-#define gb_debug(fmt, ...) \
-    do { } while (0)
+#define _gb_dump(func, buf, size)
+#define gb_log(fmt, ...)
 #endif
 
-/* debug/info/error macros */
-#define gb_info(fmt, ...)                                            \
-    _gb_log("[D] GB: " fmt, ##__VA_ARGS__)
-#define gb_error(fmt, ...)                                           \
-    _gb_log("[D] GB: " fmt, ##__VA_ARGS__)
+#define gb_info(fmt, ...)                                           \
+    gb_log(GB_LOG_INFO, "[I] GB: " fmt, ##__VA_ARGS__);
+#define gb_error(fmt, ...)                                          \
+    gb_log(GB_LOG_ERROR, "[D] GB: " fmt, ##__VA_ARGS__);
+#define gb_warning(fmt, ...)                                        \
+    gb_log(GB_LOG_WARNING, "[W] GB: " fmt, ##__VA_ARGS__);
+#define gb_debug(fmt, ...)                                          \
+    gb_log(GB_LOG_DEBUG, "[D] GB: " fmt, ##__VA_ARGS__);
+#define gb_dump(buf, size)                                          \
+    _gb_dump(__func__, buf, size);
 
 #endif
 

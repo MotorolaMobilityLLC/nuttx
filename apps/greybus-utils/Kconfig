@@ -30,7 +30,20 @@
 #
 
 config GREYBUS_DEBUG
-	bool "Enable verbose log"
+	bool "Enable Greybus log"
+
+choice
+	prompt "Select Greybus log level"
+	depends on GREYBUS_DEBUG
+config GB_LOG_INFO
+	bool "info"
+config GB_LOG_WARNING
+	bool "warning, errors and info"
+config GB_LOG_DEBUG
+	bool "debug, warning, errors and info"
+config GB_LOG_DUMP
+	bool "dump data, warning, errors and info"
+endchoice
 
 choice
 	prompt "Select a predefined Manifest"

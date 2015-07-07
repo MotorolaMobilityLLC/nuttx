@@ -26,26 +26,46 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _GREYNUS_UTILS_UTILS_H_
-#define _GREYNUS_UTILS_UTILS_H_
-
 #include <nuttx/greybus/debug.h>
-#include <nuttx/greybus/types.h>
-#include <nuttx/greybus/greybus.h>
+#include <arch/irq.h>
 
-#include <apps/greybus-utils/svc.h>
-#include <apps/greybus-utils/manifest.h>
-
-static inline int gb_packet_size(const char *rbuf)
-{
-   const struct gb_operation_hdr *hdr = (const struct gb_operation_hdr *)rbuf;
-   return hdr->size;
-}
-
-struct cport_msg {
-	__u8	cport;
-	__u8	data[0];
-};
-
+#if defined(CONFIG_GB_LOG_ERROR)
+#define GB_LOG_LEVEL (GB_LOG_ERROR)
+#elif defined(CONFIG_GB_LOG_WARNING)
+#define GB_LOG_LEVEL (GB_LOG_ERROR | GB_LOG_WARNING)
+#elif defined(CONFIG_GB_LOG_DEBUG)
+#define GB_LOG_LEVEL (GB_LOG_ERROR | GB_LOG_WARNING | GB_LOG_DEBUG)
+#elif defined(CONFIG_GB_LOG_DUMP)
+#define GB_LOG_LEVEL (GB_LOG_ERROR | GB_LOG_WARNING | GB_LOG_DEBUG | \
+                      GB_LOG_DUMP)
+#else
+#define GB_LOG_LEVEL (GB_LOG_INFO)
 #endif
 
+int gb_log_level = GB_LOG_LEVEL;
+
+void _gb_log(const char *fmt, ...)
+{
+    irqstate_t flags;
+    va_list ap;
+
+    va_start(ap, fmt);
+    flags = irqsave();
+    lowvsyslog(fmt, ap);
+    irqrestore(flags);
+    va_end(ap);
+}
+
+void _gb_dump(const char *func, __u8 *buf, size_t size)
+{
+    int i;
+    irqstate_t flags;
+
+    flags = irqsave();
+    lowsyslog("%s:\n", func);
+    for (i = 0; i < size; i++) {
+        lowsyslog( "%02x ", buf[i]);
+    }
+    lowsyslog("\n");
+    irqrestore(flags);
+}
