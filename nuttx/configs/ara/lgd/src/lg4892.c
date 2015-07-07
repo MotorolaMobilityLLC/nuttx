@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <debug.h>
 
+#include <arch/tsb/gpio.h>
 #include <arch/board/lg4892.h>
 
 /* TCA6408 I/O Expander pins */

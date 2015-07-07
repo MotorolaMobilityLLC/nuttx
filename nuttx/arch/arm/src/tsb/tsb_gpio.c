@@ -60,12 +60,6 @@
 #define GPIO_INTCTRL2       (GPIO_BASE + 0x38)
 #define GPIO_INTCTRL3       (GPIO_BASE + 0x3c)
 
-#if defined(CONFIG_TSB_CHIP_REV_ES1)
-#define NR_GPIO_IRQS 16
-#else
-#define NR_GPIO_IRQS 27
-#endif
-
 /* A table of handlers for each GPIO interrupt */
 static xcpt_t tsb_gpio_irq_vector[NR_GPIO_IRQS];
 static uint8_t tsb_gpio_irq_gpio_base[NR_GPIO_IRQS];
@@ -299,5 +293,5 @@ struct gpio_ops_s tsb_gpio_ops = {
 
 int tsb_gpio_register(void *driver_data)
 {
-    return register_gpio_chip(&tsb_gpio_ops, 0, NULL);
+    return register_gpio_chip(&tsb_gpio_ops, TSB_GPIO_CHIP_BASE, NULL);
 }

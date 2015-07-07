@@ -38,9 +38,6 @@
 #define LG4892_TS_BOOT_MODE_APPLICATION         0x22
 #define LG4892_TS_BOOT_MODE_VERIFYING           0x33
 
-/* GPIO Chip base of the TCA6408 I/O Expander */
-#define TCA6408_GPIO_BASE                       16
-
 int lg4892_gpio_init(void);
 int lg4892_enable(bool enable);
 

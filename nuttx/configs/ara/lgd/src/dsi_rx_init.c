@@ -66,8 +66,8 @@
 #define AL_RX_BRG_CSI_DT2_VAL                           0x00000000
 #define AL_RX_BRG_CSI_DT3_VAL                           0x00000000
 
-#define PS_HOLD_GPIO    8
-#define POWERKEY_GPIO   0
+#define PS_HOLD_GPIO    (TSB_GPIO_CHIP_BASE + 8)
+#define POWERKEY_GPIO   (TSB_GPIO_CHIP_BASE + 0)
 
 static pthread_t g_display_thread;
 
