@@ -401,6 +401,17 @@ void enable_manifest(char *name, void *priv, int device_id)
     }
 }
 
+void disable_manifest(char *name, void *priv, int device_id)
+{
+    void *manifest;
+
+    manifest = get_manifest_blob();
+    if (manifest) {
+        g_device_id = device_id;
+        release_manifest_blob(manifest);
+    }
+}
+
 struct list_head *get_manifest_cports(void)
 {
     return &g_greybus.cports;
