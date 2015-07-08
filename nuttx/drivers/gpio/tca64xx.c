@@ -31,6 +31,7 @@
  */
 
 #include <nuttx/config.h>
+#include <nuttx/arch.h>
 #include <nuttx/i2c.h>
 #include <debug.h>
 #include <errno.h>
@@ -597,8 +598,17 @@ static void intstat_update(void *driver_data, uint32_t in)
     struct tca64xx_platform_data *tca64xx = driver_data;
     int pin;
     uint32_t diff, nr_gpios = get_nr_gpios(tca64xx->part);
+    irqstate_t flags;
+
+    flags = irqsave();
 
     diff = tca64xx->in ^ in;
+
+    if (!diff) {
+        irqrestore(flags);
+        return;
+    }
+
     tca64xx->in = in;
 
     /*
@@ -625,6 +635,8 @@ static void intstat_update(void *driver_data, uint32_t in)
         }
         diff >>= 1, in >>= 1;
     }
+
+    irqrestore(flags);
 }
 
 static void tca64xx_registers_update(void *driver_data)
@@ -692,7 +704,11 @@ uint8_t tca64xx_line_count(void *driver_data)
 int tca64xx_gpio_mask_irq(void *driver_data, uint8_t which)
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
+    irqstate_t flags;
+
+    flags = irqsave();
     tca64xx->mask |= (1 << which);
+    irqrestore(flags);
 
     return 0;
 }
@@ -700,7 +716,11 @@ int tca64xx_gpio_mask_irq(void *driver_data, uint8_t which)
 int tca64xx_gpio_unmask_irq(void *driver_data, uint8_t which)
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
+    irqstate_t flags;
+
+    flags = irqsave();
     tca64xx->mask &= ~(1 << which);
+    irqrestore(flags);
 
     return 0;
 }
@@ -708,7 +728,11 @@ int tca64xx_gpio_unmask_irq(void *driver_data, uint8_t which)
 int tca64xx_gpio_clear_interrupt(void *driver_data, uint8_t which)
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
+    irqstate_t flags;
+
+    flags = irqsave();
     tca64xx->intstat &= ~(1 << which);
+    irqrestore(flags);
 
     return 0;
 }
@@ -716,8 +740,14 @@ int tca64xx_gpio_clear_interrupt(void *driver_data, uint8_t which)
 uint32_t tca64xx_gpio_get_interrupt(void *driver_data)
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
-    uint32_t mask = ~tca64xx->mask;
-    uint32_t intstat = tca64xx->intstat & mask;
+    uint32_t mask;
+    uint32_t intstat;
+    irqstate_t flags;
+
+    flags = irqsave();
+    mask = ~tca64xx->mask;
+    intstat = tca64xx->intstat & mask;
+    irqrestore(flags);
 
     return intstat;
 }
@@ -725,21 +755,27 @@ uint32_t tca64xx_gpio_get_interrupt(void *driver_data)
 static void tca64xx_set_gpio_trigger(void *driver_data, uint8_t which, int trigger)
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
+    irqstate_t flags;
 
+    flags = irqsave();
     if (trigger) {
         tca64xx->trigger |= TCA64XX_IRQ_TYPE_LEVEL << which;
     } else {
         tca64xx->trigger &= ~(TCA64XX_IRQ_TYPE_LEVEL << which);
     }
+    irqrestore(flags);
 }
 
 static void tca64xx_set_gpio_level(void *driver_data, uint8_t which, int level)
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
     int shift = which << 1;
+    irqstate_t flags;
 
+    flags = irqsave();
     tca64xx->level &= ~(0x03 << shift);
     tca64xx->level |= level << shift;
+    irqrestore(flags);
 }
 
 static int tca64xx_set_gpio_triggering(void *driver_data, uint8_t which,
@@ -844,6 +880,7 @@ int tca64xx_gpio_irqattach(void *driver_data, uint8_t which, xcpt_t isr,
     /* Save the new ISR in the table. */
     tca64xx->irq_vector[which] = isr;
     tca64xx->gpio_base[which] = base;
+
     irqrestore(flags);
 
     return OK;
@@ -902,15 +939,20 @@ int tca64xx_init(void **driver_data, tca64xx_part part, struct i2c_dev_s *dev,
     char buf[16];
     uint8_t nr_gpios;
     int ret;
+    irqstate_t flags;
+
+    flags = irqsave();
 
     nr_gpios = get_nr_gpios(part);
     if (nr_gpios < 0) {
         lldbg_error("%s: invalid part=%d\n", __func__, part);
+        irqrestore(flags);
         return -EINVAL;
     }
 
     tca64xx = malloc(sizeof(struct tca64xx_platform_data));
     if (!tca64xx) {
+        irqrestore(flags);
         return -ENOMEM;
     }
 
@@ -951,6 +993,7 @@ int tca64xx_init(void **driver_data, tca64xx_part part, struct i2c_dev_s *dev,
                           (char * const*) argv);
         if (ret == ERROR) {
             lldbg_error("%s: Failed to create polling worker\n", __func__);
+            irqrestore(flags);
             return ERROR;
         }
         tca64xx->worker_id = ret;
@@ -958,6 +1001,7 @@ int tca64xx_init(void **driver_data, tca64xx_part part, struct i2c_dev_s *dev,
 
     *driver_data = tca64xx;
 
+    irqrestore(flags);
     return 0;
 }
 
@@ -966,11 +1010,14 @@ void tca64xx_deinit(void *driver_data)
     struct tca64xx_platform_data *pdata, *tca64xx = driver_data;
     struct list_head *iter, *iter_next;
     int ret, status;
+    irqstate_t flags;
 
     if (!driver_data) {
         lldbg_error("%s: NULL driver_data, aborting\n", __func__);
         return;
     }
+
+    flags = irqsave();
 
     /* Unregister IRQ */
     if (tca64xx->irq != TCA64XX_IO_UNUSED) {
@@ -998,4 +1045,6 @@ void tca64xx_deinit(void *driver_data)
 
     /* Free driver data */
     free(driver_data);
+
+    irqrestore(flags);
 }
