@@ -83,7 +83,7 @@ config ARCH_CHIP_USB_COMMON
 config ARCH_CHIP_USB_HCD
 	bool "USB Host Support"
 	depends on ARCH_CHIP_GPBRIDGE
-	default y if ARCH_CHIP_GPBRIDGE
+	default y
 	select DEVICE_CORE
 	select ARCH_CHIP_USB_COMMON
 	---help---
@@ -92,7 +92,7 @@ config ARCH_CHIP_USB_HCD
 config ARCH_CHIP_USB_PCD
 	bool "USB Device Support"
 	depends on ARCH_CHIP_APBRIDGE
-	default y if ARCH_CHIP_APBRIDGE
+	default y
 	select ARCH_CHIP_USB_COMMON
 	---help---
 		Synopsys USB Device Driver
