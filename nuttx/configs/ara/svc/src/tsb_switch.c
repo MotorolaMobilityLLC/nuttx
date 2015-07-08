@@ -465,6 +465,29 @@ static int switch_internal_set_id(struct tsb_switch *sw,
     return sw->ops->switch_id_set(sw, cportid, peercportid, dis, irt);
 }
 
+/*
+ * Switch QoS configuration commands
+ */
+int switch_qos_attr_set(struct tsb_switch *sw,
+                               uint8_t portid,
+                               uint8_t attrid,
+                               uint32_t attr_val) {
+    if (!sw->ops->qos_attr_set) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->qos_attr_set(sw, portid, attrid, attr_val);
+}
+
+int switch_qos_attr_get(struct tsb_switch *sw,
+                               uint8_t portid,
+                               uint8_t attrid,
+                               uint32_t *val) {
+    if (!sw->ops->qos_attr_get) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->qos_attr_get(sw, portid, attrid, val);
+}
+
 int switch_irq_enable(struct tsb_switch *sw,
                       bool enable) {
     if (!sw->ops->switch_irq_enable) {

@@ -75,6 +75,11 @@
 #define NCP_SYSCTRLGETREQ           (0x32)
 #define NCP_SYSCTRLGETCNF           (0x33)
 
+#define NCP_QOSATTRSETREQ           (0x50)
+#define NCP_QOSATTRSETCNF           (0x51)
+#define NCP_QOSATTRGETREQ           (0x52)
+#define NCP_QOSATTRGETCNF           (0x53)
+
 /* System registers, accessible via switch_sys_ctrl_set, switch_sys_ctrl_get */
 #define SC_SOFTRESET                (0x0000)
 #define SC_SOFTRESETRELEASE         (0x0100)
@@ -240,6 +245,14 @@ struct tsb_switch_ops {
                          uint8_t peer_cportid,
                          uint8_t dis,
                          uint8_t irt);
+    int (*qos_attr_set)(struct tsb_switch *,
+                        uint8_t portid,
+                        uint8_t attrid,
+                        uint32_t attr_val);
+    int (*qos_attr_get)(struct tsb_switch *,
+                        uint8_t portid,
+                        uint8_t attrid,
+                        uint32_t *val);
     int (*sys_ctrl_set)(struct tsb_switch *sw,
                         uint16_t sc_addr,
                         uint32_t val);
@@ -532,6 +545,11 @@ int switch_internal_getattr(struct tsb_switch *sw,
 int switch_internal_setattr(struct tsb_switch *sw,
                             uint16_t attrid,
                             uint32_t val);
+
+int switch_qos_attr_set(struct tsb_switch *sw, uint8_t portid, uint8_t attrid,
+                        uint32_t attr_val);
+int switch_qos_attr_get(struct tsb_switch *sw, uint8_t portid, uint8_t attrid,
+                        uint32_t *val);
 
 int switch_irq_enable(struct tsb_switch *sw,
                       bool enable);
