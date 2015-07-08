@@ -26,7 +26,8 @@
 
 config ARA_USB_HOST
 	bool "Ara USB Host validation app"
-	default n
+	default n if !DEBUG
+	default y if DEBUG
 	depends on ARCH_CHIP_USB_HCD && !GREYBUS_USB_HOST_PHY
 
 if ARA_UNIPRO_MAIN

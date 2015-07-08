@@ -31,7 +31,8 @@
 
 config ARA_GB_LOOPBACK
 	bool "Ara gb_loopback app"
-	default n
+	default n if !DEBUG
+	default y if DEBUG
 	depends on GREYBUS_LOOPBACK
 	---help---
 		Enable the Ara gb_loopback test program

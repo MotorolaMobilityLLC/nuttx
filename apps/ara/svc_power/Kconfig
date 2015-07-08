@@ -31,7 +31,8 @@
 
 config ARA_SVC_POWER
 	bool "Ara SVC Power control"
-	default n
+	default n if !DEBUG
+	default y if DEBUG
 	depends on ARCH_BOARD_ARA_SVC
 	---help---
 		Enable the Ara Power program. Controls the interfaces power
