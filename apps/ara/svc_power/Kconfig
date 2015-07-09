@@ -32,7 +32,7 @@
 config ARA_SVC_POWER
 	bool "Ara SVC Power control"
 	default n
-	depends on ARCH_BOARD_ARA_ENDO_SVC || ARCH_BOARD_ARA_SVC
+	depends on ARCH_BOARD_ARA_SVC
 	---help---
 		Enable the Ara Power program. Controls the interfaces power
 		supply and wakeout signal
