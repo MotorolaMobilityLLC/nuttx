@@ -191,6 +191,13 @@ struct apbridge_req_s {
     void *priv;
 };
 
+struct apbridge_msg_s {
+    struct list_head list;
+    struct usbdev_ep_s *ep;
+    const void *buf;
+    size_t len;
+};
+
 /* This structure describes the internal state of the driver */
 
 struct apbridge_dev_s {
@@ -205,6 +212,8 @@ struct apbridge_dev_s {
     struct list_head intreq;
     struct list_head rdreq;
     struct list_head wrreq;
+
+    struct list_head msg_queue;
 
     int cport_to_epin_n[CPORT_MAX];
     int epout_to_cport_n[APBRIDGE_NBULKS];
@@ -461,13 +470,59 @@ static void put_request(struct list_head *list, struct usbdev_req_s *req)
     list_add(list, &reqcontainer->list);
 }
 
+static int apbridge_queue(struct apbridge_dev_s *priv, struct usbdev_ep_s *ep,
+                          const void *payload, size_t len)
+{
+    irqstate_t flags;
+    struct apbridge_msg_s *info;
+
+    info = malloc(sizeof(*info));
+    if (!info) {
+        return -ENOMEM;
+    }
+
+    info->ep = ep;
+    info->buf = payload;
+    info->len = len;
+
+    flags = irqsave();
+    list_add(&priv->msg_queue, &info->list);
+    irqrestore(flags);
+
+    return OK;
+}
+
+static struct apbridge_msg_s *apbridge_dequeue(struct apbridge_dev_s *priv)
+{
+    irqstate_t flags;
+    struct list_head *list;
+
+    flags = irqsave();
+    if (list_is_empty(&priv->msg_queue)) {
+        irqrestore(flags);
+        return NULL;
+    }
+
+    list = priv->msg_queue.next;
+    list_del(list);
+    irqrestore(flags);
+    return list_entry(list, struct apbridge_msg_s, list);
+}
+
 static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
                           const void *payload, size_t len)
 {
     int ret;
+    unsigned int cportid;
 
     req->len = len;
     memcpy(req->buf, payload, len);
+
+    /* Unpause unipro only if the request come from unipro */
+    if (USB_EPNO(ep->eplog) != CONFIG_APBRIDGE_EPINTIN) {
+        cportid = get_cportid(payload);
+        unipro_unpause_rx(cportid);
+    }
 
     /* Then submit the request to the endpoint */
 
@@ -492,10 +547,11 @@ static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
         return -EINVAL;
 
     req = get_request(list);
-    if (!req)
-        return -EBUSY;
-
     ep = priv->ep[epno & USB_EPNO_MASK];
+    if (!req) {
+        return apbridge_queue(priv, ep, payload, len);
+    }
+
     return _to_usb_submit(ep, req, payload, len);
 }
 
@@ -510,7 +566,6 @@ static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
 int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
                   size_t len)
 {
-    int retval;
     uint8_t epno;
     unsigned int cportid;
 
@@ -520,10 +575,7 @@ int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
     cportid = get_cportid(payload);
     epno = priv->cport_to_epin_n[cportid];
 
-    retval = _to_usb(priv, epno, payload, len);
-    unipro_unpause_rx(cportid);
-
-    return retval;
+    return _to_usb(priv, epno, payload, len);
 }
 
 int usb_release_buffer(struct apbridge_dev_s *priv, const void *buf)
@@ -1040,6 +1092,7 @@ static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
                               struct usbdev_req_s *req)
 {
     struct list_head *list;
+    struct apbridge_msg_s *info;
     struct apbridge_dev_s *priv;
 
     /* Sanity check */
@@ -1051,8 +1104,14 @@ static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
 #endif
 
     priv = (struct apbridge_dev_s *) ep->priv;
-    list = epno_to_req_list(priv, USB_EPNO(ep->eplog));
-    put_request(list, req);
+    info = apbridge_dequeue(priv);
+    if (info) {
+        _to_usb_submit(info->ep, req, info->buf, info->len);
+        free(info);
+    } else {
+        list = epno_to_req_list(priv, USB_EPNO(ep->eplog));
+        put_request(list, req);
+    }
 
     switch (req->result) {
     case OK:                   /* Normal completion */
@@ -1693,6 +1752,7 @@ int usbdev_apbinitialize(struct apbridge_usb_driver *driver)
         priv->cport_to_epin_n[i] = CONFIG_APBRIDGE_EPBULKIN;
     }
     sem_init(&priv->config_sem, 0, 0);
+    list_init(&priv->msg_queue);
 
     /* Initialize the USB class driver structure */
 
