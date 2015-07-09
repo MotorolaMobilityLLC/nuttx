@@ -66,7 +66,6 @@
 SUBDIRS  = apbridge
 SUBDIRS += bdbpm
 SUBDIRS += debug
-SUBDIRS += epm
 SUBDIRS += etm
 SUBDIRS += gb_loopback
 SUBDIRS += gpbridge
@@ -88,7 +87,6 @@ SUBDIRS += usb-host
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 CNTXTDIRS += bdbpm
 CNTXTDIRS += debug
-CNTXTDIRS += epm
 CNTXTDIRS += etm
 CNTXTDIRS += gb_loopback
 CNTXTDIRS += gpio

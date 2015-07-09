@@ -30,7 +30,6 @@
 #
 
 source "$APPSDIR/ara/debug/Kconfig"
-source "$APPSDIR/ara/epm/Kconfig"
 source "$APPSDIR/ara/etm/Kconfig"
 source "$APPSDIR/ara/svc_power/Kconfig"
 source "$APPSDIR/ara/svc/Kconfig"
