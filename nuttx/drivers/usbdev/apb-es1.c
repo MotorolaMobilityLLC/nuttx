@@ -456,11 +456,28 @@ static void put_request(struct list_head *list, struct usbdev_req_s *req)
     list_add(list, &reqcontainer->list);
 }
 
-static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
-                   const void *payload, size_t len)
+static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
+                          const void *payload, size_t len)
 {
     int ret;
 
+    req->len = len;
+    memcpy(req->buf, payload, len);
+
+    /* Then submit the request to the endpoint */
+
+    ret = EP_SUBMIT(ep, req);
+    if (ret != OK) {
+        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_SUBMITFAIL), (uint16_t) - ret);
+        return ret;
+    }
+
+    return 0;
+}
+
+static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
+                   const void *payload, size_t len)
+{
     struct list_head *list;
     struct usbdev_ep_s *ep;
     struct usbdev_req_s *req;
@@ -472,19 +489,9 @@ static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
     req = get_request(list);
     if (!req)
         return -EBUSY;
-    req->len = len;
-    memcpy(req->buf, payload, len);
-
-    /* Then submit the request to the endpoint */
 
     ep = priv->ep[epno & USB_EPNO_MASK];
-    ret = EP_SUBMIT(ep, req);
-    if (ret != OK) {
-        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_SUBMITFAIL), (uint16_t) - ret);
-        return ret;
-    }
-
-    return 0;
+    return _to_usb_submit(ep, req, payload, len);
 }
 
 /**
