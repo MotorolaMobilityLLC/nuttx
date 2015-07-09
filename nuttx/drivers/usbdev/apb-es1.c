@@ -433,6 +433,11 @@ static struct list_head *epno_to_req_list(struct apbridge_dev_s *priv,
     return NULL;
 }
 
+static unsigned int get_cportid(const struct gb_operation_hdr *hdr)
+{
+    return hdr->pad[1] << 8 | hdr->pad[0];
+}
+
 static struct usbdev_req_s *get_request(struct list_head *list)
 {
     struct usbdev_req_s *req;
@@ -508,13 +513,11 @@ int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
     int retval;
     uint8_t epno;
     unsigned int cportid;
-    struct gb_operation_hdr *hdr;
 
     if (len > APBRIDGE_REQ_SIZE)
         return -EINVAL;
 
-    hdr = (struct gb_operation_hdr *) payload;
-    cportid = hdr->pad[1] << 8 | hdr->pad[0];
+    cportid = get_cportid(payload);
     epno = priv->cport_to_epin_n[cportid];
 
     retval = _to_usb(priv, epno, payload, len);
