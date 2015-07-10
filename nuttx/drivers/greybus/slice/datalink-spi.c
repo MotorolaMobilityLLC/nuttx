@@ -99,7 +99,7 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
   rb = priv->txc_rb;
 
   /* Verify not already setup to tranceive packet */
-  if (!gpio_get_value(GPIO_SLICE_RDY_N))
+  if (slice_rfr_get())
     {
       dbg("Already setup to tranceive packet. Do nothing.\n");
       goto out;
@@ -134,7 +134,7 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
   slice_host_int_set(ring_buf_is_consumers(rb));
 
   /* Signal to base that we're ready to tranceive */
-  gpio_set_value(GPIO_SLICE_RDY_N, 0);
+  slice_rfr_set(1);
 
 out:
   /* Set the base interrupt line if data is available to be sent. */
@@ -161,7 +161,7 @@ static void attach_cb(FAR void *arg, bool attached)
 
       /* Reset GPIOs to initial state */
       slice_host_int_set(false);
-      gpio_set_value(GPIO_SLICE_RDY_N, 1);
+      slice_rfr_set(0);
 
       /* Cancel SPI transaction */
       SPI_SLAVE_DMA_CANCEL(priv->spi);
@@ -186,7 +186,7 @@ static int txn_finished_cb(void *v)
   dbg("Tranceive complete: hdr_bits=0x%02X\n", m->hdr_bits);
 
   /* Deassert ready line to base */
-  gpio_set_value(GPIO_SLICE_RDY_N, 1);
+  slice_rfr_set(0);
 
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
@@ -288,11 +288,11 @@ static struct slice_spi_dl_s slice_spi_dl =
 static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
 {
   /*
-   * Do not allow standby when WAKE line or RDY line is asserted. Need to stay
+   * Do not allow IDLE when WAKE line or RDY line is asserted. Need to stay
    * awake to reply to commands.
    */
-  if ((state >= PM_STANDBY) &&
-      (!gpio_get_value(GPIO_SLICE_WAKE_N) || !gpio_get_value(GPIO_SLICE_RDY_N)))
+  if ((state >= PM_IDLE) &&
+      (!gpio_get_value(GPIO_SLICE_WAKE_N) || slice_rfr_get()))
       return -EIO;
 
   return OK;
@@ -362,7 +362,7 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
   atomic_init(&slice_spi_dl.wake, 0);
 
   /* RDY GPIO must be initialized before the WAKE interrupt */
-  gpio_direction_out(GPIO_SLICE_RDY_N, 1);
+  slice_rfr_init();
 
   gpio_direction_in(GPIO_SLICE_WAKE_N);
   gpio_irqattach(GPIO_SLICE_WAKE_N, wake_isr);
