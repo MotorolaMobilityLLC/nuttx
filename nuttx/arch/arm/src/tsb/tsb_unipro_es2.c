@@ -593,6 +593,10 @@ int unipro_init_cport(unsigned int cportid)
     irqstate_t flags;
     struct cport *cport = cport_handle(cportid);
 
+    if (!cport) {
+        return -EINVAL;
+    }
+
     if (cport->connected)
         return 0;
 
