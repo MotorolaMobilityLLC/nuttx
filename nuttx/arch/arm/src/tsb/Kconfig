@@ -39,7 +39,6 @@ choice
 config ARCH_CHIP_APBRIDGE
 	bool "APBridge"
 	select ARCH_CORTEXM3
-	select TSB_APBRIDGE
 	select ARCH_HAVE_UART
 	---help---
 		Toshiba APBridge
