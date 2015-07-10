@@ -598,11 +598,6 @@ int unipro_driver_register(struct unipro_driver *driver, unsigned int cportid) {
         return -EEXIST;
     }
 
-    if (!cport->connected) {
-        lldbg("ERROR: driver: %s -- CP%u not connected\n", driver->name, cportid);
-        return -ENOTCONN;
-    }
-
     cport->driver = driver;
 
     lldbg("Registered driver %s on CP%u\n", cport->driver->name, cport->cportid);
