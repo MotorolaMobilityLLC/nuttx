@@ -73,6 +73,40 @@ config TSB_CHIP_REV
 	default "es1" if TSB_CHIP_REV_ES1
 	default "es2" if TSB_CHIP_REV_ES2
 
+choice
+	prompt "Toshiba PinShare1 conflict"
+	default ARCH_CHIP_PINSHARE1_NONE
+	depends on ARCH_CHIP_GPBRIDGE
+	---help---
+		The Toshiba GPBridge PWM, SPI Bitbang, and UART drivers
+		conflict at PinShare1 so only one can be enabled at a time.
+
+config ARCH_CHIP_PINSHARE1_NONE
+	bool "None"
+	---help---
+		Disable PWM, SPI, and UART drivers
+
+config ARCH_CHIP_DEVICE_PWM
+	bool "Enable PWM at Boot"
+	select DEVICE_CORE
+	---help---
+		TSB PWM controller driver
+
+config ARCH_CHIP_DEVICE_SPI_BITBANG
+	bool "SPI Bit-Bang driver support"
+	depends on ARCH_CHIP_DEVICE_SPI
+	select DEVICE_CORE
+	---help---
+		TSB SPI Bit-Bang Device Driver
+
+config ARCH_CHIP_DEVICE_UART
+	bool "UART Support"
+	select DEVICE_CORE
+	---help---
+		TSB UART Driver
+
+endchoice
+
 config ARCH_CHIP_USB_COMMON
 	bool
 	select CLOCK_MONOTONIC
@@ -133,14 +167,6 @@ config ARCH_CHIP_TSB_I2S
 	---help---
 		TSB I2S Controller Driver
 
-config ARCH_CHIP_DEVICE_PWM
-	bool "Enable PWM at Boot"
-	depends on ARCH_CHIP_GPBRIDGE
-	select DEVICE_CORE
-	default n
-	---help---
-		TSB PWM controller driver
-
 config ARCH_CHIP_DEVICE_SPI
 	bool "SPI Master Support"
 	depends on ARCH_CHIP_GPBRIDGE
@@ -148,22 +174,6 @@ config ARCH_CHIP_DEVICE_SPI
 	default n
 	---help---
 		TSB SPI Master Driver
-
-config ARCH_CHIP_DEVICE_SPI_BITBANG
-	bool "SPI Bit-Bang driver support"
-	depends on ARCH_CHIP_DEVICE_SPI
-	select DEVICE_CORE
-	default n
-	---help---
-		TSB SPI Bit-Bang Device Driver
-
-config ARCH_CHIP_DEVICE_UART
-	bool "UART Support"
-	depends on ARCH_CHIP_GPBRIDGE
-	select DEVICE_CORE
-	default n
-	---help---
-		TSB UART Driver
 
 choice
 	prompt "Drive Strength for the TRACE Signals"
