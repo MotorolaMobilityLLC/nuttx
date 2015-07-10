@@ -135,7 +135,7 @@ config ARCH_CHIP_TSB_I2S
 
 config ARCH_CHIP_DEVICE_PWM
 	bool "Enable PWM at Boot"
-	depends on ARCH_CHIP_APBRIDGE || ARCH_CHIP_GPBRIDGE
+	depends on ARCH_CHIP_GPBRIDGE
 	select DEVICE_CORE
 	default n
 	---help---
@@ -143,7 +143,7 @@ config ARCH_CHIP_DEVICE_PWM
 
 config ARCH_CHIP_DEVICE_SPI
 	bool "SPI Master Support"
-	depends on ARCH_CHIP_APBRIDGE || ARCH_CHIP_GPBRIDGE
+	depends on ARCH_CHIP_GPBRIDGE
 	select DEVICE_CORE
 	default n
 	---help---
@@ -159,7 +159,7 @@ config ARCH_CHIP_DEVICE_SPI_BITBANG
 
 config ARCH_CHIP_DEVICE_UART
 	bool "UART Support"
-	depends on ARCH_CHIP_APBRIDGE || ARCH_CHIP_GPBRIDGE
+	depends on ARCH_CHIP_GPBRIDGE
 	select DEVICE_CORE
 	default n
 	---help---
