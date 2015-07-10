@@ -32,7 +32,7 @@
 config ARA_I2S_TEST
 	bool "Ara TSB I2S Device Driver Test Program"
 	default n
-	depends on ARCH_CHIP_TSB && !GREYBUS_I2S_PHY
+	depends on ARCH_CHIP_TSB_I2S && !GREYBUS_I2S_PHY
 	---help---
 		Enable the Toshiba I2S low-level device driver test program.
 		Note that this program does not exit.

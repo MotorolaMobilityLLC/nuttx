@@ -32,8 +32,7 @@ config ARA_PWM_UNITTEST
 	bool "Ara PWM unit testing control"
 	default n if !DEBUG
 	default y if DEBUG
-	depends on ARCH_CHIP_TSB && !GREYBUS_PWM_PHY
-	select ARCH_CHIP_DEVICE_PWM
+	depends on ARCH_CHIP_DEVICE_PWM && !GREYBUS_PWM_PHY
 	---help---
 		Enable the Ara PWM program. Controls and tests PWM0 and PWM1.
 

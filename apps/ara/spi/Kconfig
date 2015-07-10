@@ -35,7 +35,7 @@ config ARA_SPI_BITBANG_TEST
 	bool "Ara SPI bit-bang device driver test program"
 	default n if !DEBUG
 	default y if DEBUG
-	depends on ARCH_CHIP_TSB && !GREYBUS_SPI_PHY
+	depends on ARCH_CHIP_DEVICE_SPI_BITBANG && !GREYBUS_SPI_PHY
 	---help---
 		Enable the SPI bitbang test program.
 
