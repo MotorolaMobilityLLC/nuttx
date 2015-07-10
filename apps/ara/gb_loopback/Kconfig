@@ -32,7 +32,7 @@
 config ARA_GB_LOOPBACK
 	bool "Ara gb_loopback app"
 	default n
-	depends on ARCH_CHIP_TSB
+	depends on GREYBUS_LOOPBACK
 	---help---
 		Enable the Ara gb_loopback test program
 
