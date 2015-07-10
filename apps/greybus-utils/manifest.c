@@ -131,7 +131,7 @@ void enable_cports(void)
         }
 #endif
 
-#ifdef CONFIG_GREYBUS_BATTERY_PHY
+#ifdef CONFIG_GREYBUS_BATTERY
         if (protocol == GREYBUS_PROTOCOL_BATTERY) {
             gb_info("Registering BATTERY greybus driver.\n");
             gb_battery_register(id);
