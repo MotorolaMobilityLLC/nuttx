@@ -75,18 +75,27 @@ void *gb_loopback_fn(void *data)
         type = gb_loopback->type;
         size = gb_loopback->size;
         /* mutex unlock */
+
         if (type == 1) {
-            if (gb_loopback_ping_host(gb_loopback)) {
+            if (gb_loopback_send_req(gb_loopback, 1,
+                                     GB_LOOPBACK_TYPE_PING)) {
                 gb_loopback->enomem++;
             }
         }
         if (type == 2) {
-            if (gb_loopback_transfer_host(gb_loopback, size)) {
+            if (gb_loopback_send_req(gb_loopback, size,
+                                     GB_LOOPBACK_TYPE_TRANSFER)) {
+                gb_loopback->enomem++;
+            }
+        }
+        if (type == 3) {
+            if (gb_loopback_send_req(gb_loopback, size,
+                                     GB_LOOPBACK_TYPE_SINK)) {
                 gb_loopback->enomem++;
             }
         }
         if (ms) {
-            usleep(ms*1000);
+            usleep(ms * 1000);
         }
     }
     return NULL;
@@ -175,6 +184,17 @@ static uint8_t gb_loopback_ping(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+/**
+ * @brief           Called upon reception of a 'sink' operation request
+ *                  (receiving end)
+ * @param[in]       operation: greybus loopback operation
+ */
+static uint8_t gb_loopback_sink_req_cb(struct gb_operation *operation)
+{
+    /* Ignore data payload, just acknowledge the operation. */
+    return GB_OP_SUCCESS;
+}
+
 static void gb_loopback_transfer_sync(struct gb_operation *operation)
 {
     struct gb_loopback *gb_loopback;
@@ -193,7 +213,28 @@ static void gb_loopback_transfer_sync(struct gb_operation *operation)
         gb_loopback->error += 1;
 }
 
-int gb_loopback_transfer_host(struct gb_loopback *gb_loopback, size_t size)
+/**
+ * @brief           called upon reception of a 'sink' operation response
+ *                  (sending end)
+ * @param[in]       operation: received greybus loopback operation
+ */
+static void gb_loopback_sink_resp_cb(struct gb_operation *operation)
+{
+    /*
+     * FIXME: operation result shall be verified, but bug #826 implementing
+     * this feature is still under development/review. To be completed.
+     */
+}
+
+/**
+ * @brief           Send loopback operation request
+ * @return          OK in case of success, <0 otherwise
+ * @param[in]       gb_loopback: gb_loopback private driver data
+ * @param[in]       size: request payload size in bytes
+ * @param[in]       type: operation type (ping / transfer / sink)
+ */
+int gb_loopback_send_req(struct gb_loopback *gb_loopback,
+                         size_t size, uint8_t type)
 {
     int i;
     struct gb_operation *operation;
@@ -203,35 +244,53 @@ int gb_loopback_transfer_host(struct gb_loopback *gb_loopback, size_t size)
         return -EINVAL;
     }
 
-    operation = gb_operation_create(gb_loopback->cportid,
-                                    GB_LOOPBACK_TYPE_TRANSFER,
-                                    sizeof(*request) + size);
-    if (!operation)
-        return -ENOMEM;
+    switch(type) {
+    case GB_LOOPBACK_TYPE_PING:
+        operation = gb_operation_create(gb_loopback->cportid,
+                                        GB_LOOPBACK_TYPE_PING, 1);
+        break;
+    case GB_LOOPBACK_TYPE_TRANSFER:
+    case GB_LOOPBACK_TYPE_SINK:
+        operation = gb_operation_create(gb_loopback->cportid,
+                                        type,
+                                        sizeof(*request) + size);
+        break;
+    default:
+        return -EINVAL;
 
-    request = gb_operation_get_request_payload(operation);
-    request->len = cpu_to_le32(size);
-    for (i = 0; i < size; i++) {
-        request->data[i] = rand() & 0xff;
     }
-    gb_operation_send_request(operation,
-                              gb_loopback_transfer_sync, true);
-    gb_operation_destroy(operation);
-
-    return OK;
-}
-
-int gb_loopback_ping_host(struct gb_loopback *gb_loopback)
-{
-    struct gb_operation *operation;
-
-    operation = gb_operation_create(gb_loopback->cportid,
-                                    GB_LOOPBACK_TYPE_PING, 1);
     if (!operation)
         return -ENOMEM;
-    gb_operation_send_request_sync(operation);
-    gb_operation_destroy(operation);
 
+    switch(type) {
+    case GB_LOOPBACK_TYPE_PING:
+        gb_operation_send_request_sync(operation);
+        break;
+    case GB_LOOPBACK_TYPE_TRANSFER:
+    case GB_LOOPBACK_TYPE_SINK:
+        request = gb_operation_get_request_payload(operation);
+        request->len = cpu_to_le32(size);
+        if (type == GB_LOOPBACK_TYPE_TRANSFER) {
+            for (i = 0; i < size; i++) {
+                request->data[i] = rand() & 0xFF;
+            }
+            gb_operation_send_request(operation,
+                                      gb_loopback_transfer_sync, true);
+        } else {
+            /*
+             * Data payload is ignored on receiver end.
+             * No need to fill the buffer with some data.
+             */
+            gb_operation_send_request(operation,
+                                      gb_loopback_sink_resp_cb, true);
+        }
+        break;
+    default:
+        return -EINVAL;
+
+    }
+
+    gb_operation_destroy(operation);
     return OK;
 }
 
@@ -249,6 +308,7 @@ static struct gb_operation_handler gb_loopback_handlers[] = {
                gb_loopback_protocol_version),
     GB_HANDLER(GB_LOOPBACK_TYPE_PING, gb_loopback_ping),
     GB_HANDLER(GB_LOOPBACK_TYPE_TRANSFER, gb_loopback_transfer),
+    GB_HANDLER(GB_LOOPBACK_TYPE_SINK, gb_loopback_sink_req_cb),
 };
 
 struct gb_driver loopback_driver = {

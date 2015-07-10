@@ -41,7 +41,7 @@ unsigned int gb_loopback_to_cport(struct gb_loopback *gb_loopback);
 int gb_loopback_cport_conf(struct gb_loopback *gb_loopback,
                            int type, size_t size, int ms);
 int gb_loopback_status(struct gb_loopback *gb_loopback);
-int gb_loopback_transfer_host(struct gb_loopback *gb_loopback, size_t size);
-int gb_loopback_ping_host(struct gb_loopback *gb_loopback);
+int gb_loopback_send_req(struct gb_loopback *gb_loopback,
+                         size_t size, uint8_t type);
 
 #endif
