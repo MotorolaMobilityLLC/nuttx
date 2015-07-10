@@ -46,7 +46,6 @@ config ARCH_CHIP_APBRIDGE
 config ARCH_CHIP_GPBRIDGE
 	bool "GPBridge"
 	select ARCH_CORTEXM3
-	select TSB_GPBRIDGE
 	select ARCH_HAVE_UART
 	select ARCH_HAVE_USB_HOST
 	---help---
