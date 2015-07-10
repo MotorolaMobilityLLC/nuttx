@@ -168,10 +168,6 @@ config ARCH_HAVE_MMU
 	bool
 	default n
 
-config ARCH_HAVE_USB_HOST
-	bool
-	default n
-
 config ARCH_HAVE_MPU
 	bool
 	default n
