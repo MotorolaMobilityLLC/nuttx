@@ -33,7 +33,7 @@ config ARA_GPIO
 	bool "Ara GPIO app"
 	default n if !DEBUG
 	default y if DEBUG
-	depends on (ARCH_CHIP_TSB || ARCH_BOARD_ARA_SVC) && GPIO
+	depends on ARCH_CHIP_TSB || ARCH_BOARD_ARA_SVC || GPIO_CHIP_STM32 && GPIO
 	---help---
 		Enable the Ara GPIO test program
 
