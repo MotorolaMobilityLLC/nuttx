@@ -349,7 +349,7 @@ int gb_operation_send_request(struct gb_operation *operation,
     if (need_response) {
         hdr->id = atomic_inc(&request_id);
         if (hdr->id == 0) /* ID 0 is for request with no response */
-            atomic_inc(&request_id);
+            hdr->id = atomic_inc(&request_id);
         clock_gettime(CLOCK_REALTIME, &operation->time);
         operation->callback = callback;
         gb_operation_ref(operation);
