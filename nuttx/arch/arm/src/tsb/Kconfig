@@ -81,7 +81,7 @@ config ARCH_CHIP_USB_COMMON
 config ARCH_CHIP_USB_HCD
 	bool "USB Host Support"
 	depends on ARCH_CHIP_GPBRIDGE
-	default y
+	default n
 	select DEVICE_CORE
 	select ARCH_CHIP_USB_COMMON
 	---help---
