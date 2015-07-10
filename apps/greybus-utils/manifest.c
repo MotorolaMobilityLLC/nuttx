@@ -138,7 +138,7 @@ void enable_cports(void)
         }
 #endif
 
-#ifdef CONFIG_GREYBUS_LOOPBACK_PHY
+#ifdef CONFIG_GREYBUS_LOOPBACK
         if (protocol == GREYBUS_PROTOCOL_LOOPBACK) {
             gb_info("Registering Loopback greybus driver.\n");
             gb_loopback_register(id);

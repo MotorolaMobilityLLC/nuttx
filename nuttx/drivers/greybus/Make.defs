@@ -49,7 +49,7 @@ ifeq ($(CONFIG_GREYBUS_BATTERY),y)
 CSRCS += battery.c
 endif
 
-ifeq ($(CONFIG_GREYBUS_LOOPBACK_PHY),y)
+ifeq ($(CONFIG_GREYBUS_LOOPBACK),y)
 CSRCS += loopback.c
 endif
 
