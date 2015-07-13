@@ -159,6 +159,7 @@ CONFIG_ARCH_CHIP_USB_HCD=y
 # CONFIG_ARCH_CHIP_DEVICE_PWM is not set
 # CONFIG_ARCH_CHIP_DEVICE_SPI is not set
 # CONFIG_ARCH_CHIP_DEVICE_UART is not set
+# CONFIG_DWC_QUIET is not set
 
 #
 # Architecture Options
