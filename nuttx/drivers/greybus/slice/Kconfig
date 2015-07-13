@@ -16,7 +16,7 @@ config GREYBUS_SLICE_PORT
 if GREYBUS_SLICE_I2C
 
 config GREYBUS_SLICE_I2C_ADDR
-	int "Slice I2C Address"
+	hex "Slice I2C Address"
 	default 0x55
 
 endif
