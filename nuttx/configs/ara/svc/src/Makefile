@@ -86,6 +86,10 @@ CSRCS		+= up_bdb_pm.c
 CSRCS       += up_adc.c up_spring_pm.c
 endif
 
+ifeq ($(CONFIG_ARCH_BOARD_ARA_SDB_SVC),y)
+CSRCS		+= board-sdb.c
+endif
+
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
 CSRCS		+= up_nsh.c
 endif

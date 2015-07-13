@@ -741,6 +741,21 @@ config ARCH_BOARD_ARA_BDB2A_SVC
 		development platform.
 		This port uses a GNU Cortex-M4 toolchain (such as CodeSourcery).
 
+config ARCH_BOARD_ARA_SDB_SVC
+	bool "ARA SVC in SDB"
+	depends on ARCH_CHIP_STM32F407IG
+	select ARCH_BOARD_ARA_SVC
+	select SPI
+	select SPI_OWNBUS
+	select SPI_EXCHANGE
+	select STM32_SPI1
+	---help---
+		The ARA SVC is based on the STMicro STM32F417IG microcontroller
+		(ARM Cortex-M4 with FPU + crypto).
+		This options selects the support for the SVC on the SDB
+		development platform, aka 'Software Dev Board'.
+		This port uses a GNU Cortex-M4 toolchain (such as GCC ARM Embedded).
+
 config ARCH_BOARD_STM3240G_EVAL
 	bool "STMicro STM3240G-EVAL development board"
 	depends on ARCH_CHIP_STM32F407IG
@@ -1089,8 +1104,7 @@ config ARCH_BOARD
 	default "stm3210e-eval"       if ARCH_BOARD_STM3210E_EVAL
 	default "stm3220g-eval"       if ARCH_BOARD_STM3220G_EVAL
 	default "stm3240g-eval"       if ARCH_BOARD_STM3240G_EVAL
-	default "ara/svc"             if ARCH_BOARD_ARA_BDB1B_SVC
-	default "ara/svc"             if ARCH_BOARD_ARA_BDB2A_SVC
+	default "ara/svc"             if ARCH_BOARD_ARA_SVC
 	default "ara/lgd"             if ARCH_BOARD_ARA_LGD
 	default "stm32f100rc_generic" if ARCH_BOARD_STM32F100RC_GENERIC
 	default "stm32f3discovery"    if ARCH_BOARD_STM32F3_DISCOVERY
@@ -1185,7 +1199,7 @@ endif
 if ARCH_BOARD_AVR32DEV1
 source "configs/avr32dev1/Kconfig"
 endif
-if ARCH_BOARD_ARA_BDB1B_SVC || ARCH_BOARD_ARA_BDB2A_SVC
+if ARCH_BOARD_ARA_SVC
 source "configs/ara/svc/Kconfig"
 endif
 if ARCH_BOARD_C5471EVM

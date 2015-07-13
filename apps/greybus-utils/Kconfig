@@ -59,7 +59,7 @@ config MANIFEST
 
 config DST_DEVID
   int "destination device id"
-  depends on !CUSTOM_MANIFEST && (ARCH_BOARD_ARA_BDB1B_SVC || ARCH_BOARD_ARA_BDB2A_SVC)
+  depends on !CUSTOM_MANIFEST && (ARCH_BOARD_ARA_BDB1B_SVC || ARCH_BOARD_ARA_BDB2A_SVC || ARCH_BOARD_ARA_SDB_SVC)
   ---help---
     Select the destination APBridge.
     Set to:
