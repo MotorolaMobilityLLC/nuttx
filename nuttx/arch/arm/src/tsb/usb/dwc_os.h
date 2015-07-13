@@ -100,6 +100,7 @@ extern "C" {
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 typedef unsigned long u_long;
 typedef uint32_t __le32;
 typedef uint16_t __le16;
@@ -114,7 +115,7 @@ typedef uint8_t dwc_bool_t;
 #define YES  1
 #define NO   0
 
-#ifdef DWC_LINUX
+#if defined(DWC_LINUX) || defined(DWC_NUTTX)
 
 /** @name Error Codes */
 #define DWC_E_INVALID		EINVAL
