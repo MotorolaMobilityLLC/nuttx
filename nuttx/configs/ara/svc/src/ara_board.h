@@ -41,6 +41,8 @@
  * STM32 GPIO starts at STM32_GPIO_CHIP_BASE
  */
 #define STM32_GPIO_CHIP_NR      140
+
+/* BDB1B/2A */
 #define U96_GPIO_CHIP_START     (STM32_GPIO_CHIP_BASE + STM32_GPIO_CHIP_NR)
 #define U96_GPIO_CHIP_NR        16
 #define U90_GPIO_CHIP_START     (U96_GPIO_CHIP_START + U96_GPIO_CHIP_NR)
@@ -48,11 +50,16 @@
 #define U135_GPIO_CHIP_START    (U90_GPIO_CHIP_START + U90_GPIO_CHIP_NR)
 #define U135_GPIO_CHIP_NR       24
 
+/* SDB */
+#define U701_GPIO_CHIP_START    (STM32_GPIO_CHIP_BASE + STM32_GPIO_CHIP_NR)
+#define U701_GPIO_CHIP_NR       16
+
 /* GPIO Chip pin number macro */
 #define STM32_GPIO_PIN(p)       (STM32_GPIO_CHIP_BASE + (p))
 #define U96_GPIO_PIN(p)         (U96_GPIO_CHIP_START + (p))
 #define U90_GPIO_PIN(p)         (U90_GPIO_CHIP_START + (p))
 #define U135_GPIO_PIN(p)        (U135_GPIO_CHIP_START + (p))
+#define U701_GPIO_PIN(p)        (U701_GPIO_CHIP_START + (p))
 
 struct io_expander_info {
     void *io_exp_driver_data;
@@ -83,5 +90,3 @@ struct ara_board_info *board_init(void);
 void board_exit(void);
 
 #endif
-
-

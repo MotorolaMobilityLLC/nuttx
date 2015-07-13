@@ -375,9 +375,17 @@
 #define GPIO_USART3_RX GPIO_USART3_RX_2
 #define GPIO_USART3_TX GPIO_USART3_TX_2
 
+/*  UART1 pins selection */
+
+#if defined(CONFIG_ARCH_BOARD_ARA_BDB1B_SVC) || defined(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC)
+/* BDB1B/2A */
 #define GPIO_USART1_RX  GPIO_USART1_RX_2 /* PB7 */
 #define GPIO_USART1_TX  GPIO_USART1_TX_2 /* PB6 */
-
+#elif defined(CONFIG_ARCH_BOARD_ARA_SDB_SVC)
+/* SDB */
+#define GPIO_USART1_RX  GPIO_USART1_RX_1 /* PA10 */
+#define GPIO_USART1_TX  GPIO_USART1_TX_1 /* PA9 */
+#endif
 
 /*
  * GPIO lines for power supply control: internal and to interface blocks
