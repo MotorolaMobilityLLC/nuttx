@@ -557,7 +557,12 @@ struct i2c_dev_s *up_i2cinitialize(int port)
     sem_init(&g_wait, 0, 0);
 
     /* enable I2C pins */
+#if defined(CONFIG_TSB_CHIP_REV_ES1)
     tsb_clr_pinshare(TSB_PIN_SDIO);
+#elif defined(CONFIG_TSB_CHIP_REV_ES2)
+    tsb_clr_pinshare(TSB_PIN_UART_GPIO21);
+    tsb_clr_pinshare(TSB_PIN_UART_GPIO22);
+#endif
 
     /* enable I2C clocks */
     tsb_clk_enable(TSB_CLK_I2CP);
