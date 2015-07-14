@@ -38,7 +38,8 @@ ARA_BUILD_CONFIG_ERR_CONFIG_NOT_FOUND=3
 ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED=4
 
 # Other build configuration.
-ARA_BUILD_PARALLEL=1            # controls make's -j flag
+ARA_MAKE_PARALLEL=1            # controls make's -j flag
+ARA_MAKE_ALWAYS=""             # controls make's -B (--always-make) flag
 
 echo "Project Ara firmware image builder"
 
@@ -46,12 +47,13 @@ USAGE="
 
 USAGE:
     (1) rebuild specific image config
-        ${0} [-j N] <board-name> <config-name>
+        ${0} [-j N] [-B] <board-name> <config-name>
     (2) rebuild all image configs under configs/ara
-        ${0} [-j N] all
+        ${0} [-j N] [-B] all
 
 Options:
   -j N: do a parallel build with N processes
+  -B  : --always-build
 
 Arguments:
   <board-name> is the name of the board in the configs directory
@@ -61,10 +63,15 @@ Arguments:
 
 buildall=0
 
-while getopts "j:" opt; do
+while getopts "j:B" opt; do
     case $opt in
         j)
-            ARA_BUILD_PARALLEL=${OPTARG}
+            ARA_MAKE_PARALLEL=${OPTARG}
+            echo "Using make option: '-j $OPTARG'"
+            ;;
+        B)
+            ARA_MAKE_ALWAYS="-B"
+            echo "Using make option: '--always-build'"
             ;;
         \?)
             echo "Unknown option: -$OPTARG." >&2
@@ -160,23 +167,11 @@ build_image_from_defconfig() {
   echo -n "Building '$buildname'" ...
   export ARA_BUILD_NAME=$buildname
   pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
-  make  -j ${ARA_BUILD_PARALLEL} --always-make -r -f Makefile.unix  2>&1 | tee $ARA_BUILD_TOPDIR/build.log
+  make  -j ${ARA_MAKE_PARALLEL} ${ARA_MAKE_ALWAYS} -r -f Makefile.unix  2>&1 | tee $ARA_BUILD_TOPDIR/build.log
 
   MAKE_RESULT=${PIPESTATUS[0]}
 
   popd > /dev/null
-}
-
-clean_build() {
-   # for each file found in the source tree, delete the one in the build tree
-  echo "Cleaning build tree"
-  outpath=$ARA_BUILD_TOPDIR
-  srcpath=$(readlink -f $(dirname "$0"))
-  (cd $srcpath; find -P . -type f) | sort > src_files
-  (cd $outpath; find -P . -type f) | sort > out_files
-  comm -1 -2 src_files out_files | sed "s#\\.#$outpath#" > files_to_remove
-  xargs -a files_to_remove -d\\n rm
-  rm src_files out_files files_to_remove
 }
 
 copy_image_files() {
@@ -221,7 +216,6 @@ if [ $buildall -eq 1 ] ; then
     fi
     echo "Build '$buildname' succeeded"
     copy_image_files
-    clean_build
   done
   echo "Build all configurations succeeded"
   exit 0
@@ -250,6 +244,5 @@ fi
 
 echo "Build '$buildname' succeeded"
 copy_image_files
-clean_build
 echo "Build complete"
 exit 0
