@@ -83,7 +83,9 @@ endif
 
 # Don't print out the directory we are changing into to cut
 # down on the noise level of a build.
+ifeq ($(V),)
 MAKEFLAGS += --no-print-directory
+endif
 
 # Default tools
 
