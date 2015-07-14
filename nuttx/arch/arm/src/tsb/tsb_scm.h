@@ -34,6 +34,7 @@
 #ifndef __ARCH_ARM_SRC_TSB_TSB_SCM_H
 #define __ARCH_ARM_SRC_TSB_TSB_SCM_H
 
+#include <nuttx/util.h>
 #include "chip.h"
 
 
@@ -128,16 +129,16 @@
 
 
 /* PINSHARE bits */
-#define TSB_PIN_UART_RXTX       (1 << 0)
-#define TSB_PIN_UART_CTSRTS     (1 << 1)
-#define TSB_PIN_SDIO            (1 << 2)
-#define TSB_PIN_GPIO9           (1 << 3)
-#define TSB_PIN_ETM             (1 << 4)
-#define TSB_PIN_GPIO10          (1 << 5)
-#define TSB_PIN_GPIO13          (1 << 6)
-#define TSB_PIN_GPIO15          (1 << 7)
-#define TSB_PIN_SDCARD          (1 << 8)
-#define TSB_PIN_DBG             (1 << 9)
+#define TSB_PIN_UART_RXTX       BIT(0)
+#define TSB_PIN_UART_CTSRTS     BIT(1)
+#define TSB_PIN_SDIO            BIT(2)
+#define TSB_PIN_GPIO9           BIT(3)
+#define TSB_PIN_ETM             BIT(4)
+#define TSB_PIN_GPIO10          BIT(5)
+#define TSB_PIN_GPIO13          BIT(6)
+#define TSB_PIN_GPIO15          BIT(7)
+#define TSB_PIN_SDCARD          BIT(8)
+#define TSB_PIN_DBG             BIT(9)
 
 
 /* IO_DRIVE_STRENGTH: 2 Bits per Output */
