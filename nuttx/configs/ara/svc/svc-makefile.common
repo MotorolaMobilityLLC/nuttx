@@ -107,7 +107,7 @@ ARCHPICFLAGS = -fpic -msingle-pic-base -mpic-register=r10
 # GCC >= 4.9 has the ability to print debug messages in color.
 GCC_GTEQ_490 := $(shell expr `$(CC) -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 40900)
 ifeq ($(GCC_GTEQ_490),1)
-    EXTRA_FLAGS := -fdiagnostics-color
+    EXTRA_FLAGS := -fdiagnostics-color=auto
 endif
 
 CFLAGS = $(ARCHCFLAGS) $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) $(EXTRADEFINES) -pipe $(EXTRA_FLAGS)
