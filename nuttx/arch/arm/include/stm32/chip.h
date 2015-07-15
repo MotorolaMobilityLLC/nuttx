@@ -416,7 +416,7 @@
 #  define STM32_NSDIO                    1   /* SDIO */
 #  define STM32_NLCD                     1   /* LCD 4x32, 8x28*/
 #  define STM32_NUSBOTG                  1   /* USB OTG FS (only) */
-#  define STM32_NGPIO                    112 /* GPIOA-C, plus few in GPIOD,G */
+#  define STM32_NGPIO                    114 /* GPIOA-C, plus few in GPIOD,G, H */
 #  define STM32_NADC                     3   /* ADC1-3, 16-channels */
 #  define STM32_NDAC                     2   /* DAC1-2, 1 channel */
                                              /* (2) Comparators */
