@@ -367,6 +367,9 @@ static struct stm32_spidev_s g_spi1dev =
 #ifdef CONFIG_SPI_SLAVE
   .cb_ops     = NULL,
   .cb_v       = NULL,
+  .mode_type  = SPI1_MODE_TYPE,
+#else
+  .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
 };
 #endif
@@ -420,6 +423,9 @@ static struct stm32_spidev_s g_spi2dev =
 #ifdef CONFIG_SPI_SLAVE
   .cb_ops     = NULL,
   .cb_v       = NULL,
+  .mode_type  = SPI2_MODE_TYPE,
+#else
+  .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
 };
 #endif
@@ -472,6 +478,9 @@ static struct stm32_spidev_s g_spi3dev =
 #ifdef CONFIG_SPI_SLAVE
   .cb_ops     = NULL,
   .cb_v       = NULL,
+  .mode_type  = SPI3_MODE_TYPE,
+#else
+  .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
 };
 #endif
@@ -524,6 +533,9 @@ static struct stm32_spidev_s g_spi4dev =
 #ifdef CONFIG_SPI_SLAVE
   .cb_ops     = NULL,
   .cb_v       = NULL,
+  .mode_type  = SPI4_MODE_TYPE,
+#else
+  .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
 };
 #endif
@@ -576,6 +588,9 @@ static struct stm32_spidev_s g_spi5dev =
 #ifdef CONFIG_SPI_SLAVE
   .cb_ops     = NULL,
   .cb_v       = NULL,
+  .mode_type  = SPI5_MODE_TYPE,
+#else
+  .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
 };
 #endif
@@ -628,6 +643,9 @@ static struct stm32_spidev_s g_spi6dev =
 #ifdef CONFIG_SPI_SLAVE
   .cb_ops     = NULL,
   .cb_v       = NULL,
+  .mode_type  = SPI6_MODE_TYPE,
+#else
+  .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
 };
 #endif
@@ -2089,10 +2107,12 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
   spi_putreg(priv, STM32_SPI_CR2_OFFSET, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
 #endif
 
+#ifdef SPI_CR2_FRXTH
   if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
     {
       spi_modifycr2(priv, SPI_CR2_FRXTH, 0);
     }
+#endif
 
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   spi_modifycr2(priv, SPI_CR2_RXNEIE, 0);
@@ -2149,8 +2169,6 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
           stm32_gpiosetevent(GPIO_SPI1_NSS_SW, true, true, true, stm32_spi1_ss_isr);
 #endif
-          priv->mode_type = SPI1_MODE_TYPE;
-
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
@@ -2178,8 +2196,6 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
           stm32_gpiosetevent(GPIO_SPI2_NSS_SW, true, true, true, stm32_spi2_ss_isr);
 #endif
-          priv->mode_type = SPI2_MODE_TYPE;
-
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
@@ -2207,8 +2223,6 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
           stm32_gpiosetevent(GPIO_SPI3_NSS_SW, true, true, true, stm32_spi3_ss_isr);
 #endif
-          priv->mode_type = SPI3_MODE_TYPE;
-
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
@@ -2236,8 +2250,6 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
           stm32_gpiosetevent(GPIO_SPI4_NSS_SW, true, true, true, stm32_spi4_ss_isr);
 #endif
-          priv->mode_type = SPI4_MODE_TYPE;
-
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
@@ -2265,8 +2277,6 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
           stm32_gpiosetevent(GPIO_SPI5_NSS_SW, true, true, true, stm32_spi5_ss_isr);
 #endif
-          priv->mode_type = SPI5_MODE_TYPE;
-
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
@@ -2294,8 +2304,6 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
           stm32_gpiosetevent(GPIO_SPI6_NSS_SW, true, true, true, stm32_spi6_ss_isr);
 #endif
-          priv->mode_type = SPI6_MODE_TYPE;
-
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
