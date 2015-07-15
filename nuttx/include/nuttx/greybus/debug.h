@@ -49,11 +49,17 @@
             _gb_log(fmt, ##__VA_ARGS__);                            \
     } while(0)
 
+#define gb_dump(buf, size)                                          \
+    do {                                                            \
+        if (gb_log_level & GB_LOG_DUMP)                             \
+            _gb_dump(__func__, buf, size);                          \
+    } while(0);
+
 extern int gb_log_level;
 void _gb_dump(const char *func, __u8 *buf, size_t size);
 void _gb_log(const char *fmt, ...);
 #else
-#define _gb_dump(func, buf, size)
+#define gb_dump(buf, size)
 #define gb_log(fmt, ...)
 #endif
 
@@ -65,8 +71,5 @@ void _gb_log(const char *fmt, ...);
     gb_log(GB_LOG_WARNING, "[W] GB: " fmt, ##__VA_ARGS__);
 #define gb_debug(fmt, ...)                                          \
     gb_log(GB_LOG_DEBUG, "[D] GB: " fmt, ##__VA_ARGS__);
-#define gb_dump(buf, size)                                          \
-    _gb_dump(__func__, buf, size);
-
 #endif
 
