@@ -8,7 +8,9 @@ Make.dep
 .swp
 .*.swp
 .*.kate-swp
-core
+*.patch
+*.rej
+/core
 .gdbinit
 .dir-locals.el
 cscope.out

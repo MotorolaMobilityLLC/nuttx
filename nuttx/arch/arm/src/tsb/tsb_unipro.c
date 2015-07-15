@@ -314,6 +314,7 @@ static int irq_rx_eom(int irq, void *context) {
     if (!cport->driver) {
         lldbg("dropping message on cport %hu where no driver is registered\n",
               cport->cportid);
+        clear_rx_interrupt(cport);
         return -ENODEV;
     }
 
