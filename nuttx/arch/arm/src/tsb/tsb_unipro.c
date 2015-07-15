@@ -746,6 +746,23 @@ void unipro_init(void)
 
     unipro_write(LUP_INT_EN, 0x1);
 
+#if defined(CONFIG_UNIPRO_P2P)
+    unipro_write(UNIPRO_INT_EN, 0x0);
+    unipro_write(LUP_INT_EN, 0x0);
+    unipro_write(A2D_ATTRACS_INT_EN, 0x0);
+    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
+
+    /* Table 5-24 UniPro Link Up */
+    unipro_write(LUP_INT_EN, 0x1);
+
+    DBG_UNIPRO("%s", "5-24: wait for link\n");
+    while (!(unipro_read(LUP_INT_AFT) & 0x1)) {
+    }
+    DBG_UNIPRO("%s", "link up\n");
+
+    unipro_p2p_setup();
+#endif
+
     /*
      * Set transfer mode 2 on all cports
      * Receiver choses address for received message
