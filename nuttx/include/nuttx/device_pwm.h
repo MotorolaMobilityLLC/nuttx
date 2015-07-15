@@ -65,7 +65,8 @@ struct device_pwm_type_ops {
     int (*set_polarity)(struct device *dev, uint16_t  which, uint8_t polarity);
 
     /** PWM set generator output mode function pointer. */
-    int (*set_mode)(struct device *dev, uint16_t  which, uint32_t mode);
+    int (*set_mode)(struct device *dev, uint16_t  which, uint32_t mode,
+                    void *param);
 
     /** PWM setup power/clock of PWM controller function pointer. */
     int (*setup)(struct device *dev);
@@ -73,11 +74,15 @@ struct device_pwm_type_ops {
     /** PWM shutdown power/clock of controller function pointer. */
     int (*shutdown)(struct device *dev, bool force_off);
 
+    /** PWM multiple generator of concurrent output. */
+    int (*sync_output)(struct device *dev, bool enable);
+
     /**
      * PWM interrupt callback handling() to notify caller and return status
      * value for further caller and return status value for further processing.
      */
-    int (*pwm_intr_callback)(struct device *dev, void (*callback)(void));
+    int (*pwm_intr_callback)(struct device *dev, uint32_t mask,
+                             void (*callback)(void *state));
 };
 
 /**
@@ -87,14 +92,14 @@ enum pwm_mode {
     /** mode 0, finite pulse output */
     PWM_PULSECOUNT_MODE,
 
-    /** mode 1, pulse toggling in high level output */
-    PWM_STOP_HIGH_MODE,
-
-    /** mode 2, pulse toggling in low level output. */
-    PWM_STOP_LOW_MODE,
+    /**
+     * mode 1, true for high level signal, false for low level signal when
+     * FREQ = 0.
+     */
+    PWM_STOP_LEVEL_MODE,
 
     /**
-     * mode 3, Stat multiple pwm generators to concurrently output with same
+     * mode 2, Stat multiple pwm generators to concurrently output with same
      * FREQUENCY.
      */
     PWM_SYNC_MODE,
@@ -275,9 +280,13 @@ static inline int device_pwm_request_disable(struct device *dev,
  * @param dev Opened device driver handle.
  * @param pwm_no The number of Specific generator for operating.
  * @param mode A mode number will be set, refer to enum pwm_mode.
+ * @param param For mode 0, totally iteration times.
+ *              For mode 1, false is low level, true is high level.
+ *              For mode 2, true to start sync.
  */
 static inline int device_pwm_request_set_mode(struct device *dev,
-                                              uint16_t pwm_no, uint32_t mode)
+                                              uint16_t pwm_no,
+                                              uint32_t mode, void *param)
 {
     DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
                 dev->driver->ops->type_ops.pwm);
@@ -290,7 +299,7 @@ static inline int device_pwm_request_set_mode(struct device *dev,
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->set_mode(dev, pwm_no, mode);
+    return dev->driver->ops->type_ops.pwm->set_mode(dev, pwm_no, mode, param);
 }
 
 /**
@@ -318,6 +327,8 @@ static inline int device_pwm_request_setup(struct device *dev)
  * @brief Shutdown power/clock of PWM controller.
  *
  * @param dev Opened device driver handle.
+ * @param off true for force power off, 0 for checking reference count before
+ *            power off.
  */
 static inline int device_pwm_request_shutdown(struct device *dev, bool off)
 {
@@ -334,4 +345,55 @@ static inline int device_pwm_request_shutdown(struct device *dev, bool off)
 
     return dev->driver->ops->type_ops.pwm->shutdown(dev, off);
 }
+
+
+/**
+ * @brief Enable generate waveforms with the same FREQUENCY.
+ *
+ * @param dev Opened device driver handle.
+ * @param enable True for enable, false for disable.
+ */
+static inline int device_pwm_request_sync(struct device *dev, bool enable)
+{
+    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.pwm);
+
+    if (dev->state != DEVICE_STATE_OPEN) {
+        return -ENODEV;
+    }
+
+    if (!dev->driver->ops->type_ops.pwm->sync_output) {
+        return -ENOSYS;
+    }
+
+    return dev->driver->ops->type_ops.pwm->sync_output(dev, enable);
+}
+
+/**
+ * @brief Callback function register.
+ *
+ * @param dev Opened device driver handle.
+ * @param mask Required interrupt active bite.
+ * @param callback Pointer to a callback handler.
+ * @param state Pointer to a variable of interrupt status.
+ */
+static inline int device_pwm_request_callback(struct device *dev,
+                                              uint32_t mask,
+                                              void (*callback)(void *state))
+{
+    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.pwm);
+
+    if (dev->state != DEVICE_STATE_OPEN) {
+        return -ENODEV;
+    }
+
+    if (!dev->driver->ops->type_ops.pwm->pwm_intr_callback) {
+        return -ENOSYS;
+    }
+
+    return dev->driver->ops->type_ops.pwm->pwm_intr_callback(dev, mask,
+                                                             callback);
+}
+
 #endif
