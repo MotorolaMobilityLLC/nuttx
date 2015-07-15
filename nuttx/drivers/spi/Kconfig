@@ -11,6 +11,14 @@ config SPI_SLAVE
 	---help---
 		Set if SPI to be configured in slave mode.
 
+if STM32_SPI_DMA
+config SPI_CRC16
+	bool "SPI CRC Enable"
+	default n
+	---help---
+		Set to enable CRC for SPI messages.
+endif
+
 config SPI_OWNBUS
 	bool "SPI single device"
 	default n

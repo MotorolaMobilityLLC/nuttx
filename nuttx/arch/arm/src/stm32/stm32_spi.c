@@ -967,6 +967,9 @@ static inline void spi_dmatxwakeup(FAR struct stm32_spidev_s *priv)
 static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 {
   FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)arg;
+#ifdef CONFIG_SPI_CRC16
+  uint32_t status = 0;
+#endif
 
   if (priv->mode_type == SPI_MODE_TYPE_MASTER)
     {
@@ -978,8 +981,30 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
   else
     {
       spi_modifycr1(priv, SPI_CR1_SSM, 0);
+
+#ifdef CONFIG_SPI_CRC16
+      status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
+
+      if (status & SPI_SR_CRCERR)
+        {
+          /* clear the CRCERR bit */
+          status &= ~SPI_SR_CRCERR;
+          spi_putreg(priv, STM32_SPI_SR_OFFSET, status);
+          spivdbg("CRC error on read\n");
+
+          /* error callback */
+          if (priv->cb_ops && priv->cb_ops->txn_err)
+            priv->cb_ops->txn_err(priv->cb_v);
+        }
+      else
+        {
+          if (priv->cb_ops && priv->cb_ops->read)
+            priv->cb_ops->read(priv->cb_v);
+        }
+#else
       if (priv->cb_ops && priv->cb_ops->read)
         priv->cb_ops->read(priv->cb_v);
+#endif
     }
 }
 #endif
@@ -1478,21 +1503,37 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
         {
         case -8:
           setbits = SPI_CR1_LSBFIRST;
+#if defined(CONFIG_STM32_STM32L4X6)
+          clrbits = SPI_CR1_CRCL;
+#else
           clrbits = SPI_CR1_DFF;
+#endif
           break;
 
         case 8:
           setbits = 0;
+#if defined(CONFIG_STM32_STM32L4X6)
+          clrbits = SPI_CR1_CRCL|SPI_CR1_LSBFIRST;
+#else
           clrbits = SPI_CR1_DFF|SPI_CR1_LSBFIRST;
+#endif
           break;
 
         case -16:
+#if defined(CONFIG_STM32_STM32L4X6)
+          setbits = SPI_CR1_CRCL|SPI_CR1_LSBFIRST;
+#else
           setbits = SPI_CR1_DFF|SPI_CR1_LSBFIRST;
+#endif
           clrbits = 0;
           break;
 
         case 16:
+#if defined(CONFIG_STM32_STM32L4X6)
+          setbits = SPI_CR1_CRCL;
+#else
           setbits = SPI_CR1_DFF;
+#endif
           clrbits = SPI_CR1_LSBFIRST;
           break;
 
@@ -1702,9 +1743,22 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       stm32_dmastop(priv->txdma);
       stm32_dmastop(priv->rxdma);
 
+#ifdef CONFIG_SPI_CRC16
+      spi_modifycr1(priv, 0, SPI_CR1_CRCEN);
+
+
       /* Setup DMAs */
 
+      /* RXCRCR and TXCRCR registers are cleared by setting CRCEN bit */
+      spi_modifycr1(priv, SPI_CR1_CRCEN, 0);
+
+      /* The counter of the reception DMA channel is set to the number of
+       * data frames to receive including the CRC, DMA_RX = Numb_of_data + 2
+       */
+      spi_dmarxsetup(priv, rxbuffer, &rxdummy, nwords + 2);
+#else
       spi_dmarxsetup(priv, rxbuffer, &rxdummy, nwords);
+#endif
       spi_dmatxsetup(priv, txbuffer, &txdummy, nwords);
 
       /* Start the DMAs */
@@ -2036,13 +2090,19 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
        *   Mode 0:                        CPHA=0 and CPOL=0
        *   Master:                        MSTR=0
        *   8-bit:                         DFF=0
+       *   8-bit:                         CRCL=0
        *   MSB tranmitted first:          LSBFIRST=0
        *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
        *   For DMA                        SSI=0 SSM=0
        *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
        */
+#if defined(CONFIG_STM32_STM32L4X6)
+      clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_MSTR|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
+                SPI_CR1_RXONLY|SPI_CR1_CRCL|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
+#else
       clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_MSTR|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
                 SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
+#endif
       setbits = SPI_CR1_SSI|SPI_CR1_SSM;
       spi_modifycr1(priv, setbits, clrbits);
     }
@@ -2052,13 +2112,18 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
        *   Mode 0:                        CPHA=0 and CPOL=0
        *   Master:                        MSTR=1
        *   8-bit:                         DFF=0
+       *   8-bit:                         CRCL=0
        *   MSB tranmitted first:          LSBFIRST=0
        *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
        *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
        */
-
+#if defined(CONFIG_STM32_STM32L4X6)
+      clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
+                SPI_CR1_RXONLY|SPI_CR1_CRCL|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
+#else
       clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
                 SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
+#endif
       setbits = SPI_CR1_MSTR|SPI_CR1_SSI|SPI_CR1_SSM;
       spi_modifycr1(priv, setbits, clrbits);
     }
@@ -2076,9 +2141,15 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
       spi_setfrequency((FAR struct spi_dev_s *)priv, 400000);
     }
 
+#if defined(CONFIG_SPI_CRC16) && defined(CONFIG_STM32_STM32L4X6)
+  /* CRC setup */
+
+  spi_modifycr1(priv, SPI_CR1_CRCL, 0);
+#endif
+
   /* CRCPOLY configuration */
 
-  spi_putreg(priv, STM32_SPI_CRCPR_OFFSET, 7);
+  spi_putreg(priv, STM32_SPI_CRCPR_OFFSET, 0x8005);
 
   /* Initialize the SPI semaphore that enforces mutually exclusive access */
 

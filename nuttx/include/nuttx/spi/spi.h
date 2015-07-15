@@ -492,6 +492,7 @@ struct spi_cb_ops_s
   int (*read)(void *v);
   int (*write)(void *v);
   int (*txn_end)(void *v);
+  int (*txn_err)(void *v);
 };
 
 /* SPI private data.  This structure only defines the initial fields of the

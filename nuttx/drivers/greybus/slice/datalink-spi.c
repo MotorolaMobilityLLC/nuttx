@@ -61,9 +61,6 @@ struct slice_spi_msg
 {
   __u8    hdr_bits;
   __u8    data[SLICE_SPI_MSG_PAYLOAD_SZ];
-
-  /* Temporary placeholder. Will be calculated and added automatically by HW */
-  __le16  crc16;
 } __packed;
 
 struct slice_spi_dl_s
@@ -222,9 +219,32 @@ done:
   return 0;
 }
 
+/*
+ * Called when transaction with base has errored.
+ */
+static int txn_error_cb(void *v)
+{
+  FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)v;
+
+  dbg("Tranceive error\n");
+
+  /* Deassert ready line to base */
+  slice_rfr_set(0);
+
+  /* Cleanup TX consumer ring buffer entry */
+  cleanup_txc_rb_entry(priv);
+
+  memset(priv->rcvd_payload, 0, SLICE_SPI_MSG_PAYLOAD_SZ);
+  priv->rcvd_payload_idx = 0;
+
+  setup_exchange(priv);
+  return 0;
+}
+
 static const struct spi_cb_ops_s cb_ops =
 {
   .read = txn_finished_cb,
+  .txn_err = txn_error_cb,
   /* write and txn_end callbacks not needed */
 };
 

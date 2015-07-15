@@ -135,7 +135,11 @@
 #define SPI_CR1_SSI               (1 << 8)  /* Bit 8: Internal slave select */
 #define SPI_CR1_SSM               (1 << 9)  /* Bit 9: Software slave management */
 #define SPI_CR1_RXONLY            (1 << 10) /* Bit 10: Receive only */
+#if defined(CONFIG_STM32_STM32L4X6)
+#define SPI_CR1_CRCL              (1 << 11) /* Bit 11: CRC Length  */
+#else
 #define SPI_CR1_DFF               (1 << 11) /* Bit 11: Data Frame Format */
+#endif
 #define SPI_CR1_CRCNEXT           (1 << 12) /* Bit 12: Transmit CRC next */
 #define SPI_CR1_CRCEN             (1 << 13) /* Bit 13: Hardware CRC calculation enable */
 #define SPI_CR1_BIDIOE            (1 << 14) /* Bit 14: Output enable in bidirectional mode */

@@ -14,6 +14,9 @@
 
 #define SLICE_NUM_REGS 8
 
+FAR struct spi_dev_s *dev1;
+int txn_status = -1;
+
 struct slice_reg_data
 {
   FAR struct spi_dev_s *dev;
@@ -47,6 +50,7 @@ static int slice_reg_read_cb(void *v)
 #ifdef CONFIG_STM32_SPI_DMA
   SPI_EXCHANGE(dev,slf->regs, slf->regs, sizeof(slf->regs));
 #endif
+  txn_status = 0;
   return 0;
 }
 
@@ -73,11 +77,19 @@ static int slice_reg_txn_end_cb(void *v)
   return 0;
 }
 
+/* called to end transaction */
+static int slice_reg_txn_err_cb(void *v)
+{
+  txn_status = -1;
+  return 0;
+}
+
 static struct spi_cb_ops_s cb_ops =
 {
   .read = slice_reg_read_cb,
   .write = slice_reg_write_cb,
   .txn_end = slice_reg_txn_end_cb,
+  .txn_err = slice_reg_txn_err_cb,
 };
 
 
@@ -105,20 +117,25 @@ int main(int argc, FAR char *argv[])
 int slice_spi_reg_main(int argc, char *argv[])
 #endif
 {
-  FAR struct spi_dev_s *dev1;
-
-  dev1 = up_spiinitialize(CONFIG_SLICE_SPI_REG_BUS);
-  slice_self.dev = dev1;
-
+  if (dev1 == NULL)
+    {
+      dev1 = up_spiinitialize(CONFIG_SLICE_SPI_REG_BUS);
+      slice_self.dev = dev1;
+      logd("Slave init complete!\n");
 #ifdef CONFIG_SPI_SLAVE
-  SPI_SLAVE_REGISTERCALLBACK(dev1, &cb_ops, &slice_self);
-  logd("Slave setup complete!\n");
+      SPI_SLAVE_REGISTERCALLBACK(dev1, &cb_ops, &slice_self);
+      logd("Slave setup complete!\n");
 #endif
+    }
 
   dump_regs();
 
 #ifdef CONFIG_STM32_SPI_DMA
-  SPI_EXCHANGE(dev1,slice_self.regs, slice_self.regs, sizeof(slice_self.regs));
+  if (txn_status == -1)
+    {
+      SPI_EXCHANGE(dev1,slice_self.regs, slice_self.regs, sizeof(slice_self.regs));
+      logd("Slave DMA armed!\n");
+    }
 #endif
   return 0;
 }
