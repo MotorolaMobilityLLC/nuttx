@@ -61,6 +61,12 @@ static struct device_resource tsb_plla_resources[] = {
 #ifdef CONFIG_ARCH_CHIP_DEVICE_PWM
 static struct device_resource tsb_pwm_resources[] = {
     {
+        .name   = "pwm_base",
+        .type   = DEVICE_RESOURCE_TYPE_REGS,
+        .start  = TSB_PWM_BASE,
+        .count  = 1,
+    },
+    {
         .name   = "pwm0",
         .type   = DEVICE_RESOURCE_TYPE_REGS,
         .start  = TSB_PWM0,
@@ -73,7 +79,7 @@ static struct device_resource tsb_pwm_resources[] = {
         .count  = 20,
     },
     {
-        .name   = "pwmint",
+        .name   = "pwmintr",
         .type   = DEVICE_RESOURCE_TYPE_IRQ,
         .start  = TSB_IRQ_PWM,
         .count  = 1,

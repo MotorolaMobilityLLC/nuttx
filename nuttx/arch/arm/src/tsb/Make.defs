@@ -69,7 +69,7 @@ CHIP_CSRCS += tsb_i2c.c
 CHIP_CSRCS += tsb_cdsi.c
 
 ifeq ($(CONFIG_ARCH_CHIP_DEVICE_PWM),y)
-CHIP_CSRCS += tsb_pwm_dummy.c
+CHIP_CSRCS += tsb_pwm_drv.c
 endif
 
 ifeq ($(CONFIG_PWM),y)

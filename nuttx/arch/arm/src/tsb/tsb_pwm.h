@@ -37,6 +37,7 @@
 #define TSB_PWM1              0x40004020
 
 #define TSB_PWM_CR            0x00000000
+#define   PWM_CR_ENBSEL       (1 << 28)
 #define   PWM_CR_DIV(div)     ((div - 1) << 16)
 #define   PWM_CR_LVS          (1 << 9)
 #define   PWM_CR_POL          (1 << 8)
@@ -52,9 +53,20 @@
 
 #define TSB_PWM_SYSTEM        0x00000200
 #define TSB_PWM_GENB          0x00000204
+#define   PWM_GENB_GENB0      (1 << 0)
 #define TSB_PWM_INTCONFIG     0x00000220
+#define   PWM_INTMODE0        (1 << 0)
+#define   PWM_INTMODE1        (1 << 1)
 #define TSB_PWM_INTMASK       0x00000224
+#define   PWM_INTMASK0        (1 << 0)
+#define   PWM_INTMASK1        (1 << 1)
+#define   PWM_ERRMASK0        (1 << 16)
+#define   PWM_ERRMASK1        (1 << 17)
 #define TSB_PWM_INTSTATUS     0x00000228
+#define   PWM_INTSTATUS0      (1 << 0)
+#define   PWM_INTSTATUS1      (1 << 1)
+#define   PWM_ERRSTATUS0      (1 << 16)
+#define   PWM_ERRSTATUS1      (1 << 17)
 
 #define TSB_PWM_FLAG_OPENED     BIT(0)
 #define TSB_PWM_FLAG_CONFIGURED BIT(1)
