@@ -114,6 +114,7 @@ static inline void urb_destroy(struct urb *urb)
 struct device_usb_hcd_type_ops {
     int (*start)(struct device *dev);
     void (*stop)(struct device *dev);
+    int (*urb_enqueue)(struct device *dev, struct urb *urb);
     int (*hub_control)(struct device *dev, uint16_t typeReq, uint16_t wValue,
                        uint16_t wIndex, char *buf, uint16_t wLength);
 };
@@ -185,6 +186,31 @@ static inline int device_usb_hcd_hub_control(struct device *dev,
         return dev->driver->ops->type_ops.usb_hcd->hub_control(dev, typeReq,
                                                                wValue, wIndex,
                                                                buf, wLength);
+    }
+
+    return -ENOSYS;
+}
+
+/**
+ * Send urbs
+ *
+ * @param dev HCD device
+ * @param urb URB to send
+ * @return 0 if successful
+ */
+static inline int device_usb_hcd_urb_enqueue(struct device *dev,
+                                             struct urb *urb)
+{
+    DEBUGASSERT(dev);
+    DEBUGASSERT(dev->driver && dev->driver->ops &&
+                dev->driver->ops->type_ops.usb_hcd);
+
+    if (dev->state != DEVICE_STATE_OPEN) {
+        return -ENODEV;
+    }
+
+    if (dev->driver->ops->type_ops.usb_hcd->urb_enqueue) {
+        return dev->driver->ops->type_ops.usb_hcd->urb_enqueue(dev, urb);
     }
 
     return -ENOSYS;
