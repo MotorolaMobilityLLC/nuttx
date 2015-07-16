@@ -33,13 +33,83 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdlib.h>
 
 #include <nuttx/device.h>
 
 #define DEVICE_TYPE_USB_HCD     "usb-hcd"
 #define DEVICE_TYPE_HSIC_DEVICE "hsic-device"
+
+#define USB_URB_GIVEBACK_ASAP           1
+#define USB_URB_SEND_ZERO_PACKET        2
+
+#define USB_HOST_DIR_OUT                0
+#define USB_HOST_DIR_IN                 0x80
+
+#define USB_HOST_PIPE_ISOCHRONOUS       0
+#define USB_HOST_PIPE_INTERRUPT         1
+#define USB_HOST_PIPE_CONTROL           2
+#define USB_HOST_PIPE_BULK              3
+
+#define USB_HOST_ENDPOINT_XFER_CONTROL  0
+#define USB_HOST_ENDPOINT_XFER_ISOC     1
+#define USB_HOST_ENDPOINT_XFER_BULK     2
+#define USB_HOST_ENDPOINT_XFER_INT      3
+
+struct urb;
+typedef void (*urb_complete_t)(struct urb *urb);
+
+struct urb {
+    sem_t semaphore;
+    urb_complete_t complete;
+
+    int status;
+    int dev_speed;
+    int devnum;
+    int dev_ttport;
+
+    struct {
+        unsigned int type;
+        unsigned int device;
+        unsigned int endpoint;
+        unsigned int direction;
+    } pipe;
+
+    size_t length;
+    size_t actual_length;
+
+    unsigned int maxpacket;
+    int interval;
+    unsigned int flags;
+
+    uint8_t setup_packet[8];
+    void *buffer;
+
+    void *hcpriv;
+    void *hcpriv_ep;
+};
+
+static inline struct urb *urb_create(void)
+{
+    struct urb *urb;
+
+    urb = zalloc(sizeof(*urb));
+    if (!urb) {
+        return NULL;
+    }
+
+    sem_init(&urb->semaphore, 0, 0);
+    return urb;
+}
+
+static inline void urb_destroy(struct urb *urb)
+{
+    sem_destroy(&urb->semaphore);
+    free(urb);
+}
 
 struct device_usb_hcd_type_ops {
     int (*start)(struct device *dev);
