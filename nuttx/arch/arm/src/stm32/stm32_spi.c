@@ -973,38 +973,49 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 
   if (priv->mode_type == SPI_MODE_TYPE_MASTER)
     {
-      /* Wake-up the SPI driver */
+      if (isr & DMA_CHAN_TCIF_BIT)
+        {
+          /* Wake-up the SPI driver */
 
-      priv->rxresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
-      spi_dmarxwakeup(priv);
+          priv->rxresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
+          spi_dmarxwakeup(priv);
+        }
     }
   else
     {
-      spi_modifycr1(priv, SPI_CR1_SSM, 0);
+      if (isr & DMA_CHAN_TCIF_BIT)
+        {
+          spi_modifycr1(priv, SPI_CR1_SSM, 0);
 
 #ifdef CONFIG_SPI_CRC16
-      status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
+          status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
 
-      if (status & SPI_SR_CRCERR)
-        {
-          /* clear the CRCERR bit */
-          status &= ~SPI_SR_CRCERR;
-          spi_putreg(priv, STM32_SPI_SR_OFFSET, status);
-          spivdbg("CRC error on read\n");
+          if (status & SPI_SR_CRCERR)
+            {
+              /* clear the CRCERR bit */
+              status &= ~SPI_SR_CRCERR;
+              spi_putreg(priv, STM32_SPI_SR_OFFSET, status);
+              spivdbg("CRC error on read\n");
 
-          /* error callback */
-          if (priv->cb_ops && priv->cb_ops->txn_err)
-            priv->cb_ops->txn_err(priv->cb_v);
-        }
-      else
-        {
+              /* error callback */
+              if (priv->cb_ops && priv->cb_ops->txn_err)
+                priv->cb_ops->txn_err(priv->cb_v);
+            }
+          else
+            {
+              if (priv->cb_ops && priv->cb_ops->read)
+                priv->cb_ops->read(priv->cb_v);
+            }
+#else
           if (priv->cb_ops && priv->cb_ops->read)
             priv->cb_ops->read(priv->cb_v);
-        }
-#else
-      if (priv->cb_ops && priv->cb_ops->read)
-        priv->cb_ops->read(priv->cb_v);
 #endif
+        }
+      else if (isr & DMA_CHAN_HTIF_BIT)
+        {
+          if (priv->cb_ops && priv->cb_ops->txn_half)
+            priv->cb_ops->txn_half(priv->cb_v);
+        }
     }
 }
 #endif
@@ -1149,7 +1160,7 @@ static void spi_dmatxsetup(FAR struct stm32_spidev_s *priv, FAR const void *txbu
 static inline void spi_dmarxstart(FAR struct stm32_spidev_s *priv)
 {
   priv->rxresult = 0;
-  stm32_dmastart(priv->rxdma, spi_dmarxcallback, priv, false);
+  stm32_dmastart2(priv->rxdma, spi_dmarxcallback, priv, true, true);
 }
 #endif
 

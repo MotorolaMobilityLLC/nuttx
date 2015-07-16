@@ -491,6 +491,7 @@ struct spi_cb_ops_s
 {
   int (*read)(void *v);
   int (*write)(void *v);
+  int (*txn_half)(void *v);
   int (*txn_end)(void *v);
   int (*txn_err)(void *v);
 };
