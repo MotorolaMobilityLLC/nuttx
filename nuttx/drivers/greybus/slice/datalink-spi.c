@@ -172,6 +172,17 @@ static void attach_cb(FAR void *arg, bool attached)
 }
 
 /*
+ * Called when transaction with base is half completed.
+ */
+static int txn_half_cb(void *v)
+{
+  /* Deassert ready line to base */
+  slice_rfr_set(0);
+
+  return 0;
+}
+
+/*
  * Called when transaction with base has completed. The CRC has been
  * successfully checked by the hardware.
  */
@@ -181,9 +192,6 @@ static int txn_finished_cb(void *v)
   struct slice_spi_msg *m = (struct slice_spi_msg *)priv->rx_buf;
 
   dbg("Tranceive complete: hdr_bits=0x%02X\n", m->hdr_bits);
-
-  /* Deassert ready line to base */
-  slice_rfr_set(0);
 
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
@@ -245,6 +253,7 @@ static const struct spi_cb_ops_s cb_ops =
 {
   .read = txn_finished_cb,
   .txn_err = txn_error_cb,
+  .txn_half = txn_half_cb,
   /* write and txn_end callbacks not needed */
 };
 
