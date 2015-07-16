@@ -44,7 +44,6 @@ enum device_state {
     DEVICE_STATE_REMOVING,
 };
 
-struct device_pll_type_ops;
 struct device_i2s_type_ops;
 struct device_usb_hcd_type_ops;
 struct device_hsic_type_ops;
