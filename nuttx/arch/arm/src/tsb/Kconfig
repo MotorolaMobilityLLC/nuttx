@@ -87,7 +87,7 @@ config ARCH_CHIP_PINSHARE1_NONE
 		Disable PWM, SPI, and UART drivers
 
 config ARCH_CHIP_DEVICE_PWM
-	bool "Enable PWM at Boot"
+	bool "PWM Support"
 	select DEVICE_CORE
 	---help---
 		TSB PWM controller driver
