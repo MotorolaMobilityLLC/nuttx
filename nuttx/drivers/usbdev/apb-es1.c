@@ -1116,7 +1116,7 @@ static void prealloc_request(struct usbdev_ep_s *ep,
     DEBUGASSERT(callback);
 
     for (i = 0; i < n; i++) {
-        reqcontainer = malloc(sizeof(struct apbridge_req_s *));
+        reqcontainer = malloc(sizeof(struct apbridge_req_s));
         if (!reqcontainer)
             return;
         req = usbclass_allocreq(ep, size);
