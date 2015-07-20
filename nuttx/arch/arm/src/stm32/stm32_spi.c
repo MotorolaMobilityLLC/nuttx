@@ -1766,11 +1766,11 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       /* The counter of the reception DMA channel is set to the number of
        * data frames to receive including the CRC, DMA_RX = Numb_of_data + 2
        */
-      spi_dmarxsetup(priv, rxbuffer, &rxdummy, nwords + 2);
+      spi_dmatxsetup(priv, txbuffer, &txdummy, nwords - 2);
 #else
-      spi_dmarxsetup(priv, rxbuffer, &rxdummy, nwords);
-#endif
       spi_dmatxsetup(priv, txbuffer, &txdummy, nwords);
+#endif
+      spi_dmarxsetup(priv, rxbuffer, &rxdummy, nwords);
 
       /* Start the DMAs */
 

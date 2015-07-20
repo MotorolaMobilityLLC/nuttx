@@ -61,6 +61,9 @@ struct slice_spi_msg
 {
   __u8    hdr_bits;
   __u8    data[SLICE_SPI_MSG_PAYLOAD_SZ];
+
+  /* Will be calculated automatically by HW */
+  __le16  crc16;
 } __packed;
 
 struct slice_spi_dl_s
