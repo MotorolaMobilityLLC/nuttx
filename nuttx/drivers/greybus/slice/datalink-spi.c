@@ -73,6 +73,7 @@ struct slice_spi_dl_s
 
   struct slice_dl_cb_s *cb;      /* Callbacks to network layer */
   atomic_t wake;                 /* Flag to indicate wake line asserted */
+  atomic_t xfer;                 /* Flag to indicate transfer in progress */
   struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
   struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
 
@@ -99,7 +100,7 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
   rb = priv->txc_rb;
 
   /* Verify not already setup to tranceive packet */
-  if (slice_rfr_get())
+  if (atomic_get(&priv->xfer))
     {
       dbg("Already setup to tranceive packet. Do nothing.\n");
       goto out;
@@ -112,6 +113,9 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
       goto out;
     }
   atomic_dec(&priv->wake);
+
+  /* Set flag to indicate a transfer is setup */
+  atomic_inc(&priv->xfer);
 
   if (ring_buf_is_producers(rb))
     {
@@ -199,6 +203,9 @@ static int txn_finished_cb(void *v)
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
 
+  /* Clear transfer setup flag */
+  atomic_dec(&priv->xfer);
+
   if (!(m->hdr_bits & HDR_BIT_VALID))
     {
       /* Received a dummy packet - nothing to do! */
@@ -247,6 +254,9 @@ static int txn_error_cb(void *v)
 
   memset(priv->rcvd_payload, 0, SLICE_SPI_MSG_PAYLOAD_SZ);
   priv->rcvd_payload_idx = 0;
+
+  /* Clear transfer setup flag */
+  atomic_dec(&priv->xfer);
 
   setup_exchange(priv);
   return 0;
@@ -392,6 +402,7 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
       NULL /* arg */);
   slice_spi_dl.txc_rb = slice_spi_dl.txp_rb;
   atomic_init(&slice_spi_dl.wake, 0);
+  atomic_init(&slice_spi_dl.xfer, 0);
 
   /* RDY GPIO must be initialized before the WAKE interrupt */
   slice_rfr_init();
