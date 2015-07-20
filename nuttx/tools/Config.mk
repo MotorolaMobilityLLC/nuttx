@@ -63,6 +63,7 @@ ifeq ($(CONFIG_WINDOWS_NATIVE),y)
 else
   DELIM = $(strip /)
 endif
+export DELIM
 
 # INCDIR - Convert a list of directory paths to a list of compiler include
 #   directirves
