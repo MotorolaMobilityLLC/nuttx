@@ -87,7 +87,7 @@ ifeq ($(CONFIG_ARA_UNIPRO_MAIN),y)
 CONFIGURED_APPS += ara/unipro
 endif
 
-ifeq ($(CONFIG_APBRIDGE),y)
+ifeq ($(CONFIG_APBRIDGEA),y)
 CONFIGURED_APPS += ara/apbridge
 endif
 

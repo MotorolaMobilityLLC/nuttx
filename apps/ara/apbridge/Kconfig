@@ -29,12 +29,22 @@
 # see misc/tools/kconfig-language.txt.
 #
 
-config APBRIDGE
-	bool "APBridge FW"
+config APBRIDGEA
+	bool "APBridgeA FW"
 	select GREYBUS_UTILS
 	default n
+	---help---
+		Enable Firmware for APBridgeA which is the APBridge
+		on the AP module.  Do not select this for APBridgeE
+		('E' for endpoint) which is the APBridge on anything
+		that is not the AP module.  Do not select this for
+		GPBridge either.
 
-config APBRIDGE_GBSIM
-	bool "Enable GBSIM mode"
-	depends on APBRIDGE
+config APBRIDGEA_GBSIM
+	bool "Enable GBSIM mode on APBridgeA"
+	depends on APBRIDGEA
 	default n
+	---help---
+		Enable GBSIM on APBridgeA.  This provides GBSIM-like
+		functionality on APBridgeA.  APBridgeA is the APBridge
+		on the AP module.

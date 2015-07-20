@@ -67,7 +67,7 @@ include $(APPDIR)/Make.defs
 ASRCS =
 CSRCS =
 MAINSRC = apbridge.c
-ifeq ($(CONFIG_APBRIDGE_GBSIM),y)
+ifeq ($(CONFIG_APBRIDGEA_GBSIM),y)
 MAINSRC += gbsim.c
 else
 MAINSRC += unipro.c
