@@ -138,7 +138,7 @@ endif
 
 # Build context setup
 
-$(PLATFORMDIR): $(TOPDIR)$(DELIM).config
+$(PLATFORMDIR):
 	@echo "LN: platform$(DELIM)board to $(LINKDIR)"
 	$(Q) $(DIRUNLINK) $(PLATFORMDIR)
 	$(Q) $(DIRLINK) $(LINKDIR) $(PLATFORMDIR)
