@@ -103,14 +103,14 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
   if (atomic_get(&priv->xfer))
     {
       dbg("Already setup to tranceive packet. Do nothing.\n");
-      goto out;
+      goto already_setup;
     }
 
   /* Only setup exchange if base has asserted wake */
   if (!atomic_get(&priv->wake))
     {
       dbg("WAKE not asserted\n");
-      goto out;
+      goto no_wake;
     }
   atomic_dec(&priv->wake);
 
@@ -140,10 +140,11 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
   /* Signal to base that we're ready to tranceive */
   slice_rfr_set(1);
 
-out:
+no_wake:
   /* Set the base interrupt line if data is available to be sent. */
   slice_host_int_set(ring_buf_is_consumers(rb));
 
+already_setup:
   irqrestore(flags);
 }
 
