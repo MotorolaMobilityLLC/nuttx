@@ -41,6 +41,27 @@ ARA_BUILD_CONFIG_ERR_CONFIG_COPY_FAILED=4
 ARA_MAKE_PARALLEL=1            # controls make's -j flag
 ARA_MAKE_ALWAYS=""             # controls make's -B (--always-make) flag
 
+canonicalize() {
+    TARGET_FILE=$1
+
+    cd `dirname $TARGET_FILE`
+    TARGET_FILE=`basename $TARGET_FILE`
+
+    # Iterate down a (possible) chain of symlinks
+    while [ -L "$TARGET_FILE" ]
+    do
+        TARGET_FILE=`readlink $TARGET_FILE`
+        cd `dirname $TARGET_FILE`
+        TARGET_FILE=`basename $TARGET_FILE`
+    done
+
+    # Compute the canonicalized name by finding the physical path
+    # for the directory we're in and appending the target file.
+    PHYS_DIR=`pwd -P`
+    RESULT=$PHYS_DIR/$TARGET_FILE
+    echo $RESULT
+}
+
 echo "Project Ara firmware image builder"
 
 USAGE="
@@ -200,9 +221,9 @@ if [ $buildall -eq 1 ] ; then
     # save full path to defconfig
     defconfigFile=${cfg}
     # get abs path to defconfig
-    configpath=$(readlink -f $(dirname "$cfg"))
+    configpath=$(canonicalize $(dirname "$cfg"))
     #create build name
-    buildname=$(readlink -f $(dirname "$cfg"))
+    buildname=$(canonicalize $(dirname "$cfg"))
     #strip abs path
     buildname=$(echo "$buildname" | sed -e "s:^$TOPDIR/configs/::")
     # repl slash with dash
