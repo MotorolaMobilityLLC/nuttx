@@ -125,7 +125,7 @@ fi
 
 # determine NuttX top level folder absolute path
 TOPDIR="`dirname \"$0\"`"  # relative
-TOPDIR="`( cd \"$TOPDIR/nuttx\" && pwd )`"  # absolutized and normalized
+TOPDIR=$(canonicalize "`( cd \"$TOPDIR/nuttx\" && pwd )`")  # absolutized and normalized
 if [ -z "$TOPDIR" ] ; then
   # error; for some reason, the path is not accessible
   # to the script (e.g. permissions)
