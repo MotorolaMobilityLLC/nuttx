@@ -164,6 +164,10 @@ build_image_from_defconfig() {
   cp -r $TOPDIR/../misc $ARA_BUILD_TOPDIR/misc
   cp -r $TOPDIR/../NxWidgets $ARA_BUILD_TOPDIR/NxWidgets
 
+  pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
+
+  make distclean
+
   # copy Make.defs to build output tree
   if ! install -m 644 -p ${configpath}/Make.defs ${ARA_BUILD_TOPDIR}/nuttx/Make.defs  >/dev/null 2>&1; then
       echo "Warning: Failed to copy Make.defs"
@@ -187,7 +191,6 @@ build_image_from_defconfig() {
 
   echo -n "Building '$buildname'" ...
   export ARA_BUILD_NAME=$buildname
-  pushd $ARA_BUILD_TOPDIR/nuttx > /dev/null
   make  -j ${ARA_MAKE_PARALLEL} ${ARA_MAKE_ALWAYS} -r -f Makefile.unix  2>&1 | tee $ARA_BUILD_TOPDIR/build.log
 
   MAKE_RESULT=${PIPESTATUS[0]}
