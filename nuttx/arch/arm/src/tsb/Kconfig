@@ -107,6 +107,36 @@ config ARCH_CHIP_DEVICE_UART
 
 endchoice
 
+choice
+	prompt "Toshiba PinShare4 conflict"
+	default ARCH_CHIP_PINSHARE4_NONE
+	depends on ARCH_CHIP_TSB
+	---help---
+		The Toshiba GPBridge ETM and I2S driver conflict at
+		PinShare4 so only one can be enabled at a time.
+
+config ARCH_CHIP_PINSHARE4_NONE
+	bool "None"
+	---help---
+		Disable ETM and I2S driver
+
+config TSB_PINSHARE_ETM
+	bool "Enable ETM PINSHARE at Boot"
+	---help---
+		Enable ETM PINSHARE at Boot
+
+config ARCH_CHIP_TSB_I2S
+	bool "I2S Support"
+	depends on ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
+	select LIB_RING_BUF
+	select ARCH_CHIP_TSB_PLL
+	select ARCH_CHIP_DEVICE_I2S
+	---help---
+		TSB I2S Controller Driver
+
+endchoice
+
 config ARCH_CHIP_USB_COMMON
 	bool
 	select CLOCK_MONOTONIC
@@ -132,13 +162,6 @@ config ARA_USB_DEBUG
 	bool "Enable DWC Debug"
 	depends on ARCH_CHIP_USB_PCD || ARCH_CHIP_USB_HCD
 
-config TSB_PINSHARE_ETM
-	bool "Enable ETM PINSHARE at Boot"
-	depends on ARCH_CHIP_TSB
-	default n
-	---help---
-		Enable ETM PINSHARE at Boot Instead of I2S
-
 config ARCH_CHIP_DEVICE_PLL
 	bool
 	default n
@@ -155,17 +178,6 @@ config ARCH_CHIP_TSB_PLL
 config ARCH_CHIP_DEVICE_I2S
 	bool
 	default n
-
-config ARCH_CHIP_TSB_I2S
-	bool "I2S Support"
-	depends on ARCH_CHIP_GPBRIDGE
-	select DEVICE_CORE
-	select LIB_RING_BUF
-	select ARCH_CHIP_TSB_PLL
-	select ARCH_CHIP_DEVICE_I2S
-	default n
-	---help---
-		TSB I2S Controller Driver
 
 config ARCH_CHIP_DEVICE_SPI
 	bool "SPI Master Support"
