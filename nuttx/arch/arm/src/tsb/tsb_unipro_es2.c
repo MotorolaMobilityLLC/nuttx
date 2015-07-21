@@ -389,6 +389,8 @@ static int irq_rx_eom(int irq, void *context) {
     uint32_t transferred_size;
     (void)context;
 
+    clear_rx_interrupt(cport);
+
     if (!cport->driver) {
         lldbg("dropping message on cport %hu where no driver is registered\n",
               cport->cportid);
@@ -406,7 +408,6 @@ static int irq_rx_eom(int irq, void *context) {
         cport->driver->rx_handler(cport->cportid, data,
                                   (size_t)transferred_size);
     }
-    clear_rx_interrupt(cport);
 
     return 0;
 }
