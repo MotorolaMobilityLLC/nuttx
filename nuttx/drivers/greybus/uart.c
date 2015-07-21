@@ -462,6 +462,7 @@ static void *uart_rx_thread(void *data)
 static void uart_status_cb_deinit(void)
 {
     if (info->status_thread != (pthread_t)0) {
+        info->thread_stop = 1;
         sem_post(&info->status_sem);
         pthread_join(info->status_thread, NULL);
     }
@@ -526,6 +527,7 @@ err_destroy_ms_ls_op:
 static void uart_receiver_cb_deinit(void)
 {
     if (info->rx_thread != (pthread_t)0) {
+        info->thread_stop = 1;
         sem_post(&info->rx_sem);
         pthread_join(info->rx_thread, NULL);
     }
@@ -799,6 +801,7 @@ static int gb_uart_init(unsigned int cport)
 
     info->dev = device_open(DEVICE_TYPE_UART_HW, 0);
     if (!info->dev) {
+        ret = -ENODEV;
         goto err_receiver_cb_deinit;
     }
 
