@@ -483,3 +483,59 @@ void svcd_stop(void) {
     }
 }
 
+int svc_connect_interfaces(struct interface *iface1, uint16_t cportid1,
+                           struct interface *iface2, uint16_t cportid2,
+                           uint8_t tc, uint8_t flags) {
+    int rc;
+    uint8_t devids[2];
+    struct tsb_switch *sw = svc->sw;
+    struct unipro_connection con;
+
+    if (!iface1 || !iface2) {
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&svc->lock);
+
+    /* Retrieve the interface structures and device IDs for the interfaces. */
+    rc = switch_if_dev_id_get(sw, iface1->switch_portid, &devids[0]);
+    if (rc) {
+        goto error_exit;
+    }
+
+    rc = switch_if_dev_id_get(sw, iface2->switch_portid, &devids[1]);
+    if (rc) {
+        goto error_exit;
+    }
+
+    /* Create the route between the two devices. */
+    rc = switch_setup_routing_table(sw,
+                                    devids[0], iface1->switch_portid,
+                                    devids[1], iface2->switch_portid);
+    if (rc) {
+        dbg_error("Failed to create route: [d=%u,p=%u]<->[d=%u,p=%u]\n",
+                  devids[0], iface1->switch_portid,
+                  devids[1], iface2->switch_portid);
+        goto error_exit;
+    }
+    /* Create the connection between the two devices. */
+    con.port_id0   = iface1->switch_portid;
+    con.device_id0 = devids[0];
+    con.cport_id0  = cportid1;
+    con.port_id1   = iface2->switch_portid;
+    con.device_id1 = devids[1];
+    con.cport_id1  = cportid2;
+    con.tc         = tc;
+    con.flags      = flags;
+    rc = switch_connection_create(sw, &con);
+    if (rc) {
+        dbg_error("Failed to create [p=%u,d=%u,c=%u]<->[p=%u,d=%u,c=%u] TC: %u Flags: 0x%x\n",
+                  con.port_id0, con.device_id0, con.cport_id0,
+                  con.port_id1, con.device_id1, con.cport_id1,
+                  con.tc, con.flags);
+    }
+
+ error_exit:
+    pthread_mutex_unlock(&svc->lock);
+    return rc;
+}

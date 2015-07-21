@@ -285,6 +285,9 @@ struct tsb_switch_event_listener {
 int switch_event_register_listener(struct tsb_switch *sw,
                                    struct tsb_switch_event_listener *l);
 
+int switch_if_dev_id_get(struct tsb_switch *sw,
+                         uint8_t port_id,
+                         uint8_t *dev_id);
 int switch_if_dev_id_set(struct tsb_switch *sw,
                          uint8_t port_id,
                          uint8_t dev_id);

@@ -590,6 +590,28 @@ static int switch_link_power_set_default(struct tsb_switch *sw,
 #endif
 
 /**
+ * @brief Retrieve a device id for a given port id
+ */
+int switch_if_dev_id_get(struct tsb_switch *sw,
+                         uint8_t port_id,
+                         uint8_t *dev_id) {
+    int dev;
+
+    if (!dev_id) {
+        return -EINVAL;
+    }
+
+    dev = dev_ids_port_to_dev(sw, port_id);
+    *dev_id = dev;
+
+    if (dev == INVALID_PORT) {
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+/**
  * @brief Assign a device id to a given port id
  */
 int switch_if_dev_id_set(struct tsb_switch *sw,

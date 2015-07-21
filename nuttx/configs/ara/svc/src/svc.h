@@ -52,6 +52,12 @@ extern struct svc *svc;
 int svcd_start(void);
 void svcd_stop(void);
 
+struct interface;
+
+int svc_connect_interfaces(struct interface *iface1, uint16_t cportid1,
+                           struct interface *iface2, uint16_t cportid2,
+                           uint8_t tc, uint8_t flags);
+
 #endif
 
 
