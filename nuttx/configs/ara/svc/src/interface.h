@@ -73,6 +73,7 @@ int interface_early_init(struct interface**,
                          size_t nr_interfaces, size_t nr_spring_ints);
 void interface_exit(void);
 struct interface* interface_get(uint8_t index);
+struct interface* interface_get_by_name(const char *name);
 struct interface* interface_spring_get(uint8_t index);
 uint8_t interface_get_count(void);
 uint8_t interface_get_spring_count(void);

@@ -41,6 +41,7 @@
 #include "up_debug.h"
 #include "interface.h"
 #include "vreg.h"
+#include "string.h"
 
 #define POWER_OFF_TIME_IN_US            (500000)
 #define WAKEOUT_PULSE_DURATION_IN_US    (100000)
@@ -213,6 +214,25 @@ struct interface* interface_get(uint8_t index)
         return NULL;
 
     return interfaces[index];
+}
+
+
+/**
+ * @brief           Return the interface struct from the name
+ * @returns: interface* on success, NULL on error
+ */
+struct interface* interface_get_by_name(const char *name)
+{
+    struct interface *iface;
+    int i;
+
+    interface_foreach(iface, i) {
+      if (!strcmp(iface->name, name)) {
+        return iface;
+      }
+    }
+
+    return NULL;
 }
 
 
