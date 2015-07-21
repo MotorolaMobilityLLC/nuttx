@@ -58,5 +58,9 @@ int list_count(struct list_head *head);
          (iter) != (head); \
          (iter) = (niter), (niter) = (niter)->next)
 
+#define LIST_INIT(head) { .prev = &head, .next = &head }
+#define LIST_DECLARE(name) struct list_head name = { .prev = &name, \
+                                                     .next = &name }
+
 #endif /* __LIST_H__ */
 
