@@ -269,8 +269,6 @@ static int tsb_usb_hcd_open(struct device *dev)
     tsb_reset(TSB_RST_HSICPHY);
     tsb_reset(TSB_RST_HSICPOR);
 
-    tsb_clr_pinshare(TSB_PIN_UART_CTSRTS);
-
     retval = hcd_core_init();
     if (retval) {
         goto error_hcd_core_init;
