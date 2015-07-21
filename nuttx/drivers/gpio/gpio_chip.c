@@ -37,10 +37,7 @@
 #include "nuttx/arch.h"
 
 uint8_t g_gpio_line_count = 0;
-struct list_head g_gpio_chip = {
-    .prev = &g_gpio_chip,
-    .next = &g_gpio_chip,
-};
+LIST_DECLARE(g_gpio_chip);
 
 /**
  * @brief Register a driver to the gpio_chip framework

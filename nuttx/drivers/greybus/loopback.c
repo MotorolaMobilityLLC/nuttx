@@ -52,10 +52,7 @@ struct gb_loopback {
     pthread_mutex_t mutex;
 };
 
-struct list_head gb_loopbacks = {
-    .next = &gb_loopbacks,
-    .prev = &gb_loopbacks,
-};
+LIST_DECLARE(gb_loopbacks);
 
 void *gb_loopback_fn(void *data)
 {

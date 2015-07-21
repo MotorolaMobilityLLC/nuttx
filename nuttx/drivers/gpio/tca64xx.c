@@ -151,10 +151,7 @@ struct tca64xx_platform_data {
  * Since the Nuttx IRQ handlers do not allow to pass private data,
  * store the platform_data pointer in a list
  */
-struct list_head tca64xx_irq_pdata_list = {
-    .prev = &tca64xx_irq_pdata_list,
-    .next = &tca64xx_irq_pdata_list,
-};
+LIST_DECLARE(tca64xx_irq_pdata_list);
 
 static uint8_t get_nr_gpios(tca64xx_part part)
 {
