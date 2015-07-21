@@ -61,6 +61,53 @@ static atomic_t request_id;
 static struct gb_cport_driver g_cport[CPORT_MAX];
 static struct gb_transport_backend *transport_backend;
 
+uint8_t gb_errno_to_op_result(int err)
+{
+    switch (err) {
+    case 0:
+        return GB_OP_SUCCESS;
+
+    case ENOMEM:
+    case -ENOMEM:
+        return GB_OP_NO_MEMORY;
+
+    case EINTR:
+    case -EINTR:
+        return GB_OP_INTERRUPTED;
+
+    case ETIMEDOUT:
+    case -ETIMEDOUT:
+        return GB_OP_TIMEOUT;
+
+    case EPROTO:
+    case -EPROTO:
+    case ENOSYS:
+    case -ENOSYS:
+        return GB_OP_PROTOCOL_BAD;
+
+    case EINVAL:
+    case -EINVAL:
+        return GB_OP_INVALID;
+
+    case EOVERFLOW:
+    case -EOVERFLOW:
+        return GB_OP_OVERFLOW;
+
+    case ENODEV:
+    case -ENODEV:
+    case ENXIO:
+    case -ENXIO:
+        return GB_OP_NONEXISTENT;
+
+    case EBUSY:
+    case -EBUSY:
+        return GB_OP_RETRY;
+
+    default:
+        return GB_OP_UNKNOWN_ERROR;
+    }
+}
+
 static int gb_compare_handlers(const void *data1, const void *data2)
 {
     const struct gb_operation_handler *handler1 = data1;

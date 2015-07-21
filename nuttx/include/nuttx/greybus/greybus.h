@@ -164,4 +164,6 @@ void gb_uart_register(int cport);
 int gb_i2c_set_dev(struct i2c_dev_s *dev);
 struct  i2c_dev_s *gb_i2c_get_dev(void);
 
+uint8_t gb_errno_to_op_result(int err);
+
 #endif /* _GREYBUS_H_ */
