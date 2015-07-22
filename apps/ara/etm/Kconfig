@@ -31,11 +31,12 @@
 
 config ARA_BRIDGE_ETM
 	bool "Ara Bridge ETM control"
-	default n if !DEBUG
-	default y if DEBUG
+	default n
 	depends on ARCH_CHIP_TSB
 	---help---
 		Enable the Ara ETM program. Controls TRACE output from ETM.
+		Note that this may change the PinShare4 setting and prevent
+		I2S from working.  Use at your own risk.
 
 
 if ARA_BRIDGE_ETM
