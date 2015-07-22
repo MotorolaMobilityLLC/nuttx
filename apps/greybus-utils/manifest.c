@@ -60,7 +60,7 @@ struct greybus {
 };
 
 struct greybus g_greybus = {
-    .cports = { &g_greybus.cports, &g_greybus.cports}
+    .cports = LIST_INIT(g_greybus.cports),
 };
 
 struct manifest_file manifest_files[] = { MANIFEST };
