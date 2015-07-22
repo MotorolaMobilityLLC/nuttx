@@ -37,6 +37,8 @@
 #include <stdio.h>
 #include <getopt.h>
 
+#define USB_SPEED_LOW  1
+#define USB_SPEED_FULL 2
 #define USB_SPEED_HIGH 3
 
 #define SET_PORT_FEATURE 0x2303
@@ -50,6 +52,13 @@
 
 #define HS_DEVICE_VENDOR_ID  0x0424
 #define HS_DEVICE_PRODUCT_ID 0x3813
+
+#define FS_DEVICE_VENDOR_ID  0x067b
+#define FS_DEVICE_PRODUCT_ID 0x2303
+
+#define PORT_CONNECTED_MASK (1 << 0)
+#define LS_PORT_SPEED_MASK  (1 << 9)
+#define HS_PORT_SPEED_MASK  (1 << 10)
 
 #define DEVICE_DESCRIPTOR (1 << 8)
 
@@ -115,9 +124,9 @@ static void usb_control_transfer_complete(struct urb *urb)
 }
 
 static int usb_control_transfer(struct device *dev, int direction, int speed,
-                                int addr, int ttport, uint16_t typeReq,
-                                uint16_t wValue, uint16_t wIndex, char *buf,
-                                uint16_t wLength)
+                                int addr, int hub_addr, int ttport,
+                                uint16_t typeReq, uint16_t wValue,
+                                uint16_t wIndex, char *buf, uint16_t wLength)
 {
     int retval;
     struct urb *urb;
@@ -134,7 +143,7 @@ static int usb_control_transfer(struct device *dev, int direction, int speed,
     urb->pipe.device = addr;
     urb->pipe.direction = direction;
     urb->dev_speed = speed;
-    urb->devnum = addr;
+    urb->devnum = hub_addr;
     urb->dev_ttport = ttport;
     urb->length = wLength;
     urb->maxpacket = URB_MAX_PACKET;
@@ -162,9 +171,13 @@ out:
     return retval;
 }
 
-static int test_hs_transfer(void)
+static int test_transfer(int test_speed)
 {
+    int speed;
     int retval;
+    uint32_t status;
+    int hub_addr;
+    int ttport;
     char buf[255];
     struct device *dev;
     struct device_descriptor *desc = (struct device_descriptor*) buf;
@@ -194,13 +207,13 @@ static int test_hs_transfer(void)
      * Configure usb4624 hub
      */
     retval = usb_control_transfer(dev, USB_HOST_DIR_OUT, USB_SPEED_HIGH, 0, 0,
-                                  SET_ADDRESS, USB4624_ADDRESS, 0, NULL, 0);
+                                  0, SET_ADDRESS, USB4624_ADDRESS, 0, NULL, 0);
     if (retval) {
         goto out;
     }
 
     retval = usb_control_transfer(dev, USB_HOST_DIR_OUT, USB_SPEED_HIGH,
-                                  USB4624_ADDRESS, 0, SET_CONFIGURATION,
+                                  USB4624_ADDRESS, 0, 0, SET_CONFIGURATION,
                                   USB4624_CONFIG_ID, 0, NULL, 0);
     if (retval) {
         goto out;
@@ -210,7 +223,7 @@ static int test_hs_transfer(void)
      * Enable port 3 on usb4624 hub
      */
     retval = usb_control_transfer(dev, USB_HOST_DIR_OUT, USB_SPEED_HIGH,
-                                  USB4624_ADDRESS, 0, SET_PORT_FEATURE,
+                                  USB4624_ADDRESS, 0, 0, SET_PORT_FEATURE,
                                   PORT_POWER, USB4624_EXTERNAL_PORT, NULL, 0);
     if (retval) {
         goto out;
@@ -219,7 +232,7 @@ static int test_hs_transfer(void)
     up_mdelay(PORT_POWERING_DELAY_IN_MS);
 
     retval = usb_control_transfer(dev, USB_HOST_DIR_OUT, USB_SPEED_HIGH,
-                                  USB4624_ADDRESS, 0, SET_PORT_FEATURE,
+                                  USB4624_ADDRESS, 0, 0, SET_PORT_FEATURE,
                                   PORT_RESET, USB4624_EXTERNAL_PORT, NULL, 0);
     if (retval) {
         goto out;
@@ -228,18 +241,75 @@ static int test_hs_transfer(void)
     up_mdelay(PORT_RESETING_DELAY_IN_MS);
 
     /*
-     * Get USB3813 device descriptor
+     * Get device speed
      */
-    retval = usb_control_transfer(dev, USB_HOST_DIR_IN, USB_SPEED_HIGH, 0, 0,
-                                  GET_DESCRIPTOR, DEVICE_DESCRIPTOR, 0,
+    retval = usb_control_transfer(dev, USB_HOST_DIR_IN, USB_SPEED_HIGH,
+                                  USB4624_ADDRESS, 0, 0, GET_PORT_STATUS,
+                                  0, USB4624_EXTERNAL_PORT, (char*) &status,
+                                  sizeof(status));
+    if (retval) {
+        goto out;
+    }
+
+    if (!(status & PORT_CONNECTED_MASK)) {
+        fprintf(stderr, "No device connected to USB port\n");
+        retval = -ENODEV;
+        goto out;
+    }
+
+    speed = USB_SPEED_FULL;
+    if (status & LS_PORT_SPEED_MASK) {
+        speed = USB_SPEED_LOW;
+    } else if (status & HS_PORT_SPEED_MASK) {
+        speed = USB_SPEED_HIGH;
+    }
+
+    if (test_speed != speed) {
+        fprintf(stderr, "Wrong device speed\n");
+        retval = -EIO;
+        goto out;
+    }
+
+    if (speed != USB_SPEED_HIGH) {
+        hub_addr = USB4624_ADDRESS;
+        ttport = 1;
+    }
+
+    /*
+     * Get device descriptor
+     */
+    retval = usb_control_transfer(dev, USB_HOST_DIR_IN, speed, 0, hub_addr,
+                                  ttport, GET_DESCRIPTOR, DEVICE_DESCRIPTOR, 0,
                                   buf, ARRAY_SIZE(buf));
     if (retval) {
         goto out;
     }
 
-    if (le16_to_cpu(desc->idVendor) != HS_DEVICE_VENDOR_ID ||
-        le16_to_cpu(desc->idProduct) != HS_DEVICE_PRODUCT_ID) {
-        retval = -ENODEV;
+    switch (speed) {
+    case USB_SPEED_HIGH:
+        /* USB3813 */
+        printf("High-Speed device detected.\n");
+        if (le16_to_cpu(desc->idVendor) != HS_DEVICE_VENDOR_ID ||
+            le16_to_cpu(desc->idProduct) != HS_DEVICE_PRODUCT_ID) {
+            retval = -ENODEV;
+        }
+        break;
+
+    case USB_SPEED_FULL:
+        /* PL2303 */
+        printf("Full-Speed device detected.\n");
+        if (le16_to_cpu(desc->idVendor) != FS_DEVICE_VENDOR_ID ||
+            le16_to_cpu(desc->idProduct) != FS_DEVICE_PRODUCT_ID) {
+            retval = -ENODEV;
+        }
+        break;
+
+    case USB_SPEED_LOW:
+        /* Unknown LS device */
+        printf("Low-Speed device detected.\n");
+        printf("Vendor ID: %hu\n", le16_to_cpu(desc->idVendor));
+        printf("Product ID: %hu\n", le16_to_cpu(desc->idProduct));
+        break;
     }
 
 out:
@@ -260,8 +330,9 @@ static void print_test_result(const char *name, bool result)
 
 static void show_usage(const char *appname)
 {
-    printf("%s [-h] [-r]\n", appname);
+    printf("%s [-f] [-h] [-r]\n", appname);
     printf("\t-r: test hub reset\n");
+    printf("\t-f: test full speed data transfer\n");
     printf("\t-h: test high speed data transfer\n");
 }
 
@@ -281,7 +352,7 @@ int usb_host_main(int argc, char *argv[])
 
     optind = -1;
 
-    while ((c = getopt(argc, argv, "rh")) != -1) {
+    while ((c = getopt(argc, argv, "rfh")) != -1) {
         switch (c) {
         case 'r':
             retval = test_hsic_link();
@@ -300,8 +371,17 @@ int usb_host_main(int argc, char *argv[])
             }
             break;
 
+        case 'f':
+            retval = test_transfer(USB_SPEED_FULL);
+            print_test_result("Full-Speed Transfer", !retval);
+            if (retval) {
+                fprintf(stderr, "ERROR: Cannot get descriptor from PL2303.\n");
+                fprintf(stderr, "Did you plug the usb cable to debug board usb port?\n");
+            }
+            break;
+
         case 'h':
-            retval = test_hs_transfer();
+            retval = test_transfer(USB_SPEED_HIGH);
             print_test_result("High-Speed Transfer", !retval);
             if (retval) {
                 fprintf(stderr, "ERROR: Cannot get descriptor from USB3813 Hub.\n");
