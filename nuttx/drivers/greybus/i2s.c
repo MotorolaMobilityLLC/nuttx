@@ -645,7 +645,7 @@ static int gb_i2s_start_transmitter(struct gb_i2s_info *info)
         info->flags |= GB_I2S_FLAG_TX_DELAYING;
 
         /* TODO: Subtract out estimate of time it took to get here */
-        wd_start(info->tx_wdog, info->delay / CLOCKS_PER_SEC,
+        wd_start(info->tx_wdog, (info->delay * CLOCKS_PER_SEC) / 1000000,
                  gb_i2s_tx_delay_timeout, 1, info);
     }
 
