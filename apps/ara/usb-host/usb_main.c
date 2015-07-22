@@ -35,6 +35,7 @@
 #include <arch/byteorder.h>
 
 #include <stdio.h>
+#include <getopt.h>
 
 #define USB_SPEED_HIGH 3
 
@@ -257,40 +258,64 @@ static void print_test_result(const char *name, bool result)
     printf("%s: %s\e[m\n", name, result ? "\e[0;32mPASS" : "\e[1;31mFAIL");
 }
 
+static void show_usage(const char *appname)
+{
+    printf("%s [-h] [-r]\n", appname);
+    printf("\t-r: test hub reset\n");
+    printf("\t-h: test high speed data transfer\n");
+}
+
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, char *argv[])
 #else
 int usb_host_main(int argc, char *argv[])
 #endif
 {
+    int c;
     int retval;
 
-    printf("Tests:\n");
-
-    retval = test_hsic_link();
-    print_test_result("HSIC connection to the hub", !retval);
-    if (retval) {
-        fprintf(stderr,
-                "ERROR: Cannot establish hsic connection with the hub.\n");
-        goto end;
+    if (argc < 2) {
+        show_usage(argc != 1 ? "usb_host" : argv[0]);
+        return -1;
     }
 
-    retval = test_hsic_link();
-    print_test_result("Reset of the hub", !retval);
-    if (retval) {
-        fprintf(stderr, "ERROR: Cannot establish hsic connection with the hub "
-                        "a second time (RESET_N broken?).\n");
-        goto end;
+    optind = -1;
+
+    while ((c = getopt(argc, argv, "rh")) != -1) {
+        switch (c) {
+        case 'r':
+            retval = test_hsic_link();
+            print_test_result("HSIC connection to the hub", !retval);
+            if (retval) {
+                fprintf(stderr,
+                        "ERROR: Cannot establish hsic connection with the hub.\n");
+                return -1;
+            }
+
+            retval = test_hsic_link();
+            print_test_result("Reset of the hub", !retval);
+            if (retval) {
+                fprintf(stderr, "ERROR: Cannot establish hsic connection with the hub "
+                                "a second time (RESET_N broken?).\n");
+            }
+            break;
+
+        case 'h':
+            retval = test_hs_transfer();
+            print_test_result("High-Speed Transfer", !retval);
+            if (retval) {
+                fprintf(stderr, "ERROR: Cannot get descriptor from USB3813 Hub.\n");
+                fprintf(stderr, "Did you plug the usb cable to APBridgeA usb port?\n");
+            }
+            break;
+
+        case '?':
+        default:
+            fprintf(stderr, "invalid parameter\n");
+            show_usage(argv[0]);
+            return -1;
+        }
     }
 
-    retval = test_hs_transfer();
-    print_test_result("High-Speed transfer", !retval);
-    if (retval) {
-        fprintf(stderr, "ERROR: Cannot get descriptor from USB3813 Hub.\n");
-        fprintf(stderr, "Did you plug the usb cable to APBridgeA usb port?\n");
-        goto end;
-    }
-
-end:
     return 0;
 }
