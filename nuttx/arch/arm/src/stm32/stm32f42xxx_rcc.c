@@ -1,7 +1,7 @@
 /****************************************************************************
- * arch/arm/src/stm32/stm32f40xxx_rcc.c
+ * arch/arm/src/stm32/stm32f42xxx_rcc.c
  *
- *   Copyright (C) 2011-2012, 2014 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2011-2012, 2014-2015 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *           David Sidrane <david_s5@nscdg.com>
  *
@@ -41,7 +41,7 @@
 #include "stm32_pwr.h"
 
 /****************************************************************************
- * Definitions
+ * Pre-processor Definitions
  ****************************************************************************/
 
 /* Allow up to 100 milliseconds for the high speed clock to become ready.
@@ -55,6 +55,10 @@
 /* Same for HSI */
 
 #define HSIRDY_TIMEOUT HSERDY_TIMEOUT
+
+/* HSE divisor to yield ~1MHz RTC clock */
+
+#define HSE_DIVISOR (STM32_HSE_FREQUENCY + 500000) / 1000000
 
 /****************************************************************************
  * Private Data
@@ -202,13 +206,15 @@ static inline void rcc_enableahb1(void)
 #ifdef CONFIG_STM32_OTGHS
   /* USB OTG HS */
 
-#ifdef CONFIG_STM32_OTGFS2
   regval |= RCC_AHB1ENR_OTGHSEN;
-#else
-  regval |= RCC_AHB1ENR_OTGHSULPIEN;
-#endif
 
 #endif  /* CONFIG_STM32_OTGHS */
+
+#ifdef CONFIG_STM32_DMA2D
+  /* DMA2D clock */
+
+  regval |= RCC_AHB1ENR_DMA2DEN;
+#endif
 
   putreg32(regval, STM32_RCC_AHB1ENR);   /* Enable peripherals */
 }
@@ -459,7 +465,6 @@ static inline void rcc_enableapb1(void)
   regval |= RCC_APB1ENR_UART8EN;
 #endif
 
-
   putreg32(regval, STM32_RCC_APB1ENR);   /* Enable peripherals */
 }
 
@@ -612,16 +617,17 @@ static void stm32_stdclockconfig(void)
   /* Wait until the HSI is ready (or until a timeout elapsed) */
 
   for (timeout = HSIRDY_TIMEOUT; timeout > 0; timeout--)
-  {
-    /* Check if the HSIRDY flag is the set in the CR */
+    {
+      /* Check if the HSIRDY flag is the set in the CR */
 
-    if ((getreg32(STM32_RCC_CR) & RCC_CR_HSIRDY) != 0)
-      {
-        /* If so, then break-out with timeout > 0 */
+      if ((getreg32(STM32_RCC_CR) & RCC_CR_HSIRDY) != 0)
+        {
+          /* If so, then break-out with timeout > 0 */
 
-        break;
-      }
-  }
+          break;
+        }
+    }
+
 #else /* if STM32_BOARD_USEHSE */
   /* Enable External High-Speed Clock (HSE) */
 
@@ -632,16 +638,16 @@ static void stm32_stdclockconfig(void)
   /* Wait until the HSE is ready (or until a timeout elapsed) */
 
   for (timeout = HSERDY_TIMEOUT; timeout > 0; timeout--)
-  {
-    /* Check if the HSERDY flag is the set in the CR */
+    {
+      /* Check if the HSERDY flag is the set in the CR */
 
-    if ((getreg32(STM32_RCC_CR) & RCC_CR_HSERDY) != 0)
-      {
-        /* If so, then break-out with timeout > 0 */
+      if ((getreg32(STM32_RCC_CR) & RCC_CR_HSERDY) != 0)
+        {
+          /* If so, then break-out with timeout > 0 */
 
-        break;
-      }
-  }
+          break;
+        }
+    }
 #endif
 
   /* Check for a timeout.  If this timeout occurs, then we are hosed.  We
@@ -660,7 +666,8 @@ static void stm32_stdclockconfig(void)
       putreg32(regval, STM32_RCC_APB1ENR);
 
       regval  = getreg32(STM32_PWR_CR);
-      regval |= PWR_CR_VOS;
+      regval &= ~PWR_CR_VOS_MASK;
+      regval |= PWR_CR_VOS_SCALE_1;
       putreg32(regval, STM32_PWR_CR);
 
       /* Set the HCLK source/divider */
@@ -684,7 +691,16 @@ static void stm32_stdclockconfig(void)
       regval |= STM32_RCC_CFGR_PPRE1;
       putreg32(regval, STM32_RCC_CFGR);
 
-      /* Set the PLL dividers and multiplers to configure the main PLL */
+#ifdef CONFIG_RTC_HSECLOCK
+      /* Set the RTC clock divisor */
+
+      regval = getreg32(STM32_RCC_CFGR);
+      regval &= ~RCC_CFGR_RTCPRE_MASK;
+      regval |= RCC_CFGR_RTCPRE(HSE_DIVISOR);
+      putreg32(regval, STM32_RCC_CFGR);
+#endif
+
+      /* Set the PLL dividers and multipliers to configure the main PLL */
 
 #ifdef STM32_BOARD_USEHSI
       regval = (STM32_PLLCFG_PLLM | STM32_PLLCFG_PLLN |STM32_PLLCFG_PLLP |
@@ -707,6 +723,24 @@ static void stm32_stdclockconfig(void)
         {
         }
 
+#if defined(CONFIG_STM32_STM32F429)
+      /* Enable the Over-drive to extend the clock frequency to 180 Mhz */
+
+      regval  = getreg32(STM32_PWR_CR);
+      regval |= PWR_CR_ODEN;
+      putreg32(regval, STM32_PWR_CR);
+      while ((getreg32(STM32_PWR_CSR) & PWR_CSR_ODRDY) == 0)
+        {
+        }
+
+      regval = getreg32(STM32_PWR_CR);
+      regval |= PWR_CR_ODSWEN;
+      putreg32(regval, STM32_PWR_CR);
+      while ((getreg32(STM32_PWR_CSR) & PWR_CSR_ODSWRDY) == 0)
+        {
+        }
+#endif
+
       /* Enable FLASH prefetch, instruction cache, data cache, and 5 wait states */
 
 #ifdef CONFIG_STM32_FLASH_PREFETCH
@@ -728,6 +762,48 @@ static void stm32_stdclockconfig(void)
       while ((getreg32(STM32_RCC_CFGR) & RCC_CFGR_SWS_MASK) != RCC_CFGR_SWS_PLL)
         {
         }
+
+#ifdef CONFIG_STM32_LTDC
+      /* Configure PLLSAI */
+
+      regval = getreg32(STM32_RCC_PLLSAICFGR);
+      regval |= (STM32_RCC_PLLSAICFGR_PLLSAIN
+                | STM32_RCC_PLLSAICFGR_PLLSAIR
+                | STM32_RCC_PLLSAICFGR_PLLSAIQ);
+      putreg32(regval, STM32_RCC_PLLSAICFGR);
+
+      regval = getreg32(STM32_RCC_DCKCFGR);
+      regval |= STM32_RCC_DCKCFGR_PLLSAIDIVR;
+      putreg32(regval, STM32_RCC_DCKCFGR);
+
+      /* Enable PLLSAI */
+
+      regval = getreg32(STM32_RCC_CR);
+      regval |= RCC_CR_PLLSAION;
+      putreg32(regval, STM32_RCC_CR);
+
+      /* Wait until the PLLSAI is ready */
+
+      while ((getreg32(STM32_RCC_CR) & RCC_CR_PLLSAIRDY) == 0)
+        {
+        }
+#endif
+
+#if defined(CONFIG_STM32_IWDG) || defined(CONFIG_RTC_LSICLOCK)
+      /* Low speed internal clock source LSI */
+
+      stm32_rcc_enablelsi();
+#endif
+
+#if defined(CONFIG_RTC_LSECLOCK)
+      /* Low speed external clock source LSE
+       *
+       * TODO: There is another case where the LSE needs to
+       * be enabled: if the MCO1 pin selects LSE as source.
+       */
+
+      stm32_rcc_enablelse();
+#endif
     }
 }
 #endif

@@ -244,6 +244,15 @@
 #if defined(CONFIG_STM32_STM32F427) || defined(CONFIG_STM32_STM32F429)
 #  define FLASH_OPTCR1_NWRP_SHIFT    (16)                   /* Bits 16-27: Not write protect (high bank) */
 #  define FLASH_OPTCR1_NWRP_MASK     (0xfff << FLASH_OPTCR_NWRP_SHIFT)
+
+#  define FLASH_OPTCR1_BFB2_SHIFT    (4)                   /* Bits 4: Dual-bank Boot option byte */
+#  define FLASH_OPTCR1_BFB2_MASK     (1 << FLASH_OPTCR_NWRP_SHIFT)
+
+#endif
+
+#if defined(CONFIG_STM32_STM32F446)
+#  define FLASH_OPTCR1_NWRP_SHIFT    (16)                   /* Bits 16-23: Not write protect (high bank) */
+#  define FLASH_OPTCR1_NWRP_MASK     (0xff << FLASH_OPTCR_NWRP_SHIFT)
 #endif
 
 #endif /* __ARCH_ARM_SRC_STM32_CHIP_STM32_FLASH_H */

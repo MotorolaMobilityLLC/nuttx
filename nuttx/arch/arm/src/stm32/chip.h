@@ -122,6 +122,8 @@
 
 /* STM32 F4 Family ******************************************************************/
 
+#elif defined(CONFIG_STM32_STM32F446)
+#  include "chip/stm32f44xxx_pinmap.h"
 #elif defined(CONFIG_STM32_STM32F40XX)
 #  include "chip/stm32f40xxx_pinmap.h"
 #else
@@ -141,6 +143,8 @@
 #    include "chip/stm32f20xxx_vectors.h"
 #  elif defined(CONFIG_STM32_STM32F30XX)
 #    include "chip/stm32f30xxx_vectors.h"
+#  elif defined(CONFIG_STM32_STM32F446)
+#    include "chip/stm32f44xxx_vectors.h"
 #  elif defined(CONFIG_STM32_STM32F40XX)
 #    include "chip/stm32f40xxx_vectors.h"
 #  else
