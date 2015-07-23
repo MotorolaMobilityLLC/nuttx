@@ -40,6 +40,8 @@
 #include <nuttx/greybus/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
 
+#include "interface.h"
+
 /* Switch internal attributes */
 #define SWVER                       (0x0000)
 #define SWSTA                       (0x0003)
@@ -123,6 +125,12 @@
 #define INVALID_PORT                (0xFF)
 
 #define SWITCH_DEVICE_ID            (0)
+
+/* Switch-internal traffic class and sub-class numberings */
+#define SWITCH_TRAFFIC_CLASS_TC0            (0) /* TC0 */
+#define SWITCH_TRAFFIC_CLASS_TC1            (1) /* TC1 */
+#define SWITCH_TRAFFIC_CLASS_TC0BAND        (2) /* TC0BAND */
+#define SWITCH_TRAFFIC_CLASS_TC0HIGH        (3) /* TC0HIGH */
 
 /*
  * @brief UniPro connections
@@ -398,6 +406,60 @@ int switch_setup_routing_table(struct tsb_switch *sw,
                                uint8_t port_id_1);
 
 int switch_dump_routing_table(struct tsb_switch *sw);
+
+/**
+ * @brief Parameters used by the UniPro Test Feature
+ */
+struct unipro_test_feature_cfg {
+    /*
+     * Source test feature parameters
+     */
+
+    /** Which source Test Feature to use */
+    uint16_t tf_src;
+    /** Which CPort to associate to the source Test Feature. */
+    uint16_t tf_src_cportid;
+    /**
+     * Increment between successive bytes in messages sent by the test feature.
+     */
+    uint8_t tf_src_inc;
+    /**
+     * Size of messages sent by the test feature.
+     */
+    uint16_t tf_src_size;
+    /**
+     * Number of messages to be sent by the test feature source.
+     *
+     * If zero, messages will be sent as long as the test feature is enabled.
+     */
+    uint16_t tf_src_count;
+    /**
+     * Time delay, in microseconds, between messages sent by the test feature.
+     */
+    uint16_t tf_src_gap_us;
+
+    /*
+     * Destination test feature parameters
+     *
+     * TODO: add support for the T_TstDstXXX attributes, to support
+     *       test destination traffic analyzer (to e.g. search for
+     *       dropped packets on the switch).
+     */
+
+    /** Which destination Test Feature to use */
+    uint16_t tf_dst;
+    /** Which CPort to associate to the destination Test Feature */
+    uint16_t tf_dst_cportid;
+};
+
+int switch_enable_test_traffic(struct tsb_switch *sw,
+                               uint8_t src_portid,
+                               uint8_t dst_portid,
+                               const struct unipro_test_feature_cfg *cfg);
+
+int switch_disable_test_traffic(struct tsb_switch *sw,
+                                uint8_t src_portid, uint8_t dst_portid,
+                                const struct unipro_test_feature_cfg *cfg);
 
 /*
  * Platform specific data for switch initialization

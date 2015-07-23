@@ -281,6 +281,7 @@
 #define T_TSTCPORTID                 0x4080
 #define T_TSTSRCON                   0x4081
 #define T_TSTSRCPATTERN              0x4082
+    #define TSTSRCPATTERN_SAWTOOTH  (0x0)
 #define T_TSTSRCINCREMENT            0x4083
 #define T_TSTSRCMESSAGESIZE          0x4084
 #define T_TSTSRCMESSAGECOUNT         0x4085

@@ -39,6 +39,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <interface.h>
 
 #include <nuttx/util.h>
 
@@ -241,6 +242,174 @@ int switch_dump_routing_table(struct tsb_switch *sw) {
         return -EOPNOTSUPP;
     }
     return sw->ops->dump_routing_table(sw);
+}
+
+int switch_enable_test_traffic(struct tsb_switch *sw,
+                               uint8_t src_portid, uint8_t dst_portid,
+                               const struct unipro_test_feature_cfg *cfg) {
+    int i, rc;
+    uint16_t src_cportid = cfg->tf_src_cportid;
+    uint16_t dst_cportid = cfg->tf_dst_cportid;
+    struct pasv {
+        uint8_t  p; /* port */
+        uint16_t a; /* attribute */
+        uint16_t s; /* selector index */
+        uint32_t v; /* value */
+    } test_src_enable[] = {
+        /*
+         * First, disable the CPorts and configure them for test
+         * feature use.
+         */
+        {.p = src_portid,
+         .a = T_CONNECTIONSTATE,
+         .s = src_cportid,
+         .v = 0},
+        {.p = dst_portid,
+         .a = T_CONNECTIONSTATE,
+         .s = dst_cportid,
+         .v = 0},
+
+        {.p = src_portid,
+         .a = T_CPORTMODE,
+         .s = src_cportid,
+         .v = CPORT_MODE_UNDER_TEST},
+        {.p = dst_portid,
+         .a = T_CPORTMODE,
+         .s = dst_cportid,
+         .v = CPORT_MODE_UNDER_TEST},
+
+        /*
+         * Next, configure the test feature at the source.
+         */
+        {.p = src_portid,
+         .a = T_TSTCPORTID,
+         .s = cfg->tf_src,
+         .v = src_cportid},
+        {.p = src_portid,
+         .a = T_TSTSRCINCREMENT,
+         .s = cfg->tf_src,
+         .v = cfg->tf_src_inc},
+        {.p = src_portid,
+         .a = T_TSTSRCMESSAGESIZE,
+         .s = cfg->tf_src,
+         .v = cfg->tf_src_size},
+        {.p = src_portid,
+         .a = T_TSTSRCMESSAGECOUNT,
+         .s = cfg->tf_src,
+         .v = cfg->tf_src_count},
+        {.p = src_portid,
+         .a = T_TSTSRCINTERMESSAGEGAP,
+         .s = cfg->tf_src,
+         .v = cfg->tf_src_gap_us},
+
+        /*
+         * Then configure the test feature at the destination.
+         */
+        {.p = dst_portid,
+         .a = T_TSTCPORTID,
+         .s = cfg->tf_dst,
+         .v = dst_cportid},
+
+        /*
+         * Finally, connect the CPorts again, and turn on the source.
+         */
+        {.p = src_portid,
+         .a = T_CONNECTIONSTATE,
+         .s = src_cportid,
+         .v = 1},
+        {.p = dst_portid,
+         .a = T_CONNECTIONSTATE,
+         .s = dst_cportid,
+         .v = 1},
+        {.p = src_portid,
+         .a = T_TSTSRCON,
+         .s = cfg->tf_src,
+         .v = 1},
+    };
+
+    if (!sw ||
+        src_portid >= SWITCH_PORT_MAX || dst_portid >= SWITCH_PORT_MAX) {
+        return -EINVAL;
+    }
+
+    dbg_info("Enabling UniPro test feature: port=%u,src=%u->port=%u,dst=%u\n",
+             src_portid, cfg->tf_src, dst_portid, cfg->tf_dst);
+    dbg_info("Test source: cport=%u, inc=%u, size=%u, count=%u, gap=%u\n",
+             src_cportid, cfg->tf_src_inc, cfg->tf_src_size, cfg->tf_src_count,
+             cfg->tf_src_gap_us);
+    dbg_info("Test destination: cport=%u, traffic analyzer not enabled.\n",
+             dst_cportid);
+
+    for (i = 0; i < ARRAY_SIZE(test_src_enable); i++) {
+        struct pasv *s = &test_src_enable[i];
+        rc = switch_dme_peer_set(sw, s->p, s->a, s->s, s->v);
+        if (rc) {
+            return rc;
+        }
+    }
+
+    return 0;
+}
+
+int switch_disable_test_traffic(struct tsb_switch *sw,
+                                uint8_t src_portid, uint8_t dst_portid,
+                                const struct unipro_test_feature_cfg *cfg) {
+    int rc, i;
+    uint16_t src_cportid = cfg->tf_src_cportid;
+    uint16_t dst_cportid = cfg->tf_dst_cportid;
+    struct pasv {
+        uint8_t  p; /* port */
+        uint16_t a; /* attribute */
+        uint16_t s; /* selector index */
+        uint32_t v; /* value */
+    } test_src_disable[] = {
+        /*
+         * Stop test feature traffic generation.
+         */
+        {.p = src_portid,
+         .a = T_TSTSRCON,
+         .s = cfg->tf_src,
+         .v = 0},
+
+        /*
+         * Clean up by disconnecting the CPorts and returning them to
+         * the application.
+         */
+        {.p = src_portid,
+         .a = T_CONNECTIONSTATE,
+         .s = src_cportid,
+         .v = 0},
+        {.p = dst_portid,
+         .a = T_CONNECTIONSTATE,
+         .s = dst_cportid,
+         .v = 0},
+
+        {.p = src_portid,
+         .a = T_CPORTMODE,
+         .s = src_cportid,
+         .v = CPORT_MODE_APPLICATION},
+        {.p = dst_portid,
+         .a = T_CPORTMODE,
+         .s = dst_cportid,
+         .v = CPORT_MODE_APPLICATION},
+    };
+
+    if (!sw ||
+        src_portid >= SWITCH_PORT_MAX || dst_portid >= SWITCH_PORT_MAX) {
+        return -EINVAL;
+    }
+
+    dbg_info("Disabling UniPro test feature: port=%u,src=%u->port=%u,dst=%u\n",
+             src_portid, cfg->tf_src, dst_portid, cfg->tf_dst);
+    for (i = 0; i < ARRAY_SIZE(test_src_disable); i++) {
+        struct pasv *s = &test_src_disable[i];
+        rc = switch_dme_peer_set(sw, s->p, s->a, s->s, s->v);
+        if (rc) {
+            return rc;
+        }
+    }
+
+    return 0;
 }
 
 int switch_sys_ctrl_set(struct tsb_switch *sw,
