@@ -79,9 +79,11 @@ depend: .depend
 clean:
 	$(call DELFILE, libboard$(LIBEXT))
 	$(call CLEAN)
+	$(MAKE) -C $(ARACOMMON_SRC) clean
 
 distclean: clean
 	$(call DELFILE, Make.dep)
 	$(call DELFILE, .depend)
+	$(MAKE) -C $(ARACOMMON_SRC) distclean
 
 -include Make.dep
