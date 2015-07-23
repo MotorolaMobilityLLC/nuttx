@@ -48,3 +48,4 @@ define ARACOMMON_LINK
 	$(Q) $(ARCROSSDEV)ar -rcs $1 $(2) $(ARACOMMON_OBJS) || { echo "AR: create $1 FAILED!" ; exit 1 ; }
 endef
 
+.PHONY: $(ARACOMMON_LIB)
