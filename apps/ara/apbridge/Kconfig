@@ -43,6 +43,7 @@ config APBRIDGEA
 config APBRIDGEA_GBSIM
 	bool "Enable GBSIM mode on APBridgeA"
 	depends on APBRIDGEA
+	select GREYBUS
 	default n
 	---help---
 		Enable GBSIM on APBridgeA.  This provides GBSIM-like
