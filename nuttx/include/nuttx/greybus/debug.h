@@ -67,7 +67,7 @@ static inline __attribute__ ((format(printf, 2, 3)))
 #define gb_info(fmt, ...)                                           \
     gb_log(GB_LOG_INFO, "[I] GB: " fmt, ##__VA_ARGS__);
 #define gb_error(fmt, ...)                                          \
-    gb_log(GB_LOG_ERROR, "[D] GB: " fmt, ##__VA_ARGS__);
+    gb_log(GB_LOG_ERROR, "[E] GB: " fmt, ##__VA_ARGS__);
 #define gb_warning(fmt, ...)                                        \
     gb_log(GB_LOG_WARNING, "[W] GB: " fmt, ##__VA_ARGS__);
 #define gb_debug(fmt, ...)                                          \
