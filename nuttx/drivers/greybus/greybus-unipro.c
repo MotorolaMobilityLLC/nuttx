@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <arch/tsb/unipro.h>
+#include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 
 static int gb_unipro_rx_handler(unsigned int cport, void *data, size_t size)
@@ -50,13 +51,22 @@ static struct unipro_driver greybus_driver = {
 static int gb_unipro_listen(unsigned int cport)
 {
     int ret;
+    int i = 0;
 
+    gb_debug("Connecting cport %d\n", cport);
     do {
         ret = unipro_init_cport(cport);
-        if (!ret)
+        if (!ret) {
             ret = unipro_driver_register(&greybus_driver, cport);
-        else
+        } else if (ret != -ENOTCONN) {
+            gb_error("Can not init cport %d: error %d\n", cport, ret);
+        } else {
             usleep(200000);
+            if (i++ == 50) {
+                gb_warning("CPORT %d doesn't seem to be connected\n", cport);
+                gb_warning("Please check your SVC configuration\n");
+            }
+        }
     } while (ret == -ENOTCONN);
     return ret;
 }
@@ -75,5 +85,6 @@ struct gb_transport_backend gb_unipro_backend = {
 
 int gb_unipro_init(void)
 {
+    gb_debug("Greybus: register unipro backend\n");
     return gb_init(&gb_unipro_backend);
 }
