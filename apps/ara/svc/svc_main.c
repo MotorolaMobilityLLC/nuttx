@@ -31,6 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <nuttx/util.h>
+#include <nuttx/greybus/unipro.h>
 
 #ifndef CONFIG_ARCH_BOARD_ARA_SVC
 #include "up_switch.h"
@@ -64,6 +66,7 @@ enum {
     LINKTEST,
     LINKSTATUS,
     DME_IO,
+    TESTFEATURE,
     MAX_CMD,
 };
 
@@ -81,6 +84,7 @@ static const struct command commands[] = {
                   "test UniPro link power mode configuration"},
     [LINKSTATUS] = {'s', "linkstatus", "print UniPro link status bit mask"},
     [DME_IO]  = {'d', "dme", "get/set DME attributes"},
+    [TESTFEATURE] = {'t', "testfeature", "UniPro test feature"},
 };
 
 static void usage(int exit_status) {
@@ -836,6 +840,146 @@ static int dme_io(int argc, char *argv[]) {
     }
 }
 
+static void test_feature_usage(int exit_status) {
+    printk("    svc %s <i|e> [-s <src_iface>] [-f <from_cport>] [-d <dst_iface>] [-t <to_cport>] [-m <size>]\n",
+           commands[TESTFEATURE].longc);
+    printk("\n");
+    printk("    <i|e>: Initialize (start) or Exit (stop) the UniPro test-traffic feature\n");
+    printk("    -h: print this message and exit\n");
+    printk("    -s <src_iface>: Source UniPro interface for test traffic. Default is \"apb1\"\n");
+    printk("    -f <from_cport>: Source CPort for test traffic on src_iface. Default is 0.\n");
+    printk("    -d <dst_iface>: Dest UniPro interface for test traffic. Default is \"apb2\"\n");
+    printk("    -t <to_cport>: Dest CPort for test traffic on dst_iface. Default is 0.\n");
+    printk("    -m <size>: message size. Default is 272.\n");
+    exit(exit_status);
+}
+
+static int test_feature(int argc, char* argv[]) {
+    const char *longc = commands[TESTFEATURE].longc;
+    const char opts[] = "hs:f:d:t:m:";
+    const char *src_iface_name = "apb1";   /* -s */
+    const char *dst_iface_name = "apb2";   /* -d */
+    uint16_t src_cport = 0, dst_cport = 0; /* -f, -t */
+    uint32_t msgsize = 272;                /* -m */
+    bool init = false;
+    struct tsb_switch *sw = svc->sw;
+    struct interface *src_iface, *dst_iface;
+    char** args;
+    int rc, c;
+    struct unipro_test_feature_cfg cfg;
+
+    if (!sw) {
+        return -ENODEV;
+    }
+
+    if (argc < 3 || strlen(argv[2]) > 1) {
+        printk("svc %s: First argument must be 'i' or 'e'.\n", longc);
+        test_feature_usage(EXIT_FAILURE);
+    }
+
+    switch (argv[2][0]) {
+    case 'i':
+        init = true;
+        break;
+    case 'e':
+        init = false;
+        break;
+    default:
+        printk("svc %s: first argument must be 'i' or 'e'.\n", longc);
+        test_feature_usage(EXIT_FAILURE);
+    }
+
+    argc--;
+    args = argv + 2;
+    optind = -1;
+    while ((c = getopt(argc, args, opts)) != -1) {
+        switch(c) {
+        case 'h':
+            test_feature_usage(EXIT_SUCCESS);
+            break;
+        case 's':
+            src_iface_name = optarg;
+            break;
+        case 'f':
+            src_cport = strtol(optarg, NULL, 10);
+            break;
+        case 'd':
+            dst_iface_name = optarg;
+            break;
+        case 't':
+            dst_cport = strtol(optarg, NULL, 10);
+            break;
+        case 'm':
+            msgsize = strtol(optarg, NULL, 10);
+            break;
+        case '?':
+        default:
+            printf("svc %s: unrecognized argument '%c'.\n", longc, (char)c);
+            test_feature_usage(EXIT_FAILURE);
+        }
+    }
+
+    src_iface = interface_get_by_name(src_iface_name);
+    if (!src_iface) {
+        printk("svc %s: nonexistent source interface %s.\n",
+               longc, src_iface_name);
+        test_feature_usage(EXIT_FAILURE);
+    }
+
+    dst_iface = interface_get_by_name(dst_iface_name);
+    if (!dst_iface) {
+        printk("svc %s: nonexistent destination interface %s.\n",
+               longc, dst_iface_name);
+        test_feature_usage(EXIT_FAILURE);
+    }
+
+    /*
+     * Set up the Test Feature configuration struct.
+     */
+    cfg.tf_src = 0;
+    cfg.tf_src_cportid = src_cport;
+    cfg.tf_src_inc = 1;
+    cfg.tf_src_size = msgsize;
+    cfg.tf_src_count = 0;
+    cfg.tf_src_gap_us = 0;
+    cfg.tf_dst = 0;
+    cfg.tf_dst_cportid = dst_cport;
+
+    if (init) {
+        /* Create a route and connection between the two endpoints. */
+        rc = svc_connect_interfaces(src_iface, src_cport, dst_iface, dst_cport,
+                                    CPORT_TC0,
+                                    CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N);
+        if (rc) {
+            printk("%s(): couldn't connect [n=%s,c=%u]<->[n=%s,c=%u]: %i\n",
+                   __func__, src_iface_name, src_cport, dst_iface_name,
+                   dst_cport, rc);
+            return rc;
+        }
+        /* Actually enable the test traffic. */
+        rc = switch_enable_test_traffic(sw,
+                                        src_iface->switch_portid,
+                                        dst_iface->switch_portid,
+                                        &cfg);
+        if (rc) {
+            printk("%s(): couldn't enable test traffic: %d\n", __func__, rc);
+            return rc;
+        }
+    } else {
+        rc = switch_disable_test_traffic(sw,
+                                         src_iface->switch_portid,
+                                         dst_iface->switch_portid,
+                                         &cfg);
+        if (rc) {
+            printk("%s(): couldn't disable test traffic: %d\n",
+                   __func__, rc);
+            return rc;
+        }
+    }
+
+    return 0;
+}
+
 static int ara_svc_main(int argc, char *argv[]) {
     /* Current main(), for configs/ara/svc (BDB1B, BDB2A, spiral 2
      * modules, etc.). */
@@ -881,6 +1025,9 @@ static int ara_svc_main(int argc, char *argv[]) {
         break;
     case DME_IO:
         rc = dme_io(argc, argv);
+        break;
+    case TESTFEATURE:
+        rc = test_feature(argc, argv);
         break;
     default:
         usage(EXIT_FAILURE);
