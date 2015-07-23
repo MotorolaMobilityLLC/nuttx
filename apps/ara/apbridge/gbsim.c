@@ -37,9 +37,15 @@
 
 #define IID_LENGTH 7
 
-static int gbsim_usb_to_unipro(unsigned int cportid, void *buf, size_t len)
+static int gbsim_usb_to_unipro(unsigned int cportid, void *buf, size_t len,
+                               unipro_send_completion_t callback, void *priv)
 {
     greybus_rx_handler(cportid, buf, len);
+
+    if (callback) {
+        callback(0, buf, priv);
+    }
+
     return len;
 }
 
