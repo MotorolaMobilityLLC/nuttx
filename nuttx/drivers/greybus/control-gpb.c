@@ -30,6 +30,7 @@
 
 #include <string.h>
 #include <arch/byteorder.h>
+#include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 #include <apps/greybus-utils/manifest.h>
 
@@ -78,8 +79,10 @@ static uint8_t gb_control_get_manifest(struct gb_operation *operation)
         return GB_OP_NO_MEMORY;
 
     mh = get_manifest_blob();
-    if (!mh)
+    if (!mh) {
+        gb_error("Failed to get a valid manifest\n");
         return GB_OP_INVALID;
+    }
 
     memcpy(response->data, mh, size);
 
@@ -94,6 +97,8 @@ static uint8_t gb_control_connected(struct gb_operation *operation)
 
     retval = gb_listen(le16_to_cpu(request->cport_id));
     if (retval) {
+        gb_error("Can not connect cport %d: error %d\n",
+                 le16_to_cpu(request->cport_id), retval);
         return GB_OP_INVALID;
     }
 
@@ -108,6 +113,8 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
 
     retval = gb_stop_listening(le16_to_cpu(request->cport_id));
     if (retval) {
+        gb_error("Can not disconnect cport %d: error %d\n",
+                 le16_to_cpu(request->cport_id), retval);
         return GB_OP_INVALID;
     }
 
