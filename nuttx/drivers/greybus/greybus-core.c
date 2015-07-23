@@ -355,7 +355,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     return 0;
 }
 
-int gb_register_driver(unsigned int cport, struct gb_driver *driver)
+int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
 {
     pthread_attr_t thread_attr;
     pthread_attr_t *thread_attr_ptr = &thread_attr;
