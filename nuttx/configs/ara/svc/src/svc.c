@@ -47,6 +47,7 @@
 #include "up_debug.h"
 #include "interface.h"
 #include "tsb_switch.h"
+#include "tsb_switch_driver_es2.h"
 #include "svc.h"
 #include "vreg.h"
 #include "gb_svc.h"
@@ -57,6 +58,51 @@
 
 static struct svc the_svc;
 struct svc *svc = &the_svc;
+
+static int event_cb(struct tsb_switch_event *ev);
+static int event_mailbox(struct tsb_switch_event *ev);
+
+static struct tsb_switch_event_listener evl = {
+    .cb = event_cb,
+};
+
+static int event_cb(struct tsb_switch_event *ev) {
+
+    switch (ev->type) {
+    case TSB_SWITCH_EVENT_MAILBOX:
+        event_mailbox(ev);
+        break;
+    }
+    return 0;
+}
+
+static int event_mailbox(struct tsb_switch_event *ev) {
+    int rc;
+    dbg_info("event received: type: %u port: %u val: %u\n", ev->type, ev->mbox.port, ev->mbox.val);
+    pthread_mutex_lock(&svc->lock);
+    switch (ev->mbox.val) {
+    case 1:
+        rc = interface_get_id_by_portid(ev->mbox.port);
+        if (rc < 0) {
+            break;
+        }
+
+        svc->ap_intf_id = rc;
+        dbg_info("AP initialized on port %u\n", ev->mbox.port);
+        break;
+    default:
+        dbg_error("unexpected mailbox value: %u port: %u", ev->mbox.val, ev->mbox.port)
+    }
+    pthread_cond_signal(&svc->cv);
+    pthread_mutex_unlock(&svc->lock);
+
+    return 0;
+}
+
+static int svc_event_init(void) {
+    switch_event_register_listener(svc->sw, &evl);
+    return 0;
+}
 
 static struct unipro_driver svc_greybus_driver = {
     .name = "svcd-greybus",
@@ -193,6 +239,76 @@ int svc_route_create(uint8_t intf1_id, uint8_t dev1_id,
     return 0;
 }
 
+/**
+ * @brief Handle AP module boot
+ */
+static int svc_handle_ap(void) {
+    struct unipro_connection svc_conn;
+    uint8_t ap_port_id = interface_get_portid_by_id(svc->ap_intf_id);
+    int rc;
+
+    dbg_info("Creating initial SVC connection\n");
+
+    /* Assign a device ID. The AP is always GB_SVC_DEVICE_ID = 1 */
+    rc = svc_intf_device_id(svc->ap_intf_id, GB_SVC_DEVICE_ID);
+    if (rc) {
+        dbg_error("Failed to assign device id to AP: %d\n", rc);
+    }
+
+    rc = switch_setup_routing_table(svc->sw, SWITCH_DEVICE_ID, SWITCH_PORT_ID,
+                                    GB_SVC_DEVICE_ID, ap_port_id);
+    if (rc) {
+        dbg_error("Failed to set initial SVC route: %d\n", rc);
+    }
+
+    svc_conn.port_id0      = SWITCH_PORT_ID;
+    svc_conn.device_id0    = SWITCH_DEVICE_ID;
+    svc_conn.cport_id0     = SVC_PROTOCOL_CPORT_ID;
+    svc_conn.port_id1      = ap_port_id;
+    svc_conn.device_id1    = GB_SVC_DEVICE_ID;
+    svc_conn.cport_id1     = GB_SVC_CPORT_ID;
+    svc_conn.tc            = 0;
+    svc_conn.flags         = CPORT_FLAGS_E2EFC | CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N;
+    rc = switch_connection_create(svc->sw, &svc_conn);
+    if (rc) {
+        dbg_error("Failed to create initial SVC connection: %d\n", rc);
+    }
+
+    /*
+     * Poke the AP module so that it can transmit FCTs
+     */
+    rc = svc_mailbox_poke(svc->ap_intf_id, GB_SVC_CPORT_ID);
+    if (rc) {
+        dbg_error("AP did not respond to poke. Timed out.\n");
+        return rc;
+    }
+
+    /*
+     * Now turn on E2EFC on the switch so that it can transmit FCTs.
+     */
+    rc = tsb_switch_es2_fct_enable(svc->sw);
+    if (rc) {
+        dbg_error("Failed to enable FCT on switch.\n");
+        return rc;
+    }
+
+    /*
+     * Now start the SVC protocol handshake.
+     */
+    gb_svc_protocol_version();
+    /*
+     * Tell the AP what kind of endo it's in, and the AP's intf_id.
+     */
+    gb_svc_hello(svc->ap_intf_id);
+
+    /*
+     * FIXME: Hotplug events should be sent upon receiving a linkup
+     * notification. For now, send a fake one for intf_id 2.
+     */
+    gb_svc_intf_hotplug(2, 0x1, 0x2, 0x3, 0x4);
+    return 0;
+}
+
 /* state helpers */
 #define svcd_state_running() (svc->state == SVC_STATE_RUNNING)
 #define svcd_state_stopped() (svc->state == SVC_STATE_STOPPED)
@@ -251,6 +367,12 @@ static int svcd_startup(void) {
      * system bootstrap sequence is implemented.
      */
     up_mdelay(300);
+
+    /* Initialize event system */
+    rc = svc_event_init();
+    if (rc) {
+        goto error3;
+    }
 
     /* Register svc protocol greybus driver*/
     rc = svc_gb_init();
@@ -317,6 +439,10 @@ static int svcd_main(int argc, char **argv) {
         if (svc->stop) {
             dbg_verbose("svc stop requested\n");
             break;
+        }
+
+        if (svc->ap_intf_id) {
+            svc_handle_ap();
         }
     };
 

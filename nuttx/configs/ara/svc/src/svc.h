@@ -45,6 +45,8 @@ struct svc {
     pid_t svcd_pid;
     pthread_mutex_t lock;
     pthread_cond_t cv;
+
+    uint8_t ap_intf_id;
 };
 
 extern struct svc *svc;
