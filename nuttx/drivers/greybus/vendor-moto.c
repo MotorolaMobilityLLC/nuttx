@@ -26,15 +26,20 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <errno.h>
 #include <debug.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 
 #include <arch/board/slice.h>
 
 #include <nuttx/greybus/greybus.h>
 #ifdef CONFIG_GREYBUS_SLICE
-#include <nuttx/greybus/slice.h>
+#  include <nuttx/greybus/slice.h>
+#endif
+
+#ifdef CONFIG_RAMLOG_SYSLOG
+#  include <nuttx/syslog/ramlog.h>
 #endif
 
 #include "vendor-moto-gb.h"
@@ -78,6 +83,32 @@ static uint8_t gb_vendor_moto_charge_base(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_vendor_moto_get_dmesg(struct gb_operation *operation)
+{
+#ifdef CONFIG_RAMLOG_SYSLOG
+    struct gb_vendor_moto_get_dmesg_response *response;
+    int fd;
+    int ret;
+
+    fd = open(CONFIG_SYSLOG_DEVPATH, O_RDONLY);
+    if (fd < 0)
+        return GB_OP_UNKNOWN_ERROR;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    ret = read(fd, response->buf, GB_VENDOR_MOTO_DMESG_SIZE);
+    if (ret < 0)
+        return GB_OP_UNKNOWN_ERROR;
+
+    close(fd);
+    return GB_OP_SUCCESS;
+#else
+    return GB_OP_NONEXISTENT;
+#endif
+}
+
 static int gb_vendor_moto_init(unsigned int cport)
 {
 #ifdef CONFIG_GREYBUS_SLICE
@@ -89,6 +120,7 @@ static int gb_vendor_moto_init(unsigned int cport)
 static struct gb_operation_handler gb_vendor_moto_handlers[] = {
     GB_HANDLER(GB_VENDOR_MOTO_PROTOCOL_VERSION, gb_vendor_moto_protocol_version),
     GB_HANDLER(GB_VENDOR_MOTO_CHARGE_BASE, gb_vendor_moto_charge_base),
+    GB_HANDLER(GB_VENDOR_MOTO_GET_DMESG, gb_vendor_moto_get_dmesg),
 };
 
 static struct gb_driver gb_vendor_moto_driver = {
@@ -101,4 +133,3 @@ void gb_vendor_register(int cport)
 {
     gb_register_driver(cport, &gb_vendor_moto_driver);
 }
-
