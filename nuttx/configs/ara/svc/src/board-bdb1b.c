@@ -285,6 +285,44 @@ static struct ara_board_info bdb1b_board_info = {
     .nr_io_expanders = ARRAY_SIZE(bdb1b_io_expanders),
 };
 
+/*
+* Bridge on BDB1B are already powered on POR.
+* Remove the power while the bridges and other components
+* are starting can cause some troubles.
+* Update vreg.def_val to keep the bridge powered during the config
+* if the reset was caused by a POR (ie we plug power on board).
+*/
+void interfaces_por_update(struct interface **ints, size_t nr_ints)
+{
+    int por;
+    int i, j;
+    struct vreg *vreg;
+
+    por = getreg32(STM32_RCC_CSR) & RCC_CSR_PORRSTF;
+    modifyreg32(STM32_RCC_CSR, 0, RCC_CSR_RMVF);
+    if (!por) {
+        /* Firmware reset was not cause by POR,
+         * let SVC power off and power on bridges
+         */
+        return;
+    }
+
+    for (i = 0; i < nr_ints; i++) {
+        vreg = ints[i]->vreg;
+        if (!vreg) {
+            continue;
+        }
+
+        for (j = 0; j < vreg->nr_vregs; j++) {
+            if (!&vreg->vregs[j]) {
+                break;
+            }
+            /* Ensure vreg_config will not power off the bridges */
+            vreg->vregs[j].def_val = 1;
+        }
+    }
+}
+
 struct ara_board_info *board_init(void) {
     int i;
 
@@ -342,6 +380,9 @@ struct ara_board_info *board_init(void) {
             }
         }
     }
+
+    interfaces_por_update(bdb1b_board_info.interfaces,
+                          bdb1b_board_info.nr_interfaces);
 
     return &bdb1b_board_info;
 }
