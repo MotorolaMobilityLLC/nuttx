@@ -380,7 +380,7 @@ static int irq_rx_eom(int irq, void *context) {
                                    (cport->cportid * sizeof(uint32_t)));
     DBG_UNIPRO("cport: %u driver: %s size=%u payload=0x%x\n",
                 cport->cportid,
-                cport->driver->name,
+                cport->driver->name, transferred_size,
                 data);
 
     if (cport->driver->rx_handler) {
