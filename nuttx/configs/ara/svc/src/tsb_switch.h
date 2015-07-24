@@ -137,6 +137,70 @@
 #define SWITCH_TRAFFIC_CLASS_TC0BAND        (2) /* TC0BAND */
 #define SWITCH_TRAFFIC_CLASS_TC0HIGH        (3) /* TC0HIGH */
 
+/* QoS attributes, accessible via qos_attr_get/qos_attr_set */
+#define AR_CTRL                     (0x00)
+#define AR_STATUS_INTERRUPT         (0x0C)
+#define AR_STATUS_CONNECT           (0x0D)
+#define AR_STATUS_REQ0              (0x0E)
+#define AR_STATUS_REQ1              (0x0F)
+#define AR_WDT                      (0x10)
+#define AR_PRIOLUT                  (0x20)
+#define AR_DRR1CFG_PERIOD(i)        (0x30 + i)
+#define AR_DRR1CFG_PERIOD_BROADCAST (0x3F)
+#define AR_DRR1CFG_DEC(i)           (0x40 + i)
+#define AR_DRR1CFG_DEC_BROADCAST    (0x4F)
+#define AR_DRR1CFG_LIMIT(i)         (0x50 + i)
+#define AR_DRR1CFG_LIMIT_BROADCAST  (0x5F)
+#define AR_DRR1STAT_QUANTITY(i)     (0x60 + i)
+#define AR_BSTAT_QUANTITY(i)        (0x70 + i)
+#define AR_BSTAT_QUANTITYTX         (0x80)
+#define AR_DRR2CFG_PERIOD(i)        (0x90 + i)
+#define AR_DRR2CFG_PERIOD_BROADCAST (0x9F)
+#define AR_DRR2CFG_DEC(i)           (0xA0 + i)
+#define AR_DRR2CFG_DEC_BROADCAST    (0xAF)
+#define AR_DRR2CFG_LIMIT(i)         (0xB0 + i)
+#define AR_DRR2CFG_LIMIT_BROADCAST  (0xBF)
+#define RT_CTRL                     (0xC0)
+#define RT_STATUS                   (0xC3)
+#define RT_WDT                      (0xC4)
+#define RT_BCFGDEC0                 (0xD0)
+#define RT_BCFGLIMIT0               (0xD1)
+#define RT_BCFGPERIOD0              (0xD2)
+#define RT_BCFGDEC1                 (0xE0)
+#define RT_BCFGLIMIT1               (0xE1)
+#define RT_BCFGPERIOD1              (0xE2)
+
+/* QoS attribute bitmasks */
+#define AR_CTRL_CLOSURE                     (1 << 0)
+#define AR_CTRL_DRR2ENABLE                  (1 << 8)
+#define AR_PRIOLUT_PCP_MASK(i, b)           (b << (i * 2))
+#define AR_PRIOLUT_PCP(i)                   AR_PRIOLUT_PCP_MASK(i, 0x3)
+#define AR_STATUS_INTERRUPT_WDT_V           (1 << 0)
+#define AR_STATUS_INTERRUPT_WDT_A           (1 << 1)
+#define AR_STATUS_INTERRUPT_PRESENT_TC0     (1 << 2)
+#define AR_STATUS_INTERRUPT_PRESENT_TC1     (1 << 3)
+#define AR_STATUS_CONNECT_PORT(i)           (1 << i)
+#define AR_STATUS_CONNECT_CLASS_TC0         (1 << 16)
+#define AR_STATUS_CONNECT_CLASS_TC0HIGH     (1 << 17)
+#define AR_STATUS_CONNECT_CLASS_TC0BAND     (1 << 18)
+#define AR_STATUS_CONNECT_CLASS_TC1         (1 << 19)
+#define AR_STATUS_CONNECT_ARB_OUTPUT        (1 << 24)
+#define AR_STATUS_CONNECT_ARB_BUSY          (1 << 25)
+#define AR_STATUS_REQ0_REQ_TC0(i)           (1 << i)
+#define AR_STATUS_REQ0_REQ_TC0HIGH(i)       (1 << (16 + i))
+#define AR_STATUS_REQ1_REQ_TC0BAND(i)       (1 << i)
+#define AR_STATUS_REQ1_REQ_TC1(i)           (1 << (16 + i))
+#define AR_WDT_WDT_COUNT                    ((1 << 24) - 1)
+#define AR_BSTAT_QUANTITY_RATE00_TC0        ((1 << 16) - 1)
+#define AR_BSTAT_QUANTITY_RATE00_TC1        (AR_BSTAT_QUANTITY_RATE00_TC0 << 16)
+#define RT_CTRL_RST_TC0                     (1 << 0)
+#define RT_CTRL_RST_TC1                     (1 << 1)
+#define RT_STATUS_WDT_V_TC0                 (1 << 0)
+#define RT_STATUS_WDT_A_TC0                 (1 << 1)
+#define RT_STATUS_WDT_V_TC1                 (1 << 4)
+#define RT_STATUS_WDT_A_TC1                 (1 << 5)
+#define RT_WDT_WDT_COUNT                    ((1 << 24) - 1)
+
 /*
  * @brief UniPro connections
  */
@@ -550,6 +614,55 @@ int switch_qos_attr_set(struct tsb_switch *sw, uint8_t portid, uint8_t attrid,
                         uint32_t attr_val);
 int switch_qos_attr_get(struct tsb_switch *sw, uint8_t portid, uint8_t attrid,
                         uint32_t *val);
+int switch_qos_band_reset(struct tsb_switch *sw, uint8_t portid);
+int switch_qos_bwctrl_enabled(struct tsb_switch *sw, uint8_t portid, uint8_t tc,
+                              uint8_t *val);
+int switch_qos_enable_bwctrl(struct tsb_switch *sw, uint8_t portid, uint8_t tc);
+int switch_qos_disable_bwctrl(struct tsb_switch *sw, uint8_t portid,
+                              uint8_t tc);
+int switch_qos_get_subtc(struct tsb_switch *sw, uint8_t portid, uint8_t *tc);
+int switch_qos_set_subtc(struct tsb_switch *sw, uint8_t portid, uint8_t tc);
+int switch_qos_port_closed(struct tsb_switch *sw, uint8_t portid, bool *closed);
+int switch_qos_open_port(struct tsb_switch *sw, uint8_t portid);
+int switch_qos_close_port(struct tsb_switch *sw, uint8_t portid);
+int switch_qos_peer_implements_tc(struct tsb_switch *sw, uint8_t portid,
+                                  uint8_t tc, uint8_t *val);
+int switch_qos_transmit_accept_signal(struct tsb_switch *sw, uint8_t portid,
+                                      uint8_t *val);
+int switch_qos_transmit_valid_signal(struct tsb_switch *sw, uint8_t portid,
+                                     uint8_t *val);
+int switch_qos_gate_arb_busy(struct tsb_switch *sw, uint8_t *val);
+int switch_qos_gate_arb_output(struct tsb_switch *sw, uint8_t port,
+                               uint8_t *val);
+int switch_qos_output_traffic_class(struct tsb_switch *sw, uint8_t *val);
+int switch_qos_port_connected(struct tsb_switch *sw, uint8_t port,
+                              uint8_t *val);
+int switch_qos_request_status(struct tsb_switch *sw, uint8_t tc, uint8_t port,
+                              uint8_t *val);
+int switch_qos_get_bwperiod(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                            uint32_t *val);
+int switch_qos_set_bwperiod(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                            uint32_t val);
+int switch_qos_get_decsize(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                           uint32_t *val);
+int switch_qos_set_decsize(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                           uint32_t val);
+int switch_qos_get_limit(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                         uint32_t *val);
+int switch_qos_set_limit(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                         uint32_t val);
+int switch_qos_source_quantity(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                               uint32_t *val);
+int switch_qos_transmit_quantity(struct tsb_switch *sw, uint32_t *val);
+int switch_qos_reset_routing_table(struct tsb_switch *sw, uint8_t tc);
+int switch_qos_source_accept_signal(struct tsb_switch *sw, uint8_t port,
+                                    uint8_t tc, uint8_t *val);
+int switch_qos_source_valid_signal(struct tsb_switch *sw, uint8_t port,
+                                   uint8_t tc, uint8_t *val);
+int switch_qos_get_in_wdt_count(struct tsb_switch *sw, uint32_t *val);
+int switch_qos_set_in_wdt_count(struct tsb_switch *sw, uint32_t val);
+int switch_qos_get_out_wdt_count(struct tsb_switch *sw, uint32_t *val);
+int switch_qos_set_out_wdt_count(struct tsb_switch *sw, uint32_t val);
 
 int switch_irq_enable(struct tsb_switch *sw,
                       bool enable);

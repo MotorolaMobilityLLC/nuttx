@@ -472,9 +472,13 @@ int switch_qos_attr_set(struct tsb_switch *sw,
                                uint8_t portid,
                                uint8_t attrid,
                                uint32_t attr_val) {
+    if (!sw) {
+        return -EINVAL;
+    }
     if (!sw->ops->qos_attr_set) {
         return -EOPNOTSUPP;
     }
+
     return sw->ops->qos_attr_set(sw, portid, attrid, attr_val);
 }
 
@@ -482,10 +486,882 @@ int switch_qos_attr_get(struct tsb_switch *sw,
                                uint8_t portid,
                                uint8_t attrid,
                                uint32_t *val) {
+    if (!sw) {
+        return -EINVAL;
+    }
     if (!sw->ops->qos_attr_get) {
         return -EOPNOTSUPP;
     }
+
     return sw->ops->qos_attr_get(sw, portid, attrid, val);
+}
+
+int switch_qos_band_reset(struct tsb_switch *sw, uint8_t portid) {
+    if (!sw || portid >= SWITCH_UNIPORT_MAX) {
+        return -EINVAL;
+    }
+
+    return switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_CTRL, 1 << (portid + 16));
+}
+
+int switch_qos_bwctrl_enabled(struct tsb_switch *sw, uint8_t portid, uint8_t tc,
+                              uint8_t *val) {
+    int rc;
+    uint8_t drr2, priolut;
+    uint32_t attr_val;
+
+    if (!sw ||
+        portid >= SWITCH_UNIPORT_MAX ||
+        !val) {
+        return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0BAND:
+        *val = true;
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH:
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_CTRL, &attr_val);
+        if (rc) {
+            return rc;
+        }
+
+        drr2 = attr_val & AR_CTRL_DRR2ENABLE;
+
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_PRIOLUT, &attr_val);
+        if (rc) {
+            return rc;
+        }
+
+        priolut = (attr_val >> (portid * 2)) & ~3;
+
+        *val = (priolut >> 1) || (priolut && drr2);
+        break;
+    default:
+        *val = false;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_enable_bwctrl(struct tsb_switch *sw, uint8_t portid, uint8_t tc) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw ||
+        tc != SWITCH_TRAFFIC_CLASS_TC0HIGH ||
+        portid >= SWITCH_UNIPORT_MAX) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_CTRL, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    attr_val |= AR_CTRL_DRR2ENABLE;
+    return switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_CTRL, attr_val);
+}
+
+int switch_qos_disable_bwctrl(struct tsb_switch *sw, uint8_t portid, uint8_t tc) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw ||
+        tc != SWITCH_TRAFFIC_CLASS_TC0HIGH ||
+        portid >= SWITCH_UNIPORT_MAX) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_CTRL, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    attr_val &= ~AR_CTRL_DRR2ENABLE;
+    return switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_CTRL, attr_val);
+}
+
+int switch_qos_get_subtc(struct tsb_switch *sw, uint8_t portid, uint8_t *tc) {
+    int rc;
+    uint32_t attr_val, mask;
+
+    if (!sw || portid >= SWITCH_UNIPORT_MAX || !tc) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_PRIOLUT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    mask = attr_val & AR_PRIOLUT_PCP(portid);
+    if (mask & AR_PRIOLUT_PCP_MASK(portid, 0x2)) {
+        *tc = SWITCH_TRAFFIC_CLASS_TC0BAND;
+    } else if (mask & AR_PRIOLUT_PCP_MASK(portid, 0x1)) {
+        *tc = SWITCH_TRAFFIC_CLASS_TC0HIGH;
+    } else {
+        *tc = SWITCH_TRAFFIC_CLASS_TC0;
+    }
+
+    return 0;
+}
+
+int switch_qos_set_subtc(struct tsb_switch *sw, uint8_t portid, uint8_t tc) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || portid >= SWITCH_UNIPORT_MAX) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_PRIOLUT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    attr_val &= ~AR_PRIOLUT_PCP_MASK(portid, 0x3);
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0BAND:
+        attr_val |= AR_PRIOLUT_PCP_MASK(portid, 0x2);
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH:
+        attr_val |= AR_PRIOLUT_PCP_MASK(portid, 0x1);
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0:
+        attr_val |= AR_PRIOLUT_PCP_MASK(portid, 0x0);
+        break;
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_PRIOLUT, attr_val);
+}
+
+int switch_qos_port_closed(struct tsb_switch *sw, uint8_t portid, bool *closed) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || portid >= SWITCH_UNIPORT_MAX || !closed) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, portid, AR_CTRL, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    *closed = (bool)(attr_val & AR_CTRL_CLOSURE);
+
+    return 0;
+}
+
+int switch_qos_open_port(struct tsb_switch *sw, uint8_t portid) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || portid >= SWITCH_UNIPORT_MAX) {
+        if (portid == SWITCH_PORT_ID) {
+            dbg_error("Cannot open or close internal switch port.\n");
+        }
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, portid, AR_CTRL, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    attr_val &= ~AR_CTRL_CLOSURE;
+
+    return switch_qos_attr_set(sw, portid, AR_CTRL, attr_val);
+}
+
+int switch_qos_close_port(struct tsb_switch *sw, uint8_t portid) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || portid >= SWITCH_UNIPORT_MAX) {
+        if (portid == SWITCH_PORT_ID) {
+            dbg_error("Cannot open or close internal switch port.\n");
+        }
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, portid, AR_CTRL, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    attr_val |= AR_CTRL_CLOSURE;
+
+    return switch_qos_attr_set(sw, portid, AR_CTRL, attr_val);
+}
+
+int switch_qos_peer_implements_tc(struct tsb_switch *sw, uint8_t portid,
+                                  uint8_t tc, uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || portid >= SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, portid, AR_STATUS_INTERRUPT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0:
+        *val = attr_val & AR_STATUS_INTERRUPT_PRESENT_TC0;
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC1:
+        *val = attr_val & AR_STATUS_INTERRUPT_PRESENT_TC1;
+        break;
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_transmit_accept_signal(struct tsb_switch *sw, uint8_t portid,
+                                      uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || portid >= SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, portid, AR_STATUS_INTERRUPT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    *val = attr_val & AR_STATUS_INTERRUPT_WDT_A;
+
+    return 0;
+}
+
+int switch_qos_transmit_valid_signal(struct tsb_switch *sw, uint8_t portid,
+                                     uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || portid >= SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, portid, AR_STATUS_INTERRUPT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    *val = attr_val & AR_STATUS_INTERRUPT_WDT_V;
+
+    return 0;
+}
+
+int switch_qos_gate_arb_busy(struct tsb_switch *sw, uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || !val) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_STATUS_CONNECT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    *val = attr_val & AR_STATUS_CONNECT_ARB_BUSY;
+
+    return 0;
+}
+
+int switch_qos_gate_arb_output(struct tsb_switch *sw, uint8_t port,
+                               uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || !val) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_STATUS_CONNECT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    *val = attr_val & AR_STATUS_CONNECT_ARB_OUTPUT;
+
+    return 0;
+}
+
+int switch_qos_output_traffic_class(struct tsb_switch *sw, uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || !val) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_STATUS_CONNECT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    *val = 0;
+    if (attr_val & AR_STATUS_CONNECT_CLASS_TC0) {
+        *val |= (AR_STATUS_CONNECT_CLASS_TC0 >> 16);
+    }
+    if (attr_val & AR_STATUS_CONNECT_CLASS_TC0HIGH) {
+        *val |= (AR_STATUS_CONNECT_CLASS_TC0HIGH >> 16);
+    }
+    if (attr_val & AR_STATUS_CONNECT_CLASS_TC0BAND) {
+        *val |= (AR_STATUS_CONNECT_CLASS_TC0BAND >> 16);
+    }
+    if (attr_val & AR_STATUS_CONNECT_CLASS_TC1) {
+        *val |= (AR_STATUS_CONNECT_CLASS_TC1 >> 16);
+    }
+
+    return 0;
+}
+
+int switch_qos_port_connected(struct tsb_switch *sw, uint8_t port,
+                              uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_STATUS_CONNECT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    *val = attr_val & AR_STATUS_CONNECT_PORT(port);
+
+    return 0;
+}
+
+int switch_qos_request_status(struct tsb_switch *sw, uint8_t tc, uint8_t port,
+                              uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_STATUS_REQ0,
+                                 &attr_val);
+        if (rc) {
+            return rc;
+        }
+
+        *val = attr_val & AR_STATUS_REQ0_REQ_TC0(port);
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_STATUS_REQ0,
+                                 &attr_val);
+        if (rc) {
+            return rc;
+        }
+
+        *val = attr_val & AR_STATUS_REQ0_REQ_TC0HIGH(port);
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC0BAND: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_STATUS_REQ1,
+                                 &attr_val);
+        if (rc) {
+            return rc;
+        }
+
+        *val = attr_val & AR_STATUS_REQ1_REQ_TC0BAND(port);
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC1: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_STATUS_REQ1,
+                                 &attr_val);
+        if (rc) {
+            return rc;
+        }
+
+        *val = attr_val & AR_STATUS_REQ1_REQ_TC1(port);
+        break;
+    }
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_get_out_wdt_count(struct tsb_switch *sw, uint32_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || !val) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_WDT, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    *val = attr_val & AR_WDT_WDT_COUNT;
+    return 0;
+}
+
+int switch_qos_set_out_wdt_count(struct tsb_switch *sw, uint32_t val) {
+    if (!sw || val & ~AR_WDT_WDT_COUNT) {
+        return -EINVAL;
+    }
+
+    return switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_WDT, val);
+}
+
+int switch_qos_get_bwperiod(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                            uint32_t *val) {
+    int rc;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, RT_BCFGPERIOD0, val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID,
+                                 AR_DRR2CFG_PERIOD(port), val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC0BAND: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID,
+                                 AR_DRR1CFG_PERIOD(port), val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC1: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, RT_BCFGPERIOD1, val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_set_bwperiod(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                            uint32_t val) {
+    int rc;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0: {
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, RT_BCFGPERIOD0, val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH: {
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID,
+                                 AR_DRR2CFG_PERIOD(port), val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC0BAND: {
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID,
+                                 AR_DRR1CFG_PERIOD(port), val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC1: {
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, RT_BCFGPERIOD1, val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_get_decsize(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                           uint32_t *val) {
+    int rc;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, RT_BCFGDEC0, val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_DRR2CFG_DEC(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC0BAND: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_DRR1CFG_DEC(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    case SWITCH_TRAFFIC_CLASS_TC1: {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, RT_BCFGDEC1, val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    }
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_set_decsize(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                           uint32_t val) {
+    int rc;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+       return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0:
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, RT_BCFGDEC0, val);
+        if (rc) {
+            return rc;
+        }
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH:
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_DRR2CFG_DEC(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0BAND:
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_DRR1CFG_DEC(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC1:
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, RT_BCFGDEC1, val);
+        if (rc) {
+            return rc;
+        }
+        break;
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_get_limit(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                         uint32_t *val) {
+    int rc;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+       return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0:
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, RT_BCFGLIMIT0, val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH:
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_DRR1CFG_LIMIT(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0BAND:
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_DRR1CFG_LIMIT(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC1:
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, RT_BCFGLIMIT1, val);
+        if (rc) {
+            return rc;
+        }
+
+        break;
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_set_limit(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                         uint32_t val) {
+    int rc;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+       return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0:
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, RT_BCFGLIMIT0, val);
+        if (rc) {
+            return rc;
+        }
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0HIGH:
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_DRR2CFG_LIMIT(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC0BAND:
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, AR_DRR1CFG_LIMIT(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC1:
+        rc = switch_qos_attr_set(sw, SWITCH_PORT_ID, RT_BCFGLIMIT1, val);
+        if (rc) {
+            return rc;
+        }
+        break;
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_source_quantity(struct tsb_switch *sw, uint8_t port, uint8_t tc,
+                               uint32_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || port > SWITCH_UNIPORT_MAX || !val) {
+        return -EINVAL;
+    }
+
+    if (tc == SWITCH_TRAFFIC_CLASS_TC0BAND) {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_DRR1STAT_QUANTITY(port),
+                                 val);
+        if (rc) {
+            return rc;
+        }
+    } else {
+        rc = switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_BSTAT_QUANTITY(port),
+                                 &attr_val);
+        if (rc) {
+            return rc;
+        }
+
+        switch (tc) {
+        case SWITCH_TRAFFIC_CLASS_TC0:
+            *val = attr_val & AR_BSTAT_QUANTITY_RATE00_TC0;
+            break;
+        case SWITCH_TRAFFIC_CLASS_TC1:
+            *val = attr_val & AR_BSTAT_QUANTITY_RATE00_TC1 >> 16;
+            break;
+        default:
+            return -EINVAL;
+            break;
+        }
+    }
+
+    return 0;
+}
+
+int switch_qos_transmit_quantity(struct tsb_switch *sw, uint32_t *val) {
+    if (!sw || !val) {
+        return -EINVAL;
+    }
+
+    return switch_qos_attr_get(sw, SWITCH_PORT_ID, AR_BSTAT_QUANTITYTX, val);
+}
+
+int switch_qos_reset_routing_table(struct tsb_switch *sw, uint8_t tc) {
+    uint32_t attr_val = 0;
+
+    if (!sw) {
+        return -EINVAL;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0:
+        attr_val |= RT_CTRL_RST_TC0;
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC1:
+        attr_val |= RT_CTRL_RST_TC1;
+        break;
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return switch_qos_attr_set(sw, SWITCH_PORT_ID, RT_CTRL, attr_val);
+}
+
+int switch_qos_source_accept_signal(struct tsb_switch *sw, uint8_t port,
+                                    uint8_t tc, uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || !val || port >= SWITCH_UNIPORT_MAX) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, port, RT_STATUS, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0:
+        *val = attr_val & RT_STATUS_WDT_A_TC0;
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC1:
+        *val = attr_val & RT_STATUS_WDT_A_TC1;
+        break;
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_source_valid_signal(struct tsb_switch *sw, uint8_t port,
+                                   uint8_t tc, uint8_t *val) {
+    int rc;
+    uint32_t attr_val;
+
+    if (!sw || !val || port >= SWITCH_UNIPORT_MAX) {
+        return -EINVAL;
+    }
+
+    rc = switch_qos_attr_get(sw, port, RT_STATUS, &attr_val);
+    if (rc) {
+        return rc;
+    }
+
+    switch (tc) {
+    case SWITCH_TRAFFIC_CLASS_TC0:
+        *val = attr_val & RT_STATUS_WDT_V_TC0;
+        break;
+    case SWITCH_TRAFFIC_CLASS_TC1:
+        *val = attr_val & RT_STATUS_WDT_V_TC1;
+        break;
+    default:
+        return -EINVAL;
+        break;
+    }
+
+    return 0;
+}
+
+int switch_qos_get_in_wdt_count(struct tsb_switch *sw, uint32_t *val) {
+    if (!sw || !val) {
+        return -EINVAL;
+    }
+
+    return switch_qos_attr_get(sw, SWITCH_PORT_ID, RT_WDT, val);
+}
+
+int switch_qos_set_in_wdt_count(struct tsb_switch *sw, uint32_t val) {
+    if (!sw) {
+        return -EINVAL;
+    }
+
+    return switch_qos_attr_set(sw, SWITCH_PORT_ID, RT_WDT, val);
 }
 
 int switch_irq_enable(struct tsb_switch *sw,
