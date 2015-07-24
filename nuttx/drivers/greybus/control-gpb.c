@@ -29,6 +29,7 @@
  */
 
 #include <string.h>
+#include <arch/byteorder.h>
 #include <nuttx/greybus/greybus.h>
 #include <apps/greybus-utils/manifest.h>
 
@@ -61,7 +62,7 @@ static uint8_t gb_control_get_manifest_size(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->size = get_manifest_size();
+    response->size = cpu_to_le16(get_manifest_size());
 
     return GB_OP_SUCCESS;
 }
@@ -91,7 +92,7 @@ static uint8_t gb_control_connected(struct gb_operation *operation)
     struct gb_control_connected_request *request =
         gb_operation_get_request_payload(operation);
 
-    retval = gb_listen(request->cport_id);
+    retval = gb_listen(le16_to_cpu(request->cport_id));
     if (retval) {
         return GB_OP_INVALID;
     }
@@ -105,7 +106,7 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
     struct gb_control_connected_request *request =
         gb_operation_get_request_payload(operation);
 
-    retval = gb_stop_listening(request->cport_id);
+    retval = gb_stop_listening(le16_to_cpu(request->cport_id));
     if (retval) {
         return GB_OP_INVALID;
     }
