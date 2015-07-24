@@ -50,8 +50,6 @@
 
 #include "apbridge_backend.h"
 
-#define IID_LENGTH 7
-
 static struct apbridge_dev_s *g_usbdev = NULL;
 static pthread_t g_svc_thread;
 static struct apbridge_backend apbridge_backend;
@@ -82,20 +80,6 @@ static int usb_to_unipro(struct apbridge_dev_s *dev, void *buf, size_t len)
                                           release_buffer, dev);
 }
 
-static int usb_to_svc(struct apbridge_dev_s *dev, void *buf, size_t len)
-{
-    gb_dump(buf, len);
-
-    return apbridge_backend.usb_to_svc(buf, len);
-}
-
-static int recv_from_svc(void *buf, size_t len)
-{
-    gb_dump(buf, len);
-
-    return svc_to_usb(g_usbdev, buf, len);
-}
-
 int recv_from_unipro(unsigned int cportid, void *buf, size_t len)
 {
     struct gb_operation_hdr *hdr = (void *)buf;
@@ -116,26 +100,12 @@ int recv_from_unipro(unsigned int cportid, void *buf, size_t len)
     return unipro_to_usb(g_usbdev, buf, len);
 }
 
-static void manifest_event(unsigned char *manifest_file,
-                           int device_id, int manifest_number)
-{
-    char iid[IID_LENGTH];
-
-    snprintf(iid, IID_LENGTH, "IID-%d", manifest_number + 1);
-    printf("send manifest %d\n", manifest_number);
-    send_svc_event(0, iid, manifest_file);
-}
-
 static void *svc_sim_fn(void *p_data)
 {
     struct apbridge_dev_s *priv = p_data;
 
     usb_wait(priv);
     apbridge_backend.init();
-    send_svc_handshake();
-    send_ap_id(0);
-
-    foreach_manifest(manifest_event);
 
     return NULL;
 }
@@ -152,7 +122,6 @@ static int svc_sim_init(struct apbridge_dev_s *priv)
 
 static struct apbridge_usb_driver usb_driver = {
     .usb_to_unipro = usb_to_unipro,
-    .usb_to_svc = usb_to_svc,
     .init = svc_sim_init,
 };
 
@@ -168,7 +137,6 @@ static struct srvmgr_service services[] = {
 
 int bridge_main(int argc, char *argv[])
 {
-    svc_register(recv_from_svc);
     apbridge_backend_register(&apbridge_backend);
     usbdev_apbinitialize(&usb_driver);
     srvmgr_start(services);
