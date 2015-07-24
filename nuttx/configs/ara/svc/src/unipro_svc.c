@@ -43,21 +43,54 @@
 #include "tsb_switch.h"
 #include "svc.h"
 
+/* List of registered drivers */
+static struct unipro_driver **g_drvs;
 unsigned int unipro_cport_count(void) {
-    return 0;
+    return 5;
 }
 
 void unipro_init(void) {
-    return;
+    size_t size = sizeof(struct unipro_driver*) * unipro_cport_count();
+    g_drvs = zalloc(size);
+    if (!g_drvs) {
+        return;
+    }
 }
 
 int unipro_send(unsigned int cportid, const void *buf, size_t len) {
-    return -ENOSYS;
+    struct tsb_switch *sw = svc->sw;
+
+    if (!sw) {
+        return -ENODEV;
+    }
+
+    switch_data_send(sw, (void*)buf, len);
+
+    return 0;
 }
 
 
 int unipro_driver_register(struct unipro_driver *drv, unsigned int cportid) {
-    return -ENOSYS;
+    lldbg("Registering driver %s on cport: %u\n", drv->name, cportid);
+    /*
+     * Only cports 4 and 5 are supported on ES2 silicon
+     */
+    switch (cportid) {
+    case 4:
+    case 5:
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    if (g_drvs[cportid]) {
+        return -EADDRINUSE;
+    }
+
+    g_drvs[cportid] = drv;
+    lldbg("Registered driver %s on cport: %u\n", drv->name, cportid);
+
+    return 0;
 }
 
 /*
@@ -65,5 +98,12 @@ int unipro_driver_register(struct unipro_driver *drv, unsigned int cportid) {
  * by the switch driver when a packet is received.
  */
 void unipro_if_rx(unsigned int cportid, void *data, size_t len) {
-    return;
+    struct unipro_driver *drv;
+
+    drv = g_drvs[cportid];
+    if (!drv) {
+        return;
+    }
+
+    drv->rx_handler(cportid, data, len);
 }
