@@ -293,5 +293,5 @@ struct gpio_ops_s tsb_gpio_ops = {
 
 int tsb_gpio_register(void *driver_data)
 {
-    return register_gpio_chip(&tsb_gpio_ops, TSB_GPIO_CHIP_BASE, NULL);
+    return register_gpio_chip(&tsb_gpio_ops, TSB_GPIO_CHIP_BASE, driver_data);
 }
