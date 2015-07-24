@@ -33,6 +33,8 @@
 #include <nuttx/config.h>
 
 #include <stdio.h>
+#include <errno.h>
+#include <pthread.h>
 
 #include <arch/tsb/unipro.h>
 #include <apps/greybus-utils/utils.h>
@@ -50,12 +52,26 @@ static struct srvmgr_service services[] = {
     { NULL, NULL }
 };
 
+static pthread_t enable_cports_thread;
+void *enable_cports_fn(void *data)
+{
+    enable_cports();
+    return NULL;
+}
+
 int bridge_main(int argc, char *argv[])
 {
+    int ret;
+
     enable_manifest("IID-1", NULL, 0);
     gb_unipro_init();
-    enable_cports();
     srvmgr_start(services);
+
+    ret = pthread_create(&enable_cports_thread, NULL, enable_cports_fn, NULL);
+    if (ret) {
+        printf("Can't create enable_cport thread: error %d. Exiting!\n", ret);
+        return ret;
+    }
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");
