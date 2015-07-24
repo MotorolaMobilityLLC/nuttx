@@ -39,6 +39,8 @@
 #include <apps/ara/gb_loopback.h>
 #include <apps/nsh.h>
 #include <arch/tsb/gpio.h>
+#include <nuttx/unipro/unipro.h>
+#include <nuttx/greybus/tsb_unipro.h>
 
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
 #include <arch/board/dsi.h>
@@ -106,6 +108,7 @@ static void *svc_sim_fn(void *p_data)
 
     usb_wait(priv);
     apbridge_backend.init();
+    unipro_attr_peer_write(TSB_MAILBOX, 1, 0, NULL);
 
     return NULL;
 }
