@@ -59,7 +59,7 @@ struct slice_attach_data_s
   pthread_t attach_thread;
   struct list_head notify_list;
   sem_t attach_lock;
-  int base_attached;
+  enum base_attached_e base_state;
 };
 
 static struct slice_attach_data_s *slice_attach_data;
@@ -67,7 +67,7 @@ static struct slice_attach_data_s *slice_attach_data;
 static void *base_attach_worker(void *v)
 {
   struct slice_attach_data_s *ad = (struct slice_attach_data_s *)v;
-  int base_attached;
+  enum base_attached_e base_state;
   struct list_head *iter;
   struct list_head *iter_next;
   struct notify_node_s *node;
@@ -77,17 +77,18 @@ static void *base_attach_worker(void *v)
       pm_activity(PM_SLICE_ACTIVITY);
       usleep(100000);
 
-      base_attached = gpio_get_value(GPIO_SLICE_SL_BPLUS_EN);
+      base_state  = (gpio_get_value(GPIO_SLICE_SL_BPLUS_EN)   & 0x01) << 0;
+      base_state |= (gpio_get_value(GPIO_SLICE_SL_FORCEFLASH) & 0x01) << 1;
 
-      if (ad->base_attached != base_attached)
+      if (ad->base_state != base_state)
         {
-          dbg("base_attached=%d\n", base_attached);
-          ad->base_attached = base_attached;
+          dbg("base_state=%d\n", base_state);
+          ad->base_state = base_state;
 
           list_foreach_safe(&ad->notify_list, iter, iter_next)
             {
               node = list_entry(iter, struct notify_node_s, list);
-              node->callback(node->arg, base_attached);
+              node->callback(node->arg, base_state);
             }
         }
 
@@ -126,7 +127,7 @@ int slice_attach_register(slice_attach_t callback, void *arg)
   irqrestore(flags);
 
   /* Immediately call back with current state */
-  callback(arg, slice_attach_data->base_attached);
+  callback(arg, slice_attach_data->base_state);
 
   return 0;
 }
@@ -153,6 +154,8 @@ int slice_attach_init(void)
   gpio_irqattach(GPIO_SLICE_SL_BPLUS_EN, base_attach_isr);
   set_gpio_triggering(GPIO_SLICE_SL_BPLUS_EN, IRQ_TYPE_EDGE_BOTH);
 
+  gpio_irqattach(GPIO_SLICE_SL_FORCEFLASH, base_attach_isr);
+  set_gpio_triggering(GPIO_SLICE_SL_FORCEFLASH, IRQ_TYPE_EDGE_BOTH);
+
   return 0;
 }
-

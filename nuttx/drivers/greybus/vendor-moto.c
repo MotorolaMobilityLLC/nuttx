@@ -48,13 +48,28 @@
 #define GB_VENDOR_MOTO_VERSION_MINOR     1
 
 #ifdef CONFIG_GREYBUS_SLICE
-static void attach_cb(FAR void *arg, bool attached)
+static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
-  if (!attached)
+  switch (state)
     {
-      /* Ensure that base charging is disabled */
-      slice_vbus_en_sw(false);
-      dbg("Base charging is disabled\n");
+      case BASE_ATTACHED_OFF:
+        {
+          /* Base is off and/or dead. Enable base charging to recover. */
+          slice_vbus_en_sw(true);
+          dbg("Base charging is enabled\n");
+          break;
+        }
+
+      case BASE_ATTACHED:
+      case BASE_DETACHED:
+      case BASE_INVALID:
+      default:
+        {
+          /* Ensure that base charging is disabled */
+          slice_vbus_en_sw(false);
+          dbg("Base charging is disabled\n");
+          break;
+        }
     }
 }
 #endif

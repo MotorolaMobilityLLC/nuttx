@@ -156,11 +156,11 @@ static void cleanup_txc_rb_entry(FAR struct slice_spi_dl_s *priv)
   priv->txc_rb = ring_buf_get_next(priv->txc_rb);
 }
 
-static void attach_cb(FAR void *arg, bool attached)
+static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
   FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)arg;
 
-  if (!attached)
+  if (BASE_DETACHED)
     {
       dbg("Cleaning up datalink\n");
 

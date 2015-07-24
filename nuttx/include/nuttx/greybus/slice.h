@@ -29,11 +29,22 @@
 #ifndef _GREYBUS_SLICE_H_
 #define _GREYBUS_SLICE_H_
 
-#include <stdbool.h>
+/*
+ * Base attach logic assumes this enum order. Do not change without changing
+ * both!
+ */
+
+enum base_attached_e
+{
+  BASE_DETACHED,
+  BASE_ATTACHED,
+  BASE_ATTACHED_OFF,
+  BASE_INVALID,
+};
 
 /* The type of the base attach/detach callback function */
 
-typedef void (*slice_attach_t)(FAR void *arg, bool attached);
+typedef void (*slice_attach_t)(void *arg, enum base_attached_e state);
 
 /****************************************************************************
  * Name: slice_attach_init
