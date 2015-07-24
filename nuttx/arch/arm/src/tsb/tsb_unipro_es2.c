@@ -297,12 +297,12 @@ static int configure_connected_cport(unsigned int cportid) {
  * @param write 0 for read, 1 for write
  * @param result_code unipro return code, optional
  */
-static int unipro_attr_access(uint16_t attr,
-                              uint32_t *val,
-                              uint16_t selector,
-                              int peer,
-                              int write,
-                              uint32_t *result_code) {
+int unipro_attr_access(uint16_t attr,
+                       uint32_t *val,
+                       uint16_t selector,
+                       int peer,
+                       int write,
+                       uint32_t *result_code) {
 
     uint32_t ctrl = (REG_ATTRACS_CTRL_PEERENA(peer) |
                      REG_ATTRACS_CTRL_SELECT(selector) |
