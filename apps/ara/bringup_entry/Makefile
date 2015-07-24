@@ -1,7 +1,7 @@
 ############################################################################
-# apps/examples/Makefile
+# apps/examples/usbterm/Makefile
 #
-#   Copyright (C) 2011-2014 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2011-2013 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-#   Copyright (c) 2014, 2015 Google Inc.
-#   All rights reserved.
+############################################################################
+#
+# Copyright (c) 2015 Google, Inc.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -57,78 +59,101 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-############################################################################
 
--include $(TOPDIR)/.config # Current configuration
+-include $(TOPDIR)/.config
+-include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
-# Sub-directories
+ASRCS =
+CSRCS =
+MAINSRC = bringup_entry.c
 
-SUBDIRS  = apbridge
-SUBDIRS += bdbpm
-SUBDIRS += bringup_entry
-SUBDIRS += debug
-SUBDIRS += etm
-SUBDIRS += gb_loopback
-SUBDIRS += gpbridge
-SUBDIRS += gpio
-SUBDIRS += i2s
-SUBDIRS += pinshare
-SUBDIRS += spi
-SUBDIRS += pwm
-SUBDIRS += pwm_unit_test
-SUBDIRS += springpm
-SUBDIRS += svc
-SUBDIRS += svc_power
-SUBDIRS += unipro
-SUBDIRS += usb-host
+AOBJS = $(ASRCS:.S=$(OBJEXT))
+COBJS = $(CSRCS:.c=$(OBJEXT))
+MAINOBJ = $(MAINSRC:.c=$(OBJEXT))
 
-# Sub-directories that might need context setup.  Directories may need
-# context setup for a variety of reasons, but the most common is because
-# the example may be built as an NSH built-in function.
+SRCS = $(ASRCS) $(CSRCS) $(MAINSRC)
+OBJS = $(AOBJS) $(COBJS)
 
-ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
-CNTXTDIRS += bdbpm
-CNTXTDIRS += bringup_entry
-CNTXTDIRS += debug
-CNTXTDIRS += etm
-CNTXTDIRS += gb_loopback
-CNTXTDIRS += gpio
-CNTXTDIRS += i2s
-CNTXTDIRS += pinshare
-CNTXTDIRS += spi
-CNTXTDIRS += pwm
-CNTXTDIRS += pwm_unit_test
-CNTXTDIRS += springpm
-CNTXTDIRS += svc
-CNTXTDIRS += svc_power
-CNTXTDIRS += unipro
-CNTXTDIRS += usb-host
+ifneq ($(CONFIG_BUILD_KERNEL),y)
+  OBJS += $(MAINOBJ)
 endif
 
-all: nothing
+ifeq ($(CONFIG_WINDOWS_NATIVE),y)
+  BIN = ..\..\libapps$(LIBEXT)
+else
+ifeq ($(WINTOOL),y)
+  BIN = ..\\..\\libapps$(LIBEXT)
+else
+  BIN = ../../libapps$(LIBEXT)
+endif
+endif
 
-.PHONY: nothing context depend clean distclean
+ifeq ($(WINTOOL),y)
+  INSTALL_DIR = "${shell cygpath -w $(BIN_DIR)}"
+else
+  INSTALL_DIR = $(BIN_DIR)
+endif
 
-define SDIR_template
-$(1)_$(2):
-	$(Q) $(MAKE) -C $(1) $(2) TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"
-endef
+CONFIG_XYZ_PROGNAME ?= bringup_entry$(EXEEXT)
+PROGNAME = $(CONFIG_XYZ_PROGNAME)
 
-$(foreach SDIR, $(CNTXTDIRS), $(eval $(call SDIR_template,$(SDIR),context)))
-$(foreach SDIR, $(SUBDIRS), $(eval $(call SDIR_template,$(SDIR),depend)))
-$(foreach SDIR, $(SUBDIRS), $(eval $(call SDIR_template,$(SDIR),clean)))
-$(foreach SDIR, $(SUBDIRS), $(eval $(call SDIR_template,$(SDIR),distclean)))
+ROOTDEPPATH = --dep-path .
 
-nothing:
+# Built-in application info
 
+APPNAME  = bringup_entry
+PRIORITY = SCHED_PRIORITY_DEFAULT
+STACKSIZE = 2048
+
+# Common build
+
+VPATH =
+
+all: .built
+	@true
+
+.PHONY: context clean depend distclean
+
+$(AOBJS): %$(OBJEXT): %.S
+	$(call ASSEMBLE, $<, $@)
+
+$(COBJS) $(MAINOBJ): %$(OBJEXT): %.c
+	$(call COMPILE, $<, $@)
+
+.built: $(OBJS)
+	$(call ARCHIVE, $(BIN), $(OBJS))
+	@touch .built
+
+ifeq ($(CONFIG_BUILD_KERNEL),y)
+$(BIN_DIR)$(DELIM)$(PROGNAME): $(OBJS) $(MAINOBJ)
+	@echo "LD: $(PROGNAME)"
+	$(Q) $(LD) $(LDELFFLAGS) $(LDLIBPATH) -o $(INSTALL_DIR)$(DELIM)$(PROGNAME) $(ARCHCRT0OBJ) $(MAINOBJ) $(LDLIBS)
+	$(Q) $(NM) -u  $(INSTALL_DIR)$(DELIM)$(PROGNAME)
+
+install: $(BIN_DIR)$(DELIM)$(PROGNAME)
+
+else
 install:
 
-context: $(foreach SDIR, $(CNTXTDIRS), $(SDIR)_context)
+endif
 
-depend: $(foreach SDIR, $(SUBDIRS), $(SDIR)_depend)
+context:
+	@true
 
-clean: $(foreach SDIR, $(SUBDIRS), $(SDIR)_clean)
+.depend: Makefile $(SRCS)
+	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
+	@touch $@
 
-distclean: $(foreach SDIR, $(SUBDIRS), $(SDIR)_distclean)
+depend: .depend
+	@true
+
+clean:
+	$(call DELFILE, .built)
+	$(call CLEAN)
+
+distclean: clean
+	$(call DELFILE, Make.dep)
+	$(call DELFILE, .depend)
 
 -include Make.dep

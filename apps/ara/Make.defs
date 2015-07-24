@@ -126,3 +126,7 @@ endif
 ifeq ($(CONFIG_ARA_I2S_TEST),y)
 CONFIGURED_APPS += ara/i2s
 endif
+
+ifeq ($(CONFIG_ARA_BRIDGE_BRINGUP),y)
+CONFIGURED_APPS += ara/bringup_entry
+endif
