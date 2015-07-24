@@ -54,6 +54,120 @@
 static struct svc the_svc;
 struct svc *svc = &the_svc;
 
+/**
+ * @brief "Poke" a bridge's mailbox. The mailbox is a DME register in the
+ * vendor-defined space present on Toshiba bridges. This is used as a notification
+ * to the bridge that a connection has been established and that it can enable
+ * transmission of E2EFC credits.
+ *
+ * Value 'x' means that cport 'x - 1' is ready. When the bridge responds, it
+ * clears its own mailbox to notify the SVC that it has received the
+ * notification.
+ */
+static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
+    size_t retries = 1000;
+    uint32_t val;
+    int rc;
+
+    rc = switch_dme_peer_set(svc->sw, interface_get_portid_by_id(intf_id),
+                             TSB_MAILBOX, 0, cport + 1);
+    if (rc) {
+        dbg_error("Failed to notify intf %u\n", intf_id);
+    }
+
+    while (retries--) {
+        rc = switch_dme_peer_get(svc->sw, 0, TSB_MAILBOX, 0, &val);
+        if (!rc && !val) {
+            return 0;
+        }
+    }
+
+    return -ETIMEDOUT;
+}
+
+/**
+ * @brief Assign a device id given an interface id
+ */
+int svc_intf_device_id(uint8_t intf_id, uint8_t dev_id) {
+    struct tsb_switch *sw = svc->sw;
+    int rc;
+
+    rc = switch_if_dev_id_set(sw, interface_get_portid_by_id(intf_id), dev_id);
+    if (rc) {
+        return rc;
+    }
+
+    return interface_set_devid_by_id(intf_id, dev_id);
+}
+
+/**
+ * @brief Create a UniPro connection
+ */
+int svc_connection_create(uint8_t intf1_id, uint16_t cport1_id,
+                          uint8_t intf2_id, uint16_t cport2_id, u8 tc, u8 flags) {
+    struct tsb_switch *sw = svc->sw;
+    struct unipro_connection c;
+    int rc;
+
+    memset(&c, 0x0, sizeof c);
+
+    c.port_id0      = interface_get_portid_by_id(intf1_id);
+    c.device_id0    = interface_get_devid_by_id(intf1_id);
+    c.cport_id0     = cport1_id;
+
+    c.port_id1      = interface_get_portid_by_id(intf2_id);
+    c.device_id1    = interface_get_devid_by_id(intf2_id);
+    c.cport_id1     = cport2_id;
+
+    c.tc            = tc;
+    c.flags         = flags;
+
+    rc = switch_connection_create(sw, &c);
+    if (rc) {
+        return rc;
+    }
+
+    if (flags & CPORT_FLAGS_E2EFC) {
+        /*
+         * Poke bridge mailboxes and wait for them to enable E2EFC.
+         * @jira{ENG-376}
+         */
+        rc = svc_mailbox_poke(intf1_id, cport1_id);
+        if (rc) {
+            dbg_error("Failed to notify intf %u\n", intf1_id);
+            return rc;
+        }
+        rc = svc_mailbox_poke(intf2_id, cport2_id);
+        if (rc) {
+            dbg_error("Failed to notify intf %u\n", intf2_id);
+            return rc;
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Create a bidirectional route through the switch
+ */
+int svc_route_create(uint8_t intf1_id, uint8_t dev1_id,
+                     uint8_t intf2_id, uint8_t dev2_id) {
+    struct tsb_switch *sw = svc->sw;
+    int rc;
+
+    rc = switch_setup_routing_table(sw,
+                                    dev1_id,
+                                    interface_get_portid_by_id(intf1_id),
+                                    dev2_id,
+                                    interface_get_portid_by_id(intf2_id));
+    if (rc) {
+        dbg_error("Failed to create route [%u:%u]<->[%u:%u]\n");
+        return rc;
+    }
+
+    return 0;
+}
+
 /* state helpers */
 #define svcd_state_running() (svc->state == SVC_STATE_RUNNING)
 #define svcd_state_stopped() (svc->state == SVC_STATE_STOPPED)

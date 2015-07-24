@@ -49,6 +49,10 @@ struct svc {
 
 extern struct svc *svc;
 
+int svc_intf_device_id(uint8_t, uint8_t);
+int svc_route_create(uint8_t, uint8_t, uint8_t, uint8_t);
+int svc_connection_create(uint8_t, uint16_t, uint8_t, uint16_t, uint8_t, uint8_t);
+
 int svcd_start(void);
 void svcd_stop(void);
 
