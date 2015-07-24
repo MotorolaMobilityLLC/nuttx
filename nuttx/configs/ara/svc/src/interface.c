@@ -202,7 +202,6 @@ const char *interface_get_name(struct interface *iface)
     return iface->name;
 }
 
-
 /**
  * @brief Get the interface struct from the index, as specified in the MDK.
  *        Index 0 is for the first interface (aka 'A').
@@ -235,6 +234,59 @@ struct interface* interface_get_by_name(const char *name)
     return NULL;
 }
 
+/*
+ * Interface numbering is defined as it's position in the interface table + 1.
+ *
+ * By convention, the AP module should be interface number 1.
+ */
+
+/**
+ * @brief find an intf_id given a portid
+ */
+int interface_get_id_by_portid(uint8_t port_id) {
+    unsigned int i;
+    for (i = 0; i < nr_interfaces; i++) {
+        if (interfaces[i]->switch_portid == port_id) {
+            return i + 1;
+        }
+    }
+
+    return -EINVAL;
+}
+
+/**
+ * @brief find a port_id given an intf_id
+ */
+int interface_get_portid_by_id(uint8_t intf_id) {
+    if (!intf_id || intf_id > nr_interfaces) {
+        return -EINVAL;
+    }
+
+    return interfaces[intf_id - 1]->switch_portid;
+}
+
+/**
+ * @brief find a dev_id given an intf_id
+ */
+int interface_get_devid_by_id(uint8_t intf_id) {
+    if (!intf_id || intf_id > nr_interfaces) {
+        return -EINVAL;
+    }
+
+    return interfaces[intf_id - 1]->dev_id;
+}
+
+/**
+ * @brief set a devid for a given an intf_id
+ */
+int interface_set_devid_by_id(uint8_t intf_id, uint8_t dev_id) {
+    if (!intf_id || intf_id > nr_interfaces) {
+        return -EINVAL;
+    }
+    interfaces[intf_id - 1]->dev_id = dev_id;
+
+    return 0;
+}
 
 /**
  * @brief           Return the spring interface struct from the index.

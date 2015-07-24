@@ -50,6 +50,7 @@ struct pm_data {
 struct interface {
     const char *name;
     unsigned int switch_portid;
+    uint8_t dev_id;
 #   define ARA_IFACE_FLAG_BUILTIN (1U << 0) /* Connected to built-in UniPro peer
                                          * (like a bridge ASIC on a BDB). */
 #   define ARA_IFACE_FLAG_BLOCK   (0U << 0) /* Connected to an interface block
@@ -74,6 +75,10 @@ int interface_early_init(struct interface**,
 void interface_exit(void);
 struct interface* interface_get(uint8_t index);
 struct interface* interface_get_by_name(const char *name);
+int interface_get_id_by_portid(uint8_t portid);
+int interface_get_portid_by_id(uint8_t intf_id);
+int interface_get_devid_by_id(uint8_t intf_id);
+int interface_set_devid_by_id(uint8_t intf_id, uint8_t dev_id);
 struct interface* interface_spring_get(uint8_t index);
 uint8_t interface_get_count(void);
 uint8_t interface_get_spring_count(void);
