@@ -703,7 +703,7 @@ static void unipro_dequeue_tx_buffer(struct unipro_buffer *buffer, int status)
  * @return          0 on success, -EINVAL on invalid parameter,
  *                  -EBUSY when buffer could not be completely transferred
  *                  (unipro_send_tx_buffer() shall be called again until
- *                  buffer is enterily sent (return value == 0)).
+ *                  buffer is entirely sent (return value == 0)).
  * @param[in]       operation: greybus loopback operation
  */
 static int unipro_send_tx_buffer(struct cport *cport)
