@@ -1535,6 +1535,16 @@ int switch_configure_link(struct tsb_switch *sw,
     return rc;
 }
 
+/*
+ * send data down the SVC connection cport
+ */
+int switch_data_send(struct tsb_switch *sw, void *data, size_t len) {
+    if (!sw->ops->switch_data_send) {
+        return -EOPNOTSUPP;
+    }
+    return sw->ops->switch_data_send(sw, data, len);
+}
+
 /* Post a message to the IRQ worker */
 int switch_post_irq(struct tsb_switch *sw)
 {

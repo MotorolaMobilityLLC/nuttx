@@ -1535,6 +1535,28 @@ static int es2_switch_id_set(struct tsb_switch *sw,
     return cnf.rc;
 }
 
+/**
+ * @brief Send raw data down CPort 4. We're only using this for the SVC
+ * connection, so fix the CPort number.
+ */
+static int es2_data_send(struct tsb_switch *sw, void *data, size_t len) {
+    struct sw_es2_priv *priv = sw->priv;
+    int rc;
+
+    pthread_mutex_lock(&priv->data_cport4.lock);
+
+    rc = es2_write(sw, CPORT_DATA4, data, len);
+    if (rc) {
+        dbg_error("%s() write failed: rc=%d\n", __func__, rc);
+        goto done;
+    }
+
+done:
+    pthread_mutex_unlock(&priv->data_cport4.lock);
+
+    return 0;
+}
+
 static struct tsb_switch_ops es2_ops = {
     .init_comm             = es2_init_seq,
 
@@ -1562,6 +1584,8 @@ static struct tsb_switch_ops es2_ops = {
 
     .switch_irq_enable     = es2_switch_irq_enable,
     .switch_irq_handler    = es2_switch_irq_handler,
+
+    .switch_data_send      = es2_data_send,
 };
 
 int tsb_switch_es2_init(struct tsb_switch *sw, unsigned int spi_bus)
