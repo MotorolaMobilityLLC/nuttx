@@ -146,6 +146,7 @@ static void dump_regs(void);
 
 /* irq handlers */
 static int irq_rx_eom(int, void*);
+static int irq_unipro(int, void*);
 
 /*
  * "Map" constants for M-PHY fixups.
@@ -387,6 +388,77 @@ static int irq_rx_eom(int irq, void *context) {
         cport->driver->rx_handler(cport->cportid, data,
                                   (size_t)transferred_size);
     }
+
+    return 0;
+}
+
+/**
+ * @brief See ENG-376.
+ *
+ * We use a mailbox notification from the SVC to solve a race condition
+ * involving FCT transmission. When the SVC makes a connection, it sets all the
+ * relevant DME parameters as defined in MIPI UniPro 1.6, then pokes the
+ * bridge mailbox, telling it that it is safe to send FCTs on a given CPort.
+ */
+static int irq_unipro(int irq, void *context) {
+    uint32_t cportid;
+    int rc;
+    uint32_t e2efc;
+    uint32_t val;
+    DBG_UNIPRO("mailbox interrupt received irq: %d \n", irq);
+
+    /*
+     * Clear the initial interrupt
+     */
+    rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0, NULL);
+    if (rc) {
+        return rc;
+    }
+
+    /*
+     * Figure out which CPort to turn on FCT. The desired CPort is always
+     * the mailbox value - 1.
+     */
+    rc = unipro_attr_local_read(TSB_MAILBOX, &cportid, 0, NULL);
+    if (rc) {
+        return rc;
+    }
+    cportid--;
+
+    DBG_UNIPRO("Enabling E2EFC on cport %u\n", cportid);
+    if (cportid < 32) {
+        e2efc = unipro_read(CPB_RX_E2EFC_EN_0);
+        e2efc |= (1 << cportid);
+        unipro_write(CPB_RX_E2EFC_EN_0, e2efc);
+    } else if (cportid < APBRIDGE_CPORT_MAX) {
+        e2efc = unipro_read(CPB_RX_E2EFC_EN_1);
+        e2efc |= (1 << (cportid - 32));
+        unipro_write(CPB_RX_E2EFC_EN_1, e2efc);
+    }
+
+    configure_connected_cport(cportid);
+
+    /*
+     * Clear the mailbox. This triggers another a local interrupt which we have
+     * to clear.
+     */
+    rc = unipro_attr_local_write(TSB_MAILBOX, 0, 0, NULL);
+    if (rc) {
+        return rc;
+    }
+
+    rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0, NULL);
+    if (rc) {
+        return rc;
+    }
+
+    rc = unipro_attr_local_read(TSB_MAILBOX, &cportid, 0, NULL);
+    if (rc) {
+        return rc;
+    }
+
+    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
+
 
     return 0;
 }
@@ -831,6 +903,25 @@ void unipro_init(void)
         unipro_init_cport(i);
     }
     unipro_write(UNIPRO_INT_EN, 0x1);
+
+
+    /*
+     * Disable FCT transmission. See ENG-376.
+     */
+    unipro_write(CPB_RX_E2EFC_EN_0, 0x0);
+    if (tsb_get_product_id() == tsb_pid_apbridge) {
+        unipro_write(CPB_RX_E2EFC_EN_1, 0x0);
+    }
+
+    /*
+     * Enable the mailbox interrupt
+     */
+    retval = unipro_attr_local_write(TSB_INTERRUPTENABLE, 0x1 << 15, 0, NULL);
+    if (retval) {
+        lldbg("Failed to enable mailbox interrupt\n");
+    }
+    irq_attach(TSB_IRQ_UNIPRO, irq_unipro);
+    up_enable_irq(TSB_IRQ_UNIPRO);
 
 #ifdef UNIPRO_DEBUG
     unipro_info();
