@@ -73,6 +73,7 @@ CSRCS		+= ina230.c
 CSRCS		+= tsb_switch_es1.c
 CSRCS		+= tsb_switch_es2.c
 CSRCS		+= tsb_es2_mphy_fixups.c
+CSRCS		+= unipro_svc.c
 
 ifeq ($(CONFIG_ARCH_BOARD_ARA_BDB1B_SVC),y)
 CSRCS		+= board-bdb1b.c

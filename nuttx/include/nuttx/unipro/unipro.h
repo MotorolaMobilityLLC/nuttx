@@ -72,6 +72,7 @@ int unipro_attr_access(uint16_t attr,
 
 int unipro_driver_register(struct unipro_driver *drv, unsigned int cportid);
 int unipro_driver_unregister(unsigned int cportid);
+void unipro_if_rx(unsigned int, void *, size_t);
 
 static inline int unipro_attr_local_read(uint16_t attr,
                                          uint32_t *val,
