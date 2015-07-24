@@ -77,6 +77,8 @@
 #define TSB_INTERRUPT_SPIPORT5_RX   (1 << 21)
 #define TSB_INTERRUPT_SWINTERNAL    (1 << 31)
 
+int tsb_switch_es2_fct_enable(struct tsb_switch *);
+
 int tsb_switch_es2_init(struct tsb_switch *, unsigned int spi_bus);
 void tsb_switch_es2_exit(struct tsb_switch *);
 

@@ -1610,6 +1610,23 @@ done:
     return 0;
 }
 
+/**
+ * @brief Start the transmission of FCTs on CPort 4.
+ *        Other CPorts not tested/unsupported.
+ */
+int tsb_switch_es2_fct_enable(struct tsb_switch *sw) {
+    uint32_t spictlb = 0xC;
+    int rc;
+
+    rc = switch_internal_setattr(sw, SPICTLB, spictlb);
+
+    if (rc) {
+        dbg_error("Failed to set spictlb\n");
+    }
+
+    return rc;
+}
+
 static struct tsb_switch_ops es2_ops = {
     .init_comm             = es2_init_seq,
 
