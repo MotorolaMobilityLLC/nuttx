@@ -1575,11 +1575,12 @@ static int32_t handle_hc_ahberr_intr(dwc_otg_hcd_t * hcd,
 				     dwc_otg_hc_regs_t * hc_regs,
 				     dwc_otg_qtd_t * qtd)
 {
-	hcchar_data_t hcchar;
-	hcsplt_data_t hcsplt;
-	hctsiz_data_t hctsiz;
-	uint32_t hcdma;
-	char *pipetype, *speed;
+	__attribute__((unused)) hcchar_data_t hcchar;
+	__attribute__((unused)) hcsplt_data_t hcsplt;
+	__attribute__((unused)) hctsiz_data_t hctsiz;
+	__attribute__((unused)) uint32_t hcdma;
+	__attribute__((unused)) char *pipetype;
+	__attribute__((unused)) char *speed;
 
 	dwc_otg_hcd_urb_t *urb = qtd->urb;
 
