@@ -32,6 +32,8 @@
 #include <nuttx/arch.h>
 #include <nuttx/util.h>
 #include <nuttx/greybus/unipro.h>
+#include <nuttx/greybus/greybus.h>
+#include <nuttx/unipro/unipro.h>
 
 #include <apps/greybus-utils/utils.h>
 
@@ -47,12 +49,35 @@
 #include "tsb_switch.h"
 #include "svc.h"
 #include "vreg.h"
+#include "gb_svc.h"
 
 #define SVCD_PRIORITY      (60)
 #define SVCD_STACK_SIZE    (2048)
+#define SVC_PROTOCOL_CPORT_ID    (4)
 
 static struct svc the_svc;
 struct svc *svc = &the_svc;
+
+static struct unipro_driver svc_greybus_driver = {
+    .name = "svcd-greybus",
+    .rx_handler = greybus_rx_handler,
+};
+
+static int svc_listen(unsigned int cport) {
+    return unipro_driver_register(&svc_greybus_driver, cport);
+}
+
+static struct gb_transport_backend svc_backend = {
+    .init   = unipro_init,
+    .send   = unipro_send,
+    .listen = svc_listen,
+};
+
+static int svc_gb_init(void) {
+    gb_init(&svc_backend);
+    gb_svc_register(SVC_PROTOCOL_CPORT_ID);
+    return gb_listen(SVC_PROTOCOL_CPORT_ID);
+}
 
 /**
  * @brief "Poke" a bridge's mailbox. The mailbox is a DME register in the
@@ -226,6 +251,13 @@ static int svcd_startup(void) {
      * system bootstrap sequence is implemented.
      */
     up_mdelay(300);
+
+    /* Register svc protocol greybus driver*/
+    rc = svc_gb_init();
+    if (rc) {
+        dbg_error("%s: Failed to initialize SVC protocol\n", __func__);
+        goto error3;
+    }
 
     /*
      * Enable the switch IRQ

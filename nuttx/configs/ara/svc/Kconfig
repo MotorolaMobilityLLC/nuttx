@@ -31,8 +31,13 @@
 
 choice
 	prompt "Select a route config"
+
 config SVC_ROUTE_DEFAULT
 	bool "APB1 to APB2"
+	select GREYBUS
+
 config SVC_ROUTE_SPRING6_APB2
 	bool "AP Module to APB2"
+	select GREYBUS
+
 endchoice
