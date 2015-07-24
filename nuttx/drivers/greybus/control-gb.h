@@ -31,10 +31,6 @@
 
 #include <nuttx/greybus/types.h>
 
-/* Bundle-id and cport-id for control cport */
-#define GB_CONTROL_BUNDLE_ID                    0
-#define GB_CONTROL_CPORT_ID                     2
-
 /* Version of the Greybus control protocol we support */
 #define GB_CONTROL_VERSION_MAJOR                0x00
 #define GB_CONTROL_VERSION_MINOR                0x01
