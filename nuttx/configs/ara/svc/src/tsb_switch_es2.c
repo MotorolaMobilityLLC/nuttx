@@ -36,6 +36,7 @@
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
 #include <nuttx/spi/spi.h>
+#include <nuttx/unipro/unipro.h>
 
 #include <pthread.h>
 #include <errno.h>
@@ -502,6 +503,56 @@ done:
     return rc;
 }
 
+static int es2_irq_fifo_rx(struct tsb_switch *sw, unsigned int cportid) {
+    struct sw_es2_priv *priv = sw->priv;
+    struct es2_cport *cport;
+    struct srpt_read_status_report rpt;
+    size_t len;
+    int rc;
+
+    switch (cportid) {
+    case CPORT_DATA4:
+        cport = &priv->data_cport4;
+        break;
+    case CPORT_DATA5:
+        cport = &priv->data_cport5;
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&cport->lock);
+
+    rc = es2_read_status(sw, cportid, &rpt);
+    if (rc) {
+        rc = -EIO;
+        goto fill_done;
+    }
+    len = rpt.rx_fifo_size;
+
+    /*
+     * Drain the fifo data.
+     */
+    rc = es2_read(sw, cportid, cport->rxbuf, len);
+    if (rc) {
+        dbg_error("%s: read failed: %d\n", __func__, rc);
+        rc = -EIO;
+        goto fill_done;
+    }
+    dbg_print_buf(DBG_VERBOSE, cport->rxbuf, len);
+
+fill_done:
+    pthread_mutex_unlock(&cport->lock);
+    if (rc) {
+        return rc;
+    }
+
+    /* Give it to unipro. */
+    unipro_if_rx(cportid, cport->rxbuf, len);
+
+    return 0;
+}
+
 static uint32_t es2_mphy_trim_fixup_value(uint32_t mphy_trim[4], uint8_t port)
 {
     switch (port) {
@@ -756,9 +807,11 @@ int es2_switch_irq_handler(struct tsb_switch *sw)
         // Handle external interrupts: CPorts 4 & 5
         if (swint & TSB_INTERRUPT_SPIPORT4_RX) {
             dbg_insane("IRQ: Switch SPI port 4 RX irq\n");
+            es2_irq_fifo_rx(sw, 4);
         }
         if (swint & TSB_INTERRUPT_SPIPORT5_RX) {
             dbg_insane("IRQ: Switch SPI port 5 RX irq\n");
+            es2_irq_fifo_rx(sw, 5);
         }
 
         // Handle Unipro interrupts: read the Unipro ports interrupt status
