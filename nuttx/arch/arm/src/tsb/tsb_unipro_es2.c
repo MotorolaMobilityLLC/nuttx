@@ -442,7 +442,7 @@ static void enable_int(unsigned int cportid) {
     unsigned int irqn;
 
     cport = cport_handle(cportid);
-    if (!cport || !cport->connected) {
+    if (!cport) {
         return;
     }
 
@@ -635,7 +635,6 @@ void unipro_info(void)
  */
 int unipro_init_cport(unsigned int cportid)
 {
-    int ret;
     irqstate_t flags;
     struct cport *cport = cport_handle(cportid);
 
@@ -646,12 +645,6 @@ int unipro_init_cport(unsigned int cportid)
     if (cport->connected)
         return 0;
 
-    /*
-     * Initialize cport.
-     */
-    ret = configure_connected_cport(cportid);
-    if (ret)
-        return ret;
 
     /*
      * FIXME: We presently specify a fixed receive buffer address
@@ -831,7 +824,7 @@ void unipro_init(void)
     configure_transfer_mode(TRANSFER_MODE);
 
     /*
-     * Initialize connected cports.
+     * Initialize cports.
      */
     unipro_write(UNIPRO_INT_EN, 0x0);
     for (i = 0; i < unipro_cport_count(); i++) {
