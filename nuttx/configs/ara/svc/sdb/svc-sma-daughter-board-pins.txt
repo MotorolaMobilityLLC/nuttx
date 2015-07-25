@@ -1,0 +1,82 @@
+This file documents non-UniPro signals on the SDB meant for
+use between the SVC and a daughter board containing a bridge
+ASIC, which connects to the UniPro switch via SMA
+connectors.
+
+Below, "SMAy" is SMA1 or SMA2.
+
+----------------------------------------------------------------------
+
+SMA1_UART_TX,
+SMA1_UART_RX: The purpose of these lines is to allow
+              connecting an external UART on SMAy to the SDB
+              8-UART USB connector.
+
+              NOTE: these are only available for SMA1.
+
+The above lines are connected to:
+
+    1. Labeled header (J402)
+    2. (Through a level shifter) FTDI quad UART
+    3. Test points
+
+---------------------------------------------------------------------
+
+SVC_WAKE_SMAy: The purpose of these lines is to allow an out
+               of band (from UniPro) means for the SVC to
+               take SMAy out of a low-power state when the
+               UniPro link (on the SMA ports) is powered
+               down.
+
+               The SVC "asserts" WAKE to SMAy by changing
+               this line's state to HIGH.
+
+SMAy_DET_IN: The purpose of these lines lines is to emulate
+             hotplug events for SMAy.
+
+             SMAy "detects" or does "not detect" the SVC
+             depending on the state of the line.
+
+SVC_RST_SMAy: The purpose of these lines is to allow the SVC
+              to reset SMAy.
+
+SMAy_BOOTRET: The purpose of these lines is to allow the SVC
+              to control the boot sequence of SMAy.
+
+SMAy_1P1_EN: The purpose of these lines is to control a 1.1V
+             power rail on SMAy.
+
+The above lines are connected to:
+
+    1. Labeled header (SMA1: J402, SMA2: J403)
+    2. SVC GPIOs
+
+Additionally, SMAy_DET_IN lines are connected to:
+
+    3. SVC I/O expander
+
+----------------------------------------------------------------------
+
+SMAy_WAKE_SVC: The purpose of these lines is to allow an out
+               of band (from UniPro) means for the SVC to
+               take SMAy out of a low-power state when the
+               UniPro link is powered down.
+
+The above lines are connected to:
+
+    1. Labeled header (SMA1: J402, SMA2: J403)
+    2. Pull-down resistor
+    3. SVC I/O expander
+
+----------------------------------------------------------------------
+
+SMAy_1P2_EN: The purpose of these lines is to control a 1.2V
+             power rail on SMAy.
+
+SMAy_1P8_EN: The purpose of these lines is to enable 1.2V
+             and 1.8V power rails on a daughter board.
+
+They above lines are connected to:
+
+    1. Labeled header (SMA1: J401, SMA2: J404)
+    2. SVC GPIOs

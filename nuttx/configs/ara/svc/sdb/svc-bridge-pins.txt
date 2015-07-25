@@ -1,0 +1,78 @@
+This file documents non-UniPro signals between the SVC and the bridge
+ASICs on the SDB.
+
+Below, "XXX" is APB1, APB2, APB3, GPB1, or GPB2.
+
+SVC_DETECT_XXX: The purpose of these lines is to emulate
+                hotplug events for the SVC firmware.
+
+                The SVC "detects" or does "not detect" XXX
+                depending on the state of line, and can be
+                interrupted when it changes.
+
+                They are connected to:
+
+                   1. Pull-up resistor
+                   2. Switch which can pull down to GND
+                   3. SVC I/O expander (U701)
+
+XXX_DETECT_IN: The purpose of these lines lines is to
+               emulate hotplug events for the bridge
+               ASICs.
+
+               XXX "detects" or does "not detect" the SVC
+               depending on the state of the line, and can
+               be interrupted when it changes.
+
+               They are connected to:
+
+                   1. Switch to ground
+                   2. XXX labeled debug header
+                   3. XXX GPIO
+
+SVC_WAKE_XXX: The purpose of these lines is to allow an out
+              of band (from UniPro) means for the SVC to
+              take XXX out of a "low-power" state when the
+              UniPro link is powered down.
+
+              The SVC "asserts" WAKE to XXX by changing this
+              line's state to HIGH; XXX can be interrupted
+              when it changes.
+
+              They are connected to:
+
+                   1. SVC GPIO
+                   2. XXX GPIO
+
+XXX_WAKE_SVC: The purpose of these lines is to allow an out
+              of band (from UniPro) means for XXX to take
+              the SVC out of a low-power state.
+
+              XXX "asserts" WAKE to the SVC by changing this
+              line's state to HIGH; the SVC can be
+              interrupted by the I/O expander when it
+              changes.
+
+              They are connected to:
+
+                   1. Pull-down resistor
+                   2. SVC I/O expander
+                   3. XXX GPIO
+
+XXX_BOOTRET: The purpose of these lines is to allow the SVC to control
+             the boot sequence of XXX.
+
+             They are connected to:
+
+                   1. SVC GPIO
+                   2. XXX BOOTRET pin (cf. bridge ASIC manual)
+                   3. XXX labeled debug header
+
+XXX_PWROFF_N: The purpose of these pins is to control external power
+              switches.
+
+              They are connected to:
+
+                   1. XXX labeled debug header
+                   2. XXX PWROFF_N pin (cf. bridge ASIC manual)
+
