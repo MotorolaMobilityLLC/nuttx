@@ -47,7 +47,8 @@
 #ifdef UNIPRO_DEBUG
 #define DBG_UNIPRO(fmt, ...) lldbg(fmt,__VA_ARGS__ )
 #else
-#define DBG_UNIPRO(fmt, ...)
+static inline __attribute((format(printf, 1, 2)))
+	int DBG_UNIPRO(const char *fmt, ...) { return 0; }
 #endif
 
 #define TRANSFER_MODE               (1)
@@ -218,7 +219,7 @@ static int irq_rx_eom(int irq, void *context) {
     DBG_UNIPRO("cport: %u driver: %s payload=0x%x\n",
                 cport->cportid,
                 cport->driver->name,
-                data);
+                (unsigned int)data);
 
     if (cport->driver->rx_handler) {
         /*
@@ -521,7 +522,7 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len) {
     DBG_UNIPRO("Sending %u bytes to CP%d peer_rx_buf=0x%08x\n",
                len,
                cport->cportid,
-               cport->peer_rx_buf);
+               (unsigned int)cport->peer_rx_buf);
     putreg32((uint32_t)cport->peer_rx_buf, &cport->tx_buf[0]);
     putreg32(0xDEADBEEF, &cport->tx_buf[4]); // Reserved header, unused
 
