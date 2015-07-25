@@ -57,10 +57,11 @@
 
 extern int gb_log_level;
 void _gb_dump(const char *func, __u8 *buf, size_t size);
-void _gb_log(const char *fmt, ...);
+void _gb_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 #else
-#define gb_dump(buf, size)
-#define gb_log(fmt, ...)
+static inline void gb_dump(const char *buf, size_t size) { }
+static inline __attribute__ ((format(printf, 2, 3)))
+	void gb_log(int level, const char *fmt, ...) { }
 #endif
 
 #define gb_info(fmt, ...)                                           \
