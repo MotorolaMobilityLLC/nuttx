@@ -251,6 +251,7 @@ const char g_fmtnosuch[]         = "nsh: %s: no such %s: %s\n";
 const char g_fmttoomanyargs[]    = "nsh: %s: too many arguments\n";
 const char g_fmtdeepnesting[]    = "nsh: %s: nesting too deep\n";
 const char g_fmtcontext[]        = "nsh: %s: not valid in this context\n";
+const char g_fmttasklimit[]      = "nsh: %s: task limit exceeded\n";
 #ifdef CONFIG_NSH_STRERROR
 const char g_fmtcmdfailed[]      = "nsh: %s: %s failed: %s\n";
 #else
@@ -530,7 +531,16 @@ static int nsh_execute(FAR struct nsh_vtbl_s *vtbl,
 #else
   ret = nsh_builtin(vtbl, argv[0], argv, NULL, 0);
 #endif
-  if (ret >= 0)
+  if (ret < 0 && errno == EBUSY)
+    {
+      /* If nsh_builtin() returned -1 and errno == EBUSY then
+       * task_assignpid() has failed which means that we exhausted
+       * the number of available pids.
+       */
+      nsh_output(vtbl, g_fmttasklimit, argv[0]);
+      goto errout;
+    }
+  else if (ret >= 0)
     {
       /* nsh_builtin() returned 0 or 1.  This means that the built-in
        * command was successfully started (although it may not have ran

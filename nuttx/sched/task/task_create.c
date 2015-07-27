@@ -156,7 +156,7 @@ static int thread_create(FAR const char *name, uint8_t ttype, int priority,
   ret = task_schedsetup(tcb, priority, task_start, entry, ttype);
   if (ret < OK)
     {
-      errcode = -ret;
+      errcode = EBUSY; /* No available PID */
       goto errout_with_tcb;
     }
 
