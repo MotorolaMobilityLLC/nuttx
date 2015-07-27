@@ -998,14 +998,6 @@ config ARCH_BOARD_ARA_BRIDGE
 	---help---
 		Toshiba bridge
 
-config ARCH_BOARD_ARA_LGD
-	bool "Quanta BDB or Endo with LG display"
-	depends on ARCH_CHIP_TSB
-	---help---
-	  Select this board if you want build a firmware to control LG display.
-	  It work both on BDB1B Endo. It actually provide configs and sources for
-	  for APB1 (DSI rx) and APB2 (DSI TX + LCD power).
-
 config ARCH_BOARD_CUSTOM
 	bool "Custom development board"
 	---help---
@@ -1105,7 +1097,6 @@ config ARCH_BOARD
 	default "stm3220g-eval"       if ARCH_BOARD_STM3220G_EVAL
 	default "stm3240g-eval"       if ARCH_BOARD_STM3240G_EVAL
 	default "ara/svc"             if ARCH_BOARD_ARA_SVC
-	default "ara/lgd"             if ARCH_BOARD_ARA_LGD
 	default "stm32f100rc_generic" if ARCH_BOARD_STM32F100RC_GENERIC
 	default "stm32f3discovery"    if ARCH_BOARD_STM32F3_DISCOVERY
 	default "stm32f4discovery"    if ARCH_BOARD_STM32F4_DISCOVERY
@@ -1462,7 +1453,4 @@ source "configs/zkit-arm-1769/Kconfig"
 endif
 if ARCH_BOARD_SIM
 source "configs/sim/Kconfig"
-endif
-if ARCH_BOARD_ARA_LGD
-source "configs/ara/lgd/Kconfig"
 endif

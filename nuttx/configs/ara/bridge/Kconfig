@@ -38,13 +38,23 @@ config ARA_BRIDGE_HAVE_CAMERA
 	select GPIO
 	select I2C
 
+config BOARD_HAVE_DISPLAY
+	bool "Display support for Board"
+	default n
+	select GPIO
+
 choice
 	prompt "Select a bridge firmware configuration"
-	depends on ARA_BRIDGE_HAVE_CAMERA
+	depends on ARA_BRIDGE_HAVE_CAMERA || BOARD_HAVE_DISPLAY
 config APB_AP
 	bool "APBridge for AP Module"
 config APB_CAMERA
 	bool "APBridge for Camera Module"
+	depends on ARA_BRIDGE_HAVE_CAMERA
+config APB_DISPLAY
+	bool "APBridge for Display Module"
+	depends on BOARD_HAVE_DISPLAY
+	select GPIO_TCA64XX
 endchoice
 
 choice
