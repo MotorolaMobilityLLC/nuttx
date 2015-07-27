@@ -189,14 +189,6 @@ static struct device tsb_devices[] = {
         .resource_count = ARRAY_SIZE(tsb_i2s_resources_0),
     },
 #endif
-#ifdef CONFIG_ARA_BRIDGE_HAVE_USB4624
-    {
-        .type           = DEVICE_TYPE_HSIC_DEVICE,
-        .name           = "usb4624",
-        .desc           = "USB4624 HSIC Hub",
-        .id             = 0,
-    },
-#endif
 #ifdef CONFIG_ARCH_CHIP_USB_HCD
     {
         .type           = DEVICE_TYPE_USB_HCD,

@@ -32,9 +32,18 @@
 #include <nuttx/device.h>
 #include <nuttx/device_table.h>
 #include <nuttx/util.h>
+#include <nuttx/usb.h>
 
 #ifdef CONFIG_DEVICE_CORE
 static struct device devices[] = {
+#ifdef CONFIG_ARA_BRIDGE_HAVE_USB4624
+    {
+        .type           = DEVICE_TYPE_HSIC_DEVICE,
+        .name           = "usb4624",
+        .desc           = "USB4624 HSIC Hub",
+        .id             = 0,
+    },
+#endif
 };
 
 static struct device_table bdb_device_table = {
@@ -44,6 +53,10 @@ static struct device_table bdb_device_table = {
 
 static void bdb_driver_register(void)
 {
+#ifdef CONFIG_ARA_BRIDGE_HAVE_USB4624
+    extern struct device_driver usb4624_driver;
+    device_register_driver(&usb4624_driver);
+#endif
 }
 #endif
 
