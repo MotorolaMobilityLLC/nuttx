@@ -785,7 +785,7 @@ static int gb_uart_init(unsigned int cport)
         return -ENOMEM;
     }
 
-    gb_info("%s(): GB uart info struct: 0x%08p \n", __func__, info);
+    gb_debug("%s(): GB uart info struct: 0x%p \n", __func__, info);
 
     info->cport = cport;
 
