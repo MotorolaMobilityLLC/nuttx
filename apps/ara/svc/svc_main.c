@@ -602,10 +602,8 @@ static int dme_io(int argc, char *argv[]) {
         NONE, ALL, ONE, L1, L1_5, L2, L3, L4, L5, LD, TSB
     };
     int which_attrs = NONE;
-    const char opts[] = "a:s:p:Ph"; /* TODO: add an -S option for switch number
-                                     * when multiple switches are available
-                                     * ... */
-    struct tsb_switch *sw = svc->sw; /* and get the right switch here. */
+    const char opts[] = "a:s:p:Ph";
+    struct tsb_switch *sw = svc->sw;
     uint16_t selector = 0;
     int peer = 0;
     char *end;
