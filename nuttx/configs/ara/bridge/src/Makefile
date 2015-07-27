@@ -35,6 +35,7 @@ ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c
+CSRCS		+= board-bdb.c
 
 ifeq ($(CONFIG_APB_AP),y)
 CSRCS   += csi_tx_init.c
