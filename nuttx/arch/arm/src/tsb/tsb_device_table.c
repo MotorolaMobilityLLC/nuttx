@@ -168,7 +168,7 @@ static struct device_resource tsb_uart_resources[] = {
 };
 #endif
 
-static struct device tsb_device_table[] = {
+static struct device tsb_devices[] = {
 #ifdef CONFIG_ARCH_CHIP_DEVICE_PLL
     {
         .type           = DEVICE_TYPE_PLL_HW,
@@ -240,8 +240,12 @@ static struct device tsb_device_table[] = {
 #endif
 };
 
+static struct device_table tsb_device_table = {
+    .device = tsb_devices,
+    .device_count = ARRAY_SIZE(tsb_devices),
+};
+
 int tsb_device_table_register(void)
 {
-    return device_table_register(tsb_device_table,
-                                 ARRAY_SIZE(tsb_device_table));
+    return device_table_register(&tsb_device_table);
 }

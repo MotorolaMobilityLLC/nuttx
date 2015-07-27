@@ -26,66 +26,68 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * @author Mark Greer
+ * @author Fabien Parent
  */
 
 #include <errno.h>
 
+#include <nuttx/list.h>
 #include <nuttx/device.h>
 #include <nuttx/device_table.h>
+#include <nuttx/kmalloc.h>
 
-/* Only valid to have one device table per system */
-static struct device *device_table;
-static unsigned int device_table_entries;
+static LIST_DECLARE(device_table_list);
 
-/**
- * @brief Search device table for device by index
- * @param idx Device table index
- * @return Address of structure representing device or NULL on failure
- */
-struct device *device_table_get_dev(unsigned int idx)
+struct device *device_table_iter_next(struct device_table_iter *iter)
 {
-    if (idx >= device_table_entries)
+    if (!iter) {
         return NULL;
+    }
 
-    return &device_table[idx];
-}
+    /* first iteration */
+    if (!iter->table) {
+        if (list_is_empty(&device_table_list)) {
+            return NULL;
+        }
 
-/**
- * @brief Get next device table entry
- * @param dev Current device table entry
- * @return Address of next device table entry or NULL if no more
- */
-struct device *device_table_get_next_dev(struct device *dev)
-{
-    if ((++dev - device_table) >= device_table_entries)
-        return NULL;
+        iter->item = 0;
+        iter->table = list_entry(device_table_list.next,
+                                 struct device_table, list);
+    } else {
+        iter->item++;
+    }
 
-    return dev;
+    /* we are done with the current device table, switch to the next one */
+    if (iter->item >= iter->table->device_count) {
+        /* last device table entry, no device left to process */
+        if (iter->table->list.next == &device_table_list) {
+            return NULL;
+        }
+
+        /* go to first elem of next device table */
+        iter->item = 0;
+        iter->table = list_entry(iter->table->list.next,
+                                 struct device_table, list);
+    }
+
+    return &iter->table->device[iter->item];
 }
 
 /**
  * @brief Register a device table
  * @param table Device table to be registered
- * @param entries Number of device table entries
  * @return 0: Device table registered
- *         -EINVAL: If 'table' is NULL or 'entries' is zero
+ *         -EINVAL: if invalid paramter
+ *         -ENOMEM: Out of Memory
  */
-int device_table_register(struct device *table, unsigned int entries)
+int device_table_register(struct device_table *table)
 {
-    if (!table || !entries)
+    if (!table || !table->device || !table->device_count) {
         return -EINVAL;
+    }
 
-    device_table = table;
-    device_table_entries = entries;
+    list_init(&table->list);
+    list_add(&device_table_list, &table->list);
 
     return 0;
-}
-
-/**
- * @brief unregister a device table
- */
-void device_table_unregister(void)
-{
-    device_table = NULL;
-    device_table_entries = 0;
 }

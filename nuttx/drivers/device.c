@@ -46,6 +46,7 @@
 struct device *device_open(char *type, unsigned int id)
 {
     struct device *dev;
+    struct device_table_iter iter = DEVICE_TABLE_ITER_INITIALIZER;
     irqstate_t flags;
     int ret;
 
@@ -54,7 +55,7 @@ struct device *device_open(char *type, unsigned int id)
 
     flags = irqsave();
 
-    device_table_for_each_dev(dev) {
+    device_table_for_each_dev(dev, &iter) {
         if (!strcmp(dev->type, type) && (dev->id == id)) {
             if (dev->state != DEVICE_STATE_PROBED)
                 goto err_irqrestore;
@@ -127,6 +128,7 @@ void device_close(struct device *dev)
 int device_register_driver(struct device_driver *driver)
 {
     struct device *dev;
+    struct device_table_iter iter = DEVICE_TABLE_ITER_INITIALIZER;
     irqstate_t flags;
     int ret;
 
@@ -135,7 +137,7 @@ int device_register_driver(struct device_driver *driver)
 
     flags = irqsave();
 
-    device_table_for_each_dev(dev) {
+    device_table_for_each_dev(dev, &iter) {
         if (!strcmp(dev->type, driver->type) &&
             !strcmp(dev->name, driver->name)) {
 
@@ -173,6 +175,7 @@ int device_register_driver(struct device_driver *driver)
 void device_unregister_driver(struct device_driver *driver)
 {
     struct device *dev;
+    struct device_table_iter iter = DEVICE_TABLE_ITER_INITIALIZER;
     irqstate_t flags;
 
     if (!driver)
@@ -180,7 +183,7 @@ void device_unregister_driver(struct device_driver *driver)
 
     flags = irqsave();
 
-    device_table_for_each_dev(dev) {
+    device_table_for_each_dev(dev, &iter) {
         if (dev->driver == driver) {
             if (dev->state != DEVICE_STATE_PROBED)
                 continue;
