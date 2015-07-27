@@ -28,11 +28,61 @@
  * Author: Fabien Parent <fparent@baylibre.com>
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <syslog.h>
+
 #include <nuttx/config.h>
 #include <nuttx/device.h>
 #include <nuttx/device_table.h>
 #include <nuttx/util.h>
 #include <nuttx/usb.h>
+#include <nuttx/i2c.h>
+#include <nuttx/gpio/tca64xx.h>
+
+#include <arch/tsb/gpio.h>
+#include <arch/tsb/device_table.h>
+#include <arch/tsb/driver.h>
+
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+#include <arch/board/dsi.h>
+#endif
+
+#ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
+#include <arch/board/csi.h>
+#endif
+
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+#define TCA6408_U72             0x20
+#define TCA6408_U72_INT_GPIO    0x03
+#define TCA6408_U72_RST_GPIO    0x04
+
+static int io_expander_init(struct i2c_dev_s **dev)
+{
+    void *driver_data;
+
+    *dev = up_i2cinitialize(0);
+    if (!*dev) {
+        lowsyslog("%s(): Failed to get I/O Expander I2C bus 0\n", __func__);
+        return -ENODEV;
+    } else {
+        if (tca64xx_init(&driver_data,
+                         TCA6408_PART,
+                         *dev,
+                         TCA6408_U72,
+                         TCA6408_U72_RST_GPIO,
+                         TCA6408_U72_INT_GPIO,
+                         TCA6408_GPIO_BASE) < 0) {
+            lowsyslog("%s(): Failed to register I/O Expander(0x%02x)\n",
+                      __func__, TCA6408_U72);
+            up_i2cuninitialize(*dev);
+            return -ENODEV;
+        }
+    }
+
+    return 0;
+}
+#endif
 
 #ifdef CONFIG_DEVICE_CORE
 static struct device devices[] = {
@@ -60,11 +110,40 @@ static void bdb_driver_register(void)
 }
 #endif
 
+static void board_display_init(void)
+{
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+    struct i2c_dev_s *dev = NULL;
+
+#ifndef CONFIG_APBRIDGEA
+    io_expander_init(&dev);
+#endif
+
+    display_init(dev);
+#endif
+}
+
+static void board_camera_init(void)
+{
+#ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
+    sleep(1);
+
+    camera_init();
+#endif
+}
+
 void board_initialize(void)
 {
+    tsb_gpio_register(NULL);
+
 #ifdef CONFIG_DEVICE_CORE
+    tsb_device_table_register();
     device_table_register(&bdb_device_table);
 
+    tsb_driver_register();
     bdb_driver_register();
 #endif
+
+    board_display_init();
+    board_camera_init();
 }

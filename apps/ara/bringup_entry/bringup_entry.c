@@ -26,18 +26,12 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <arch/tsb/gpio.h>
 #include <arch/tsb/unipro.h>
-#include <arch/tsb/device_table.h>
-#include <arch/tsb/driver.h>
 
 #include <apps/nsh.h>
 
 int bringup_entry(int argc, char *argv[])
 {
-    tsb_gpio_register(NULL);
-    tsb_device_table_register();
-    tsb_driver_register();
     unipro_init();
     return nsh_main(argc, argv);
 }
