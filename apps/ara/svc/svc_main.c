@@ -485,7 +485,7 @@ static void dme_io_usage(void) {
     printk("        -h: print this message and exit\n");
     printk("\n");
     printk("    Options for reading an attribute or group of attributes:\n");
-    printk("    svc %s r [-a <attrs>] [-s <sel>] [-p <port>] [-P]:\n",
+    printk("    svc %s r [-a <attrs>] [-s <sel>] [-i <interface>] [-p <port>] [-P]:\n",
            commands[DME_IO].longc);
     printk("\n");
     printk("        -a <attrs>: attribute (in hexadecimal) to read, or one of:\n");
@@ -500,6 +500,8 @@ static void dme_io_usage(void) {
     printk("                    If missing, default is \"all\".\n");
     printk("                    If <attrs> is \"L4\", -P is implied.\n");
     printk("        -s <sel>: attribute selector index (default is 0)\n");
+    printk("        -i <interface>: Interface to read attribute on (e.g. \"apb1\", etc.)\n");
+    printk("                        If set, overrides -p.\n");
     printk("        -p <port>: port to read attribute on (default is 0)\n");
     printk("        -P: if present, do a peer (instead of switch local) read\n");
     printk("\n");
@@ -602,11 +604,12 @@ static int dme_io(int argc, char *argv[]) {
         NONE, ALL, ONE, L1, L1_5, L2, L3, L4, L5, LD, TSB
     };
     int which_attrs = NONE;
-    const char opts[] = "a:s:p:Ph";
+    const char opts[] = "a:s:i:p:Ph";
     struct tsb_switch *sw = svc->sw;
     uint16_t selector = 0;
     int peer = 0;
     char *end;
+    const char *iface_name = NULL;
     uint8_t port = 0;
     uint16_t attr = 0xbeef;
     int attr_set = 0;
@@ -691,6 +694,9 @@ static int dme_io(int argc, char *argv[]) {
                 return EXIT_FAILURE;
             }
             break;
+        case 'i':
+            iface_name = optarg;
+            break;
         case 'p':
             end = NULL;
             port = strtoul(optarg, &end, 10);
@@ -755,6 +761,15 @@ static int dme_io(int argc, char *argv[]) {
             }
             val_set = 1;
         }
+    }
+    /* Override the port if the user specified an interface by name. */
+    if (iface_name) {
+        struct interface *iface = interface_get_by_name(iface_name);
+        if (!iface) {
+            printk("Invalid interface: %s\n", iface_name);
+            return EXIT_FAILURE;
+        }
+        port = iface->switch_portid;
     }
 
     /*
