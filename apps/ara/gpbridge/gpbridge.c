@@ -42,6 +42,8 @@
 #include <arch/tsb/device_table.h>
 #include <arch/tsb/driver.h>
 #include <apps/greybus-utils/utils.h>
+#include <apps/ara/service_mgr.h>
+#include <apps/ara/gb_loopback.h>
 #include <apps/nsh.h>
 
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
@@ -84,6 +86,16 @@ int io_expander_init(struct i2c_dev_s **dev)
 }
 #endif
 
+static struct srvmgr_service services[] = {
+#if defined(CONFIG_ARA_GB_LOOPBACK)
+    {
+        .name = "gb_loopback",
+        .func = gb_loopback_service,
+    },
+#endif
+    { NULL, NULL }
+};
+
 int bridge_main(int argc, char *argv[])
 {
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
@@ -108,6 +120,7 @@ int bridge_main(int argc, char *argv[])
     enable_manifest("IID-1", NULL, 0);
     gb_unipro_init();
     enable_cports();
+    srvmgr_start(services);
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");

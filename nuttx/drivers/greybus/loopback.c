@@ -40,62 +40,17 @@
 #define GB_LOOPBACK_VERSION_MAJOR 0
 #define GB_LOOPBACK_VERSION_MINOR 1
 
-struct gb_loopback {
-    struct list_head list;
-    int ms;
-    int type;
-    int enomem;
-    size_t size;
-    unsigned int error;
-    unsigned int cportid;
-    pthread_t thread;
-    pthread_mutex_t mutex;
-};
+struct list_head gb_loopback_list = LIST_INIT(gb_loopback_list);
+static pthread_mutex_t gb_loopback_list_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-LIST_DECLARE(gb_loopback_list);
-
-void *gb_loopback_fn(void *data)
+void gb_loopback_list_lock(void)
 {
-    int ms;
-    int type;
-    size_t size;
-    struct gb_loopback *loopback = data;
+    pthread_mutex_lock(&gb_loopback_list_mutex);
+}
 
-    while(1) {
-        if (loopback->type == GB_LOOPBACK_TYPE_NONE) {
-            sleep(1);
-            continue;
-        }
-
-        /* mutex lock */
-        ms = loopback->ms;
-        type = loopback->type;
-        size = loopback->size;
-        /* mutex unlock */
-
-        if (type == GB_LOOPBACK_TYPE_PING) {
-            if (gb_loopback_send_req(loopback, 1,
-                                     GB_LOOPBACK_TYPE_PING)) {
-                loopback->enomem++;
-            }
-        }
-        if (type == GB_LOOPBACK_TYPE_TRANSFER) {
-            if (gb_loopback_send_req(loopback, size,
-                                     GB_LOOPBACK_TYPE_TRANSFER)) {
-                loopback->enomem++;
-            }
-        }
-        if (type == GB_LOOPBACK_TYPE_SINK) {
-            if (gb_loopback_send_req(loopback, size,
-                                     GB_LOOPBACK_TYPE_SINK)) {
-                loopback->enomem++;
-            }
-        }
-        if (ms) {
-            usleep(ms * 1000);
-        }
-    }
-    return NULL;
+void gb_loopback_list_unlock(void)
+{
+    pthread_mutex_unlock(&gb_loopback_list_mutex);
 }
 
 struct gb_loopback *gb_loopback_from_list(struct list_head *iter)
@@ -137,14 +92,15 @@ static int gb_loopback_reset(struct gb_loopback *loopback)
 int gb_loopback_cport_conf(struct gb_loopback *loopback,
                            int type, size_t size, int ms)
 {
-    gb_loopback_reset(loopback);
-    /* mutex lock*/
     if (loopback == NULL)
         return 1;
+
+    gb_loopback_reset(loopback);
+
     loopback->type = type;
     loopback->size = size;
     loopback->ms = ms;
-    /* mutex unlock */
+
     return 0;
 }
 
@@ -318,9 +274,10 @@ void gb_loopback_register(int cport)
     struct gb_loopback *loopback = zalloc(sizeof(*loopback));
     if (loopback) {
         loopback->cportid = cport;
+        gb_loopback_list_lock();
         list_add(&gb_loopback_list, &loopback->list);
-        pthread_create(&loopback->thread, NULL, gb_loopback_fn,
-                       (pthread_addr_t)loopback);
+        gb_loopback_list_unlock();
+
     }
     gb_register_driver(cport, &loopback_driver);
 }

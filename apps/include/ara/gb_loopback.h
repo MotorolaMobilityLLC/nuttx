@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 Google Inc.
+ * Copyright (c) 2014, 2015 Google Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,35 +24,22 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Author: Bartosz Golaszewski <bgolaszewski@baylibre.com>
  */
 
-#ifndef __LOOPBACK__H__
-#define __LOOPBACK__H__
+#ifndef __APPS_INCLUDE_GB_LOOPBACK_H
+#define __APPS_INCLUDE_GB_LOOPBACK_H
 
-#include <nuttx/list.h>
+#include <errno.h>
 
-struct gb_loopback {
-    struct list_head list;
-    int ms;
-    int type;
-    int enomem;
-    size_t size;
-    unsigned int error;
-    unsigned int cportid;
-};
-
-extern struct list_head gb_loopback_list;
-
-void gb_loopback_list_lock(void);
-void gb_loopback_list_unlock(void);
-
-struct gb_loopback *gb_loopback_from_cport(unsigned int cportid);
-struct gb_loopback *gb_loopback_from_list(struct list_head *iter);
-unsigned int gb_loopback_to_cport(struct gb_loopback *loopback);
-int gb_loopback_cport_conf(struct gb_loopback *loopback,
-                           int type, size_t size, int ms);
-int gb_loopback_status(struct gb_loopback *loopback);
-int gb_loopback_send_req(struct gb_loopback *loopback,
-                         size_t size, uint8_t type);
-
+#if defined(CONFIG_ARA_GB_LOOPBACK)
+int gb_loopback_service(void);
+#else
+static inline int gb_loopback_service(void)
+{
+    return -ENOSYS;
+}
 #endif
+
+#endif /* __APPS_INCLUDE_GB_LOOPBACK_H */

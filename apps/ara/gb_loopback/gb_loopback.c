@@ -85,13 +85,82 @@ static int print_help(void)
     return 1;
 }
 
+static pthread_cond_t gb_loopback_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t gb_loopback_cond_lock = PTHREAD_MUTEX_INITIALIZER;
+
+int gb_loopback_service(void)
+{
+    struct gb_loopback *loopback;
+
+    while (1) {
+        struct list_head *iter;
+
+        gb_loopback_list_lock();
+        list_foreach(&gb_loopback_list, iter) {
+            loopback = list_entry(iter, struct gb_loopback, list);
+
+            if (loopback->type != GB_LOOPBACK_TYPE_NONE) {
+                if (loopback->type == GB_LOOPBACK_TYPE_PING) {
+                    if (gb_loopback_send_req(loopback, 1,
+                                             GB_LOOPBACK_TYPE_PING)) {
+                        loopback->enomem++;
+                    }
+                }
+                if (loopback->type == GB_LOOPBACK_TYPE_TRANSFER) {
+                    if (gb_loopback_send_req(loopback, loopback->size,
+                                             GB_LOOPBACK_TYPE_TRANSFER)) {
+                        loopback->enomem++;
+                    }
+                }
+                if (loopback->type == GB_LOOPBACK_TYPE_SINK) {
+                    if (gb_loopback_send_req(loopback, loopback->size,
+                                             GB_LOOPBACK_TYPE_SINK)) {
+                        loopback->enomem++;
+                    }
+                }
+                if (loopback->ms) {
+                    usleep(loopback->ms * 1000);
+                }
+            }
+        }
+        gb_loopback_list_unlock();
+
+        pthread_mutex_lock(&gb_loopback_cond_lock);
+        pthread_cond_wait(&gb_loopback_cond, &gb_loopback_cond_lock);
+        pthread_mutex_unlock(&gb_loopback_cond_lock);
+    }
+
+    return 0;
+}
+
+static int run_loopback_cmd(struct gb_loopback *loopback,
+                            int cport, int type, int size, int ms)
+{
+    if (gb_loopback_cport_conf(loopback, type, size, ms))
+        return -EINVAL;
+
+    if (type == 0) {
+        if (gb_loopback_status(loopback)) {
+            printf("Transfer failed on cport %d: %d"
+                   " packet were lost or corrupted.\n",
+                   cport, gb_loopback_status(loopback));
+        } else {
+            printf("transfer succeed on cport %d\n", cport);
+        }
+    } else {
+        printf("Start transfer on cport %d\n", cport);
+    }
+
+    return 0;
+}
+
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
 int gb_loopback_main(int argc, char *argv[])
 #endif
 {
-    int type = 0, size = 0, cport = -1, ms = 1000, opt;
+    int type = 0, size = 0, cport = -1, ms = 1000, opt, status = EXIT_SUCCESS;
     struct gb_loopback *loopback;
 
     while ((opt = getopt (argc, argv, "t:s:c:w:h")) != -1) {
@@ -117,49 +186,35 @@ int gb_loopback_main(int argc, char *argv[])
         }
     }
 
+    gb_loopback_list_lock();
     if (cport == -1) {
         struct list_head *iter;
 
         list_foreach(&gb_loopback_list, iter) {
             loopback = gb_loopback_from_list(iter);
-            if (gb_loopback_cport_conf(loopback, type, size, ms))
-                continue;
-            if (type == GB_LOOPBACK_TYPE_NONE) {
-                if (gb_loopback_status(loopback)) {
-                    printf("Transfer failed on cport %d: %d"
-                           " packet were lost or corrupted.\n",
-                           gb_loopback_to_cport(loopback),
-                           gb_loopback_status(loopback));
-                } else {
-                    printf("transfer succeed on cport %d\n",
-                           gb_loopback_to_cport(loopback));
-                }
-             } else {
-                    printf("Start transfer on cport %d\n",
-                           gb_loopback_to_cport(loopback));
-             }
+
+            cport = gb_loopback_to_cport(loopback);
+            run_loopback_cmd(loopback, cport, type, size, ms);
         }
     } else {
         loopback = gb_loopback_from_cport(cport);
-        if (gb_loopback_cport_conf(loopback, type, size, ms)) {
-            return -EINVAL;
-        }
-        if (type == GB_LOOPBACK_TYPE_NONE) {
-            if (gb_loopback_status(loopback)) {
-                printf("Transfer failed on cport %d: %d"
-                       " packet were lost or corrupted.\n",
-                       cport, gb_loopback_status(loopback));
-            } else {
-                printf("transfer succeed on cport %d\n", cport);
-            }
+        if (loopback == NULL) {
+            gb_loopback_list_unlock();
+            goto no_loopback;
         } else {
-            printf("Start transfer on cport %d\n", cport);
+            status = run_loopback_cmd(loopback, cport, type, size, ms);
         }
-
     }
+    gb_loopback_list_unlock();
 
-    return 0;
+    pthread_cond_broadcast(&gb_loopback_cond);
+
+    return status;
 
 help:
     return print_help();
+
+no_loopback:
+    fprintf(stderr, "invalid cport: %d\n", cport);
+    return EXIT_FAILURE;
 }

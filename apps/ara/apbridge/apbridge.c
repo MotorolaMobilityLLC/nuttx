@@ -35,6 +35,8 @@
 #include <pthread.h>
 #include <nuttx/usb/apb_es1.h>
 #include <apps/greybus-utils/utils.h>
+#include <apps/ara/service_mgr.h>
+#include <apps/ara/gb_loopback.h>
 #include <apps/nsh.h>
 #include <arch/tsb/gpio.h>
 
@@ -154,6 +156,16 @@ static struct apbridge_usb_driver usb_driver = {
     .init = svc_sim_init,
 };
 
+static struct srvmgr_service services[] = {
+#if defined(CONFIG_ARA_GB_LOOPBACK)
+    {
+        .name = "gb_loopback",
+        .func = gb_loopback_service,
+    },
+#endif
+    { NULL, NULL }
+};
+
 int bridge_main(int argc, char *argv[])
 {
     tsb_gpio_register(NULL);
@@ -167,6 +179,7 @@ int bridge_main(int argc, char *argv[])
 #endif
 
     sleep(1);
+    srvmgr_start(services);
 
 #ifdef CONFIG_ARA_BRIDGE_HAVE_CAMERA
     camera_init();
