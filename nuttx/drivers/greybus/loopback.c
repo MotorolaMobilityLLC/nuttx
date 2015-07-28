@@ -98,12 +98,12 @@ void *gb_loopback_fn(void *data)
     return NULL;
 }
 
-struct gb_loopback *list_to_loopback(struct list_head *iter)
+struct gb_loopback *gb_loopback_from_list(struct list_head *iter)
 {
     return list_entry(iter, struct gb_loopback, list);
 }
 
-struct gb_loopback *cport_to_loopback(unsigned int cportid)
+struct gb_loopback *gb_loopback_from_cport(unsigned int cportid)
 {
     struct list_head *iter;
     struct gb_loopback *loopback;
@@ -201,7 +201,7 @@ static void gb_loopback_transfer_sync(struct gb_operation *operation)
     request = gb_operation_get_request_payload(operation);
     response = gb_operation_get_request_payload(operation->response);
 
-    loopback = cport_to_loopback(operation->cport);
+    loopback = gb_loopback_from_cport(operation->cport);
     if (!loopback) {
         return;
     }
