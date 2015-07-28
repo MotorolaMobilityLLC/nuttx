@@ -160,25 +160,29 @@ int main(int argc, FAR char *argv[])
 int gb_loopback_main(int argc, char *argv[])
 #endif
 {
-    int type = 0, size = 0, cport = -1, ms = 1000, opt, status = EXIT_SUCCESS;
+    int type = 0, size = 0, cport = -1, ms = 1000, opt, rv = EXIT_SUCCESS, st;
     struct gb_loopback *loopback;
 
     while ((opt = getopt (argc, argv, "t:s:c:w:h")) != -1) {
         switch (opt) {
         case 'c':
-            if (sscanf(optarg, "%d", &cport) != 1)
+            st = sscanf(optarg, "%d", &cport);
+            if (st != 1)
                 goto help;
             break;
         case 's':
-            if (sscanf(optarg, "%d", &size) != 1)
+            st = sscanf(optarg, "%d", &size);
+            if (st != 1)
                 goto help;
             break;
         case 't':
-            if ((type = op_type_from_str(optarg)) < 0)
+            type = op_type_from_str(optarg);
+            if (type < 0)
                 goto help;
             break;
         case 'w':
-            if (sscanf(optarg, "%d", &ms) != 1)
+            st = sscanf(optarg, "%d", &ms);
+            if (st != 1)
                 goto help;
             break;
         default:
@@ -194,7 +198,9 @@ int gb_loopback_main(int argc, char *argv[])
             loopback = list_entry(iter, struct gb_loopback, list);
 
             cport = gb_loopback_to_cport(loopback);
-            run_loopback_cmd(loopback, cport, type, size, ms);
+            st = run_loopback_cmd(loopback, cport, type, size, ms);
+            if (st < 0)
+                rv = EXIT_FAILURE;
         }
     } else {
         loopback = gb_loopback_from_cport(cport);
@@ -202,14 +208,14 @@ int gb_loopback_main(int argc, char *argv[])
             gb_loopback_list_unlock();
             goto no_loopback;
         } else {
-            status = run_loopback_cmd(loopback, cport, type, size, ms);
+            rv = run_loopback_cmd(loopback, cport, type, size, ms);
         }
     }
     gb_loopback_list_unlock();
 
     pthread_cond_broadcast(&gb_loopback_cond);
 
-    return status;
+    return rv;
 
 help:
     return print_help();
