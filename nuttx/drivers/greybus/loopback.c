@@ -59,36 +59,36 @@ void *gb_loopback_fn(void *data)
     int ms;
     int type;
     size_t size;
-    struct gb_loopback *gb_loopback = data;
+    struct gb_loopback *loopback = data;
 
     while(1) {
-        if (gb_loopback->type == GB_LOOPBACK_TYPE_NONE) {
+        if (loopback->type == GB_LOOPBACK_TYPE_NONE) {
             sleep(1);
             continue;
         }
 
         /* mutex lock */
-        ms = gb_loopback->ms;
-        type = gb_loopback->type;
-        size = gb_loopback->size;
+        ms = loopback->ms;
+        type = loopback->type;
+        size = loopback->size;
         /* mutex unlock */
 
         if (type == GB_LOOPBACK_TYPE_PING) {
-            if (gb_loopback_send_req(gb_loopback, 1,
+            if (gb_loopback_send_req(loopback, 1,
                                      GB_LOOPBACK_TYPE_PING)) {
-                gb_loopback->enomem++;
+                loopback->enomem++;
             }
         }
         if (type == GB_LOOPBACK_TYPE_TRANSFER) {
-            if (gb_loopback_send_req(gb_loopback, size,
+            if (gb_loopback_send_req(loopback, size,
                                      GB_LOOPBACK_TYPE_TRANSFER)) {
-                gb_loopback->enomem++;
+                loopback->enomem++;
             }
         }
         if (type == GB_LOOPBACK_TYPE_SINK) {
-            if (gb_loopback_send_req(gb_loopback, size,
+            if (gb_loopback_send_req(loopback, size,
                                      GB_LOOPBACK_TYPE_SINK)) {
-                gb_loopback->enomem++;
+                loopback->enomem++;
             }
         }
         if (ms) {
@@ -106,44 +106,44 @@ struct gb_loopback *list_to_loopback(struct list_head *iter)
 struct gb_loopback *cport_to_loopback(unsigned int cportid)
 {
     struct list_head *iter;
-    struct gb_loopback *gb_loopback;
+    struct gb_loopback *loopback;
 
     list_foreach(&gb_loopback_list, iter) {
-        gb_loopback = list_entry(iter, struct gb_loopback, list);
-        if (gb_loopback->cportid == cportid)
-            return gb_loopback;
+        loopback = list_entry(iter, struct gb_loopback, list);
+        if (loopback->cportid == cportid)
+            return loopback;
     }
 
     return NULL;
 }
 
-unsigned int gb_loopback_to_cport(struct gb_loopback *gb_loopback)
+unsigned int gb_loopback_to_cport(struct gb_loopback *loopback)
 {
-    return gb_loopback->cportid;
+    return loopback->cportid;
 }
 
-static int gb_loopback_reset(struct gb_loopback *gb_loopback)
+static int gb_loopback_reset(struct gb_loopback *loopback)
 {
-    if (!gb_loopback) {
+    if (!loopback) {
         return -EINVAL;
     }
 
-    gb_loopback->error = 0;
-    gb_loopback->enomem = 0;
+    loopback->error = 0;
+    loopback->enomem = 0;
 
     return 0;
 }
 
-int gb_loopback_cport_conf(struct gb_loopback *gb_loopback,
+int gb_loopback_cport_conf(struct gb_loopback *loopback,
                            int type, size_t size, int ms)
 {
-    gb_loopback_reset(gb_loopback);
+    gb_loopback_reset(loopback);
     /* mutex lock*/
-    if (gb_loopback == NULL)
+    if (loopback == NULL)
         return 1;
-    gb_loopback->type = type;
-    gb_loopback->size = size;
-    gb_loopback->ms = ms;
+    loopback->type = type;
+    loopback->size = size;
+    loopback->ms = ms;
     /* mutex unlock */
     return 0;
 }
@@ -194,20 +194,20 @@ static uint8_t gb_loopback_sink_req_cb(struct gb_operation *operation)
 
 static void gb_loopback_transfer_sync(struct gb_operation *operation)
 {
-    struct gb_loopback *gb_loopback;
+    struct gb_loopback *loopback;
     struct gb_loopback_transfer_response *response;
     struct gb_loopback_transfer_request *request;
 
     request = gb_operation_get_request_payload(operation);
     response = gb_operation_get_request_payload(operation->response);
 
-    gb_loopback = cport_to_loopback(operation->cport);
-    if (!gb_loopback) {
+    loopback = cport_to_loopback(operation->cport);
+    if (!loopback) {
         return;
     }
 
     if (memcmp(request->data, response->data, le32_to_cpu(request->len)))
-        gb_loopback->error += 1;
+        loopback->error += 1;
 }
 
 /**
@@ -226,29 +226,29 @@ static void gb_loopback_sink_resp_cb(struct gb_operation *operation)
 /**
  * @brief           Send loopback operation request
  * @return          OK in case of success, <0 otherwise
- * @param[in]       gb_loopback: gb_loopback private driver data
+ * @param[in]       loopback: gb_loopback private driver data
  * @param[in]       size: request payload size in bytes
  * @param[in]       type: operation type (ping / transfer / sink)
  */
-int gb_loopback_send_req(struct gb_loopback *gb_loopback,
+int gb_loopback_send_req(struct gb_loopback *loopback,
                          size_t size, uint8_t type)
 {
     int i;
     struct gb_operation *operation;
     struct gb_loopback_transfer_request *request;
 
-    if (!gb_loopback) {
+    if (!loopback) {
         return -EINVAL;
     }
 
     switch(type) {
     case GB_LOOPBACK_TYPE_PING:
-        operation = gb_operation_create(gb_loopback->cportid,
+        operation = gb_operation_create(loopback->cportid,
                                         GB_LOOPBACK_TYPE_PING, 1);
         break;
     case GB_LOOPBACK_TYPE_TRANSFER:
     case GB_LOOPBACK_TYPE_SINK:
-        operation = gb_operation_create(gb_loopback->cportid,
+        operation = gb_operation_create(loopback->cportid,
                                         type,
                                         sizeof(*request) + size);
         break;
@@ -291,13 +291,13 @@ int gb_loopback_send_req(struct gb_loopback *gb_loopback,
     return OK;
 }
 
-int gb_loopback_status(struct gb_loopback *gb_loopback)
+int gb_loopback_status(struct gb_loopback *loopback)
 {
-    if (!gb_loopback) {
+    if (!loopback) {
         return -EINVAL;
     }
 
-    return gb_loopback->error + gb_loopback->enomem;
+    return loopback->error + loopback->enomem;
 }
 
 static struct gb_operation_handler gb_loopback_handlers[] = {
@@ -315,12 +315,12 @@ struct gb_driver loopback_driver = {
 
 void gb_loopback_register(int cport)
 {
-    struct gb_loopback *gb_loopback = zalloc(sizeof(*gb_loopback));
-    if (gb_loopback) {
-        gb_loopback->cportid = cport;
-        list_add(&gb_loopback_list, &gb_loopback->list);
-        pthread_create(&gb_loopback->thread, NULL, gb_loopback_fn,
-                       (pthread_addr_t)gb_loopback);
+    struct gb_loopback *loopback = zalloc(sizeof(*loopback));
+    if (loopback) {
+        loopback->cportid = cport;
+        list_add(&gb_loopback_list, &loopback->list);
+        pthread_create(&loopback->thread, NULL, gb_loopback_fn,
+                       (pthread_addr_t)loopback);
     }
     gb_register_driver(cport, &loopback_driver);
 }

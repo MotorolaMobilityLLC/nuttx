@@ -37,11 +37,11 @@ extern struct list_head gb_loopback_list;
 
 struct gb_loopback *cport_to_loopback(unsigned int cportid);
 struct gb_loopback *list_to_loopback(struct list_head *iter);
-unsigned int gb_loopback_to_cport(struct gb_loopback *gb_loopback);
-int gb_loopback_cport_conf(struct gb_loopback *gb_loopback,
+unsigned int gb_loopback_to_cport(struct gb_loopback *loopback);
+int gb_loopback_cport_conf(struct gb_loopback *loopback,
                            int type, size_t size, int ms);
-int gb_loopback_status(struct gb_loopback *gb_loopback);
-int gb_loopback_send_req(struct gb_loopback *gb_loopback,
+int gb_loopback_status(struct gb_loopback *loopback);
+int gb_loopback_send_req(struct gb_loopback *loopback,
                          size_t size, uint8_t type);
 
 #endif
