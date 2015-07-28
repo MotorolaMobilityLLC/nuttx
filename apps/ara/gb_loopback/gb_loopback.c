@@ -92,7 +92,7 @@ int gb_loopback_main(int argc, char *argv[])
 #endif
 {
     int type = 0, size = 0, cport = -1, ms = 1000, opt;
-    struct gb_loopback *gb_loopback;
+    struct gb_loopback *loopback;
 
     while ((opt = getopt (argc, argv, "t:s:c:w:h")) != -1) {
         switch (opt) {
@@ -121,34 +121,34 @@ int gb_loopback_main(int argc, char *argv[])
         struct list_head *iter;
 
         list_foreach(&gb_loopbacks, iter) {
-            gb_loopback = list_to_loopback(iter);
-            if (gb_loopback_cport_conf(gb_loopback, type, size, ms))
+            loopback = list_to_loopback(iter);
+            if (gb_loopback_cport_conf(loopback, type, size, ms))
                 continue;
             if (type == GB_LOOPBACK_TYPE_NONE) {
-                if (gb_loopback_status(gb_loopback)) {
+                if (gb_loopback_status(loopback)) {
                     printf("Transfer failed on cport %d: %d"
                            " packet were lost or corrupted.\n",
-                           gb_loopback_to_cport(gb_loopback),
-                           gb_loopback_status(gb_loopback));
+                           gb_loopback_to_cport(loopback),
+                           gb_loopback_status(loopback));
                 } else {
                     printf("transfer succeed on cport %d\n",
-                           gb_loopback_to_cport(gb_loopback));
+                           gb_loopback_to_cport(loopback));
                 }
              } else {
                     printf("Start transfer on cport %d\n",
-                           gb_loopback_to_cport(gb_loopback));
+                           gb_loopback_to_cport(loopback));
              }
         }
     } else {
-        gb_loopback = cport_to_loopback(cport);
-        if (gb_loopback_cport_conf(gb_loopback, type, size, ms)) {
+        loopback = cport_to_loopback(cport);
+        if (gb_loopback_cport_conf(loopback, type, size, ms)) {
             return -EINVAL;
         }
         if (type == GB_LOOPBACK_TYPE_NONE) {
-            if (gb_loopback_status(gb_loopback)) {
+            if (gb_loopback_status(loopback)) {
                 printf("Transfer failed on cport %d: %d"
                        " packet were lost or corrupted.\n",
-                       cport, gb_loopback_status(gb_loopback));
+                       cport, gb_loopback_status(loopback));
             } else {
                 printf("transfer succeed on cport %d\n", cport);
             }
