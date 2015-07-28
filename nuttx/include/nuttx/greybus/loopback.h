@@ -33,7 +33,7 @@
 
 struct gb_loopback;
 
-extern struct list_head gb_loopbacks;
+extern struct list_head gb_loopback_list;
 
 struct gb_loopback *cport_to_loopback(unsigned int cportid);
 struct gb_loopback *list_to_loopback(struct list_head *iter);

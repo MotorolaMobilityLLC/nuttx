@@ -120,7 +120,7 @@ int gb_loopback_main(int argc, char *argv[])
     if (cport == -1) {
         struct list_head *iter;
 
-        list_foreach(&gb_loopbacks, iter) {
+        list_foreach(&gb_loopback_list, iter) {
             loopback = list_to_loopback(iter);
             if (gb_loopback_cport_conf(loopback, type, size, ms))
                 continue;

@@ -52,7 +52,7 @@ struct gb_loopback {
     pthread_mutex_t mutex;
 };
 
-LIST_DECLARE(gb_loopbacks);
+LIST_DECLARE(gb_loopback_list);
 
 void *gb_loopback_fn(void *data)
 {
@@ -108,7 +108,7 @@ struct gb_loopback *cport_to_loopback(unsigned int cportid)
     struct list_head *iter;
     struct gb_loopback *gb_loopback;
 
-    list_foreach(&gb_loopbacks, iter) {
+    list_foreach(&gb_loopback_list, iter) {
         gb_loopback = list_entry(iter, struct gb_loopback, list);
         if (gb_loopback->cportid == cportid)
             return gb_loopback;
@@ -318,7 +318,7 @@ void gb_loopback_register(int cport)
     struct gb_loopback *gb_loopback = zalloc(sizeof(*gb_loopback));
     if (gb_loopback) {
         gb_loopback->cportid = cport;
-        list_add(&gb_loopbacks, &gb_loopback->list);
+        list_add(&gb_loopback_list, &gb_loopback->list);
         pthread_create(&gb_loopback->thread, NULL, gb_loopback_fn,
                        (pthread_addr_t)gb_loopback);
     }
