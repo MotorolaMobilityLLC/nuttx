@@ -191,7 +191,7 @@ int gb_loopback_main(int argc, char *argv[])
         struct list_head *iter;
 
         list_foreach(&gb_loopback_list, iter) {
-            loopback = gb_loopback_from_list(iter);
+            loopback = list_entry(iter, struct gb_loopback, list);
 
             cport = gb_loopback_to_cport(loopback);
             run_loopback_cmd(loopback, cport, type, size, ms);

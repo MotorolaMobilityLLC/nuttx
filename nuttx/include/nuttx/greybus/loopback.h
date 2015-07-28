@@ -47,7 +47,6 @@ void gb_loopback_list_lock(void);
 void gb_loopback_list_unlock(void);
 
 struct gb_loopback *gb_loopback_from_cport(unsigned int cportid);
-struct gb_loopback *gb_loopback_from_list(struct list_head *iter);
 unsigned int gb_loopback_to_cport(struct gb_loopback *loopback);
 int gb_loopback_cport_conf(struct gb_loopback *loopback,
                            int type, size_t size, int ms);

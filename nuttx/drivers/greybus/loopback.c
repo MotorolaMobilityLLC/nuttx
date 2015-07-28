@@ -53,11 +53,6 @@ void gb_loopback_list_unlock(void)
     pthread_mutex_unlock(&gb_loopback_list_mutex);
 }
 
-struct gb_loopback *gb_loopback_from_list(struct list_head *iter)
-{
-    return list_entry(iter, struct gb_loopback, list);
-}
-
 struct gb_loopback *gb_loopback_from_cport(unsigned int cportid)
 {
     struct list_head *iter;
