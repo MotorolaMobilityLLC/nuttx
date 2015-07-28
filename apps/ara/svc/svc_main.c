@@ -103,6 +103,8 @@ static void link_test_usage(int exit_status) {
     printk("\n");
     printk("Options for testing a single port:\n");
     printk("    -p <port>   : Port to test, starting from 0.\n");
+    printk("    -i <interface>: Interface to read attribute on (e.g. \"apb1\", etc.)\n");
+    printk("                    If set, overrides -p.\n");
     printk("    -m <mode>   : UniPro power mode to set <port> to.\n"
            "                  One of \"hs\" or \"pwm\"; defaults to \"hs\".\n");
     printk("    -g <gear>   : pwm or hs gear. For pwm, <gear> is from 1-7.\n"
@@ -361,6 +363,7 @@ static int link_test(int argc, char *argv[]) {
     int rc = 0;
 
     /* Default settings for per-port test */
+    const char *iface_name = NULL;
     int port = -1;
     int hs = 1;
     int gear = 1;
@@ -370,7 +373,7 @@ static int link_test(int argc, char *argv[]) {
     /* Whether or not to torture test. */
     int torture = 0;
 
-    const char opts[] = "hp:m:g:l:ats:";
+    const char opts[] = "hi:p:m:g:l:ats:";
 
     argc--;
     optind = -1; /* Force NuttX's getopt() to reinitialize. */
@@ -378,6 +381,9 @@ static int link_test(int argc, char *argv[]) {
         switch (c) {
         case 'h':
             link_test_usage(EXIT_SUCCESS);
+            break;
+        case 'i':
+            iface_name = optarg;
             break;
         case 'p':
             port = strtol(optarg, NULL, 10);
@@ -419,6 +425,16 @@ static int link_test(int argc, char *argv[]) {
         case '?':
         default:
             printf("Unrecognized argument '%c'.\n", (char)c);
+            link_test_usage(EXIT_FAILURE);
+        }
+    }
+
+    if (iface_name) {
+        struct interface *iface = interface_get_by_name(iface_name);
+        if (iface) {
+            port = iface->switch_portid;
+        } else {
+            printk("Invalid interface %s\n", iface_name);
             link_test_usage(EXIT_FAILURE);
         }
     }
