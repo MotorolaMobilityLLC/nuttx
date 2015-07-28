@@ -33,6 +33,7 @@
 #include <nuttx/greybus/types.h>
 
 /* Greybus loopback request types */
+#define	GB_LOOPBACK_TYPE_NONE				0x00
 #define	GB_LOOPBACK_TYPE_PROTOCOL_VERSION		0x01
 #define	GB_LOOPBACK_TYPE_PING				0x02
 #define	GB_LOOPBACK_TYPE_TRANSFER			0x03

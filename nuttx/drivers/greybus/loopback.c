@@ -62,7 +62,7 @@ void *gb_loopback_fn(void *data)
     struct gb_loopback *gb_loopback = data;
 
     while(1) {
-        if (gb_loopback->type == 0) {
+        if (gb_loopback->type == GB_LOOPBACK_TYPE_NONE) {
             sleep(1);
             continue;
         }
@@ -73,19 +73,19 @@ void *gb_loopback_fn(void *data)
         size = gb_loopback->size;
         /* mutex unlock */
 
-        if (type == 1) {
+        if (type == GB_LOOPBACK_TYPE_PING) {
             if (gb_loopback_send_req(gb_loopback, 1,
                                      GB_LOOPBACK_TYPE_PING)) {
                 gb_loopback->enomem++;
             }
         }
-        if (type == 2) {
+        if (type == GB_LOOPBACK_TYPE_TRANSFER) {
             if (gb_loopback_send_req(gb_loopback, size,
                                      GB_LOOPBACK_TYPE_TRANSFER)) {
                 gb_loopback->enomem++;
             }
         }
-        if (type == 3) {
+        if (type == GB_LOOPBACK_TYPE_SINK) {
             if (gb_loopback_send_req(gb_loopback, size,
                                      GB_LOOPBACK_TYPE_SINK)) {
                 gb_loopback->enomem++;

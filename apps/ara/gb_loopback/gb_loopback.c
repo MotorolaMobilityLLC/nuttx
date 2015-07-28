@@ -34,6 +34,56 @@
 #include <pthread.h>
 
 #include <nuttx/greybus/loopback.h>
+#include <nuttx/greybus/loopback-gb.h>
+#include <nuttx/util.h>
+
+struct gb_loopback_operation {
+    const char *name;
+    int op;
+};
+
+static const struct gb_loopback_operation gb_loopback_ops[] = {
+    {
+        .name = "ping",
+        .op = GB_LOOPBACK_TYPE_PING,
+    },
+    {
+        .name = "xfer",
+        .op = GB_LOOPBACK_TYPE_TRANSFER,
+    },
+    {
+        .name = "sink",
+        .op = GB_LOOPBACK_TYPE_SINK,
+    }
+};
+
+static int op_type_from_str(const char *str)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(gb_loopback_ops); i++) {
+        if (strcmp(str, gb_loopback_ops[i].name) == 0) {
+            return gb_loopback_ops[i].op;
+        }
+    }
+
+    return -1;
+}
+
+static int print_help(void)
+{
+    printf(
+        "Greybus loopback tool\n\n"
+        "Usage:\n"
+        "\tgb_loopback [-c CPORT] [-s SIZE] [-t ping|xfer|sink] [-w MS]\n"
+        "\t\t-c CPORT:\tcport number\n"
+        "\t\t-s SIZE:\tdata size in bytes\n"
+        "\t\t-t TYPE:\tloopback operation type\n"
+        "\t\t-w MS:\t\twait time after operation\n"
+    );
+
+    return 1;
+}
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
@@ -44,26 +94,26 @@ int gb_loopback_main(int argc, char *argv[])
     int type = 0, size = 0, cport = -1, ms = 1000, opt;
     struct gb_loopback *gb_loopback;
 
-    while ((opt = getopt (argc, argv, "t:s:c:w:")) != -1) {
+    while ((opt = getopt (argc, argv, "t:s:c:w:h")) != -1) {
         switch (opt) {
         case 'c':
             if (sscanf(optarg, "%d", &cport) != 1)
-                return -EINVAL;
+                goto help;
             break;
         case 's':
             if (sscanf(optarg, "%d", &size) != 1)
-                return -EINVAL;
+                goto help;
             break;
         case 't':
-            if (sscanf(optarg, "%d", &type) != 1)
-                return -EINVAL;
+            if ((type = op_type_from_str(optarg)) < 0)
+                goto help;
             break;
         case 'w':
             if (sscanf(optarg, "%d", &ms) != 1)
-                return -EINVAL;
+                goto help;
             break;
         default:
-            return -EINVAL;
+            goto help;
         }
     }
 
@@ -74,7 +124,7 @@ int gb_loopback_main(int argc, char *argv[])
             gb_loopback = list_to_loopback(iter);
             if (gb_loopback_cport_conf(gb_loopback, type, size, ms))
                 continue;
-            if (type == 0) {
+            if (type == GB_LOOPBACK_TYPE_NONE) {
                 if (gb_loopback_status(gb_loopback)) {
                     printf("Transfer failed on cport %d: %d"
                            " packet were lost or corrupted.\n",
@@ -94,7 +144,7 @@ int gb_loopback_main(int argc, char *argv[])
         if (gb_loopback_cport_conf(gb_loopback, type, size, ms)) {
             return -EINVAL;
         }
-        if (type == 0) {
+        if (type == GB_LOOPBACK_TYPE_NONE) {
             if (gb_loopback_status(gb_loopback)) {
                 printf("Transfer failed on cport %d: %d"
                        " packet were lost or corrupted.\n",
@@ -109,4 +159,7 @@ int gb_loopback_main(int argc, char *argv[])
     }
 
     return 0;
+
+help:
+    return print_help();
 }
