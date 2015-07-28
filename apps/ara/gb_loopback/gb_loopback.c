@@ -41,17 +41,11 @@ int main(int argc, FAR char *argv[])
 int gb_loopback_main(int argc, char *argv[])
 #endif
 {
-    int i = 1000;
-    int type = 0;
-    int size = 0;
-    int cport = -1;
-    int monitor = 0;
-    int ms = 1000;
+    int type = 0, size = 0, cport = -1, ms = 1000, opt;
     struct gb_loopback *gb_loopback;
 
-    int c;
-    while ((c = getopt (argc, argv, "t:s:c:mw:n:")) != -1) {
-        switch (c) {
+    while ((opt = getopt (argc, argv, "t:s:c:w:")) != -1) {
+        switch (opt) {
         case 'c':
             if (sscanf(optarg, "%d", &cport) != 1)
                 return -EINVAL;
@@ -64,15 +58,8 @@ int gb_loopback_main(int argc, char *argv[])
             if (sscanf(optarg, "%d", &type) != 1)
                 return -EINVAL;
             break;
-        case 'm':
-            monitor = 1;
-            break;
         case 'w':
             if (sscanf(optarg, "%d", &ms) != 1)
-                return -EINVAL;
-            break;
-        case 'n':
-            if (sscanf(optarg, "%d", &i) != 1)
                 return -EINVAL;
             break;
         default:
@@ -119,10 +106,6 @@ int gb_loopback_main(int argc, char *argv[])
             printf("Start transfer on cport %d\n", cport);
         }
 
-    }
-
-    if (monitor == 1) {
-        printf("monitor is not curretly supported!\n");
     }
 
     return 0;
