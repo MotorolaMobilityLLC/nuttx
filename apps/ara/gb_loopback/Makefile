@@ -32,7 +32,7 @@ include $(APPDIR)/Make.defs
 
 # GB_LOOPBACK built-in test application
 
-APPNAME = gb_loopback
+APPNAME = gbl
 PRIORITY = SCHED_PRIORITY_DEFAULT
 STACKSIZE = 2048
 
@@ -66,7 +66,7 @@ else
   INSTALL_DIR = $(BIN_DIR)
 endif
 
-CONFIG_ARA_GB_LOOPBACK_PROGNAME ?= gb_loopback$(EXEEXT)
+CONFIG_ARA_GB_LOOPBACK_PROGNAME ?= gbl$(EXEEXT)
 PROGNAME = $(CONFIG_ARA_GB_LOOPBACK_PROGNAME)
 
 ROOTDEPPATH = --dep-path .

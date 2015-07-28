@@ -75,7 +75,7 @@ static int print_help(void)
     printf(
         "Greybus loopback tool\n\n"
         "Usage:\n"
-        "\tgb_loopback [-c CPORT] [-s SIZE] [-t ping|xfer|sink] [-w MS]\n"
+        "\tgbl [-c CPORT] [-s SIZE] [-t ping|xfer|sink] [-w MS]\n"
         "\t\t-c CPORT:\tcport number\n"
         "\t\t-s SIZE:\tdata size in bytes\n"
         "\t\t-t TYPE:\tloopback operation type\n"
@@ -157,7 +157,7 @@ static int run_loopback_cmd(struct gb_loopback *loopback,
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
-int gb_loopback_main(int argc, char *argv[])
+int gbl_main(int argc, char *argv[])
 #endif
 {
     int type = 0, size = 0, cport = -1, ms = 1000, opt, rv = EXIT_SUCCESS, st;
