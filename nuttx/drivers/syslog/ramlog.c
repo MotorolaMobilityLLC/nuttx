@@ -261,10 +261,23 @@ static int ramlog_addchar(FAR struct ramlog_dev_s *priv, char ch)
 
   if (nexthead == priv->rl_tail)
     {
+#ifdef CONFIG_RAMLOG_TRULY_CIRCULAR
+      /* Yes, so move tail to drop oldest byte from buffer. The semaphore
+       * cannot be used here because we could be called from an interrupt
+       * handler. However, this should be okay since interrupts are disabled
+       * (in case we are NOT called from interrupt handler).
+       */
+
+      if (++priv->rl_tail >= priv->rl_bufsize)
+        {
+          priv->rl_tail = 0;
+        }
+#else
       /* Yes... Return an indication that nothing was saved in the buffer. */
 
       irqrestore(flags);
       return -EBUSY;
+#endif
     }
 
   /* No... copy the byte and re-enable interrupts */

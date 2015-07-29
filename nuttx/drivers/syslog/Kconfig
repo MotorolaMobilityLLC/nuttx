@@ -80,4 +80,11 @@ config RAMLOG_NPOLLWAITERS
 	---help---
 		The maximum number of threads that may be waiting on the poll method.
 
+config RAMLOG_TRULY_CIRCULAR
+	bool "RAMLOG truly circular buffer"
+	default n
+	---help---
+		Writing to the RAMLOG will always succeed. If the circular buffer is
+		full, the oldest data in the buffer will be thrown away.
+
 endif
