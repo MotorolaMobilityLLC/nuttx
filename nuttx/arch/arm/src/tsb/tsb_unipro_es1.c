@@ -591,6 +591,26 @@ int unipro_attr_write(uint16_t attr,
 }
 
 /**
+ * @brief perform a DME access
+ * @param attr attribute to access
+ * @param val pointer to value to either read or write
+ * @param peer 0 for local access, 1 for peer
+ * @param write 0 for read, 1 for write
+ * @param result_code unipro return code, optional
+ */
+int unipro_attr_access(uint16_t attr,
+                       uint32_t *val,
+                       uint16_t selector,
+                       int peer,
+                       int write,
+                       uint32_t *result_code) {
+    if (write)
+        return unipro_attr_write(attr, *val, selector, peer, result_code);
+    else
+        return unipro_attr_read(attr, val, selector, peer, result_code);
+}
+
+/**
  * @brief Register a driver with the unipro core
  * @param drv unipro driver to register
  * @param cportid cport number to associate this driver to
