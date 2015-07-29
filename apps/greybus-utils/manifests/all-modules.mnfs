@@ -77,11 +77,7 @@ protocol = 0x04
 
 ; Skipping HID (0x05)
 
-; USB protocol on CPort 6
-[cport-descriptor "6"]
-bundle = 1
-id = 6
-protocol = 0x06
+; Skipping USB (0x06)
 
 ; SDIO protocol on CPort 7
 [cport-descriptor "7"]
