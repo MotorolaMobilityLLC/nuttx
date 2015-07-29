@@ -68,7 +68,7 @@ CSRCS += max1704x.c
 endif
 
 ifeq ($(CONFIG_BATTERY_MAX17050),y)
-CSRCS += max17050.c
+CSRCS += max17050.c max17050_config.c
 endif
 
 endif
