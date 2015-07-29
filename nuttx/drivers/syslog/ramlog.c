@@ -2,6 +2,7 @@
  * drivers/syslog/ramlog.c
  *
  *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
+     Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,16 +64,32 @@
 
 #ifdef CONFIG_RAMLOG
 
-/****************************************************************************
- * Private Types
- ****************************************************************************/
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+#define __ramlog           __attribute__((section(".ramlog")))
+#define RAMLOG_VALIDITY    (0x0F1E2D3C)
+#endif
 
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+struct rl_ldev_s
+{
+  int               rl_validity;     /* Allows check if ramlog is valid */
+  uint16_t          rl_head;         /* The head index (where data is added) */
+  uint16_t          rl_tail;         /* The tail index (where data is removed) */
+  size_t            rl_bufsize;      /* Size of the RAM buffer */
+  FAR char         *rl_buffer;       /* Circular RAM buffer */
+};
+#endif
 
 struct ramlog_dev_s
 {
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+  int               rl_validity;     /* Allows check if ramlog is valid */
+  struct rl_ldev_s *rl_last;         /* Last ramlog */
+#endif
 #ifndef CONFIG_RAMLOG_NONBLOCKING
   volatile uint8_t  rl_nwaiters;     /* Number of threads waiting for data */
 #endif
@@ -114,6 +131,10 @@ static ssize_t ramlog_write(FAR struct file *, FAR const char *, size_t);
 static int     ramlog_poll(FAR struct file *filep, FAR struct pollfd *fds,
                            bool setup);
 #endif
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+static ssize_t ramlog_open_last(FAR struct file *);
+static ssize_t ramlog_read_last(FAR struct file *, FAR char *, size_t);
+#endif
 
 /****************************************************************************
  * Private Data
@@ -132,12 +153,26 @@ static const struct file_operations g_ramlogfops =
 #endif
 };
 
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+static const struct file_operations g_lastramlogfops =
+{
+  /* Only the open and read operations are required */
+  .open = ramlog_open_last,
+  .read = ramlog_read_last,
+};
+#endif
+
 /* This is the pre-allocated buffer used for the console RAM log and/or
  * for the syslogging function.
  */
 
 #if defined(CONFIG_RAMLOG_CONSOLE) || defined(CONFIG_RAMLOG_SYSLOG)
 static char g_sysbuffer[CONFIG_RAMLOG_BUFSIZE];
+
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+static char g_syslastbuffer[CONFIG_RAMLOG_BUFSIZE] __ramlog;
+static struct rl_ldev_s g_syslastdev __ramlog;
+#endif
 
 /* This is the device structure for the console or syslogging function.  It
  * must be statically initialized because the RAMLOG syslog_putc function
@@ -146,6 +181,10 @@ static char g_sysbuffer[CONFIG_RAMLOG_BUFSIZE];
 
 static struct ramlog_dev_s g_sysdev =
 {
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+  RAMLOG_VALIDITY,               /* rl_validity */
+  &g_syslastdev,                 /* rl_last */
+#endif
 #ifndef CONFIG_RAMLOG_NONBLOCKING
   0,                             /* rl_nwaiters */
 #endif
@@ -631,6 +670,83 @@ errout:
 #endif
 
 /****************************************************************************
+ * Name: ramlog_open_last
+ ****************************************************************************/
+
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+static int ramlog_open_last(FAR struct file *filep)
+{
+  struct inode *inode = filep->f_inode;
+  struct rl_ldev_s *priv;
+
+  /* Some sanity checking */
+
+  DEBUGASSERT(inode && inode->i_private);
+  priv = inode->i_private;
+
+  filep->f_pos = priv->rl_tail;
+  return OK;
+}
+#endif
+
+/****************************************************************************
+ * Name: ramlog_read_last
+ ****************************************************************************/
+
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+static ssize_t ramlog_read_last(FAR struct file *filep, FAR char *buffer,
+                size_t len)
+{
+  struct inode *inode = filep->f_inode;
+  struct rl_ldev_s *priv;
+  ssize_t nread;
+  char ch;
+
+  /* Some sanity checking */
+
+  DEBUGASSERT(inode && inode->i_private);
+  priv = inode->i_private;
+
+  /* Loop until nothing more to read */
+
+  for (nread = 0; nread < len; )
+    {
+      /* Get the next byte from the buffer */
+
+      if (priv->rl_head == filep->f_pos)
+        {
+          /* The circular buffer is empty. */
+
+          break;
+        }
+      else
+        {
+          /* The circular buffer is not empty, get the next byte from the
+           * position index.
+           */
+
+          ch = priv->rl_buffer[filep->f_pos];
+
+          /* Increment the position index */
+
+          if (++filep->f_pos >= priv->rl_bufsize)
+            {
+              filep->f_pos = 0;
+            }
+
+          /* Add the character to the user buffer */
+
+          buffer[nread++] = ch;
+        }
+    }
+
+  /* Return the number of characters actually read */
+
+  return nread;
+}
+#endif
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -713,9 +829,53 @@ int ramlog_consoleinit(void)
 #ifdef CONFIG_RAMLOG_SYSLOG
 int ramlog_sysloginit(void)
 {
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+  /* If last ramlog is valid, register the last syslog character driver */
+
+  if (g_sysdev.rl_last->rl_validity == RAMLOG_VALIDITY)
+    {
+      register_driver(CONFIG_SYSLOG_LAST_DEVPATH, &g_lastramlogfops, 0666,
+                      &g_syslastdev);
+    }
+#endif
+
   /* Register the syslog character driver */
 
   return register_driver(CONFIG_SYSLOG_DEVPATH, &g_ramlogfops, 0666, &g_sysdev);
+}
+#endif
+
+/****************************************************************************
+ * Name: ramlog_preserve_last
+ *
+ * Description:
+ *   Called very early on boot (before data section is initialized and bss
+ *   section is cleared). If the last ramlog buffer is still intact in RAM,
+ *   it will be saved so it can be read later.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+void ramlog_preserve_last(void)
+{
+  FAR struct ramlog_dev_s *priv = &g_sysdev;
+
+  /* Clear out the last ramlog buffer and structure*/
+  memset(g_syslastbuffer, 0, CONFIG_RAMLOG_BUFSIZE);
+  memset(&g_syslastdev, 0, sizeof(struct rl_ldev_s));
+
+  /* Check if ramlog from previous boot is still in RAM */
+  if (priv->rl_validity == RAMLOG_VALIDITY)
+    {
+      /* Copy previous ramlog */
+
+      priv->rl_last->rl_validity = priv->rl_validity;
+      priv->rl_last->rl_head = priv->rl_head;
+      priv->rl_last->rl_tail = priv->rl_tail;
+      priv->rl_last->rl_bufsize = priv->rl_bufsize;
+      priv->rl_last->rl_buffer = g_syslastbuffer;
+      memcpy(priv->rl_last->rl_buffer, priv->rl_buffer, priv->rl_bufsize);
+    }
 }
 #endif
 

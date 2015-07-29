@@ -32,6 +32,16 @@ config RAMLOG_SYSLOG
 
 		Do not enable more than one SYSLOG device.
 
+config RAMLOG_LAST_DMESG
+	bool "RAMLOG last dmesg"
+	default n
+	depends on RAMLOG_SYSLOG
+	---help---
+		Checks on power up if ramlog is valid (from previous boot). If so,
+		creates a ramlog_last device with this found ramlog. Requires the
+		contents of RAM to be preserved across resets. A section for ramlog is
+		required in your ld.script.
+
 config RAMLOG_CONSOLE
 	bool "Use RAMLOG for /dev/console"
 	default n

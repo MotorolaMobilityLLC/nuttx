@@ -46,6 +46,7 @@
 
 #include <nuttx/init.h>
 #include <arch/board/board.h>
+#include <nuttx/syslog/ramlog.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
@@ -242,6 +243,10 @@ void __start(void)
   stm32_lowsetup();
   stm32_gpioinit();
   showprogress('A');
+
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+  ramlog_preserve_last();
+#endif
 
   /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
    * certain that there are no issues with the state of global variables.

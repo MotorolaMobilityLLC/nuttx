@@ -97,6 +97,10 @@
 #  define CONFIG_SYSLOG_DEVPATH "/dev/ramlog"
 #endif
 
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+#  define CONFIG_SYSLOG_LAST_DEVPATH "/dev/ramlog_last"
+#endif
+
 #ifndef CONFIG_RAMLOG_NPOLLWAITERS
 #  define CONFIG_RAMLOG_NPOLLWAITERS 4
 #endif
@@ -196,6 +200,20 @@ EXTERN int ramlog_consoleinit(void);
 
 #ifdef CONFIG_RAMLOG_SYSLOG
 EXTERN int ramlog_sysloginit(void);
+#endif
+
+/****************************************************************************
+ * Name: ramlog_preserve_last
+ *
+ * Description:
+ *   Called very early on boot (before data section is initialized and bss
+ *   section is cleared). If the last ramlog buffer is still intact in RAM,
+ *   it will be saved so it can be read later.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+EXTERN void ramlog_preserve_last(void);
 #endif
 
 #undef EXTERN
