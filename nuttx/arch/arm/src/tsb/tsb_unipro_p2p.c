@@ -91,7 +91,7 @@ void unipro_write(uint32_t offset, uint32_t v) {
     putreg32(v, (volatile unsigned int*)(AIO_UNIPRO_BASE + offset));
 }
 
-void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t termination) {
+void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination) {
     uint32_t result_code;
     uint32_t attr_val;
 
@@ -105,7 +105,7 @@ void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, ui
 
     unipro_attr_write(PA_TXGEAR, txgear, 0 /* selector */, 0 /* peer */, &result_code);
     unipro_attr_write(PA_TXTERMINATION, termination, 0 /* selector */, 0 /* peer */, &result_code);
-    unipro_attr_write(PA_HSSERIES, 1, 0 /* selector */, 0 /* peer */, &result_code);
+    unipro_attr_write(PA_HSSERIES, series, 0 /* selector */, 0 /* peer */, &result_code);
     unipro_attr_write(PA_ACTIVETXDATALANES, 1, 0 /* selector */, 0 /* peer */, &result_code);
 
     unipro_attr_write(PA_RXGEAR, rxgear, 0 /* selector */, 0 /* peer */, &result_code);
@@ -176,8 +176,8 @@ void unipro_p2p_setup(void) {
     }
 
 #ifdef CONFIG_ICE_CORE
-//    unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, 0x22 /* PWM */, 1 /* termination */);
-    unipro_powermode_change(2 /* txgear */, 2 /* rxgear */, 0x11 /* HS */, 1 /* termination */);
+//    unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, 0x22 /* PWM */, 0 /*series */, 1 /* termination */);
+    unipro_powermode_change(2 /* txgear */, 2 /* rxgear */, 0x11 /* HS */, 0 /*series */, 1 /* termination */);
 #else
     unipro_attr_write(PA_TXTERMINATION, 1, 0 /* selector */, 0 /* peer */, &result_code);
     unipro_attr_write(PA_RXTERMINATION, 1, 0 /* selector */, 0 /* peer */, &result_code);
