@@ -45,6 +45,7 @@ struct gb_loopback {
     pthread_mutex_t lock;
     int cport;
     int err;
+    unsigned recv;
 };
 
 struct list_head gb_loopback_list = LIST_INIT(gb_loopback_list);
@@ -131,6 +132,31 @@ static void loopback_error_notify(int cport)
     }
 }
 
+unsigned gb_loopback_get_recv_count(int cport)
+{
+    struct gb_loopback *loopback = loopback_from_cport(cport);
+    unsigned recv = 0;
+
+    if (loopback != NULL) {
+        loopback_lock(loopback);
+        recv = loopback->recv;
+        loopback_unlock(loopback);
+    }
+
+    return recv;
+}
+
+static void loopback_recv_inc(int cport)
+{
+    struct gb_loopback *loopback = loopback_from_cport(cport);
+
+    if (loopback != NULL) {
+        loopback_lock(loopback);
+        loopback->recv++;
+        loopback_unlock(loopback);
+    }
+}
+
 void gb_loopback_reset(int cport)
 {
     struct gb_loopback *loopback = loopback_from_cport(cport);
@@ -138,6 +164,7 @@ void gb_loopback_reset(int cport)
     if (loopback != NULL) {
         loopback_lock(loopback);
         loopback->err = 0;
+        loopback->recv = 0;
         loopback_unlock(loopback);
     }
 }
@@ -151,6 +178,8 @@ static void gb_loopback_ping_sink_resp_cb(struct gb_operation *operation)
     ret = gb_operation_get_request_result(operation);
     if (ret != OK)
         loopback_error_notify(operation->cport);
+    else
+        loopback_recv_inc(operation->cport);
 }
 
 static void gb_loopback_transfer_resp_cb(struct gb_operation *operation)
@@ -163,6 +192,8 @@ static void gb_loopback_transfer_resp_cb(struct gb_operation *operation)
 
     if (memcmp(request->data, response->data, le32_to_cpu(request->len)))
         loopback_error_notify(operation->cport);
+    else
+        loopback_recv_inc(operation->cport);
 }
 
 /**

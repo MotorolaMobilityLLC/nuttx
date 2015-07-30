@@ -36,6 +36,7 @@ typedef int (*gb_loopback_cport_cb)(int, void *);
 int gb_loopback_get_cports(gb_loopback_cport_cb cb, void *data);
 int gb_loopback_send_req(int cport, size_t size, uint8_t type);
 int gb_loopback_get_error_count(int cport);
+unsigned gb_loopback_get_recv_count(int cport);
 void gb_loopback_reset(int cport);
 
 #endif

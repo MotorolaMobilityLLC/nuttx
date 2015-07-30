@@ -341,6 +341,7 @@ int gbl_main(int argc, char *argv[])
                 ctx->size = size;
                 ctx->wait = wait;
                 ctx->count = count;
+                ctx->sent = 0;
                 loopback_ctx_unlock(ctx);
             }
         }
@@ -363,17 +364,19 @@ int gbl_main(int argc, char *argv[])
         loopback_ctx_list_unlock();
         loopback_wakeup();
     } else if (strcmp(cmd, "status") == 0) {
-        printf("  CPORT    ACTIVE    RECV ERR    SEND ERR\n");
+        printf("  CPORT    ACTIVE    RECV ERR    SEND ERR    SENT    RECV\n");
         loopback_ctx_list_lock();
         list_foreach(&loopback_ctx_list, iter) {
             ctx = list_entry(iter, struct loopback_context, list);
 
             loopback_ctx_lock(ctx);
-            printf("%7d %9s %11d %11d\n",
+            printf("%7d %9s %11d %11d %7u %7u\n",
                    ctx->cport,
                    ctx->active ? "yes" : "no",
                    gb_loopback_get_error_count(ctx->cport),
-                   ctx->err);
+                   ctx->err,
+                   ctx->sent,
+                   gb_loopback_get_recv_count(ctx->cport));
             loopback_ctx_unlock(ctx);
         }
         loopback_ctx_list_unlock();
