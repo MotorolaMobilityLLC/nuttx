@@ -31,7 +31,7 @@
 
 #include <stdlib.h>
 
-void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t termination);
+void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination);
 void unipro_stop(void);
 void unipro_restart(void);
 void unipro_dump_attributes(int peer);
