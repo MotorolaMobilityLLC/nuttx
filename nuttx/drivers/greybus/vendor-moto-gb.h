@@ -34,6 +34,7 @@
 #define GB_VENDOR_MOTO_PROTOCOL_VERSION   0x01
 #define GB_VENDOR_MOTO_CHARGE_BASE        0x02
 #define GB_VENDOR_MOTO_GET_DMESG          0x03
+#define GB_VENDOR_MOTO_GET_LAST_DMESG     0x04
 
 /*
  * This is slightly less than max greybus payload size to allow for headers
@@ -52,7 +53,7 @@ struct gb_vendor_moto_charge_base_request {
 };
 /* charge base response has no payload */
 
-/* get dmesg request has no payload */
+/* get (last) dmesg request has no payload */
 struct gb_vendor_moto_get_dmesg_response {
 	char	buf[GB_VENDOR_MOTO_DMESG_SIZE];
 };

@@ -124,6 +124,32 @@ static uint8_t gb_vendor_moto_get_dmesg(struct gb_operation *operation)
 #endif
 }
 
+static uint8_t gb_vendor_moto_get_last_dmesg(struct gb_operation *operation)
+{
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+    struct gb_vendor_moto_get_dmesg_response *response;
+    int fd;
+    int ret;
+
+    fd = open(CONFIG_SYSLOG_LAST_DEVPATH, O_RDONLY);
+    if (fd < 0)
+        return GB_OP_INVALID;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    ret = read(fd, response->buf, GB_VENDOR_MOTO_DMESG_SIZE);
+    if (ret < 0)
+        return GB_OP_UNKNOWN_ERROR;
+
+    close(fd);
+    return GB_OP_SUCCESS;
+#else
+    return GB_OP_NONEXISTENT;
+#endif
+}
+
 static int gb_vendor_moto_init(unsigned int cport)
 {
 #ifdef CONFIG_GREYBUS_SLICE
@@ -136,6 +162,7 @@ static struct gb_operation_handler gb_vendor_moto_handlers[] = {
     GB_HANDLER(GB_VENDOR_MOTO_PROTOCOL_VERSION, gb_vendor_moto_protocol_version),
     GB_HANDLER(GB_VENDOR_MOTO_CHARGE_BASE, gb_vendor_moto_charge_base),
     GB_HANDLER(GB_VENDOR_MOTO_GET_DMESG, gb_vendor_moto_get_dmesg),
+    GB_HANDLER(GB_VENDOR_MOTO_GET_LAST_DMESG, gb_vendor_moto_get_last_dmesg),
 };
 
 static struct gb_driver gb_vendor_moto_driver = {
