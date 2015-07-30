@@ -251,14 +251,14 @@ int srvctl_main(int argc, char *argv[])
 
     service_list_lock();
 
-    printf("PID\t\tSTATUS\t\tNAME\n"
+    printf("     PID      STATUS       NAME\n"
            "-----------------------------------------------\n");
 
     list_foreach(&service_list, iter) {
         ctx = list_entry(iter, struct service_context, list);
 
         srvctx_lock(ctx);
-        printf("%d\t\t%s\t%s\n",
+        printf("%8d %12s   %s\n",
                ctx->pid, state_str[ctx->state], ctx->name);
         srvctx_unlock(ctx);
     }
