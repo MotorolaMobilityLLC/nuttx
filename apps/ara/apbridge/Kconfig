@@ -55,4 +55,11 @@ config APBRIDGEA_GBSIM
 		Enable GBSIM on APBridgeA.  This provides GBSIM-like
 		functionality on APBridgeA.  APBridgeA is the APBridge
 		on the AP module.
+config APBRIDGEA_DUMMY
+	bool "Enable dummy mode on APBridgeA"
+	depends on APBRIDGEA
+	---help---
+		Enable dummy backend on APBridgeA.
+		The firmware will just enumerate.
+		This backend is only useful to test hardware.
 endchoice
