@@ -785,7 +785,7 @@ static uint8_t gb_i2s_get_supported_configurations_req_handler(
     ret = device_i2s_get_supported_configurations(info->dev, &dev_cfg_cnt,
                                                   &dev_cfg);
     if (ret)
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
 
     dev_cfg_cnt = MIN(dev_cfg_cnt, GB_I2S_CONFIG_MAX);
     size = dev_cfg_cnt * sizeof(*gb_cfg);
@@ -823,7 +823,7 @@ static uint8_t gb_i2s_set_configuration_req_handler(
 
     ret = device_i2s_set_configuration(info->dev, &dev_cfg);
     if (ret)
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
 
     info->sample_frequency = request->config.sample_frequency;
     info->sample_size = request->config.num_channels *
@@ -871,7 +871,7 @@ static uint8_t gb_i2s_get_processing_delay_req_handler(
 
     ret = device_i2s_get_processing_delay(info->dev, &microseconds);
     if (ret)
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
 
     /* TODO Figure out a real delay value */
     response->microseconds = cpu_to_le32(microseconds + 0);
@@ -907,7 +907,7 @@ static uint8_t gb_i2s_errno2gb(int ret)
         rc = GB_OP_SUCCESS;
         break;
     case EIO:
-        rc = GB_OP_MALFUNCTION;
+        rc = GB_OP_UNKNOWN_ERROR;
         break;
     case ENOMEM:
         rc = GB_OP_NO_MEMORY;

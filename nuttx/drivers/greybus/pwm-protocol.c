@@ -120,7 +120,7 @@ static uint8_t gb_pwm_protocol_count(struct gb_operation *operation)
     ret = device_pwm_request_count(pwm_info->dev, &count);
     if (ret) {
         gb_info("%s(): %x error in ops\n", __func__, ret);
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     if (count == 0 || count > 256) {
@@ -173,7 +173,7 @@ static uint8_t gb_pwm_protocol_activate(struct gb_operation *operation)
     ret = device_pwm_request_activate(pwm_info->dev, request->which);
     if (ret) {
         gb_info("%s(): %x error in ops\n", __func__, ret);
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;
@@ -207,7 +207,7 @@ static uint8_t gb_pwm_protocol_deactivate(struct gb_operation *operation)
     ret = device_pwm_request_deactivate(pwm_info->dev, request->which);
     if (ret) {
         gb_info("%s(): %x error in ops\n", __func__, ret);
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;
@@ -246,7 +246,7 @@ static uint8_t gb_pwm_protocol_config(struct gb_operation *operation)
                                     period);
     if (ret) {
         gb_info("%s(): %x error in ops\n", __func__, ret);
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;
@@ -282,7 +282,7 @@ static uint8_t gb_pwm_protocol_polarity(struct gb_operation *operation)
                                           request->polarity);
     if (ret) {
         gb_info("%s(): %x error in ops\n", __func__, ret);
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;
@@ -317,7 +317,7 @@ static uint8_t gb_pwm_protocol_enable(struct gb_operation *operation)
     ret = device_pwm_request_enable(pwm_info->dev, request->which);
     if (ret) {
         gb_info("%s(): error %x in ops return\n", __func__, ret);
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;
@@ -352,7 +352,7 @@ static uint8_t gb_pwm_protocol_disable(struct gb_operation *operation)
     ret = device_pwm_request_disable(pwm_info->dev, request->which);
     if (ret) {
         gb_info("%s(): %x error in ops\n", __func__, ret);
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;

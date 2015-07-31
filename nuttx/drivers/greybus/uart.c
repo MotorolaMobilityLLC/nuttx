@@ -626,7 +626,7 @@ static uint8_t gb_uart_send_data(struct gb_operation *operation)
     ret = device_uart_start_transmitter(info->dev, request->data, size, NULL,
                                         &sent, NULL);
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;
@@ -696,7 +696,7 @@ static uint8_t gb_uart_set_line_coding(struct gb_operation *operation)
     ret = device_uart_set_configuration(info->dev, baud, parity, databits,
                                         stopbit, 0); /* flow is 0 */
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;
@@ -720,7 +720,7 @@ static uint8_t gb_uart_set_control_line_state(struct gb_operation *operation)
 
     ret = device_uart_get_modem_ctrl(info->dev, &modem_ctrl);
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     control = le16_to_cpu(request->control);
@@ -738,7 +738,7 @@ static uint8_t gb_uart_set_control_line_state(struct gb_operation *operation)
 
     ret = device_uart_set_modem_ctrl(info->dev, &modem_ctrl);
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;
@@ -760,7 +760,7 @@ static uint8_t gb_uart_send_break(struct gb_operation *operation)
 
     ret = device_uart_set_break(info->dev, request->state);
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     return GB_OP_SUCCESS;

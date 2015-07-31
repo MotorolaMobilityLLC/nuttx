@@ -87,7 +87,7 @@ static uint8_t gb_spi_protocol_mode(struct gb_operation *operation)
     /* get hardware capabilities */
     ret = device_spi_getcaps(spi_dev, &caps);
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
     response->mode = cpu_to_le16(caps.modes);
 
@@ -114,7 +114,7 @@ static uint8_t gb_spi_protocol_flags(struct gb_operation *operation)
     /* get hardware capabilities */
     ret = device_spi_getcaps(spi_dev, &caps);
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
     response->flags = cpu_to_le16(caps.flags);
 
@@ -141,7 +141,7 @@ static uint8_t gb_spi_protocol_bpw(struct gb_operation *operation)
     /* get hardware capabilities */
     ret = device_spi_getcaps(spi_dev, &caps);
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
 
     response->bits_per_word_mask = cpu_to_le32(caps.bpw);
@@ -169,7 +169,7 @@ static uint8_t gb_spi_protocol_num_chipselect(struct gb_operation *operation)
     /* get hardware capabilities */
     ret = device_spi_getcaps(spi_dev, &caps);
     if (ret) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_UNKNOWN_ERROR;
     }
     response->num_chipselect = cpu_to_le16(caps.csnum);
 
@@ -216,7 +216,7 @@ static uint8_t gb_spi_protocol_transfer(struct gb_operation *operation)
     /* lock SPI bus */
     ret = device_spi_lock(spi_dev);
     if (ret) {
-        return (ret == -EINVAL)? GB_OP_INVALID : GB_OP_MALFUNCTION;
+        return (ret == -EINVAL)? GB_OP_INVALID : GB_OP_UNKNOWN_ERROR;
     }
 
     /* set SPI mode */
@@ -301,7 +301,7 @@ spi_err:
 
     if (errcode) {
         /* get error code */
-        errcode = (errcode == -EINVAL)? GB_OP_INVALID : GB_OP_MALFUNCTION;
+        errcode = (errcode == -EINVAL)? GB_OP_INVALID : GB_OP_UNKNOWN_ERROR;
     }
     return errcode;
 }
