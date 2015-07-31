@@ -53,6 +53,9 @@ typedef enum {
     DEV_APB3,
     DEV_GPB1,
     DEV_GPB2,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+    DEV_SVC,
+#endif
     DEV_COUNT,
 } device;
 
@@ -86,6 +89,16 @@ typedef enum {
     VGPB_1P1_PLL2,
     VGPB_COUNT
 } gpb_pwr_rail;
+
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+typedef enum {
+    SVC_1P8_VDD,
+    SVC_1P8_VBAT,
+    SVC_1P8_VDDA,
+    SVC_1P8_VREF,
+    SVC_COUNT
+} svc_pwr_rail;
+#endif
 
 typedef struct {
     ina230_device *ina230_dev;

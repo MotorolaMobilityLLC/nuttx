@@ -89,11 +89,18 @@ static const char ct_strings[ina230_ct_count + 1][8] = {
 static void usage(void)
 {
             printf("Usage: bdbpm [-d device] [-r rail] [-i current_lsb] [-t conversion_time] [-g avg_count] [-u refresh_rate] [-l loop] [-c] [-h]\n");
-            printf("         -d: select device (SW, APB[1-3], GPB[1-2]) (default: all).\n");
+            printf("         -d: select device (SW, APB[1-3], GPB[1-2])"
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+                   ", SVC"
+#endif
+                   " (default: all).\n");
             printf("         -r: select rail (default: all):\n");
             printf("             VSW_1P1_PLL, VSW_1P1_CORE, VSW_1P8_UNIPRO, VSW_1P8_IO\n");
             printf("             VAPB[1-3]_1P1_CORE, VAPB[1-3]_1P1_PLL1, VAPB[1-3]_1P2_CDSI_PLL, VAPB[1-3]_1P2_CDSI, VAPB[1-3]_1P2_HSIC, VAPB[1-3]_1P8_UNIPRO, VAPB[1-3]_1P8_IO, VAPB[1-3]_1P1_PLL2\n");
             printf("             VGPB[1-2]_1P1_CORE, VGPB[1-2]_1P1_PLL1, VGPB[1-2]_SDIO, VGPB[1-2]_1P2_HSIC, VGPB[1-2]_1P8_UNIPRO, VGPB[1-2]_1P8_IO, VGPB[1-2]_1P1_PLL2\n");
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+            printf("             SVC_1P8_VDD, SVC_1P8_VBAT, SVC_1P8_VDDA, SVC_1P8_VREF\n");
+#endif
             printf("         -i: select current measurement precision (LSB, in uA) (default: 100uA):\n");
             printf("         -t: select conversion time (default: 1.1ms):\n");
             printf("             Available options: 140us, 204us, 332us, 588us, 1.1ms, 2.116ms, 4.156ms, 8.244ms.\n");

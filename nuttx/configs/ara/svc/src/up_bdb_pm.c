@@ -69,12 +69,21 @@
 #define VGPB_1P8_IO_I2C_ADDR        0x48
 #define VGPB_1P1_PLL2_I2C_ADDR      0x43
 
+#define SVC_1P8_VDD_I2C_ADDR        0x42
+#define SVC_1P8_VBAT_I2C_ADDR       0x41
+#define SVC_1P8_VDDA_I2C_ADDR       0x47
+#define SVC_1P8_VREF_I2C_ADDR       0x48
+
 #define INVALID_I2C_ADDR            0xFF
 #define PWRM_I2C_BUS                2
 #define U135_IO_EXPANDER_ADDR       0x23
 
 enum {
+#ifndef CONFIG_ARCH_BOARD_ARA_SDB_SVC
     I2C_INA230_SEL1_A               = U135_GPIO_CHIP_START + 17,
+#else
+    I2C_INA230_SEL1_A               = STM32_GPIO_CHIP_BASE + 104,   // PG8
+#endif
     I2C_INA230_SEL1_B,
     I2C_INA230_SEL1_INH,
 
@@ -93,30 +102,97 @@ static const char bdbpm_dev_names[DEV_COUNT][DEV_NAME_MAX_LENGTH] = {
     "APB3",
     "GPB1",
     "GPB2",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+    "SVC",
+#endif
 };
 
 /* Power Rail Names Table */
 static const char bdbpm_rail_names[DEV_MAX_RAIL_COUNT][DEV_COUNT][RAIL_NAME_MAX_LENGTH] = {
-    {"VSW_1P1_PLL", "VAPB1_1P1_CORE", "VAPB2_1P1_CORE", "VAPB3_1P1_CORE", "VGPB1_1P1_CORE", "VGPB2_1P1_CORE"},
-    {"VSW_1P1_CORE", "VAPB1_1P1_PLL1", "VAPB2_1P1_PLL1", "VAPB3_1P1_PLL1", "VGPB1_1P1_PLL1", "VGPB2_1P1_PLL1"},
-    {"VSW_1P8_UNIPRO", "VAPB1_1P2_CDSI_PLL", "VAPB2_1P2_CDSI_PLL", "VAPB3_1P2_CDSI_PLL", "VGPB1_SDIO", "VGPB2_SDIO"},
-    {"VSW_1P8_IO", "VAPB1_1P2_CDSI", "VAPB2_1P2_CDSI", "VAPB3_1P2_CDSI", "VGPB1_1P2_HSIC", "VGPB2_1P2_HSIC"},
-    {"VSW_ERROR", "VAPB1_1P2_HSIC", "VAPB2_1P2_HSIC", "VAPB3_1P2_HSIC", "VGPB1_1P8_UNIPRO", "VGPB2_1P8_UNIPRO"},
-    {"VSW_ERROR", "VAPB1_1P8_UNIPRO", "VAPB2_1P8_UNIPRO", "VAPB3_1P8_UNIPRO", "VGPB1_1P8_IO", "VGPB2_1P8_IO"},
-    {"VSW_ERROR", "VAPB1_1P8_IO", "VAPB2_1P8_IO", "VAPB3_1P8_IO", "VGPB1_1P1_PLL2", "VGPB2_1P1_PLL2"},
-    {"VSW_ERROR", "VAPB1_1P1_PLL2", "VAPB2_1P1_PLL2", "VAPB3_1P1_PLL2", "VGPB1_ERROR", "VGPB1_ERROR"}
+    {"VSW_1P1_PLL", "VAPB1_1P1_CORE", "VAPB2_1P1_CORE", "VAPB3_1P1_CORE", "VGPB1_1P1_CORE", "VGPB2_1P1_CORE",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     "SVC_1P8_VDD",
+#endif
+    },
+    {"VSW_1P1_CORE", "VAPB1_1P1_PLL1", "VAPB2_1P1_PLL1", "VAPB3_1P1_PLL1", "VGPB1_1P1_PLL1", "VGPB2_1P1_PLL1",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     "SVC_1P8_VBAT",
+#endif
+    },
+    {"VSW_1P8_UNIPRO", "VAPB1_1P2_CDSI_PLL", "VAPB2_1P2_CDSI_PLL", "VAPB3_1P2_CDSI_PLL", "VGPB1_SDIO", "VGPB2_SDIO",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     "SVC_1P8_VDDA",
+#endif
+    },
+    {"VSW_1P8_IO", "VAPB1_1P2_CDSI", "VAPB2_1P2_CDSI", "VAPB3_1P2_CDSI", "VGPB1_1P2_HSIC", "VGPB2_1P2_HSIC",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     "SVC_1P8_VREF",
+#endif
+    },
+    {"VSW_ERROR", "VAPB1_1P2_HSIC", "VAPB2_1P2_HSIC", "VAPB3_1P2_HSIC", "VGPB1_1P8_UNIPRO", "VGPB2_1P8_UNIPRO",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     "SVC_ERROR",
+#endif
+    },
+    {"VSW_ERROR", "VAPB1_1P8_UNIPRO", "VAPB2_1P8_UNIPRO", "VAPB3_1P8_UNIPRO", "VGPB1_1P8_IO", "VGPB2_1P8_IO",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     "SVC_ERROR",
+#endif
+    },
+    {"VSW_ERROR", "VAPB1_1P8_IO", "VAPB2_1P8_IO", "VAPB3_1P8_IO", "VGPB1_1P1_PLL2", "VGPB2_1P1_PLL2",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     "SVC_ERROR",
+#endif
+    },
+    {"VSW_ERROR", "VAPB1_1P1_PLL2", "VAPB2_1P1_PLL2", "VAPB3_1P1_PLL2", "VGPB1_ERROR", "VGPB1_ERROR",
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     "SVC_ERROR",
+#endif
+    },
 };
 
 /* Power Measurement Chip (INA230) I2C Addresses Table */
 static const uint8_t bdbpm_i2c_addr[DEV_MAX_RAIL_COUNT][DEV_COUNT] = {
-    {VSW_1P1_PLL_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VGPB_1P1_CORE_I2C_ADDR, VGPB_1P1_CORE_I2C_ADDR},
-    {VSW_1P1_CORE_I2C_ADDR, VAPB_1P1_PLL1_I2C_ADDR, VAPB_1P1_PLL1_I2C_ADDR, VAPB_1P1_PLL1_I2C_ADDR, VGPB_1P1_PLL1_I2C_ADDR, VGPB_1P1_PLL1_I2C_ADDR},
-    {VSW_1P8_UNIPRO_I2C_ADDR, VAPB_1P2_CDSI_PLL_I2C_ADDR, VAPB_1P2_CDSI_PLL_I2C_ADDR, VAPB_1P2_CDSI_PLL_I2C_ADDR, VGPB_SDIO_I2C_ADDR, VGPB_SDIO_I2C_ADDR},
-    {VSW_1P8_IO_I2C_ADDR, VAPB_1P2_CDSI_I2C_ADDR, VAPB_1P2_CDSI_I2C_ADDR, VAPB_1P2_CDSI_I2C_ADDR, VGPB_1P2_HSIC_I2C_ADDR, VGPB_1P2_HSIC_I2C_ADDR},
-    {INVALID_I2C_ADDR, VAPB_1P2_HSIC_I2C_ADDR, VAPB_1P2_HSIC_I2C_ADDR, VAPB_1P2_HSIC_I2C_ADDR, VGPB_1P8_UNIPRO_I2C_ADDR, VGPB_1P8_UNIPRO_I2C_ADDR},
-    {INVALID_I2C_ADDR, VAPB_1P8_UNIPRO_I2C_ADDR, VAPB_1P8_UNIPRO_I2C_ADDR, VAPB_1P8_UNIPRO_I2C_ADDR, VGPB_1P8_IO_I2C_ADDR, VGPB_1P8_IO_I2C_ADDR},
-    {INVALID_I2C_ADDR, VAPB_1P8_IO_I2C_ADDR, VAPB_1P8_IO_I2C_ADDR, VAPB_1P8_IO_I2C_ADDR, VGPB_1P1_PLL2_I2C_ADDR, VGPB_1P1_PLL2_I2C_ADDR},
-    {INVALID_I2C_ADDR, VAPB_1P1_PLL2_I2C_ADDR, VAPB_1P1_PLL2_I2C_ADDR, VAPB_1P1_PLL2_I2C_ADDR, INVALID_I2C_ADDR, INVALID_I2C_ADDR}
+    {VSW_1P1_PLL_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VGPB_1P1_CORE_I2C_ADDR, VGPB_1P1_CORE_I2C_ADDR,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     SVC_1P8_VDD_I2C_ADDR,
+#endif
+    },
+    {VSW_1P1_CORE_I2C_ADDR, VAPB_1P1_PLL1_I2C_ADDR, VAPB_1P1_PLL1_I2C_ADDR, VAPB_1P1_PLL1_I2C_ADDR, VGPB_1P1_PLL1_I2C_ADDR, VGPB_1P1_PLL1_I2C_ADDR,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     SVC_1P8_VBAT_I2C_ADDR,
+#endif
+    },
+    {VSW_1P8_UNIPRO_I2C_ADDR, VAPB_1P2_CDSI_PLL_I2C_ADDR, VAPB_1P2_CDSI_PLL_I2C_ADDR, VAPB_1P2_CDSI_PLL_I2C_ADDR, VGPB_SDIO_I2C_ADDR, VGPB_SDIO_I2C_ADDR,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     SVC_1P8_VDDA_I2C_ADDR,
+#endif
+    },
+    {VSW_1P8_IO_I2C_ADDR, VAPB_1P2_CDSI_I2C_ADDR, VAPB_1P2_CDSI_I2C_ADDR, VAPB_1P2_CDSI_I2C_ADDR, VGPB_1P2_HSIC_I2C_ADDR, VGPB_1P2_HSIC_I2C_ADDR,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     SVC_1P8_VREF_I2C_ADDR,
+#endif
+    },
+    {INVALID_I2C_ADDR, VAPB_1P2_HSIC_I2C_ADDR, VAPB_1P2_HSIC_I2C_ADDR, VAPB_1P2_HSIC_I2C_ADDR, VGPB_1P8_UNIPRO_I2C_ADDR, VGPB_1P8_UNIPRO_I2C_ADDR,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     INVALID_I2C_ADDR,
+#endif
+    },
+    {INVALID_I2C_ADDR, VAPB_1P8_UNIPRO_I2C_ADDR, VAPB_1P8_UNIPRO_I2C_ADDR, VAPB_1P8_UNIPRO_I2C_ADDR, VGPB_1P8_IO_I2C_ADDR, VGPB_1P8_IO_I2C_ADDR,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     INVALID_I2C_ADDR,
+#endif
+    },
+    {INVALID_I2C_ADDR, VAPB_1P8_IO_I2C_ADDR, VAPB_1P8_IO_I2C_ADDR, VAPB_1P8_IO_I2C_ADDR, VGPB_1P1_PLL2_I2C_ADDR, VGPB_1P1_PLL2_I2C_ADDR,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     INVALID_I2C_ADDR,
+#endif
+    },
+    {INVALID_I2C_ADDR, VAPB_1P1_PLL2_I2C_ADDR, VAPB_1P1_PLL2_I2C_ADDR, VAPB_1P1_PLL2_I2C_ADDR, INVALID_I2C_ADDR, INVALID_I2C_ADDR,
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+     INVALID_I2C_ADDR,
+#endif
+    },
 };
 
 static struct i2c_dev_s *i2c_dev;
@@ -166,6 +242,13 @@ const char *bdbpm_rail_name(uint8_t dev, uint8_t rail)
             return NULL;
         }
         break;
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+    case DEV_SVC:
+        if (rail >= SVC_COUNT) {
+            return NULL;
+        }
+        break;
+#endif
     default:
         return NULL;
     }
@@ -317,6 +400,20 @@ int bdbpm_rail_id(const char *name, uint8_t *dev, uint8_t *rail)
     } else if (strcmp(name, "VGPB2_1P1_PLL2") == 0) {
         *dev = DEV_GPB2;
         *rail = VGPB_1P1_PLL2;
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+    } else if (strcmp(name, "SVC_1P8_VDD") == 0) {
+        *dev = DEV_SVC;
+        *rail = SVC_1P8_VDD;
+    } else if (strcmp(name, "SVC_1P8_VBAT") == 0) {
+        *dev = DEV_SVC;
+        *rail = SVC_1P8_VBAT;
+    } else if (strcmp(name, "SVC_1P8_VDDA") == 0) {
+        *dev = DEV_SVC;
+        *rail = SVC_1P8_VDDA;
+    } else if (strcmp(name, "SVC_1P8_VREF") == 0) {
+        *dev = DEV_SVC;
+        *rail = SVC_1P8_VREF;
+#endif
     } else {
         ret = -ENODEV;
     }
@@ -355,6 +452,10 @@ int bdbpm_device_id(const char *name, uint8_t *dev)
         *dev = DEV_GPB1;
     } else if (strcmp(name, "GPB2") == 0) {
         *dev = DEV_GPB2;
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+    } else if (strcmp(name, "SVC") == 0) {
+        *dev = DEV_SVC;
+#endif
     } else {
         *dev = DEV_COUNT;
         ret = -ENODEV;
@@ -383,47 +484,56 @@ static int bdbpm_ina230_select(uint8_t dev)
 
     switch (dev) {
     case DEV_SW:
-        dbg_verbose("%s(): dev=%s select U97\n",
+        dbg_verbose("%s(): dev=%s select\n",
                     __func__, bdbpm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL1_A, 0);
         gpio_set_value(I2C_INA230_SEL1_B, 0);
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB1:
-        dbg_verbose("%s(): dev=%s select U97\n",
+        dbg_verbose("%s(): dev=%s select\n",
                     __func__, bdbpm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL1_A, 1);
         gpio_set_value(I2C_INA230_SEL1_B, 0);
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB2:
-        dbg_verbose("%s(): dev=%s select U97\n",
+        dbg_verbose("%s(): dev=%s select\n",
                     __func__, bdbpm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL1_A, 0);
         gpio_set_value(I2C_INA230_SEL1_B, 1);
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB3:
-        dbg_verbose("%s(): dev=%s select U97\n",
+        dbg_verbose("%s(): dev=%s select\n",
                     __func__, bdbpm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL1_A, 1);
         gpio_set_value(I2C_INA230_SEL1_B, 1);
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_GPB1:
-        dbg_verbose("%s(): dev=%s select U103\n",
+        dbg_verbose("%s(): dev=%s select\n",
                     __func__, bdbpm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL2_A, 0);
         gpio_set_value(I2C_INA230_SEL2_B, 0);
         gpio_set_value(I2C_INA230_SEL2_INH, 0);
         break;
     case DEV_GPB2:
-        dbg_verbose("%s(): dev=%s select U103\n",
+        dbg_verbose("%s(): dev=%s select\n",
                     __func__, bdbpm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL2_A, 1);
         gpio_set_value(I2C_INA230_SEL2_B, 0);
         gpio_set_value(I2C_INA230_SEL2_INH, 0);
         break;
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+    case DEV_SVC:
+        dbg_verbose("%s(): dev=%s select\n",
+                    __func__, bdbpm_dev_name(dev));
+        gpio_set_value(I2C_INA230_SEL2_A, 0);
+        gpio_set_value(I2C_INA230_SEL2_B, 1);
+        gpio_set_value(I2C_INA230_SEL2_INH, 0);
+        break;
+#endif
     default:
         dbg_error("%s(): invalid device! (%u)\n", __func__, dev);
         return -EINVAL;
@@ -462,6 +572,13 @@ static uint8_t bdbpm_i2c_addr_get(uint8_t dev, uint8_t rail)
             return INVALID_I2C_ADDR;
         }
         break;
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+    case DEV_SVC:
+        if (rail >= SVC_COUNT) {
+            return INVALID_I2C_ADDR;
+        }
+        break;
+#endif
     default:
         return INVALID_I2C_ADDR;
     }
@@ -491,6 +608,11 @@ int bdbpm_dev_rail_count(uint8_t dev)
     case DEV_GPB2:
         rcount = VGPB_COUNT;
         break;
+#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
+    case DEV_SVC:
+        rcount = SVC_COUNT;
+        break;
+#endif
     default:
         rcount = -EINVAL;
     }
