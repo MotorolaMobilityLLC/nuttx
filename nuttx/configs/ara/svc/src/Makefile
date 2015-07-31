@@ -88,6 +88,7 @@ endif
 
 ifeq ($(CONFIG_ARCH_BOARD_ARA_SDB_SVC),y)
 CSRCS		+= board-sdb.c
+CSRCS		+= up_bdb_pm.c
 endif
 
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
