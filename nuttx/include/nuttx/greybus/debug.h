@@ -31,16 +31,17 @@
 
 #include <debug.h>
 #include <sys/types.h>
+#include <nuttx/util.h>
 #include <nuttx/config.h>
 #include <nuttx/greybus/types.h>
 
 #include <arch/irq.h>
 
-#define GB_LOG_INFO     (0)
-#define GB_LOG_ERROR    (1)
-#define GB_LOG_WARNING  (2)
-#define GB_LOG_DEBUG    (4)
-#define GB_LOG_DUMP     (8)
+#define GB_LOG_INFO     BIT(0)
+#define GB_LOG_ERROR    BIT(1)
+#define GB_LOG_WARNING  BIT(2)
+#define GB_LOG_DEBUG    BIT(3)
+#define GB_LOG_DUMP     BIT(4)
 
 #ifdef CONFIG_GREYBUS_DEBUG
 #define gb_log(lvl, fmt, ...)                                       \
