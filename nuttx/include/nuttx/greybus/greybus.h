@@ -116,7 +116,7 @@ enum gb_operation_result {
     GB_OP_RETRY         = 0x07,
     GB_OP_NONEXISTENT   = 0x08,
     GB_OP_UNKNOWN_ERROR = 0xfe,
-    GB_OP_MALFUNCTION   = 0xff,
+    GB_OP_INTERNAL      = 0xff,
 };
 
 static inline void*

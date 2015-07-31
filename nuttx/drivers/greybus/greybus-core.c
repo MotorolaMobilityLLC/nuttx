@@ -671,7 +671,7 @@ uint8_t gb_operation_get_request_result(struct gb_operation *operation)
     struct gb_operation_hdr *hdr;
 
     if (!operation) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_INTERNAL;
     }
 
     if (!operation->response) {
@@ -680,7 +680,7 @@ uint8_t gb_operation_get_request_result(struct gb_operation *operation)
 
     hdr = operation->response->request_buffer;
     if (!hdr || hdr->size < sizeof(*hdr)) {
-        return GB_OP_MALFUNCTION;
+        return GB_OP_INTERNAL;
     }
 
     return hdr->result;
