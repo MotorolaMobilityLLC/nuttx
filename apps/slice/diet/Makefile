@@ -8,7 +8,7 @@
 -include $(TOPDIR)/Make.defs
 include $(APPDIR)/Make.defs
 
-CSRCS = slice.c
+CSRCS = slice.c wdog.c
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(CSRCS)

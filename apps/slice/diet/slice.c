@@ -37,8 +37,12 @@
 
 #define MANIFEST_DEVICE_ID 2
 
+extern int wdog_init(void);
+
 int slice_main(int argc, char *argv[])
 {
+    wdog_init();
+
     enable_manifest("IID-1", NULL, MANIFEST_DEVICE_ID);
     slice_attach_init();
     slice_network_init();
@@ -51,4 +55,3 @@ int slice_main(int argc, char *argv[])
     return 0;
 #endif
 }
-
