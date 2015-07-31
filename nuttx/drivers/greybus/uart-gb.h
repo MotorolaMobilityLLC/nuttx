@@ -84,7 +84,7 @@ struct gb_uart_receive_data_request {
 };
 
 struct gb_serial_line_coding_request {
-    __le32  rate;
+    __le32  rate __packed;
     __u8    format;     /* stop bits */
     __u8    parity;
     __u8    data;       /* data bits */
