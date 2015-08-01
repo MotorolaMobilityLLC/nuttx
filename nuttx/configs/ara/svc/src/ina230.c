@@ -156,7 +156,7 @@ static int ina230_update_reg(struct i2c_dev_s *dev, uint8_t addr, uint8_t reg,
     uint16_t content;
     int ret;
 
-    dbg_verbose("%s(): addr=0x%02hhX: reg=0x%02hhX, mask=0x%02hhX, shift=%02hhu, val=0x%04hX\n",
+    dbg_verbose("%s(): addr=0x%02hhX: reg=0x%02hhX, mask=0x%04hX, shift=%02hhu, val=0x%04hX\n",
                 __func__, addr, reg, mask, shift, val);
     if (addr >= 0x7F) {
         return -EINVAL;
