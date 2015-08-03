@@ -305,7 +305,7 @@ struct ara_board_info *board_init(void) {
 
     /* Pretty lights */
     stm32_configgpio(SVC_LED_GREEN);
-    stm32_gpiowrite(SVC_LED_GREEN, true);
+    stm32_gpiowrite(SVC_LED_GREEN, false);
 
     /* Disable these for now */
     stm32_configgpio(IO_RESET);
