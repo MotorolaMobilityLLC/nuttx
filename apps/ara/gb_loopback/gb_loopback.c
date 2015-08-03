@@ -98,19 +98,19 @@ int gb_loopback_service(void)
 
             if (loopback->type != GB_LOOPBACK_TYPE_NONE) {
                 if (loopback->type == GB_LOOPBACK_TYPE_PING) {
-                    if (gb_loopback_send_req(loopback, 1,
+                    if (gb_loopback_send_req(loopback->cportid, 1,
                                              GB_LOOPBACK_TYPE_PING)) {
                         loopback->enomem++;
                     }
                 }
                 if (loopback->type == GB_LOOPBACK_TYPE_TRANSFER) {
-                    if (gb_loopback_send_req(loopback, loopback->size,
+                    if (gb_loopback_send_req(loopback->cportid, loopback->size,
                                              GB_LOOPBACK_TYPE_TRANSFER)) {
                         loopback->enomem++;
                     }
                 }
                 if (loopback->type == GB_LOOPBACK_TYPE_SINK) {
-                    if (gb_loopback_send_req(loopback, loopback->size,
+                    if (gb_loopback_send_req(loopback->cportid, loopback->size,
                                              GB_LOOPBACK_TYPE_SINK)) {
                         loopback->enomem++;
                     }

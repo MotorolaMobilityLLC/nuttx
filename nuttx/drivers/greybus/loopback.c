@@ -137,31 +137,23 @@ static void gb_loopback_transfer_resp_cb(struct gb_operation *operation)
 /**
  * @brief           Send loopback operation request
  * @return          OK in case of success, <0 otherwise
- * @param[in]       loopback: gb_loopback private driver data
+ * @param[in]       cport: cport number
  * @param[in]       size: request payload size in bytes
  * @param[in]       type: operation type (ping / transfer / sink)
  */
-int gb_loopback_send_req(struct gb_loopback *loopback,
-                         size_t size, uint8_t type)
+int gb_loopback_send_req(int cport, size_t size, uint8_t type)
 {
     struct gb_loopback_transfer_request *request;
     struct gb_operation *operation;
     int i, status, retval = OK;
 
-    if (!loopback) {
-        return -EINVAL;
-    }
-
     switch(type) {
     case GB_LOOPBACK_TYPE_PING:
-        operation = gb_operation_create(loopback->cportid,
-                                        GB_LOOPBACK_TYPE_PING, 1);
+        operation = gb_operation_create(cport, GB_LOOPBACK_TYPE_PING, 1);
         break;
     case GB_LOOPBACK_TYPE_TRANSFER:
     case GB_LOOPBACK_TYPE_SINK:
-        operation = gb_operation_create(loopback->cportid,
-                                        type,
-                                        sizeof(*request) + size);
+        operation = gb_operation_create(cport, type, sizeof(*request) + size);
         break;
     default:
         return -EINVAL;
