@@ -60,6 +60,10 @@ ifeq ($(CONFIG_ARA_BRIDGE_HAVE_USB4624),y)
 CSRCS		+= usb4624.c
 endif
 
+ifeq ($(CONFIG_ARA_BRIDGE_HAVE_USB3813),y)
+CSRCS		+= usb3813.c
+endif
+
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 OOT_OBJS	?= # injected when doing out of tree development
 

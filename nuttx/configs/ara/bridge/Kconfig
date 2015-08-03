@@ -32,6 +32,12 @@ config ARA_BRIDGE_HAVE_USB4624
 	depends on DEVICE_CORE
 	default y
 
+config ARA_BRIDGE_HAVE_USB3813
+	bool
+	depends on ARCH_CHIP_USB_PCD
+	depends on DEVICE_CORE
+	default y
+
 config ARA_BRIDGE_HAVE_CAMERA
 	bool "Camera support for Board"
 	default n
