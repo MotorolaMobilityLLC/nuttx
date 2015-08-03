@@ -59,6 +59,10 @@ ifeq ($(CONFIG_DEBUG_STACK),y)
 CMN_CSRCS += up_checkstack.c
 endif
 
+ifeq ($(CONFIG_ARCH_RAMVECTORS),y)
+CMN_CSRCS += up_ramvec_initialize.c
+endif
+
 CHIP_ASRCS  = tsb_vectors.S
 
 CHIP_CSRCS  = tsb_start.c up_allocateheap.c tsb_idle.c tsb_irq.c
