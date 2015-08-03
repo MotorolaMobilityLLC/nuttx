@@ -191,7 +191,15 @@ int gb_loopback_service(void)
 
             status = gb_loopback_send_req(ctx->cport, size, ctx->type);
             if (status != OK) {
-                ctx->err++;
+                if (errno == EINVAL) {
+                    /* This cport is disconnected. */
+                    fprintf(stderr,
+                            "%s: cport %d disconnected\n",
+                            __FUNCTION__, ctx->cport);
+                    ctx->active = 0;
+                } else {
+                    ctx->err++;
+                }
                 continue;
             }
             ctx->sent++;
