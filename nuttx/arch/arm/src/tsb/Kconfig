@@ -158,9 +158,14 @@ config ARCH_CHIP_USB_PCD
 	---help---
 		Synopsys USB Device Driver
 
+config DWC_QUIET
+	bool "Make DWC driver quiet (no printf)"
+	default n
+
 config ARA_USB_DEBUG
 	bool "Enable DWC Debug"
 	depends on ARCH_CHIP_USB_PCD || ARCH_CHIP_USB_HCD
+	depends on !DWC_QUIET
 
 config ARCH_CHIP_DEVICE_PLL
 	bool
@@ -208,7 +213,3 @@ config TSB_TRACE_DRIVESTRENGTH_MAX
 		Selects the highest possible drive strength for the TRACE signals
 
 endchoice
-
-config DWC_QUIET
-	bool "Make DWC driver quiet (no printf)"
-	default n
