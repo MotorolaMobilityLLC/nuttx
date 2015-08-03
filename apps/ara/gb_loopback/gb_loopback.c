@@ -70,21 +70,6 @@ static int op_type_from_str(const char *str)
     return -1;
 }
 
-static int print_help(void)
-{
-    printf(
-        "Greybus loopback tool\n\n"
-        "Usage:\n"
-        "\tgbl [-c CPORT] [-s SIZE] [-t ping|xfer|sink] [-w MS]\n"
-        "\t\t-c CPORT:\tcport number\n"
-        "\t\t-s SIZE:\tdata size in bytes\n"
-        "\t\t-t TYPE:\tloopback operation type\n"
-        "\t\t-w MS:\t\twait time after operation\n"
-    );
-
-    return 1;
-}
-
 static pthread_cond_t gb_loopback_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t gb_loopback_cond_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -218,7 +203,17 @@ int gbl_main(int argc, char *argv[])
     return rv;
 
 help:
-    return print_help();
+    printf(
+        "Greybus loopback tool\n\n"
+        "Usage:\n"
+        "\tgbl [-c CPORT] [-s SIZE] [-t ping|xfer|sink] [-w MS]\n"
+        "\t\t-c CPORT:\tcport number\n"
+        "\t\t-s SIZE:\tdata size in bytes\n"
+        "\t\t-t TYPE:\tloopback operation type\n"
+        "\t\t-w MS:\t\twait time after operation\n"
+    );
+
+    return EXIT_FAILURE;
 
 no_loopback:
     fprintf(stderr, "invalid cport: %d\n", cport);
