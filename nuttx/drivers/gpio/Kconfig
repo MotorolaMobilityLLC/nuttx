@@ -35,4 +35,6 @@
 config GPIO_TCA64XX
 	bool "TCA6408/16/24 device support"
 	select SCHED_WORKQUEUE
+	select I2C
+	select I2C_TRANSFER
 	default n
