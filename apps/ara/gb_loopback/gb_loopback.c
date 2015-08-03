@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <sys/time.h>
 
 #include <nuttx/greybus/loopback.h>
 #include <nuttx/greybus/loopback-gb.h>
@@ -163,12 +164,16 @@ static void loopback_wakeup(void)
  */
 int gb_loopback_service(void)
 {
+    struct timeval tv_start, tv_end, tv_total;
+    useconds_t loop_time, sleep_time;
     struct loopback_context *ctx;
     struct list_head *iter;
     unsigned wait_min;
     int all_down;
     size_t size;
     int status;
+
+    gettimeofday(&tv_start, NULL);
 
     while (1) {
         all_down = 1;
@@ -233,7 +238,10 @@ int gb_loopback_service(void)
             loopback_ctx_list_unlock();
             loopback_sleep();
         } else {
-            /* We have to update the wait period of all the loopbacks. */
+            /*
+             * We have to update the wait period of all the loopbacks and
+             * also account for the time spent processing the requests.
+             */
             list_foreach(&loopback_ctx_list, iter) {
                 ctx = list_entry(iter, struct loopback_context, list);
                 loopback_ctx_lock(ctx);
@@ -242,8 +250,20 @@ int gb_loopback_service(void)
             }
             loopback_ctx_list_unlock();
 
-            usleep(wait_min * 1000);
+            gettimeofday(&tv_end, NULL);
+            timersub(&tv_end, &tv_start, &tv_total);
+
+            loop_time = (tv_total.tv_sec * (uint64_t)1000000) +
+                        tv_total.tv_usec;
+            sleep_time = wait_min * 1000;
+
+            if (loop_time > sleep_time)
+                fprintf(stderr, "%s running late\n", __FUNCTION__);
+            else
+                usleep(sleep_time - loop_time);
         }
+
+        gettimeofday(&tv_start, NULL);
     }
 
     return 0;
