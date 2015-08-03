@@ -70,8 +70,20 @@ static int op_type_from_str(const char *str)
     return -1;
 }
 
-static pthread_cond_t gb_loopback_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t gb_loopback_cond_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t loopback_service_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t loopback_service_cond_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void loopback_sleep(void)
+{
+    pthread_mutex_lock(&loopback_service_cond_lock);
+    pthread_cond_wait(&loopback_service_cond, &loopback_service_cond_lock);
+    pthread_mutex_unlock(&loopback_service_cond_lock);
+}
+
+static void loopback_wakeup(void)
+{
+    pthread_cond_broadcast(&loopback_service_cond);
+}
 
 int gb_loopback_service(void)
 {
@@ -110,9 +122,7 @@ int gb_loopback_service(void)
         }
         gb_loopback_list_unlock();
 
-        pthread_mutex_lock(&gb_loopback_cond_lock);
-        pthread_cond_wait(&gb_loopback_cond, &gb_loopback_cond_lock);
-        pthread_mutex_unlock(&gb_loopback_cond_lock);
+        loopback_sleep();
     }
 
     return 0;
@@ -200,7 +210,7 @@ int gbl_main(int argc, char *argv[])
     }
     gb_loopback_list_unlock();
 
-    pthread_cond_broadcast(&gb_loopback_cond);
+    loopback_wakeup();
 
     return rv;
 
