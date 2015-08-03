@@ -70,6 +70,71 @@ static int op_type_from_str(const char *str)
     return -1;
 }
 
+struct loopback_context {
+    struct list_head list;
+    pthread_mutex_t lock;
+    int active;
+    int cport;
+    int type;
+    size_t size;
+    unsigned wait;
+    unsigned left_to_wait;
+    int count; /* -1 = infinite */
+    int err;
+    unsigned sent;
+};
+
+static void loopback_ctx_lock(struct loopback_context *ctx)
+{
+    pthread_mutex_lock(&ctx->lock);
+}
+
+static void loopback_ctx_unlock(struct loopback_context *ctx)
+{
+    pthread_mutex_unlock(&ctx->lock);
+}
+
+static struct list_head loopback_ctx_list = LIST_INIT(loopback_ctx_list);
+static pthread_mutex_t loopback_ctx_list_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void loopback_ctx_list_lock(void)
+{
+    pthread_mutex_lock(&loopback_ctx_list_mutex);
+}
+
+static void loopback_ctx_list_unlock(void)
+{
+    pthread_mutex_unlock(&loopback_ctx_list_mutex);
+}
+
+static pthread_once_t loopback_init_once = PTHREAD_ONCE_INIT;
+
+static int get_cport(int cport, void *data)
+{
+    struct loopback_context *ctx;
+
+    ctx = zalloc(sizeof(struct loopback_context));
+    if (ctx == NULL)
+        return -ENOMEM;
+
+    ctx->cport = cport;
+    pthread_mutex_init(&ctx->lock, NULL);
+    loopback_ctx_list_lock();
+    list_add(&loopback_ctx_list, &ctx->list);
+    loopback_ctx_list_unlock();
+
+    return 0;
+}
+
+static void loopback_init(void)
+{
+    int status;
+
+    status = gb_loopback_get_cports(get_cport, NULL);
+    if (status < 0)
+        fprintf(stderr, "gb_loopback initialization failed: %d\n", status);
+}
+
 static pthread_cond_t loopback_service_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t loopback_service_cond_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -85,65 +150,92 @@ static void loopback_wakeup(void)
     pthread_cond_broadcast(&loopback_service_cond);
 }
 
+/*
+ * The main loop of the service is woken up when there's at least one
+ * loopback command running. The user can specify a single command per
+ * cport.
+ *
+ * When not sleeping the service will try to run as fast as possible through
+ * all active loopback commands and send all requests, then sleep just enough
+ * to wake up in time to service the next request.
+ *
+ * As soon as there are no more active commands the thread goes back to sleep.
+ */
 int gb_loopback_service(void)
 {
-    struct gb_loopback *loopback;
+    struct loopback_context *ctx;
+    struct list_head *iter;
+    unsigned wait_min;
+    int all_down;
+    size_t size;
+    int status;
 
     while (1) {
-        struct list_head *iter;
+        all_down = 1;
+        wait_min = 0;
 
-        gb_loopback_list_lock();
-        list_foreach(&gb_loopback_list, iter) {
-            loopback = list_entry(iter, struct gb_loopback, list);
+        loopback_ctx_list_lock();
+        list_foreach(&loopback_ctx_list, iter) {
+            ctx = list_entry(iter, struct loopback_context, list);
 
-            if (loopback->type != GB_LOOPBACK_TYPE_NONE) {
-                if (loopback->type == GB_LOOPBACK_TYPE_PING) {
-                    if (gb_loopback_send_req(loopback->cportid, 1,
-                                             GB_LOOPBACK_TYPE_PING)) {
-                        loopback->enomem++;
+            loopback_ctx_lock(ctx);
+
+            if (!ctx->active) {
+                loopback_ctx_unlock(ctx);
+                continue;
+            }
+
+            /* At least one loopback command is active in this iteration. */
+            all_down = 0;
+            size = ctx->type == GB_LOOPBACK_TYPE_PING ? 1 : ctx->size;
+
+            status = gb_loopback_send_req(ctx->cport, size, ctx->type);
+            if (status != OK) {
+                ctx->err++;
+                continue;
+            }
+            ctx->sent++;
+
+            if (ctx->count > 0)
+                ctx->count--;
+
+            if (ctx->count == 0) {
+                ctx->active = 0;
+            } else {
+                if (ctx->left_to_wait == 0)
+                    ctx->left_to_wait = ctx->wait;
+
+                /*
+                 * Need to determine the shortest wait period of all
+                 * loopback commands.
+                 */
+                if (wait_min == 0) {
+                    wait_min = ctx->left_to_wait;
+                } else {
+                    if (ctx->left_to_wait < wait_min) {
+                        wait_min = ctx->left_to_wait;
                     }
-                }
-                if (loopback->type == GB_LOOPBACK_TYPE_TRANSFER) {
-                    if (gb_loopback_send_req(loopback->cportid, loopback->size,
-                                             GB_LOOPBACK_TYPE_TRANSFER)) {
-                        loopback->enomem++;
-                    }
-                }
-                if (loopback->type == GB_LOOPBACK_TYPE_SINK) {
-                    if (gb_loopback_send_req(loopback->cportid, loopback->size,
-                                             GB_LOOPBACK_TYPE_SINK)) {
-                        loopback->enomem++;
-                    }
-                }
-                if (loopback->wait) {
-                    usleep(loopback->wait * 1000);
                 }
             }
+
+            loopback_ctx_unlock(ctx);
         }
-        gb_loopback_list_unlock();
 
-        loopback_sleep();
-    }
-
-    return 0;
-}
-
-static int run_loopback_cmd(struct gb_loopback *loopback,
-                            int cport, int type, size_t size, unsigned wait)
-{
-    if (gb_loopback_cport_conf(loopback, type, size, wait))
-        return -EINVAL;
-
-    if (type == 0) {
-        if (gb_loopback_status(loopback)) {
-            printf("Transfer failed on cport %d: %d"
-                   " packet were lost or corrupted.\n",
-                   cport, gb_loopback_status(loopback));
+        if (all_down) {
+            loopback_ctx_list_unlock();
+            loopback_sleep();
         } else {
-            printf("transfer succeed on cport %d\n", cport);
+            /* We have to update the wait period of all the loopbacks. */
+            list_foreach(&loopback_ctx_list, iter) {
+                ctx = list_entry(iter, struct loopback_context, list);
+                loopback_ctx_lock(ctx);
+                ctx->left_to_wait -= wait_min;
+                loopback_ctx_unlock(ctx);
+            }
+            loopback_ctx_list_unlock();
+
+            usleep(wait_min * 1000);
         }
-    } else {
-        printf("Start transfer on cport %d\n", cport);
     }
 
     return 0;
@@ -155,12 +247,16 @@ int main(int argc, FAR char *argv[])
 int gbl_main(int argc, char *argv[])
 #endif
 {
-    int type = 0, cport = -1, opt, rv = EXIT_SUCCESS, st;
-    struct gb_loopback *loopback;
+    int opt, rv = EXIT_SUCCESS, st, cport = -1, type = 0, count = -1;
+    struct loopback_context *ctx;
+    struct list_head *iter;
     unsigned wait = 1000;
-    size_t size = 0;
+    const char *cmd;
+    size_t size = 1;
 
-    while ((opt = getopt (argc, argv, "c:s:t:w:")) != -1) {
+    pthread_once(&loopback_init_once, loopback_init);
+
+    while ((opt = getopt (argc, argv, "c:s:t:w:n:")) != -1) {
         switch (opt) {
         case 'c':
             st = sscanf(optarg, "%d", &cport);
@@ -182,52 +278,101 @@ int gbl_main(int argc, char *argv[])
             if (st != 1)
                 goto help;
             break;
+        case 'n':
+            st = sscanf(optarg, "%d", &count);
+            if (st != 1)
+                goto help;
+            break;
         default:
             goto help;
         }
     }
 
-    gb_loopback_list_lock();
-    if (cport == -1) {
-        struct list_head *iter;
+    /* At least one argument required. */
+    if (argc < 2)
+        goto help;
+    cmd = argv[argc - 1];
 
-        list_foreach(&gb_loopback_list, iter) {
-            loopback = list_entry(iter, struct gb_loopback, list);
-
-            cport = gb_loopback_to_cport(loopback);
-            st = run_loopback_cmd(loopback, cport, type, size, wait);
-            if (st < 0)
-                rv = EXIT_FAILURE;
+    if (strcmp(cmd, "start") == 0) {
+        if (type == GB_LOOPBACK_TYPE_NONE) {
+            fprintf(stderr, "operation type must be specified for 'start'\n");
+            rv = EXIT_FAILURE;
+            goto out;
         }
+
+        loopback_ctx_list_lock();
+
+        list_foreach(&loopback_ctx_list, iter) {
+            ctx = list_entry(iter, struct loopback_context, list);
+
+            if (cport < 0 || cport == ctx->cport) {
+                loopback_ctx_lock(ctx);
+                gb_loopback_reset(ctx->cport);
+                ctx->active = 1;
+                ctx->type = type;
+                ctx->size = size;
+                ctx->wait = wait;
+                ctx->count = count;
+                loopback_ctx_unlock(ctx);
+            }
+        }
+
+        loopback_ctx_list_unlock();
+        loopback_wakeup();
+    } else if (strcmp(cmd, "stop") == 0) {
+        loopback_ctx_list_lock();
+
+        list_foreach(&loopback_ctx_list, iter) {
+            ctx = list_entry(iter, struct loopback_context, list);
+
+            if (cport < 0 || cport == ctx->cport) {
+                loopback_ctx_lock(ctx);
+                ctx->active = 0;
+                loopback_ctx_unlock(ctx);
+            }
+        }
+
+        loopback_ctx_list_unlock();
+        loopback_wakeup();
+    } else if (strcmp(cmd, "status") == 0) {
+        printf("  CPORT    ACTIVE    RECV ERR    SEND ERR\n");
+        loopback_ctx_list_lock();
+        list_foreach(&loopback_ctx_list, iter) {
+            ctx = list_entry(iter, struct loopback_context, list);
+
+            loopback_ctx_lock(ctx);
+            printf("%7d %9s %11d %11d\n",
+                   ctx->cport,
+                   ctx->active ? "yes" : "no",
+                   gb_loopback_get_error_count(ctx->cport),
+                   ctx->err);
+            loopback_ctx_unlock(ctx);
+        }
+        loopback_ctx_list_unlock();
     } else {
-        loopback = gb_loopback_from_cport(cport);
-        if (loopback == NULL) {
-            gb_loopback_list_unlock();
-            goto no_loopback;
-        } else {
-            rv = run_loopback_cmd(loopback, cport, type, size, wait);
-        }
+        goto help;
     }
-    gb_loopback_list_unlock();
 
-    loopback_wakeup();
-
+out:
     return rv;
 
 help:
     printf(
         "Greybus loopback tool\n\n"
         "Usage:\n"
-        "\tgbl [-c CPORT] [-s SIZE] [-t ping|xfer|sink] [-w MS]\n"
-        "\t\t-c CPORT:\tcport number\n"
+        "\tgbl [-c CPORT] [-s SIZE] [-t ping|xfer|sink] "
+                        "[-w MS] [-n COUNT] start|stop|status\n\n"
+        "\tCommands:\n"
+        "\t\tstart:\t\tstart a loopback command on a cport\n"
+        "\t\tstop:\t\tstop the command on given cport\n"
+        "\t\tstatus:\t\tshow current status\n\n"
+        "\tOptions:\n"
+        "\t\t-c CPORT:\tcport number (all cports if not given)\n"
         "\t\t-s SIZE:\tdata size in bytes\n"
         "\t\t-t TYPE:\tloopback operation type\n"
-        "\t\t-w MS:\t\twait time after operation\n"
+        "\t\t-w MS:\t\ttime to wait before sending next request (in ms)\n"
+        "\t\t-n COUNT:\tnumber of requests to send before stopping\n"
     );
 
-    return EXIT_FAILURE;
-
-no_loopback:
-    fprintf(stderr, "invalid cport: %d\n", cport);
     return EXIT_FAILURE;
 }

@@ -31,26 +31,11 @@
 
 #include <nuttx/list.h>
 
-struct gb_loopback {
-    struct list_head list;
-    unsigned wait;
-    int type;
-    int enomem;
-    size_t size;
-    unsigned int error;
-    unsigned int cportid;
-};
+typedef int (*gb_loopback_cport_cb)(int, void *);
 
-extern struct list_head gb_loopback_list;
-
-void gb_loopback_list_lock(void);
-void gb_loopback_list_unlock(void);
-
-struct gb_loopback *gb_loopback_from_cport(unsigned int cportid);
-unsigned int gb_loopback_to_cport(struct gb_loopback *loopback);
-int gb_loopback_cport_conf(struct gb_loopback *loopback,
-                           int type, size_t size, unsigned ms);
-int gb_loopback_status(struct gb_loopback *loopback);
+int gb_loopback_get_cports(gb_loopback_cport_cb cb, void *data);
 int gb_loopback_send_req(int cport, size_t size, uint8_t type);
+int gb_loopback_get_error_count(int cport);
+void gb_loopback_reset(int cport);
 
 #endif
