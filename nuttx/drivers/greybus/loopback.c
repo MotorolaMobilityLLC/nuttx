@@ -33,7 +33,6 @@
 #include <nuttx/list.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/loopback.h>
-#include <nuttx/greybus/loopback-gb.h>
 #include <arch/tsb/unipro.h>
 #include <arch/byteorder.h>
 

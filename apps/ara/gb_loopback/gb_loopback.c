@@ -35,7 +35,6 @@
 #include <sys/time.h>
 
 #include <nuttx/greybus/loopback.h>
-#include <nuttx/greybus/loopback-gb.h>
 #include <nuttx/util.h>
 
 struct gb_loopback_operation {
