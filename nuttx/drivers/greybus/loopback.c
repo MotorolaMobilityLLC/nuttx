@@ -144,9 +144,9 @@ static void gb_loopback_transfer_resp_cb(struct gb_operation *operation)
 int gb_loopback_send_req(struct gb_loopback *loopback,
                          size_t size, uint8_t type)
 {
-    int i;
-    struct gb_operation *operation;
     struct gb_loopback_transfer_request *request;
+    struct gb_operation *operation;
+    int i, status, retval = OK;
 
     if (!loopback) {
         return -EINVAL;
@@ -172,8 +172,9 @@ int gb_loopback_send_req(struct gb_loopback *loopback,
 
     switch(type) {
     case GB_LOOPBACK_TYPE_PING:
-        gb_operation_send_request(operation,
-                                  gb_loopback_ping_sink_resp_cb, true);
+        status = gb_operation_send_request(operation,
+                                           gb_loopback_ping_sink_resp_cb,
+                                           true);
         break;
     case GB_LOOPBACK_TYPE_TRANSFER:
     case GB_LOOPBACK_TYPE_SINK:
@@ -183,15 +184,17 @@ int gb_loopback_send_req(struct gb_loopback *loopback,
             for (i = 0; i < size; i++) {
                 request->data[i] = rand() & 0xFF;
             }
-            gb_operation_send_request(operation,
-                                      gb_loopback_transfer_resp_cb, true);
+            status = gb_operation_send_request(operation,
+                                               gb_loopback_transfer_resp_cb,
+                                               true);
         } else {
             /*
              * Data payload is ignored on receiver end.
              * No need to fill the buffer with some data.
              */
-            gb_operation_send_request(operation,
-                                      gb_loopback_ping_sink_resp_cb, true);
+            status = gb_operation_send_request(operation,
+                                               gb_loopback_ping_sink_resp_cb,
+                                               true);
         }
         break;
     default:
@@ -199,8 +202,11 @@ int gb_loopback_send_req(struct gb_loopback *loopback,
 
     }
 
+    if (status != OK)
+        retval = ERROR;
+
     gb_operation_destroy(operation);
-    return OK;
+    return retval;
 }
 
 int gb_loopback_status(struct gb_loopback *loopback)
