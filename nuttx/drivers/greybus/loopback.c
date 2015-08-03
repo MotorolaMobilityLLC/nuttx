@@ -99,7 +99,24 @@ int gb_loopback_cport_conf(struct gb_loopback *loopback,
     return 0;
 }
 
-static void gb_loopback_transfer_sync(struct gb_operation *operation)
+/* Callbacks for gb_operation_send_request(). */
+
+static void gb_loopback_ping_sink_resp_cb(struct gb_operation *operation)
+{
+    struct gb_loopback *loopback;
+    int ret;
+
+    loopback = gb_loopback_from_cport(operation->cport);
+    if (!loopback) {
+        return;
+    }
+
+    ret = gb_operation_get_request_result(operation);
+    if (ret != OK)
+        loopback->error += 1;
+}
+
+static void gb_loopback_transfer_resp_cb(struct gb_operation *operation)
 {
     struct gb_loopback *loopback;
     struct gb_loopback_transfer_response *response;
@@ -115,19 +132,6 @@ static void gb_loopback_transfer_sync(struct gb_operation *operation)
 
     if (memcmp(request->data, response->data, le32_to_cpu(request->len)))
         loopback->error += 1;
-}
-
-/**
- * @brief           called upon reception of a 'sink' operation response
- *                  (sending end)
- * @param[in]       operation: received greybus loopback operation
- */
-static void gb_loopback_sink_resp_cb(struct gb_operation *operation)
-{
-    /*
-     * FIXME: operation result shall be verified, but bug #826 implementing
-     * this feature is still under development/review. To be completed.
-     */
 }
 
 /**
@@ -168,7 +172,8 @@ int gb_loopback_send_req(struct gb_loopback *loopback,
 
     switch(type) {
     case GB_LOOPBACK_TYPE_PING:
-        gb_operation_send_request_sync(operation);
+        gb_operation_send_request(operation,
+                                  gb_loopback_ping_sink_resp_cb, true);
         break;
     case GB_LOOPBACK_TYPE_TRANSFER:
     case GB_LOOPBACK_TYPE_SINK:
@@ -179,14 +184,14 @@ int gb_loopback_send_req(struct gb_loopback *loopback,
                 request->data[i] = rand() & 0xFF;
             }
             gb_operation_send_request(operation,
-                                      gb_loopback_transfer_sync, true);
+                                      gb_loopback_transfer_resp_cb, true);
         } else {
             /*
              * Data payload is ignored on receiver end.
              * No need to fill the buffer with some data.
              */
             gb_operation_send_request(operation,
-                                      gb_loopback_sink_resp_cb, true);
+                                      gb_loopback_ping_sink_resp_cb, true);
         }
         break;
     default:
