@@ -33,7 +33,7 @@
 
 struct gb_loopback {
     struct list_head list;
-    int ms;
+    unsigned wait;
     int type;
     int enomem;
     size_t size;
@@ -49,7 +49,7 @@ void gb_loopback_list_unlock(void);
 struct gb_loopback *gb_loopback_from_cport(unsigned int cportid);
 unsigned int gb_loopback_to_cport(struct gb_loopback *loopback);
 int gb_loopback_cport_conf(struct gb_loopback *loopback,
-                           int type, size_t size, int ms);
+                           int type, size_t size, unsigned ms);
 int gb_loopback_status(struct gb_loopback *loopback);
 int gb_loopback_send_req(struct gb_loopback *loopback,
                          size_t size, uint8_t type);

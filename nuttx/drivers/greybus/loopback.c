@@ -85,7 +85,7 @@ static int gb_loopback_reset(struct gb_loopback *loopback)
 }
 
 int gb_loopback_cport_conf(struct gb_loopback *loopback,
-                           int type, size_t size, int ms)
+                           int type, size_t size, unsigned wait)
 {
     if (loopback == NULL)
         return 1;
@@ -94,7 +94,7 @@ int gb_loopback_cport_conf(struct gb_loopback *loopback,
 
     loopback->type = type;
     loopback->size = size;
-    loopback->ms = ms;
+    loopback->wait = wait;
 
     return 0;
 }

@@ -103,8 +103,8 @@ int gb_loopback_service(void)
                         loopback->enomem++;
                     }
                 }
-                if (loopback->ms) {
-                    usleep(loopback->ms * 1000);
+                if (loopback->wait) {
+                    usleep(loopback->wait * 1000);
                 }
             }
         }
@@ -119,9 +119,9 @@ int gb_loopback_service(void)
 }
 
 static int run_loopback_cmd(struct gb_loopback *loopback,
-                            int cport, int type, int size, int ms)
+                            int cport, int type, size_t size, unsigned wait)
 {
-    if (gb_loopback_cport_conf(loopback, type, size, ms))
+    if (gb_loopback_cport_conf(loopback, type, size, wait))
         return -EINVAL;
 
     if (type == 0) {
@@ -145,10 +145,12 @@ int main(int argc, FAR char *argv[])
 int gbl_main(int argc, char *argv[])
 #endif
 {
-    int type = 0, size = 0, cport = -1, ms = 1000, opt, rv = EXIT_SUCCESS, st;
+    int type = 0, cport = -1, opt, rv = EXIT_SUCCESS, st;
     struct gb_loopback *loopback;
+    unsigned wait = 1000;
+    size_t size = 0;
 
-    while ((opt = getopt (argc, argv, "t:s:c:w:h")) != -1) {
+    while ((opt = getopt (argc, argv, "c:s:t:w:")) != -1) {
         switch (opt) {
         case 'c':
             st = sscanf(optarg, "%d", &cport);
@@ -156,7 +158,7 @@ int gbl_main(int argc, char *argv[])
                 goto help;
             break;
         case 's':
-            st = sscanf(optarg, "%d", &size);
+            st = sscanf(optarg, "%u", &size);
             if (st != 1)
                 goto help;
             break;
@@ -166,7 +168,7 @@ int gbl_main(int argc, char *argv[])
                 goto help;
             break;
         case 'w':
-            st = sscanf(optarg, "%d", &ms);
+            st = sscanf(optarg, "%u", &wait);
             if (st != 1)
                 goto help;
             break;
@@ -183,7 +185,7 @@ int gbl_main(int argc, char *argv[])
             loopback = list_entry(iter, struct gb_loopback, list);
 
             cport = gb_loopback_to_cport(loopback);
-            st = run_loopback_cmd(loopback, cport, type, size, ms);
+            st = run_loopback_cmd(loopback, cport, type, size, wait);
             if (st < 0)
                 rv = EXIT_FAILURE;
         }
@@ -193,7 +195,7 @@ int gbl_main(int argc, char *argv[])
             gb_loopback_list_unlock();
             goto no_loopback;
         } else {
-            rv = run_loopback_cmd(loopback, cport, type, size, ms);
+            rv = run_loopback_cmd(loopback, cport, type, size, wait);
         }
     }
     gb_loopback_list_unlock();
