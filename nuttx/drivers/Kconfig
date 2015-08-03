@@ -567,6 +567,7 @@ source drivers/syslog/Kconfig
 
 menuconfig GREYBUS
 	bool "Greybus support"
+	select CLOCK_MONOTONIC
 	default n
 
 if GREYBUS

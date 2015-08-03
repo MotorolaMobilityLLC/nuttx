@@ -179,7 +179,7 @@ static bool gb_operation_has_timedout(struct gb_operation *operation)
                           TIMEOUT_IN_MS / ONE_SEC_IN_MSEC;
     timeout_time.tv_nsec = operation->time.tv_nsec +
                           (TIMEOUT_IN_MS % ONE_SEC_IN_MSEC) * ONE_MSEC_IN_NSEC;
-    clock_gettime(CLOCK_REALTIME, &current_time);
+    clock_gettime(CLOCK_MONOTONIC, &current_time);
 
     if (current_time.tv_sec > timeout_time.tv_sec)
         return true;
@@ -474,7 +474,7 @@ int gb_operation_send_request(struct gb_operation *operation,
         hdr->id = cpu_to_le16(atomic_inc(&request_id));
         if (hdr->id == 0) /* ID 0 is for request with no response */
             hdr->id = cpu_to_le16(atomic_inc(&request_id));
-        clock_gettime(CLOCK_REALTIME, &operation->time);
+        clock_gettime(CLOCK_MONOTONIC, &operation->time);
         operation->callback = callback;
         gb_operation_ref(operation);
         list_add(&g_cport[operation->cport].tx_fifo, &operation->list);
