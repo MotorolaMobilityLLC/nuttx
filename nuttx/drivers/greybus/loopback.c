@@ -168,6 +168,16 @@ void gb_loopback_reset(int cport)
     }
 }
 
+/**
+ * @brief Check if given cport has been registered in the loopback driver
+ * @param cport cport number
+ * @return 1 if there's a loopback instance for this cport, 0 otherwise
+ */
+int gb_loopback_cport_valid(int cport)
+{
+    return loopback_from_cport(cport) != NULL;
+}
+
 /* Callbacks for gb_operation_send_request(). */
 
 static void gb_loopback_ping_sink_resp_cb(struct gb_operation *operation)

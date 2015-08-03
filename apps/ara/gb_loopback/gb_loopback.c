@@ -320,6 +320,13 @@ int gbl_main(int argc, char *argv[])
         goto help;
     cmd = argv[argc - 1];
 
+    /* Bail-out if the cport is invalid since we would do nothing anyway. */
+    if (cport >= 0 && !gb_loopback_cport_valid(cport)) {
+        fprintf(stderr, "cport %d not registered for gb_loopback\n", cport);
+        rv = EXIT_FAILURE;
+        goto out;
+    }
+
     if (strcmp(cmd, "start") == 0) {
         if (type == GB_LOOPBACK_TYPE_NONE) {
             fprintf(stderr, "operation type must be specified for 'start'\n");
