@@ -99,50 +99,6 @@ int gb_loopback_cport_conf(struct gb_loopback *loopback,
     return 0;
 }
 
-static uint8_t gb_loopback_protocol_version(struct gb_operation *operation)
-{
-    struct gb_loopback_proto_version_response *response;
-
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if(!response)
-        return GB_OP_NO_MEMORY;
-
-    response->major = GB_LOOPBACK_VERSION_MAJOR;
-    response->minor = GB_LOOPBACK_VERSION_MINOR;
-    return GB_OP_SUCCESS;
-}
-
-static uint8_t gb_loopback_transfer(struct gb_operation *operation)
-{
-    struct gb_loopback_transfer_response *response;
-    struct gb_loopback_transfer_request *request =
-        gb_operation_get_request_payload(operation);
-    size_t request_length = le32_to_cpu(request->len);
-
-    response = gb_operation_alloc_response(operation,
-                                           sizeof(*response) + request_length);
-    if(!response)
-        return GB_OP_NO_MEMORY;
-    memcpy(response->data, request->data, request_length);
-    return GB_OP_SUCCESS;
-}
-
-static uint8_t gb_loopback_ping(struct gb_operation *operation)
-{
-    return GB_OP_SUCCESS;
-}
-
-/**
- * @brief           Called upon reception of a 'sink' operation request
- *                  (receiving end)
- * @param[in]       operation: greybus loopback operation
- */
-static uint8_t gb_loopback_sink_req_cb(struct gb_operation *operation)
-{
-    /* Ignore data payload, just acknowledge the operation. */
-    return GB_OP_SUCCESS;
-}
-
 static void gb_loopback_transfer_sync(struct gb_operation *operation)
 {
     struct gb_loopback *loopback;
@@ -251,12 +207,50 @@ int gb_loopback_status(struct gb_loopback *loopback)
     return loopback->error + loopback->enomem;
 }
 
+/*
+ * The below functions are called by greybus-core upon
+ * reception of inbound packets.
+ */
+
+static uint8_t gb_loopback_protocol_ver_cb(struct gb_operation *operation)
+{
+    struct gb_loopback_proto_version_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if(!response)
+        return GB_OP_NO_MEMORY;
+
+    response->major = GB_LOOPBACK_VERSION_MAJOR;
+    response->minor = GB_LOOPBACK_VERSION_MINOR;
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_loopback_transfer_req_cb(struct gb_operation *operation)
+{
+    struct gb_loopback_transfer_response *response;
+    struct gb_loopback_transfer_request *request =
+        gb_operation_get_request_payload(operation);
+    size_t request_length = le32_to_cpu(request->len);
+
+    response = gb_operation_alloc_response(operation,
+                                           sizeof(*response) + request_length);
+    if(!response)
+        return GB_OP_NO_MEMORY;
+    memcpy(response->data, request->data, request_length);
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_loopback_ping_sink_req_cb(struct gb_operation *operation)
+{
+    /* Ignore data payload, just acknowledge the operation. */
+    return GB_OP_SUCCESS;
+}
+
 static struct gb_operation_handler gb_loopback_handlers[] = {
-    GB_HANDLER(GB_LOOPBACK_TYPE_PROTOCOL_VERSION,
-               gb_loopback_protocol_version),
-    GB_HANDLER(GB_LOOPBACK_TYPE_PING, gb_loopback_ping),
-    GB_HANDLER(GB_LOOPBACK_TYPE_TRANSFER, gb_loopback_transfer),
-    GB_HANDLER(GB_LOOPBACK_TYPE_SINK, gb_loopback_sink_req_cb),
+    GB_HANDLER(GB_LOOPBACK_TYPE_PROTOCOL_VERSION, gb_loopback_protocol_ver_cb),
+    GB_HANDLER(GB_LOOPBACK_TYPE_PING, gb_loopback_ping_sink_req_cb),
+    GB_HANDLER(GB_LOOPBACK_TYPE_TRANSFER, gb_loopback_transfer_req_cb),
+    GB_HANDLER(GB_LOOPBACK_TYPE_SINK, gb_loopback_ping_sink_req_cb),
 };
 
 struct gb_driver loopback_driver = {
