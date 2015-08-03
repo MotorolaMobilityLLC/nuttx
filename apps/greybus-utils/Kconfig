@@ -46,6 +46,17 @@ config GB_LOG_DUMP
 endchoice
 
 choice
+	prompt "Greybus log format"
+	depends on GREYBUS_DEBUG
+config GB_LOG_LEVEL
+	bool "append log level"
+config GB_LOG_FILE
+	bool "append file and line"
+config GB_LOG_FUNC
+	bool "append function name"
+endchoice
+
+choice
 	prompt "Select a predefined Manifest"
 config MANIFEST_ALL
 	bool "All Protocols"

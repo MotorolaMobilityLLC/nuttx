@@ -65,13 +65,24 @@ static inline __attribute__ ((format(printf, 2, 3)))
 	void gb_log(int level, const char *fmt, ...) { }
 #endif
 
+#if defined(CONFIG_GB_LOG_FUNC)
+#define gb_log_format(lvl, fmt)                                     \
+    "[" #lvl "] %s(): " fmt, __func__
+#elif defined(CONFIG_GB_LOG_FILE)
+#define gb_log_format(lvl, fmt)                                     \
+    "[" #lvl "] %s:%d: " fmt, __FILE__, __LINE__
+#else
+#define gb_log_format(lvl, fmt)                                     \
+    "[" #lvl "]: " fmt
+#endif
+
 #define gb_info(fmt, ...)                                           \
-    gb_log(GB_LOG_INFO, "[I] GB: " fmt, ##__VA_ARGS__);
+    gb_log(GB_LOG_INFO, gb_log_format(I, fmt), ##__VA_ARGS__);
 #define gb_error(fmt, ...)                                          \
-    gb_log(GB_LOG_ERROR, "[E] GB: " fmt, ##__VA_ARGS__);
+    gb_log(GB_LOG_ERROR, gb_log_format(E, fmt), ##__VA_ARGS__);
 #define gb_warning(fmt, ...)                                        \
-    gb_log(GB_LOG_WARNING, "[W] GB: " fmt, ##__VA_ARGS__);
+    gb_log(GB_LOG_WARNING, gb_log_format(W, fmt), ##__VA_ARGS__);
 #define gb_debug(fmt, ...)                                          \
-    gb_log(GB_LOG_DEBUG, "[D] GB: " fmt, ##__VA_ARGS__);
+    gb_log(GB_LOG_DEBUG, gb_log_format(D, fmt), ##__VA_ARGS__);
 #endif
 
