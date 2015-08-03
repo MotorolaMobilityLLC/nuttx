@@ -70,6 +70,12 @@ static void loopback_unlock(struct gb_loopback *loopback)
     pthread_mutex_unlock(&loopback->lock);
 }
 
+/**
+ * @brief Iterate through all registered cports and call a function
+ * @param cb callback function to be called for each cport
+ * @param data additional private data to be passed to cb
+ * @return 0 on success, return value of cb if a call to it fails
+ */
 int gb_loopback_get_cports(gb_loopback_cport_cb cb, void *data)
 {
     struct gb_loopback *loopback;
@@ -106,6 +112,11 @@ static struct gb_loopback *loopback_from_cport(int cport)
     return NULL;
 }
 
+/**
+ * @brief Get the number of reception errors for given cport
+ * @param cport cport number
+ * @return Number of errors since the last loopback reset
+ */
 int gb_loopback_get_error_count(int cport)
 {
     struct gb_loopback *loopback = loopback_from_cport(cport);
@@ -131,6 +142,11 @@ static void loopback_error_notify(int cport)
     }
 }
 
+/**
+ * @brief Get the number of received responses on given cport
+ * @param cport cport number
+ * @return Number of received responses since the last reset
+ */
 unsigned gb_loopback_get_recv_count(int cport)
 {
     struct gb_loopback *loopback = loopback_from_cport(cport);
@@ -156,6 +172,10 @@ static void loopback_recv_inc(int cport)
     }
 }
 
+/**
+ * @brief Reset statistics acquisition for given cport.
+ * @param cport cport number
+ */
 void gb_loopback_reset(int cport)
 {
     struct gb_loopback *loopback = loopback_from_cport(cport);
