@@ -150,7 +150,7 @@ int main(int argc, FAR char *argv[]) {
             if (drive_ma != DRIVE_MA_MIN &&
                 drive_ma != DRIVE_MA_DEFAULT &&
                 drive_ma != DRIVE_MA_MAX) {
-                printf("Invalid drive strength of %d ma when trying to enable ETM (%u|%u|%u are valid)\n",
+                printf("Invalid drive strength of %ld ma when trying to enable ETM (%u|%u|%u are valid)\n",
                        drive_ma, DRIVE_MA_MIN, DRIVE_MA_DEFAULT, DRIVE_MA_MAX);
                 return EXIT_FAILURE;
             }
