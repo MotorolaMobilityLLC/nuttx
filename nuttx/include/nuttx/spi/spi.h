@@ -409,6 +409,10 @@
 #define SPI_MODE_TYPE_MASTER	1
 #define SPI_MODE_TYPE_SLAVE	0
 
+/* SPI reset modes */
+#define SPI_PORT_RESET 1
+#define SPI_PORT_INITIALIZE 0
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/

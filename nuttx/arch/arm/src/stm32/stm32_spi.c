@@ -70,8 +70,10 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/spi/spi.h>
+#include <nuttx/wdog.h>
 
 #include <arch/board/board.h>
+
 
 #include "up_internal.h"
 #include "up_arch.h"
@@ -149,7 +151,7 @@
 #  error "Unknown STM32 DMA"
 #endif
 
-
+#define SPI_DMA_TIMEOUT     ((10 * CLK_TCK) / 1000) /* 10 mS */
 /* Debug ****************************************************************************/
 /* Check if (non-standard) SPI debug is enabled */
 
@@ -193,6 +195,7 @@ struct stm32_spidev_s
   sem_t            txsem;      /* Wait for TX DMA to complete */
   uint32_t         txccr;      /* DMA control register for TX transfers */
   uint32_t         rxccr;      /* DMA control register for RX transfers */
+  WDOG_ID          timeout;    /* watchdog to timeout when bus is hung */
 #endif
 #ifndef CONFIG_SPI_OWNBUS
   sem_t            exclsem;    /* Held while chip is selected for mutual exclusion */
@@ -202,6 +205,7 @@ struct stm32_spidev_s
   uint8_t          mode;       /* Mode 0,1,2,3 */
 #endif
   uint8_t          mode_type;  /* Master or Slave */
+  uint8_t          init_type;  /* port reset or port initialize */
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   int		   (*isr)(int, void *);     /* Interrupt handler */
 #endif
@@ -241,6 +245,7 @@ static void        spi_dmatxsetup(FAR struct stm32_spidev_s *priv,
 static inline void spi_dmarxstart(FAR struct stm32_spidev_s *priv);
 static inline void spi_dmatxstart(FAR struct stm32_spidev_s *priv);
 static inline void spi_rxtxdmastop_slave(FAR struct spi_dev_s *dev);
+static void        spi_dma_timeout_handler(int argc, uint32_t arg, ...);
 #endif
 
 /* SPI methods */
@@ -371,6 +376,7 @@ static struct stm32_spidev_s g_spi1dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -404,7 +410,6 @@ static const struct spi_ops_s g_sp2iops =
     .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 #endif
-
 };
 
 static struct stm32_spidev_s g_spi2dev =
@@ -427,6 +432,7 @@ static struct stm32_spidev_s g_spi2dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -482,6 +488,7 @@ static struct stm32_spidev_s g_spi3dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -537,6 +544,7 @@ static struct stm32_spidev_s g_spi4dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -592,6 +600,7 @@ static struct stm32_spidev_s g_spi5dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -647,6 +656,7 @@ static struct stm32_spidev_s g_spi6dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -873,6 +883,33 @@ static inline bool spi_16bitmode(FAR struct stm32_spidev_s *priv)
 #endif
 }
 
+#ifdef CONFIG_STM32_SPI_DMA
+/*******************************************************************************
+ * Name: spi_dma_timeout_handler
+ *
+ * Description:
+ *   Watchdog timer for timeout of SPI DMA operation
+ *
+ *******************************************************************************/
+
+static void spi_dma_timeout_handler(int argc, uint32_t arg, ...)
+{
+  struct stm32_spidev_s *priv = (struct stm32_spidev_s *)arg;
+
+  irqstate_t flags = irqsave();
+
+  spidbg("ERROR: DMA timeout, resetting SPI\n");
+  priv->init_type = SPI_PORT_RESET;
+  spi_portinitialize(priv);
+
+  /* error callback */
+  if (priv->cb_ops && priv->cb_ops->txn_err)
+    priv->cb_ops->txn_err(priv->cb_v);
+
+  irqrestore(flags);
+}
+#endif
+
 /************************************************************************************
  * Name: spi_dmarxwait
  *
@@ -987,6 +1024,7 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
         {
           spi_modifycr1(priv, SPI_CR1_SSM, 0);
 
+          wd_cancel(priv->timeout);
 #ifdef CONFIG_SPI_CRC16
           status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
 
@@ -1013,6 +1051,7 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
         }
       else if (isr & DMA_CHAN_HTIF_BIT)
         {
+          wd_start(priv->timeout, SPI_DMA_TIMEOUT, spi_dma_timeout_handler, 1, (uint32_t)priv);
           if (priv->cb_ops && priv->cb_ops->txn_half)
             priv->cb_ops->txn_half(priv->cb_v);
         }
@@ -1757,7 +1796,6 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
 #ifdef CONFIG_SPI_CRC16
       spi_modifycr1(priv, 0, SPI_CR1_CRCEN);
 
-
       /* Setup DMAs */
 
       /* RXCRCR and TXCRCR registers are cleared by setting CRCEN bit */
@@ -2094,6 +2132,51 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
 {
   uint16_t setbits;
   uint16_t clrbits;
+  uint16_t periph_reset;
+
+  /* Reset SPI port */
+
+  if (priv->init_type == SPI_PORT_RESET)
+    {
+      switch (priv->spibase)
+        {
+          case STM32_SPI1_BASE:
+#ifdef CONFIG_STM32_SPI1
+            periph_reset = getreg16(STM32_RCC_APB2RSTR);
+            periph_reset |= RCC_APB2RSTR_SPI1RST;
+            putreg16(periph_reset, STM32_RCC_APB2RSTR);
+
+            periph_reset &= ~(RCC_APB2RSTR_SPI1RST);
+            putreg16(periph_reset, STM32_RCC_APB2RSTR);
+#endif
+          break;
+
+          case STM32_SPI2_BASE:
+#ifdef CONFIG_STM32_SPI2
+            periph_reset = getreg16(STM32_RCC_APB1RSTR1);
+            periph_reset |= RCC_APB1RSTR1_SPI2RST;
+            putreg16(periph_reset, STM32_RCC_APB1RSTR1);
+
+            periph_reset &= ~(RCC_APB1RSTR1_SPI2RST);
+            putreg16(periph_reset, STM32_RCC_APB1RSTR1);
+#endif
+          break;
+
+          case STM32_SPI3_BASE:
+#ifdef CONFIG_STM32_SPI3
+            periph_reset = getreg16(STM32_RCC_APB1RSTR1);
+            periph_reset |= RCC_APB1RSTR1_SPI3RST;
+            putreg16(periph_reset, STM32_RCC_APB1RSTR1);
+
+            periph_reset &= ~(RCC_APB1RSTR1_SPI3RST);
+            putreg16(periph_reset, STM32_RCC_APB1RSTR1);
+#endif
+          break;
+
+          default:
+          break;
+        }
+    }
 
   if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
     {
@@ -2165,27 +2248,38 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
   /* Initialize the SPI semaphore that enforces mutually exclusive access */
 
 #ifndef CONFIG_SPI_OWNBUS
-  sem_init(&priv->exclsem, 0, 1);
+  if (priv->init_type == SPI_PORT_INITIALIZE)
+    {
+      sem_init(&priv->exclsem, 0, 1);
+    }
 #endif
 
   /* Initialize the SPI semaphores that is used to wait for DMA completion */
 
 #ifdef CONFIG_STM32_SPI_DMA
-  sem_init(&priv->rxsem, 0, 0);
-  sem_init(&priv->txsem, 0, 0);
+  if (priv->init_type == SPI_PORT_INITIALIZE)
+    {
+      sem_init(&priv->rxsem, 0, 0);
+      sem_init(&priv->txsem, 0, 0);
 
-  /* Get DMA channels.  NOTE: stm32_dmachannel() will always assign the DMA channel.
-   * if the channel is not available, then stm32_dmachannel() will block and wait
-   * until the channel becomes available.  WARNING: If you have another device sharing
-   * a DMA channel with SPI and the code never releases that channel, then the call
-   * to stm32_dmachannel()  will hang forever in this function!  Don't let your
-   * design do that!
-   */
+      /* Allocate a watchdog timer */
 
-  priv->rxdma = stm32_dmachannel(priv->rxch);
-  priv->txdma = stm32_dmachannel(priv->txch);
-  DEBUGASSERT(priv->rxdma && priv->txdma);
+      priv->timeout = wd_create();
 
+      DEBUGASSERT(priv->timeout != 0);
+
+      /* Get DMA channels.  NOTE: stm32_dmachannel() will always assign the DMA channel.
+       * if the channel is not available, then stm32_dmachannel() will block and wait
+       * until the channel becomes available.  WARNING: If you have another device sharing
+       * a DMA channel with SPI and the code never releases that channel, then the call
+       * to stm32_dmachannel()  will hang forever in this function!  Don't let your
+       * design do that!
+      */
+
+      priv->rxdma = stm32_dmachannel(priv->rxch);
+      priv->txdma = stm32_dmachannel(priv->txch);
+      DEBUGASSERT(priv->rxdma && priv->txdma);
+    }
   spi_putreg(priv, STM32_SPI_CR2_OFFSET, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
 #endif
 
@@ -2198,13 +2292,18 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
 
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   spi_modifycr2(priv, SPI_CR2_RXNEIE, 0);
-  irq_attach(priv->spiirq, priv->isr);
-  up_enable_irq(priv->spiirq);
+  if (priv->init_type == SPI_PORT_INITIALIZE)
+    {
+      irq_attach(priv->spiirq, priv->isr);
+      up_enable_irq(priv->spiirq);
+    }
 #endif
 
   /* Enable spi */
 
   spi_modifycr1(priv, SPI_CR1_SPE, 0);
+
+  priv->init_type = SPI_PORT_RESET;
 }
 
 /************************************************************************************

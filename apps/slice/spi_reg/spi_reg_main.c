@@ -22,6 +22,7 @@ struct slice_reg_data
   FAR struct spi_dev_s *dev;
   int addr;
   uint8_t regs[SLICE_NUM_REGS];
+  uint8_t crc[2];
 };
 
 /* called when master is writing to slave */
@@ -48,7 +49,7 @@ static int slice_reg_read_cb(void *v)
     }
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
-  SPI_EXCHANGE(dev,slf->regs, slf->regs, sizeof(slf->regs));
+  SPI_EXCHANGE(dev,slf->regs, slf->regs, sizeof(slf->regs) + 2);
 #endif
   txn_status = 0;
   return 0;
@@ -80,7 +81,15 @@ static int slice_reg_txn_end_cb(void *v)
 /* called to end transaction */
 static int slice_reg_txn_err_cb(void *v)
 {
+  struct slice_reg_data *slf = (struct slice_reg_data *)v;
+  FAR struct spi_dev_s *dev = slf->dev;
   txn_status = -1;
+
+#ifdef CONFIG_STM32_SPI_DMA
+ SPI_EXCHANGE(dev,slf->regs, slf->regs, sizeof(slf->regs) + 2);
+ logd("Slave DMA armed! from txn_err\n");
+ txn_status = 0;
+#endif
   return 0;
 }
 
@@ -97,6 +106,7 @@ static struct slice_reg_data slice_self =
 {
     .regs = { 0x00, 0x01, 0x02, 0x03,
               0x04, 0x05, 0x06, 0x07, },
+    .crc = { 0x00, 0x00, },
     .addr = -1,
 };
 
@@ -133,7 +143,7 @@ int slice_spi_reg_main(int argc, char *argv[])
 #ifdef CONFIG_STM32_SPI_DMA
   if (txn_status == -1)
     {
-      SPI_EXCHANGE(dev1,slice_self.regs, slice_self.regs, sizeof(slice_self.regs));
+      SPI_EXCHANGE(dev1,slice_self.regs, slice_self.regs, sizeof(slice_self.regs) + 2);
       logd("Slave DMA armed!\n");
     }
 #endif

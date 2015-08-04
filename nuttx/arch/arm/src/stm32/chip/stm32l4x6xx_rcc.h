@@ -308,6 +308,7 @@
 /* APB1 Peripheral reset register 2 */
 
 /* APB2 Peripheral reset register */
+#define RCC_APB2RSTR_SPI1RST       (1 << 12) /* Bit 12: SPI 1 reset */
 
 /* AHB1 Peripheral Clock enable register */
 
