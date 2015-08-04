@@ -113,7 +113,7 @@ struct max17050_dev_s
     bool initialized;
 };
 
-static int max17050_reg_read(FAR struct max17050_dev_s *priv, uint16_t reg)
+static int max17050_reg_read(FAR struct max17050_dev_s *priv, uint8_t reg)
 {
     uint16_t reg_val;
     int ret;
@@ -123,14 +123,15 @@ static int max17050_reg_read(FAR struct max17050_dev_s *priv, uint16_t reg)
     return ret ? ret : reg_val;
 }
 
-static int max17050_reg_write(FAR struct max17050_dev_s *priv, uint16_t reg, uint16_t val)
+static int max17050_reg_write(FAR struct max17050_dev_s *priv, uint8_t reg, uint16_t val)
 {
-    uint16_t buf[2];
+    uint8_t buf[3];
 
     buf[0] = reg;
-    buf[1] = val;
+    buf[1] = val & 0xFF;
+    buf[2] = val >> 8;
 
-    return I2C_WRITE(priv->i2c, (uint8_t *)buf, 4);
+    return I2C_WRITE(priv->i2c, buf, sizeof(buf));
 }
 
 static int max17050_reg_write_verify(FAR struct max17050_dev_s *priv, uint16_t reg, uint16_t val)
