@@ -28,12 +28,13 @@
 
 #include "max17050_config.h"
 
+// Battery Configurations
 
 // Use version MSB to identify battery and LSB as the version of the config for
 // this battery. Incrementing version number forces re-programming of config
 // data, otherwise data is only programmed after Power-On reset of the device.
 
-// Sample configuration. Replace with the configurations for actual batteries.
+#ifdef CONFIG_BATTERY_MAX17050_SAMPLE_CFG
 struct max17050_config max17050_cfg = {
     .version        = 0xFF00,
     // Application specific settings
@@ -67,3 +68,6 @@ struct max17050_config max17050_cfg = {
         0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100
     }
 };
+#else
+// Place configurations for actual batteries here
+#endif

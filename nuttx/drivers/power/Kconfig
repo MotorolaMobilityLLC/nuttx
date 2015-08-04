@@ -31,3 +31,11 @@ config BATTERY_MAX17050
 	---help---
 		Select to support the MAX17050 battery fuel gauge IC.
 
+if BATTERY_MAX17050
+choice
+	prompt "Select Battery Specific Configuration"
+config BATTERY_MAX17050_SAMPLE_CFG
+	bool "Sample configuration"
+endchoice
+endif
+
