@@ -44,7 +44,8 @@ int unipro_to_usb(struct apbridge_dev_s *dev, const void *payload, size_t size);
 int svc_to_usb(struct apbridge_dev_s *dev, const void *payload, size_t len);
 
 void usb_wait(struct apbridge_dev_s *dev);
-int usbdev_apbinitialize(struct apbridge_usb_driver *driver);
+int usbdev_apbinitialize(struct device *dev,
+                         struct apbridge_usb_driver *driver);
 
 int usb_release_buffer(struct apbridge_dev_s *priv, const void *buf);
 

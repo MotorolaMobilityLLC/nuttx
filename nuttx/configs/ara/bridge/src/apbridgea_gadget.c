@@ -56,6 +56,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/arch.h>
 #include <nuttx/serial/serial.h>
+#include <nuttx/usb_device.h>
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/usb/usbdev_trace.h>
@@ -1709,7 +1710,8 @@ static void usbclass_disconnect(struct usbdevclass_driver_s *driver,
     DEV_CONNECT(dev);
 }
 
-int usbdev_apbinitialize(struct apbridge_usb_driver *driver)
+int usbdev_apbinitialize(struct device *dev,
+                         struct apbridge_usb_driver *driver)
 {
     struct apbridge_alloc_s *alloc;
     struct apbridge_dev_s *priv;
@@ -1756,7 +1758,7 @@ int usbdev_apbinitialize(struct apbridge_usb_driver *driver)
 
     /* Register the USB serial class driver */
 
-    ret = usbdev_register(&drvr->drvr);
+    ret = device_usbdev_register_gadget(dev, &drvr->drvr);
     if (ret) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_DEVREGISTER),
                  (uint16_t) - ret);
@@ -1770,7 +1772,7 @@ int usbdev_apbinitialize(struct apbridge_usb_driver *driver)
     return OK;
 
  errout_with_init:
-    usbdev_unregister(&drvr->drvr);
+    device_usbdev_unregister_gadget(dev, &drvr->drvr);
 errout_cport_table:
     kmm_free(priv->cport_to_epin_n);
  errout_with_alloc:
