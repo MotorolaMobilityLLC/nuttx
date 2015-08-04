@@ -169,7 +169,7 @@ static void i2s_test_print_cmdline_summary(struct i2s_test_info *info)
             info->is_i2s ? "I2S" : "LR Stereo",
             info->is_mclk_master ? "Master" : "Slave",
             info->is_bclk_master ? "Master" : "Slave");
-    printf("   %u ring buffer entries of %u audio samples each\n",
+    printf("   %lu ring buffer entries of %lu audio samples each\n",
             info->rb_entries, info->samples_per_rb_entry);
 }
 
