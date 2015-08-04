@@ -1652,20 +1652,6 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
     return ret;
 }
 
-#ifdef CONFIG_HSIC_HUB_RESET
-#define HUB_RESET_GPIO 3
-static void hsic_hub_reset(void)
-{
-    gpio_activate(HUB_RESET_GPIO);
-    gpio_direction_out(HUB_RESET_GPIO, 0);
-    up_mdelay(10);
-    gpio_set_value(HUB_RESET_GPIO, 1);
-    gpio_deactivate(HUB_RESET_GPIO);
-}
-#else
-#define hsic_hub_reset()
-#endif
-
 /****************************************************************************
  * Name: usbclass_disconnect
  *
@@ -1730,9 +1716,6 @@ int usbdev_apbinitialize(struct apbridge_usb_driver *driver)
     struct apbridge_driver_s *drvr;
     int ret;
     unsigned int i;
-
-    /* Reset USB HSIC HUB */
-    hsic_hub_reset();
 
     /* Allocate the structures needed */
 
