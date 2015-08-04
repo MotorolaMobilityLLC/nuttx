@@ -33,6 +33,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <nuttx/device.h>
+#include <nuttx/usb_device.h>
 #include <apps/greybus-utils/utils.h>
 #include <apps/ara/service_mgr.h>
 #include <apps/ara/gb_loopback.h>
@@ -142,11 +144,45 @@ static struct srvmgr_service services[] = {
     { NULL, NULL }
 };
 
+static int usb_init(void)
+{
+    int ret = 0;
+    struct device *usb_dev;
+    struct device *hub_dev;
+
+    hub_dev = device_open(DEVICE_TYPE_HSIC_DEVICE, 1);
+    if (!hub_dev) {
+        printf("Error: can't open USB3813 device\n");
+        return -ENODEV;
+    }
+    device_hsic_hold_reset(hub_dev);
+
+    usb_dev = device_open(DEVICE_TYPE_USB_PCD, 0);
+    if (!usb_dev) {
+        printf("Error: can't open USB device\n");
+        device_close(hub_dev);
+        return -ENODEV;
+    }
+
+    device_hsic_release_reset(hub_dev);
+    device_close(hub_dev);
+
+    usbdev_apbinitialize(usb_dev, &usb_driver);
+
+    return ret;
+}
+
 int bridge_main(int argc, char *argv[])
 {
+    int ret;
+
     apbridge_backend_register(&apbridge_backend);
-    usbdev_apbinitialize(&usb_driver);
     srvmgr_start(services);
+
+    ret = usb_init();
+    if (ret) {
+        printf("Can not init usb: error %d\n", ret);
+    }
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");
