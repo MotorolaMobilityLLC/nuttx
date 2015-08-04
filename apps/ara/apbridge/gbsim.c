@@ -30,7 +30,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <nuttx/usb/apb_es1.h>
+#include <arch/board/apbridgea_gadget.h>
 #include <apps/greybus-utils/utils.h>
 
 #include "apbridge_backend.h"

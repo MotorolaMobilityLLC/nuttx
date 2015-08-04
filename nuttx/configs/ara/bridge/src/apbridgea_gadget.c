@@ -59,12 +59,12 @@
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/usb/usbdev_trace.h>
-#include <nuttx/usb/apb_es1.h>
 #include <nuttx/logbuffer.h>
 #include <nuttx/gpio.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/unipro/unipro.h>
 #include <arch/byteorder.h>
+#include <arch/board/apbridgea_gadget.h>
 
 /****************************************************************************
  * Pre-processor Definitions

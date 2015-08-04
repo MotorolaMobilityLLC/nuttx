@@ -93,4 +93,20 @@ config FOR_GOOGLE_IO_DEMO
 	depends on ARA_BRIDGE_HAVE_CAMERA && APB_CAMERA
 	default n
 
+if APBRIDGEA
+config APBRIDGE_VENDORID
+	hex "Vendor ID"
+
+config APBRIDGE_PRODUCTID
+	hex "Product ID"
+
+config APB_USB_LOG
+	bool "Send APB log over usb"
+
+config USB_LOG_BUFFER_SIZE
+	int "Size of log buffer"
+	default 4096
+	depends on APB_USB_LOG
+endif
+
 endif

@@ -26,8 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _APB_ES1_H_
-#define _APB_ES1_H_
+#ifndef _APBRIDGEA_GADGET_H_
+#define _APBRIDGEA_GADGET_H_
 
 #include <sys/types.h>
 
@@ -48,4 +48,4 @@ int usbdev_apbinitialize(struct apbridge_usb_driver *driver);
 
 int usb_release_buffer(struct apbridge_dev_s *priv, const void *buf);
 
-#endif /* _APB_ES1_H_ */
+#endif /* _APBRIDGEA_GADGET_H_ */

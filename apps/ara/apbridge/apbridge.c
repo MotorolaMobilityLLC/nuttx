@@ -33,7 +33,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include <nuttx/usb/apb_es1.h>
 #include <apps/greybus-utils/utils.h>
 #include <apps/ara/service_mgr.h>
 #include <apps/ara/gb_loopback.h>
@@ -41,6 +40,8 @@
 #include <arch/tsb/gpio.h>
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
+
+#include <arch/board/apbridgea_gadget.h>
 
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
 #include <arch/board/dsi.h>

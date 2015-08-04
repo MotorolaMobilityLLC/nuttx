@@ -29,7 +29,7 @@
 #include <nuttx/config.h>
 
 #include <errno.h>
-#include <nuttx/usb/apb_es1.h>
+#include <arch/board/apbridgea_gadget.h>
 
 #include "apbridge_backend.h"
 

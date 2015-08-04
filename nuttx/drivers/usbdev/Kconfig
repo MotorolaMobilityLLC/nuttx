@@ -206,28 +206,6 @@ config COMPOSITE_VERSIONNO
 		Interface version number.
 endif
 
-config ARA_APB_USB
-	bool "ARA APBridge gadget"
-	default n
-	---help---
-		This logic create USB <=> Unipro bridge
-
-if ARA_APB_USB
-config APBRIDGE_VENDORID
-	hex "Vendor ID"
-
-config APBRIDGE_PRODUCTID
-	hex "Product ID"
-
-config APB_USB_LOG
-	bool "Send APB log over usb"
-
-config USB_LOG_BUFFER_SIZE
-	int "Size of log buffer"
-	default 4096
-	depends on APB_USB_LOG
-endif
-
 config PL2303
 	bool "Prolific PL2303 serial/USB converter emulation"
 	default n

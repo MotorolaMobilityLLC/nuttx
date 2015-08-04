@@ -31,7 +31,7 @@
 #include <errno.h>
 #include <arch/tsb/gpio.h>
 #include <nuttx/unipro/unipro.h>
-#include <nuttx/usb/apb_es1.h>
+#include <arch/board/apbridgea_gadget.h>
 #include <apps/greybus-utils/utils.h>
 
 #include "apbridge_backend.h"

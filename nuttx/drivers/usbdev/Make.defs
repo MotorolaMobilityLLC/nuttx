@@ -64,10 +64,6 @@ ifeq ($(CONFIG_USBDEV),y)
 
 # Include USB device drivers
 
-ifeq ($(CONFIG_ARA_APB_USB),y)
-  CSRCS += apb-es1.c
-endif
-
 ifeq ($(CONFIG_PL2303),y)
   CSRCS += pl2303.c
 endif
