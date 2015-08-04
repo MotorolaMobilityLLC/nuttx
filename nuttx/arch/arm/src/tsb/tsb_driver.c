@@ -31,6 +31,7 @@
 #include <nuttx/device.h>
 
 extern struct device_driver tsb_usb_hcd_driver;
+extern struct device_driver tsb_usb_pcd_driver;
 extern struct device_driver tsb_pll_driver;
 extern struct device_driver tsb_i2s_driver;
 extern struct device_driver tsb_pwm_driver;
@@ -41,6 +42,10 @@ void tsb_driver_register(void)
 {
 #ifdef CONFIG_ARCH_CHIP_USB_HCD
     device_register_driver(&tsb_usb_hcd_driver);
+#endif
+
+#ifdef CONFIG_ARCH_CHIP_USB_PCD
+    device_register_driver(&tsb_usb_pcd_driver);
 #endif
 
 #ifdef CONFIG_ARCH_CHIP_TSB_PLL

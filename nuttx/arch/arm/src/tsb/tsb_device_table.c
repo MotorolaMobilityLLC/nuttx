@@ -38,6 +38,7 @@
 #include <nuttx/device_spi.h>
 #include <nuttx/device_uart.h>
 #include <nuttx/usb.h>
+#include <nuttx/usb_device.h>
 
 #include <arch/irq.h>
 
@@ -194,6 +195,14 @@ static struct device tsb_devices[] = {
         .type           = DEVICE_TYPE_USB_HCD,
         .name           = "dwc2_hcd",
         .desc           = "DWC2 USB Host controller",
+        .id             = 0,
+    },
+#endif
+#ifdef CONFIG_ARCH_CHIP_USB_PCD
+    {
+        .type           = DEVICE_TYPE_USB_PCD,
+        .name           = "dwc2_pcd",
+        .desc           = "DWC2 USB Device controller",
         .id             = 0,
     },
 #endif

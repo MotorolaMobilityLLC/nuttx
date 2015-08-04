@@ -46,6 +46,7 @@ enum device_state {
 
 struct device_i2s_type_ops;
 struct device_usb_hcd_type_ops;
+struct device_usb_pcd_type_ops;
 struct device_hsic_type_ops;
 struct device_pll_type_ops;
 struct device_pwm_type_ops;
@@ -61,6 +62,7 @@ struct device_driver_ops {
         struct device_pll_type_ops     *pll;
         struct device_i2s_type_ops     *i2s;
         struct device_usb_hcd_type_ops *usb_hcd;
+        struct device_usb_pcd_type_ops *usb_pcd;
         struct device_hsic_type_ops    *hsic;
         struct device_pwm_type_ops     *pwm;
         struct device_spi_type_ops     *spi;

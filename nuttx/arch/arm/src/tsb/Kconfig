@@ -148,6 +148,7 @@ config ARCH_CHIP_USB_PCD
 	bool "USB Device Support"
 	depends on ARCH_CHIP_APBRIDGE
 	default y
+	select DEVICE_CORE
 	select ARCH_CHIP_USB_COMMON
 	---help---
 		Synopsys USB Device Driver

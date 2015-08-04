@@ -51,6 +51,8 @@
 
 #include "tsb_scm.h"
 
+#include <nuttx/usb_device.h>
+
 #define SNPSID_MASK 0xFFFFF000
 #define SNPSID_OTG2 0x4F542000
 #define SNPSID_OTG3 0x4F543000
@@ -87,6 +89,7 @@ struct dwc_usbdev_s {
     struct dwc_usbdev_ep_s eplist[DWC_NENDPOINTS];
 };
 static struct dwc_usbdev_s g_usbdev;
+static struct device *g_device_usbdev;
 struct mm_heap_s    g_usb_dma_heap;
 /*
  * Configure/enable and disable endpoint
@@ -728,128 +731,15 @@ int up_usbinitialize_device(struct dwc_usbdev_s *priv)
     return retval;
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-void up_usbuninitialize(void);
-/****************************************************************************
- * Name: up_usbinitialize
- * Description:
- *   Initialize the USB driver
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-void up_usbinitialize(void)
+#define device_to_usbdev(dev) \
+    (struct dwc_usbdev_s *)((dev)->private)
+
+
+static int tsb_usb_pcd_register_gadget(struct device *dev,
+                                struct usbdevclass_driver_s *driver)
 {
-    /*
-     * For now there is only one USB controller, but we will always refer to it
-     * using a pointer to make any future ports to multiple USB controllers
-     * easier.
-     */
-
-    struct dwc_usbdev_s *priv = &g_usbdev;
-
-    SET_DEBUG_LEVEL(DBG_ANY);
-    /*
-     * Create a separate heap for use by USB DMA.  The idea is to avoid having
-     * the USB core contend with the CM3 for access to Bridge WORKRAM, and lose.
-     * We must initialize the heap before continuing, since DMA-able memory may
-     * be allocated during up_usbinitialize_device().
-     *
-     * We add BUFRAM banks 2 and 3 to the USB DMA heap as separate regions, to
-     * avoid potentially allocating a buffer that spans two banks.  This seems
-     * to be the conservative approach until we better-understand how BUFRAM
-     * banks behave and interact.
-     */
-    mm_initialize(&g_usb_dma_heap, (void *)BUFRAM2_BASE, BUFRAM_BANK_SIZE);
-    mm_addregion(&g_usb_dma_heap, (void *)BUFRAM3_BASE, BUFRAM_BANK_SIZE);
-    if (up_usbinitialize_core(priv))
-        goto fail;
-    if (up_usbinitialize_device(priv))
-        goto fail;
-    return;
-
- fail:
-    up_usbuninitialize();
-}
-
-/****************************************************************************
- * Name: up_usbuninitialize
- * Description:
- *   Initialize the USB driver
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-void up_usbuninitialize(void)
-{
-    /*
-     * For now there is only one USB controller, but we will always refer to it
-     * using a pointer to make any future ports to multiple USB controllers
-     * easier.
-     */
-    struct dwc_usbdev_s *priv = &g_usbdev;
-    dwc_otg_device_t *otg_dev = &priv->dwc_otg_device;
-    irqstate_t flags;
-
-    flags = irqsave();
-
-    /*
-     * Disable and detach the USB IRQs
-     */
-    if (otg_dev->common_irq_installed) {
-        up_disable_irq(TSB_IRQ_HSIC);
-        irq_detach(TSB_IRQ_HSIC);
-    } else {
-        DWC_DEBUGPL(DBG_ANY, "%s: There is no installed irq!\n", __func__);
-        goto restore_irq;
-    }
-
-    if (otg_dev->core_if) {
-        dwc_otg_cil_remove(otg_dev->core_if);
-    } else {
-        DWC_DEBUGPL(DBG_ANY, "%s: otg_dev->core_if NULL!\n", __func__);
-        goto restore_irq;
-    }
-
-    if (priv->driver) {
-        usbdev_unregister(priv->driver);
-    }
-
-    tsb_clk_disable(TSB_CLK_HSIC480);
-    tsb_clk_disable(TSB_CLK_HSICREF);
-    tsb_clk_disable(TSB_CLK_HSICBUS);
- restore_irq:
-    irqrestore(flags);
-}
-
-/****************************************************************************
- * Name: usbdev_register
- *
- * Description:
- *   Register a USB device class driver. The class driver's bind() method will
- *   be called to bind it to a USB device driver.
- *
- ****************************************************************************/
-
-int usbdev_register(struct usbdevclass_driver_s *driver)
-{
-    /*
-     * For now there is only one USB controller, but we will always refer to it
-     * using a pointer to make any future ports to multiple USB controllers
-     * easier.
-     */
-
-    struct dwc_usbdev_s *priv = &g_usbdev;
     int ret;
+    struct dwc_usbdev_s *priv = device_to_usbdev(dev);
 
 #ifdef CONFIG_DEBUG
     if (!driver || !driver->ops->bind || !driver->ops->unbind ||
@@ -885,25 +775,15 @@ int usbdev_register(struct usbdevclass_driver_s *driver)
     return ret;
 }
 
-/****************************************************************************
- * Name: usbdev_unregister
- *
- * Description:
- *   Un-register usbdev class driver. If the USB device is connected to a
- *   USB host, it will first disconnect().  The driver is also requested to
- *   unbind() and clean up any device state, before this procedure finally
- *   returns.
- *
- ****************************************************************************/
-
-int usbdev_unregister(struct usbdevclass_driver_s *driver)
+static int tsb_usb_pcd_unregister_gadget(struct device *dev,
+                                  struct usbdevclass_driver_s *driver)
 {
     /*
      * For now there is only one USB controller, but we will always refer to it
      * using a pointer to make any future ports to multiple USB controllers
      * easier.
      */
-    struct dwc_usbdev_s *priv = &g_usbdev;
+    struct dwc_usbdev_s *priv = device_to_usbdev(dev);
     irqstate_t flags;
 
 #ifdef CONFIG_DEBUG
@@ -933,3 +813,158 @@ int usbdev_unregister(struct usbdevclass_driver_s *driver)
 
     return OK;
 }
+
+static void tsb_usb_pcd_close(struct device *dev);
+static int tsb_usb_pcd_open(struct device *dev)
+{
+    struct dwc_usbdev_s *priv = &g_usbdev;
+
+    if (!dev) {
+        return -EINVAL;
+    }
+
+    dev->private = &g_usbdev;
+    SET_DEBUG_LEVEL(DBG_ANY);
+
+    /*
+     * Create a separate heap for use by USB DMA.  The idea is to avoid having
+     * the USB core contend with the CM3 for access to Bridge WORKRAM, and lose.
+     * We must initialize the heap before continuing, since DMA-able memory may
+     * be allocated during up_usbinitialize_device().
+     *
+     * We add BUFRAM banks 2 and 3 to the USB DMA heap as separate regions, to
+     * avoid potentially allocating a buffer that spans two banks.  This seems
+     * to be the conservative approach until we better-understand how BUFRAM
+     * banks behave and interact.
+     */
+    mm_initialize(&g_usb_dma_heap, (void *)BUFRAM2_BASE, BUFRAM_BANK_SIZE);
+    mm_addregion(&g_usb_dma_heap, (void *)BUFRAM3_BASE, BUFRAM_BANK_SIZE);
+    if (up_usbinitialize_core(priv))
+        goto fail;
+    if (up_usbinitialize_device(priv))
+        goto fail;
+    return 0;
+
+fail:
+    tsb_usb_pcd_close(dev);
+    return -1;
+}
+
+static void tsb_usb_pcd_close(struct device *dev)
+{
+    struct dwc_usbdev_s *priv = device_to_usbdev(dev);
+    dwc_otg_device_t *otg_dev = &priv->dwc_otg_device;
+    irqstate_t flags;
+
+    flags = irqsave();
+
+    /*
+     * Disable and detach the USB IRQs
+     */
+    if (otg_dev->common_irq_installed) {
+        up_disable_irq(TSB_IRQ_HSIC);
+        irq_detach(TSB_IRQ_HSIC);
+    } else {
+        DWC_DEBUGPL(DBG_ANY, "%s: There is no installed irq!\n", __func__);
+        goto restore_irq;
+    }
+
+    if (otg_dev->core_if) {
+        dwc_otg_cil_remove(otg_dev->core_if);
+    } else {
+        DWC_DEBUGPL(DBG_ANY, "%s: otg_dev->core_if NULL!\n", __func__);
+        goto restore_irq;
+    }
+
+    if (priv->driver) {
+        device_usbdev_unregister_gadget(dev, priv->driver);
+    }
+
+    tsb_clk_disable(TSB_CLK_HSIC480);
+    tsb_clk_disable(TSB_CLK_HSICREF);
+    tsb_clk_disable(TSB_CLK_HSICBUS);
+ restore_irq:
+    irqrestore(flags);
+}
+
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+/****************************************************************************
+ * Name: up_usbinitialize
+ * Description:
+ *   Initialize the USB driver
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+void up_usbinitialize(void)
+{
+    g_device_usbdev = device_open(DEVICE_TYPE_USB_PCD, 0);
+}
+
+/****************************************************************************
+ * Name: up_usbuninitialize
+ * Description:
+ *   Initialize the USB driver
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+void up_usbuninitialize(void)
+{
+    device_close(g_device_usbdev);
+}
+
+/****************************************************************************
+ * Name: usbdev_register
+ *
+ * Description:
+ *   Register a USB device class driver. The class driver's bind() method will
+ *   be called to bind it to a USB device driver.
+ *
+ ****************************************************************************/
+int usbdev_register(struct usbdevclass_driver_s *driver)
+{
+    return device_usbdev_register_gadget(g_device_usbdev, driver);
+}
+
+/****************************************************************************
+ * Name: usbdev_unregister
+ *
+ * Description:
+ *   Un-register usbdev class driver. If the USB device is connected to a
+ *   USB host, it will first disconnect().  The driver is also requested to
+ *   unbind() and clean up any device state, before this procedure finally
+ *   returns.
+ *
+ ****************************************************************************/
+int usbdev_unregister(struct usbdevclass_driver_s *driver)
+{
+    return device_usbdev_unregister_gadget(g_device_usbdev, driver);
+}
+
+static struct device_usb_pcd_type_ops tsb_usb_pcd_type_ops = {
+    .register_gadget = tsb_usb_pcd_register_gadget,
+    .unregister_gadget = tsb_usb_pcd_unregister_gadget,
+};
+
+static struct device_driver_ops tsb_usb_pcd_driver_ops = {
+    .open = tsb_usb_pcd_open,
+    .close = tsb_usb_pcd_close,
+    .type_ops.usb_pcd = &tsb_usb_pcd_type_ops,
+};
+
+struct device_driver tsb_usb_pcd_driver = {
+    .type = DEVICE_TYPE_USB_PCD,
+    .name = "dwc2_pcd",
+    .desc = "DWC2 USB 2.0 Device Controller Driver",
+    .ops = &tsb_usb_pcd_driver_ops,
+};
