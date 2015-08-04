@@ -54,29 +54,29 @@
 struct gb_svc_protocol_version_request {
 	__u8	major;
 	__u8	minor;
-};
+} __packed;
 
 struct gb_svc_protocol_version_response {
 	__u8	major;
 	__u8	minor;
-};
+} __packed;
 
 struct gb_svc_route_create_request {
 	__u8	intf1_id;
 	__u8	dev1_id;
 	__u8	intf2_id;
 	__u8	dev2_id;
-};
+} __packed;
 
 struct gb_svc_hello_request {
 	__le16			endo_id;
 	__u8			interface_id;
-};
+} __packed;
 
 struct gb_svc_intf_device_id_request {
     __u8 intf_id;
     __u8 device_id;
-};
+} __packed;
 /* device id response has no payload */
 
 struct gb_svc_intf_hotplug_request {
@@ -87,17 +87,17 @@ struct gb_svc_intf_hotplug_request {
         __le32 ara_vend_id;
         __le32 ara_prod_id;
     } data;
-};
+} __packed;
 /* hotplug response has no payload */
 
 struct gb_svc_intf_hot_unplug_request {
     __u8 intf_id;
-};
+} __packed;
 /* hot unplug response has no payload */
 
 struct gb_svc_intf_reset_request {
     __u8 intf_id;
-};
+} __packed;
 /* interface reset response has no payload */
 
 struct gb_svc_conn_create_request {
@@ -107,7 +107,7 @@ struct gb_svc_conn_create_request {
     __le16 cport2_id;
     __u8   tc;
     __u8   flags;
-};
+} __packed;
 /* connection create response has no payload */
 
 struct gb_svc_conn_destroy_request {
@@ -115,7 +115,7 @@ struct gb_svc_conn_destroy_request {
     __le16 cport1_id;
     __u8  intf2_id;
     __le16 cport2_id;
-};
+} __packed;
 /* connection destroy response has no payload */
 
 int gb_svc_protocol_version(void);
