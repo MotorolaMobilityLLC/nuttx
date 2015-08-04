@@ -90,6 +90,14 @@ static struct device devices[] = {
         .id             = 0,
     },
 #endif
+#ifdef CONFIG_ARA_BRIDGE_HAVE_USB3813
+    {
+        .type           = DEVICE_TYPE_HSIC_DEVICE,
+        .name           = "usb3813",
+        .desc           = "USB3813 HSIC Hub",
+        .id             = 1,
+    },
+#endif
 };
 
 static struct device_table bdb_device_table = {
@@ -102,6 +110,10 @@ static void bdb_driver_register(void)
 #ifdef CONFIG_ARA_BRIDGE_HAVE_USB4624
     extern struct device_driver usb4624_driver;
     device_register_driver(&usb4624_driver);
+#endif
+#ifdef CONFIG_ARA_BRIDGE_HAVE_USB3813
+    extern struct device_driver usb3813_driver;
+    device_register_driver(&usb3813_driver);
 #endif
 }
 #endif
