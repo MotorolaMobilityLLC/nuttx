@@ -89,8 +89,11 @@ struct dwc_usbdev_s {
     struct dwc_usbdev_ep_s eplist[DWC_NENDPOINTS];
 };
 static struct dwc_usbdev_s g_usbdev;
-static struct device *g_device_usbdev;
 struct mm_heap_s    g_usb_dma_heap;
+#ifdef CONFIG_USBDEV
+static struct device *g_device_usbdev;
+#endif
+
 /*
  * Configure/enable and disable endpoint
  */
@@ -891,6 +894,7 @@ static void tsb_usb_pcd_close(struct device *dev)
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+#ifdef CONFIG_USBDEV
 /****************************************************************************
  * Name: up_usbinitialize
  * Description:
@@ -950,6 +954,7 @@ int usbdev_unregister(struct usbdevclass_driver_s *driver)
 {
     return device_usbdev_unregister_gadget(g_device_usbdev, driver);
 }
+#endif
 
 static struct device_usb_pcd_type_ops tsb_usb_pcd_type_ops = {
     .register_gadget = tsb_usb_pcd_register_gadget,
