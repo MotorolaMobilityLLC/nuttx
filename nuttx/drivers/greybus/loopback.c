@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "loopback-gb.h"
+
 #include <nuttx/list.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/loopback.h>

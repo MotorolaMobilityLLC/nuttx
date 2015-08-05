@@ -26,25 +26,32 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LOOPBACK__H__
-#define __LOOPBACK__H__
+#ifndef __LOOPBACK_GB_H__
+#define __LOOPBACK_GB_H__
 
 #include <nuttx/list.h>
+#include <nuttx/greybus/types.h>
+#include <nuttx/greybus/loopback.h> /* For greybus loopback request types. */
 
-/* Greybus loopback request types */
-#define GB_LOOPBACK_TYPE_NONE                           0x00
-#define GB_LOOPBACK_TYPE_PROTOCOL_VERSION               0x01
-#define GB_LOOPBACK_TYPE_PING                           0x02
-#define GB_LOOPBACK_TYPE_TRANSFER                       0x03
-#define GB_LOOPBACK_TYPE_SINK                           0x04
+/* version request has no payload */
+struct gb_loopback_proto_version_response {
+	__u8	major;
+	__u8	minor;
+};
 
-typedef int (*gb_loopback_cport_cb)(int, void *);
+struct gb_loopback_transfer_request {
+	__le32	len;
+	__u8    data[0];
+};
 
-int gb_loopback_get_cports(gb_loopback_cport_cb cb, void *data);
-int gb_loopback_send_req(int cport, size_t size, uint8_t type);
-int gb_loopback_get_error_count(int cport);
-unsigned gb_loopback_get_recv_count(int cport);
-void gb_loopback_reset(int cport);
-int gb_loopback_cport_valid(int cport);
+struct gb_loopback_transfer_response {
+	__u8    data[0];
+};
+
+struct gb_loopback_sync_transfer {
+	__le32	len;
+	__le32	chksum;
+	__u8    data[0];
+};
 
 #endif
