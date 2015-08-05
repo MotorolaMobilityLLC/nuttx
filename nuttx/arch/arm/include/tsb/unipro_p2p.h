@@ -36,6 +36,7 @@ void unipro_p2p_setup(void);
 void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination);
 void unipro_stop(void);
 void unipro_restart(void);
+void unipro_reset(void);
 void unipro_dump_attributes(int peer);
 void unipro_dump_cport_attributes(size_t start, size_t end, int peer);
 void unipro_dump_status(void);
