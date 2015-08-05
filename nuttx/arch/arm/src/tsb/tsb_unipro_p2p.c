@@ -143,6 +143,10 @@ void unipro_restart(void) {
     unipro_write(LUP_LINKSUP_RESTART, 0x1);
 }
 
+void unipro_reset(void) {
+    tsb_reset(TSB_RST_UNIPROSYS);
+}
+
 void unipro_p2p_setup(void) {
     uint32_t i;
     uint32_t result_code;
