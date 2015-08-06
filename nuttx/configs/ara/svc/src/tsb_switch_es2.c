@@ -1174,7 +1174,7 @@ static int es2_lut_get(struct tsb_switch *sw,
                           sizeof(struct cnf));
     if (rc) {
         dbg_error("%s(): unipro_portid=%d, destPortId=%d failed: rc=%d\n",
-                  __func__, unipro_portid, dest_portid, rc);
+                  __func__, unipro_portid, *dest_portid, rc);
         return rc;
     }
 
