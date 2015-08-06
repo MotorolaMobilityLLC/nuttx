@@ -158,8 +158,7 @@ static int es2_transfer_check_write_status(uint8_t *status_block,
                                            size_t size)
 {
     size_t i;
-    __attribute__((packed))
-    struct write_status {
+    struct __attribute__((__packed__)) write_status {
         uint8_t strw;
         uint8_t cport;
         uint16_t len;
