@@ -65,6 +65,10 @@ ifeq ($(CONFIG_EXAMPLES_ADC),y)
 CONFIGURED_APPS += examples/adc
 endif
 
+ifeq ($(CONFIG_EXAMPLES_BQ24292),y)
+CONFIGURED_APPS += examples/bq24292
+endif
+
 ifeq ($(CONFIG_EXAMPLES_BUTTONS),y)
 CONFIGURED_APPS += examples/buttons
 endif

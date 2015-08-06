@@ -64,7 +64,7 @@
 
 # Sub-directories
 
-SUBDIRS  = adc buttons can cc3000 cpuhog cxxtest dhcpd discover elf
+SUBDIRS  = adc bq24292 buttons can cc3000 cpuhog cxxtest dhcpd discover elf
 SUBDIRS += flash_test ftpc ftpd hello helloxx hidkbd igmp i2schar json
 SUBDIRS += keypadtest lcdrw mm mount mtdpart mtdrwb netpkt nettest
 SUBDIRS += nrf24l01_term nsh null nx nxterm nxffs nxflat nxhello nximage
