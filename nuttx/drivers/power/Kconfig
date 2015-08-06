@@ -39,3 +39,32 @@ config BATTERY_MAX17050_SAMPLE_CFG
 endchoice
 endif
 
+config CHARGER_BQ24292
+	bool "TI bq24292 charger support"
+	default n
+	select I2C
+	select I2C_WRITEREAD
+	---help---
+		Select to support the bq24292 charger IC.
+
+config CHARGER_BQ24292_I2C_BUS
+	int "BQ24292 I2C Bus Number"
+	default 1
+	depends on CHARGER_BQ24292
+	---help---
+		I2C bus to use to communicate with device.
+
+config CHARGER_BQ24292_I2C_BUS_SPEED
+	int "BQ24292 I2C Bus Speed"
+	default 400000
+	depends on CHARGER_BQ24292
+	---help---
+		I2C bus speed to use to communicate with device
+
+if CHARGER_BQ24292
+choice
+	prompt "Select Battery Specific Configuration"
+config CHARGER_BQ24292_SAMPLE_CFG
+	bool "Sample configuration"
+endchoice
+endif
