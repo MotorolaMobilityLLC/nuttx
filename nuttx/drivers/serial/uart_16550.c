@@ -651,6 +651,9 @@ static int u16550_setup(struct uart_dev_s *dev)
 
   /* Set up the MCR */
   mcr = UART_MCR_DTR | UART_MCR_RTS;
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  mcr |= UART_MCR_AFE;
+#endif
   u16550_serialout(priv, UART_MCR_OFFSET, mcr);
 
   /* Enter DLAB=1 */

@@ -290,7 +290,8 @@
 #define UART_MCR_OUT1                (1 << 2)  /* Bit 2:  Auxiliary user-defined output 1 */
 #define UART_MCR_OUT2                (1 << 3)  /* Bit 3:  Auxiliary user-defined output 2 */
 #define UART_MCR_LPBK                (1 << 4)  /* Bit 4:  Loopback Mode Select */
-                                               /* Bit 5-7: Reserved */
+#define UART_MCR_AFE                 (1 << 5)  /* Bit 5:  Auto flow control enable (16570 only) */
+                                               /* Bit 6-7: Reserved */
 
 /* LSR Line Status Register */
 
@@ -302,6 +303,16 @@
 #define UART_LSR_THRE                (1 << 5)  /* Bit 5:  Transmitter Holding Register Empty */
 #define UART_LSR_TEMT                (1 << 6)  /* Bit 6:  Transmitter Empty */
 #define UART_LSR_RXFE                (1 << 7)  /* Bit 7:  Error in RX FIFO (RXFE) */
+
+/* MSR Modem Status Register */
+#define UART_MSR_DCTS                (1 << 0)  /* Bit 0: Delta Clear to Send */
+#define UART_MSR_DDSR                (1 << 1)  /* Bit 1: Delta Data Set Read */
+#define UART_MSR_TERI                (1 << 2)  /* Bit 2: Trailing Edge Ring Indicator */
+#define UART_MSR_DDCD                (1 << 3)  /* Bit 3: Delta Data Carrier Detect */
+#define UART_MSR_CTS                 (1 << 4)  /* Bit 4: Clear to Send */
+#define UART_MSR_DSR                 (1 << 5)  /* Bit 5: Data Set Ready */
+#define UART_MSR_RI                  (1 << 6)  /* Bit 6: Ring Indicator */
+#define UART_MSR_DCD                 (1 << 7)  /* Bit 7: Carrier Detect */
 
 /* SCR Scratch Pad Register */
 
