@@ -31,6 +31,7 @@
 #include <nuttx/config.h>
 #include <nuttx/list.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/tape.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/wdog.h>
 
@@ -62,9 +63,16 @@ struct gb_cport_driver {
     struct gb_operation timedout_operation;
 };
 
+struct gb_tape_record_header {
+    uint16_t size;
+    uint16_t cport;
+};
+
 static atomic_t request_id;
 static struct gb_cport_driver g_cport[CPORT_MAX];
 static struct gb_transport_backend *transport_backend;
+static struct gb_tape_mechanism *gb_tape;
+static int gb_tape_fd = -EBADFD;
 static struct gb_operation_hdr timedout_hdr = {
     .size = sizeof(timedout_hdr),
     .result = GB_OP_TIMEOUT,
@@ -349,6 +357,16 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     }
 
     gb_dump(data, size);
+
+    if (gb_tape && gb_tape_fd >= 0) {
+        struct gb_tape_record_header record_hdr = {
+            .size = size,
+            .cport = cport,
+        };
+
+        gb_tape->write(gb_tape_fd, &record_hdr, sizeof(record_hdr));
+        gb_tape->write(gb_tape_fd, data, size);
+    }
 
     op_handler = find_operation_handler(hdr->type, cport);
     if (op_handler && op_handler->fast_handler) {
@@ -778,4 +796,96 @@ int gb_init(struct gb_transport_backend *transport)
     transport_backend->init();
 
     return 0;
+}
+
+int gb_tape_register_mechanism(struct gb_tape_mechanism *mechanism)
+{
+    if (!mechanism || !mechanism->open || !mechanism->close ||
+        !mechanism->read || !mechanism->write)
+        return -EINVAL;
+
+    if (gb_tape)
+        return -EBUSY;
+
+    gb_tape = mechanism;
+
+    return 0;
+}
+
+int gb_tape_communication(const char *pathname)
+{
+    if (!gb_tape)
+        return -EINVAL;
+
+    if (gb_tape_fd >= 0)
+        return -EBUSY;
+
+    gb_tape_fd = gb_tape->open(pathname, GB_TAPE_WRONLY);
+    if (gb_tape_fd < 0)
+        return gb_tape_fd;
+
+    return 0;
+}
+
+int gb_tape_stop(void)
+{
+    if (!gb_tape || gb_tape_fd < 0)
+        return -EINVAL;
+
+    gb_tape->close(gb_tape_fd);
+    gb_tape_fd = -EBADFD;
+
+    return 0;
+}
+
+int gb_tape_replay(const char *pathname)
+{
+    struct gb_tape_record_header hdr;
+    char *buffer;
+    ssize_t nread;
+    int retval = 0;
+    int fd;
+
+    if (!pathname || !gb_tape)
+        return -EINVAL;
+
+    lowsyslog("greybus: replaying '%s'...\n", pathname);
+
+    fd = gb_tape->open(pathname, GB_TAPE_RDONLY);
+    if (fd < 0)
+        return fd;
+
+    buffer = malloc(CPORT_BUF_SIZE);
+    if (!buffer) {
+        retval = -ENOMEM;
+        goto error_buffer_alloc;
+    }
+
+    while (1) {
+        nread = gb_tape->read(fd, &hdr, sizeof(hdr));
+        if (!nread)
+            break;
+
+        if (nread != sizeof(hdr)) {
+            gb_error("gb-tape: invalid byte count read, aborting...\n");
+            retval = -EIO;
+            break;
+        }
+
+        nread = gb_tape->read(fd, buffer, hdr.size);
+        if (hdr.size != nread) {
+            gb_error("gb-tape: invalid byte count read, aborting...\n");
+            retval = -EIO;
+            break;
+        }
+
+        greybus_rx_handler(hdr.cport, buffer, nread);
+    }
+
+    free(buffer);
+
+error_buffer_alloc:
+    gb_tape->close(fd);
+
+    return retval;
 }
