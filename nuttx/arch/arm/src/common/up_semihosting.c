@@ -50,6 +50,7 @@ enum semihosting_stream {
 
 enum semihosting_syscall {
     SYSCALL_OPEN = 0x1,
+    SYSCALL_CLOSE = 0x2,
     SYSCALL_WRITEC = 0x3,
     SYSCALL_WRITE = 0x5,
     SYSCALL_READ = 0x6,
@@ -78,7 +79,7 @@ static uint32_t semihosting_syscall(int syscall, uint32_t *params)
     return result;
 }
 
-static int semihosting_open(const char *const filename, int mode)
+int semihosting_open(const char *const filename, int mode)
 {
     uint32_t params[] = {
         (uint32_t) filename,
@@ -89,17 +90,18 @@ static int semihosting_open(const char *const filename, int mode)
     return semihosting_syscall(SYSCALL_OPEN, &params[0]);
 }
 
-static ssize_t semihosting_consoleread(struct file *filep, char *buffer,
-                                       size_t buflen)
+int semihosting_close(int fd)
+{
+    uint32_t param = fd;
+    return semihosting_syscall(SYSCALL_CLOSE, &param);
+}
+
+ssize_t semihosting_read(int fd, const char *buffer, size_t buflen)
 {
     ssize_t nread;
     uint32_t params[3];
-    struct inode *inode = filep->f_inode;
-    struct semihosting_priv *priv = inode->i_private;
 
-    DEBUGASSERT(priv);
-
-    params[0] = (uint32_t) priv->fd[SEMIHOSTING_READ_STREAM];
+    params[0] = (uint32_t) fd;
     params[1] = (uint32_t) buffer;
     params[2] = (uint32_t) buflen;
 
@@ -108,23 +110,40 @@ static ssize_t semihosting_consoleread(struct file *filep, char *buffer,
     return buflen - nread;
 }
 
-static ssize_t semihosting_consolewrite(struct file *filep, const char *buffer,
-                                 size_t buflen)
+ssize_t semihosting_write(int fd, const char *buffer, size_t buflen)
 {
     size_t not_written = 0;
     uint32_t params[3];
-    struct inode *inode = filep->f_inode;
-    struct semihosting_priv *priv = inode->i_private;
 
-    DEBUGASSERT(priv);
-
-    params[0] = (uint32_t) priv->fd[SEMIHOSTING_WRITE_STREAM];
+    params[0] = (uint32_t) fd;
     params[1] = (uint32_t) buffer;
     params[2] = (uint32_t) buflen;
 
     not_written = semihosting_syscall(SYSCALL_WRITE, &params[0]);
 
     return buflen - not_written;
+}
+
+static ssize_t semihosting_consoleread(struct file *filep, char *buffer,
+                                       size_t buflen)
+{
+    struct inode *inode = filep->f_inode;
+    struct semihosting_priv *priv = inode->i_private;
+
+    DEBUGASSERT(priv);
+
+    return semihosting_read(priv->fd[SEMIHOSTING_READ_STREAM], buffer, buflen);
+}
+
+static ssize_t semihosting_consolewrite(struct file *filep, const char *buffer,
+                                 size_t buflen)
+{
+    struct inode *inode = filep->f_inode;
+    struct semihosting_priv *priv = inode->i_private;
+
+    DEBUGASSERT(priv);
+
+    return semihosting_write(priv->fd[SEMIHOSTING_READ_STREAM], buffer, buflen);
 }
 
 void semihosting_putc(char c)

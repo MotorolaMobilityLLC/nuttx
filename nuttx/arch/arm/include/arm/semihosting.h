@@ -29,6 +29,19 @@
 #ifndef __ARCH_ARM_SEMIHOSTING_H__
 #define __ARCH_ARM_SEMIHOSTING_H__
 
+#include <sys/types.h>
+
+enum {
+    SEMIHOSTING_RDONLY = 1,
+    SEMIHOSTING_WRONLY = 4,
+};
+
 void semihosting_putc(char c);
+
+int semihosting_open(const char *const filename, int mode);
+int semihosting_close(int fd);
+
+ssize_t semihosting_read(int fd, const char *buffer, size_t buflen);
+ssize_t semihosting_write(int fd, const char *buffer, size_t buflen);
 
 #endif /* __ARCH_ARM_SEMIHOSTING_H__ */
