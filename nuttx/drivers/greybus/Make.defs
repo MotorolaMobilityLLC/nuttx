@@ -31,6 +31,10 @@ ifeq ($(CONFIG_GREYBUS),y)
 CSRCS += greybus-core.c
 CSRCS += greybus-unipro.c
 
+ifeq ($(CONFIG_GREYBUS_TAPE_ARM_SEMIHOSTING),y)
+CSRCS += greybus-tape-arm-semihosting.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_CONTROL_PROTOCOL),y)
 ifeq ($(CONFIG_GPBRIDGE),y)
 CSRCS += control-gpb.c

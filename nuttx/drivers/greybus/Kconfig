@@ -26,6 +26,15 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+config GREYBUS_TAPE_ARM_SEMIHOSTING
+	bool "ARM Semihosting GB Taping"
+	depends on ARCH_ARM
+	select ARM_SEMIHOSTING
+	default n
+	---help---
+		Greybus Tape provide a recording mechanism for incoming Greybus
+		operations in order to replay them without needing an AP or UniPro.
+
 config GREYBUS_CONTROL_PROTOCOL
 	bool "Control Protocol support"
 	default n

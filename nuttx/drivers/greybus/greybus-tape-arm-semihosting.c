@@ -28,30 +28,53 @@
  * Author: Fabien Parent <fparent@baylibre.com>
  */
 
-#ifndef __GREYBUS_TAPE_H__
-#define __GREYBUS_TAPE_H__
+#include <errno.h>
+#include <arch/arm/semihosting.h>
+#include <nuttx/greybus/tape.h>
 
-#include <sys/types.h>
+static ssize_t gb_tape_write(int fd, const void *data, size_t size)
+{
+    return semihosting_write(fd, data, size);
+}
 
-enum {
-    GB_TAPE_RDONLY,
-    GB_TAPE_WRONLY,
+static ssize_t gb_tape_read(int fd, void *data, size_t size)
+{
+    return semihosting_read(fd, data, size);
+}
+
+static int gb_tape_open(const char *tape, int mode)
+{
+    int semihosting_mode;
+
+    switch (mode) {
+    case GB_TAPE_RDONLY:
+        semihosting_mode = SEMIHOSTING_RDONLY;
+        break;
+
+    case GB_TAPE_WRONLY:
+        semihosting_mode = SEMIHOSTING_WRONLY;
+        break;
+
+    default:
+        return -EINVAL;
+    }
+
+    return semihosting_open(tape, semihosting_mode);
+}
+
+static void gb_tape_close(int fd)
+{
+    semihosting_close(fd);
+}
+
+static struct gb_tape_mechanism gb_tape_arm_semihosting = {
+    .open = gb_tape_open,
+    .close = gb_tape_close,
+    .write = gb_tape_write,
+    .read = gb_tape_read,
 };
 
-struct gb_tape_mechanism {
-    int (*open)(const char *pathname, int mode);
-    void (*close)(int fd);
-
-    ssize_t (*write)(int fd, const void *data, size_t size);
-    ssize_t (*read)(int fd, void *data, size_t size);
-};
-
-int gb_tape_register_mechanism(struct gb_tape_mechanism *mechanism);
-int gb_tape_arm_semihosting_register(void);
-
-int gb_tape_communication(const char *pathname);
-int gb_tape_stop(void);
-int gb_tape_replay(const char *pathname);
-
-#endif /* __GREYBUS_TAPE_H__ */
-
+int gb_tape_arm_semihosting_register(void)
+{
+    return gb_tape_register_mechanism(&gb_tape_arm_semihosting);
+}
