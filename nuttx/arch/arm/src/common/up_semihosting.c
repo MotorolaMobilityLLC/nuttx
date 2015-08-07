@@ -89,7 +89,8 @@ static int semihosting_open(const char *const filename, int mode)
     return semihosting_syscall(SYSCALL_OPEN, &params[0]);
 }
 
-static ssize_t semihosting_read(struct file *filep, char *buffer, size_t buflen)
+static ssize_t semihosting_consoleread(struct file *filep, char *buffer,
+                                       size_t buflen)
 {
     ssize_t nread;
     uint32_t params[3];
@@ -107,7 +108,7 @@ static ssize_t semihosting_read(struct file *filep, char *buffer, size_t buflen)
     return buflen - nread;
 }
 
-static ssize_t semihosting_write(struct file *filep, const char *buffer,
+static ssize_t semihosting_consolewrite(struct file *filep, const char *buffer,
                                  size_t buflen)
 {
     size_t not_written = 0;
@@ -133,8 +134,8 @@ void semihosting_putc(char c)
 }
 
 static const struct file_operations semihosting_ops = {
-    .read = semihosting_read,
-    .write = semihosting_write,
+    .read = semihosting_consoleread,
+    .write = semihosting_consolewrite,
 };
 
 void semihosting_consoleinit(void)
