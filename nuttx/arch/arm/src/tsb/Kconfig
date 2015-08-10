@@ -160,6 +160,7 @@ config ARCH_CHIP_USB_PCD
 
 config DWC_QUIET
 	bool "Make DWC driver quiet (no printf)"
+	depends on ARCH_CHIP_USB_COMMON
 	default n
 
 config ARA_USB_DEBUG
