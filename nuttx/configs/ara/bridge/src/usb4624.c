@@ -35,13 +35,6 @@
 
 #include "tsb_scm.h"
 
-/*
- * This file is board specific code, it should used only for BDBs and SDBs.
- * For now this file is linked against all bridges that have the USB HCD driver
- * enabled. This is done this way because for now there is no board files due
- * to a limitation of the device driver api.
- */
-
 #define HUB_LINE_N_RESET                    0
 #define HUB_RESET_ASSERTION_TIME_IN_USEC    5 /* us */
 #define HUB_RESET_DEASSERTION_TIME_IN_MSEC  1 /* ms */
