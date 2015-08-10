@@ -420,7 +420,7 @@ static int bdbpm_main_collect_measurements(void)
             ret = bdbpm_measure_rail(bdbpm_rails[d][r], &measurements[d][r]);
             if (ret) {
                 fprintf(stderr, "failed to collect %s measurements!!! (%d)\n",
-                    bdbpm_rail_name(d, r));
+                    bdbpm_rail_name(d, r), ret);
                 return ret;
             } else {
                 dbg_verbose("%s(): %s: %uuV %uuA %uuW\n", __func__,
