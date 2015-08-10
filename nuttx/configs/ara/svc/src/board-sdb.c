@@ -52,6 +52,7 @@
                              GPIO_PIN0 | GPIO_OUTPUT_SET)
 
 /* U701 I/O Expander reset */
+#define SVC_RST_IOEXP_PIN   STM32_GPIO_PIN(GPIO_PORTE | GPIO_PIN0)
 #define SVC_RST_IOEXP       (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
                              GPIO_PORTE | GPIO_PIN0)
 
@@ -263,7 +264,7 @@ static struct io_expander_info sdb_io_expanders[] = {
             .part       = TCA6416_PART,
             .i2c_bus    = IOEXP_I2C_BUS,
             .i2c_addr   = IOEXP_U701_I2C_ADDR,
-            .reset      = SVC_RST_IOEXP,
+            .reset      = SVC_RST_IOEXP_PIN,
             .irq        = IO_EXP_IRQ,
             .gpio_base  = U701_GPIO_CHIP_START,
         },

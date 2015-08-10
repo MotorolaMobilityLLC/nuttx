@@ -52,10 +52,12 @@
                              GPIO_OUTPUT_SET | GPIO_PIN0)
 
 /* U96 I/O Expander reset */
+#define IO_RESET_PIN        STM32_GPIO_PIN(GPIO_PORTE | GPIO_PIN0)
 #define IO_RESET            (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
                              GPIO_PORTE | GPIO_PIN0)
 
 /* U90 I/O Expander reset */
+#define IO_RESET1_PIN        STM32_GPIO_PIN(GPIO_PORTE | GPIO_PIN1)
 #define IO_RESET1           (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
                              GPIO_PORTE | GPIO_PIN1)
 
@@ -258,7 +260,7 @@ static struct io_expander_info bdb2a_io_expanders[] = {
             .part       = TCA6416_PART,
             .i2c_bus    = IOEXP_I2C_BUS,
             .i2c_addr   = IOEXP_U96_I2C_ADDR,
-            .reset      = IO_RESET,
+            .reset      = IO_RESET_PIN,
             .irq        = U96_IO_EXP_IRQ,
             .gpio_base  = U96_GPIO_CHIP_START,
         },
@@ -266,7 +268,7 @@ static struct io_expander_info bdb2a_io_expanders[] = {
             .part       = TCA6416_PART,
             .i2c_bus    = IOEXP_I2C_BUS,
             .i2c_addr   = IOEXP_U90_I2C_ADDR,
-            .reset      = IO_RESET1,
+            .reset      = IO_RESET1_PIN,
             .irq        = U90_IO_EXP_IRQ,
             .gpio_base  = U90_GPIO_CHIP_START,
         },
