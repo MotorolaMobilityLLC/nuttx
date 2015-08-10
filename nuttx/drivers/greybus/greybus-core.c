@@ -70,6 +70,11 @@ static struct gb_operation_hdr timedout_hdr = {
     .result = GB_OP_TIMEOUT,
     .type = TYPE_RESPONSE_FLAG,
 };
+static struct gb_operation_hdr oom_hdr = {
+    .size = sizeof(timedout_hdr),
+    .result = GB_OP_NO_MEMORY,
+    .type = TYPE_RESPONSE_FLAG,
+};
 
 static void gb_operation_timeout(int argc, uint32_t cport, ...);
 
@@ -563,6 +568,25 @@ int gb_operation_send_request_sync(struct gb_operation *operation)
     return retval;
 }
 
+static int gb_operation_send_oom_response(struct gb_operation *operation)
+{
+    int retval;
+    irqstate_t flags;
+    struct gb_operation_hdr *req_hdr = operation->request_buffer;
+
+    flags = irqsave();
+
+    oom_hdr.id = req_hdr->id;
+    oom_hdr.type = TYPE_RESPONSE_FLAG | req_hdr->type;
+
+    retval = transport_backend->send(operation->cport, &oom_hdr,
+                                     sizeof(oom_hdr));
+
+    irqrestore(flags);
+
+    return retval;
+}
+
 int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
 {
     struct gb_operation_hdr *resp_hdr;
@@ -579,7 +603,7 @@ int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
     if (!operation->response_buffer) {
         gb_operation_alloc_response(operation, 0);
         if (!operation->response_buffer)
-            return -ENOMEM;
+            return gb_operation_send_oom_response(operation);
 
         has_allocated_response = true;
     }
