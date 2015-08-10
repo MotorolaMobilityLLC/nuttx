@@ -30,6 +30,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
+
+#include "up_arch.h"
+#include "debug.h"
 
 #if defined(CONFIG_ARCH_CORTEXM0) || defined(CONFIG_ARCH_CORTEXM1) || \
     defined(CONFIG_ARCH_CORTEXM3) || defined(CONFIG_ARCH_CORTEXM4)
@@ -37,6 +41,9 @@
 #else
 #define SEMIHOSTING_SVC "svc 0xAB;"
 #endif
+
+#define NVIC_DHCSR              0xe000edf0
+#define NVIC_DHCSR_C_DEBUGEN    (1 << 0)
 
 enum open_mode {
     READ_MODE = 0,
@@ -86,6 +93,11 @@ int semihosting_open(const char *const filename, int mode)
         mode,
         (uint32_t) strlen(filename)
     };
+
+    if (!(getreg32(NVIC_DHCSR) & NVIC_DHCSR_C_DEBUGEN)) {
+        lowsyslog("arm semihosting: no debugger attached\n");
+        return -ENODEV;
+    }
 
     return semihosting_syscall(SYSCALL_OPEN, &params[0]);
 }
@@ -149,6 +161,10 @@ static ssize_t semihosting_consolewrite(struct file *filep, const char *buffer,
 void semihosting_putc(char c)
 {
     uint32_t c32 = c;
+
+    if (!(getreg32(NVIC_DHCSR) & NVIC_DHCSR_C_DEBUGEN))
+        return;
+
     semihosting_syscall(SYSCALL_WRITEC, (uint32_t*) &c32);
 }
 
@@ -159,6 +175,11 @@ static const struct file_operations semihosting_ops = {
 
 void semihosting_consoleinit(void)
 {
+    if (!(getreg32(NVIC_DHCSR) & NVIC_DHCSR_C_DEBUGEN)) {
+        lowsyslog("arm semihosting: no debugger attached\n");
+        return;
+    }
+
     semihosting_console.fd[SEMIHOSTING_READ_STREAM] =
         semihosting_open(":tt", READ_MODE);
     if (semihosting_console.fd[SEMIHOSTING_READ_STREAM] == -1)
