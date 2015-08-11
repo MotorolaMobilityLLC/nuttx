@@ -94,6 +94,13 @@ config FOR_GOOGLE_IO_DEMO
 	default n
 
 if APBRIDGEA
+# USBDEV_DMA is required by APBridgeA gadget
+# but the option is not available if USBDEV is not selected.
+if !USBDEV
+config USBDEV_DMA
+	bool
+endif
+
 config APBRIDGE_VENDORID
 	hex "Vendor ID"
 

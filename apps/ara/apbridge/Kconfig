@@ -32,6 +32,7 @@
 config APBRIDGEA
 	bool "APBridgeA FW"
 	select GREYBUS_UTILS
+	select USBDEV_DMA
 	default n
 	---help---
 		Enable Firmware for APBridgeA which is the APBridge
