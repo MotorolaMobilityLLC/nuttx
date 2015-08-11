@@ -139,15 +139,16 @@ static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
     size_t retries = 1000;
     uint32_t val;
     int rc;
+    uint32_t portid = interface_get_portid_by_id(intf_id);
 
-    rc = switch_dme_peer_set(svc->sw, interface_get_portid_by_id(intf_id),
+    rc = switch_dme_peer_set(svc->sw, portid,
                              TSB_MAILBOX, 0, cport + 1);
     if (rc) {
         dbg_error("Failed to notify intf %u\n", intf_id);
     }
 
     while (retries--) {
-        rc = switch_dme_peer_get(svc->sw, 0, TSB_MAILBOX, 0, &val);
+        rc = switch_dme_peer_get(svc->sw, portid, TSB_MAILBOX, 0, &val);
         if (!rc && !val) {
             return 0;
         }
