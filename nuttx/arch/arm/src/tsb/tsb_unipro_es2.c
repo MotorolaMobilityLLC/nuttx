@@ -47,6 +47,9 @@
 #include "tsb_unipro_es2.h"
 #include "tsb_es2_mphy_fixups.h"
 
+// See ENG-436
+#define MBOX_RACE_HACK_DELAY    100000
+
 #ifdef UNIPRO_DEBUG
 #define DBG_UNIPRO(fmt, ...) lldbg(fmt, __VA_ARGS__)
 #else
@@ -1146,4 +1149,37 @@ int unipro_driver_unregister(unsigned int cportid)
     cport->driver = NULL;
 
     return 0;
+}
+
+/**
+ * @brief Set the mailbox value and wait for it to be cleared.
+ */
+int tsb_unipro_mbox_set(uint32_t val, int peer) {
+    int rc;
+
+    rc = unipro_attr_write(TSB_MAILBOX, val, 0, peer, NULL);
+    if (rc) {
+        lldbg("TSB_MAILBOX write failed: %d\n", rc);
+        return rc;
+    }
+
+    /*
+     * Silicon bug?: There seems to be a problem in the switch regarding
+     * lost mailbox sets. It seems to happen when a bridge writes to the
+     * mailbox and immediately reads the value back.
+     *
+     * Workaround for now by inserting a small delay.
+     *
+     * @jira{ENG-436}
+     */
+    up_udelay(MBOX_RACE_HACK_DELAY);
+
+    do {
+        rc = unipro_attr_read(TSB_MAILBOX, &val, 0, peer, NULL);
+        if (rc) {
+            lldbg("%s(): TSB_MAILBOX poll failed: %d\n", __func__, rc);
+        }
+    } while (!rc && val != TSB_MAIL_RESET);
+
+    return rc;
 }

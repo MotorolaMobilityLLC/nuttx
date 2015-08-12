@@ -33,6 +33,8 @@
 #ifndef _NUTTX_GREYBUS_TSB_UNIPRO_H_
 #define _NUTTX_GREYBUS_TSB_UNIPRO_H_
 
+#include <nuttx/unipro/unipro.h>
+
 /*
  * TSB attributes
  */
@@ -40,6 +42,9 @@
 #define TSB_DME_DDBL2_A            0x6000
 #define TSB_DME_DDBL2_B            0x6001
 #define TSB_MAILBOX                0xa000
+    #define TSB_MAIL_RESET         (0x00)
+    #define TSB_MAIL_READY_AP      (0x01)
+    #define TSB_MAIL_READY_OTHER   (0x02)
 #define TSB_DME_LAYERENABLEREQ     0xd000
 #define TSB_DME_LAYERENABLECNF     0xd000
 #define TSB_DME_RESETREQ           0xd010
@@ -96,5 +101,7 @@
 #define TSB_DEBUGCLOCKENABLE       0xd0a1
 #define TSB_DEEPSTALLCFG           0xd0a2
 #define TSB_DEEPSTALLSTATUS        0xd0a3
+
+int tsb_unipro_mbox_set(uint32_t val, int peer);
 
 #endif
