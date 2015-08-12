@@ -34,24 +34,14 @@
 #include <nuttx/util.h>
 #include <nuttx/greybus/unipro.h>
 
-#ifndef CONFIG_ARCH_BOARD_ARA_SVC
-#include "up_switch.h"
-#else
 #include "svc.h"
 #include "tsb_switch.h"
 #include "ara_board.h"
 #include "interface.h"
 #include "attr_names.h"
-#endif
 
 #define DBG_COMP DBG_SVC
 #include "up_debug.h"
-
-#if CONFIG_ARCH_BOARD_ARA_SVC
-
-/* ----------------------------------------------------------------------
- * Current code (for configs/ara/svc).
- */
 
 /* These are the largest possible values -- not necessarily the
  * largest supported values. */
@@ -1030,7 +1020,12 @@ static int test_feature(int argc, char* argv[]) {
     return 0;
 }
 
-static int ara_svc_main(int argc, char *argv[]) {
+#ifdef CONFIG_BUILD_KERNEL
+int main(int argc, FAR char *argv[])
+#else
+int svc_main(int argc, char *argv[])
+#endif
+{
     /* Current main(), for configs/ara/svc (BDB1B, BDB2A, spiral 2
      * modules, etc.). */
     int rc = 0;
@@ -1084,29 +1079,4 @@ static int ara_svc_main(int argc, char *argv[]) {
     }
 
     return rc;
-}
-#endif
-
-/* ----------------------------------------------------------------------
- * Actual main(), with legacy fallback for older boards / configs.
- */
-
-#ifdef CONFIG_BUILD_KERNEL
-int main(int argc, FAR char *argv[])
-#else
-int svc_main(int argc, char *argv[])
-#endif
-{
-#ifdef CONFIG_ARCH_BOARD_ARA_SVC
-    return ara_svc_main(argc, argv);
-#else
-    /* Legacy main(); for configs/{endo,bdb}/ */
-    int state = 0;
-
-    if (argc < 2)
-        return ERROR;
-    state = strtol(argv[1], NULL, 10);
-    switch_control(state);
-    return 0;
-#endif
 }
