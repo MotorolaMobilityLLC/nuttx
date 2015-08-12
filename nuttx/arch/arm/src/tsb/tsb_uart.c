@@ -447,7 +447,7 @@ static void ua_recvchars(struct tsb_uart_info *uart_info, uint8_t int_id)
  */
 static int ua_irq_handler(int irq, void *context)
 {
-    struct tsb_uart_info *uart_info = saved_dev->private;
+    struct tsb_uart_info *uart_info = device_get_private(saved_dev);
     uint8_t interrupt_id = 0;
     uint8_t status = 0;
 
@@ -595,7 +595,7 @@ static int tsb_uart_set_configuration(struct device *dev, int baud, int parity,
          return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     /* TX and RX FIFO reset */
     uart_info->fcr = 0;
@@ -699,7 +699,7 @@ static int tsb_uart_get_modem_ctrl(struct device *dev, uint8_t *modem_ctrl)
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     *modem_ctrl = ua_getreg(uart_info->reg_base, UA_MCR);
 
@@ -723,7 +723,7 @@ static int tsb_uart_set_modem_ctrl(struct device *dev, uint8_t *modem_ctrl)
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     ua_putreg(uart_info->reg_base, UA_MCR, *modem_ctrl);
 
@@ -747,7 +747,7 @@ static int tsb_uart_get_modem_status(struct device *dev, uint8_t *modem_status)
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     *modem_status = ua_getreg(uart_info->reg_base, UA_MSR);
 
@@ -771,7 +771,7 @@ static int tsb_uart_get_line_status(struct device *dev, uint8_t *line_status)
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     /*
      * UART_LSR is read & clean register, so this funtion return saved value
@@ -801,7 +801,7 @@ static int tsb_uart_set_break(struct device *dev, uint8_t break_on)
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     if (break_on) {
         ua_reg_bit_set(uart_info->reg_base, UA_LCR, UA_LCR_BREAK);
@@ -830,7 +830,7 @@ static int tsb_uart_attach_ms_callback(struct device *dev,
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     if (callback == NULL) {
         /* Disable modem status interrupt. */
@@ -864,7 +864,7 @@ static int tsb_uart_attach_ls_callback(struct device *dev,
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     uart_info->ls_callback = callback;
 
@@ -897,7 +897,7 @@ static int tsb_uart_start_transmitter(struct device *dev, uint8_t *buffer,
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     if (uart_info->flags & TSB_UART_FLAG_XMIT) {
         return -EBUSY;
@@ -941,7 +941,7 @@ static int tsb_uart_stop_transmitter(struct device *dev)
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     if (!(uart_info->flags & TSB_UART_FLAG_XMIT)) {
         return -EINVAL;
@@ -995,7 +995,7 @@ static int tsb_uart_start_receiver(struct device *dev, uint8_t *buffer,
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     if (uart_info->flags & TSB_UART_FLAG_RECV) {
         return -EBUSY;
@@ -1040,7 +1040,7 @@ static int tsb_uart_stop_receiver(struct device *dev)
         return -EINVAL;
     }
 
-    uart_info = dev->private;
+    uart_info = device_get_private(dev);
 
     if (!(uart_info->flags & TSB_UART_FLAG_RECV)) {
         return -EINVAL;
@@ -1082,7 +1082,7 @@ static int tsb_uart_stop_receiver(struct device *dev)
 */
 static int tsb_uart_dev_open(struct device *dev)
 {
-    struct tsb_uart_info *uart_info = dev->private;
+    struct tsb_uart_info *uart_info = device_get_private(dev);
     irqstate_t flags;
     int ret = 0;
 
@@ -1112,7 +1112,7 @@ err_irqrestore:
 */
 static void tsb_uart_dev_close(struct device *dev)
 {
-    struct tsb_uart_info *uart_info = dev->private;
+    struct tsb_uart_info *uart_info = device_get_private(dev);
     irqstate_t flags;
 
     flags = irqsave();
@@ -1190,7 +1190,7 @@ static int tsb_uart_dev_probe(struct device *dev)
     up_enable_irq(uart_info->uart_irq);
 
     uart_info->dev = dev;
-    dev->private = uart_info;
+    device_set_private(dev, uart_info);
     saved_dev = dev;
 
     irqrestore(flags);
@@ -1220,7 +1220,7 @@ err_free_info:
 */
 static void tsb_uart_dev_remove(struct device *dev)
 {
-    struct tsb_uart_info *uart_info = dev->private;
+    struct tsb_uart_info *uart_info = device_get_private(dev);
     irqstate_t flags;
 
     flags = irqsave();
@@ -1232,7 +1232,7 @@ static void tsb_uart_dev_remove(struct device *dev)
     irq_detach(uart_info->uart_irq);
 
     saved_dev = NULL;
-    dev->private = NULL;
+    device_set_private(dev, NULL);
 
     irqrestore(flags);
 

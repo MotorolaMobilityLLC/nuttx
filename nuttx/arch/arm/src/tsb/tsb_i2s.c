@@ -1524,7 +1524,7 @@ static int tsb_i2s_tx_data(struct tsb_i2s_info *info)
 
 static int tsb_i2s_irq_so_err_handler(int irq, void *context)
 {
-    struct tsb_i2s_info *info = saved_dev->private;
+    struct tsb_i2s_info *info = device_get_private(saved_dev);
     enum device_i2s_event event;
     uint32_t intstat;
 
@@ -1546,7 +1546,7 @@ static int tsb_i2s_irq_so_err_handler(int irq, void *context)
 
 static int tsb_i2s_irq_so_handler(int irq, void *context)
 {
-    struct tsb_i2s_info *info = saved_dev->private;
+    struct tsb_i2s_info *info = device_get_private(saved_dev);
     uint32_t intstat;
 
     intstat = tsb_i2s_read(info, TSB_I2S_BLOCK_SO, TSB_I2S_REG_INTSTAT);
@@ -1561,7 +1561,7 @@ static int tsb_i2s_irq_so_handler(int irq, void *context)
 
 static int tsb_i2s_irq_si_err_handler(int irq, void *context)
 {
-    struct tsb_i2s_info *info = saved_dev->private;
+    struct tsb_i2s_info *info = device_get_private(saved_dev);
     enum device_i2s_event event;
     uint32_t intstat;
 
@@ -1583,7 +1583,7 @@ static int tsb_i2s_irq_si_err_handler(int irq, void *context)
 
 static int tsb_i2s_irq_si_handler(int irq, void *context)
 {
-    struct tsb_i2s_info *info = saved_dev->private;
+    struct tsb_i2s_info *info = device_get_private(saved_dev);
     uint32_t intstat;
 
     intstat = tsb_i2s_read(info, TSB_I2S_BLOCK_SI, TSB_I2S_REG_INTSTAT);
@@ -1617,7 +1617,7 @@ static int tsb_i2s_op_get_supported_configurations(struct device *dev,
 static int tsb_i2s_op_set_configuration(struct device *dev,
                                  struct device_i2s_configuration *configuration)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -1646,7 +1646,7 @@ static int tsb_i2s_op_prepare_receiver(struct device *dev,
                                        struct ring_buf *rx_rb,
                                        device_i2s_callback callback, void *arg)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret;
 
     if (!rx_rb)
@@ -1695,7 +1695,7 @@ err_unlock:
 
 static int tsb_i2s_op_start_receiver(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -1715,7 +1715,7 @@ err_unlock:
 
 static int tsb_i2s_op_stop_receiver(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -1735,7 +1735,7 @@ err_unlock:
 
 static int tsb_i2s_op_shutdown_receiver(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -1775,7 +1775,7 @@ static int tsb_i2s_op_prepare_transmitter(struct device *dev,
                                           device_i2s_callback callback,
                                           void *arg)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret;
 
     if (!tx_rb)
@@ -1824,7 +1824,7 @@ err_unlock:
 
 static int tsb_i2s_op_start_transmitter(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -1844,7 +1844,7 @@ err_unlock:
 
 static int tsb_i2s_op_stop_transmitter(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -1864,7 +1864,7 @@ err_unlock:
 
 static int tsb_i2s_op_shutdown_transmitter(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -1901,7 +1901,7 @@ err_unlock:
 
 static int tsb_i2s_dev_open(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -1921,7 +1921,7 @@ err_unlock:
 
 static void tsb_i2s_dev_close(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -2048,7 +2048,7 @@ static int tsb_i2s_dev_probe(struct device *dev)
 #endif
 
     info->dev = dev;
-    dev->private = info;
+    device_set_private(dev, info);
     saved_dev = dev;
 
     irqrestore(flags);
@@ -2073,7 +2073,7 @@ err_free_info:
 
 static void tsb_i2s_dev_remove(struct device *dev)
 {
-    struct tsb_i2s_info *info = dev->private;
+    struct tsb_i2s_info *info = device_get_private(dev);
     irqstate_t flags;
 
     flags = irqsave();
@@ -2084,7 +2084,7 @@ static void tsb_i2s_dev_remove(struct device *dev)
     irq_detach(info->soerr_irq);
 
     saved_dev = NULL;
-    dev->private = NULL;
+    device_set_private(dev, NULL);
 
     irqrestore(flags);
 
@@ -2092,7 +2092,6 @@ static void tsb_i2s_dev_remove(struct device *dev)
 
     memset(info, 0, sizeof(*info));
     free(info);
-    dev->private = NULL;
 }
 
 static struct device_i2s_type_ops tsb_i2s_type_ops = {

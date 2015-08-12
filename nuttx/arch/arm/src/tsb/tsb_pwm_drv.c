@@ -162,11 +162,11 @@ static uint32_t tsb_pwm_read(uint32_t base, uint32_t addr)
  */
 static int valid_param(struct device *dev, uint32_t which)
 {
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    if (which > ((struct pwm_ctlr_info *)dev->private)->gntr_counts) {
+    if (which > ((struct pwm_ctlr_info *)device_get_private(dev))->gntr_counts) {
         return -EINVAL;
     }
 
@@ -224,7 +224,7 @@ static int tsb_pwm_op_disable(struct device *dev, uint16_t which)
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -267,11 +267,11 @@ static int tsb_pwm_op_setup(struct device *dev)
 {
     struct pwm_ctlr_info *info = NULL;
 
-    if (!dev || !dev->private ) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->pwr_mutex);
 
@@ -313,11 +313,11 @@ static int tsb_pwm_op_shutdown(struct device *dev, bool force_off)
 {
     struct pwm_ctlr_info *info = NULL;
 
-    if (!dev || !dev->private ) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->pwr_mutex);
 
@@ -367,11 +367,11 @@ static int tsb_pwm_op_count(struct device *dev, uint16_t *count)
 {
     struct pwm_ctlr_info *info = NULL;
 
-    if (!dev || !dev->private || !count) {
+    if (!dev || !device_get_private(dev) || !count) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -408,7 +408,7 @@ static int tsb_pwm_op_activate(struct device *dev, uint16_t which)
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -483,7 +483,7 @@ static int tsb_pwm_op_deactivate(struct device *dev, uint16_t which)
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -538,7 +538,7 @@ static int tsb_pwm_op_config(struct device *dev, uint16_t which, uint32_t duty,
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -605,7 +605,7 @@ static int tsb_pwm_op_enable(struct device *dev, uint16_t which)
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -659,7 +659,7 @@ static int tsb_pwm_op_set_polarity(struct device *dev, uint16_t which,
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -701,11 +701,11 @@ static int tsb_pwm_op_sync(struct device *dev, bool enable)
     uint32_t reg_cr;
     int ret = 0;
 
-    if (!dev || !dev->private ) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -757,7 +757,7 @@ static int tsb_pwm_op_set_mode(struct device *dev, uint16_t which,
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -844,11 +844,11 @@ static int tsb_pwm_op_intr_callback(struct device *dev, uint32_t mask,
     struct pwm_ctlr_info *info = NULL;
     uint32_t reg_cr;
 
-    if (!dev || !dev->private ) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     if (info->refcount) {
         if (!callback) {
@@ -891,11 +891,11 @@ static int tsb_pwm_irq_handler(int irq, void *context)
 {
     struct pwm_ctlr_info *info = NULL;
 
-    if (!saved_dev->private) {
+    if (!device_get_private(saved_dev)) {
         return ERROR;
     }
 
-    info = saved_dev->private;
+    info = device_get_private(saved_dev);
 
     info->int_state = tsb_pwm_read(info->reg_base, TSB_PWM_INTSTATUS);
 
@@ -922,11 +922,11 @@ static int tsb_pwm_dev_open(struct device *dev)
     struct pwm_ctlr_info *info = NULL;
     int ret = 0;
 
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -959,11 +959,11 @@ static void tsb_pwm_dev_close(struct device *dev)
     uint32_t reg_cr;
     int i;
 
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->op_mutex);
 
@@ -1061,7 +1061,7 @@ static int tsb_pwm_dev_probe(struct device *dev)
     tsb_clr_pinshare(TSB_PIN_UART_CTSRTS);
 
     info->dev = dev;
-    dev->private = info;
+    device_set_private(dev, info);
     dev->init_data = (void *)pwm_pclk;
     saved_dev = dev;
 
@@ -1092,11 +1092,11 @@ static void tsb_pwm_dev_remove(struct device *dev)
 {
     struct pwm_ctlr_info *info = NULL;
 
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_destroy(&info->op_mutex);
     sem_destroy(&info->pwr_mutex);
@@ -1104,7 +1104,7 @@ static void tsb_pwm_dev_remove(struct device *dev)
     irq_detach(info->pwm_irq);
 
     free(info);
-    dev->private = NULL;
+    device_set_private(dev, NULL);
 }
 
 static struct device_pwm_type_ops tsb_pwm_type_ops = {

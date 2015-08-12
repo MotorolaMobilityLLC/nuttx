@@ -92,11 +92,11 @@ static int tsb_spi_lock(struct device *dev)
     int ret = 0;
 
     /* check input parameters */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     /* Take the semaphore (perhaps waiting) */
     ret = sem_wait(&info->bus);
@@ -122,11 +122,11 @@ static int tsb_spi_unlock(struct device *dev)
     struct tsb_spi_info *info = NULL;
 
     /* check input parameters */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     info->state = TSB_SPI_STATE_OPEN;
     sem_post(&info->bus);
@@ -151,11 +151,11 @@ static int tsb_spi_select(struct device *dev, int devid)
     struct tsb_spi_info *info = NULL;
 
     /* check input parameters */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -191,11 +191,11 @@ static int tsb_spi_deselect(struct device *dev, int devid)
     struct tsb_spi_info *info = NULL;
 
     /* check input parameters */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -232,11 +232,11 @@ static int tsb_spi_setfrequency(struct device *dev, uint32_t *frequency)
     struct tsb_spi_info *info = NULL;
 
     /* check input parameters */
-    if (!dev || !dev->private || !frequency) {
+    if (!dev || !device_get_private(dev) || !frequency) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -273,11 +273,11 @@ static int tsb_spi_setmode(struct device *dev, uint16_t mode)
     struct tsb_spi_info *info = NULL;
 
     /* check input parameters */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -311,11 +311,11 @@ static int tsb_spi_setbits(struct device *dev, int nbits)
     struct tsb_spi_info *info = NULL;
 
     /* check input parameters */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -354,7 +354,7 @@ static int tsb_spi_exchange(struct device *dev,
 
 
     /* check input parameters */
-    if (!dev || !dev->private || !transfer) {
+    if (!dev || !device_get_private(dev) || !transfer) {
         return -EINVAL;
     }
 
@@ -363,7 +363,7 @@ static int tsb_spi_exchange(struct device *dev,
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -425,11 +425,11 @@ static int tsb_spi_getcaps(struct device *dev, struct device_spi_caps *caps)
     struct tsb_spi_info *info = NULL;
 
     /* check input parameters */
-    if (!dev || !dev->private || !caps) {
+    if (!dev || !device_get_private(dev) || !caps) {
         return -EINVAL;
     }
 
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -468,10 +468,10 @@ static int tsb_spi_dev_open(struct device *dev)
     int ret = 0;
 
     /* check input parameter */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -501,10 +501,10 @@ static void tsb_spi_dev_close(struct device *dev)
     struct tsb_spi_info *info = NULL;
 
     /* check input parameter */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return;
     }
-    info = dev->private;
+    info = device_get_private(dev);
 
     sem_wait(&info->lock);
     info->state = TSB_SPI_STATE_CLOSED;
@@ -558,7 +558,7 @@ static int tsb_spi_dev_probe(struct device *dev)
     info->dev = dev;
     info->reg_base = r->start;
     info->state = TSB_SPI_STATE_CLOSED;
-    dev->private = info;
+    device_set_private(dev, info);
     sem_init(&info->bus, 0, 1);
     sem_init(&info->lock, 0, 1);
     irqrestore(flags);
@@ -588,17 +588,17 @@ static void tsb_spi_dev_remove(struct device *dev)
     irqstate_t flags;
 
     /* check input parameter */
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return;
     }
-    info = dev->private;
+    info = device_get_private(dev);
 
     flags = irqsave();
     irq_detach(TSB_IRQ_SPI);
     info->state = TSB_SPI_STATE_INVALID;
     sem_destroy(&info->lock);
     sem_destroy(&info->bus);
-    dev->private = NULL;
+    device_set_private(dev, NULL);
     irqrestore(flags);
     free(info);
 }

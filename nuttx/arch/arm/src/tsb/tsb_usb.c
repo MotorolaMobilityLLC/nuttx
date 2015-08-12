@@ -245,12 +245,12 @@ static int tsb_usb_hcd_open(struct device *dev)
         return -EINVAL;
     }
 
-    dev->private = device_open(DEVICE_TYPE_HSIC_DEVICE, 0);
-    if (!dev->private) {
+    device_set_private(dev, device_open(DEVICE_TYPE_HSIC_DEVICE, 0));
+    if (!device_get_private(dev)) {
         return -EINVAL;
     }
 
-    retval = device_hsic_hold_reset(dev->private);
+    retval = device_hsic_hold_reset(device_get_private(dev));
     if (retval) {
         goto error_hsic_hold_reset;
     }
@@ -282,7 +282,7 @@ error_hcd_core_init:
     tsb_clk_disable(TSB_CLK_HSICREF);
 
 error_hsic_hold_reset:
-    device_close(dev->private);
+    device_close(device_get_private(dev));
 
     return retval;
 }
@@ -314,9 +314,9 @@ static void tsb_usb_hcd_close(struct device *dev)
     tsb_clk_disable(TSB_CLK_HSICBUS);
     tsb_clk_disable(TSB_CLK_HSICREF);
 
-    if (dev && dev->private) {
-        device_hsic_hold_reset(dev->private);
-        device_close(dev->private);
+    if (dev && device_get_private(dev)) {
+        device_hsic_hold_reset(device_get_private(dev));
+        device_close(device_get_private(dev));
     }
 }
 
@@ -330,11 +330,11 @@ static int hcd_start(struct device *dev)
 {
     int retval;
 
-    if (!dev || !dev->private) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
 
-    device_hsic_release_reset(dev->private);
+    device_hsic_release_reset(device_get_private(dev));
 
     retval = dwc_otg_hcd_start(g_dev->hcd, &hcd_fops);
     if (retval) {
@@ -346,7 +346,7 @@ static int hcd_start(struct device *dev)
     return 0;
 
 error_hcd_start:
-    device_hsic_hold_reset(dev->private);
+    device_hsic_hold_reset(device_get_private(dev));
     return retval;
 }
 
@@ -362,8 +362,8 @@ static void hcd_stop(struct device *dev)
 
     dwc_otg_hcd_stop(g_dev->hcd);
 
-    if (dev && dev->private) {
-        device_hsic_hold_reset(dev->private);
+    if (dev && device_get_private(dev)) {
+        device_hsic_hold_reset(device_get_private(dev));
     }
 }
 

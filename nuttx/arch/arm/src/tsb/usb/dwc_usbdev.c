@@ -735,7 +735,7 @@ int up_usbinitialize_device(struct dwc_usbdev_s *priv)
 }
 
 #define device_to_usbdev(dev) \
-    (struct dwc_usbdev_s *)((dev)->private)
+    (struct dwc_usbdev_s *)(device_get_private(dev))
 
 
 static int tsb_usb_pcd_register_gadget(struct device *dev,
@@ -826,7 +826,7 @@ static int tsb_usb_pcd_open(struct device *dev)
         return -EINVAL;
     }
 
-    dev->private = &g_usbdev;
+    device_set_private(dev, &g_usbdev);
     SET_DEBUG_LEVEL(DBG_ANY);
 
     /*

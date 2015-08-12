@@ -166,7 +166,7 @@ static void tsb_pll_start(struct tsb_pll_info *info)
 
 static int tsb_pll_op_start(struct device *dev)
 {
-    struct tsb_pll_info *info = dev->private;
+    struct tsb_pll_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -188,7 +188,7 @@ err_unlock:
 
 static int tsb_pll_op_stop(struct device *dev)
 {
-    struct tsb_pll_info *info = dev->private;
+    struct tsb_pll_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -210,7 +210,7 @@ err_unlock:
 
 static int tsb_pll_op_set_frequency(struct device *dev, uint32_t frequency)
 {
-    struct tsb_pll_info *info = dev->private;
+    struct tsb_pll_info *info = device_get_private(dev);
     int ret;
 
     sem_wait(&info->lock);
@@ -243,7 +243,7 @@ err_unlock:
 
 static int tsb_pll_dev_open(struct device *dev)
 {
-    struct tsb_pll_info *info = dev->private;
+    struct tsb_pll_info *info = device_get_private(dev);
     int ret = 0;
 
     sem_wait(&info->lock);
@@ -265,7 +265,7 @@ err_unlock:
 
 static void tsb_pll_dev_close(struct device *dev)
 {
-    struct tsb_pll_info *info = dev->private;
+    struct tsb_pll_info *info = device_get_private(dev);
 
     sem_wait(&info->lock);
 
@@ -312,7 +312,7 @@ static int tsb_pll_dev_probe(struct device *dev)
     info->state = TSB_PLL_STATE_CLOSED;
     sem_init(&info->lock, 0, 1);
     info->dev = dev;
-    dev->private = info;
+    device_set_private(dev, info);
 
     return 0;
 
@@ -324,11 +324,11 @@ err_free_info:
 
 static void tsb_pll_dev_remove(struct device *dev)
 {
-    struct tsb_pll_info *info = dev->private;
+    struct tsb_pll_info *info = device_get_private(dev);
 
     sem_destroy(&info->lock);
     free(info);
-    dev->private = NULL;
+    device_set_private(dev, NULL);
 }
 
 static struct device_pll_type_ops tsb_pll_type_ops = {
