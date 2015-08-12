@@ -59,6 +59,40 @@
 static struct svc the_svc;
 struct svc *svc = &the_svc;
 
+#define SVC_EVENT_TYPE_READY_AP       0x1
+#define SVC_EVENT_TYPE_READY_OTHER    0x2
+
+struct svc_event_ready_other {
+    uint8_t port;
+};
+
+struct svc_event {
+    int type;
+    struct list_head events;
+    union {
+        struct svc_event_ready_other ready_other;
+    } data;
+};
+
+static struct list_head svc_events;
+
+static struct svc_event *svc_event_create(int type) {
+    struct svc_event *event;
+
+    event = malloc(sizeof(*event));
+    if (!event) {
+        return NULL;
+    }
+
+    event->type = type;
+    list_init(&event->events);
+    return event;
+}
+
+static inline void svc_event_destroy(struct svc_event *event) {
+    free(event);
+}
+
 static int event_cb(struct tsb_switch_event *ev);
 static int event_mailbox(struct tsb_switch_event *ev);
 
@@ -126,6 +160,7 @@ static int event_mailbox(struct tsb_switch_event *ev) {
 }
 
 static int svc_event_init(void) {
+    list_init(&svc_events);
     switch_event_register_listener(svc->sw, &evl);
     return 0;
 }
