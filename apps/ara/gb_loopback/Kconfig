@@ -39,9 +39,9 @@ config ARA_GB_LOOPBACK
 
 config ARA_GB_LOOPBACK_PROGNAME
 	string "Program name"
-	default "gb_loopback"
+	default "gbl"
 	depends on BUILD_KERNEL
 	---help---
-		This is the name of the program that will be use when the NSH ELF
+		This is the name of the program that will be used when the NSH ELF
 		program is installed.
 
