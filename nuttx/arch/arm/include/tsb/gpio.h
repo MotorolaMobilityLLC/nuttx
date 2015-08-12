@@ -56,9 +56,7 @@ uint32_t tsb_gpio_get_interrupt(void);
 
 int tsb_gpio_register(void *driver_data);
 
-#if defined(CONFIG_TSB_CHIP_REV_ES1)
-#define NR_GPIO_IRQS 16
-#else
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
 #define NR_GPIO_IRQS 27
 #endif
 

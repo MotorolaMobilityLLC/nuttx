@@ -2039,14 +2039,12 @@ static int tsb_i2s_dev_probe(struct device *dev)
     if (ret != OK)
         goto err_detach_sierr_irq;
 
-#if defined(CONFIG_TSB_CHIP_REV_ES1) || defined(CONFIG_TSB_CHIP_REV_ES2)
-    tsb_clr_pinshare(TSB_PIN_ETM);
 #if defined(CONFIG_TSB_CHIP_REV_ES2)
+    tsb_clr_pinshare(TSB_PIN_ETM);
     tsb_clr_pinshare(TSB_PIN_GPIO16);
     tsb_clr_pinshare(TSB_PIN_GPIO18);
     tsb_clr_pinshare(TSB_PIN_GPIO19);
     tsb_clr_pinshare(TSB_PIN_GPIO20);
-#endif
 #endif
 
     info->dev = dev;

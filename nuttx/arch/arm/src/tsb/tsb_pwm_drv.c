@@ -1056,11 +1056,6 @@ static int tsb_pwm_dev_probe(struct device *dev)
 
     irqrestore(flags);
 
-#if defined(CONFIG_TSB_CHIP_REV_ES1)
-    /** For PWM0 */
-    tsb_clr_pinshare(TSB_PIN_SDIO);
-#endif
-
     /** For PWM1 */
     tsb_clr_pinshare(TSB_PIN_GPIO9);
     tsb_clr_pinshare(TSB_PIN_UART_CTSRTS);

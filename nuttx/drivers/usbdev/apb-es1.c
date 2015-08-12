@@ -104,9 +104,7 @@
 #define APBRIDGE_CONFIGIDNONE        (0)        /* Config ID means to return to address mode */
 #define APBRIDGE_CONFIGID            (1)        /* The only supported configuration ID */
 #define APBRIDGE_NCONFIGS            (1)        /* Number of configurations supported */
-#if defined(CONFIG_TSB_CHIP_REV_ES1)
-#define APBRIDGE_NBULKS              (1)
-#else
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
 #define APBRIDGE_NBULKS              (7)
 #endif
 

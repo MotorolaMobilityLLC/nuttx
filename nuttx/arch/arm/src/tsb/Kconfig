@@ -54,13 +54,8 @@ endchoice
 
 choice TSB_CHIP_REV
 	prompt "Toshiba Bridge chip silicon revision"
-	default TSB_CHIP_REV_ES1
+	default TSB_CHIP_REV_ES2
 	depends on ARCH_CHIP_TSB
-
-config TSB_CHIP_REV_ES1
-	bool "ES1"
-	---help---
-		Silicon Revision 1
 
 config TSB_CHIP_REV_ES2
 	bool "ES2"
@@ -70,7 +65,6 @@ endchoice
 
 config TSB_CHIP_REV
 	string
-	default "es1" if TSB_CHIP_REV_ES1
 	default "es2" if TSB_CHIP_REV_ES2
 
 choice

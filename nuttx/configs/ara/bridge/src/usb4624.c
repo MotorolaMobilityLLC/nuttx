@@ -49,10 +49,7 @@
  */
 static int usb4624_open(struct device *dev)
 {
-/* GPIO0 is pinshared on ES2 and later, but not on ES1 */
-#if !defined(CONFIG_TSB_CHIP_REV_ES1)
     tsb_clr_pinshare(TSB_PIN_UART_CTSRTS);
-#endif
     gpio_activate(HUB_LINE_N_RESET);
     return 0;
 }

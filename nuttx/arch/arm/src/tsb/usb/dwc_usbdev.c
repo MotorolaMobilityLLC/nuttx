@@ -55,9 +55,7 @@
 #define SNPSID_OTG2 0x4F542000
 #define SNPSID_OTG3 0x4F543000
 
-#if defined(CONFIG_TSB_CHIP_REV_ES1)
-#define DWC_NENDPOINTS        (5)
-#else
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
 #define DWC_NENDPOINTS        (16)
 #endif
 #define EP0                   (0)

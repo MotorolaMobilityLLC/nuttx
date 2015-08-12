@@ -137,11 +137,7 @@
 #define TSB_PIN_GPIO13          BIT(6)
 #define TSB_PIN_GPIO15          BIT(7)
 
-#if defined(CONFIG_TSB_CHIP_REV_ES1)
-#define TSB_PIN_SDIO            BIT(2)
-#define TSB_PIN_SDCARD          BIT(8)
-#define TSB_PIN_DBG             BIT(9)
-#elif defined(CONFIG_TSB_CHIP_REV_ES2)
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
 #define TSB_PIN_GPIO16          BIT(10)
 #define TSB_PIN_GPIO18          BIT(11)
 #define TSB_PIN_GPIO19          BIT(12)
@@ -171,11 +167,8 @@ enum tsb_drivestrength {
 #define TSB_SPI_DRIVESTRENGTH     (TSB_SCM_REG1 | 22)
 #define TSB_PWM_DRIVESTRENGTH     (TSB_SCM_REG1 | 20)
 #define TSB_I2S_DRIVESTRENGTH     (TSB_SCM_REG1 | 18)
-#else /* ES1 */
-#define TSB_TRACE_DRIVESTRENGTH   (TSB_SCM_REG1 | 6)
-#define TSB_SPI_DRIVESTRENGTH     (TSB_SCM_REG1 | 4)
-#define TSB_PWM_DRIVESTRENGTH     (TSB_SCM_REG1 | 2)
-#define TSB_I2S_DRIVESTRENGTH     (TSB_SCM_REG1 | 0)
+#else
+#error "unsupported hardware"
 #endif
 
 /*
