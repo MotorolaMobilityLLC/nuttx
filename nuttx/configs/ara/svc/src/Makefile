@@ -76,12 +76,6 @@ CSRCS		+= tsb_es2_mphy_fixups.c
 CSRCS		+= unipro_svc.c
 CSRCS		+= gb_svc.c
 
-ifeq ($(CONFIG_ARCH_BOARD_ARA_BDB1B_SVC),y)
-CSRCS		+= board-bdb1b.c
-CSRCS		+= up_bdb_pm.c
-CSRCS       += up_adc.c up_spring_pm.c
-endif
-
 ifeq ($(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC),y)
 CSRCS		+= board-bdb2a.c
 CSRCS		+= up_bdb_pm.c

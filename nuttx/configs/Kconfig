@@ -715,17 +715,6 @@ config ARCH_BOARD_STM3220G_EVAL
 		STMicro STM3220G-EVAL development board based on the STMicro STM32F407IG
 		microcontroller (ARM Cortex-M3).
 
-config ARCH_BOARD_ARA_BDB1B_SVC
-	bool "ARA SVC in BDB1B"
-	depends on ARCH_CHIP_STM32F407IG
-	select ARCH_BOARD_ARA_SVC
-	---help---
-		The ARA SVC is based on the STMicro STM32F417IG microcontroller
-		(ARM Cortex-M4 with FPU + crypto).
-		This options selects the support for the SVC on the BDB1B
-		development platform.
-		This port uses a GNU Cortex-M4 toolchain (such as CodeSourcery).
-
 config ARCH_BOARD_ARA_BDB2A_SVC
 	bool "ARA SVC in BDB2A"
 	depends on ARCH_CHIP_STM32F407IG
