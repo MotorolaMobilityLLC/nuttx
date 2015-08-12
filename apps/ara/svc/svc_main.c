@@ -896,6 +896,7 @@ static int test_feature(int argc, char* argv[]) {
     char** args;
     int rc, c;
     struct unipro_test_feature_cfg cfg;
+    unsigned int src_devid, dst_devid;
 
     if (!sw) {
         return -ENODEV;
@@ -959,6 +960,26 @@ static int test_feature(int argc, char* argv[]) {
     if (!dst_iface) {
         printk("svc %s: nonexistent destination interface %s.\n",
                longc, dst_iface_name);
+        test_feature_usage(EXIT_FAILURE);
+    }
+
+    /*
+     * Assign device IDs for test interfaces. Device ID 0 is reserved
+     * by the switch.
+     */
+    src_devid = src_iface->switch_portid + 1;
+    rc = switch_if_dev_id_set(sw, src_iface->switch_portid, src_devid);
+    if (rc) {
+        printk("svc testfeature: Failed to assign device id: %u to interface %s: %d\n",
+               src_devid, src_iface_name, rc);
+        test_feature_usage(EXIT_FAILURE);
+    }
+
+    dst_devid = dst_iface->switch_portid + 1;
+    rc = switch_if_dev_id_set(sw, dst_iface->switch_portid, dst_devid);
+    if (rc) {
+        printk("svc testfeature: Failed to assign device id: %u to interface %s: %d\n",
+               dst_devid, dst_iface_name, rc);
         test_feature_usage(EXIT_FAILURE);
     }
 
