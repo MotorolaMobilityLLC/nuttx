@@ -469,11 +469,13 @@ static int urb_dequeue(struct device *dev, struct urb *urb)
     DEBUGASSERT(g_dev->hcd);
     DEBUGASSERT(urb);
 
+    DWC_SPINLOCK(g_dev->hcd->lock);
+
     if (!urb->hcpriv) {
+        DWC_SPINUNLOCK(g_dev->hcd->lock);
         return -EINVAL;
     }
 
-    DWC_SPINLOCK(g_dev->hcd->lock);
     retval = dwc_otg_hcd_urb_dequeue(g_dev->hcd, urb->hcpriv);
 
     free(urb->hcpriv);
