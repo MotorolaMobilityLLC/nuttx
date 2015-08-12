@@ -108,7 +108,10 @@ static void *svc_sim_fn(void *p_data)
 
     usb_wait(priv);
     apbridge_backend.init();
-    unipro_attr_peer_write(TSB_MAILBOX, 1, 0, NULL);
+    /*
+     * Tell the SVC that the AP Module is ready
+     */
+    tsb_unipro_mbox_set(TSB_MAIL_READY_AP, true);
 
     return NULL;
 }

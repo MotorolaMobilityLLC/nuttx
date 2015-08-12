@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include <nuttx/greybus/tsb_unipro.h>
 #include <apps/greybus-utils/utils.h>
 #include <apps/ara/service_mgr.h>
 #include <apps/ara/gb_loopback.h>
@@ -55,6 +56,7 @@ static pthread_t enable_cports_thread;
 void *enable_cports_fn(void *data)
 {
     enable_cports();
+    tsb_unipro_mbox_set(TSB_MAIL_READY_OTHER, true);
     return NULL;
 }
 

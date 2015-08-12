@@ -26,6 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <nuttx/greybus/tsb_unipro.h>
 #include <nuttx/unipro/unipro.h>
 
 #include <apps/nsh.h>
@@ -33,6 +35,7 @@
 int bringup_entry(int argc, char *argv[])
 {
     unipro_init();
+    tsb_unipro_mbox_set(TSB_MAIL_READY_OTHER, true);
     return nsh_main(argc, argv);
 }
 
