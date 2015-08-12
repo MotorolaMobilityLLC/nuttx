@@ -47,6 +47,7 @@ struct svc {
     pthread_cond_t cv;
 
     uint8_t ap_intf_id;
+    bool ap_initialized;
 };
 
 extern struct svc *svc;

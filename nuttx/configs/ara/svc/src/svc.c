@@ -137,18 +137,28 @@ static int event_cb(struct tsb_switch_event *ev) {
 }
 
 static int event_mailbox(struct tsb_switch_event *ev) {
+    struct svc_event *svc_ev;
     int rc;
     dbg_info("event received: type: %u port: %u val: %u\n", ev->type, ev->mbox.port, ev->mbox.val);
     pthread_mutex_lock(&svc->lock);
     switch (ev->mbox.val) {
-    case 1:
+    case TSB_MAIL_READY_AP:
         rc = interface_get_id_by_portid(ev->mbox.port);
         if (rc < 0) {
+            dbg_error("Unknown module on port %u: %d\n", ev->mbox.port, rc);
             break;
         }
 
         svc->ap_intf_id = rc;
-        dbg_info("AP initialized on port %u\n", ev->mbox.port);
+        break;
+
+    case TSB_MAIL_READY_OTHER:
+        svc_ev = svc_event_create(SVC_EVENT_TYPE_READY_OTHER);
+        if (!svc_ev) {
+            dbg_error("Couldn't create event\n");
+        }
+        svc_ev->data.ready_other.port = ev->mbox.port;
+        list_add(&svc_events, &svc_ev->events);
         break;
     default:
         dbg_error("unexpected mailbox value: %u port: %u", ev->mbox.val, ev->mbox.port)
@@ -367,7 +377,62 @@ static int svc_handle_ap(void) {
      * FIXME: Hotplug events should be sent upon receiving a linkup
      * notification. For now, send a fake one for intf_id 2.
      */
-    gb_svc_intf_hotplug(2, 0x1, 0x2, 0x3, 0x4);
+    return 0;
+}
+
+static int svc_handle_module_ready(uint8_t portid) {
+    int rc, intf_id;
+    uint32_t unipro_mfg_id, unipro_prod_id, ara_vend_id, ara_prod_id;
+
+    dbg_info("Hotplug event received for port: %u\n", portid);
+    intf_id  = interface_get_id_by_portid(portid);
+    if (intf_id < 0) {
+        return intf_id;
+    }
+
+    rc = switch_dme_peer_get(svc->sw, portid, DME_DDBL1_MANUFACTURERID, 0, &unipro_mfg_id);
+    if (rc) {
+        dbg_error("Failed to read manufacturer id: %d\n", rc);
+        return rc;
+    }
+
+    rc = switch_dme_peer_get(svc->sw, portid, DME_DDBL1_PRODUCTID, 0, &unipro_prod_id);
+    if (rc) {
+        dbg_error("Failed to read product id: %d\n", rc);
+        return rc;
+    }
+
+    /*
+     * Ara vendor id and product ID attributes don't exist on ES2 silicon.
+     * These are unused for now.
+     */
+    ara_vend_id = 0xfeedface;
+    ara_prod_id = 0xdeadbeef;
+
+    return gb_svc_intf_hotplug(intf_id, unipro_mfg_id, unipro_prod_id,
+                               ara_vend_id, ara_prod_id);
+}
+
+/**
+ * @brief Main event loop processing routine
+ */
+static int svc_handle_events(void) {
+    struct list_head *node, *next;
+    struct svc_event *event;
+
+    list_foreach_safe(&svc_events, node, next) {
+        event = list_entry(node, struct svc_event, events);
+        switch (event->type) {
+        case SVC_EVENT_TYPE_READY_OTHER:
+            svc_handle_module_ready(event->data.ready_other.port);
+            break;
+        default:
+            dbg_error("Unknown event: %d\n", event->type);
+        }
+
+        svc_event_destroy(event);
+    }
+
     return 0;
 }
 
@@ -503,8 +568,17 @@ static int svcd_main(int argc, char **argv) {
             break;
         }
 
-        if (svc->ap_intf_id) {
-            svc_handle_ap();
+        if (svc->ap_intf_id && !svc->ap_initialized) {
+            if (svc_handle_ap()) {
+                break;
+            }
+
+            dbg_info("AP initialized on interface  %u\n", svc->ap_intf_id);
+            svc->ap_initialized = 1;
+        }
+
+        if (svc->ap_initialized) {
+            svc_handle_events();
         }
     };
 
