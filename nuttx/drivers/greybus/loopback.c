@@ -250,7 +250,6 @@ int gb_loopback_send_req(int cport, size_t size, uint8_t type)
         break;
     default:
         return -EINVAL;
-
     }
     if (!operation)
         return -ENOMEM;
