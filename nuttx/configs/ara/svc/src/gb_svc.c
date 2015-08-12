@@ -68,12 +68,14 @@ int gb_svc_protocol_version(void) {
 
     op_resp = gb_operation_get_response_op(op_req);
     if (!op_resp) {
+        gb_operation_destroy(op_req);
         return GB_OP_PROTOCOL_BAD;
     }
     version_response = gb_operation_get_request_payload(op_resp);
 
     if (version_response->major > GB_SVC_VERSION_MAJOR) {
         dbg_error("unsupported major version: %u\n", version_response->major);
+        gb_operation_destroy(op_req);
         return -EPROTO;
     }
     dbg_info("SVC Protocol version_major = %u version_minor = %u\n",
