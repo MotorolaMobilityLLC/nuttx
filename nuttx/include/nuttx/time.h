@@ -41,6 +41,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/clock.h>
 
 #include <stdbool.h>
 #include <time.h>
@@ -126,7 +127,19 @@ EXTERN time_t clock_calendar2utc(int year, int month, int day);
  ****************************************************************************/
 static inline useconds_t msec_to_usec(unsigned ms)
 {
-    return ms * 1000;
+    return ms * USEC_PER_MSEC;
+}
+
+/****************************************************************************
+ * Function:  timespec_to_usec
+ *
+ * Description:
+ *    Convert struct timespec to microseconds.
+ *
+ ****************************************************************************/
+static inline useconds_t timespec_to_usec(struct timespec *ts)
+{
+    return (ts->tv_sec * USEC_PER_SEC) + (ts->tv_nsec / NSEC_PER_USEC);
 }
 
 #endif /* __INCLUDE_NUTTX_TIME_H */

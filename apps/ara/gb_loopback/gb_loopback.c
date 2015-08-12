@@ -276,6 +276,7 @@ int gbl_main(int argc, char *argv[])
 #endif
 {
     int opt, rv = EXIT_SUCCESS, st, cport = -1, type = 0, count = -1;
+    struct gb_loopback_statistics stats;
     struct loopback_context *ctx;
     struct list_head *iter;
     unsigned wait = 1000;
@@ -371,19 +372,23 @@ int gbl_main(int argc, char *argv[])
         loopback_ctx_list_unlock();
         loopback_wakeup();
     } else if (strcmp(cmd, "status") == 0) {
-        printf("  CPORT    ACTIVE    RECV ERR    SEND ERR    SENT    RECV\n");
+        printf("  CPORT    ACTIVE    RECV ERR    SEND ERR    SENT    RECV    THROUGHPUT   LATENCY   REQ_PER_SEC\n");
         loopback_ctx_list_lock();
         list_foreach(&loopback_ctx_list, iter) {
             ctx = list_entry(iter, struct loopback_context, list);
 
             loopback_ctx_lock(ctx);
-            printf("%7d %9s %11d %11d %7u %7u\n",
+            gb_loopback_get_stats(ctx->cport, &stats);
+            printf("%7d %9s %11d %11d %7u %7u %13u %9u %13u\n",
                    ctx->cport,
                    ctx->active ? "yes" : "no",
-                   gb_loopback_get_error_count(ctx->cport),
+                   stats.recv_err,
                    ctx->err,
                    ctx->sent,
-                   gb_loopback_get_recv_count(ctx->cport));
+                   stats.recv,
+                   stats.throughput_avg,
+                   stats.latency_avg,
+                   stats.reqs_per_sec_avg);
             loopback_ctx_unlock(ctx);
         }
         loopback_ctx_list_unlock();

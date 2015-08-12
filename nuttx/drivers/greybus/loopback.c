@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "loopback-gb.h"
 
@@ -36,6 +37,7 @@
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/loopback.h>
 #include <nuttx/greybus/debug.h>
+#include <nuttx/time.h>
 #include <arch/byteorder.h>
 
 #define GB_LOOPBACK_VERSION_MAJOR 0
@@ -45,8 +47,7 @@ struct gb_loopback {
     struct list_head list;
     pthread_mutex_t lock;
     int cport;
-    int err;
-    unsigned recv;
+    struct gb_loopback_statistics stats;
 };
 
 struct list_head gb_loopback_list = LIST_INIT(gb_loopback_list);
@@ -115,22 +116,25 @@ static struct gb_loopback *loopback_from_cport(int cport)
 }
 
 /**
- * @brief Get the number of reception errors for given cport
+ * @brief Get loopback stats for given cport
  * @param cport cport number
- * @return Number of errors since the last loopback reset
+ * @param stats pointer to the statistics container
+ * @return -1 for invalid cports, 0 otherwise
  */
-int gb_loopback_get_error_count(int cport)
+int gb_loopback_get_stats(int cport, struct gb_loopback_statistics *stats)
 {
-    struct gb_loopback *loopback = loopback_from_cport(cport);
-    int err = -1;
+    struct gb_loopback *loopback;
 
-    if (loopback != NULL) {
-        loopback_lock(loopback);
-        err = loopback->err;
-        loopback_unlock(loopback);
+    loopback = loopback_from_cport(cport);
+    if (!loopback) {
+        return -EINVAL;
     }
 
-    return err;
+    loopback_lock(loopback);
+    memcpy(stats, &loopback->stats, sizeof(struct gb_loopback_statistics));
+    loopback_unlock(loopback);
+
+    return 0;
 }
 
 static void loopback_error_notify(int cport)
@@ -139,28 +143,9 @@ static void loopback_error_notify(int cport)
 
     if (loopback != NULL) {
         loopback_lock(loopback);
-        loopback->err++;
+        loopback->stats.recv_err++;
         loopback_unlock(loopback);
     }
-}
-
-/**
- * @brief Get the number of received responses on given cport
- * @param cport cport number
- * @return Number of received responses since the last reset
- */
-unsigned gb_loopback_get_recv_count(int cport)
-{
-    struct gb_loopback *loopback = loopback_from_cport(cport);
-    unsigned recv = 0;
-
-    if (loopback != NULL) {
-        loopback_lock(loopback);
-        recv = loopback->recv;
-        loopback_unlock(loopback);
-    }
-
-    return recv;
 }
 
 static void loopback_recv_inc(int cport)
@@ -169,7 +154,7 @@ static void loopback_recv_inc(int cport)
 
     if (loopback != NULL) {
         loopback_lock(loopback);
-        loopback->recv++;
+        loopback->stats.recv++;
         loopback_unlock(loopback);
     }
 }
@@ -184,8 +169,7 @@ void gb_loopback_reset(int cport)
 
     if (loopback != NULL) {
         loopback_lock(loopback);
-        loopback->err = 0;
-        loopback->recv = 0;
+        memset(&loopback->stats, 0, sizeof(struct gb_loopback_statistics));
         loopback_unlock(loopback);
     }
 }
@@ -200,6 +184,82 @@ int gb_loopback_cport_valid(int cport)
     return loopback_from_cport(cport) != NULL;
 }
 
+/*
+ * If xfer is true, then we have to multiply the number of bytes in the
+ * payload by 2 to account for sending the data back.
+ */
+#if defined(CONFIG_GREYBUS_FEATURE_HAVE_TIMESTAMPS)
+static void update_loopback_stats(struct gb_operation *operation, int xfer)
+{
+    struct gb_loopback_transfer_request *request;
+    struct gb_loopback_statistics *stats;
+    struct gb_loopback *loopback;
+    struct timespec ts_total;
+    unsigned tps, rps;
+    useconds_t total;
+    size_t tpr;
+
+    timespecsub(&operation->recv_ts, &operation->send_ts, &ts_total);
+    total = timespec_to_usec(&ts_total);
+
+    loopback = loopback_from_cport(operation->cport);
+    if (!loopback) {
+        return;
+    }
+
+    request = gb_operation_get_request_payload(operation);
+    tpr = request->len * (xfer ? 2 : 1);
+    tps = tpr * (USEC_PER_SEC / total);
+    rps = USEC_PER_SEC / total;
+    stats = &loopback->stats;
+
+    /*
+     * TODO Would be good to have a linux kernel-like DIV_ROUND_CLOSEST()
+     * macro, but with BSD license.
+     */
+#define UPDATE_AVG(avg, new)                                            \
+    do {                                                                \
+        if ((avg) == 0)                                                 \
+            (avg) = (new);                                              \
+        else                                                            \
+            (avg) = ((avg) + (new)) / 2;                                \
+    } while (0)
+
+#define UPDATE_MIN(min, avg)                                            \
+    do {                                                                \
+        if ((min) == 0)                                                 \
+            (min) = (avg);                                              \
+        else if ((avg) < (min))                                         \
+            (min) = (avg);                                              \
+    } while (0)
+
+#define UPDATE_MAX(max, avg)                                            \
+    do {                                                                \
+        if ((avg) > (max))                                              \
+            (max) = (avg);                                              \
+    } while (0)
+
+    UPDATE_AVG(stats->latency_avg, total);
+    UPDATE_AVG(stats->throughput_avg, tps);
+    UPDATE_AVG(stats->reqs_per_sec_avg, rps);
+    UPDATE_MIN(stats->latency_min, stats->latency_avg);
+    UPDATE_MIN(stats->throughput_min, stats->throughput_avg);
+    UPDATE_MIN(stats->reqs_per_sec_min, stats->reqs_per_sec_avg);
+    UPDATE_MAX(stats->latency_max, stats->latency_avg);
+    UPDATE_MAX(stats->throughput_max, stats->throughput_avg);
+    UPDATE_MAX(stats->reqs_per_sec_max, stats->reqs_per_sec_avg);
+
+#undef UPDATE_AVG
+#undef UPDATE_MIN
+#undef UPDATE_MAX
+}
+#else
+static void update_loopback_stats(struct gb_operation *operation, int xfer)
+{
+
+}
+#endif /* CONFIG_GREYBUS_FEATURE_HAVE_TIMESTAMPS */
+
 /* Callbacks for gb_operation_send_request(). */
 
 static void gb_loopback_ping_sink_resp_cb(struct gb_operation *operation)
@@ -207,10 +267,12 @@ static void gb_loopback_ping_sink_resp_cb(struct gb_operation *operation)
     int ret;
 
     ret = gb_operation_get_request_result(operation);
-    if (ret != OK)
+    if (ret != OK) {
         loopback_error_notify(operation->cport);
-    else
+    } else {
         loopback_recv_inc(operation->cport);
+        update_loopback_stats(operation, 0 /* not xfer */);
+    }
 }
 
 static void gb_loopback_transfer_resp_cb(struct gb_operation *operation)
@@ -221,10 +283,12 @@ static void gb_loopback_transfer_resp_cb(struct gb_operation *operation)
     request = gb_operation_get_request_payload(operation);
     response = gb_operation_get_request_payload(operation->response);
 
-    if (memcmp(request->data, response->data, le32_to_cpu(request->len)))
+    if (memcmp(request->data, response->data, le32_to_cpu(request->len))) {
         loopback_error_notify(operation->cport);
-    else
+    } else {
         loopback_recv_inc(operation->cport);
+        update_loopback_stats(operation, 1 /* xfer */);
+    }
 }
 
 /**
