@@ -117,4 +117,16 @@ EXTERN time_t clock_calendar2utc(int year, int month, int day);
 }
 #endif
 
+/****************************************************************************
+ * Function:  msec_to_usec
+ *
+ * Description:
+ *    Convert milliseconds to microseconds.
+ *
+ ****************************************************************************/
+static inline useconds_t msec_to_usec(unsigned ms)
+{
+    return ms * 1000;
+}
+
 #endif /* __INCLUDE_NUTTX_TIME_H */

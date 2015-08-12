@@ -36,6 +36,7 @@
 
 #include <nuttx/greybus/loopback.h>
 #include <nuttx/util.h>
+#include <nuttx/time.h>
 
 struct gb_loopback_operation {
     const char *name;
@@ -254,7 +255,7 @@ int gb_loopback_service(void)
 
             loop_time = (tv_total.tv_sec * (uint64_t)1000000) +
                         tv_total.tv_usec;
-            sleep_time = wait_min * 1000;
+            sleep_time = wait_min;
 
             if (loop_time > sleep_time)
                 fprintf(stderr, "%s running late\n", __FUNCTION__);
@@ -345,7 +346,7 @@ int gbl_main(int argc, char *argv[])
                 ctx->active = 1;
                 ctx->type = type;
                 ctx->size = size;
-                ctx->wait = wait;
+                ctx->wait = msec_to_usec(wait);
                 ctx->count = count;
                 ctx->sent = 0;
                 loopback_ctx_unlock(ctx);
