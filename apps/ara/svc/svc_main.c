@@ -225,13 +225,13 @@ static int link_test_torture(unsigned int nlanes) {
     if (pwm_maxgear >= 1) {
         printk("\tPWM gears 1-%d tested.\n", pwm_maxgear);
     } else {
-        printk("\tPWM gears not tested.\n", pwm_maxgear);
+        printk("\tPWM gears not tested.\n");
     }
     if (hs_maxgear >= 1) {
         printk("\tHS gears 1-%d tested.\n", hs_maxgear);
         printk("\tHS series A and B tested.\n");
     } else {
-        printk("\tHS gears not tested.\n", hs_maxgear);
+        printk("\tHS gears not tested.\n");
     }
     interface_foreach(iface, i) {
         int a, g, t, rc2 = 0;
