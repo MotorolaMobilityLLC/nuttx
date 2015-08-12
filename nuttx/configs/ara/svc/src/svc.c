@@ -66,11 +66,37 @@ static struct tsb_switch_event_listener evl = {
     .cb = event_cb,
 };
 
+/**
+ * @brief "Acknowledge" a write to the switch's mailbox.  The mailbox is a DME
+ * register in the vendor-defined space present on Toshiba bridges. This is used
+ * as a notification to the bridge that the SVC has read what the bridge wrote
+ * to the switch's mailbox.
+ */
+static int svc_mailbox_ack(uint8_t portid) {
+    int rc;
+    uint32_t val;
+
+    rc = switch_dme_set(svc->sw, portid, TSB_MAILBOX, 0, 0);
+    if (rc) {
+        dbg_error("Failed to ack to port %u\n", portid);
+        return rc;
+    }
+    rc = switch_dme_get(svc->sw, portid, TSB_MAILBOX, 0, &val);
+    if (rc) {
+        dbg_error("Failed to reread mailbox ack on port %u\n", portid);
+        return rc;
+    }
+
+    return 0;
+}
+
+
 static int event_cb(struct tsb_switch_event *ev) {
 
     switch (ev->type) {
     case TSB_SWITCH_EVENT_MAILBOX:
         event_mailbox(ev);
+        svc_mailbox_ack(ev->mbox.port);
         break;
     }
     return 0;
