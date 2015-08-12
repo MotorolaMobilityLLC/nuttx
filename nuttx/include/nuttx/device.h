@@ -31,8 +31,21 @@
 #ifndef __INCLUDE_NUTTX_DEVICE_H
 #define __INCLUDE_NUTTX_DEVICE_H
 
-#include <nuttx/device_resource.h>
+#include <stddef.h>
 #include <nuttx/ring_buf.h>
+
+enum device_resource_type {
+    DEVICE_RESOURCE_TYPE_INVALID,
+    DEVICE_RESOURCE_TYPE_REGS,
+    DEVICE_RESOURCE_TYPE_IRQ,
+};
+
+struct device_resource {
+    char                        *name;
+    enum device_resource_type   type;
+    uint32_t                    start;
+    unsigned int                count;
+};
 
 enum device_state {
     DEVICE_STATE_REMOVED,
@@ -44,6 +57,7 @@ enum device_state {
     DEVICE_STATE_REMOVING,
 };
 
+struct device;
 struct device_i2s_type_ops;
 struct device_usb_hcd_type_ops;
 struct device_usb_pcd_type_ops;
@@ -98,5 +112,13 @@ void device_close(struct device *dev);
 /* Called by device drivers */
 int device_register_driver(struct device_driver *driver);
 void device_unregister_driver(struct device_driver *driver);
+
+struct device_resource *device_resource_get(struct device *dev,
+                                            enum device_resource_type type,
+                                            unsigned int num);
+struct device_resource *device_resource_get_by_name(
+                                                 struct device *dev,
+                                                 enum device_resource_type type,
+                                                 char *name);
 
 #endif /* __INCLUDE_NUTTX_DEVICE_H */

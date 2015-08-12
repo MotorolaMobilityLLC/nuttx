@@ -30,7 +30,6 @@
 
 #include <nuttx/util.h>
 #include <nuttx/device.h>
-#include <nuttx/device_resource.h>
 #include <nuttx/device_table.h>
 #include <nuttx/device_pll.h>
 #include <nuttx/device_i2s.h>

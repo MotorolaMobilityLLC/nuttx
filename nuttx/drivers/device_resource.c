@@ -30,7 +30,7 @@
 
 #include <string.h>
 
-#include <nuttx/device_resource.h>
+#include <nuttx/device.h>
 
 /**
  * @brief Search for device resource by type and number
