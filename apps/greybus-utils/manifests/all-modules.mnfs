@@ -101,16 +101,10 @@ bundle = 1
 id = 9
 protocol = 0x09
 
-; I2S_MGMT protocol on CPort 10
+; SPI protocol on CPort 10
 [cport-descriptor "10"]
 bundle = 1
 id = 10
-protocol = 0x0a
-
-; SPI protocol on CPort 11
-[cport-descriptor "11"]
-bundle = 1
-id = 11
 protocol = 0x0b
 
 ; DISPLAY (0x0c) automatically set up by SVC to use CPort 16
@@ -121,29 +115,17 @@ protocol = 0x0b
 
 ; Skipping LED (0x0f)
 
-; VIBRATOR protocol on CPort 12
+; VIBRATOR protocol on CPort 11
+[cport-descriptor "11"]
+bundle = 1
+id = 11
+protocol = 0x10
+
+; LOOPBACK protocol on CPort 12
 [cport-descriptor "12"]
 bundle = 1
 id = 12
-protocol = 0x10
-
-; LOOPBACK protocol on CPort 13
-[cport-descriptor "13"]
-bundle = 1
-id = 13
 protocol = 0x11
-
-; I2S_RECEIVER protocol on CPort 14
-[cport-descriptor "14"]
-bundle = 1
-id = 14
-protocol = 0x12
-
-; I2S_TRANSMITTER protocol on CPort 15
-[cport-descriptor "15"]
-bundle = 1
-id = 15
-protocol = 0x13
 
 ; Bundle 1
 ; It is unclear what the 'class' field should be set to
