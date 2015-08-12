@@ -76,7 +76,7 @@ int gb_svc_protocol_version(void) {
         dbg_error("unsupported major version: %u\n", version_response->major);
         return -EPROTO;
     }
-    dbg_info("SVC Protocol version_major = %u version_minor = %u",
+    dbg_info("SVC Protocol version_major = %u version_minor = %u\n",
              version_response->major, version_response->minor);
 
     gb_operation_destroy(op_req);
