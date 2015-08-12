@@ -256,10 +256,16 @@ int gb_loopback_service(void)
             loop_time = timeval_to_usec(&tv_total);
             sleep_time = wait_min;
 
-            if (loop_time > sleep_time)
-                fprintf(stderr, "%s running late\n", __FUNCTION__);
-            else
-                usleep(sleep_time - loop_time);
+            /*
+             * If no sleep is required, then we will probably go down in the
+             * next iteration - don't call usleep().
+             */
+            if (sleep_time > 0) {
+                if (loop_time > sleep_time)
+                    fprintf(stderr, "%s running late\n", __FUNCTION__);
+                else
+                    usleep(sleep_time - loop_time);
+            }
         }
 
         gettimeofday(&tv_start, NULL);
@@ -320,6 +326,11 @@ int gbl_main(int argc, char *argv[])
     if (argc < 2)
         goto help;
     cmd = argv[argc - 1];
+
+    if (wait == 0) {
+        fprintf(stderr, "wait period must be greater than 0\n");
+        return EXIT_FAILURE;
+    }
 
     /* Bail-out if the cport is invalid since we would do nothing anyway. */
     if (cport >= 0 && !gb_loopback_cport_valid(cport)) {
