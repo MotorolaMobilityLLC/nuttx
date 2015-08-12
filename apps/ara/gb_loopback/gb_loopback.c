@@ -253,8 +253,7 @@ int gb_loopback_service(void)
             gettimeofday(&tv_end, NULL);
             timersub(&tv_end, &tv_start, &tv_total);
 
-            loop_time = (tv_total.tv_sec * (uint64_t)1000000) +
-                        tv_total.tv_usec;
+            loop_time = timeval_to_usec(&tv_total);
             sleep_time = wait_min;
 
             if (loop_time > sleep_time)
