@@ -1607,7 +1607,7 @@ static int es2_data_send(struct tsb_switch *sw, void *data, size_t len) {
 done:
     pthread_mutex_unlock(&priv->data_cport4.lock);
 
-    return 0;
+    return rc;
 }
 
 /**
