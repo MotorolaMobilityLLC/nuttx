@@ -297,14 +297,22 @@ int svc_route_create(uint8_t intf1_id, uint8_t dev1_id,
                      uint8_t intf2_id, uint8_t dev2_id) {
     struct tsb_switch *sw = svc->sw;
     int rc;
+    int port1_id, port2_id;
+
+    port1_id = interface_get_portid_by_id(intf1_id);
+    port2_id = interface_get_portid_by_id(intf2_id);
+    if (port1_id < 0 || port2_id < 0) {
+        return -EINVAL;
+    }
 
     rc = switch_setup_routing_table(sw,
                                     dev1_id,
-                                    interface_get_portid_by_id(intf1_id),
+                                    port1_id,
                                     dev2_id,
-                                    interface_get_portid_by_id(intf2_id));
+                                    port2_id);
     if (rc) {
-        dbg_error("Failed to create route [%u:%u]<->[%u:%u]\n");
+        dbg_error("Failed to create route [p=%d,d=%d]<->[p=%d,d=%d]\n",
+                  port1_id, dev1_id, port2_id, dev2_id);
         return rc;
     }
 
