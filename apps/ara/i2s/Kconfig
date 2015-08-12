@@ -43,6 +43,7 @@ if ARA_I2S_TEST
 config ARA_I2S_TEST_PROGNAME
 	string "Program name"
 	default "i2s_test"
+	depends on BUILD_KERNEL
 	---help---
 		This is the name of the program that will be used when the
 		NSH ELF program is installed.
