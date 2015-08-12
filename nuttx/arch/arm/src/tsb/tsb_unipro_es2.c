@@ -415,7 +415,7 @@ static int irq_unipro(int irq, void *context) {
      */
     rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0, NULL);
     if (rc) {
-        return rc;
+        goto done;
     }
 
     /*
@@ -424,7 +424,7 @@ static int irq_unipro(int irq, void *context) {
      */
     rc = unipro_attr_local_read(TSB_MAILBOX, &cportid, 0, NULL);
     if (rc) {
-        return rc;
+        goto done;
     }
     cportid--;
 
@@ -447,23 +447,22 @@ static int irq_unipro(int irq, void *context) {
      */
     rc = unipro_attr_local_write(TSB_MAILBOX, 0, 0, NULL);
     if (rc) {
-        return rc;
+        goto done;
     }
 
     rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0, NULL);
     if (rc) {
-        return rc;
+        goto done;
     }
 
     rc = unipro_attr_local_read(TSB_MAILBOX, &cportid, 0, NULL);
     if (rc) {
-        return rc;
+        goto done;
     }
 
+done:
     tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
-
-
-    return 0;
+    return rc;
 }
 
 int unipro_unpause_rx(unsigned int cportid)
