@@ -133,6 +133,21 @@ uint8_t gb_errno_to_op_result(int err)
     }
 }
 
+#ifdef CONFIG_GREYBUS_FEATURE_HAVE_TIMESTAMPS
+static void op_mark_send_time(struct gb_operation *operation)
+{
+    clock_gettime(CLOCK_REALTIME, &operation->send_ts);
+}
+
+static void op_mark_recv_time(struct gb_operation *operation)
+{
+    clock_gettime(CLOCK_REALTIME, &operation->recv_ts);
+}
+#else
+static void op_mark_send_time(struct gb_operation *operation) { }
+static void op_mark_recv_time(struct gb_operation *operation) { }
+#endif
+
 static int gb_compare_handlers(const void *data1, const void *data2)
 {
     const struct gb_operation_handler *handler1 = data1;
@@ -185,6 +200,7 @@ static void gb_process_request(struct gb_operation_hdr *hdr,
 
     if (hdr->id)
         gb_operation_send_response(operation, result);
+    op_mark_send_time(operation);
 }
 
 static bool gb_operation_has_timedout(struct gb_operation *operation)
@@ -282,6 +298,7 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
         /* attach this response with the original request */
         gb_operation_ref(operation);
         op->response = operation;
+        op_mark_recv_time(op);
         if (op->callback)
             op->callback(op);
         gb_operation_unref(op);
@@ -380,6 +397,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
         return -ENOMEM;
 
     memcpy(op->request_buffer, data, hdr_size);
+    op_mark_recv_time(op);
 
     flags = irqsave();
     list_add(&g_cport[cport].rx_fifo, &op->list);
@@ -552,6 +570,7 @@ int gb_operation_send_request(struct gb_operation *operation,
     retval = transport_backend->send(operation->cport,
                                      operation->request_buffer,
                                      le16_to_cpu(hdr->size));
+    op_mark_send_time(operation);
     if (need_response && retval) {
         list_del(&operation->list);
         gb_watchdog_update(operation->cport);

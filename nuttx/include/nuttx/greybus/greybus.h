@@ -105,6 +105,11 @@ struct gb_operation {
     struct list_head list;
 
     struct gb_operation *response;
+
+#ifdef CONFIG_GREYBUS_FEATURE_HAVE_TIMESTAMPS
+    struct timespec send_ts;
+    struct timespec recv_ts;
+#endif
 };
 
 struct gb_driver {
