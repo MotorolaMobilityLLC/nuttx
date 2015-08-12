@@ -98,6 +98,16 @@
         }                                             \
     } while (0)
 
+#define timespecsub(a, b, res)                        \
+    do {                                              \
+        (res)->tv_sec  = (a)->tv_sec  - (b)->tv_sec;  \
+        (res)->tv_nsec = (a)->tv_nsec - (b)->tv_nsec; \
+        if ((res)->tv_nsec < 0) {                     \
+            (res)->tv_nsec += 1000000000L;            \
+            (res)->tv_sec  -= 1;                      \
+        }                                             \
+    } while (0)
+
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
