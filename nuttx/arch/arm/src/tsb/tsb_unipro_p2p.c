@@ -187,8 +187,8 @@ void unipro_p2p_setup(void) {
     }
 
 #ifdef CONFIG_ICE_CORE
-//    unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, 0x22 /* PWM */, 0 /*series */, 1 /* termination */);
-    unipro_powermode_change(2 /* txgear */, 2 /* rxgear */, 0x11 /* HS */, 0 /*series */, 1 /* termination */);
+    unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, 0x22 /* PWM */, 0 /*series */, 1 /* termination */);
+//    unipro_powermode_change(2 /* txgear */, 2 /* rxgear */, 0x11 /* HS */, 0 /*series */, 1 /* termination */);
 #else
     unipro_attr_write(PA_TXTERMINATION, 1, 0 /* selector */, 0 /* peer */, &result_code);
     unipro_attr_write(PA_RXTERMINATION, 1, 0 /* selector */, 0 /* peer */, &result_code);
@@ -545,9 +545,9 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
 };
 
 const static struct dbg_entry CPORT_ATTRIBUTES[] = {
+    DBG_ENTRY(T_CONNECTIONSTATE),
     DBG_ENTRY(T_PEERDEVICEID),
     DBG_ENTRY(T_PEERCPORTID),
-    DBG_ENTRY(T_CONNECTIONSTATE),
     DBG_ENTRY(T_TRAFFICCLASS),
     DBG_ENTRY(T_PROTOCOLID),
     DBG_ENTRY(T_CPORTFLAGS),
