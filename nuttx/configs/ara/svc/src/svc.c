@@ -118,7 +118,7 @@ static int event_cb(struct tsb_switch_event *ev) {
 
 static int event_mailbox(struct tsb_switch_event *ev) {
     struct svc_event *svc_ev;
-    int rc;
+    int rc = 0;
     dbg_info("event received: type: %u port: %u val: %u\n", ev->type, ev->mbox.port, ev->mbox.val);
     pthread_mutex_lock(&svc->lock);
     switch (ev->mbox.val) {
@@ -126,7 +126,8 @@ static int event_mailbox(struct tsb_switch_event *ev) {
         rc = interface_get_id_by_portid(ev->mbox.port);
         if (rc < 0) {
             dbg_error("Unknown module on port %u: %d\n", ev->mbox.port, rc);
-            break;
+            rc = -ENODEV;
+            goto out;
         }
 
         svc->ap_intf_id = rc;
@@ -136,6 +137,8 @@ static int event_mailbox(struct tsb_switch_event *ev) {
         svc_ev = svc_event_create(SVC_EVENT_TYPE_READY_OTHER);
         if (!svc_ev) {
             dbg_error("Couldn't create TSB_MAIL_READY_OTHER event\n");
+            rc = -ENOMEM;
+            goto out;
         }
         svc_ev->data.ready_other.port = ev->mbox.port;
         list_add(&svc_events, &svc_ev->events);
@@ -143,10 +146,11 @@ static int event_mailbox(struct tsb_switch_event *ev) {
     default:
         dbg_error("unexpected mailbox value: %u port: %u", ev->mbox.val, ev->mbox.port);
     }
+ out:
     pthread_cond_signal(&svc->cv);
     pthread_mutex_unlock(&svc->lock);
 
-    return 0;
+    return rc;
 }
 
 static int svc_event_init(void) {
