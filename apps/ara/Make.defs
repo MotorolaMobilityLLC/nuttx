@@ -138,3 +138,7 @@ endif
 ifeq ($(CONFIG_ARA_GB_TAPE),y)
 CONFIGURED_APPS += ara/gb_tape
 endif
+
+ifeq ($(CONFIG_ARA_DEV_INFO),y)
+CONFIGURED_APPS += ara/dev_info
+endif

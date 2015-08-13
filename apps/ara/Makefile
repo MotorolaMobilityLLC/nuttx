@@ -67,6 +67,7 @@ SUBDIRS  = apbridge
 SUBDIRS += bdbpm
 SUBDIRS += bringup_entry
 SUBDIRS += debug
+SUBDIRS += dev_info
 SUBDIRS += etm
 SUBDIRS += gb_loopback
 SUBDIRS += gb_tape
@@ -92,6 +93,7 @@ ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 CNTXTDIRS += bdbpm
 CNTXTDIRS += bringup_entry
 CNTXTDIRS += debug
+CNTXTDIRS += dev_info
 CNTXTDIRS += etm
 CNTXTDIRS += gb_loopback
 CNTXTDIRS += gb-tape
