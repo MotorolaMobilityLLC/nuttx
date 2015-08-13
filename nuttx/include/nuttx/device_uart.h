@@ -29,7 +29,6 @@
 #ifndef __INCLUDE_NUTTX_DEVICE_UART_H
 #define __INCLUDE_NUTTX_DEVICE_UART_H
 
-#include <assert.h>
 #include <nuttx/util.h>
 #include <nuttx/device.h>
 #include <nuttx/ring_buf.h>
@@ -141,8 +140,7 @@ static inline int device_uart_set_configuration(struct device *dev,
                                                 int databits, int stopbit,
                                                 int flow)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -167,8 +165,7 @@ static inline int device_uart_set_configuration(struct device *dev,
 static inline int device_uart_get_modem_ctrl(struct device *dev,
                                              uint8_t *modem_ctrl)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -192,8 +189,7 @@ static inline int device_uart_get_modem_ctrl(struct device *dev,
 static inline int device_uart_set_modem_ctrl(struct device *dev,
                                              uint8_t *modem_ctrl)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -217,8 +213,7 @@ static inline int device_uart_set_modem_ctrl(struct device *dev,
 static inline int device_uart_get_modem_status(struct device *dev,
                                                uint8_t *modem_status)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -242,8 +237,7 @@ static inline int device_uart_get_modem_status(struct device *dev,
 static inline int device_uart_get_line_status(struct device *dev,
                                               uint8_t *line_status)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -266,8 +260,7 @@ static inline int device_uart_get_line_status(struct device *dev,
  */
 static inline int device_uart_set_break(struct device *dev, uint8_t break_on)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -291,8 +284,7 @@ static inline int device_uart_set_break(struct device *dev, uint8_t break_on)
 static inline int device_uart_attach_ms_callback(struct device *dev,
                                                  void (*callback)(uint8_t ms))
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -317,8 +309,7 @@ static inline int device_uart_attach_ms_callback(struct device *dev,
 static inline int device_uart_attach_ls_callback(struct device *dev,
                                                  void (*callback)(uint8_t ls))
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -350,8 +341,7 @@ static inline int device_uart_start_transmitter(struct device *dev,
                         int *sent, void (*callback)(uint8_t *buffer, int length,
                                                     int error))
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -373,8 +363,7 @@ static inline int device_uart_start_transmitter(struct device *dev,
  */
 static inline int device_uart_stop_transmitter(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -405,8 +394,7 @@ static inline int device_uart_start_receiver(struct device *dev,
                         int *got, void (*callback)(uint8_t *buffer, int length,
                                                    int error))
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -428,8 +416,7 @@ static inline int device_uart_start_receiver(struct device *dev,
  */
 static inline int device_uart_stop_receiver(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.uart)
+    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;

@@ -31,7 +31,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <assert.h>
 
 #define DEVICE_TYPE_SPI_HW          "spi"
 
@@ -135,8 +134,7 @@ struct device_spi_type_ops {
  */
 static inline int device_spi_lock(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;
@@ -155,8 +153,7 @@ static inline int device_spi_lock(struct device *dev)
  */
 static inline int device_spi_unlock(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;
@@ -176,8 +173,7 @@ static inline int device_spi_unlock(struct device *dev)
  */
 static inline int device_spi_select(struct device *dev, int devid)
 {
-     DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;
@@ -197,8 +193,7 @@ static inline int device_spi_select(struct device *dev, int devid)
  */
 static inline int device_spi_deselect(struct device *dev, int devid)
 {
-     DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;
@@ -219,8 +214,7 @@ static inline int device_spi_deselect(struct device *dev, int devid)
 static inline int device_spi_setfrequency(struct device *dev,
                                           uint32_t *frequency)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;
@@ -240,8 +234,7 @@ static inline int device_spi_setfrequency(struct device *dev,
  */
 static inline int device_spi_setmode(struct device *dev, uint16_t mode)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;
@@ -263,8 +256,7 @@ static inline int device_spi_setmode(struct device *dev, uint16_t mode)
  */
 static inline int device_spi_setbits(struct device *dev, int nbits)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;
@@ -285,8 +277,7 @@ static inline int device_spi_setbits(struct device *dev, int nbits)
 static inline int device_spi_exchange(struct device *dev,
                                       struct device_spi_transfer *transfer)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;
@@ -308,8 +299,7 @@ static inline int device_spi_exchange(struct device *dev,
 static inline int device_spi_getcaps(struct device *dev,
                                      struct device_spi_caps *caps)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
 
     if (dev->state != DEVICE_STATE_OPEN) {
         return -ENODEV;

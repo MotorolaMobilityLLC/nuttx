@@ -32,7 +32,6 @@
 #define __INCLUDE_NUTTX_DEVICE_I2S_H
 
 #include <errno.h>
-#include <assert.h>
 
 #include <nuttx/util.h>
 #include <nuttx/device.h>
@@ -150,8 +149,7 @@ struct device_i2s_type_ops {
 static inline int device_i2s_get_processing_delay(struct device *dev,
                                                   uint32_t *processing_delay)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -176,8 +174,7 @@ static inline int device_i2s_get_supported_configurations(
                         uint16_t *configuration_count,
                         const struct device_i2s_configuration *configurations[])
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -200,8 +197,7 @@ static inline int device_i2s_get_supported_configurations(
 static inline int device_i2s_set_configuration(struct device *dev,
                                  struct device_i2s_configuration *configuration)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -226,8 +222,7 @@ static inline int device_i2s_prepare_receiver(struct device *dev,
                                               device_i2s_callback callback,
                                               void *arg)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -251,8 +246,7 @@ static inline int device_i2s_prepare_receiver(struct device *dev,
  */
 static inline int device_i2s_start_receiver(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -271,8 +265,7 @@ static inline int device_i2s_start_receiver(struct device *dev)
  */
 static inline int device_i2s_stop_receiver(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -291,8 +284,7 @@ static inline int device_i2s_stop_receiver(struct device *dev)
  */
 static inline int device_i2s_shutdown_receiver(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -316,8 +308,7 @@ static inline int device_i2s_prepare_transmitter(struct device *dev,
                                                  device_i2s_callback callback,
                                                  void *arg)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -340,8 +331,7 @@ static inline int device_i2s_prepare_transmitter(struct device *dev,
  */
 static inline int device_i2s_start_transmitter(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -360,8 +350,7 @@ static inline int device_i2s_start_transmitter(struct device *dev)
  */
 static inline int device_i2s_stop_transmitter(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
@@ -380,8 +369,7 @@ static inline int device_i2s_stop_transmitter(struct device *dev)
  */
 static inline int device_i2s_shutdown_transmitter(struct device *dev)
 {
-    DEBUGASSERT(dev && dev->driver && dev->driver->ops &&
-                dev->driver->ops->type_ops.i2s);
+    DEVICE_DRIVER_ASSERT_OPS(dev, i2s);
 
     if (dev->state != DEVICE_STATE_OPEN)
         return -ENODEV;
