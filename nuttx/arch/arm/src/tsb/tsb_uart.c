@@ -372,9 +372,6 @@ static void ua_xmitchars(struct tsb_uart_info *uart_info)
     }
 
     while (!ua_is_tx_fifo_full(uart_info->reg_base)) {
-        ua_putreg(uart_info->reg_base, UA_RBR_THR_DLL,
-                  uart_info->xmit.buffer[uart_info->xmit.head]);
-        uart_info->xmit.head++;
         if (uart_info->xmit.head == uart_info->xmit.tail) {
             /* Disable transmit interrupt */
             ua_reg_bit_clr(uart_info->reg_base, UA_IER_DLH, UA_IER_ETBEI);
@@ -386,7 +383,11 @@ static void ua_xmitchars(struct tsb_uart_info *uart_info)
             else {
                 sem_post(&uart_info->tx_sem);
             }
+            return;
         }
+        ua_putreg(uart_info->reg_base, UA_RBR_THR_DLL,
+                  uart_info->xmit.buffer[uart_info->xmit.head]);
+        uart_info->xmit.head++;
     }
 }
 
@@ -416,43 +417,25 @@ static void ua_recvchars(struct tsb_uart_info *uart_info, uint8_t int_id)
     }
 
     while (!ua_is_rx_fifo_empty(uart_info->reg_base)) {
-        if (int_id == UA_INTERRUPT_ID_TO) {
-            /* time out with blank character in FIFO */
-            ua_getreg(uart_info->reg_base, UA_RBR_THR_DLL);
-        } else {
-            uart_info->recv.buffer[uart_info->recv.head] =
-                            ua_getreg(uart_info->reg_base, UA_RBR_THR_DLL);
-            uart_info->recv.head++;
+        uart_info->recv.buffer[uart_info->recv.head] =
+                        ua_getreg(uart_info->reg_base, UA_RBR_THR_DLL);
+        uart_info->recv.head++;
+        if (uart_info->recv.head == uart_info->recv.tail) {
+            break;
         }
-        /*
-         * Three conditions will pause receiving and return to caller.
-         * 1. When given buffer is full, caller should prepare another buffer.
-         * 2. When receiving time out, it returns for the short data, for
-         *    instance, the OK response for modem. The time out is 4 characters
-         *    interval by hardware design.
-         * 3. Line err such as overrun, frame, parity and break;
-         * The FIFO still keeps data and receiving until FIFO get full, in auto
-         * flow control mode, UART controller will clean RTS to stop peer or the
-         * caller can use next tsb_uart_start_receiver() to continue data
-         * receiving by enalbing interrupt.
-         * It never clean the FIFO. Only stop_receiver() will clean the FIFO.
-         */
-        if (uart_info->recv.head == uart_info->recv.tail ||
-            int_id == UA_INTERRUPT_ID_TO || uart_info->line_err) {
-            /* Disable receive interrupt */
-            ua_reg_bit_clr(uart_info->reg_base, UA_IER_DLH,
+    }
+
+    /* Disable receive interrupt */
+    ua_reg_bit_clr(uart_info->reg_base, UA_IER_DLH,
                            UA_IER_ERBFI | UA_IER_ELSI);
 
-            if (uart_info->rx_callback) {
-                uart_info->flags &= ~TSB_UART_FLAG_RECV;
-                uart_info->rx_callback(uart_info->recv.buffer,
-                                       uart_info->recv.head,
-                                       uart_info->line_err);
-            }
-            else {
-                sem_post(&uart_info->rx_sem);
-            }
-        }
+    if (uart_info->rx_callback) {
+        uart_info->flags &= ~TSB_UART_FLAG_RECV;
+        uart_info->rx_callback(uart_info->recv.buffer,
+                               uart_info->recv.head,
+                               uart_info->line_err);
+    } else {
+        sem_post(&uart_info->rx_sem);
     }
 }
 
