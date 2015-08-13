@@ -129,7 +129,7 @@ static inline int device_usb_hcd_start(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -150,7 +150,7 @@ static inline void device_usb_hcd_stop(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return;
     }
 
@@ -172,7 +172,7 @@ static inline int device_usb_hcd_hub_control(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -197,7 +197,7 @@ static inline int device_usb_hcd_urb_enqueue(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -220,7 +220,7 @@ static inline int device_usb_hcd_urb_dequeue(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -247,7 +247,7 @@ static inline int device_hsic_reset(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, hsic);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -268,7 +268,7 @@ static inline int device_hsic_hold_reset(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, hsic);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -289,7 +289,7 @@ static inline int device_hsic_release_reset(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, hsic);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 

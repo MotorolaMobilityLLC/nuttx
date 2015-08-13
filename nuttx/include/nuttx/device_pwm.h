@@ -115,7 +115,7 @@ static inline int device_pwm_request_count(struct device *dev, uint16_t *count)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -137,7 +137,7 @@ static inline int device_pwm_request_activate(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -159,7 +159,7 @@ static inline int device_pwm_request_deactivate(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -184,7 +184,7 @@ static inline int device_pwm_request_config(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -208,7 +208,7 @@ static inline int device_pwm_request_set_polarity(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -230,7 +230,7 @@ static inline int device_pwm_request_enable(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -252,7 +252,7 @@ static inline int device_pwm_request_disable(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -282,7 +282,7 @@ static inline int device_pwm_request_set_mode(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -302,7 +302,7 @@ static inline int device_pwm_request_setup(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -324,7 +324,7 @@ static inline int device_pwm_request_shutdown(struct device *dev, bool off)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -346,7 +346,7 @@ static inline int device_pwm_request_sync(struct device *dev, bool enable)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -371,7 +371,7 @@ static inline int device_pwm_request_callback(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, pwm);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 

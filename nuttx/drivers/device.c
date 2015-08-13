@@ -101,7 +101,7 @@ void device_close(struct device *dev)
 
     flags = irqsave();
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         irqrestore(flags);
         return;
     }

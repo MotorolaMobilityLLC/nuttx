@@ -30,7 +30,7 @@ static inline int device_usbdev_register_gadget(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
@@ -52,7 +52,7 @@ static inline int device_usbdev_unregister_gadget(struct device *dev,
 {
     DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
 
-    if (dev->state != DEVICE_STATE_OPEN) {
+    if (!device_is_open(dev)) {
         return -ENODEV;
     }
 
