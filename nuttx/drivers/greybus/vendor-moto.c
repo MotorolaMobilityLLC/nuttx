@@ -31,7 +31,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
-#include <arch/board/slice.h>
+#ifdef CONFIG_GREYBUS_SLICE
+#  include <arch/board/slice.h>
+#endif
 
 #include <nuttx/greybus/greybus.h>
 #ifdef CONFIG_GREYBUS_SLICE
@@ -94,7 +96,10 @@ static uint8_t gb_vendor_moto_charge_base(struct gb_operation *operation)
 
     lowsyslog("charge_base: enable=%d\n", request->enable);
 
+#ifdef CONFIG_GREYBUS_SLICE
     slice_vbus_en_sw(request->enable > 0);
+#endif
+
     return GB_OP_SUCCESS;
 }
 
