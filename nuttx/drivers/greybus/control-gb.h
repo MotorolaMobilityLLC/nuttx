@@ -44,6 +44,8 @@
 #define GB_CONTROL_TYPE_CONNECTED               0x05
 #define GB_CONTROL_TYPE_DISCONNECTED            0x06
 
+#define GB_CONTROL_TYPE_GET_IDS                 0x7f
+
 /* version request has no payload */
 struct gb_control_proto_version_response {
     __u8      major;
@@ -66,5 +68,11 @@ struct gb_control_connected_request {
 };
 /* Control protocol [dis]connected response has no payload */
 
+/* Control protocol get_ids request has no payload */
+struct gb_control_get_ids_response {
+    __le32    unipro_mfg_id;
+    __le32    unipro_prod_id;
+    __le32    ara_vend_id;
+    __le32    ara_prod_id;
+};
 #endif /* __CONTROL_GB_H__ */
-

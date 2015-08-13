@@ -146,12 +146,28 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_control_get_ids(struct gb_operation *operation)
+{
+    struct gb_control_get_ids_response *response;
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    response->unipro_mfg_id = CONFIG_UNIPRO_MFG_ID;
+    response->unipro_prod_id = CONFIG_UNIPRO_PROD_ID;
+    response->ara_vend_id = CONFIG_ARA_VEND_ID;
+    response->ara_prod_id = CONFIG_ARA_PROD_ID;
+
+    return GB_OP_SUCCESS;
+}
+
 static struct gb_operation_handler gb_control_handlers[] = {
     GB_HANDLER(GB_CONTROL_TYPE_PROTOCOL_VERSION, gb_control_protocol_version),
     GB_HANDLER(GB_CONTROL_TYPE_GET_MANIFEST_SIZE, gb_control_get_manifest_size),
     GB_HANDLER(GB_CONTROL_TYPE_GET_MANIFEST, gb_control_get_manifest),
     GB_HANDLER(GB_CONTROL_TYPE_CONNECTED, gb_control_connected),
     GB_HANDLER(GB_CONTROL_TYPE_DISCONNECTED, gb_control_disconnected),
+    GB_HANDLER(GB_CONTROL_TYPE_GET_IDS, gb_control_get_ids),
 };
 
 struct gb_driver control_driver = {

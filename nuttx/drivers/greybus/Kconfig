@@ -147,3 +147,27 @@ config GREYBUS_LIGHTS
 	bool "Lights support"
 	select DEVICE_CORE
 	default n
+
+config UNIPRO_MFG_ID
+	hex "Unipro Mfg ID"
+	default 0x003
+	---help---
+		Chip manufacturer ID
+
+config UNIPRO_PROD_ID
+	hex "Unipro Prod ID"
+	default 0x003
+	---help---
+		Chip Product ID
+
+config ARA_VEND_ID
+	hex "Manufacturer ID"
+	default 0x22b8
+	---help---
+		Vendor's ID
+
+config ARA_PROD_ID
+	hex "Manufacturer's Prod ID"
+	default 0x01
+	---help---
+		Vendor's Product ID
