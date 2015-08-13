@@ -119,11 +119,11 @@ static inline int device_pwm_request_count(struct device *dev, uint16_t *count)
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->count) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->count) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->count(dev, count);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->count(dev, count);
 }
 
 /**
@@ -141,11 +141,11 @@ static inline int device_pwm_request_activate(struct device *dev,
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->activate) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->activate) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->activate(dev, pwm_no);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->activate(dev, pwm_no);
 }
 
 /**
@@ -163,11 +163,11 @@ static inline int device_pwm_request_deactivate(struct device *dev,
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->deactivate) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->deactivate) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->deactivate(dev, pwm_no);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->deactivate(dev, pwm_no);
 }
 
 /**
@@ -188,11 +188,11 @@ static inline int device_pwm_request_config(struct device *dev,
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->config) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->config) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->config(dev, pwm_no, duty, period);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->config(dev, pwm_no, duty, period);
 }
 
 /**
@@ -212,11 +212,11 @@ static inline int device_pwm_request_set_polarity(struct device *dev,
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->set_polarity) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->set_polarity) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->set_polarity(dev, pwm_no, polarity);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->set_polarity(dev, pwm_no, polarity);
 }
 
 /**
@@ -234,11 +234,11 @@ static inline int device_pwm_request_enable(struct device *dev,
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->enable) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->enable) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->enable(dev, pwm_no);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->enable(dev, pwm_no);
 }
 
 /**
@@ -256,11 +256,11 @@ static inline int device_pwm_request_disable(struct device *dev,
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->disable) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->disable) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->disable(dev, pwm_no);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->disable(dev, pwm_no);
 }
 
 /**
@@ -286,11 +286,11 @@ static inline int device_pwm_request_set_mode(struct device *dev,
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->set_mode) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->set_mode) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->set_mode(dev, pwm_no, mode, param);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->set_mode(dev, pwm_no, mode, param);
 }
 
 /**
@@ -306,11 +306,11 @@ static inline int device_pwm_request_setup(struct device *dev)
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->setup) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->setup) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->setup(dev);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->setup(dev);
 }
 
 /**
@@ -328,11 +328,11 @@ static inline int device_pwm_request_shutdown(struct device *dev, bool off)
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->shutdown) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->shutdown) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->shutdown(dev, off);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->shutdown(dev, off);
 }
 
 
@@ -350,11 +350,11 @@ static inline int device_pwm_request_sync(struct device *dev, bool enable)
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->sync_output) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->sync_output) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->sync_output(dev, enable);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->sync_output(dev, enable);
 }
 
 /**
@@ -375,12 +375,12 @@ static inline int device_pwm_request_callback(struct device *dev,
         return -ENODEV;
     }
 
-    if (!dev->driver->ops->type_ops.pwm->pwm_intr_callback) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, pwm)->pwm_intr_callback) {
         return -ENOSYS;
     }
 
-    return dev->driver->ops->type_ops.pwm->pwm_intr_callback(dev, mask,
-                                                             callback);
+    return DEVICE_DRIVER_GET_OPS(dev, pwm)->pwm_intr_callback(dev, mask,
+                                                              callback);
 }
 
 #endif

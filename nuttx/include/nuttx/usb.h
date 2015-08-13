@@ -133,8 +133,8 @@ static inline int device_usb_hcd_start(struct device *dev)
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.usb_hcd->start) {
-        return dev->driver->ops->type_ops.usb_hcd->start(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->start) {
+        return DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->start(dev);
     }
 
     return -ENOSYS;
@@ -154,8 +154,8 @@ static inline void device_usb_hcd_stop(struct device *dev)
         return;
     }
 
-    if (dev->driver->ops->type_ops.usb_hcd->stop) {
-        dev->driver->ops->type_ops.usb_hcd->stop(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->stop) {
+        return DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->stop(dev);
     }
 }
 
@@ -176,10 +176,10 @@ static inline int device_usb_hcd_hub_control(struct device *dev,
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.usb_hcd->hub_control) {
-        return dev->driver->ops->type_ops.usb_hcd->hub_control(dev, typeReq,
-                                                               wValue, wIndex,
-                                                               buf, wLength);
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->hub_control) {
+        return DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->hub_control(dev, typeReq,
+                                                                wValue, wIndex,
+                                                                buf, wLength);
     }
 
     return -ENOSYS;
@@ -201,8 +201,8 @@ static inline int device_usb_hcd_urb_enqueue(struct device *dev,
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.usb_hcd->urb_enqueue) {
-        return dev->driver->ops->type_ops.usb_hcd->urb_enqueue(dev, urb);
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->urb_enqueue) {
+        return DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->urb_enqueue(dev, urb);
     }
 
     return -ENOSYS;
@@ -224,8 +224,8 @@ static inline int device_usb_hcd_urb_dequeue(struct device *dev,
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.usb_hcd->urb_dequeue) {
-        return dev->driver->ops->type_ops.usb_hcd->urb_dequeue(dev, urb);
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->urb_dequeue) {
+        return DEVICE_DRIVER_GET_OPS(dev, usb_hcd)->urb_dequeue(dev, urb);
     }
 
     return -ENOSYS;
@@ -251,8 +251,8 @@ static inline int device_hsic_reset(struct device *dev)
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.hsic->reset) {
-        return dev->driver->ops->type_ops.hsic->reset(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, hsic)->reset) {
+        return DEVICE_DRIVER_GET_OPS(dev, hsic)->reset(dev);
     }
 
     return -ENOSYS;
@@ -272,8 +272,8 @@ static inline int device_hsic_hold_reset(struct device *dev)
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.hsic->hold_reset) {
-        return dev->driver->ops->type_ops.hsic->hold_reset(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, hsic)->hold_reset) {
+        return DEVICE_DRIVER_GET_OPS(dev, hsic)->hold_reset(dev);
     }
 
     return -ENOSYS;
@@ -293,8 +293,8 @@ static inline int device_hsic_release_reset(struct device *dev)
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.hsic->release_reset) {
-        return dev->driver->ops->type_ops.hsic->release_reset(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, hsic)->release_reset) {
+        return DEVICE_DRIVER_GET_OPS(dev, hsic)->release_reset(dev);
     }
 
     return -ENOSYS;

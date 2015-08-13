@@ -145,10 +145,12 @@ static inline int device_uart_set_configuration(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->set_configuration)
-        return dev->driver->ops->type_ops.uart->
-                    set_configuration(dev, baud, parity, databits, stopbit,
-                                      flow);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->set_configuration)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->set_configuration(dev, baud,
+                                                                   parity,
+                                                                   databits,
+                                                                   stopbit,
+                                                                   flow);
 
     return -ENOSYS;
 }
@@ -170,9 +172,9 @@ static inline int device_uart_get_modem_ctrl(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->get_modem_ctrl)
-        return dev->driver->ops->type_ops.uart->
-                    get_modem_ctrl(dev, modem_ctrl);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->get_modem_ctrl)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->get_modem_ctrl(dev,
+                                                                modem_ctrl);
 
     return -ENOSYS;
 }
@@ -194,9 +196,9 @@ static inline int device_uart_set_modem_ctrl(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->set_modem_ctrl)
-        return dev->driver->ops->type_ops.uart->
-                    set_modem_ctrl(dev, modem_ctrl);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->set_modem_ctrl)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->set_modem_ctrl(dev,
+                                                                modem_ctrl);
 
     return -ENOSYS;
 }
@@ -218,9 +220,9 @@ static inline int device_uart_get_modem_status(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->get_modem_status)
-        return dev->driver->ops->type_ops.uart->
-                    get_modem_status(dev, modem_status);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->get_modem_status)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->get_modem_status(dev,
+                                                                  modem_status);
 
     return -ENOSYS;
 }
@@ -242,9 +244,9 @@ static inline int device_uart_get_line_status(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->get_line_status)
-        return dev->driver->ops->type_ops.uart->get_line_status(dev,
-                                                                line_status);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->get_line_status)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->get_line_status(dev,
+                                                                 line_status);
 
     return -ENOSYS;
 }
@@ -265,8 +267,8 @@ static inline int device_uart_set_break(struct device *dev, uint8_t break_on)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->set_break)
-        return dev->driver->ops->type_ops.uart->set_break(dev, break_on);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->set_break)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->set_break(dev, break_on);
 
     return -ENOSYS;
 }
@@ -289,9 +291,9 @@ static inline int device_uart_attach_ms_callback(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->attach_ms_callback)
-        return dev->driver->ops->type_ops.uart->
-                    attach_ms_callback(dev, callback);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->attach_ms_callback)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->attach_ms_callback(dev,
+                                                                    callback);
 
     return -ENOSYS;
 }
@@ -314,9 +316,9 @@ static inline int device_uart_attach_ls_callback(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->attach_ls_callback)
-        return dev->driver->ops->type_ops.uart->
-                    attach_ls_callback(dev, callback);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->attach_ls_callback)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->attach_ls_callback(dev,
+                                                                    callback);
 
     return -ENOSYS;
 }
@@ -346,9 +348,11 @@ static inline int device_uart_start_transmitter(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->start_transmitter)
-        return dev->driver->ops->type_ops.uart->
-                    start_transmitter(dev, buffer, length, dma, sent, callback);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->start_transmitter)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->start_transmitter(dev, buffer,
+                                                                   length, dma,
+                                                                   sent,
+                                                                   callback);
 
     return -ENOSYS;
 }
@@ -368,8 +372,8 @@ static inline int device_uart_stop_transmitter(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->stop_transmitter)
-        return dev->driver->ops->type_ops.uart->stop_transmitter(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->stop_transmitter)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->stop_transmitter(dev);
 
     return -ENOSYS;
 }
@@ -399,9 +403,10 @@ static inline int device_uart_start_receiver(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->start_receiver)
-        return dev->driver->ops->type_ops.uart->
-                    start_receiver(dev, buffer, length, dma, got, callback);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->start_receiver)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->start_receiver(dev, buffer,
+                                                                length, dma,
+                                                                got, callback);
 
     return -ENOSYS;
 }
@@ -421,8 +426,8 @@ static inline int device_uart_stop_receiver(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.uart->stop_receiver)
-        return dev->driver->ops->type_ops.uart->stop_receiver(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->stop_receiver)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->stop_receiver(dev);
 
     return -ENOSYS;
 }

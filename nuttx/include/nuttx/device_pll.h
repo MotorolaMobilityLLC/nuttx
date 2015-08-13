@@ -57,8 +57,8 @@ static inline int device_pll_start(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.pll->start)
-        return dev->driver->ops->type_ops.pll->start(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, pll)->start)
+        return DEVICE_DRIVER_GET_OPS(dev, pll)->start(dev);
 
     return -ENOSYS;
 }
@@ -76,8 +76,8 @@ static inline int device_pll_stop(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.pll->stop)
-        return dev->driver->ops->type_ops.pll->stop(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, pll)->stop)
+        return DEVICE_DRIVER_GET_OPS(dev, pll)->stop(dev);
 
     return -ENOSYS;
 }
@@ -97,8 +97,8 @@ static inline int device_pll_set_frequency(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.pll->set_frequency)
-        return dev->driver->ops->type_ops.pll->set_frequency(dev, frequency);
+    if (DEVICE_DRIVER_GET_OPS(dev, pll)->set_frequency)
+        return DEVICE_DRIVER_GET_OPS(dev, pll)->set_frequency(dev, frequency);
 
     return -ENOSYS;
 }

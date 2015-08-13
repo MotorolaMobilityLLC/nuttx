@@ -139,8 +139,8 @@ static inline int device_spi_lock(struct device *dev)
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->lock) {
-        return dev->driver->ops->type_ops.spi->lock(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->lock) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->lock(dev);
     }
     return -ENOSYS;
 }
@@ -158,8 +158,8 @@ static inline int device_spi_unlock(struct device *dev)
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->unlock) {
-        return dev->driver->ops->type_ops.spi->unlock(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->unlock) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->unlock(dev);
     }
     return -ENOSYS;
 }
@@ -178,8 +178,8 @@ static inline int device_spi_select(struct device *dev, int devid)
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->select) {
-        return dev->driver->ops->type_ops.spi->select(dev, devid);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->select) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->select(dev, devid);
     }
     return -ENOSYS;
 }
@@ -198,8 +198,8 @@ static inline int device_spi_deselect(struct device *dev, int devid)
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->deselect) {
-        return dev->driver->ops->type_ops.spi->deselect(dev, devid);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->deselect) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->deselect(dev, devid);
     }
     return -ENOSYS;
 }
@@ -219,8 +219,8 @@ static inline int device_spi_setfrequency(struct device *dev,
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->setfrequency) {
-        return dev->driver->ops->type_ops.spi->setfrequency(dev, frequency);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->setfrequency) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->setfrequency(dev, frequency);
     }
     return -ENOSYS;
 }
@@ -239,8 +239,8 @@ static inline int device_spi_setmode(struct device *dev, uint16_t mode)
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->setmode) {
-        return dev->driver->ops->type_ops.spi->setmode(dev, mode);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->setmode) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->setmode(dev, mode);
     }
     return -ENOSYS;
 }
@@ -261,8 +261,8 @@ static inline int device_spi_setbits(struct device *dev, int nbits)
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->setbits) {
-        return dev->driver->ops->type_ops.spi->setbits(dev, nbits);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->setbits) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->setbits(dev, nbits);
     }
     return -ENOSYS;
 }
@@ -282,8 +282,8 @@ static inline int device_spi_exchange(struct device *dev,
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->exchange) {
-        return dev->driver->ops->type_ops.spi->exchange(dev, transfer);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->exchange) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->exchange(dev, transfer);
     }
     return -ENOSYS;
 }
@@ -304,8 +304,8 @@ static inline int device_spi_getcaps(struct device *dev,
     if (!device_is_open(dev)) {
         return -ENODEV;
     }
-    if (dev->driver->ops->type_ops.spi->getcaps) {
-        return dev->driver->ops->type_ops.spi->getcaps(dev, caps);
+    if (DEVICE_DRIVER_GET_OPS(dev, spi)->getcaps) {
+        return DEVICE_DRIVER_GET_OPS(dev, spi)->getcaps(dev, caps);
     }
     return -ENOSYS;
 }

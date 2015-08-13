@@ -34,8 +34,9 @@ static inline int device_usbdev_register_gadget(struct device *dev,
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.usb_pcd->register_gadget) {
-        return dev->driver->ops->type_ops.usb_pcd->register_gadget(dev, driver);
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_pcd)->register_gadget) {
+        return DEVICE_DRIVER_GET_OPS(dev, usb_pcd)->register_gadget(dev,
+                                     driver);
     }
 
     return -ENOSYS;
@@ -56,8 +57,9 @@ static inline int device_usbdev_unregister_gadget(struct device *dev,
         return -ENODEV;
     }
 
-    if (dev->driver->ops->type_ops.usb_pcd->unregister_gadget) {
-        return dev->driver->ops->type_ops.usb_pcd->unregister_gadget(dev, driver);
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_pcd)->unregister_gadget) {
+        return DEVICE_DRIVER_GET_OPS(dev, usb_pcd)->unregister_gadget(dev,
+                                                                      driver);
     }
 
     return -ENOSYS;

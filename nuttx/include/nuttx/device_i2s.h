@@ -154,8 +154,8 @@ static inline int device_i2s_get_processing_delay(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->get_processing_delay)
-        return dev->driver->ops->type_ops.i2s->get_processing_delay(dev,
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->get_processing_delay)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->get_processing_delay(dev,
                                                               processing_delay);
 
     return -ENOSYS;
@@ -179,10 +179,9 @@ static inline int device_i2s_get_supported_configurations(
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->get_supported_configurations)
-        return dev->driver->ops->type_ops.i2s->
-                    get_supported_configurations(dev, configuration_count,
-                                                 configurations);
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->get_supported_configurations)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->get_supported_configurations(
+                                     dev,configuration_count, configurations);
 
     return -ENOSYS;
 }
@@ -202,8 +201,8 @@ static inline int device_i2s_set_configuration(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->set_configuration)
-        return dev->driver->ops->type_ops.i2s->set_configuration(dev,
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->set_configuration)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->set_configuration(dev,
                                                                  configuration);
 
     return -ENOSYS;
@@ -227,9 +226,9 @@ static inline int device_i2s_prepare_receiver(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->prepare_receiver)
-        return dev->driver->ops->type_ops.i2s->prepare_receiver(dev, rx_rb,
-                                                                callback, arg);
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->prepare_receiver)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->prepare_receiver(dev, rx_rb,
+                                                                 callback, arg);
 
     return -ENOSYS;
 }
@@ -251,8 +250,8 @@ static inline int device_i2s_start_receiver(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->start_receiver)
-        return dev->driver->ops->type_ops.i2s->start_receiver(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->start_receiver)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->start_receiver(dev);
 
     return -ENOSYS;
 }
@@ -270,8 +269,8 @@ static inline int device_i2s_stop_receiver(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->stop_receiver)
-        return dev->driver->ops->type_ops.i2s->stop_receiver(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_receiver)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_receiver(dev);
 
     return -ENOSYS;
 }
@@ -289,8 +288,8 @@ static inline int device_i2s_shutdown_receiver(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->shutdown_receiver)
-        return dev->driver->ops->type_ops.i2s->shutdown_receiver(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->shutdown_receiver)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->shutdown_receiver(dev);
 
     return -ENOSYS;
 }
@@ -313,8 +312,8 @@ static inline int device_i2s_prepare_transmitter(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->prepare_transmitter)
-        return dev->driver->ops->type_ops.i2s->prepare_transmitter(dev, tx_rb,
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->prepare_transmitter)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->prepare_transmitter(dev, tx_rb,
                                                                    callback,
                                                                    arg);
     return -ENOSYS;
@@ -336,8 +335,8 @@ static inline int device_i2s_start_transmitter(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->start_transmitter)
-        return dev->driver->ops->type_ops.i2s->start_transmitter(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->start_transmitter)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->start_transmitter(dev);
 
     return -ENOSYS;
 }
@@ -355,8 +354,8 @@ static inline int device_i2s_stop_transmitter(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->stop_transmitter)
-        return dev->driver->ops->type_ops.i2s->stop_transmitter(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_transmitter)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_transmitter(dev);
 
     return -ENOSYS;
 }
@@ -374,8 +373,8 @@ static inline int device_i2s_shutdown_transmitter(struct device *dev)
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (dev->driver->ops->type_ops.i2s->shutdown_transmitter)
-        return dev->driver->ops->type_ops.i2s->shutdown_transmitter(dev);
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->shutdown_transmitter)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->shutdown_transmitter(dev);
 
     return -ENOSYS;
 }
