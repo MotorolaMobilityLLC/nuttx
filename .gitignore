@@ -12,6 +12,7 @@ core
 .gdbinit
 .dir-locals.el
 cscope.out
+cscope.files
 misc/tools/kconfig-frontends
 .built
 build
