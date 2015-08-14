@@ -60,9 +60,10 @@ CSRCS		+= usb4624.c
 endif
 
 COBJS		= $(CSRCS:.c=$(OBJEXT))
+OOT_OBJS	?= # injected when doing out of tree development
 
 SRCS		= $(ASRCS) $(CSRCS)
-OBJS		= $(AOBJS) $(COBJS)
+OBJS		= $(AOBJS) $(COBJS) $(OOT_OBJS)
 
 ARCH_SRCDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src
 CFLAGS          += -I$(ARCH_SRCDIR)/chip -I$(ARCH_SRCDIR)/common -I$(ARCH_SRCDIR)/armv7-m

@@ -65,6 +65,12 @@ choice
 
 config ARA_BRIDGE_BOARD_BDB
 	bool "BDB2 or SDB"
+
+config ARA_BRIDGE_BOARD_OOT
+	bool "Board whose sources are out-of-tree"
+	---help---
+		With this choice, the object files in OOT_OBJS will be linked with
+		the in-tree object files.
 endchoice
 
 choice
