@@ -129,6 +129,16 @@
     }
 
 /*
+ * DETECT_IN lines directly connected to the SVC, for direct
+ * control and/or simulation.
+ * Configured by default as output, inactive, with pull-up.
+ */
+#define SMA1_DET_IN     (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
+                         GPIO_PORTC | GPIO_PIN0)
+#define SMA2_DET_IN     (GPIO_OUTPUT | GPIO_OPENDRAIN | GPIO_PULLUP | \
+                         GPIO_PORTC | GPIO_PIN1)
+
+/*
  * Built-in bridge voltage regulator list
  */
 static struct vreg_data apb1_vreg_data[] = {
@@ -215,13 +225,28 @@ static struct vreg_data sma2_vreg_data[] = {
 /*
  * Interfaces on this board
  */
-DECLARE_INTERFACE(apb1, apb1_vreg_data, 4, WAKEOUT_APB1);
-DECLARE_INTERFACE(apb2, apb2_vreg_data, 12, WAKEOUT_APB2);
-DECLARE_INTERFACE(apb3, apb3_vreg_data, 7, WAKEOUT_APB3);
-DECLARE_INTERFACE(gpb1, gpb1_vreg_data, 0, WAKEOUT_GPB1);
-DECLARE_INTERFACE(gpb2, gpb2_vreg_data, 2, WAKEOUT_GPB2);
-DECLARE_INTERFACE(sma1, sma1_vreg_data, 9, WAKEOUT_SMA1);
-DECLARE_INTERFACE(sma2, sma2_vreg_data, 10, WAKEOUT_SMA2);
+DECLARE_INTERFACE(apb1, apb1_vreg_data, 4, WAKEOUT_APB1,
+                  U701_GPIO_PIN(1), ARA_IFACE_WD_ACTIVE_HIGH,
+                  U701_GPIO_PIN(0), ARA_IFACE_WD_ACTIVE_LOW);
+DECLARE_INTERFACE(apb2, apb2_vreg_data, 12, WAKEOUT_APB2,
+                  U701_GPIO_PIN(3), ARA_IFACE_WD_ACTIVE_HIGH,
+                  U701_GPIO_PIN(2), ARA_IFACE_WD_ACTIVE_LOW);
+DECLARE_INTERFACE(apb3, apb3_vreg_data, 7, WAKEOUT_APB3,
+                  U701_GPIO_PIN(5), ARA_IFACE_WD_ACTIVE_HIGH,
+                  U701_GPIO_PIN(4), ARA_IFACE_WD_ACTIVE_LOW);
+DECLARE_INTERFACE(gpb1, gpb1_vreg_data, 0, WAKEOUT_GPB1,
+                  U701_GPIO_PIN(7), ARA_IFACE_WD_ACTIVE_HIGH,
+                  U701_GPIO_PIN(6), ARA_IFACE_WD_ACTIVE_LOW);
+DECLARE_INTERFACE(gpb2, gpb2_vreg_data, 2, WAKEOUT_GPB2,
+                  U701_GPIO_PIN(9), ARA_IFACE_WD_ACTIVE_HIGH,
+                  U701_GPIO_PIN(8), ARA_IFACE_WD_ACTIVE_LOW);
+
+DECLARE_EXPANSION_INTERFACE(sma1, sma1_vreg_data, 9, WAKEOUT_SMA1,
+                            U701_GPIO_PIN(11), ARA_IFACE_WD_ACTIVE_HIGH,
+                            U701_GPIO_PIN(13), ARA_IFACE_WD_ACTIVE_LOW);
+DECLARE_EXPANSION_INTERFACE(sma2, sma2_vreg_data, 10, WAKEOUT_SMA2,
+                            U701_GPIO_PIN(12), ARA_IFACE_WD_ACTIVE_HIGH,
+                            U701_GPIO_PIN(15), ARA_IFACE_WD_ACTIVE_LOW);
 
 /*
  * Important note: Always declare the spring interfaces last.
@@ -318,6 +343,12 @@ struct ara_board_info *board_init(void) {
     vreg_config(&sw_vreg);
     stm32_configgpio(sdb_board_info.sw_data.gpio_reset);
     up_udelay(POWER_SWITCH_OFF_STAB_TIME_US);
+
+    /*
+     * Configure the SVC DETECT_IN lines
+     */
+    stm32_configgpio(SMA1_DET_IN);
+    stm32_configgpio(SMA2_DET_IN);
 
     /*
      * Enable 1P1 and 1P8, used by the I/O Expanders

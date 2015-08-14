@@ -34,6 +34,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
+#include <nuttx/gpio.h>
 
 #include <errno.h>
 
@@ -354,6 +355,87 @@ uint8_t interface_pm_get_chan(struct interface *iface)
     return iface->pm->chan;
 }
 
+/**
+ * @brief Get the interface struct from the Wake & Detect gpio
+ * @returns: interface* on success, NULL on error
+ */
+static struct interface* interface_get_by_wd(uint32_t gpio)
+{
+    int i;
+    struct interface *ifc;
+
+    interface_foreach(ifc, i) {
+        if ((ifc->wake_in.gpio == gpio) ||
+            (ifc->detect_in.gpio == gpio)) {
+            return ifc;
+        }
+    }
+
+    return NULL;
+}
+
+/* Interface Wake & Detect handler */
+int interface_wd_handler(int irq, void *context)
+{
+    struct interface *iface = NULL;
+    struct wd_data *wd;
+    bool polarity;
+
+    iface = interface_get_by_wd(irq);
+    if (!iface) {
+        dbg_error("%s: cannot get interface for pin %d\n", __func__, irq);
+        return -ENODEV;
+    }
+
+    if (iface->wake_in.gpio == irq) {
+        wd = &iface->wake_in;
+        polarity = (iface->flags & ARA_IFACE_FLAG_WAKE_IN_ACTIVE_HIGH) ?
+            true : false;
+    } else {
+        wd = &iface->detect_in;
+        polarity = (iface->flags & ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH) ?
+            true : false;
+    }
+
+    dbg_insane("W&D: got gpio %d %s (%s_%s)\n",
+               irq,
+               polarity ? "H" : "L",
+               iface->name,
+               (wd == &iface->wake_in) ? "wake_in" : "detect_in");
+
+    return 0;
+}
+
+/*
+ * Uninstall handler for Wake & Detect pin
+ */
+static void interface_uninstall_wd_handler(struct wd_data *wd)
+{
+    if (wd->gpio) {
+        gpio_mask_irq(wd->gpio);
+        gpio_irqattach(wd->gpio, NULL);
+    }
+}
+
+/*
+ * Install handler for Wake & Detect pin
+ */
+static int interface_install_wd_handler(struct wd_data *wd)
+{
+    if (wd->gpio) {
+        gpio_direction_in(wd->gpio);
+        if (set_gpio_triggering(wd->gpio, IRQ_TYPE_EDGE_BOTH) ||
+            gpio_irqattach(wd->gpio, interface_wd_handler) ||
+            gpio_unmask_irq(wd->gpio)) {
+            dbg_error("Failed to attach Wake & Detect handler for pin %d\n",
+                      wd->gpio);
+            interface_uninstall_wd_handler(wd);
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
 
 /**
  * @brief           Return the measurement sign pin GPIO configuration.
@@ -382,6 +464,7 @@ int interface_early_init(struct interface **ints,
     unsigned int i;
     int rc;
     int fail = 0;
+    struct interface *ifc;
 
     dbg_info("Power off all interfaces\n");
 
@@ -393,10 +476,10 @@ int interface_early_init(struct interface **ints,
     nr_interfaces = nr_ints;
     nr_spring_interfaces = nr_spring_ints;
 
-    for (i = 0; i < nr_interfaces; i++) {
-        rc = interface_config(interfaces[i]);
+    interface_foreach(ifc, i) {
+        rc = interface_config(ifc);
         if (rc < 0) {
-            dbg_error("Failed to power interface %s\n", interfaces[i]->name);
+            dbg_error("Failed to configure interface %s\n", ifc->name);
             fail = 1;
             /* Continue configuring remaining interfaces */
             continue;
@@ -427,6 +510,7 @@ int interface_init(struct interface **ints,
                    size_t nr_ints, size_t nr_spring_ints) {
     unsigned int i;
     int rc;
+    struct interface *ifc;
 
     dbg_info("Initializing all interfaces\n");
 
@@ -438,20 +522,30 @@ int interface_init(struct interface **ints,
     nr_interfaces = nr_ints;
     nr_spring_interfaces = nr_spring_ints;
 
-    for (i = 0; i < nr_interfaces; i++) {
-        rc = interface_pwr_enable(interfaces[i]);
+    interface_foreach(ifc, i) {
+        rc = interface_pwr_enable(ifc);
         if (rc < 0) {
-            dbg_error("Failed to enable interface %s\n", interfaces[i]->name);
+            dbg_error("Failed to enable interface %s\n", ifc->name);
             interface_exit();
             return rc;
         }
-        rc = interface_generate_wakeout(interfaces[i], true);
+        rc = interface_generate_wakeout(ifc, true);
         if (rc < 0) {
             dbg_error("Failed to generate wakeout on interface %s\n",
-                      interfaces[i]->name);
+                      ifc->name);
             interface_exit();
             return rc;
         }
+    }
+
+    /* Install handlers for WAKE_IN and DETECT_IN signals */
+    interface_foreach(ifc, i) {
+        rc = interface_install_wd_handler(&ifc->wake_in);
+        if (rc)
+            return rc;
+        rc = interface_install_wd_handler(&ifc->detect_in);
+        if (rc)
+            return rc;
     }
 
     return 0;
@@ -465,6 +559,7 @@ int interface_init(struct interface **ints,
 void interface_exit(void) {
     unsigned int i;
     int rc;
+    struct interface *ifc;
 
     dbg_info("Disabling all interfaces\n");
 
@@ -472,10 +567,17 @@ void interface_exit(void) {
         return;
     }
 
-    for (i = 0; i < nr_interfaces; i++) {
-        rc = interface_pwr_disable(interfaces[i]);
+    /* Uninstall handlers for WAKE_IN and DETECT_IN signals */
+    interface_foreach(ifc, i) {
+        interface_uninstall_wd_handler(&ifc->wake_in);
+        interface_uninstall_wd_handler(&ifc->detect_in);
+    }
+
+    /* Power off */
+    interface_foreach(ifc, i) {
+        rc = interface_pwr_disable(ifc);
         if (rc < 0) {
-            dbg_error("Failed to disable interface %s\n", interfaces[i]->name);
+            dbg_error("Failed to disable interface %s\n", ifc->name);
             /* Continue turning off the rest even if this one failed */
             continue;
         }

@@ -47,6 +47,17 @@ struct pm_data {
     uint32_t spin;      /* ADC sign pin */
 };
 
+/*
+ * Wake & Detect signals information
+ */
+struct wd_data {
+    uint16_t gpio;      /* GPIO number */
+    uint8_t db_state;   /* Debounce state */
+};
+
+#define ARA_IFACE_WD_ACTIVE_LOW     false
+#define ARA_IFACE_WD_ACTIVE_HIGH    true
+
 /* Interface types. */
 enum ara_iface_type {
     /* Connected to built-in UniPro peer (like a bridge ASIC on a BDB). */
@@ -58,15 +69,26 @@ enum ara_iface_type {
     ARA_IFACE_TYPE_EXPANSION,
 };
 
+/* Interface flags */
+/*  Wake In active low or high signal */
+#define ARA_IFACE_FLAG_WAKE_IN_ACTIVE_LOW       (0U << 0)
+#define ARA_IFACE_FLAG_WAKE_IN_ACTIVE_HIGH      (1U << 0)
+/*  Detect In active low or high signal */
+#define ARA_IFACE_FLAG_DETECT_IN_ACTIVE_LOW     (0U << 1)
+#define ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH    (1U << 1)
+
 struct interface {
     const char *name;
     unsigned int switch_portid;
     uint8_t dev_id;
     enum ara_iface_type if_type;
+    unsigned int flags;
     struct vreg *vreg;
     bool power_state;
-    unsigned int wake_out;
     struct pm_data *pm;
+    unsigned int wake_out;
+    struct wd_data wake_in;
+    struct wd_data detect_in;
 };
 
 #define interface_foreach(iface, idx)                       \
@@ -126,6 +148,12 @@ uint32_t interface_pm_get_spin(struct interface *iface);
         .spin = _spin,                                         \
     }
 
+#define INIT_WD_DATA(_gpio)                                    \
+    {                                                          \
+        .gpio = _gpio,                                         \
+        .db_state = 0,                                         \
+    }
+
 #define __MAKE_BB_WAKEOUT(n) WAKEOUT_SPRING ## n
 #define MAKE_BB_WAKEOUT(n) __MAKE_BB_WAKEOUT(n)
 #define __MAKE_BB_VREG_DATA(n) bb ## n ## _vreg_data
@@ -136,7 +164,9 @@ uint32_t interface_pm_get_spin(struct interface *iface);
 #define MAKE_BB_INTERFACE(n) __MAKE_BB_INTERFACE(n)
 
 #define DECLARE_SPRING_INTERFACE(number, gpio, portid,         \
-                                 pm_adc, pm_chan, pm_spin)     \
+                                 pm_adc, pm_chan, pm_spin,     \
+                                 wake_in_gpio, wake_in_pol,    \
+                                 detect_in_gpio, detect_in_pol)\
     static struct vreg_data MAKE_BB_VREG_DATA(number)[] = {    \
         INIT_ACTIVE_LOW_VREG_DATA(gpio, 0)                     \
     };                                                         \
@@ -149,36 +179,63 @@ uint32_t interface_pm_get_spin(struct interface *iface);
     static struct interface MAKE_BB_INTERFACE(number) = {      \
         .name = "spring" #number,                              \
         .if_type = ARA_IFACE_TYPE_BLOCK,                       \
+        .flags = (wake_in_pol ?                                \
+                    ARA_IFACE_FLAG_WAKE_IN_ACTIVE_HIGH :       \
+                    ARA_IFACE_FLAG_WAKE_IN_ACTIVE_LOW) |       \
+                 (detect_in_pol ?                              \
+                    ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH :     \
+                    ARA_IFACE_FLAG_DETECT_IN_ACTIVE_LOW),      \
         .vreg = &MAKE_VREG(spring ## number),                  \
         .switch_portid = portid,                               \
         .wake_out = MAKE_BB_WAKEOUT(number),                   \
         .pm = MAKE_BB_PM(number),                              \
+        .wake_in = INIT_WD_DATA(wake_in_gpio),                 \
+        .detect_in = INIT_WD_DATA(detect_in_gpio),             \
     };
 
 #define __MAKE_INTERFACE(n) n ## _interface
 #define MAKE_INTERFACE(n) __MAKE_INTERFACE(n)
 
 #define DECLARE_EXPANSION_INTERFACE(_name, vreg_data, portid,  \
-                          _wake_out)                           \
+                          _wake_out, wake_in_gpio, wake_in_pol,\
+                          detect_in_gpio, detect_in_pol)       \
     DECLARE_VREG(_name, vreg_data)                             \
     static struct interface MAKE_INTERFACE(_name) = {          \
         .name = #_name,                                        \
         .if_type = ARA_IFACE_TYPE_EXPANSION,                   \
+        .flags = (wake_in_pol ?                                \
+                    ARA_IFACE_FLAG_WAKE_IN_ACTIVE_HIGH :       \
+                    ARA_IFACE_FLAG_WAKE_IN_ACTIVE_LOW) |       \
+                 (detect_in_pol ?                              \
+                    ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH :     \
+                    ARA_IFACE_FLAG_DETECT_IN_ACTIVE_LOW),      \
         .vreg = &MAKE_VREG(_name),                             \
         .switch_portid = portid,                               \
         .wake_out = _wake_out,                                 \
         .pm = NULL,                                            \
+        .wake_in = INIT_WD_DATA(wake_in_gpio),                 \
+        .detect_in = INIT_WD_DATA(detect_in_gpio),             \
     };
 
-#define DECLARE_INTERFACE(_name, vreg_data, portid, _wake_out) \
+#define DECLARE_INTERFACE(_name, vreg_data, portid, _wake_out, \
+                          wake_in_gpio, wake_in_pol,           \
+                          detect_in_gpio, detect_in_pol)       \
     DECLARE_VREG(_name, vreg_data)                             \
     static struct interface MAKE_INTERFACE(_name) = {          \
         .name = #_name,                                        \
         .if_type = ARA_IFACE_TYPE_BUILTIN,                     \
+        .flags = (wake_in_pol ?                                \
+                    ARA_IFACE_FLAG_WAKE_IN_ACTIVE_HIGH :       \
+                    ARA_IFACE_FLAG_WAKE_IN_ACTIVE_LOW) |       \
+                 (detect_in_pol ?                              \
+                    ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH :     \
+                    ARA_IFACE_FLAG_DETECT_IN_ACTIVE_LOW),      \
         .vreg = &MAKE_VREG(_name),                             \
         .switch_portid = portid,                               \
         .wake_out = _wake_out,                                 \
         .pm = NULL,                                            \
+        .wake_in = INIT_WD_DATA(wake_in_gpio),                 \
+        .detect_in = INIT_WD_DATA(detect_in_gpio),             \
     };
 
 #endif
