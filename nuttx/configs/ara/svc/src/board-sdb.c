@@ -224,7 +224,7 @@ DECLARE_INTERFACE(sma1, sma1_vreg_data, 9, WAKEOUT_SMA1);
 DECLARE_INTERFACE(sma2, sma2_vreg_data, 10, WAKEOUT_SMA2);
 
 /*
- * NB: always declare first the interfaces, then the spring interfaces.
+ * Important note: Always declare the spring interfaces last.
  * Assumed by Spring Power Measurement Library (up_spring_pm.c).
  */
 static struct interface *sdb_interfaces[] = {

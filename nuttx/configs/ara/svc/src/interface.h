@@ -47,16 +47,22 @@ struct pm_data {
     uint32_t spin;      /* ADC sign pin */
 };
 
+/* Interface types. */
+enum ara_iface_type {
+    /* Connected to built-in UniPro peer (like a bridge ASIC on a BDB). */
+    ARA_IFACE_TYPE_BUILTIN,
+    /* Connected to an interface block (like on an endo, or an
+     * interface block on a BDB). */
+    ARA_IFACE_TYPE_BLOCK,
+    /* Expansion interface to external connectors (e.g. SMA) */
+    ARA_IFACE_TYPE_EXPANSION,
+};
+
 struct interface {
     const char *name;
     unsigned int switch_portid;
     uint8_t dev_id;
-#   define ARA_IFACE_FLAG_BUILTIN (1U << 0) /* Connected to built-in UniPro peer
-                                         * (like a bridge ASIC on a BDB). */
-#   define ARA_IFACE_FLAG_BLOCK   (0U << 0) /* Connected to an interface block
-                                         * (like on an endo, or an interface
-                                         * block on a BDB). */
-    unsigned int flags;
+    enum ara_iface_type if_type;
     struct vreg *vreg;
     bool power_state;
     unsigned int wake_out;
@@ -103,7 +109,7 @@ static inline int interface_read_wake_detect(void)
  * @return 1 if the interface is connected to a built-in peer, 0 otherwise.
  */
 static inline int interface_is_builtin(struct interface *iface) {
-    return !!(iface->flags & ARA_IFACE_FLAG_BUILTIN);
+    return !!(iface->if_type == ARA_IFACE_TYPE_BUILTIN);
 }
 
 uint8_t interface_pm_get_adc(struct interface *iface);
@@ -142,7 +148,7 @@ uint32_t interface_pm_get_spin(struct interface *iface);
                                                                \
     static struct interface MAKE_BB_INTERFACE(number) = {      \
         .name = "spring" #number,                              \
-        .flags = ARA_IFACE_FLAG_BLOCK,                         \
+        .if_type = ARA_IFACE_TYPE_BLOCK,                       \
         .vreg = &MAKE_VREG(spring ## number),                  \
         .switch_portid = portid,                               \
         .wake_out = MAKE_BB_WAKEOUT(number),                   \
@@ -151,11 +157,24 @@ uint32_t interface_pm_get_spin(struct interface *iface);
 
 #define __MAKE_INTERFACE(n) n ## _interface
 #define MAKE_INTERFACE(n) __MAKE_INTERFACE(n)
+
+#define DECLARE_EXPANSION_INTERFACE(_name, vreg_data, portid,  \
+                          _wake_out)                           \
+    DECLARE_VREG(_name, vreg_data)                             \
+    static struct interface MAKE_INTERFACE(_name) = {          \
+        .name = #_name,                                        \
+        .if_type = ARA_IFACE_TYPE_EXPANSION,                   \
+        .vreg = &MAKE_VREG(_name),                             \
+        .switch_portid = portid,                               \
+        .wake_out = _wake_out,                                 \
+        .pm = NULL,                                            \
+    };
+
 #define DECLARE_INTERFACE(_name, vreg_data, portid, _wake_out) \
     DECLARE_VREG(_name, vreg_data)                             \
     static struct interface MAKE_INTERFACE(_name) = {          \
         .name = #_name,                                        \
-        .flags = ARA_IFACE_FLAG_BUILTIN,                       \
+        .if_type = ARA_IFACE_TYPE_BUILTIN,                     \
         .vreg = &MAKE_VREG(_name),                             \
         .switch_portid = portid,                               \
         .wake_out = _wake_out,                                 \
