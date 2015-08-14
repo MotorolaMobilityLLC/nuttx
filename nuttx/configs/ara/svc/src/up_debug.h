@@ -177,6 +177,5 @@ static inline void dbg_print_buf(uint32_t level, uint8_t *buf, uint32_t size)
 
 extern void dbg_get_config(uint32_t *comp, uint32_t *level);
 extern int dbg_set_config(uint32_t comp, uint32_t level);
-extern void debug_rgb_led(uint8_t r, uint8_t g, uint8_t b);
 
 #endif // __CONFIGS_ENDO_INCLUDE_UP_DEBUG_H

@@ -69,12 +69,3 @@ int dbg_set_config(uint32_t comp, uint32_t level)
 
     return 0;
 }
-
-/* Control RGB LED */
-void debug_rgb_led(uint8_t r, uint8_t g, uint8_t b)
-{
-    dbg_verbose("%s(): rgb=%d%d%d\n", __func__, r, g, b);
-    stm32_gpiowrite(GPIO_R_LED_EN, !r);
-    stm32_gpiowrite(GPIO_G_LED_EN, !g);
-    stm32_gpiowrite(GPIO_B_LED_EN, !b);
-}
