@@ -221,6 +221,8 @@ DECLARE_SPRING_INTERFACE(7, STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN13), 5,
 DECLARE_SPRING_INTERFACE(8, STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN15), 13,
                          SPRING8_ADC, SPRING8_SENSE_CHANNEL, SPRING8_SIGN_PIN);
 
+DECLARE_EXPANSION_INTERFACE(sma, NULL, 12, 0);
+
 /*
  * Important note: Always declare the spring interfaces last.
  * Assumed by Spring Power Measurement Library (up_spring_pm.c).
@@ -231,6 +233,7 @@ static struct interface *bdb2a_interfaces[] = {
     &apb3_interface,
     &gpb1_interface,
     &gpb2_interface,
+    &sma_interface,
     &bb1_interface,
     &bb2_interface,
     &bb3_interface,
