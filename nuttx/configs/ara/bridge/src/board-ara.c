@@ -24,20 +24,27 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Author: Fabien Parent <fparent@baylibre.com>
  */
 
-#ifndef __CONFIGS_ARA_BRIDGE_INCLUDE_BOARD_H
-#define  __CONFIGS_ARA_BRIDGE_INCLUDE_BOARD_H
+#include <stdlib.h>
 
 #include <nuttx/config.h>
-#ifndef __ASSEMBLY__
-# include <stdint.h>
+
+#include <arch/board/board.h>
+#include <arch/tsb/gpio.h>
+#include <arch/tsb/device_table.h>
+#include <arch/tsb/driver.h>
+
+void board_initialize(void)
+{
+    tsb_gpio_register(NULL);
+
+#ifdef CONFIG_DEVICE_CORE
+    tsb_device_table_register();
+    tsb_driver_register();
 #endif
-#ifndef __ASSEMBLY__
 
-void tsb_boardinitialize(void);
-void ara_module_init(void);
-
-#endif /* __ASSEMBLY__ */
-
-#endif
+    ara_module_init();
+}
