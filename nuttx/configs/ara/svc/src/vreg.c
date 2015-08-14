@@ -57,6 +57,16 @@ int vreg_config(struct vreg *vreg) {
 
     dbg_verbose("%s %s\n", __func__,  vreg->name ? vreg->name : "unknown");
 
+    /*
+     * If there is no vreg control, do nothing.
+     *
+     * This happens in the case the interface has been declared with a NULL
+     * in vreg_data.
+     */
+    if (!vreg->vregs)
+        goto out;
+
+    /* Configure the regulator control pins */
     for (i = 0; i < vreg->nr_vregs; i++) {
         if (!&vreg->vregs[i]) {
             rc = -EINVAL;
@@ -70,11 +80,13 @@ int vreg_config(struct vreg *vreg) {
         gpio_direction_out(vreg->vregs[i].gpio, vreg->vregs[i].def_val);
     }
 
+out:
     atomic_init(&vreg->use_count, 0);
     vreg->power_state = false;
 
     return rc;
 }
+
 /**
  * @brief Manage the regulator state; Turn it on when needed
  * @returns: 0 on success, <0 on error
@@ -87,6 +99,15 @@ int vreg_get(struct vreg *vreg) {
     }
 
     dbg_verbose("%s %s\n", __func__, vreg->name ? vreg->name : "unknown");
+
+    /*
+     * If there is no vreg control, do nothing.
+     *
+     * This happens in the case the interface has been declared with a NULL
+     * in vreg_data.
+     */
+    if (!vreg->vregs)
+        return rc;
 
     /* Enable the regulator on the first use; Update use count */
     if (atomic_inc(&vreg->use_count) == 1) {
@@ -123,6 +144,15 @@ int vreg_put(struct vreg *vreg) {
     }
 
     dbg_verbose("%s %s\n", __func__, vreg->name ? vreg->name : "unknown");
+
+    /*
+     * If there is no vreg control, do nothing.
+     *
+     * This happens in the case the interface has been declared with a NULL
+     * in vreg_data.
+     */
+    if (!vreg->vregs)
+        return rc;
 
     /* If already disabled, do nothing */
     if (!atomic_get(&vreg->use_count))
