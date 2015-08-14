@@ -35,7 +35,10 @@ ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c
+
+ifeq ($(CONFIG_ARA_BRIDGE_BOARD_BDB),y)
 CSRCS		+= board-bdb.c
+endif
 
 ifeq ($(CONFIG_APB_AP),y)
 CSRCS   += csi_tx_init.c

@@ -58,6 +58,16 @@ config APB_DISPLAY
 endchoice
 
 choice
+	prompt "Board"
+	---help---
+		Board which bridge firmware runs on. Examples include a
+		big dev board (BDB), software dev board (SDB), or form-factor module.
+
+config ARA_BRIDGE_BOARD_BDB
+	bool "BDB2 or SDB"
+endchoice
+
+choice
 	prompt "Select CDSI0 or CDSI1 for rx"
 	depends on ARA_BRIDGE_HAVE_CAMERA && APB_CAMERA
 config CAMERA_RX_CDSI0
