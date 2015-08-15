@@ -161,7 +161,7 @@ static int event_mailbox(struct tsb_switch_event *ev) {
         list_add(&svc_events, &svc_ev->events);
         break;
     default:
-        dbg_error("unexpected mailbox value: %u port: %u", ev->mbox.val, ev->mbox.port)
+        dbg_error("unexpected mailbox value: %u port: %u", ev->mbox.val, ev->mbox.port);
     }
     pthread_cond_signal(&svc->cv);
     pthread_mutex_unlock(&svc->lock);
