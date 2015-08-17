@@ -105,11 +105,13 @@ extern dbg_ctrl_t dbg_ctrl;
  * Debug dump function, to be used by components code.
  * Every caller has to define its own DBG_COMP macro.
  */
-#define dbg_pr(level, fmt, ...)                            \
-   if ((dbg_ctrl.comp & DBG_COMP) &&                       \
-       (level >= dbg_ctrl.lvl)) {                          \
-       printk("[" xstr(DBG_COMP) "]: " fmt, ##__VA_ARGS__); \
-   }                                                       \
+#define dbg_pr(level, fmt, ...)                                  \
+    do {                                                         \
+        if ((dbg_ctrl.comp & DBG_COMP) &&                        \
+            (level >= dbg_ctrl.lvl)) {                           \
+            printk("[" xstr(DBG_COMP) "]: " fmt, ##__VA_ARGS__); \
+        }                                                        \
+   } while (0)
 
 /* Pretty print of an uint8_t buffer */
 static inline void dbg_print_buf(uint32_t level, uint8_t *buf, uint32_t size)
