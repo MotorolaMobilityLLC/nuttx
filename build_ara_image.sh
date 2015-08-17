@@ -108,23 +108,8 @@ while getopts "j:B" opt; do
 done
 shift $((OPTIND-1))
 
-# check for "all" parameter
-if [ "$1" = "all" ] ; then
-  echo "Building all configurations"
-  buildall=1
-# validate parameters for board & image are present
-elif  [ "$#" -ne 2 ] ; then
-  echo "Required parameters not specified."
-  echo "$USAGE"
-  exit $ARA_BUILD_CONFIG_ERR_BAD_PARAMS
-#capture parameters for board  & image
-else
-  board=$1
-  image=$2
-fi
-
 # determine NuttX top level folder absolute path
-TOPDIR="`dirname \"$0\"`"  # relative
+TOPDIR="`dirname \"$BASH_SOURCE\"`"  # relative
 TOPDIR=$(canonicalize "`( cd \"$TOPDIR/nuttx\" && pwd )`")  # absolutized and normalized
 if [ -z "$TOPDIR" ] ; then
   # error; for some reason, the path is not accessible
@@ -213,60 +198,81 @@ copy_image_files() {
   fi
 }
 
-# set build output path
-buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
+main() {
+  # check for "all" parameter
+  if [ "$1" = "all" ] ; then
+    echo "Building all configurations"
+    buildall=1
+  # validate parameters for board & image are present
+  elif  [ "$#" -ne 2 ] ; then
+    echo "Required parameters not specified."
+    echo "$USAGE"
+    exit $ARA_BUILD_CONFIG_ERR_BAD_PARAMS
+  #capture parameters for board  & image
+  else
+    board=$1
+    image=$2
+  fi
 
-if [ $buildall -eq 1 ] ; then
-  # build list of defconfigs
-  defconfig_list=$(find $TOPDIR/configs/ara  -iname defconfig)
-  # process list of defconfigs
-  for cfg in $defconfig_list; do
-    # save full path to defconfig
-    defconfigFile=${cfg}
-    # get abs path to defconfig
-    configpath=$(canonicalize $(dirname "$cfg"))
-    #create build name
-    buildname=$(canonicalize $(dirname "$cfg"))
-    #strip abs path
-    buildname=$(echo "$buildname" | sed -e "s:^$TOPDIR/configs/::")
-    # repl slash with dash
-    buildname=$(echo "$buildname" | sed -e "s#/#-#g")
-    # build the image
-    build_image_from_defconfig
-    # check build result
-    if [ $MAKE_RESULT -ne 0 ] ; then
-      echo "Build '$buildname' failed"
-      exit 1
-    fi
-    echo "Build '$buildname' succeeded"
-    copy_image_files
-  done
-  echo "Build all configurations succeeded"
+  # set build output path
+  buildbase="`( cd \"$TOPDIR/..\" && pwd )`/build"
+
+  if [ $buildall -eq 1 ] ; then
+    # build list of defconfigs
+    defconfig_list=$(find $TOPDIR/configs/ara  -iname defconfig)
+    # process list of defconfigs
+    for cfg in $defconfig_list; do
+      # save full path to defconfig
+      defconfigFile=${cfg}
+      # get abs path to defconfig
+      configpath=$(canonicalize $(dirname "$cfg"))
+      #create build name
+      buildname=$(canonicalize $(dirname "$cfg"))
+      #strip abs path
+      buildname=$(echo "$buildname" | sed -e "s:^$TOPDIR/configs/::")
+      # repl slash with dash
+      buildname=$(echo "$buildname" | sed -e "s#/#-#g")
+      # build the image
+      build_image_from_defconfig
+      # check build result
+      if [ $MAKE_RESULT -ne 0 ] ; then
+        echo "Build '$buildname' failed"
+        exit 1
+      fi
+      echo "Build '$buildname' succeeded"
+      copy_image_files
+    done
+    echo "Build all configurations succeeded"
+    exit 0
+  fi
+
+  # build from board+image params
+
+  # set path to image config
+  configpath=${TOPDIR}/configs/${board}/${image}
+  if [ ! -d "${configpath}" ]; then
+    echo "Build config '${configpath}' does not exist"
+    exit $ARA_BUILD_CONFIG_ERR_CONFIG_NOT_FOUND
+  fi
+  # create build name from config
+  # substitute "-" for "/"
+  board=$(echo "$board" | sed -e "s#/#-#")
+  image=$(echo "$image" | sed -e "s#/#-#")
+  buildname=${board}-${image}
+  # full path to defconfig file
+  defconfigFile="${configpath}/defconfig"
+  build_image_from_defconfig
+  if [ $MAKE_RESULT -ne 0 ] ; then
+    echo "Build '$buildname' failed"
+    exit 1
+  fi
+
+  echo "Build '$buildname' succeeded"
+  copy_image_files
+  echo "Build complete"
   exit 0
-fi
+}
 
-# build from board+image params
-
-# set path to image config
-configpath=${TOPDIR}/configs/${board}/${image}
-if [ ! -d "${configpath}" ]; then
-  echo "Build config '${configpath}' does not exist"
-  exit $ARA_BUILD_CONFIG_ERR_CONFIG_NOT_FOUND
+if [ "`basename $0`" = "`basename $BASH_SOURCE`" ]; then
+  main $*
 fi
-# create build name from config
-# substitute "-" for "/"
-board=$(echo "$board" | sed -e "s#/#-#")
-image=$(echo "$image" | sed -e "s#/#-#")
-buildname=${board}-${image}
-# full path to defconfig file
-defconfigFile="${configpath}/defconfig"
-build_image_from_defconfig
-if [ $MAKE_RESULT -ne 0 ] ; then
-  echo "Build '$buildname' failed"
-  exit 1
-fi
-
-echo "Build '$buildname' succeeded"
-copy_image_files
-echo "Build complete"
-exit 0
