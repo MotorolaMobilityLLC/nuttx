@@ -1454,6 +1454,11 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
     }
 #endif
     req = get_request(&priv->ctrlreq);
+    if (!req) {
+        lowsyslog("%s(): unable to get a request buffer\n", __func__);
+        return -ENOMEM;
+    }
+
     ctrreq = (struct apbridge_req_s *)req->priv;
     ctrreq->priv = (void *)USB_REQ;
 
