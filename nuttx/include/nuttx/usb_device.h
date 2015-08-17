@@ -28,7 +28,7 @@ struct device_usb_pcd_type_ops {
 static inline int device_usbdev_register_gadget(struct device *dev,
                                                 struct usbdevclass_driver_s *driver)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -51,7 +51,7 @@ static inline int device_usbdev_register_gadget(struct device *dev,
 static inline int device_usbdev_unregister_gadget(struct device *dev,
                                                   struct usbdevclass_driver_s *driver)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;

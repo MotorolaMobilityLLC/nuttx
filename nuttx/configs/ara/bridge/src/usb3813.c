@@ -121,7 +121,7 @@ static struct device_hsic_type_ops usb3813_type_ops = {
 static struct device_driver_ops usb3813_driver_ops = {
     .open = usb3813_open,
     .close = usb3813_close,
-    .type_ops.hsic = &usb3813_type_ops,
+    .type_ops = &usb3813_type_ops,
 };
 
 struct device_driver usb3813_driver = {

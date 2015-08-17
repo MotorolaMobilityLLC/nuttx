@@ -1153,7 +1153,7 @@ static struct device_driver_ops tsb_pwm_driver_ops = {
     .remove         = tsb_pwm_dev_remove,
     .open           = tsb_pwm_dev_open,
     .close          = tsb_pwm_dev_close,
-    .type_ops.pwm   = &tsb_pwm_type_ops,
+    .type_ops       = &tsb_pwm_type_ops,
 };
 
 struct device_driver tsb_pwm_driver = {

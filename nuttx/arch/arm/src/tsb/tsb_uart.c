@@ -1259,7 +1259,7 @@ static struct device_driver_ops tsb_uart_driver_ops = {
     .remove         = tsb_uart_dev_remove,
     .open           = tsb_uart_dev_open,
     .close          = tsb_uart_dev_close,
-    .type_ops.uart = &tsb_uart_type_ops,
+    .type_ops       = &tsb_uart_type_ops,
 };
 
 struct device_driver tsb_uart_driver = {

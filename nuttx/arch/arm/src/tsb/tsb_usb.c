@@ -497,7 +497,7 @@ static struct device_usb_hcd_type_ops tsb_usb_hcd_type_ops = {
 static struct device_driver_ops tsb_usb_hcd_driver_ops = {
     .open = tsb_usb_hcd_open,
     .close = tsb_usb_hcd_close,
-    .type_ops.usb_hcd = &tsb_usb_hcd_type_ops,
+    .type_ops = &tsb_usb_hcd_type_ops,
 };
 
 struct device_driver tsb_usb_hcd_driver = {

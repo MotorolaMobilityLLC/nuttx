@@ -121,7 +121,7 @@ static struct device_hsic_type_ops usb4624_type_ops = {
 static struct device_driver_ops usb4624_driver_ops = {
     .open = usb4624_open,
     .close = usb4624_close,
-    .type_ops.hsic = &usb4624_type_ops,
+    .type_ops = &usb4624_type_ops,
 };
 
 struct device_driver usb4624_driver = {

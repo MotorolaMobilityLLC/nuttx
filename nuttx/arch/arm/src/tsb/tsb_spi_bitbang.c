@@ -1031,7 +1031,7 @@ static struct device_driver_ops tsb_spi_driver_ops = {
     .remove         = tsb_spi_dev_remove,
     .open           = tsb_spi_dev_open,
     .close          = tsb_spi_dev_close,
-    .type_ops.spi   = &tsb_spi_type_ops,
+    .type_ops       = &tsb_spi_type_ops,
 };
 
 struct device_driver tsb_spi_driver = {

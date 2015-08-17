@@ -52,7 +52,7 @@ struct device_pll_type_ops {
  */
 static inline int device_pll_start(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, pll);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -71,7 +71,7 @@ static inline int device_pll_start(struct device *dev)
  */
 static inline int device_pll_stop(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, pll);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -92,7 +92,7 @@ static inline int device_pll_stop(struct device *dev)
 static inline int device_pll_set_frequency(struct device *dev,
                                            uint32_t frequency)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, pll);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;

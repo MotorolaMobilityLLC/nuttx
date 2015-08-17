@@ -59,30 +59,13 @@ enum device_state {
 };
 
 struct device;
-struct device_i2s_type_ops;
-struct device_usb_hcd_type_ops;
-struct device_usb_pcd_type_ops;
-struct device_hsic_type_ops;
-struct device_pll_type_ops;
-struct device_pwm_type_ops;
-struct device_spi_type_ops;
-struct device_uart_type_ops;
 
 struct device_driver_ops {
     int     (*probe)(struct device *dev);
     void    (*remove)(struct device *dev);
     int     (*open)(struct device *dev);
     void    (*close)(struct device *dev);
-    union {
-        struct device_pll_type_ops     *pll;
-        struct device_i2s_type_ops     *i2s;
-        struct device_usb_hcd_type_ops *usb_hcd;
-        struct device_usb_pcd_type_ops *usb_pcd;
-        struct device_hsic_type_ops    *hsic;
-        struct device_pwm_type_ops     *pwm;
-        struct device_spi_type_ops     *spi;
-        struct device_uart_type_ops    *uart;
-    } type_ops;
+    void    *type_ops;
 };
 
 struct device_driver {
@@ -281,9 +264,9 @@ static inline char *device_driver_get_desc(struct device *dev)
  * @param dev Device whose dev structure will be checked
  * @param type Device type
  */
-#define DEVICE_DRIVER_ASSERT_OPS(_dev, _type)               \
-    DEBUGASSERT((_dev) && (_dev)->driver && (_dev)->driver->ops &&   \
-                (_dev)->driver->ops->type_ops._type)
+#define DEVICE_DRIVER_ASSERT_OPS(_dev)                              \
+    DEBUGASSERT((_dev) && (_dev)->driver && (_dev)->driver->ops &&  \
+                (_dev)->driver->ops->type_ops)
 
 /**
  * @brief Get the type ops of the driver for a device
@@ -292,7 +275,7 @@ static inline char *device_driver_get_desc(struct device *dev)
  * @return Pointer to the device driver's type ops
  */
 #define DEVICE_DRIVER_GET_OPS(_dev, _type)  \
-    ((_dev)->driver->ops->type_ops._type)
+    ((struct device_##_type##_type_ops *)((_dev)->driver->ops->type_ops))
 
 /**
  * @brief Get the private data of the driver for a device

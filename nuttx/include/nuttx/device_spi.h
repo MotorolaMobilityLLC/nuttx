@@ -134,7 +134,7 @@ struct device_spi_type_ops {
  */
 static inline int device_spi_lock(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -153,7 +153,7 @@ static inline int device_spi_lock(struct device *dev)
  */
 static inline int device_spi_unlock(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -173,7 +173,7 @@ static inline int device_spi_unlock(struct device *dev)
  */
 static inline int device_spi_select(struct device *dev, int devid)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -193,7 +193,7 @@ static inline int device_spi_select(struct device *dev, int devid)
  */
 static inline int device_spi_deselect(struct device *dev, int devid)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -214,7 +214,7 @@ static inline int device_spi_deselect(struct device *dev, int devid)
 static inline int device_spi_setfrequency(struct device *dev,
                                           uint32_t *frequency)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -234,7 +234,7 @@ static inline int device_spi_setfrequency(struct device *dev,
  */
 static inline int device_spi_setmode(struct device *dev, uint16_t mode)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -256,7 +256,7 @@ static inline int device_spi_setmode(struct device *dev, uint16_t mode)
  */
 static inline int device_spi_setbits(struct device *dev, int nbits)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -277,7 +277,7 @@ static inline int device_spi_setbits(struct device *dev, int nbits)
 static inline int device_spi_exchange(struct device *dev,
                                       struct device_spi_transfer *transfer)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -299,7 +299,7 @@ static inline int device_spi_exchange(struct device *dev,
 static inline int device_spi_getcaps(struct device *dev,
                                      struct device_spi_caps *caps)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, spi);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;

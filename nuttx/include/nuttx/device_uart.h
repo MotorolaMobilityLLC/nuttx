@@ -140,7 +140,7 @@ static inline int device_uart_set_configuration(struct device *dev,
                                                 int databits, int stopbit,
                                                 int flow)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -167,7 +167,7 @@ static inline int device_uart_set_configuration(struct device *dev,
 static inline int device_uart_get_modem_ctrl(struct device *dev,
                                              uint8_t *modem_ctrl)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -191,7 +191,7 @@ static inline int device_uart_get_modem_ctrl(struct device *dev,
 static inline int device_uart_set_modem_ctrl(struct device *dev,
                                              uint8_t *modem_ctrl)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -215,7 +215,7 @@ static inline int device_uart_set_modem_ctrl(struct device *dev,
 static inline int device_uart_get_modem_status(struct device *dev,
                                                uint8_t *modem_status)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -239,7 +239,7 @@ static inline int device_uart_get_modem_status(struct device *dev,
 static inline int device_uart_get_line_status(struct device *dev,
                                               uint8_t *line_status)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -262,7 +262,7 @@ static inline int device_uart_get_line_status(struct device *dev,
  */
 static inline int device_uart_set_break(struct device *dev, uint8_t break_on)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -286,7 +286,7 @@ static inline int device_uart_set_break(struct device *dev, uint8_t break_on)
 static inline int device_uart_attach_ms_callback(struct device *dev,
                                                  void (*callback)(uint8_t ms))
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -311,7 +311,7 @@ static inline int device_uart_attach_ms_callback(struct device *dev,
 static inline int device_uart_attach_ls_callback(struct device *dev,
                                                  void (*callback)(uint8_t ls))
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -343,7 +343,7 @@ static inline int device_uart_start_transmitter(struct device *dev,
                         int *sent, void (*callback)(uint8_t *buffer, int length,
                                                     int error))
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -367,7 +367,7 @@ static inline int device_uart_start_transmitter(struct device *dev,
  */
 static inline int device_uart_stop_transmitter(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -398,7 +398,7 @@ static inline int device_uart_start_receiver(struct device *dev,
                         int *got, void (*callback)(uint8_t *buffer, int length,
                                                    int error))
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
@@ -421,7 +421,7 @@ static inline int device_uart_start_receiver(struct device *dev,
  */
 static inline int device_uart_stop_receiver(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, uart);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;

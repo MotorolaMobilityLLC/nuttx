@@ -127,7 +127,7 @@ struct device_usb_hcd_type_ops {
  */
 static inline int device_usb_hcd_start(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -148,7 +148,7 @@ static inline int device_usb_hcd_start(struct device *dev)
  */
 static inline void device_usb_hcd_stop(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return;
@@ -170,7 +170,7 @@ static inline int device_usb_hcd_hub_control(struct device *dev,
                                              uint16_t wIndex, char *buf,
                                              uint16_t wLength)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -195,7 +195,7 @@ static inline int device_usb_hcd_hub_control(struct device *dev,
 static inline int device_usb_hcd_urb_enqueue(struct device *dev,
                                              struct urb *urb)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -218,7 +218,7 @@ static inline int device_usb_hcd_urb_enqueue(struct device *dev,
 static inline int device_usb_hcd_urb_dequeue(struct device *dev,
                                              struct urb *urb)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, usb_hcd);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -245,7 +245,7 @@ struct device_hsic_type_ops {
  */
 static inline int device_hsic_reset(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, hsic);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -266,7 +266,7 @@ static inline int device_hsic_reset(struct device *dev)
  */
 static inline int device_hsic_hold_reset(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, hsic);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;
@@ -287,7 +287,7 @@ static inline int device_hsic_hold_reset(struct device *dev)
  */
 static inline int device_hsic_release_reset(struct device *dev)
 {
-    DEVICE_DRIVER_ASSERT_OPS(dev, hsic);
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev)) {
         return -ENODEV;

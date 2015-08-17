@@ -342,7 +342,7 @@ static struct device_driver_ops tsb_pll_driver_ops = {
     .remove         = tsb_pll_dev_remove,
     .open           = tsb_pll_dev_open,
     .close          = tsb_pll_dev_close,
-    .type_ops.pll   = &tsb_pll_type_ops,
+    .type_ops       = &tsb_pll_type_ops,
 };
 
 struct device_driver tsb_pll_driver = {

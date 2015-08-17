@@ -2113,7 +2113,7 @@ static struct device_driver_ops tsb_i2s_driver_ops = {
     .remove         = tsb_i2s_dev_remove,
     .open           = tsb_i2s_dev_open,
     .close          = tsb_i2s_dev_close,
-    .type_ops.i2s   = &tsb_i2s_type_ops,
+    .type_ops       = &tsb_i2s_type_ops,
 };
 
 struct device_driver tsb_i2s_driver = {
