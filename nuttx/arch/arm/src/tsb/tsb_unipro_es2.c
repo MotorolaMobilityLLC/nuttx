@@ -670,7 +670,12 @@ static void dump_regs(void) {
     lldbg("Connected CPorts:\n");
     lldbg("========================================\n");
     for (i = 0; i < unipro_cport_count(); i++) {
-        val = cport_get_status(cport_handle(i));
+        struct cport *cport = cport_handle(i);
+        if (!cport) {
+            continue;
+        }
+
+        val = cport_get_status(cport);
 
         if (val == CPORT_STATUS_CONNECTED) {
             lldbg("CPORT %u:\n", i);
