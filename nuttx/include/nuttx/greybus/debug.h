@@ -46,7 +46,7 @@
 #ifdef CONFIG_GREYBUS_DEBUG
 #define gb_log(lvl, fmt, ...)                                       \
     do {                                                            \
-        if (gb_log_level & lvl)                                     \
+        if ((lvl == GB_LOG_INFO) || (gb_log_level & lvl))           \
             _gb_log(fmt, ##__VA_ARGS__);                            \
     } while(0)
 
