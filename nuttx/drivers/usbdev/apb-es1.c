@@ -1637,8 +1637,11 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
             usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPRESPQ),
                      (uint16_t) - ret);
             req->result = OK;
-            usbclass_ep0incomplete(dev->ep0, req);
         }
+    }
+
+    if (ret < 0) {
+         usbclass_ep0incomplete(dev->ep0, req);
     }
 
     return ret;
