@@ -33,7 +33,7 @@
 
 #include <stdlib.h>
 
-#define CPORT_BUF_SIZE              (1024)
+#define CPORT_BUF_SIZE              (2048)
 
 typedef int (*unipro_send_completion_t)(int status, const void *buf,
                                         void *priv);
