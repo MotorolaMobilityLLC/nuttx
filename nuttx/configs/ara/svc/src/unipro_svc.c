@@ -99,11 +99,14 @@ int unipro_driver_register(struct unipro_driver *drv, unsigned int cportid) {
  */
 void unipro_if_rx(unsigned int cportid, void *data, size_t len) {
     struct unipro_driver *drv;
+    irqstate_t flags;
 
     drv = g_drvs[cportid];
     if (!drv) {
         return;
     }
 
+    flags = irqsave();
     drv->rx_handler(cportid, data, len);
+    irqrestore(flags);
 }
