@@ -70,5 +70,9 @@ int tsb_gpio_register(void *driver_data);
 #define TSB_IRQ_TYPE_EDGE_RISING    0x3
 #define TSB_IRQ_TYPE_EDGE_BOTH      0x7
 
+#define TSB_IO_PULL_UPDOWN0         0x40000A10
+#define TSB_IO_PULL_UPDOWN_ENABLE0  0x40000A20
+#define TSB_IO_PULL_UPDOWN_GPIO(x)  BIT(x)
+
 #endif /* _TSB_GPIO_H_ */
 
