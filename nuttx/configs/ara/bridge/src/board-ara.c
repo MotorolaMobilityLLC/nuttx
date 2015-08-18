@@ -33,13 +33,12 @@
 #include <nuttx/config.h>
 
 #include <arch/board/board.h>
-#include <arch/tsb/gpio.h>
 #include <arch/tsb/device_table.h>
 #include <arch/tsb/driver.h>
 
 void board_initialize(void)
 {
-    tsb_gpio_register(NULL);
+    ara_module_early_init();
 
 #ifdef CONFIG_DEVICE_CORE
     tsb_device_table_register();

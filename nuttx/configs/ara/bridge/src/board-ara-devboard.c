@@ -45,6 +45,7 @@
 
 #include <arch/chip/gpio.h>
 
+#include <arch/tsb/gpio.h>
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
 #include <arch/board/dsi.h>
 #endif
@@ -127,9 +128,6 @@ static void bdb_driver_register(void)
 static void board_display_init(void)
 {
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
-#ifndef CONFIG_APBRIDGEA
-    io_expander_init();
-#endif
     display_init();
 #endif
 }
@@ -159,6 +157,17 @@ static void sdb_fixups(void)
         modifyreg32(TSB_IO_PULL_UPDOWN_ENABLE0, TSB_IO_PULL_UPDOWN_GPIO(24), 0);
         modifyreg32(TSB_IO_PULL_UPDOWN0, 0, TSB_IO_PULL_UPDOWN_GPIO(24));
     }
+}
+
+void ara_module_early_init(void)
+{
+    tsb_gpio_register(NULL);
+#ifdef CONFIG_BOARD_HAVE_DISPLAY
+#ifndef CONFIG_APBRIDGEA
+    /* IO expander init is required by ps_hold */
+    io_expander_init();
+#endif
+#endif
 }
 
 void ara_module_init(void)

@@ -36,6 +36,7 @@
 #ifndef __ASSEMBLY__
 
 void tsb_boardinitialize(void);
+void ara_module_early_init(void);
 void ara_module_init(void);
 
 #endif /* __ASSEMBLY__ */
