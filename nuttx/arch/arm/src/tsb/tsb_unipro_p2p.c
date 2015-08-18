@@ -186,7 +186,7 @@ void unipro_p2p_setup(void) {
         unipro_attr_write(T_CONNECTIONSTATE, 1, i /* selector */, 0 /* peer */, &result_code);
     }
 
-#ifdef CONFIG_ICE_CORE
+#if defined(CONFIG_ICE_APBA)
     unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, 0x22 /* PWM */, 0 /*series */, 1 /* termination */);
 //    unipro_powermode_change(2 /* txgear */, 2 /* rxgear */, 0x11 /* HS */, 0 /*series */, 1 /* termination */);
 #else
