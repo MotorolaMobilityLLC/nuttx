@@ -283,7 +283,8 @@ static void gb_loopback_transfer_resp_cb(struct gb_operation *operation)
     request = gb_operation_get_request_payload(operation);
     response = gb_operation_get_request_payload(operation->response);
 
-    if (memcmp(request->data, response->data, le32_to_cpu(request->len))) {
+    if ((request->len != response->len) ||
+        (memcmp(request->data, response->data, le32_to_cpu(request->len)))) {
         loopback_error_notify(operation->cport);
     } else {
         loopback_recv_inc(operation->cport);
@@ -393,6 +394,7 @@ static uint8_t gb_loopback_transfer_req_cb(struct gb_operation *operation)
                                            sizeof(*response) + request_length);
     if(!response)
         return GB_OP_NO_MEMORY;
+    response->len = request->len;
     memcpy(response->data, request->data, request_length);
     return GB_OP_SUCCESS;
 }

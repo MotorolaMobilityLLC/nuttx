@@ -45,6 +45,7 @@ struct gb_loopback_transfer_request {
 };
 
 struct gb_loopback_transfer_response {
+	__le32	len;
 	__u8    data[0];
 };
 
