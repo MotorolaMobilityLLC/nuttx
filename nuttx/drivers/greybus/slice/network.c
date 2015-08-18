@@ -47,6 +47,11 @@ struct slice_msg
   __u8    gb_msg[0];
 };
 
+unsigned int unipro_cport_count(void)
+{
+  return SLICE_NUM_CPORTS;
+}
+
 /* Maps Slice cport numbers to base cport numbers */
 static __u8 to_base_cport[SLICE_NUM_CPORTS];
 
