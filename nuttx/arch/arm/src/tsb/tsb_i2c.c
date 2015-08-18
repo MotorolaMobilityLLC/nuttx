@@ -53,6 +53,7 @@ static struct i2c_msg_s *g_msgs;      /* Generic messages array */
 static sem_t            g_mutex;      /* Only one thread can access at a time */
 static sem_t            g_wait;       /* Wait for state machine completion */
 static WDOG_ID          g_timeout;    /* Watchdog to timeout when bus hung */
+static volatile uint32_t refcount = 0;  /* Reference count */
 
 static unsigned int     g_tx_index;
 static unsigned int     g_tx_length;
@@ -547,11 +548,18 @@ struct i2c_ops_s dev_i2c_ops;
  */
 struct i2c_dev_s *up_i2cinitialize(int port)
 {
-    lldbg("I2C port %d\n", port);
+    irqstate_t flags;
+
+    lldbg("Init I2C port %d\n", port);
 
     /* Only one I2C port on TSB */
     if (port > 0)
         return NULL;
+
+    flags = irqsave();
+
+    if (refcount++)
+        goto out;
 
     sem_init(&g_mutex, 0, 1);
     sem_init(&g_wait, 0, 0);
@@ -586,6 +594,8 @@ struct i2c_dev_s *up_i2cinitialize(int port)
     /* Install our operations */
     g_dev.ops = &dev_i2c_ops;
 
+out:
+    irqrestore(flags);
     return &g_dev;
 }
 
@@ -594,13 +604,25 @@ struct i2c_dev_s *up_i2cinitialize(int port)
  */
 int up_i2cuninitialize(struct i2c_dev_s *dev)
 {
-    lldbg("\n");
+    irqstate_t flags;
+
+    lldbg("Deinit I2C port\n");
+
+    flags = irqsave();
+
+    if (!refcount)
+        goto out;
+
+    if (--refcount)
+        goto out;
 
     /* Detach Interrupt Handler */
     irq_detach(TSB_IRQ_I2C);
 
     wd_delete(g_timeout);
 
+out:
+    irqrestore(flags);
     return 0;
 }
 
