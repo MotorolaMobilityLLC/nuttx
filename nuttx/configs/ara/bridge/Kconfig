@@ -69,7 +69,7 @@ choice
 		Board which bridge firmware runs on. Examples include a
 		big dev board (BDB), software dev board (SDB), or form-factor module.
 
-config ARA_BRIDGE_BOARD_BDB
+config ARA_BRIDGE_BOARD_ARA_DEVBOARD
 	bool "BDB2 or SDB"
 
 config ARA_BRIDGE_BOARD_OOT
