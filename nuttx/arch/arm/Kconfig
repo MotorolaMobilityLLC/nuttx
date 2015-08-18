@@ -203,6 +203,7 @@ config ARCH_CHIP_TSB
 	bool "Toshiba Bridge"
 	select ARCH_CORTEXM3
 	select ARCH_HAVE_CMNVECTOR
+	select ARCH_HAVE_HIRES_TIMER
 	---help---
 		Toshiba Bridge architectures (ARM Cortex-M3).
 
