@@ -82,6 +82,7 @@ SUBDIRS += service_mgr
 SUBDIRS += springpm
 SUBDIRS += svc
 SUBDIRS += svc_power
+SUBDIRS += time
 SUBDIRS += unipro
 SUBDIRS += usb-host
 
@@ -107,6 +108,7 @@ CNTXTDIRS += service_mgr
 CNTXTDIRS += springpm
 CNTXTDIRS += svc
 CNTXTDIRS += svc_power
+CNTXTDIRS += time
 CNTXTDIRS += unipro
 CNTXTDIRS += usb-host
 endif

@@ -142,3 +142,7 @@ endif
 ifeq ($(CONFIG_ARA_DEV_INFO),y)
 CONFIGURED_APPS += ara/dev_info
 endif
+
+ifeq ($(CONFIG_ARA_TIME),y)
+CONFIGURED_APPS += ara/time
+endif
