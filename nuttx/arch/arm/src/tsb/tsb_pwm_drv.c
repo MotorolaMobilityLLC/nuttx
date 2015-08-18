@@ -435,7 +435,7 @@ static int tsb_pwm_op_activate(struct device *dev, uint16_t which)
     dev_info->gntr_base = (uint32_t)r->start;
 
     /* Get max support frequency by specific generator of name */
-    dev_info->pclk = ((uint32_t *)dev->init_data)[which];
+    dev_info->pclk = ((uint32_t *)device_get_init_data(dev))[which];
 
     /* Turn PWM controller power and clock ON */
     tsb_pwm_op_setup(dev);
@@ -1062,7 +1062,7 @@ static int tsb_pwm_dev_probe(struct device *dev)
 
     info->dev = dev;
     device_set_private(dev, info);
-    dev->init_data = (void *)pwm_pclk;
+    device_set_init_data(dev, pwm_pclk);
     saved_dev = dev;
 
     info->pwm_list.prev = &info->pwm_list;
