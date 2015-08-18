@@ -35,6 +35,10 @@
 #include <apps/greybus-utils/utils.h>
 #include <apps/nsh.h>
 
+#ifdef CONFIG_MODS_USER_INIT
+extern int mods_user_init(void);
+#endif
+
 #define MANIFEST_DEVICE_ID 2
 
 extern int wdog_init(void);
@@ -42,6 +46,10 @@ extern int wdog_init(void);
 int mods_main(int argc, char *argv[])
 {
     wdog_init();
+
+#ifdef CONFIG_MODS_USER_INIT
+    mods_user_init();
+#endif
 
     enable_manifest("IID-1", NULL, MANIFEST_DEVICE_ID);
     mods_attach_init();
