@@ -352,3 +352,267 @@ void request_pool_freeall(void)
     }
 }
 
+/* Enumeration common part */
+
+/**
+ * Allocate a gadget descriptor and fill it with device descriptors
+ * \param dev    pointer to the device descriptor
+ * \param qual   pointer to the device qualifier descriptor
+ * \return a pointer to gadget_descriptor or NULL in case of error
+ */
+struct gadget_descriptor *gadget_descriptor_alloc(const struct usb_devdesc_s *dev,
+                                                  const struct usb_qualdesc_s *qual)
+{
+    int i;
+    int nconfigs = dev->nconfigs;
+    struct gadget_descriptor *g_desc;
+
+    g_desc = kmm_malloc(sizeof(*g_desc));
+    if (!g_desc) {
+        return NULL;
+    }
+
+    g_desc->cfg = kmm_malloc(sizeof(*g_desc->cfg) * nconfigs);
+    if (!g_desc->cfg) {
+        kmm_free(g_desc);
+        return NULL;
+    }
+
+    g_desc->dev = dev;
+    g_desc->qual = qual;
+    for (i = 0; i < nconfigs; i++) {
+        g_desc->cfg[i].cfg = NULL;
+    }
+
+    return g_desc;
+}
+
+/**
+ * Free the gadget descriptor
+ * \param g_desc pointer to the gadget descriptor to free
+ */
+void gadget_descriptor_free(struct gadget_descriptor *g_desc)
+{
+    if (g_desc) {
+        kmm_free(g_desc->cfg);
+    }
+    kmm_free(g_desc);
+}
+
+/**
+ * Add one config descriptor and configs
+ * \param g_desc   pointer to the gadget descriptor
+ * \param desc     pointer to the config descriptor to add
+ * \param usb_desc pointer to an array of config
+ */
+void gadget_add_cfgdesc(struct gadget_descriptor *g_desc,
+                        const struct usb_cfgdesc_s *desc,
+                        const struct usb_desc_s *usb_desc[])
+{
+    int i;
+    int nconfigs = g_desc->dev->nconfigs;
+
+    for (i = 0; i < nconfigs; i++) {
+        if (!g_desc->cfg[i].cfg) {
+            g_desc->cfg[i].cfg = desc;
+            g_desc->cfg[i].desc = usb_desc;
+            break;
+        }
+    }
+}
+
+/**
+ * Set the list of string for the gadget
+ * \param g_desc pointer to the gadget descriptor
+ * \param str    pointer to the string array
+ */
+void gadget_set_strings(struct gadget_descriptor *g_desc,
+                        const struct gadget_strings *str)
+{
+    g_desc->str = str;
+}
+
+static int16_t gadget_config_desc(struct gadget_descriptor *g_desc,
+                                  uint8_t * buf, uint8_t speed,
+                                  uint16_t id, uint8_t type)
+{
+    int i;
+    int neps = 0;
+    int ninterfaces;
+    struct usb_cfgdesc_s *cfgdesc = (struct usb_cfgdesc_s *)buf;
+    struct gadget_config_descriptor *g_cfgdesc;
+    const struct usb_desc_s **usb_desc;
+    bool hispeed = (speed == USB_SPEED_HIGH);
+    uint16_t mxpacket;
+    uint16_t totallen;
+
+    g_cfgdesc = &g_desc->cfg[id];
+    ninterfaces = g_cfgdesc->cfg->ninterfaces;
+    /* Get the total number of endpoints */
+    for (i = 0; i < ninterfaces; i++) {
+        neps += ((struct usb_ifdesc_s *)g_cfgdesc->desc[i])->neps;
+    }
+
+    /* This is the total length of the configuration */
+    totallen =
+        USB_SIZEOF_CFGDESC +
+        USB_SIZEOF_IFDESC * ninterfaces +
+        USB_SIZEOF_EPDESC * neps;
+
+    /*
+     * Configuration descriptor -- Copy the canned descriptor and fill in the
+     * type (we'll also need to update the size below
+     */
+    memcpy(cfgdesc, g_cfgdesc->cfg, USB_SIZEOF_CFGDESC);
+    buf += USB_SIZEOF_CFGDESC;
+
+    /*  Copy the canned interface descriptor */
+    usb_desc = g_cfgdesc->desc;
+    for (i = 0; i < ninterfaces; i++) {
+        memcpy(buf, *usb_desc, USB_SIZEOF_IFDESC);
+        buf += USB_SIZEOF_IFDESC;
+        usb_desc++;
+    }
+
+    /*  Check for switches between high and full speed */
+    if (type == USB_DESC_TYPE_OTHERSPEEDCONFIG) {
+        hispeed = !hispeed;
+    }
+
+    /* Make endpoints configurations */
+    for (i = 0; i < neps; i++) {
+        struct usb_epdesc_s *epdesc = (struct usb_epdesc_s *)*usb_desc;
+        struct usb_epdesc_s *epdesc_buf = (struct usb_epdesc_s *)buf;
+        if (hispeed) {
+            mxpacket = GETUINT16(epdesc->mxpacketsize);
+        } else {
+            mxpacket = 64;
+        }
+        memcpy(epdesc_buf, epdesc, USB_SIZEOF_EPDESC);
+
+        epdesc_buf->mxpacketsize[0] = LSBYTE(mxpacket);
+        epdesc_buf->mxpacketsize[1] = MSBYTE(mxpacket);
+        buf += USB_SIZEOF_EPDESC;
+        usb_desc++;
+    }
+
+    /* Finally, fill in the total size of the configuration descriptor */
+    cfgdesc->totallen[0] = LSBYTE(totallen);
+    cfgdesc->totallen[1] = MSBYTE(totallen);
+    return totallen;
+}
+
+static int usb_ascii_to_utf16(uint8_t *utf16, const uint8_t *ascii, size_t len)
+{
+    int i, ndata;
+    for (i = 0, ndata = 0; i < len; i++, ndata += 2) {
+        utf16[ndata] = ascii[i];
+        utf16[ndata + 1] = 0;
+    }
+
+    return ndata + 2;
+}
+
+static int gadget_get_langs(struct gadget_descriptor *g_desc,
+                            struct usb_strdesc_s *strdesc)
+{
+    int i = 0;
+    uint16_t id = 0;
+
+    strdesc->len = 0;
+    strdesc->type = USB_DESC_TYPE_STRING;
+
+    do {
+        id = g_desc->str[i].lang;
+        if (id) {
+            strdesc->data[i * 2] = LSBYTE(id);
+            strdesc->data[i * 2 + 1] = MSBYTE(id);
+            strdesc->len += 4;
+        }
+        i++;
+    } while (id != 0);
+
+    return strdesc->len;
+}
+
+static int gadget_get_string(struct gadget_descriptor *g_desc,
+                             int id, struct usb_strdesc_s *strdesc)
+{
+    int i;
+    const struct gadget_string *strs;
+
+    if (id == 0) {
+        return gadget_get_langs(g_desc, strdesc);
+    }
+
+    strs = g_desc->str->strs;
+    for (i = 0; &strs[i] && strs[i].str; i++) {
+        if (strs[i].id == id) {
+            strdesc->len = usb_ascii_to_utf16(strdesc->data,
+                                             (uint8_t *)strs[i].str,
+                                             strlen(strs[i].str));
+            strdesc->type = USB_DESC_TYPE_STRING;
+            return strdesc->len;
+        }
+    }
+
+    return -EINVAL;
+}
+
+/**
+ * Handle some generic control request
+ * \param g_desc pointer to the gadget descriptor
+ * \param dev pointer to the usb device
+ * \param req pointer to the request to handle (used for data stage)
+ * \param ctrl pointer to the control request to handle
+ * \return the length of data to send for a data stage or < 0 in case of error
+ */
+int gadget_control_handler(struct gadget_descriptor *g_desc,
+                           struct usbdev_s *dev,
+                           struct usbdev_req_s *req,
+                           const struct usb_ctrlreq_s *ctrl)
+{
+    uint16_t len;
+    int ret = -EOPNOTSUPP;
+
+    len = GETUINT16(ctrl->len);
+
+    if ((ctrl->type & USB_REQ_TYPE_MASK) == USB_REQ_TYPE_STANDARD) {
+        if (ctrl->req == USB_REQ_GETDESCRIPTOR) {
+            switch (ctrl->value[1]) {
+            case USB_DESC_TYPE_DEVICE:
+                ret = USB_SIZEOF_DEVDESC;
+                memcpy(req->buf, g_desc->dev, ret);
+                break;
+
+            case USB_DESC_TYPE_DEVICEQUALIFIER:
+                ret = USB_SIZEOF_QUALDESC;
+                memcpy(req->buf, g_desc->qual, ret);
+                break;
+
+            case USB_DESC_TYPE_OTHERSPEEDCONFIG:
+            case USB_DESC_TYPE_CONFIG:
+                ret = gadget_config_desc(g_desc, req->buf, dev->speed,
+                                         ctrl->value[0], ctrl->req);
+                break;
+
+            case USB_DESC_TYPE_STRING:
+                /* index == language code. */
+                ret = gadget_get_string(g_desc, ctrl->value[0],
+                                        (struct usb_strdesc_s *) req->buf);
+                break;
+            }
+        }
+    }
+
+    /* Respond to the setup command if data was returned. On an error return
+     * let the gadget handle it.
+     */
+    if (ret >= 0) {
+        req->len = MIN(len, ret);
+        req->flags = USBDEV_REQFLAGS_NULLPKT;
+        ret = EP_SUBMIT(dev->ep0, req);
+    }
+
+    return ret;
+}
