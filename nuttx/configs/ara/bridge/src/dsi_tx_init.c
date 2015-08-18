@@ -538,9 +538,16 @@ struct display_panel lg4892_panel = {
     .cdsi_panel_init = lg4892_dsi_init,
 };
 
-int display_init(void *priv)
+int display_init(void)
 {
-    gb_i2c_set_dev((struct i2c_dev_s *) priv);
+    struct i2c_dev_s *dev;
+
+    dev = up_i2cinitialize(0);
+    if (!dev) {
+        lowsyslog("%s(): Failed to get I/O Expander I2C bus 0\n", __func__);
+        return -ENODEV;
+    }
+    gb_i2c_set_dev(dev);
 
     pwm_enable();
 

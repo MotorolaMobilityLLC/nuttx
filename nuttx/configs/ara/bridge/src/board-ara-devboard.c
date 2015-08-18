@@ -58,25 +58,26 @@
 #define TCA6408_U72_INT_GPIO    0x03
 #define TCA6408_U72_RST_GPIO    0x04
 
-static int io_expander_init(struct i2c_dev_s **dev)
+static int io_expander_init(void)
 {
     void *driver_data;
+    struct i2c_dev_s *dev;
 
-    *dev = up_i2cinitialize(0);
-    if (!*dev) {
+    dev = up_i2cinitialize(0);
+    if (!dev) {
         lowsyslog("%s(): Failed to get I/O Expander I2C bus 0\n", __func__);
         return -ENODEV;
     } else {
         if (tca64xx_init(&driver_data,
                          TCA6408_PART,
-                         *dev,
+                         dev,
                          TCA6408_U72,
                          TCA6408_U72_RST_GPIO,
                          TCA6408_U72_INT_GPIO,
                          TCA6408_GPIO_BASE) < 0) {
             lowsyslog("%s(): Failed to register I/O Expander(0x%02x)\n",
                       __func__, TCA6408_U72);
-            up_i2cuninitialize(*dev);
+            up_i2cuninitialize(dev);
             return -ENODEV;
         }
     }
@@ -126,13 +127,10 @@ static void bdb_driver_register(void)
 static void board_display_init(void)
 {
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
-    struct i2c_dev_s *dev = NULL;
-
 #ifndef CONFIG_APBRIDGEA
-    io_expander_init(&dev);
+    io_expander_init();
 #endif
-
-    display_init(dev);
+    display_init();
 #endif
 }
 

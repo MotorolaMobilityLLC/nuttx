@@ -191,7 +191,7 @@ static void *display_fn(void *p_data)
     return NULL;
 }
 
-int display_init(void *priv)
+int display_init(void)
 {
     ps_hold();
     return pthread_create(&g_display_thread, NULL, display_fn, NULL);
