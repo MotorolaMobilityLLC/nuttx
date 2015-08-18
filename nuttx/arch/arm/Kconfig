@@ -373,6 +373,10 @@ config ARM_SEMIHOSTING
 	bool "ARM Semihosting"
 	default n
 
+config ARCH_HAVE_HIRES_TIMER
+	bool
+	default n
+
 if ARCH_CORTEXM0
 source arch/arm/src/armv6-m/Kconfig
 endif

@@ -45,6 +45,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/clock.h>
 #include <nuttx/rtc.h>
+#include <nuttx/hires_tmr.h>
 
 #include "clock/clock.h"
 
@@ -119,23 +120,33 @@ int clock_systimespec(FAR struct timespec *ts)
       return OK;
 
 #else
-      /* 32-bit millisecond calculations should be just fine. */
 
-      uint32_t msecs;
-      uint32_t secs;
-      uint32_t nsecs;
+#ifdef CONFIG_ARCH_HAVE_HIRES_TIMER
+      hrt_gettimespec(ts);
+#else
+      /*
+       * We don't have a high resolution timer - get the time since
+       * power-on in seconds and milliseconds from SYSTICK based timer.
+       *
+       * 32-bit millisecond calculations should be just fine.
+       */
 
-      /* Get the time since power-on in seconds and milliseconds */
+      {
+          uint32_t msecs;
+          uint32_t secs;
+          uint32_t nsecs;
 
-      msecs = TICK2MSEC(clock_systimer());
-      secs  = msecs / MSEC_PER_SEC;
+          msecs = TICK2MSEC(clock_systimer());
+          secs  = msecs / MSEC_PER_SEC;
 
-      /* Return the elapsed time in seconds and nanoseconds */
+          /* Return the elapsed time in seconds and nanoseconds */
+          nsecs = (msecs - (secs * MSEC_PER_SEC)) * NSEC_PER_MSEC;
 
-      nsecs = (msecs - (secs * MSEC_PER_SEC)) * NSEC_PER_MSEC;
+          ts->tv_sec  = (time_t)secs;
+          ts->tv_nsec = (long)nsecs;
+      }
+#endif
 
-      ts->tv_sec  = (time_t)secs;
-      ts->tv_nsec = (long)nsecs;
       return OK;
 #endif
     }
