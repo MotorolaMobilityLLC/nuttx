@@ -34,6 +34,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_pwm.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 #include <arch/byteorder.h>
 #include <apps/greybus-utils/utils.h>
 
@@ -159,6 +160,10 @@ static uint8_t gb_pwm_protocol_activate(struct gb_operation *operation)
     struct gb_pwm_activate_request *request;
     int ret;
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (!pwm_info || !pwm_info->dev) {
         return GB_OP_UNKNOWN_ERROR;
@@ -193,6 +198,11 @@ static uint8_t gb_pwm_protocol_deactivate(struct gb_operation *operation)
 {
     struct gb_pwm_dectivate_request *request;
     int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (!pwm_info || !pwm_info->dev) {
         return GB_OP_UNKNOWN_ERROR;
@@ -229,6 +239,11 @@ static uint8_t gb_pwm_protocol_config(struct gb_operation *operation)
     struct gb_pwm_config_request *request;
     uint32_t duty, period;
     int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (!pwm_info || !pwm_info->dev) {
         return GB_OP_UNKNOWN_ERROR;
@@ -268,6 +283,11 @@ static uint8_t gb_pwm_protocol_polarity(struct gb_operation *operation)
     struct gb_pwm_polarity_request *request;
     int ret;
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     if (!pwm_info || !pwm_info->dev) {
         return GB_OP_UNKNOWN_ERROR;
     }
@@ -304,6 +324,11 @@ static uint8_t gb_pwm_protocol_enable(struct gb_operation *operation)
     struct gb_pwm_enable_request *request;
     int ret;
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     if (!pwm_info || !pwm_info->dev) {
         return GB_OP_UNKNOWN_ERROR;
     }
@@ -338,6 +363,11 @@ static uint8_t gb_pwm_protocol_disable(struct gb_operation *operation)
 {
     struct gb_pwm_disable_request *request;
     int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (!pwm_info || !pwm_info->dev) {
         return GB_OP_UNKNOWN_ERROR;
