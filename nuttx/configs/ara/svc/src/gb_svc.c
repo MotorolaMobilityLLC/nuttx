@@ -33,6 +33,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 
 #include "svc.h"
 #include "up_debug.h"
@@ -140,6 +141,11 @@ static uint8_t gb_svc_intf_device_id(struct gb_operation *op) {
     u8 dev_id;
     int rc;
 
+    if (gb_operation_get_request_payload_size(op) < sizeof(*req)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     req = gb_operation_get_request_payload(op);
     intf_id = req->intf_id;
     dev_id  = req->device_id;
@@ -153,6 +159,11 @@ static uint8_t gb_svc_connection_create(struct gb_operation *op) {
     struct gb_svc_conn_create_request *req;
     int rc;
 
+    if (gb_operation_get_request_payload_size(op) < sizeof(*req)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     req = gb_operation_get_request_payload(op);
     rc = svc_connection_create(req->intf1_id, req->cport1_id,
                                req->intf2_id, req->cport2_id,
@@ -164,6 +175,11 @@ static uint8_t gb_svc_connection_create(struct gb_operation *op) {
 static uint8_t gb_svc_route_create(struct gb_operation *op) {
     struct gb_svc_route_create_request *req;
     int rc;
+
+    if (gb_operation_get_request_payload_size(op) < sizeof(*req)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     req = gb_operation_get_request_payload(op);
     rc = svc_route_create(req->intf1_id, req->dev1_id,
