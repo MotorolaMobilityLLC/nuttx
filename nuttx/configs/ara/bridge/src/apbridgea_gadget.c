@@ -65,6 +65,7 @@
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/unipro/unipro.h>
 #include <arch/byteorder.h>
+#include <arch/board/common_gadget.h>
 #include <arch/board/apbridgea_gadget.h>
 #include <nuttx/wdog.h>
 
@@ -181,14 +182,6 @@
  * Private Types
  ****************************************************************************/
 
-/* Container to support a list of requests */
-
-struct apbridge_req_s {
-    struct list_head list;
-    struct usbdev_req_s *req;   /* The contained request */
-    void *priv;
-};
-
 struct apbridge_msg_s {
     struct list_head list;
     struct usbdev_ep_s *ep;
@@ -205,10 +198,6 @@ struct apbridge_dev_s {
     sem_t config_sem;
 
     struct usbdev_ep_s *ep[APBRIDGE_MAX_ENDPOINTS];
-
-    struct list_head ctrlreq;       /* Control request */
-    struct list_head rdreq;
-    struct list_head wrreq;
 
     struct list_head msg_queue;
 
@@ -252,18 +241,6 @@ enum ctrlreq_state {
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-
-/* Request helpers *********************************************************/
-
-static int usbclass_allocreq_buf(struct usbdev_ep_s *ep,
-                                 struct usbdev_req_s *req,
-                                 uint16_t len);
-static void usbclass_freereq_buf(struct usbdev_ep_s *ep,
-                                 struct usbdev_req_s *req);
-static struct usbdev_req_s *usbclass_allocreq(struct usbdev_ep_s *ep,
-                                              uint16_t len);
-static void usbclass_freereq(struct usbdev_ep_s *ep,
-                             struct usbdev_req_s *req);
 
 /* Configuration ***********************************************************/
 
@@ -406,52 +383,9 @@ void usb_wait(struct apbridge_dev_s *priv)
     sem_wait(&priv->config_sem);
 }
 
-static struct list_head *epno_to_req_list(struct apbridge_dev_s *priv,
-                                          uint8_t epno)
-{
-    switch(epno) {
-    case 0:
-        return &priv->ctrlreq;
-    default:
-        /*
-         * EP with even address (except ep0) are bulk out endpoint.
-         * EP with odd address (except ep1) are bulk in endpoint.
-         */
-        if (epno % 2 == 0) {
-            return &priv->rdreq;
-        } else {
-            return &priv->wrreq;
-        }
-    }
-    return NULL;
-}
-
 static unsigned int get_cportid(const struct gb_operation_hdr *hdr)
 {
     return hdr->pad[1] << 8 | hdr->pad[0];
-}
-
-static struct usbdev_req_s *get_request(struct list_head *list)
-{
-    struct usbdev_req_s *req;
-    struct apbridge_req_s *reqcontainer;
-
-    if (list_is_empty(list))
-        return NULL;
-
-    list = list->next;
-    list_del(list);
-    reqcontainer = list_entry(list,  struct apbridge_req_s, list);
-    req = reqcontainer->req;
-    return req;
-}
-
-static void put_request(struct list_head *list, struct usbdev_req_s *req)
-{
-    struct apbridge_req_s *reqcontainer;
-
-    reqcontainer = (struct apbridge_req_s *)req->priv;
-    list_add(list, &reqcontainer->list);
 }
 
 static int apbridge_queue(struct apbridge_dev_s *priv, struct usbdev_ep_s *ep,
@@ -520,16 +454,11 @@ static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
 static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
                    const void *payload, size_t len)
 {
-    struct list_head *list;
     struct usbdev_ep_s *ep;
     struct usbdev_req_s *req;
 
-    list = epno_to_req_list(priv, epno);
-    if (!list)
-        return -EINVAL;
-
-    req = get_request(list);
     ep = priv->ep[epno & USB_EPNO_MASK];
+    req = get_request(ep, usbclass_wrcomplete, APBRIDGE_REQ_SIZE, NULL);
     if (!req) {
         return apbridge_queue(priv, ep, payload, len);
     }
@@ -562,35 +491,23 @@ int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
 
 int usb_release_buffer(struct apbridge_dev_s *priv, const void *buf)
 {
-    struct list_head *iter, *next;
+    struct usbdev_ep_s *ep;
     struct usbdev_req_s *req;
-    struct apbridge_req_s *reqcontainer;
-    int i, j;
     int ret = 0;
 
-    iter = priv->rdreq.next;
-    next = iter->next;
-    for (i = 0; i < APBRIDGE_NBULKS; i++) {
-        for (j = 0; j < APBRIDGE_NREQS; j++) {
-            reqcontainer = list_entry(iter, struct apbridge_req_s, list);
-            req = reqcontainer->req;
 
-            if (req->buf == buf) {
-                ret = EP_SUBMIT(priv->ep[CONFIG_APBRIDGE_EPBULKOUT + i * 2],
-                                req);
-                if (ret != OK) {
-                    usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSUBMIT),
-                             (uint16_t) -ret);
-                }
-                return ret;
-            }
-
-            iter = next;
-            next = next->next;
-        }
+    req = find_request_by_priv(buf);
+    if (!req) {
+        return -EINVAL;
     }
 
-    return -EINVAL;
+    ep = request_to_ep(req);
+    ret = EP_SUBMIT(ep, req);
+    if (ret != OK) {
+        usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSUBMIT),
+                 (uint16_t) -ret);
+    }
+    return ret;
 }
 
 void map_cport_to_ep(struct apbridge_dev_s *priv,
@@ -606,88 +523,6 @@ void map_cport_to_ep(struct apbridge_dev_s *priv,
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: usbclass_allocreq_buf
- *
- * Description:
- *   Allocate a request buffer
- *
- ****************************************************************************/
-
-static int usbclass_allocreq_buf(struct usbdev_ep_s *ep,
-                                 struct usbdev_req_s *req,
-                                 uint16_t len)
-{
-    req->len = len;
-    req->buf = EP_ALLOCBUFFER(ep, len);
-    if (!req->buf)
-        return -ENOMEM;
-    return 0;
-}
-
-/****************************************************************************
- * Name: usbclass_allocreq
- *
- * Description:
- *   Allocate a request instance along with its buffer
- *
- ****************************************************************************/
-
-static struct usbdev_req_s *usbclass_allocreq(struct usbdev_ep_s *ep,
-                                              uint16_t len)
-{
-    struct usbdev_req_s *req;
-
-    req = EP_ALLOCREQ(ep);
-    if (req != NULL) {
-        if (!len) {
-            req->len = 0;
-            req->buf = NULL;
-        } else {
-            if (usbclass_allocreq_buf(ep, req, len)) {
-                EP_FREEREQ(ep, req);
-                req = NULL;
-            }
-        }
-    }
-    return req;
-}
-
-/****************************************************************************
- * Name: usbclass_freereq
- *
- * Description:
- *   Free a request instance along with its buffer
- *
- ****************************************************************************/
-
-static void usbclass_freereq_buf(struct usbdev_ep_s *ep,
-                                 struct usbdev_req_s *req)
-{
-    if (req->buf != NULL) {
-        EP_FREEBUFFER(ep, req->buf);
-        req->buf = NULL;
-        req->len = 0;
-    }
-}
-
-
-/****************************************************************************
- * Name: usbclass_freereq
- *
- * Description:
- *   Free a request instance along with its buffer
- *
- ****************************************************************************/
-
-static void usbclass_freereq(struct usbdev_ep_s *ep, struct usbdev_req_s *req)
-{
-    if (ep != NULL && req != NULL) {
-        usbclass_freereq_buf(ep, req);
-        EP_FREEREQ(ep, req);
-    }
-}
 
 /****************************************************************************
  * Name: usbclass_mkstrdesc
@@ -874,9 +709,7 @@ static void usbclass_resetconfig(struct apbridge_dev_s *priv)
 
 static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config)
 {
-    struct list_head *iter, *next;
     struct usbdev_req_s *req;
-    struct apbridge_req_s *reqcontainer;
     struct usb_epdesc_s epdesc;
     uint16_t mxpacket;
     int i, j;
@@ -928,21 +761,16 @@ static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config)
         }
     }
 
-    /* Test if there are enough request */
-    if (list_count(&priv->rdreq) < APBRIDGE_NBULKS * APBRIDGE_NREQS)
-        goto errout;
-
     /* Queue read requests in the bulk OUT endpoint */
-    iter = priv->rdreq.next;
-    next = iter->next;
     for (i = 0; i < APBRIDGE_NBULKS; i++) {
         for (j = 0; j < APBRIDGE_NREQS; j++) {
-            reqcontainer = list_entry(iter, struct apbridge_req_s, list);
-            req = reqcontainer->req;
-            ret = EP_SUBMIT(priv->ep[CONFIG_APBRIDGE_EPBULKOUT + i * 2],
-                            req);
-            iter = next;
-            next = next->next;
+            struct usbdev_ep_s *ep;
+
+            ep = priv->ep[CONFIG_APBRIDGE_EPBULKOUT + i * 2];
+            req = get_request(ep, usbclass_rdcomplete,
+                              APBRIDGE_REQ_SIZE, NULL);
+            request_set_priv(req, req->buf);
+            ret = EP_SUBMIT(ep, req);
 
             if (ret != OK) {
                 usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSUBMIT), (uint16_t) - ret);
@@ -976,7 +804,7 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
 {
     struct apbridge_dev_s *priv;
     struct apbridge_usb_driver *drv;
-    struct apbridge_req_s *ctrlreq;
+    int *req_priv;
 
     priv = (struct apbridge_dev_s *) ep->priv;
     drv = priv->driver;
@@ -986,12 +814,15 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
                  (uint16_t) - req->result);
     }
 
-    ctrlreq = (struct apbridge_req_s *)req->priv;
-    if ((int) ctrlreq->priv == GREYBUS_SVC_REQ)
-        drv->usb_to_svc(NULL, req->buf, req->len);
-    if ((int) ctrlreq->priv == GREYBUS_EP_MAPPING)
-        map_cport_to_ep(priv, (struct cport_to_ep *)req->buf);
-    put_request(&priv->ctrlreq, req);
+    req_priv = (int *)request_get_priv(req);
+    if (req_priv) {
+        if (*req_priv == GREYBUS_SVC_REQ)
+            drv->usb_to_svc(NULL, req->buf, req->len);
+        if (*req_priv == GREYBUS_EP_MAPPING)
+            map_cport_to_ep(priv, (struct cport_to_ep *)req->buf);
+        kmm_free(req_priv);
+    }
+    put_request(req);
 }
 
 /****************************************************************************
@@ -1057,7 +888,6 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
 static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
                               struct usbdev_req_s *req)
 {
-    struct list_head *list;
     struct apbridge_msg_s *info;
     struct apbridge_dev_s *priv;
 
@@ -1075,8 +905,7 @@ static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
         _to_usb_submit(info->ep, req, info->buf, info->len);
         free(info);
     } else {
-        list = epno_to_req_list(priv, USB_EPNO(ep->eplog));
-        put_request(list, req);
+        put_request(req);
     }
 
     switch (req->result) {
@@ -1138,56 +967,6 @@ static void freeep(struct apbridge_dev_s *priv, uint8_t epno)
     priv->ep[epno] = NULL;
 }
 
-static void prealloc_request(struct usbdev_ep_s *ep,
-                             usb_callback callback, int size, int n)
-{
-    int i;
-    struct usbdev_req_s *req;
-    struct apbridge_req_s *reqcontainer;
-    struct list_head *list = epno_to_req_list(ep->priv, USB_EPNO(ep->eplog));
-
-    DEBUGASSERT(ep);
-    DEBUGASSERT(list);
-    DEBUGASSERT(callback);
-
-    for (i = 0; i < n; i++) {
-        reqcontainer = malloc(sizeof(struct apbridge_req_s));
-        if (!reqcontainer)
-            return;
-        req = usbclass_allocreq(ep, size);
-        if (!req) {
-            free(reqcontainer);
-            return;
-        }
-        req->len = size;
-        req->priv = reqcontainer;
-        req->callback = callback;
-        reqcontainer->req = req;
-        list_add(list, &reqcontainer->list);
-    }
-}
-
-static void free_preallocated_request(struct usbdev_ep_s *ep)
-{
-    struct list_head *iter, *iter_next;
-    struct usbdev_req_s *req;
-    struct apbridge_req_s *reqcontainer;
-    struct list_head *list;
-
-    if (!ep)
-        return;
-    list = epno_to_req_list(ep->priv, USB_EPNO(ep->eplog));
-    DEBUGASSERT(list);
-
-    list_foreach_safe(list, iter, iter_next) {
-        reqcontainer = list_entry(iter, struct apbridge_req_s, list);
-        req = reqcontainer->req;
-        usbclass_freereq(ep, req);
-        free(reqcontainer);
-        list_del(iter);
-    }
-}
-
 static void g_usbdesc_init(void) {
     int i;
     struct usb_epdesc_s *usbdesc;
@@ -1217,7 +996,6 @@ static int usbclass_bind(struct usbdevclass_driver_s *driver,
                          struct usbdev_s *dev)
 {
     struct apbridge_dev_s *priv = ((struct apbridge_driver_s *)driver)->dev;
-    struct list_head *list;
     int ret;
     int i;
 
@@ -1244,31 +1022,17 @@ static int usbclass_bind(struct usbdevclass_driver_s *driver,
      * logic where kmm_malloc calls will fail.
      */
 
-    list_init(&priv->ctrlreq);
-    prealloc_request(priv->ep[0], usbclass_ep0incomplete,
-                     APBRIDGE_MXDESCLEN, 1);
+    request_pool_prealloc(priv->ep[0], APBRIDGE_MXDESCLEN, 1);
+    request_pool_prealloc(priv->ep[CONFIG_APBRIDGE_EPBULKOUT],
+                          APBRIDGE_REQ_SIZE, APBRIDGE_NREQS * APBRIDGE_NBULKS);
+    request_pool_prealloc(priv->ep[CONFIG_APBRIDGE_EPBULKIN],
+                          APBRIDGE_REQ_SIZE, APBRIDGE_NREQS * APBRIDGE_NBULKS);
 
-    list_init(&priv->rdreq);
-    prealloc_request(priv->ep[CONFIG_APBRIDGE_EPBULKOUT],
-                     usbclass_rdcomplete, APBRIDGE_REQ_SIZE,
-                     APBRIDGE_NREQS * APBRIDGE_NBULKS);
-
-    list_init(&priv->wrreq);
-    prealloc_request(priv->ep[CONFIG_APBRIDGE_EPBULKIN],
-                     usbclass_wrcomplete, APBRIDGE_REQ_SIZE,
-                     APBRIDGE_NREQS * APBRIDGE_NBULKS);
+    /* TODO test result of prealloc */
 
     /* Report if we are selfpowered */
 
     DEV_SETSELFPOWERED(dev);
-
-    for (i = 0; i < APBRIDGE_MAX_ENDPOINTS; i++) {
-        list = epno_to_req_list(priv, i);
-        if (list_is_empty(list)) {
-            ret = -ENOMEM;
-            goto error;
-        }
-    }
 
     /* And pull-up the data line for the soft connect function */
 
@@ -1330,8 +1094,9 @@ static void usbclass_unbind(struct usbdevclass_driver_s *driver,
 
         /* Free the pre-allocated request */
 
+        request_pool_freeall();
+
         for (i = 0; i < APBRIDGE_MAX_ENDPOINTS; i++) {
-            free_preallocated_request(priv->ep[i]);
             freeep(priv, i);
         }
 
@@ -1445,7 +1210,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
 {
     struct apbridge_dev_s *priv;
     struct usbdev_req_s *req;
-    struct apbridge_req_s *ctrreq;
+    int *req_priv;
 
     uint16_t value;
     uint16_t index;
@@ -1470,14 +1235,18 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
         return -ENODEV;
     }
 #endif
-    req = get_request(&priv->ctrlreq);
+    req_priv = kmm_malloc(sizeof(*req_priv));
+    if (!req_priv) {
+        return -ENOMEM;
+    }
+    req = get_request(dev->ep0, usbclass_ep0incomplete,
+                      APBRIDGE_MXDESCLEN, req_priv);
     if (!req) {
         lowsyslog("%s(): unable to get a request buffer\n", __func__);
         return -ENOMEM;
     }
 
-    ctrreq = (struct apbridge_req_s *)req->priv;
-    ctrreq->priv = (void *)USB_REQ;
+    *req_priv = USB_REQ;
 
     /* Extract the little-endian 16-bit values to host order */
 
@@ -1612,14 +1381,14 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                         *(uint32_t *) req->buf = 0xdeadbeef;
                         ret = 4;
                     } else {
-                        ctrreq->priv = (void *)GREYBUS_SVC_REQ;
+                        *req_priv = GREYBUS_SVC_REQ;
                         ret = len;
                     }
                 } else if (ctrl->req == APBRIDGE_RWREQUEST_LOG) {
                     if ((ctrl->type & USB_DIR_IN) == 0) {
                     } else {
 #if defined(CONFIG_APB_USB_LOG)
-                        ctrreq->priv = (void *)GREYBUS_LOG;
+                        *req_priv = GREYBUS_LOG;
                         ret = usb_get_log(req->buf, len);
 #else
                         ret = 0;
@@ -1630,7 +1399,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                         *(uint32_t *) req->buf = 0xdeadbeef;
                         ret = 4;
                     } else {
-                        ctrreq->priv = (void *)GREYBUS_EP_MAPPING;
+                        *req_priv = GREYBUS_EP_MAPPING;
                         ret = len;
                     }
                 } else if (ctrl->req == APBRIDGE_ROREQUEST_CPORT_COUNT) {
