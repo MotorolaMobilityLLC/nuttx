@@ -65,6 +65,7 @@
 #include <nuttx/wdog.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 #include <nuttx/unipro/unipro.h>
 
 #include <arch/byteorder.h>
@@ -351,6 +352,11 @@ static uint8_t gb_i2s_receiver_send_data_req_handler(
     struct gb_i2s_info *info;
     irqstate_t flags;
     int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     info = gb_i2s_get_info_by_cport(operation->cport);
     if (!info) {
@@ -810,6 +816,11 @@ static uint8_t gb_i2s_set_configuration_req_handler(
     struct gb_i2s_info *info;
     int ret;
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     info = gb_i2s_get_info(operation->cport);
     if (!info)
         return GB_OP_INVALID;
@@ -838,6 +849,11 @@ static uint8_t gb_i2s_set_samples_per_message_req_handler(
     struct gb_i2s_set_samples_per_message_request *request =
                 gb_operation_get_request_payload(operation);
     struct gb_i2s_info *info;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     info = gb_i2s_get_info(operation->cport);
     if (!info)
@@ -883,6 +899,11 @@ static uint8_t gb_i2s_set_start_delay_req_handler(
     struct gb_i2s_set_start_delay_request *request =
                 gb_operation_get_request_payload(operation);
     struct gb_i2s_info *info;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     info = gb_i2s_get_info(operation->cport);
     if (!info)
@@ -934,6 +955,11 @@ static uint8_t gb_i2s_activate_cport_req_handler(struct gb_operation *operation)
     struct gb_i2s_info *info;
     int allocated_dummy_data = 0;
     int ret = 0;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     info = gb_i2s_get_info(operation->cport);
     if (!info)
@@ -1011,6 +1037,11 @@ static uint8_t gb_i2s_deactivate_cport_req_handler(
     struct gb_i2s_cport_list_entry *cple;
     struct gb_i2s_info *info;
     int ret = 0;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     info = gb_i2s_get_info(operation->cport);
     if (!info)
