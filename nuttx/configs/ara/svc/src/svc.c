@@ -90,6 +90,7 @@ static struct svc_event *svc_event_create(int type) {
 }
 
 static inline void svc_event_destroy(struct svc_event *event) {
+    list_del(&event->events);
     free(event);
 }
 
