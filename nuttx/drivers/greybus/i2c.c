@@ -33,6 +33,7 @@
 #include <arch/byteorder.h>
 #include <nuttx/i2c.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 
 #include "i2c-gb.h"
 
@@ -97,11 +98,22 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
     struct gb_i2c_transfer_desc *desc;
     struct gb_i2c_transfer_req *request;
     struct gb_i2c_transfer_rsp *response;
+    const size_t req_size = gb_operation_get_request_payload_size(operation);
+
+    if (req_size < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     request = (struct gb_i2c_transfer_req *)
                   gb_operation_get_request_payload(operation);
     op_count = le16_to_cpu(request->op_count);
     write_data = (uint8_t *)&request->desc[op_count];
+
+    if (req_size < sizeof(*request) + op_count * sizeof(request->desc[0])) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     for (i = 0; i < op_count; i++) {
         desc = &request->desc[i];
