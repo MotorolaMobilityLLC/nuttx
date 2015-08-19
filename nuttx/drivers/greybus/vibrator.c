@@ -32,6 +32,7 @@
 #include <stdlib.h>
 
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 #include <apps/greybus-utils/utils.h>
 #include <nuttx/gpio.h>
 #include <arch/byteorder.h>
@@ -64,6 +65,11 @@ static uint8_t gb_vibrator_vibrator_on(struct gb_operation *operation)
 {
     struct gb_vibrator_on_request *request =
             gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     gpio_activate(GB_VIBRATOR_DUMMY_GPIO);
     gpio_set_value(GB_VIBRATOR_DUMMY_GPIO, 1);
