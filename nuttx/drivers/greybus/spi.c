@@ -34,6 +34,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_spi.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 #include <apps/greybus-utils/utils.h>
 
 #include <arch/byteorder.h>
@@ -193,14 +194,27 @@ static uint8_t gb_spi_protocol_transfer(struct gb_operation *operation)
     uint32_t freq = 0;
     bool selected = false;
     struct device_spi_transfer transfer;
+    size_t request_size = gb_operation_get_request_payload_size(operation);
+    size_t expected_size;
 
     struct gb_spi_transfer_desc *desc;
     struct gb_spi_transfer_request *request;
     struct gb_spi_transfer_response *response;
 
+    if (request_size < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     request = gb_operation_get_request_payload(operation);
     op_count = le16_to_cpu(request->count);
     write_data = (uint8_t *)&request->transfers[op_count];
+
+    expected_size = sizeof(*request) + op_count * sizeof(request->transfers[0]);
+    if (request_size < expected_size) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     for (i = 0; i < op_count; i++) {
         desc = &request->transfers[i];
