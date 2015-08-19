@@ -529,7 +529,7 @@ int interface_init(struct interface **ints,
             interface_exit();
             return rc;
         }
-        rc = interface_generate_wakeout(ifc, true);
+        rc = interface_generate_wakeout(ifc, false);
         if (rc < 0) {
             dbg_error("Failed to generate wakeout on interface %s\n",
                       ifc->name);
