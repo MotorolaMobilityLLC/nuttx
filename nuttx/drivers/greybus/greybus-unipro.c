@@ -50,25 +50,7 @@ static struct unipro_driver greybus_driver = {
 
 static int gb_unipro_listen(unsigned int cport)
 {
-    int ret;
-    int i = 0;
-
-    gb_debug("Connecting cport %d\n", cport);
-    do {
-        ret = unipro_init_cport(cport);
-        if (!ret) {
-            ret = unipro_driver_register(&greybus_driver, cport);
-        } else if (ret != -ENOTCONN) {
-            gb_error("Can not init cport %d: error %d\n", cport, ret);
-        } else {
-            usleep(200000);
-            if (i++ == 50) {
-                gb_warning("CPORT %d doesn't seem to be connected\n", cport);
-                gb_warning("Please check your SVC configuration\n");
-            }
-        }
-    } while (ret == -ENOTCONN);
-    return ret;
+    return unipro_driver_register(&greybus_driver, cport);
 }
 
 static int gb_unipro_stop_listening(unsigned int cport)
