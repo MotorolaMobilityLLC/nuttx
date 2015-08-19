@@ -47,7 +47,6 @@
 #include "up_debug.h"
 #include "tsb_switch.h"
 #include "vreg.h"
-#include "tsb_switch_driver_es1.h"
 #include "tsb_switch_driver_es2.h"
 
 #define IRQ_WORKER_DEFPRIO          50
@@ -71,22 +70,6 @@
 #define CPORT_DISABLE               1
 #define IRT_DISABLE                 0
 #define IRT_ENABLE                  1
-
-/* Default link configuration values.
- *
- * Bring everything up in non-auto HS-G1. The links which carry
- * display traffic need this, so apply it everywhere.
- *
- * TODO: these should be replaced with auto PWM-G1 (i.e. USE_HS=0,
- *       FLAGS=UNIPRO_LINK_CFGF_AUTO) when the AP and SVC know enough
- *       control protocol to do the right thing on all links.
- */
-#define LINK_DEFAULT_USE_HS_GEAR    1
-#define LINK_DEFAULT_HS_GEAR        1
-#define LINK_DEFAULT_PWM_GEAR       1
-#define LINK_DEFAULT_HS_NLANES      2
-#define LINK_DEFAULT_PWM_NLANES     LINK_DEFAULT_HS_NLANES
-#define LINK_DEFAULT_FLAGS          0
 
 /* Default CPort configuration values. */
 #define CPORT_DEFAULT_TOKENVALUE           32
@@ -735,29 +718,6 @@ static int switch_cport_disconnect(struct tsb_switch *sw,
     return rc0 || rc1;
 }
 
-#if !(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC || CONFIG_ARCH_BOARD_ARA_SDB_SVC)
-static int switch_link_power_set_default(struct tsb_switch *sw,
-                                         uint8_t port_id) {
-    int rc;
-
-    if (LINK_DEFAULT_USE_HS_GEAR) {
-        rc = switch_configure_link_hs(sw,
-                                      port_id,
-                                      LINK_DEFAULT_HS_GEAR,
-                                      LINK_DEFAULT_HS_NLANES,
-                                      LINK_DEFAULT_FLAGS);
-    } else {
-        rc = switch_configure_link_pwm(sw,
-                                       port_id,
-                                       LINK_DEFAULT_PWM_GEAR,
-                                       LINK_DEFAULT_PWM_NLANES,
-                                       LINK_DEFAULT_FLAGS);
-    }
-
-    return rc;
-}
-#endif
-
 /**
  * @brief Retrieve a device id for a given port id
  */
@@ -915,24 +875,6 @@ int switch_connection_create(struct tsb_switch *sw,
              c->cport_id1,
              c->tc,
              c->flags);
-
-    /*
-     * UniPro HS gears have issues on BDB2A with the default M-PHY
-     * settings. Turn this off on that target for now, but leave them
-     * in for ES1 targets (e.g., the display tunnel on ES1 demos needs
-     * the default setting of HS-G1 to work properly).
-     */
-#if !(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC || CONFIG_ARCH_BOARD_ARA_SDB_SVC)
-    rc = switch_link_power_set_default(sw, c->port_id0);
-    if (rc) {
-        goto err1;
-    }
-
-    rc = switch_link_power_set_default(sw, c->port_id1);
-    if (rc) {
-        goto err1;
-    }
-#endif
 
     rc = switch_cport_connect(sw, c);
     if (rc) {
@@ -1646,11 +1588,6 @@ struct tsb_switch *switch_init(struct tsb_switch_data *pdata) {
     switch_power_on_reset(sw);
 
     switch (sw->pdata->rev) {
-    case SWITCH_REV_ES1:
-        if (tsb_switch_es1_init(sw, sw->pdata->bus)) {
-            goto error;
-        }
-        break;
     case SWITCH_REV_ES2:
         // Initialize the SPI port
         if (tsb_switch_es2_init(sw, sw->pdata->bus)) {
@@ -1733,8 +1670,6 @@ void switch_exit(struct tsb_switch *sw) {
     dev_ids_destroy(sw);
 
     switch (sw->pdata->rev) {
-    case SWITCH_REV_ES1:
-        tsb_switch_es1_exit(sw);
         break;
     case SWITCH_REV_ES2:
         tsb_switch_es2_exit(sw);
