@@ -36,7 +36,7 @@
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
 
-#include <arch/tsb/unipro.h>
+#include <nuttx/unipro/unipro.h>
 #include <arch/tsb/irq.h>
 #include <errno.h>
 
@@ -159,7 +159,7 @@ void unipro_p2p_setup(void) {
     uint32_t result_code;
 //    uint32_t attr_val;
 
-    for (i=0; i < CPORT_MAX; i++) {
+    for (i=0; i < unipro_cport_count(); i++) {
 
         lldbg("attributes for cport=%d\n", i);
 
@@ -774,7 +774,7 @@ void unipro_dump_rx(void) {
 
     unipro_dump_register_array(RX_REGISTERS);
 
-    for (i = 0; i < CPORT_MAX; i++) {
+    for (i = 0; i < unipro_cport_count(); i++) {
         unipro_dump_register_index_array(CPORT_RX_REGISTERS, i);
     }
 }
@@ -784,7 +784,7 @@ void unipro_dump_tx(void) {
 
     unipro_dump_register_array(TX_REGISTERS);
 
-    for (i = 0; i < CPORT_MAX; i++) {
+    for (i = 0; i < unipro_cport_count(); i++) {
         unipro_dump_register_index_array(CPORT_TX_REGISTERS, i);
     }
 }
