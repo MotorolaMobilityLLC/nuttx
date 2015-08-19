@@ -29,6 +29,7 @@
  */
 
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 #include "gpio-gb.h"
 
 #include <arch/byteorder.h>
@@ -75,6 +76,11 @@ static uint8_t gb_gpio_activate(struct gb_operation *operation)
     struct gb_gpio_activate_request *request =
         gb_operation_get_request_payload(operation);
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
 
@@ -86,6 +92,11 @@ static uint8_t gb_gpio_deactivate(struct gb_operation *operation)
 {
     struct gb_gpio_deactivate_request *request =
         gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
@@ -99,6 +110,11 @@ static uint8_t gb_gpio_get_direction(struct gb_operation *operation)
     struct gb_gpio_get_direction_response *response;
     struct gb_gpio_get_direction_request *request =
         gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
@@ -116,6 +132,11 @@ static uint8_t gb_gpio_direction_in(struct gb_operation *operation)
     struct gb_gpio_direction_in_request *request =
         gb_operation_get_request_payload(operation);
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
 
@@ -127,6 +148,11 @@ static uint8_t gb_gpio_direction_out(struct gb_operation *operation)
 {
     struct gb_gpio_direction_out_request *request =
         gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
@@ -140,6 +166,11 @@ static uint8_t gb_gpio_get_value(struct gb_operation *operation)
     struct gb_gpio_get_value_response *response;
     struct gb_gpio_get_value_request *request =
         gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
@@ -157,6 +188,11 @@ static uint8_t gb_gpio_set_value(struct gb_operation *operation)
     struct gb_gpio_set_value_request *request =
         gb_operation_get_request_payload(operation);
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
 
@@ -169,6 +205,11 @@ static uint8_t gb_gpio_set_debounce(struct gb_operation *operation)
     struct gb_gpio_set_debounce_request *request =
         gb_operation_get_request_payload(operation);
     int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
@@ -185,6 +226,11 @@ static uint8_t gb_gpio_irq_mask(struct gb_operation *operation)
     struct gb_gpio_irq_mask_request *request =
         gb_operation_get_request_payload(operation);
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
 
@@ -196,6 +242,11 @@ static uint8_t gb_gpio_irq_unmask(struct gb_operation *operation)
 {
     struct gb_gpio_irq_unmask_request *request =
         gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
@@ -234,6 +285,11 @@ static uint8_t gb_gpio_irq_type(struct gb_operation *operation)
     int trigger;
     struct gb_gpio_irq_type_request *request =
         gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     if (request->which >= gpio_line_count())
         return GB_OP_INVALID;
