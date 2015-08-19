@@ -75,11 +75,9 @@
 
 /* Logical endpoint numbers / max packet sizes */
 
-#define CONFIG_APBRIDGE_EPINTIN 1
-
 #define CONFIG_APBRIDGE_EPBULKOUT 2
 
-#define CONFIG_APBRIDGE_EPBULKIN 3
+#define CONFIG_APBRIDGE_EPBULKIN 1
 
 /* Packet and request buffer sizes */
 
@@ -112,9 +110,8 @@
 #define APBRIDGE_INTERFACEID         (0)
 #define APBRIDGE_ALTINTERFACEID      (0)
 #define APBRIDGE_NINTERFACES         (1)        /* Number of interfaces in the configuration */
-#define APBRIDGE_NINTS               (1)
 /* Number of endpoints in the interface  */
-#define APBRIDGE_NENDPOINTS          (APBRIDGE_NINTS + (APBRIDGE_NBULKS << 1))
+#define APBRIDGE_NENDPOINTS          (APBRIDGE_NBULKS << 1)
 
 #define BULKEP_TO_N(ep) \
   ((USB_EPNO(ep->eplog) - CONFIG_APBRIDGE_EPBULKOUT) >> 1)
@@ -128,10 +125,6 @@
   USB_CONFIG_ATTR_WAKEUP
 
 /* Endpoint configuration */
-
-#define APBRIDGE_EPINTIN_ADDR        (USB_DIR_IN|CONFIG_APBRIDGE_EPINTIN)
-#define APBRIDGE_EPINTIN_ATTR        (USB_EP_ATTR_XFER_INT)
-#define APBRIDGE_EPINTIN_MXPACKET    (1024)
 
 #define APBRIDGE_EPOUTBULK_ADDR      (CONFIG_APBRIDGE_EPBULKOUT)
 #define APBRIDGE_EPOUTBULK_ATTR      (USB_EP_ATTR_XFER_BULK)
@@ -208,7 +201,6 @@ struct apbridge_dev_s {
     struct usbdev_ep_s *ep[APBRIDGE_MAX_ENDPOINTS];
 
     struct list_head ctrlreq;       /* Control request */
-    struct list_head intreq;
     struct list_head rdreq;
     struct list_head wrreq;
 
@@ -358,16 +350,6 @@ static const struct usb_ifdesc_s g_ifdesc = {
     APBRIDGE_CONFIGSTRID        /* iif */
 };
 
-static const struct usb_epdesc_s g_epintindesc = {
-    USB_SIZEOF_EPDESC,          /* len */
-    USB_DESC_TYPE_ENDPOINT,     /* type */
-    APBRIDGE_EPINTIN_ADDR,      /* addr */
-    APBRIDGE_EPINTIN_ATTR,      /* attr */
-    {LSBYTE(APBRIDGE_EPINTIN_MXPACKET), /* maxpacket */
-     MSBYTE(APBRIDGE_EPINTIN_MXPACKET)},
-    1                           /* interval */
-};
-
 static const struct usb_epdesc_s g_epbulkoutdesc = {
     USB_SIZEOF_EPDESC,          /* len */
     USB_DESC_TYPE_ENDPOINT,     /* type */
@@ -390,9 +372,8 @@ static const struct usb_epdesc_s g_epbulkindesc = {
 
 static const struct usb_epdesc_s *g_usbdesc[APBRIDGE_MAX_ENDPOINTS] = {
     NULL,               /* No descriptor for ep0 */
-    &g_epintindesc,
-    &g_epbulkoutdesc,
     &g_epbulkindesc,
+    &g_epbulkoutdesc,
 };
 
 static const struct usb_qualdesc_s g_qualdesc = {
@@ -425,8 +406,6 @@ static struct list_head *epno_to_req_list(struct apbridge_dev_s *priv,
     switch(epno) {
     case 0:
         return &priv->ctrlreq;
-    case CONFIG_APBRIDGE_EPINTIN:
-        return &priv->intreq;
     default:
         /*
          * EP with even address (except ep0) are bulk out endpoint.
@@ -517,11 +496,8 @@ static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
     req->len = len;
     memcpy(req->buf, payload, len);
 
-    /* Unpause unipro only if the request come from unipro */
-    if (USB_EPNO(ep->eplog) != CONFIG_APBRIDGE_EPINTIN) {
-        cportid = get_cportid(payload);
-        unipro_unpause_rx(cportid);
-    }
+    cportid = get_cportid(payload);
+    unipro_unpause_rx(cportid);
 
     /* Then submit the request to the endpoint */
 
@@ -608,22 +584,6 @@ int usb_release_buffer(struct apbridge_dev_s *priv, const void *buf)
     }
 
     return -EINVAL;
-}
-
-/**
- * @brief Send data that come from SVC to AP module
- * priv usb device.
- * param payload data to send from SVC
- * size of data to send on unipro
- * @return 0 in success or -EINVAL if len is too big
- */
-
-int svc_to_usb(struct apbridge_dev_s *priv, const void *payload, size_t len)
-{
-    if (len > APBRIDGE_EPINTIN_MXPACKET)
-        return -EINVAL;
-
-    return _to_usb(priv, CONFIG_APBRIDGE_EPINTIN, payload, len);
 }
 
 void map_cport_to_ep(struct apbridge_dev_s *priv,
@@ -1280,10 +1240,6 @@ static int usbclass_bind(struct usbdevclass_driver_s *driver,
     list_init(&priv->ctrlreq);
     prealloc_request(priv->ep[0], usbclass_ep0incomplete,
                      APBRIDGE_MXDESCLEN, 1);
-
-    list_init(&priv->intreq);
-    prealloc_request(priv->ep[CONFIG_APBRIDGE_EPINTIN], usbclass_wrcomplete,
-                     APBRIDGE_EPINTIN_MXPACKET, 1);
 
     list_init(&priv->rdreq);
     prealloc_request(priv->ep[CONFIG_APBRIDGE_EPBULKOUT],
