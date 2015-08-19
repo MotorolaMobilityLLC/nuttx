@@ -35,6 +35,7 @@
 #include <nuttx/list.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/loopback.h>
+#include <nuttx/greybus/debug.h>
 #include <arch/byteorder.h>
 
 #define GB_LOOPBACK_VERSION_MAJOR 0
@@ -316,7 +317,14 @@ static uint8_t gb_loopback_transfer_req_cb(struct gb_operation *operation)
     struct gb_loopback_transfer_response *response;
     struct gb_loopback_transfer_request *request =
         gb_operation_get_request_payload(operation);
-    size_t request_length = le32_to_cpu(request->len);
+    size_t request_length;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    request_length = le32_to_cpu(request->len);
 
     response = gb_operation_alloc_response(operation,
                                            sizeof(*response) + request_length);
