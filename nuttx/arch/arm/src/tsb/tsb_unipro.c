@@ -39,7 +39,6 @@
 
 #include <arch/chip/unipro_p2p.h>
 
-#include <arch/tsb/unipro.h>
 #include <arch/tsb/irq.h>
 #include <errno.h>
 
