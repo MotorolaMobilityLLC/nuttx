@@ -34,7 +34,6 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include <pthread.h>
 
 #include <nuttx/greybus/tsb_unipro.h>
 #include <apps/greybus-utils/utils.h>
@@ -52,27 +51,14 @@ static struct srvmgr_service services[] = {
     { NULL, NULL }
 };
 
-static pthread_t enable_cports_thread;
-void *enable_cports_fn(void *data)
-{
-    enable_cports();
-    tsb_unipro_mbox_set(TSB_MAIL_READY_OTHER, true);
-    return NULL;
-}
-
 int bridge_main(int argc, char *argv[])
 {
-    int ret;
-
     enable_manifest("IID-1", NULL, 0);
     gb_unipro_init();
     srvmgr_start(services);
 
-    ret = pthread_create(&enable_cports_thread, NULL, enable_cports_fn, NULL);
-    if (ret) {
-        printf("Can't create enable_cport thread: error %d. Exiting!\n", ret);
-        return ret;
-    }
+    enable_cports();
+    tsb_unipro_mbox_set(TSB_MAIL_READY_OTHER, true);
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");
