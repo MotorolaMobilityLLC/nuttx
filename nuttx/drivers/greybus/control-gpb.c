@@ -95,6 +95,11 @@ static uint8_t gb_control_connected(struct gb_operation *operation)
     struct gb_control_connected_request *request =
         gb_operation_get_request_payload(operation);
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     retval = gb_listen(le16_to_cpu(request->cport_id));
     if (retval) {
         gb_error("Can not connect cport %d: error %d\n",
@@ -110,6 +115,11 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
     int retval;
     struct gb_control_connected_request *request =
         gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     retval = gb_stop_listening(le16_to_cpu(request->cport_id));
     if (retval) {
