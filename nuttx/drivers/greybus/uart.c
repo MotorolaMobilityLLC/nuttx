@@ -39,6 +39,7 @@
 #include <nuttx/config.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/debug.h>
 #include <nuttx/unipro/unipro.h>
 #include <apps/greybus-utils/utils.h>
 #include <arch/byteorder.h>
@@ -619,10 +620,22 @@ static uint8_t gb_uart_send_data(struct gb_operation *operation)
 {
     int ret, size;
     int sent = 0;
+    size_t request_size = gb_operation_get_request_payload_size(operation);
     struct gb_uart_send_data_request *request =
                     gb_operation_get_request_payload(operation);
 
+    if (request_size < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     size = le16_to_cpu(request->size);
+
+    if (request_size < sizeof(*request) + size) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     ret = device_uart_start_transmitter(info->dev, request->data, size, NULL,
                                         &sent, NULL);
     if (ret) {
@@ -648,6 +661,11 @@ static uint8_t gb_uart_set_line_coding(struct gb_operation *operation)
     uint8_t parity, databits, stopbit;
     struct gb_serial_line_coding_request *request =
                     gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     baud = le32_to_cpu(request->rate);
 
@@ -718,6 +736,11 @@ static uint8_t gb_uart_set_control_line_state(struct gb_operation *operation)
     struct gb_uart_set_control_line_state_request *request =
                 gb_operation_get_request_payload(operation);
 
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
     ret = device_uart_get_modem_ctrl(info->dev, &modem_ctrl);
     if (ret) {
         return GB_OP_UNKNOWN_ERROR;
@@ -757,6 +780,11 @@ static uint8_t gb_uart_send_break(struct gb_operation *operation)
     int ret;
     struct gb_uart_set_break_request *request =
                   gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
 
     ret = device_uart_set_break(info->dev, request->state);
     if (ret) {
