@@ -494,16 +494,6 @@ static int svcd_startup(void) {
         goto error2;
     }
 
-    /*
-     * FIXME remove when system bootstrap sequence is implemented.
-     *
-     * HACK: until the system bootstrap sequence is finished, we can't
-     * synchronize with the bridges' own initialization sequence. This
-     * is breaking GPB2 setup on BDB2B. Add a magic delay until the
-     * system bootstrap sequence is implemented.
-     */
-    up_mdelay(300);
-
     /* Initialize event system */
     rc = svc_event_init();
     if (rc) {
