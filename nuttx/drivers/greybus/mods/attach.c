@@ -78,7 +78,9 @@ static void *base_attach_worker(void *v)
       usleep(100000);
 
       base_state  = (gpio_get_value(GPIO_MODS_SL_BPLUS_EN)   & 0x01) << 0;
+#ifdef GPIO_MODS_SL_FORCEFLASH
       base_state |= (gpio_get_value(GPIO_MODS_SL_FORCEFLASH) & 0x01) << 1;
+#endif
 
       if (ad->base_state != base_state)
         {
@@ -154,8 +156,10 @@ int mods_attach_init(void)
   gpio_irqattach(GPIO_MODS_SL_BPLUS_EN, base_attach_isr);
   set_gpio_triggering(GPIO_MODS_SL_BPLUS_EN, IRQ_TYPE_EDGE_BOTH);
 
+#ifdef GPIO_MODS_SL_FORCEFLASH
   gpio_irqattach(GPIO_MODS_SL_FORCEFLASH, base_attach_isr);
   set_gpio_triggering(GPIO_MODS_SL_FORCEFLASH, IRQ_TYPE_EDGE_BOTH);
+#endif
 
   return 0;
 }
