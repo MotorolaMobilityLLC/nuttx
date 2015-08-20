@@ -1,7 +1,6 @@
 /*
  * Copyright (c) 2015 Google Inc.
  * All rights reserved.
- * Author: Benoit Cousson <bcousson@baylibre.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,6 +24,9 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Author: Benoit Cousson <bcousson@baylibre.com>
+ * Author: Winnie Wang <wang_winnie@projectara.com>
  */
 
 #ifndef __BATTERY_GB_H__
@@ -45,25 +47,9 @@
 #define GB_BATTERY_TYPE_CAPACITY            0x09
 #define GB_BATTERY_TYPE_SHUTDOWN_TEMP       0x0a
 
-/* Should match up with battery types in linux/power_supply.h */
-#define GB_BATTERY_TECH_UNKNOWN             0x0000
-#define GB_BATTERY_TECH_NIMH                0x0001
-#define GB_BATTERY_TECH_LION                0x0002
-#define GB_BATTERY_TECH_LIPO                0x0003
-#define GB_BATTERY_TECH_LIFE                0x0004
-#define GB_BATTERY_TECH_NICD                0x0005
-#define GB_BATTERY_TECH_LIMN                0x0006
-
 struct gb_battery_technology_response {
     __le32  technology;
 };
-
-/* Should match up with battery status in linux/power_supply.h */
-#define GB_BATTERY_STATUS_UNKNOWN           0x0000
-#define GB_BATTERY_STATUS_CHARGING          0x0001
-#define GB_BATTERY_STATUS_DISCHARGING       0x0002
-#define GB_BATTERY_STATUS_NOT_CHARGING      0x0003
-#define GB_BATTERY_STATUS_FULL              0x0004
 
 struct gb_battery_status_response {
     __le16  status;
@@ -85,11 +71,22 @@ struct gb_battery_voltage_response {
     __le32  voltage;
 };
 
+struct gb_battery_current_response {
+    __le32  current;
+};
+
+struct gb_battery_totoal_capacity_response {
+    __le32  capacity;
+};
+
+struct gb_battery_shutdown_temperature_response {
+    __le32  temperature;
+};
+
 /* version request has no payload */
 struct gb_battery_proto_version_response {
     __u8    major;
     __u8    minor;
 };
-
 
 #endif /* __BATTERY_GB_H__ */
