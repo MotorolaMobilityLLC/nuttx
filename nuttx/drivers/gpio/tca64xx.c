@@ -590,7 +590,7 @@ static int tca64xx_get_gpio_triggering_level(void *driver_data, uint8_t which)
     return (tca64xx->level >> shift) & 3;
 }
 
-static void intstat_update(void *driver_data, uint32_t in)
+static void intstat_update(void *driver_data, uint32_t in, uint32_t mask)
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
     int pin;
@@ -599,6 +599,8 @@ static void intstat_update(void *driver_data, uint32_t in)
 
     flags = irqsave();
 
+    /* Check the changed bits from last read */
+    in = (tca64xx->in & ~mask) | (in & mask);
     diff = tca64xx->in ^ in;
 
     if (!diff) {
@@ -655,13 +657,15 @@ static void tca64xx_registers_update(void *driver_data)
         in |= (val << i);
     }
     lldbg("%s: in=0x%08x\n", __func__, in);
-    intstat_update(driver_data, in);
+
+    /* Update the input status with the 32 bits read from the expander */
+    intstat_update(driver_data, in, ~0);
 }
 
 uint8_t tca64xx_get(void *driver_data, uint8_t which)
 {
     struct tca64xx_platform_data *tca64xx = driver_data;
-    uint8_t in = 0, reg, val;
+    uint8_t reg, val;
     int ret;
 
     lldbg("%s: addr=0x%02hhX, which=%hhu\n", __func__, tca64xx->addr, which);
@@ -681,9 +685,10 @@ uint8_t tca64xx_get(void *driver_data, uint8_t which)
     }
     lldbg("%s: input reg(0x%02hhX)=0x%02hhX\n", __func__, reg, val);
 
-    in &= ~(0xFF << (which / 8));
-    in |= val << (which / 8);
-    intstat_update(driver_data, in);
+    /* Update the input status with the 8 bits read from the expander */
+    intstat_update(driver_data,
+                   val << (which & 0xF8),
+                   0xFF << (which & 0xF8));
 
     val &= (1 << (which % 8));
     val = !!val;
