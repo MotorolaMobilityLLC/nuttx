@@ -267,12 +267,58 @@ static uint32_t cport_get_status(struct cport *cport) {
 }
 
 /**
+ * @brief Clear and disable UniPro interrupt
+ */
+static void clear_int(unsigned int cportid) {
+    unsigned int i;
+    uint32_t int_en;
+
+    i = cportid * 2;
+    if (cportid < 16) {
+        unipro_write(AHM_RX_EOM_INT_BEF_0, 0x3 << i);
+        int_en = unipro_read(AHM_RX_EOM_INT_EN_0);
+        int_en &= ~(0x3 << i);
+        unipro_write(AHM_RX_EOM_INT_EN_0, int_en);
+    } else if (cportid < 32) {
+        unipro_write(AHM_RX_EOM_INT_BEF_1, 0x3 << i);
+        int_en = unipro_read(AHM_RX_EOM_INT_EN_1);
+        int_en &= ~(0x3 << i);
+        unipro_write(AHM_RX_EOM_INT_EN_1, int_en);
+    } else {
+        unipro_write(AHM_RX_EOM_INT_BEF_2, 0x3 << i);
+        int_en = unipro_read(AHM_RX_EOM_INT_EN_2);
+        int_en &= ~(0x3 << i);
+        unipro_write(AHM_RX_EOM_INT_EN_2, int_en);
+    }
+    tsb_irq_clear_pending(cportid_to_irqn(cportid));
+}
+
+/**
+ * @brief Enable EOM interrupt on cport
+ */
+static void enable_int(unsigned int cportid) {
+    struct cport *cport;
+    unsigned int irqn;
+
+    cport = cport_handle(cportid);
+    if (!cport) {
+        return;
+    }
+
+    irqn = cportid_to_irqn(cportid);
+    enable_rx_interrupt(cport);
+    irq_attach(irqn, irq_rx_eom);
+    up_enable_irq(irqn);
+}
+
+/**
  * @brief Enable a CPort that has a connected connection.
  */
 static int configure_connected_cport(unsigned int cportid) {
     int ret = 0;
     struct cport *cport;
     unsigned int rc;
+    irqstate_t flags;
 
     cport = cport_handle(cportid);
     if (!cport) {
@@ -282,6 +328,14 @@ static int configure_connected_cport(unsigned int cportid) {
     switch (rc) {
     case CPORT_STATUS_CONNECTED:
         cport->connected = 1;
+
+        /*
+         * Clear any pending EOM interrupts, then enable them.
+         */
+        flags = irqsave();
+        clear_int(cportid);
+        enable_int(cportid);
+        irqrestore(flags);
 
         /* Start the flow of received data */
         unipro_write(REG_RX_PAUSE_SIZE_00 + (cportid * sizeof(uint32_t)),
@@ -485,51 +539,6 @@ int unipro_unpause_rx(unsigned int cportid)
     return 0;
 }
 
-/**
- * @brief Clear and disable UniPro interrupt
- */
-static void clear_int(unsigned int cportid) {
-    unsigned int i;
-    uint32_t int_en;
-
-    i = cportid * 2;
-    if (cportid < 16) {
-        unipro_write(AHM_RX_EOM_INT_BEF_0, 0x3 << i);
-        int_en = unipro_read(AHM_RX_EOM_INT_EN_0);
-        int_en &= ~(0x3 << i);
-        unipro_write(AHM_RX_EOM_INT_EN_0, int_en);
-    } else if (cportid < 32) {
-        unipro_write(AHM_RX_EOM_INT_BEF_1, 0x3 << i);
-        int_en = unipro_read(AHM_RX_EOM_INT_EN_1);
-        int_en &= ~(0x3 << i);
-        unipro_write(AHM_RX_EOM_INT_EN_1, int_en);
-    } else {
-        unipro_write(AHM_RX_EOM_INT_BEF_2, 0x3 << i);
-        int_en = unipro_read(AHM_RX_EOM_INT_EN_2);
-        int_en &= ~(0x3 << i);
-        unipro_write(AHM_RX_EOM_INT_EN_2, int_en);
-    }
-    tsb_irq_clear_pending(cportid_to_irqn(cportid));
-}
-
-/**
- * @brief Enable EOM interrupt on cport
- */
-static void enable_int(unsigned int cportid) {
-    struct cport *cport;
-    unsigned int irqn;
-
-    cport = cport_handle(cportid);
-    if (!cport) {
-        return;
-    }
-
-    irqn = cportid_to_irqn(cportid);
-    enable_rx_interrupt(cport);
-    irq_attach(irqn, irq_rx_eom);
-    up_enable_irq(irqn);
-}
-
 static void configure_transfer_mode(int mode) {
     /*
      * Set transfer mode 2
@@ -718,7 +727,6 @@ void unipro_info(void)
  */
 int unipro_init_cport(unsigned int cportid)
 {
-    irqstate_t flags;
     struct cport *cport = cport_handle(cportid);
 
     if (!cport) {
@@ -736,15 +744,6 @@ int unipro_init_cport(unsigned int cportid)
      */
     unipro_write(AHM_ADDRESS_00 + (cportid * sizeof(uint32_t)),
                  (uint32_t)CPORT_RX_BUF(cportid));
-
-    /*
-     * Clear any pending EOM interrupts, then enable them.
-     * TODO: Defer interrupt enable until driver registration?
-     */
-    flags = irqsave();
-    clear_int(cportid);
-    enable_int(cportid);
-    irqrestore(flags);
 
 #ifdef UNIPRO_DEBUG
     unipro_info();
