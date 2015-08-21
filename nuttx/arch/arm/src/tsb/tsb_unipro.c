@@ -29,6 +29,8 @@
  */
 
 #include <string.h>
+#include <stdio.h>
+
 #include <nuttx/util.h>
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
@@ -781,10 +783,14 @@ void unipro_init(void)
     unipro_write(UNIPRO_INT_EN, 0x0);
     for (i = 0; i < cport_count; i++) {
         unipro_init_cport(i);
+#if defined(CONFIG_UNIPRO_P2P)
+        configure_connected_cport(i);
+#endif
     }
     unipro_write(UNIPRO_INT_EN, 0x1);
 
 
+#if !defined(CONFIG_UNIPRO_P2P)
     /*
      * Disable FCT transmission. See ENG-376.
      */
@@ -802,6 +808,8 @@ void unipro_init(void)
     }
     irq_attach(TSB_IRQ_UNIPRO, irq_unipro);
     up_enable_irq(TSB_IRQ_UNIPRO);
+
+#endif
 
 #ifdef UNIPRO_DEBUG
     unipro_info();
