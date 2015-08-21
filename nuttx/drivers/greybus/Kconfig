@@ -87,3 +87,8 @@ config GREYBUS_UART_PHY
 	bool "UART PHY support"
 	select DEVICE_CORE
 	default n
+
+config GREYBUS_HID
+	bool "HID support"
+	select DEVICE_CORE
+	default n

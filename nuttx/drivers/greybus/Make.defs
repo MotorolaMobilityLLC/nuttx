@@ -81,6 +81,10 @@ ifeq ($(CONFIG_GREYBUS_UART_PHY),y)
 CSRCS += uart.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_HID),y)
+CSRCS += hid.c
+endif
+
 endif
 
 ifeq ($(CONFIG_GREYBUS_DEBUG),y)
