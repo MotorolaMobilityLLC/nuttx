@@ -42,8 +42,7 @@
 struct mods_msg
 {
   __le16  size;
-  __u8    dest_cport;
-  __u8    src_cport;
+  __u8    cport;
   __u8    gb_msg[0];
 };
 
@@ -51,9 +50,6 @@ unsigned int unipro_cport_count(void)
 {
   return MODS_NUM_CPORTS;
 }
-
-/* Maps Mods cport numbers to base cport numbers */
-static __u8 to_base_cport[MODS_NUM_CPORTS];
 
 /* Handle to Mods data link layer */
 static struct mods_dl_s *dl;
@@ -71,13 +67,7 @@ static int network_recv(const void *buf, size_t len)
       return -EINVAL;
     }
 
-  if (m->dest_cport < MODS_NUM_CPORTS)
-    {
-      /* Save base cport so response can be sent back correctly */
-      to_base_cport[m->dest_cport] = m->src_cport;
-
-      greybus_rx_handler(m->dest_cport, m->gb_msg, m->size);
-    }
+  greybus_rx_handler(m->cport, m->gb_msg, m->size);
 
   return 0;
 }
@@ -100,8 +90,7 @@ static int network_send(unsigned int cportid, const void *buf, size_t len)
       return -ENOMEM;
 
   m->size = len;
-  m->dest_cport = to_base_cport[cportid];
-  m->src_cport = cportid;
+  m->cport = cportid;
   memcpy(m->gb_msg, buf, len);
 
   return MODS_DL_SEND(dl, m, len + sizeof(struct mods_msg));
