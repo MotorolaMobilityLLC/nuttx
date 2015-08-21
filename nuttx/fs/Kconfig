@@ -90,7 +90,7 @@ config SYSLOG_CHAR
 config SYSLOG_DEVPATH
 	string "System log device"
 	default "/dev/syslog"
-	depends on SYSLOG_CHAR
+	depends on SYSLOG_CHAR || RAMLOG_SYSLOG
 	---help---
 		The full path to the system logging device.  For the RAMLOG SYSLOG device,
 		this is normally "/dev/ramlog".  For character SYSLOG devices, it should be
