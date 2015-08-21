@@ -108,6 +108,7 @@ static int i2s_test_parse_cmdline(int argc, char *argv[],
     if ((argc != 7) && (argc != 8))
         return -EINVAL;
 
+    optind = -1;
     while ((option = getopt(argc, argv, "MmBbtrilc")) != ERROR) {
         switch(option) {
         case 'M':
