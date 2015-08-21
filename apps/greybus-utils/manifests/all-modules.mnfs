@@ -75,8 +75,6 @@ bundle = 1
 id = 5
 protocol = 0x04
 
-; Skipping HID (0x05)
-
 ; USB protocol on CPort 6
 [cport-descriptor "6"]
 bundle = 1
@@ -126,6 +124,12 @@ protocol = 0x10
 bundle = 1
 id = 12
 protocol = 0x11
+
+; HID protocol on CPort 13
+[cport-descriptor "13"]
+bundle = 1
+id = 13
+protocol = 0x05
 
 ; Bundle 1
 ; It is unclear what the 'class' field should be set to
