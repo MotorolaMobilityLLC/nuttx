@@ -351,6 +351,7 @@ int gbl_main(int argc, char *argv[])
 
     pthread_once(&loopback_init_once, loopback_init);
 
+    optind = -1;
     while ((opt = getopt (argc, argv, "c:s:t:w:n:f:")) != -1) {
         switch (opt) {
         case 'c':
