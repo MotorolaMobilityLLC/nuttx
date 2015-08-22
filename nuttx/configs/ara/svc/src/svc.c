@@ -438,10 +438,6 @@ static int svc_handle_ap(void) {
      */
     gb_svc_hello(svc->ap_intf_id);
 
-    /*
-     * FIXME: Hotplug events should be sent upon receiving a linkup
-     * notification. For now, send a fake one for intf_id 2.
-     */
     return 0;
 }
 
