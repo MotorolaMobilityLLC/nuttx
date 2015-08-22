@@ -722,13 +722,11 @@ void unipro_init(void)
     int retval;
     struct cport *cport;
 
-    /*
-     * Compute and cache the number of CPorts that this bridge has, for use
-     * by the functions in this source file.  The value does not change.
-     */
-    if (cport_count == 0)
-        cport_count = unipro_cport_count();
+#if defined(CONFIG_UNIPRO_P2P)
+    unipro_reset();
+#endif
 
+    cport_count = unipro_cport_count();
     cporttable = zalloc(sizeof(struct cport) * cport_count);
     if (!cporttable) {
         return;
