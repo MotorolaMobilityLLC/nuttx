@@ -63,6 +63,7 @@
 
 # Sub-directories
 
+# Keep this list sorted alphabetically, adding new apps in the right place.
 SUBDIRS  = apbridge
 SUBDIRS += bdbpm
 SUBDIRS += bringup_entry
@@ -75,10 +76,10 @@ SUBDIRS += gpbridge
 SUBDIRS += gpio
 SUBDIRS += i2s
 SUBDIRS += pinshare
-SUBDIRS += spi
 SUBDIRS += pwm
 SUBDIRS += pwm_unit_test
 SUBDIRS += service_mgr
+SUBDIRS += spi
 SUBDIRS += springpm
 SUBDIRS += svc
 SUBDIRS += svc_power
@@ -91,6 +92,7 @@ SUBDIRS += usb-host
 # the example may be built as an NSH built-in function.
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
+# Keep this list sorted alphabetically, adding new apps in the right place.
 CNTXTDIRS += bdbpm
 CNTXTDIRS += bringup_entry
 CNTXTDIRS += debug
@@ -101,10 +103,10 @@ CNTXTDIRS += gb-tape
 CNTXTDIRS += gpio
 CNTXTDIRS += i2s
 CNTXTDIRS += pinshare
-CNTXTDIRS += spi
 CNTXTDIRS += pwm
 CNTXTDIRS += pwm_unit_test
 CNTXTDIRS += service_mgr
+CNTXTDIRS += spi
 CNTXTDIRS += springpm
 CNTXTDIRS += svc
 CNTXTDIRS += svc_power
