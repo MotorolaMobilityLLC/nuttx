@@ -37,39 +37,32 @@ vendor-string-id = 1
 product-string-id = 2
 
 ; Interface vendor string (id can't be 0)
-[string-descriptor "1"]
-id = 1
+[string-descriptor 1]
 string = Project Ara
 
 ; Interface product string (id can't be 0)
-[string-descriptor "2"]
-id = 2
+[string-descriptor 2]
 string = Simple GPIO and I2C Interface
 
 ; Control protocol on CPort 0
-[cport-descriptor "0"]
+[cport-descriptor 0]
 bundle = 0
-id = 0
 protocol = 0x00
 
 ; Control protocol Bundle 0
-[bundle-descriptor "0"]
+[bundle-descriptor 0]
 class = 0
-id = 0
 
 ; GPIO protocol on CPort 0
-[cport-descriptor "0"]
+[cport-descriptor 0]
 bundle = 1
-id = 0
 protocol = 0x02
 
 ; I2C protocol on CPort 1
-[cport-descriptor "1"]
+[cport-descriptor 1]
 bundle = 1
-id = 1
 protocol = 0x03
 
 ; Bundle 1
-[bundle-descriptor "1"]
-id = 1
+[bundle-descriptor 1]
 class = 0x02
