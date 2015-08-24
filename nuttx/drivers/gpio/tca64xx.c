@@ -117,6 +117,8 @@
 #define WORKER_DEFPRIO                  50
 #define WORKER_STACKSIZE                1024
 
+#define TCA64XX_POLLING_TIME_US         500000
+
 /* disable the verbose debug output */
 #undef lldbg
 #define lldbg(x...)
@@ -928,7 +930,7 @@ static int tca64xx_polling_worker(int argc, char *argv[])
     /* Sometimes the tca64xx loses interrupt. Re-read to generate interrupt */
     while (!tca64xx->worker_exit) {
         tca64xx_registers_update(tca64xx);
-        usleep(100000);
+        usleep(TCA64XX_POLLING_TIME_US);
     }
     return 0;
 }
