@@ -35,6 +35,8 @@
 #include <nuttx/greybus/types.h>
 #include <nuttx/util.h>
 
+#include <arch/byteorder.h>
+
 #include "datalink.h"
 
 #define MODS_NUM_CPORTS         (32)
@@ -44,7 +46,7 @@ struct mods_msg
   __le16  size;
   __u8    cport;
   __u8    gb_msg[0];
-};
+} __packed;
 
 unsigned int unipro_cport_count(void)
 {
@@ -61,13 +63,13 @@ static int network_recv(const void *buf, size_t len)
 {
   struct mods_msg *m = (struct mods_msg *)buf;
 
-  if (m->size >= len)
+  if (le16_to_cpu(m->size) >= len)
     {
       /* Received an invalid message */
       return -EINVAL;
     }
 
-  greybus_rx_handler(m->cport, m->gb_msg, m->size);
+  greybus_rx_handler(m->cport, m->gb_msg, le16_to_cpu(m->size));
 
   return 0;
 }
@@ -89,7 +91,7 @@ static int network_send(unsigned int cportid, const void *buf, size_t len)
   if (len > (MODS_DL_PAYLOAD_MAX_SZ - sizeof(struct mods_msg)))
       return -ENOMEM;
 
-  m->size = len;
+  m->size = cpu_to_le16(len);
   m->cport = cportid;
   memcpy(m->gb_msg, buf, len);
 
