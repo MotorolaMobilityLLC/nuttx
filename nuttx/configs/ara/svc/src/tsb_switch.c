@@ -916,6 +916,32 @@ err0:
     return rc;
 }
 
+/**
+ * @brief Create a connection between two cports
+ */
+int switch_connection_destroy(struct tsb_switch *sw,
+                              struct unipro_connection *c)
+{
+    int retval;
+
+    if (!c) {
+        return -EINVAL;
+    }
+
+    dbg_info("Destroying connection: [p=%hhu,d=%hhu,c=%hu]<->[p=%hhu,d=%hhu,c=%hu]\n",
+             c->port_id0, c->device_id0, c->cport_id0,
+             c->port_id1, c->device_id1, c->cport_id1);
+
+    retval = switch_cport_disconnect(sw, c->port_id0, c->cport_id0,
+                                     c->port_id1, c->cport_id1);
+    if (retval) {
+        dbg_error("%s: couldn't destroy connection: %d\n", __func__, retval);
+        return retval;
+    }
+
+    return 0;
+}
+
 static int switch_detect_devices(struct tsb_switch *sw,
                                  uint32_t *link_status)
 {

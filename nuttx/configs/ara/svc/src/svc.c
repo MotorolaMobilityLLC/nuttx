@@ -347,6 +347,26 @@ int svc_dme_peer_set(uint8_t intf_id, uint16_t attr, uint16_t selector,
     return 0;
 }
 
+/*
+ * @brief Destroy a UniPro connection
+ */
+int svc_connection_destroy(uint8_t intf1_id, uint16_t cport1_id,
+                           uint8_t intf2_id, uint16_t cport2_id)
+{
+    struct tsb_switch *sw = svc->sw;
+    struct unipro_connection c = {0};
+
+    c.port_id0      = interface_get_portid_by_id(intf1_id);
+    c.device_id0    = interface_get_devid_by_id(intf1_id);
+    c.cport_id0     = cport1_id;
+
+    c.port_id1      = interface_get_portid_by_id(intf2_id);
+    c.device_id1    = interface_get_devid_by_id(intf2_id);
+    c.cport_id1     = cport2_id;
+
+    return switch_connection_destroy(sw, &c);
+}
+
 /**
  * @brief Create a bidirectional route through the switch
  */
