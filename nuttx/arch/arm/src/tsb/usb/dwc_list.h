@@ -587,6 +587,9 @@ struct {								\
 		(elm2)->field.cqe_prev->field.cqe_next = (elm2);	\
 } while (0)
 
+#define DWC_CIRCLEQ_ENTRY_IN_QUEUE(elm, field)				\
+	((elm)->field.cqe_prev != NULL || (elm)->field.cqe_next != NULL)
+
 #ifdef __cplusplus
 }
 #endif
