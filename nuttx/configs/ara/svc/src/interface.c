@@ -34,8 +34,11 @@
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
+#include <nuttx/clock.h>
 #include <nuttx/gpio.h>
 
+#include <time.h>
+#include <sys/time.h>
 #include <errno.h>
 
 #include "stm32.h"
@@ -374,19 +377,48 @@ static struct interface* interface_get_by_wd(uint32_t gpio)
     return NULL;
 }
 
+static int interface_wd_handler(int irq, void *context);
+static void interface_wd_delayed_handler(void *data)
+{
+    struct wd_data *wd = (struct wd_data *) data;
+
+    interface_wd_handler(wd->gpio, NULL);
+}
+
+/* Delayed debounce check */
+static int interface_wd_delay_check(struct wd_data *wd)
+{
+    /*
+     * If the work is already scheduled, do not schedule another one now.
+     * A new one will be scheduled if more debounce is needed.
+     */
+    if (!work_available(&wd->work)) {
+        return 0;
+    }
+
+    /* Schedule the work to run after the debounce timeout */
+    return work_queue(HPWORK, &wd->work, interface_wd_delayed_handler, wd,
+                      MSEC2TICK(WD_DEBOUNCE_TIME_MS));
+}
+
 /* Interface Wake & Detect handler */
-int interface_wd_handler(int irq, void *context)
+static int interface_wd_handler(int irq, void *context)
 {
     struct interface *iface = NULL;
     struct wd_data *wd;
-    bool polarity;
+    bool polarity, active;
+    struct timeval now, diff, timeout_tv = { 0, WD_DEBOUNCE_TIME_MS * 1000 };
+    int ret;
+    irqstate_t flags;
 
+    /* Retrieve interface from the GPIO number */
     iface = interface_get_by_wd(irq);
     if (!iface) {
         dbg_error("%s: cannot get interface for pin %d\n", __func__, irq);
         return -ENODEV;
     }
 
+    /* Get signal type, polarity, active state etc. */
     if (iface->wake_in.gpio == irq) {
         wd = &iface->wake_in;
         polarity = (iface->flags & ARA_IFACE_FLAG_WAKE_IN_ACTIVE_HIGH) ?
@@ -396,14 +428,100 @@ int interface_wd_handler(int irq, void *context)
         polarity = (iface->flags & ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH) ?
             true : false;
     }
+    active = (gpio_get_value(irq) == polarity);
 
-    dbg_insane("W&D: got gpio %d %s (%s_%s)\n",
-               irq,
-               polarity ? "H" : "L",
+    dbg_insane("W&D: got %s_%s %s (gpio %d)\n",
                iface->name,
-               (wd == &iface->wake_in) ? "wake_in" : "detect_in");
+               (wd == &iface->wake_in) ? "wake_in" : "detect_in",
+               active ? "Act" : "Ina",
+               irq);
 
-    return 0;
+    flags = irqsave();
+
+    /* Debounce signal */
+    switch (wd->db_state) {
+    case WD_ST_INVALID:
+    default:
+        gettimeofday(&wd->debounce_tv, NULL);
+        wd->db_state = active ?
+                       WD_ST_ACTIVE_DEBOUNCE : WD_ST_INACTIVE_DEBOUNCE;
+        interface_wd_delay_check(wd);
+        break;
+    case WD_ST_ACTIVE_DEBOUNCE:
+        if (active) {
+            /* Signal did not change ... for how long ? */
+            gettimeofday(&now, NULL);
+            timersub(&now, &wd->debounce_tv, &diff);
+            if (timercmp(&diff, &timeout_tv, >=)) {
+                /* We have a stable signal */
+                wd->db_state = WD_ST_ACTIVE_STABLE;
+                /* Warn higher layers of the new stable active state */
+                dbg_verbose("W&D: got stable %s_%s %s (gpio %d)\n",
+                            iface->name,
+                            (wd == &iface->wake_in) ? "wake_in" : "detect_in",
+                            active ? "Act" : "Ina",
+                            irq);
+            } else {
+                /* Check for a stable signal after the debounce timeout */
+                interface_wd_delay_check(wd);
+            }
+        } else {
+            /* Signal did change, reset the debounce timer */
+            gettimeofday(&wd->debounce_tv, NULL);
+            wd->db_state = WD_ST_INACTIVE_DEBOUNCE;
+            interface_wd_delay_check(wd);
+            /* Warn the higher layers of the unstable signal */
+        }
+        break;
+    case WD_ST_INACTIVE_DEBOUNCE:
+        if (!active) {
+            /* Signal did not change ... for how long ? */
+            gettimeofday(&now, NULL);
+            timersub(&now, &wd->debounce_tv, &diff);
+            if (timercmp(&diff, &timeout_tv, >=)) {
+                /* We have a stable signal */
+                wd->db_state = WD_ST_INACTIVE_STABLE;
+                /* Warn higher layers of the new stable inactive state */
+                dbg_verbose("W&D: got stable %s_%s %s (gpio %d)\n",
+                            iface->name,
+                            (wd == &iface->wake_in) ? "wake_in" : "detect_in",
+                            active ? "Act" : "Ina",
+                            irq);
+            } else {
+                /* Check for a stable signal after the debounce timeout */
+                interface_wd_delay_check(wd);
+            }
+        } else {
+            /* Signal did change, reset the debounce timer */
+            gettimeofday(&wd->debounce_tv, NULL);
+            wd->db_state = WD_ST_ACTIVE_DEBOUNCE;
+            interface_wd_delay_check(wd);
+            /* Warn the higher layers of the unstable signal */
+        }
+        break;
+    case WD_ST_ACTIVE_STABLE:
+        if (!active) {
+            /* Signal did change, reset the debounce timer */
+            gettimeofday(&wd->debounce_tv, NULL);
+            wd->db_state = WD_ST_INACTIVE_DEBOUNCE;
+            interface_wd_delay_check(wd);
+            /* Warn the higher layers of the change */
+        }
+        break;
+    case WD_ST_INACTIVE_STABLE:
+        if (active) {
+            /* Signal did change, reset the debounce timer */
+            gettimeofday(&wd->debounce_tv, NULL);
+            wd->db_state = WD_ST_ACTIVE_DEBOUNCE;
+            interface_wd_delay_check(wd);
+            /* Warn the higher layers of the change */
+        }
+        break;
+    }
+
+    irqrestore(flags);
+
+    return ret;
 }
 
 /*
@@ -540,6 +658,8 @@ int interface_init(struct interface **ints,
 
     /* Install handlers for WAKE_IN and DETECT_IN signals */
     interface_foreach(ifc, i) {
+        ifc->wake_in.db_state = WD_ST_INVALID;
+        ifc->detect_in.db_state = WD_ST_INVALID;
         rc = interface_install_wd_handler(&ifc->wake_in);
         if (rc)
             return rc;

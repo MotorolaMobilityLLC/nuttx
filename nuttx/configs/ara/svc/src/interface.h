@@ -34,6 +34,9 @@
 #define  _INTERFACE_H_
 
 #include <errno.h>
+#include <time.h>
+
+#include <nuttx/wqueue.h>
 
 #include "vreg.h"
 
@@ -47,12 +50,26 @@ struct pm_data {
     uint32_t spin;      /* ADC sign pin */
 };
 
+/* Wake & Detect debounce state machine */
+enum wd_debounce_state {
+    WD_ST_INVALID,                  /* Unknown state */
+    WD_ST_INACTIVE_DEBOUNCE,        /* Transition to inactive */
+    WD_ST_ACTIVE_DEBOUNCE,          /* Transition to active */
+    WD_ST_INACTIVE_STABLE,          /* Stable inactive */
+    WD_ST_ACTIVE_STABLE,            /* Stable active */
+};
+
+/* Wake & Detect debounce time */
+#define WD_DEBOUNCE_TIME_MS         300
+
 /*
  * Wake & Detect signals information
  */
 struct wd_data {
-    uint16_t gpio;      /* GPIO number */
-    uint8_t db_state;   /* Debounce state */
+    uint16_t gpio;                  /* GPIO number */
+    enum wd_debounce_state db_state;/* Debounce state */
+    struct timeval debounce_tv;     /* Last time of signal debounce check */
+    struct work_s work;             /* Work queue for delayed state check */
 };
 
 #define ARA_IFACE_WD_ACTIVE_LOW     false
@@ -151,7 +168,8 @@ uint32_t interface_pm_get_spin(struct interface *iface);
 #define INIT_WD_DATA(_gpio)                                    \
     {                                                          \
         .gpio = _gpio,                                         \
-        .db_state = 0,                                         \
+        .db_state = WD_ST_INVALID,                             \
+        .debounce_tv = { 0, 0 },                               \
     }
 
 #define __MAKE_BB_WAKEOUT(n) WAKEOUT_SPRING ## n
