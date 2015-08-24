@@ -283,6 +283,9 @@ static void uart_ls_callback(uint8_t ls)
  *
  * The callback function provided to device driver for being notified when
  * driver received a data stream.
+ *
+ * This function Must be called from interrupt context.
+ *
  * It put the current operation to received queue and gets another operation to
  * continue receiving. Then notifies rx thread to process.
  *
@@ -298,8 +301,11 @@ static void uart_rx_callback(uint8_t *buffer, int length, int error)
 
     *info->rx_node->data_size = cpu_to_le16(length);
     put_node_back(&info->data_queue, info->rx_node);
+    /* notify rx thread to process this data*/
+    sem_post(&info->rx_sem);
 
     node = get_node_from(&info->free_queue);
+
     if (!node) {
         /*
          * there is no free buffer, inform the rx thread to engage another uart
@@ -315,8 +321,6 @@ static void uart_rx_callback(uint8_t *buffer, int length, int error)
     if (ret) {
         uart_report_error(GB_UART_EVENT_PROTOCOL_ERROR, __func__);
     }
-
-    sem_post(&info->rx_sem);
 }
 
 /**
