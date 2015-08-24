@@ -292,6 +292,62 @@ int svc_connection_create(uint8_t intf1_id, uint16_t cport1_id,
 }
 
 /**
+ * @brief Retrieve a peer DME attribute value
+ */
+int svc_dme_peer_get(uint8_t intf_id, uint16_t attr, uint16_t selector,
+                     uint16_t *result_code, uint32_t *value) {
+    int rc;
+    int portid;
+
+    if (!result_code || !value) {
+        return -EINVAL;
+    }
+
+    portid = interface_get_portid_by_id(intf_id);
+    if (portid < 0) {
+        return -EINVAL;
+    }
+
+    rc = switch_dme_peer_get(svc->sw, portid, attr, selector, value);
+    *result_code = rc;
+    if (rc) {
+        dbg_error("Failed to retrieve DME peer attribute [p=%d,a=%u,s=%u,rc=%d]\n",
+                  portid, attr, selector, rc);
+        return rc;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Update a peer DME attribute value
+ */
+int svc_dme_peer_set(uint8_t intf_id, uint16_t attr, uint16_t selector,
+                     uint32_t value, uint16_t* result_code) {
+    int rc;
+    int portid;
+
+    if(!result_code) {
+        return -EINVAL;
+    }
+
+    portid = interface_get_portid_by_id(intf_id);
+    if (portid < 0) {
+        return -EINVAL;
+    }
+
+    rc = switch_dme_peer_set(svc->sw, portid, attr, selector, value);
+    *result_code = rc;
+    if (rc) {
+        dbg_error("Failed to update DME peer attribute [p=%d,a=%u,s=%u]\n",
+                  portid, attr, selector);
+        return rc;
+    }
+
+    return 0;
+}
+
+/**
  * @brief Create a bidirectional route through the switch
  */
 int svc_route_create(uint8_t intf1_id, uint8_t dev1_id,

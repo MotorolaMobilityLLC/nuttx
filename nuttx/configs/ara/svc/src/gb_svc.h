@@ -49,6 +49,8 @@
 #define GB_SVC_TYPE_INTF_RESET          0x06
 #define GB_SVC_TYPE_CONN_CREATE         0x07
 #define GB_SVC_TYPE_CONN_DESTROY        0x08
+#define GB_SVC_TYPE_DME_PEER_GET        0x09
+#define GB_SVC_TYPE_DME_PEER_SET        0x0a
 #define GB_SVC_TYPE_ROUTE_CREATE	    0x0b
 
 struct gb_svc_protocol_version_request {
@@ -117,6 +119,28 @@ struct gb_svc_conn_destroy_request {
     __le16 cport2_id;
 } __packed;
 /* connection destroy response has no payload */
+
+struct gb_svc_dme_peer_get_request {
+    __u8 intf_id;
+    __le16 attr;
+    __le16 selector;
+} __packed;
+
+struct gb_svc_dme_peer_get_response {
+    __le16 result_code;
+    __le32 attr_value;
+} __packed;
+
+struct gb_svc_dme_peer_set_request {
+    __u8 intf_id;
+    __le16 attr;
+    __le16 selector;
+    __le32 value;
+} __packed;
+
+struct gb_svc_dme_peer_set_response {
+    __le16 result_code;
+} __packed;
 
 int gb_svc_protocol_version(void);
 int gb_svc_hello(uint8_t ap_intf_id);

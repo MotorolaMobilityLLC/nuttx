@@ -35,6 +35,8 @@
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/debug.h>
 
+#include <arch/byteorder.h>
+
 #include "svc.h"
 #include "up_debug.h"
 #include "tsb_switch.h"
@@ -172,6 +174,63 @@ static uint8_t gb_svc_connection_create(struct gb_operation *op) {
     return gb_errno_to_op_result(rc);
 }
 
+static uint8_t gb_svc_dme_peer_get(struct gb_operation *op) {
+    struct gb_svc_dme_peer_get_request *req;
+    struct gb_svc_dme_peer_get_response *resp;
+    int rc;
+    uint16_t attr, selector;
+
+    if (gb_operation_get_request_payload_size(op) < sizeof(*req)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    req = gb_operation_get_request_payload(op);
+    resp = gb_operation_alloc_response(op, sizeof(*resp));
+    if (!resp) {
+        return GB_OP_NO_MEMORY;
+    }
+
+    attr = le16_to_cpu(req->attr);
+    selector = le16_to_cpu(req->selector);
+
+    rc = svc_dme_peer_get(req->intf_id, attr, selector, &resp->result_code,
+                          &resp->attr_value);
+    resp->result_code = cpu_to_le16(resp->result_code);
+    resp->attr_value = cpu_to_le32(resp->attr_value);
+
+    return gb_errno_to_op_result(rc);
+}
+
+static uint8_t gb_svc_dme_peer_set(struct gb_operation *op) {
+    struct gb_svc_dme_peer_set_request *req;
+    struct gb_svc_dme_peer_set_response *resp;
+    int rc;
+    uint16_t attr, selector;
+    uint32_t value;
+
+    if (gb_operation_get_request_payload_size(op) < sizeof(*req)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    req = gb_operation_get_request_payload(op);
+    resp = gb_operation_alloc_response(op, sizeof(*resp));
+    if (!resp) {
+        return GB_OP_NO_MEMORY;
+    }
+
+    attr = le16_to_cpu(req->attr);
+    selector = le16_to_cpu(req->selector);
+    value = le32_to_cpu(req->value);
+
+    rc = svc_dme_peer_set(req->intf_id, attr, selector, value,
+                          &resp->result_code);
+    resp->result_code = cpu_to_le16(resp->result_code);
+
+    return gb_errno_to_op_result(rc);
+}
+
 static uint8_t gb_svc_route_create(struct gb_operation *op) {
     struct gb_svc_route_create_request *req;
     int rc;
@@ -192,6 +251,8 @@ static struct gb_operation_handler gb_svc_handlers[] = {
     GB_HANDLER(GB_SVC_TYPE_INTF_DEVICE_ID, gb_svc_intf_device_id),
     GB_HANDLER(GB_SVC_TYPE_CONN_CREATE, gb_svc_connection_create),
     GB_HANDLER(GB_SVC_TYPE_ROUTE_CREATE, gb_svc_route_create),
+    GB_HANDLER(GB_SVC_TYPE_DME_PEER_GET, gb_svc_dme_peer_get),
+    GB_HANDLER(GB_SVC_TYPE_DME_PEER_SET, gb_svc_dme_peer_set),
 };
 
 struct gb_driver svc_driver = {
