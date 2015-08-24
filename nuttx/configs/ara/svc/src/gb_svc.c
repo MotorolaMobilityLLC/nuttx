@@ -175,6 +175,23 @@ static uint8_t gb_svc_connection_create(struct gb_operation *op) {
     return gb_errno_to_op_result(rc);
 }
 
+static uint8_t gb_svc_connection_destroy(struct gb_operation *op)
+{
+    int retval;
+    struct gb_svc_conn_destroy_request *req;
+
+    if (gb_operation_get_request_payload_size(op) < sizeof(*req)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    req = gb_operation_get_request_payload(op);
+    retval = svc_connection_destroy(req->intf1_id, le16_to_cpu(req->cport1_id),
+                                    req->intf2_id, le16_to_cpu(req->cport2_id));
+
+    return gb_errno_to_op_result(retval);
+}
+
 static uint8_t gb_svc_dme_peer_get(struct gb_operation *op) {
     struct gb_svc_dme_peer_get_request *req;
     struct gb_svc_dme_peer_get_response *resp;
@@ -251,6 +268,7 @@ static uint8_t gb_svc_route_create(struct gb_operation *op) {
 static struct gb_operation_handler gb_svc_handlers[] = {
     GB_HANDLER(GB_SVC_TYPE_INTF_DEVICE_ID, gb_svc_intf_device_id),
     GB_HANDLER(GB_SVC_TYPE_CONN_CREATE, gb_svc_connection_create),
+    GB_HANDLER(GB_SVC_TYPE_CONN_DESTROY, gb_svc_connection_destroy),
     GB_HANDLER(GB_SVC_TYPE_ROUTE_CREATE, gb_svc_route_create),
     GB_HANDLER(GB_SVC_TYPE_DME_PEER_GET, gb_svc_dme_peer_get),
     GB_HANDLER(GB_SVC_TYPE_DME_PEER_SET, gb_svc_dme_peer_set),
