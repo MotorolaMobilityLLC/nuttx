@@ -844,6 +844,23 @@ static void _tca64xx_gpio_irq_handler(void *data)
     gpio_unmask_irq(tca64xx->irq);
 }
 
+static int tca64xx_trigger_worker(struct tca64xx_platform_data *tca64xx)
+{
+    /*
+     * We need to perform some i2c operations to get the gpios that cause
+     * the interrupt. We can't do these operation in irq then do it in thread.
+     * The tca64xx use low level irq trigger. We need to disable gpio
+     * interrupt until thread done with tca64xx irq.
+     */
+    if (work_available(&tca64xx->work)) {
+        gpio_mask_irq(tca64xx->irq);
+        work_queue(HPWORK, &tca64xx->work, _tca64xx_gpio_irq_handler,
+                   tca64xx, 0);
+    }
+
+    return 0;
+}
+
 static int tca64xx_gpio_irq_handler(int irq, void *context)
 {
     struct tca64xx_platform_data *tca64xx = get_pdata(irq);
@@ -852,14 +869,7 @@ static int tca64xx_gpio_irq_handler(int irq, void *context)
         return -ENODEV;
     }
 
-    /*
-     * We need to perform some i2c operations to get the gpios that cause
-     * the interrupt. We can't do these operation in irq then do it in thread.
-     * The tca64xx use low level irq trigger. We need to disable gpio interrupt
-     * until thread done with tca64xx irq.
-     */
-    gpio_mask_irq(tca64xx->irq);
-    work_queue(HPWORK, &tca64xx->work, _tca64xx_gpio_irq_handler, tca64xx, 0);
+    tca64xx_trigger_worker(tca64xx);
 
     return OK;
 }
@@ -929,7 +939,7 @@ static int tca64xx_polling_worker(int argc, char *argv[])
 
     /* Sometimes the tca64xx loses interrupt. Re-read to generate interrupt */
     while (!tca64xx->worker_exit) {
-        tca64xx_registers_update(tca64xx);
+        tca64xx_trigger_worker(tca64xx);
         usleep(TCA64XX_POLLING_TIME_US);
     }
     return 0;
