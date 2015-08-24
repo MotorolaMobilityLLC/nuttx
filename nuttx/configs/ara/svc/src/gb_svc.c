@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include <arch/byteorder.h>
 #include <nuttx/config.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/debug.h>
@@ -100,7 +101,7 @@ int gb_svc_hello(uint8_t ap_intf_id) {
     }
 
     req = gb_operation_get_request_payload(op_req);
-    req->endo_id = GB_ENDO_ID;
+    req->endo_id = cpu_to_le16(GB_ENDO_ID);
     req->interface_id = ap_intf_id;
 
     gb_operation_send_request_sync(op_req);
@@ -167,8 +168,8 @@ static uint8_t gb_svc_connection_create(struct gb_operation *op) {
     }
 
     req = gb_operation_get_request_payload(op);
-    rc = svc_connection_create(req->intf1_id, req->cport1_id,
-                               req->intf2_id, req->cport2_id,
+    rc = svc_connection_create(req->intf1_id, le16_to_cpu(req->cport1_id),
+                               req->intf2_id, le16_to_cpu(req->cport2_id),
                                req->tc, req->flags);
 
     return gb_errno_to_op_result(rc);
