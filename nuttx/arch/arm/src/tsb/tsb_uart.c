@@ -309,7 +309,7 @@ static void dump_regs(uint32_t base)
  * @param divisor The divisor value.
  * @return None.
  */
-static void ua_set_divisor(uint32_t base, uint8_t divisor)
+static void ua_set_divisor(uint32_t base, uint32_t divisor)
 {
     /* Set DLAB */
     ua_reg_bit_set(base, UA_LCR, UA_DLAB);
