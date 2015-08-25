@@ -105,8 +105,7 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
         return GB_OP_INVALID;
     }
 
-    request = (struct gb_i2c_transfer_req *)
-                  gb_operation_get_request_payload(operation);
+    request = gb_operation_get_request_payload(operation);
     op_count = le16_to_cpu(request->op_count);
     write_data = (uint8_t *)&request->desc[op_count];
 
@@ -123,20 +122,24 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
             size += le16_to_cpu(desc->size);
     }
 
-    msg = malloc(sizeof(struct i2c_msg_s) * op_count);
-    if (!msg)
-        return GB_OP_NO_MEMORY;
     response = gb_operation_alloc_response(operation, size);
     if (!response) {
-	    ret = GB_OP_NO_MEMORY;
-	    goto err_free_msg;
+        return GB_OP_NO_MEMORY;
     }
+
+    msg = malloc(sizeof(struct i2c_msg_s) * op_count);
+    if (!msg) {
+        return GB_OP_NO_MEMORY;
+    }
+
     for (i = 0; i < op_count; i++) {
         desc = &request->desc[i];
         read_op = (le16_to_cpu(desc->flags) & I2C_M_RD) ? true : false;
 
         msg[i].flags = 0;
         msg[i].addr = le16_to_cpu(desc->addr);
+        msg[i].length = le16_to_cpu(desc->size);
+
         if (read_op) {
             msg[i].flags |= I2C_M_READ;
             msg[i].buffer = &response->data[read_count];
@@ -145,21 +148,13 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
             msg[i].buffer = write_data;
             write_data += le16_to_cpu(desc->size);
         }
-        msg[i].length = le16_to_cpu(desc->size);
     }
+
     ret = I2C_TRANSFER(i2c_dev, msg, op_count);
-    free(msg);
-    if (ret == -EREMOTEIO)
-      return GB_OP_NONEXISTENT;
-    else if (ret)
-      return GB_OP_UNKNOWN_ERROR;
 
-    return GB_OP_SUCCESS;
-
-err_free_msg:
     free(msg);
 
-    return ret;
+    return gb_errno_to_op_result(ret);
 }
 
 static int gb_i2c_init(unsigned int cport)
