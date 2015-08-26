@@ -208,8 +208,7 @@ static int svc_gb_init(void) {
  * notification.
  */
 static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
-    size_t retries = 1000;
-    uint32_t val;
+    uint32_t val, irq_status = 0, retries = 2048;
     int rc;
     uint32_t portid = interface_get_portid_by_id(intf_id);
 
@@ -217,16 +216,22 @@ static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
                              TSB_MAILBOX, 0, cport + 1);
     if (rc) {
         dbg_error("Failed to notify intf %u\n", intf_id);
+        return rc;
     }
 
-    while (retries--) {
+    do {
         rc = switch_dme_peer_get(svc->sw, portid, TSB_MAILBOX, 0, &val);
-        if (!rc && !val) {
-            return 0;
+        if (rc) {
+            dbg_error("Failed to poll mailbox on interface %u\n", intf_id);
+            return rc;
         }
+    } while (val != TSB_MAIL_RESET && retries-- > 0);
+
+    if (!retries) {
+        return -ETIMEDOUT;
     }
 
-    return -ETIMEDOUT;
+    return 0;
 }
 
 /**
