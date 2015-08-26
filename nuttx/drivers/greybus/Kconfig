@@ -135,6 +135,10 @@ config GREYBUS_VENDOR_MOTO
 endchoice
 endif
 
+config GREYBUS_NSH_UART
+	bool "NSH UART support"
+	default n
+
 config GREYBUS_FIRMWARE
 	bool "Greybus Firmware Flashing"
 	select SCHED_WORKQUEUE
