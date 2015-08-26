@@ -109,6 +109,10 @@ ifeq ($(CONFIG_LIB_RING_BUF),y)
 CSRCS += lib_ring_buf.c
 endif
 
+ifeq ($(CONFIG_BUF_CON),y)
+CSRCS += lib_buf_con.c
+endif
+
 # Add the misc directory to the build
 
 DEPPATH += --dep-path misc

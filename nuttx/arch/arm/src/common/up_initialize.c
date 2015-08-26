@@ -71,6 +71,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/syslog/ramlog.h>
+#include <nuttx/buf_con.h>
 
 #include <arch/board/board.h>
 
@@ -268,6 +269,10 @@ void up_initialize(void)
 #endif
 #ifdef CONFIG_RAMLOG_SYSLOG
   ramlog_sysloginit();
+#endif
+
+#ifdef CONFIG_BUF_CON
+  buf_con_init();
 #endif
 
   /* Initialize the network */

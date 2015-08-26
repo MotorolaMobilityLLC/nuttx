@@ -577,3 +577,49 @@ config LIB_SLCDCODEC
 config LIB_RING_BUF
 	bool "Ring Buffer"
 	default n
+
+config BUF_CON
+        bool "Buffer Console"
+        default n
+        depends on LIB_RING_BUF
+        ---help---
+                Creates a memory-based console that is useful to use as the NSH console
+                when you want to source and sink data to NSH using a custom mechanism.
+                Set NSH_ALTCONDEV to 'y' and set both NSH_CONDEV and BUF_CONDEV to the
+                same value.  DEV_CONSOLE is not needed in this configuration.
+
+                It can also be used as /dev/console.  In this configuration, set
+                DEV_CONSOLE to 'y' and set BUF_CONDEV to '/dev/console'
+
+if BUF_CON
+config BUF_CONDEV
+	string "Buffer Console device name"
+	default "/dev/bufcon"
+	---help---
+		Set the name of the Buffer console device.
+
+config BUF_CON_IN_ENTRIES
+        int "In Entries"
+        default 8
+        ---help---
+                Number of ring-buffer entries for the input stream.
+
+config BUF_CON_IN_BUFSIZE
+        int "In Buffer Size"
+        default 16
+        ---help---
+                Size of each ring-buffer entry for the input stream.
+
+config BUF_CON_OUT_ENTRIES
+        int "Out Entries"
+        default 4
+        ---help---
+                Number of ring-buffer entries for the output stream.
+
+config BUF_CON_OUT_BUFSIZE
+        int "Out Buffer Size"
+        default 128
+        ---help---
+                Size of each ring-buffer entry for the output stream.
+
+endif
