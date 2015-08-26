@@ -58,7 +58,9 @@ int bridge_main(int argc, char *argv[])
     srvmgr_start(services);
 
     enable_cports();
-    tsb_unipro_mbox_set(TSB_MAIL_READY_OTHER, true);
+    if (!tsb_is_stage_2()) {
+        tsb_unipro_mbox_set(TSB_MAIL_READY_OTHER, true);
+    }
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");

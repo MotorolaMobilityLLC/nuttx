@@ -33,6 +33,7 @@
 #ifndef _NUTTX_GREYBUS_TSB_UNIPRO_H_
 #define _NUTTX_GREYBUS_TSB_UNIPRO_H_
 
+#include <stdbool.h>
 #include <nuttx/unipro/unipro.h>
 
 /*
@@ -104,5 +105,6 @@
 #define TSB_DEEPSTALLSTATUS        0xd0a3
 
 int tsb_unipro_mbox_set(uint32_t val, int peer);
+bool tsb_is_stage_2(void);
 
 #endif

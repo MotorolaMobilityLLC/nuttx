@@ -26,6 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdbool.h>
 #include <nuttx/config.h>
 #include <nuttx/init.h>
 #include <arch/board/board.h>
@@ -50,11 +51,21 @@ extern uint32_t _sdata_lma;
 
 void __start(void) __attribute__((section(".bootstrap.loader")));
 
+static bool is_stage_2 = true;
+
+/**
+ * @brief Retrieve whether this firmware was loaded or booted itself
+ */
+bool tsb_is_stage_2(void) {
+    return is_stage_2;
+}
+
 void __start(void)
 {
     extern void bootstrap(void);
     bootstrap();
     copy_data_section_to_ram();
+    is_stage_2 = false;
 
     tsb_start();
 }
