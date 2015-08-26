@@ -199,6 +199,10 @@ FAR void *mm_malloc(FAR struct mm_heap_s *heap, size_t size)
    * to the SYSLOG.
    */
 
+  if (!ret)
+    {
+      DEBUGASSERT(0);
+    }
 #ifdef CONFIG_DEBUG_MM
   if (!ret)
     {
