@@ -365,6 +365,11 @@ static uint8_t ua_is_rx_fifo_empty(uint32_t base)
  */
 static void ua_xmitchars(struct tsb_uart_info *uart_info)
 {
+    /* TX is not enabled, nothing to transmit */
+    if (!(uart_info->flags & TSB_UART_FLAG_XMIT)) {
+        return;
+    }
+
     while (!ua_is_tx_fifo_full(uart_info->reg_base)) {
         ua_putreg(uart_info->reg_base, UA_RBR_THR_DLL,
                   uart_info->xmit.buffer[uart_info->xmit.head]);
@@ -400,6 +405,15 @@ static void ua_xmitchars(struct tsb_uart_info *uart_info)
  */
 static void ua_recvchars(struct tsb_uart_info *uart_info, uint8_t int_id)
 {
+    /* RX is not enabled, ignore received characters */
+    if (!(uart_info->flags & TSB_UART_FLAG_RECV)) {
+        while (!ua_is_rx_fifo_empty(uart_info->reg_base)) {
+            ua_getreg(uart_info->reg_base, UA_RBR_THR_DLL);
+        }
+
+        return;
+    }
+
     while (!ua_is_rx_fifo_empty(uart_info->reg_base)) {
         uart_info->recv.buffer[uart_info->recv.head] =
                         ua_getreg(uart_info->reg_base, UA_RBR_THR_DLL);
