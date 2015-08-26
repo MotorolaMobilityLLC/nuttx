@@ -135,6 +135,7 @@ CONFIG_ARCH_HAVE_FPU=y
 # CONFIG_ARMV7M_MPU is not set
 # CONFIG_DEBUG_HARDFAULT is not set
 # CONFIG_ARM_SEMIHOSTING is not set
+# CONFIG_ARCH_HAVE_HIRES_TIMER is not set
 
 #
 # ARMV7M Configuration Options
@@ -694,6 +695,7 @@ CONFIG_GREYBUS=y
 # CONFIG_GREYBUS_I2S_PHY is not set
 # CONFIG_GREYBUS_UART_PHY is not set
 # CONFIG_GREYBUS_HID is not set
+# CONFIG_GREYBUS_FEATURE_HAVE_TIMESTAMPS is not set
 
 #
 # Networking Support
