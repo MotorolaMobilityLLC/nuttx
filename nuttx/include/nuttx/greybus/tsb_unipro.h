@@ -73,6 +73,7 @@
 #define TSB_DME_ERRORTIND          0xd064
 #define TSB_INTERRUPTENABLE        0xd080
 #define TSB_INTERRUPTSTATUS        0xd081
+    #define TSB_INTERRUPTSTATUS_MAILBOX (1 << 15)
 #define TSB_L2STATUS               0xd082
 #define TSB_POWERSTATE             0xd083
 #define TSB_TXBURSTCLOSUREDELAY    0xd084

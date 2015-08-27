@@ -220,6 +220,22 @@ static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
     }
 
     do {
+        rc = switch_dme_peer_get(svc->sw, portid, TSB_INTERRUPTSTATUS, 0,
+                                 &irq_status);
+        if (rc) {
+            dbg_error("Failed to poll mailbox irq status on intf %u\n",
+            intf_id);
+            return rc;
+        }
+    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && retries-- > 0);
+
+    if (!retries) {
+        return -ETIMEDOUT;
+    } else {
+        retries = 2048;
+    }
+
+    do {
         rc = switch_dme_peer_get(svc->sw, portid, TSB_MAILBOX, 0, &val);
         if (rc) {
             dbg_error("Failed to poll mailbox on interface %u\n", intf_id);

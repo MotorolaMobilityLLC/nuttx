@@ -1203,6 +1203,7 @@ int unipro_driver_unregister(unsigned int cportid)
  */
 int tsb_unipro_mbox_set(uint32_t val, int peer) {
     int rc;
+    uint32_t irq_status, retries = 2048;
 
     rc = unipro_attr_write(TSB_MAILBOX, val, 0, peer, NULL);
     if (rc) {
@@ -1210,23 +1211,31 @@ int tsb_unipro_mbox_set(uint32_t val, int peer) {
         return rc;
     }
 
-    /*
-     * Silicon bug?: There seems to be a problem in the switch regarding
-     * lost mailbox sets. It seems to happen when a bridge writes to the
-     * mailbox and immediately reads the value back.
-     *
-     * Workaround for now by inserting a small delay.
-     *
-     * @jira{ENG-436}
-     */
-    up_udelay(MBOX_RACE_HACK_DELAY);
+    do {
+        rc = unipro_attr_read(TSB_INTERRUPTSTATUS, &irq_status, 0, peer, NULL);
+        if (rc) {
+            lldbg("%s(): TSB_INTERRUPTSTATUS poll failed: %d\n", __func__, rc);
+            return rc;
+        }
+    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && retries-- > 0);
+
+    if (!retries) {
+        return -ETIMEDOUT;
+    } else {
+        retries = 2048;
+    }
 
     do {
         rc = unipro_attr_read(TSB_MAILBOX, &val, 0, peer, NULL);
         if (rc) {
             lldbg("%s(): TSB_MAILBOX poll failed: %d\n", __func__, rc);
+            return rc;
         }
-    } while (!rc && val != TSB_MAIL_RESET);
+    } while (val != TSB_MAIL_RESET && retries-- > 0);
+
+    if (!retries) {
+        return -ETIMEDOUT;
+    }
 
     return rc;
 }
