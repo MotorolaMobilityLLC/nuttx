@@ -528,6 +528,7 @@ static void gb_operation_timeout(int argc, uint32_t cport, ...)
 
     /* timedout operation could potentially already been queued */
     if (list_is_empty(&g_cport[cport].timedout_operation.list)) {
+        irqrestore(flags);
         return;
     }
 
