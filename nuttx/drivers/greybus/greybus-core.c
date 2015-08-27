@@ -302,8 +302,11 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
         if (op->callback)
             op->callback(op);
         gb_operation_unref(op);
-        break;
+        return;
     }
+
+    gb_error("CPort %u: cannot find matching request for response %hu. Dropping message.\n",
+             operation->cport, le16_to_cpu(hdr->id));
 }
 
 static void *gb_pending_message_worker(void *data)
