@@ -161,6 +161,7 @@
 #define APBRIDGE_RWREQUEST_SVC          (0x01)
 #define APBRIDGE_RWREQUEST_LOG          (0x02)
 #define APBRIDGE_RWREQUEST_EP_MAPPING   (0x03)
+#define APBRIDGE_ROREQUEST_CPORT_COUNT  (0x04)
 
 /* Misc Macros ****************************************************************/
 
@@ -1616,6 +1617,14 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                     } else {
                         ctrreq->priv = (void *)GREYBUS_EP_MAPPING;
                         ret = len;
+                    }
+                } else if (ctrl->req == APBRIDGE_ROREQUEST_CPORT_COUNT) {
+                    if ((ctrl->type & USB_DIR_IN) != 0) {
+                        *(uint16_t *) req->buf =
+                            cpu_to_le16(unipro_cport_count());
+                        ret = sizeof(uint16_t);
+                    } else {
+                        ret = -EINVAL;
                     }
                 } else {
                     usbtrace(TRACE_CLSERROR
