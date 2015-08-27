@@ -104,7 +104,26 @@
 #define TSB_DEEPSTALLCFG           0xd0a2
 #define TSB_DEEPSTALLSTATUS        0xd0a3
 
+/* Init status values */
+#define INIT_STATUS_UNINITIALIZED                            (0x000000000)
+#define INIT_STATUS_OPERATING                                (1 << 24)
+#define INIT_STATUS_SPI_BOOT_STARTED                         (2 << 24)
+#define INIT_STATUS_TRUSTED_SPI_FLASH_BOOT_FINISHED          (3 << 24)
+#define INIT_STATUS_UNTRUSTED_SPI_FLASH_BOOT_FINISHED        (4 << 24)
+#define INIT_STATUS_UNIPRO_BOOT_STARTED                      (6 << 24)
+#define INIT_STATUS_TRUSTED_UNIPRO_BOOT_FINISHED             (7 << 24)
+#define INIT_STATUS_UNTRUSTED_UNIPRO_BOOT_FINISHED           (8 << 24)
+#define INIT_STATUS_FALLLBACK_UNIPRO_BOOT_STARTED            (9 << 24)
+#define INIT_STATUS_FALLLBACK_TRUSTED_UNIPRO_BOOT_FINISHED   (10 << 24)
+#define INIT_STATUS_FALLLBACK_UNTRUSTED_UNIPRO_BOOT_FINISHED (11 << 24)
+#define INIT_STATUS_RESUMED_FROM_STANDBY                     (12 << 24)
+#define INIT_STATUS_FAILED                                   (0x80000000)
+#define INIT_STATUS_ERROR_MASK                               (0x80000000)
+#define INIT_STATUS_STATUS_MASK                              (0x7f000000)
+#define INIT_STATUS_ERROR_CODE_MASK                          (0x00ffffff)
+
 int tsb_unipro_mbox_set(uint32_t val, int peer);
+int tsb_unipro_set_init_status(uint32_t val);
 bool tsb_is_stage_2(void);
 
 #endif
