@@ -85,6 +85,10 @@ ifeq ($(CONFIG_GREYBUS_HID),y)
 CSRCS += hid.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_LIGHTS),y)
+CSRCS += lights.c
+endif
+
 endif
 
 ifeq ($(CONFIG_GREYBUS_DEBUG),y)

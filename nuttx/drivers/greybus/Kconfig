@@ -96,3 +96,8 @@ config GREYBUS_HID
 config GREYBUS_FEATURE_HAVE_TIMESTAMPS
 	bool
 	default n
+
+config GREYBUS_LIGHTS
+	bool "Lights support"
+	select DEVICE_CORE
+	default n
