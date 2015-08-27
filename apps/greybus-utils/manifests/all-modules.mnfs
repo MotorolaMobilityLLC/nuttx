@@ -123,8 +123,6 @@ class = 11
 
 ; Skipping SENSOR (0x0e)
 
-; Skipping LED (0x0f)
-
 ; VIBRATOR protocol on CPort 11
 [cport-descriptor 11]
 bundle = 16
@@ -148,3 +146,11 @@ protocol = 0x05
 
 [bundle-descriptor 5]
 class = 5
+
+; Lights protocol on CPort 14
+[cport-descriptor 14]
+bundle = 15
+protocol = 0x0f
+
+[bundle-descriptor 15]
+class = 15
