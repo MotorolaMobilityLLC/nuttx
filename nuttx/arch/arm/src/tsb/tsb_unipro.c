@@ -53,16 +53,45 @@
 
 #define UNIPRO_LUP_DONE     BIT(0)
 
-#define TRANSFER_MODE_2_CTRL_0 (0xAAAAAAAA) // Transfer mode 2 for CPorts 0-15
+// See ENG-436
+#define MBOX_RACE_HACK_DELAY    100000
+
+#ifdef UNIPRO_DEBUG
+#define DBG_UNIPRO(fmt, ...) lldbg(fmt, __VA_ARGS__)
+#else
+#define DBG_UNIPRO(fmt, ...) ((void)0)
+#endif
+
+#define TRANSFER_MODE          (2)
+
 /*
  * CPorts 16-43 are present on the AP Bridge only.  CPorts 16 and 17 are
  * reserved for camera and display use, and we leave their transfer mode
  * at the power-on default of Mode 1.
  */
+
+#define TRANSFER_MODE_0_CTRL_0 (0x00000000) // Transfer mode 0 for CPorts 0-15
+#define TRANSFER_MODE_0_CTRL_1 (0x00000005) // Transfer mode 0 for CPorts 18-31
+#define TRANSFER_MODE_0_CTRL_2 (0x00000000) // Transfer mode 0 for CPorts 32-43
+
+#define TRANSFER_MODE_1_CTRL_0 (0x55555555) // Transfer mode 1 for CPorts 0-15
+#define TRANSFER_MODE_1_CTRL_1 (0x55555555) // Transfer mode 1 for CPorts 18-31
+#define TRANSFER_MODE_1_CTRL_2 (0x00555555) // Transfer mode 1 for CPorts 32-43
+
+#define TRANSFER_MODE_2_CTRL_0 (0xAAAAAAAA) // Transfer mode 2 for CPorts 0-15
 #define TRANSFER_MODE_2_CTRL_1 (0xAAAAAAA5) // Transfer mode 2 for CPorts 18-31
 #define TRANSFER_MODE_2_CTRL_2 (0x00AAAAAA) // Transfer mode 2 for CPorts 32-43
 
 #define CPORT_SW_RESET_BITS 3
+
+#define TRANSFER_MODE_3_CTRL_0 (0xFFFFFFFF) // Transfer mode 3 for CPorts 0-15
+#define TRANSFER_MODE_3_CTRL_1 (0xFFFFFFF5) // Transfer mode 3 for CPorts 18-31
+#define TRANSFER_MODE_3_CTRL_2 (0x00FFFFFF) // Transfer mode 3 for CPorts 32-43
+
+#define CPORT_RX_BUF_BASE         (0x20000000U)
+#define CPORT_RX_BUF_SIZE         (CPORT_BUF_SIZE)
+#define CPORT_RX_BUF(cport)       (void*)(CPORT_RX_BUF_BASE + \
+                                      (CPORT_RX_BUF_SIZE * cport))
 
 #define CPORT_TX_BUF_BASE         (0x50000000U)
 #define CPORT_TX_BUF(cport)       (uint8_t*)(CPORT_TX_BUF_BASE + \
@@ -122,7 +151,9 @@ static void dump_regs(void);
 
 /* irq handlers */
 static int irq_rx_eom(int, void*);
+#if !defined(CONFIG_UNIPRO_P2P)
 static int irq_unipro(int, void*);
+#endif
 
 static uint32_t unipro_read(uint32_t offset) {
     return getreg32((volatile unsigned int*)(AIO_UNIPRO_BASE + offset));
@@ -330,6 +361,12 @@ static int irq_rx_eom(int irq, void *context) {
                 cport->driver->name, transferred_size,
                 data);
 
+    if (TRANSFER_MODE == 0) {
+        /* Remove the transfer header */
+        data += (2 * sizeof(uint32_t));
+        transferred_size -= (2 * sizeof(uint32_t));
+    }
+
     if (cport->driver->rx_handler) {
         newbuf = unipro_rxbuf_alloc(cport->cportid);
         if (newbuf) {
@@ -346,6 +383,7 @@ static int irq_rx_eom(int irq, void *context) {
     return 0;
 }
 
+#if !defined(CONFIG_UNIPRO_P2P)
 static int tsb_unipro_mbox_ack(uint16_t val);
 
 /**
@@ -455,6 +493,7 @@ static int irq_unipro(int irq, void *context) {
 done:
     return 0;
 }
+#endif
 
 int unipro_unpause_rx(unsigned int cportid)
 {
@@ -477,11 +516,32 @@ static void configure_transfer_mode(int mode) {
      * Set transfer mode 2
      */
     switch (mode) {
+    case 0:
+        unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_0_CTRL_0);
+        if (tsb_get_product_id() == tsb_pid_apbridge) {
+            unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_0_CTRL_1);
+            unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_0_CTRL_2);
+        }
+        break;
+    case 1:
+        unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_1_CTRL_0);
+        if (tsb_get_product_id() == tsb_pid_apbridge) {
+            unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_1_CTRL_1);
+            unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_1_CTRL_2);
+        }
+        break;
     case 2:
         unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_2_CTRL_0);
         if (tsb_get_product_id() == tsb_pid_apbridge) {
             unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_2_CTRL_1);
             unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_2_CTRL_2);
+        }
+        break;
+    case 3:
+        unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_3_CTRL_0);
+        if (tsb_get_product_id() == tsb_pid_apbridge) {
+            unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_3_CTRL_1);
+            unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_3_CTRL_2);
         }
         break;
     default:
@@ -772,7 +832,6 @@ void unipro_init(void)
      * Header is delivered transparently to receiver (and used to carry the first eight
      * L4 payload bytes)
      */
-    DEBUGASSERT(TRANSFER_MODE == 2);
     configure_transfer_mode(TRANSFER_MODE);
 
     /*
@@ -996,6 +1055,7 @@ int tsb_unipro_mbox_send(uint32_t val) {
     return rc;
 }
 
+#if !defined(CONFIG_UNIPRO_P2P)
 /**
  * Since the switch has no 32-bit MBOX_ACK_ATTR attribute, we need to repurpose
  * a 16-bit attribute, which means that received mbox values must fit inside a
@@ -1012,5 +1072,6 @@ static int tsb_unipro_mbox_ack(uint16_t val) {
 
     return 0;
 }
+#endif
 
 
