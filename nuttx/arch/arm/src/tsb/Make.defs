@@ -27,6 +27,7 @@
 #
 
 include chip/usb/Make.defs
+include chip/dmac/Make.defs
 
 HEAD_ASRC =
 
@@ -79,6 +80,11 @@ endif
 ifeq ($(CONFIG_DEVICE_CORE),y)
 CHIP_CSRCS += tsb_device_table.c
 CHIP_CSRCS += tsb_driver.c
+endif
+
+ifeq ($(CONFIG_ARCH_CHIP_DEVICE_GDMAC),y)
+CHIP_CSRCS += tsb_dma.c
+CHIP_CSRCS += $(DMA_DMAC_CSRCS)
 endif
 
 ifeq ($(CONFIG_ARCH_CHIP_TSB_PLL),y)

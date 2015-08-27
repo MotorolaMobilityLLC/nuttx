@@ -26,52 +26,45 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * @author Mark Greer
+ * @brief Pseudo DMA driver that uses memcpy instead of real DMA
  */
 
-#include <nuttx/device.h>
+#include <nuttx/device_dma.h>
 
-#ifdef CONFIG_ARCH_CHIP_DEVICE_GDMAC
-extern struct device_driver tsb_dma_driver;
-#endif
-extern struct device_driver tsb_usb_hcd_driver;
-extern struct device_driver tsb_usb_pcd_driver;
-extern struct device_driver tsb_pll_driver;
-extern struct device_driver tsb_i2s_driver;
-extern struct device_driver tsb_pwm_driver;
-extern struct device_driver tsb_spi_driver;
-extern struct device_driver tsb_uart_driver;
+struct tsb_dma_channel;
+struct tsb_dma_channel_info;
 
-void tsb_driver_register(void)
-{
-#ifdef CONFIG_ARCH_CHIP_DEVICE_GDMAC
-    device_register_driver(&tsb_dma_driver);
-#endif
+// Transfer function for GDMAC channel
+typedef int (*dma_do_trandsfer)(struct tsb_dma_channel *channel, void *src,
+        void *dst, size_t len, device_dma_transfer_arg *arg);
 
-#ifdef CONFIG_ARCH_CHIP_USB_HCD
-    device_register_driver(&tsb_usb_hcd_driver);
-#endif
+// Transfer Done function for GDMAC channel
+//typedef void (*gdmac_transfer_done_handler)(struct tsb_dma_gdmac_channel_info *channel_info);
 
-#ifdef CONFIG_ARCH_CHIP_USB_PCD
-    device_register_driver(&tsb_usb_pcd_driver);
-#endif
+typedef void (*dma_release_channel)(struct tsb_dma_channel *channel_info);
 
-#ifdef CONFIG_ARCH_CHIP_TSB_PLL
-    device_register_driver(&tsb_pll_driver);
-#endif
+// structure for GDMAC channel information.
+struct tsb_dma_channel {
+    unsigned int channel_id;
+    dma_do_trandsfer do_dma_transfer;
+    dma_release_channel release_channel;
 
-#ifdef CONFIG_ARCH_CHIP_TSB_I2S
-    device_register_driver(&tsb_i2s_driver);
-#endif
+    sem_t lock;
+    device_dma_callback callback;
 
-#ifdef CONFIG_ARCH_CHIP_DEVICE_PWM
-    device_register_driver(&tsb_pwm_driver);
-#endif
+    struct tsb_dma_channel_info *channel_info;
+};
 
-#ifdef CONFIG_ARCH_CHIP_DEVICE_SPI
-    device_register_driver(&tsb_spi_driver);
-#endif
+// structure for GDMAC device driver's private info.
+struct tsb_dma_info {
+    unsigned int max_number_of_channels;
+    struct tsb_dma_channel dma_channel[0];
+    // Added event info later for event allocation. Currently, we statically associate
+    // events to GDMAC channels.
+};
 
-#ifdef CONFIG_ARCH_CHIP_DEVICE_UART
-    device_register_driver(&tsb_uart_driver);
-#endif
-}
+extern int tsb_dma_max_number_of_channels(void);
+extern void tsb_dma_init_controller(struct device *);
+extern void tsb_dma_deinit_controller(struct device *);
+extern int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel);
+
