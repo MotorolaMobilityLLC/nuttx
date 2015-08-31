@@ -54,6 +54,11 @@
 #include <arch/board/csi.h>
 #endif
 
+#ifdef CONFIG_APBRIDGEA
+/* must pull up or drive high on SDB APBridgeA to bring Helium out of reset */
+#define HELIUM_EXT_NRST_BTN_GPIO 0
+#endif
+
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
 #define TCA6408_U72             0x20
 #define TCA6408_U72_INT_GPIO    0x03
@@ -157,6 +162,32 @@ static void sdb_fixups(void)
         modifyreg32(TSB_IO_PULL_UPDOWN_ENABLE0, TSB_IO_PULL_UPDOWN_GPIO(24), 0);
         modifyreg32(TSB_IO_PULL_UPDOWN0, 0, TSB_IO_PULL_UPDOWN_GPIO(24));
     }
+
+    /**
+     * When attached to the 96Boards Expansion Header on the SDB, Helium is
+     * held in reset unless HELIUM_EXT_NRST_BTN_GPIO is pulled high or
+     * driven high on APBridgeA.
+     *
+     * Rob Herring indicates that this behavior is the opposite of the
+     * 96Boards specification, which would suggest active low.
+     *
+     * We'll pull the pin high, as that's less aggressive and avoids
+     * the need to enable the GPIO subsystem at this point in the boot
+     * sequence.
+     *
+     * This change should have no impact on BDB2{A,B} since on APBridgeA,
+     * HELIUM_EXT_NRST_BTN_GPIO is only connected to a test point.
+     */
+#ifdef CONFIG_APBRIDGEA
+    if (tsb_get_product_id() == tsb_pid_apbridge) {
+        modifyreg32(TSB_IO_PULL_UPDOWN_ENABLE0,
+                    TSB_IO_PULL_UPDOWN_GPIO(HELIUM_EXT_NRST_BTN_GPIO),
+                    0);
+        modifyreg32(TSB_IO_PULL_UPDOWN0,
+                    0,
+                    TSB_IO_PULL_UPDOWN_GPIO(HELIUM_EXT_NRST_BTN_GPIO));
+    }
+#endif
 }
 
 void ara_module_early_init(void)
