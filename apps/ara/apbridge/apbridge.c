@@ -54,7 +54,7 @@
 #include "apbridge_backend.h"
 
 static struct apbridge_dev_s *g_usbdev = NULL;
-static pthread_t g_svc_thread;
+static pthread_t g_apbridge_thread;
 static struct apbridge_backend apbridge_backend;
 
 static int release_buffer(int status, const void *buf, void *priv)
@@ -103,7 +103,7 @@ int recv_from_unipro(unsigned int cportid, void *buf, size_t len)
     return unipro_to_usb(g_usbdev, buf, len);
 }
 
-static void *svc_sim_fn(void *p_data)
+static void *apbridge_wait_and_init(void *p_data)
 {
     struct apbridge_dev_s *priv = p_data;
 
@@ -113,19 +113,19 @@ static void *svc_sim_fn(void *p_data)
     return NULL;
 }
 
-static int svc_sim_init(struct apbridge_dev_s *priv)
+static int apbridge_init(struct apbridge_dev_s *priv)
 {
     int ret;
 
     g_usbdev = priv;
-    ret = pthread_create(&g_svc_thread, NULL, svc_sim_fn,
+    ret = pthread_create(&g_apbridge_thread, NULL, apbridge_wait_and_init,
                          (pthread_addr_t)priv);
     return ret;
 }
 
 static struct apbridge_usb_driver usb_driver = {
     .usb_to_unipro = usb_to_unipro,
-    .init = svc_sim_init,
+    .init = apbridge_init,
 };
 
 static struct srvmgr_service services[] = {
