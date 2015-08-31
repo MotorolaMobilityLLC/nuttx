@@ -40,8 +40,6 @@
 #include <apps/ara/gb_loopback.h>
 #include <apps/nsh.h>
 #include <arch/tsb/gpio.h>
-#include <nuttx/unipro/unipro.h>
-#include <nuttx/greybus/tsb_unipro.h>
 
 #include <arch/board/apbridgea_gadget.h>
 
@@ -111,10 +109,6 @@ static void *svc_sim_fn(void *p_data)
 
     usb_wait(priv);
     apbridge_backend.init();
-    /*
-     * Tell the SVC that the AP Module is ready
-     */
-    tsb_unipro_mbox_set(TSB_MAIL_READY_AP, true);
 
     return NULL;
 }

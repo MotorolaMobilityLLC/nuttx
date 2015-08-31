@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <arch/tsb/gpio.h>
 #include <nuttx/unipro/unipro.h>
+#include <nuttx/greybus/tsb_unipro.h>
 #include <arch/board/apbridgea_gadget.h>
 #include <apps/greybus-utils/utils.h>
 
@@ -75,6 +76,11 @@ static void unipro_backend_init(void)
             continue;
         unipro_driver_register(&unipro_driver, i);
     }
+
+    /*
+     * Tell the SVC that the AP Module is ready
+     */
+    tsb_unipro_mbox_set(TSB_MAIL_READY_AP, true);
 }
 
 void apbridge_backend_register(struct apbridge_backend *apbridge_backend)
