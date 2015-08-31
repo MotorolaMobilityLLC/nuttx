@@ -29,11 +29,11 @@
 #ifndef __ATOMIC_H__
 #define __ATOMIC_H__
 
-typedef int atomic_t;
+typedef volatile int atomic_t;
 
 static inline uint32_t atomic_get(atomic_t *atomic)
 {
-    return *(uint32_t*) atomic;
+    return *(volatile uint32_t*) atomic;
 }
 
 static inline void atomic_init(atomic_t *atomic, uint32_t val)
