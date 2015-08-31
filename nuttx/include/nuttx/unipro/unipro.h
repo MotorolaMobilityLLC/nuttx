@@ -53,6 +53,13 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len);
 int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
                       unipro_send_completion_t callback, void *priv);
 int unipro_unpause_rx(unsigned int cportid);
+
+/*
+ * Lower level attribute read/write.
+ *
+ * Please use one of the unipro_{local,peer}_attr_{read,write}()
+ * wrappers below if it is possible instead. They are more readable.
+ */
 int unipro_attr_read(uint16_t attr,
                      uint32_t *val,
                      uint16_t selector,
