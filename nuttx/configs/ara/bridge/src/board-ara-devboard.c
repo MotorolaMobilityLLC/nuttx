@@ -54,6 +54,10 @@
 #include <arch/board/csi.h>
 #endif
 
+#ifdef CONFIG_ARA_BRIDGE_HAVE_BATTERY
+#include <nuttx/device_battery.h>
+#endif
+
 #ifdef CONFIG_APBRIDGEA
 /* must pull up or drive high on SDB APBridgeA to bring Helium out of reset */
 #define HELIUM_EXT_NRST_BTN_GPIO 0
@@ -110,6 +114,15 @@ static struct device devices[] = {
         .id             = 1,
     },
 #endif
+
+#ifdef CONFIG_ARA_BRIDGE_HAVE_BATTERY
+    {
+        .type           = DEVICE_TYPE_BATTERY_DEVICE,
+        .name           = "ara_bridge_battery",
+        .desc           = "ARA BRIDGE BATTERY Driver",
+        .id             = 0,
+    },
+#endif
 };
 
 static struct device_table bdb_device_table = {
@@ -126,6 +139,10 @@ static void bdb_driver_register(void)
 #ifdef CONFIG_ARA_BRIDGE_HAVE_USB3813
     extern struct device_driver usb3813_driver;
     device_register_driver(&usb3813_driver);
+#endif
+#ifdef CONFIG_ARA_BRIDGE_HAVE_BATTERY
+    extern struct device_driver batt_driver;
+    device_register_driver(&batt_driver);
 #endif
 }
 #endif

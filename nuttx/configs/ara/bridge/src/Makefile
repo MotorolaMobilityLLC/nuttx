@@ -65,7 +65,11 @@ CSRCS		+= usb3813.c
 endif
 
 ifeq ($(CONFIG_APBRIDGEA),y)
-  CSRCS += apbridgea_gadget.c
+CSRCS += apbridgea_gadget.c
+endif
+
+ifeq ($(CONFIG_ARA_BRIDGE_HAVE_BATTERY),y)
+CSRCS += battery_dummy.c
 endif
 
 COBJS		= $(CSRCS:.c=$(OBJEXT))
