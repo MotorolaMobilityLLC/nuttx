@@ -519,7 +519,11 @@ extern int32_t dwc_otg_get_param_dev_out_nak(dwc_otg_core_if_t * core_if);
 extern int dwc_otg_set_param_cont_on_bna(dwc_otg_core_if_t * core_if,
 					 int32_t val);
 extern int32_t dwc_otg_get_param_cont_on_bna(dwc_otg_core_if_t * core_if);
+#if defined(CONFIG_ARCH_CHIP_USB_HCD)
 #define dwc_param_cont_on_bna_default 0
+#else
+#define dwc_param_cont_on_bna_default 1
+#endif
 
 extern int dwc_otg_set_param_ahb_single(dwc_otg_core_if_t * core_if,
 					int32_t val);
