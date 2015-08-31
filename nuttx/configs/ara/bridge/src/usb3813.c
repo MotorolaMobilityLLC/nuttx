@@ -38,7 +38,7 @@
 
 #define HUB_LINE_N_RESET                    3
 #define HUB_RESET_ASSERTION_TIME_IN_USEC    5 /* us */
-#define HUB_RESET_DEASSERTION_TIME_IN_MSEC  1 /* ms */
+#define HUB_RESET_DEASSERTION_TIME_IN_MSEC  2 /* ms */
 
 /**
  * Init the USB3813 hub
