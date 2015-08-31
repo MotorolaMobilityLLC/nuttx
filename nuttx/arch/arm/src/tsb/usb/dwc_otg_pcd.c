@@ -2473,6 +2473,17 @@ static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 	}
 }
 
+static void dwc_otg_pcd_ep_resume(dwc_otg_pcd_ep_t *ep)
+{
+	depctl_data_t depctl = {.d32 = 0 };
+	dwc_otg_pcd_t *pcd = ep->pcd;
+	dwc_ep_t *dwc_ep = &ep->dwc_ep;
+	depctl.b.epena = 1;
+	depctl.b.cnak = 1;
+	DWC_MODIFY_REG32(&GET_CORE_IF(pcd)->dev_if->in_ep_regs[dwc_ep->num]->diepctl, 0, depctl.d32);
+
+}
+
 int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 			 uint8_t * buf, dwc_dma_t dma_buf, uint32_t buflen,
 			 int zero, void *req_handle, int atomic_alloc)
@@ -2706,6 +2717,13 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 			dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
 		}
 		DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
+		if (!ep->dwc_ep.is_in && ep->stopped) {
+			/*
+			 * Endpoint may be disable because of BNA.
+			 * Enable endpoint since we have resolve the BNA
+			 */
+			dwc_otg_pcd_ep_resume(ep);
+		}
 		if (ep->dwc_ep.is_in && ep->stopped
 		    && !(GET_CORE_IF(pcd)->dma_enable)) {
 			/** @todo NGS Create a function for this. */

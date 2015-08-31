@@ -3256,6 +3256,7 @@ static void dwc_otg_pcd_handle_noniso_bna(dwc_otg_pcd_ep_t * ep)
 	dev_dma_desc_sts_t sts = {.d32 = 0 };
 	dwc_otg_core_if_t *core_if = ep->pcd->core_if;
 	int i, start;
+	int enable_ep = 0;
 
 	if (!dwc_ep->desc_cnt)
 		DWC_WARN("Ep%d %s Descriptor count = %d \n", dwc_ep->num,
@@ -3274,11 +3275,18 @@ static void dwc_otg_pcd_handle_noniso_bna(dwc_otg_pcd_ep_t * ep)
 		dma_desc = dwc_ep->desc_addr;
 	}
 	
-
-	for (i = start; i < dwc_ep->desc_cnt; ++i, ++dma_desc) {
-		sts.d32 = dma_desc->status.d32;
-		sts.b.bs = BS_HOST_READY;
-		dma_desc->status.d32 = sts.d32;
+	for (i = 0; i < dwc_ep->desc_cnt; ++i, ++dma_desc) {
+		if (dwc_ep->is_in) {
+			sts.d32 = dma_desc->status.d32;
+			sts.b.bs = BS_HOST_READY;
+			dma_desc->status.d32 = sts.d32;
+			enable_ep = 1;
+		} else {
+			if (dma_desc->status.b.bs == BS_HOST_READY) {
+				/* A least one buffer is available: re enable the endpoint */
+				enable_ep = 1;
+			}
+		}
 	}
 
 	if (dwc_ep->is_in == 0) {
@@ -3289,8 +3297,12 @@ static void dwc_otg_pcd_handle_noniso_bna(dwc_otg_pcd_ep_t * ep)
 		addr =
 		    &GET_CORE_IF(pcd)->dev_if->in_ep_regs[dwc_ep->num]->diepctl;
 	}
-	depctl.b.epena = 1;
-	depctl.b.cnak = 1;
+
+	/* Only enable endpoint if there are requests ready for transfer */
+	if (enable_ep) {
+		depctl.b.epena = 1;
+		depctl.b.cnak = 1;
+	}
 	DWC_MODIFY_REG32(addr, 0, depctl.d32);
 }
 
