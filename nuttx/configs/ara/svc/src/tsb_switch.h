@@ -409,6 +409,12 @@ int switch_setup_routing_table(struct tsb_switch *sw,
                                uint8_t device_id_1,
                                uint8_t port_id_1);
 
+int switch_invalidate_routing_table(struct tsb_switch *sw,
+                                    uint8_t device_id_0,
+                                    uint8_t port_id_0,
+                                    uint8_t device_id_1,
+                                    uint8_t port_id_1);
+
 int switch_dump_routing_table(struct tsb_switch *sw);
 
 /**

@@ -79,6 +79,8 @@
 /* MaskId entry update */
 #define SET_VALID_ENTRY(entry) \
     id_mask[15 - ((entry) / 8)] |= (1 << ((entry)) % 8)
+#define SET_INVALID_ENTRY(entry) \
+    id_mask[15 - ((entry) / 8)] &= ~(1 << ((entry)) % 8)
 
 static inline void dev_ids_update(struct tsb_switch *sw,
                                   uint8_t port_id,
@@ -840,6 +842,65 @@ int switch_setup_routing_table(struct tsb_switch *sw,
                             UNIPRO_SELINDEX_NULL, 0);
         return rc;
     }
+
+    return 0;
+}
+
+/**
+ * @brief Invalidate network routing table
+ *
+ * Invalidate the deviceID Mask tables (if supported) and the N_DEVICEID_VALID
+ * attribute, bidirectionally between the source and destination Switch ports.
+ */
+int switch_invalidate_routing_table(struct tsb_switch *sw,
+                                    uint8_t device_id_0,
+                                    uint8_t port_id_0,
+                                    uint8_t device_id_1,
+                                    uint8_t port_id_1) {
+
+    int rc;
+    uint8_t id_mask[16];
+
+    dbg_verbose("Invalidate routing table [p=%u:d=%u]<->[p=%u:d=%u]\n",
+                device_id_0, port_id_0, device_id_1, port_id_1);
+
+    /* Set MaskId for devices 0->1 */
+    rc = switch_dev_id_mask_get(sw, port_id_0, id_mask);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        dbg_error("Failed to get MaskId for port %u\n", port_id_0);
+        return rc;
+    }
+
+    SET_INVALID_ENTRY(device_id_1);
+
+    rc = switch_dev_id_mask_set(sw, port_id_0, id_mask);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        dbg_error("Failed to set MaskId for port %u\n", port_id_0);
+        return rc;
+    }
+
+    /* Set MaskId for devices 1->0 */
+    rc = switch_dev_id_mask_get(sw, port_id_1, id_mask);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        dbg_error("Failed to get MaskId for port %u\n", port_id_1);
+        return rc;
+    }
+
+    SET_INVALID_ENTRY(device_id_0);
+
+    rc = switch_dev_id_mask_set(sw, port_id_1, id_mask);
+    if (rc && (rc != -EOPNOTSUPP)) {
+        dbg_error("Failed to set MaskId for port %u\n", port_id_1);
+        return rc;
+    }
+
+    /* Undo deviceid_valid attribute for device 0's port */
+    switch_dme_peer_set(sw, port_id_0, N_DEVICEID_VALID,
+                        UNIPRO_SELINDEX_NULL, 0);
+
+    /* Undo deviceid_valid attribute for device 1's port */
+    switch_dme_peer_set(sw, port_id_1, N_DEVICEID_VALID,
+                        UNIPRO_SELINDEX_NULL, 0);
 
     return 0;
 }
