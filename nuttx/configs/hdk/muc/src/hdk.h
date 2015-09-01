@@ -109,7 +109,7 @@
 #define MAX_IRQBUTTON   BUTTON_POWER
 #define NUM_IRQBUTTONS  1
 
-#define GPIO_BTN_POWER  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTB|GPIO_PIN5)
+#define GPIO_BTN_POWER  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTC|GPIO_PIN7)
 
 /****************************************************************************
  * Public Types

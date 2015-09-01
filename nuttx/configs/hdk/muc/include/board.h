@@ -167,19 +167,19 @@
 
 /* Mods ****************************************************************************/
 #define GPIO_MODS_CORE_INT        (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN13)
+                                   GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN11)
 
 #define GPIO_APBE_SPIBOOT_N       (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN8)
+                                   GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN15)
 
 #define GPIO_APBE_BOOTRET         (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN12)
+                                   GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN13)
 
 #define GPIO_APBE_PWR_EN          (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN3)
+                                   GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN8)
 
 #define GPIO_APBE_RST_N           (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_SET|GPIO_PORTH|GPIO_PIN1)
+                                   GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN5)
 
 /************************************************************************************
  * Public Data
