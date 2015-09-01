@@ -116,7 +116,8 @@ int gb_svc_intf_hotplug(uint32_t intf_id, uint32_t unipro_mfg_id,
     struct gb_operation *op_req;
     struct gb_svc_intf_hotplug_request *req;
 
-    op_req = gb_operation_create(g_svc_cport, GB_SVC_TYPE_INTF_HOTPLUG, sizeof(*req));
+    op_req = gb_operation_create(g_svc_cport, GB_SVC_TYPE_INTF_HOTPLUG,
+                                 sizeof(*req));
     if (!op_req) {
         return -ENOMEM;
     }
@@ -134,6 +135,24 @@ int gb_svc_intf_hotplug(uint32_t intf_id, uint32_t unipro_mfg_id,
     return 0;
 }
 
+int gb_svc_intf_hot_unplug(uint32_t intf_id) {
+    struct gb_operation *op_req;
+    struct gb_svc_intf_hot_unplug_request *req;
+
+    op_req = gb_operation_create(g_svc_cport, GB_SVC_TYPE_INTF_HOT_UNPLUG,
+                                 sizeof(*req));
+    if (!op_req) {
+        return -ENOMEM;
+    }
+
+    req = gb_operation_get_request_payload(op_req);
+    req->intf_id = intf_id;
+
+    gb_operation_send_request_sync(op_req);
+    gb_operation_destroy(op_req);
+
+    return 0;
+}
 
 /*
  * SVC Protocol Request handlers

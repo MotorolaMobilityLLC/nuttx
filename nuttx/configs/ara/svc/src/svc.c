@@ -487,7 +487,7 @@ static int svc_handle_module_ready(uint8_t portid) {
     uint32_t unipro_mfg_id, unipro_prod_id, ara_vend_id, ara_prod_id;
 
     dbg_info("Hotplug event received for port %u\n", portid);
-    intf_id  = interface_get_id_by_portid(portid);
+    intf_id = interface_get_id_by_portid(portid);
     if (intf_id < 0) {
         return intf_id;
     }
@@ -529,7 +529,7 @@ static int svc_handle_events(void) {
             svc_handle_module_ready(event->data.ready_other.port);
             break;
         default:
-            dbg_error("Unknown event: %d\n", event->type);
+            dbg_error("Unknown event %d\n", event->type);
         }
 
         svc_event_destroy(event);
