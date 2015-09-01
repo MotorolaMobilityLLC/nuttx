@@ -51,7 +51,8 @@
 #define GB_SVC_TYPE_CONN_DESTROY        0x08
 #define GB_SVC_TYPE_DME_PEER_GET        0x09
 #define GB_SVC_TYPE_DME_PEER_SET        0x0a
-#define GB_SVC_TYPE_ROUTE_CREATE	    0x0b
+#define GB_SVC_TYPE_ROUTE_CREATE        0x0b
+#define GB_SVC_TYPE_ROUTE_DESTROY       0x0c
 
 struct gb_svc_protocol_version_request {
 	__u8	major;
@@ -68,6 +69,11 @@ struct gb_svc_route_create_request {
 	__u8	dev1_id;
 	__u8	intf2_id;
 	__u8	dev2_id;
+} __packed;
+
+struct gb_svc_route_destroy_request {
+    __u8    intf1_id;
+    __u8    intf2_id;
 } __packed;
 
 struct gb_svc_hello_request {
