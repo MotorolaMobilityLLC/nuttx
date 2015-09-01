@@ -1,0 +1,40 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+if ARCH_BOARD_HDK_MUC
+
+config PM_IDLEENTER_COUNT
+	int "Number of IDLE time slices to enter IDLE mode from NORMAL"
+	default 10
+	depends on PM
+
+config PM_STANDBYENTER_COUNT
+	int "Number of IDLE time slices to enter STANDBY mode from IDLE"
+	default 5
+	depends on PM
+
+config PM_BUTTONS
+	bool "PM button support"
+	default n
+	depends on PM && ARCH_IRQBUTTONS
+	---help---
+		Enable PM button EXTI interrupts to support PM testing
+
+config HID_BUTTONS
+	bool "HID button support"
+	default n
+	depends on !PM_BUTTONS && ARCH_IRQBUTTONS
+	---help---
+		Enable Generic HID buttons support
+
+config PM_BUTTON_ACTIVITY
+	int "Button PM activity weight"
+	default 10
+	depends on PM_BUTTONS || HID_BUTTONS
+	---help---
+		The activity weight to report to the power management subsystem when
+		a button is pressed.
+
+endif

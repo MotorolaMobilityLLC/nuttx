@@ -1,0 +1,57 @@
+;
+; HDK Manifest
+;
+
+[manifest-header]
+version-major = 0
+version-minor = 1
+
+[interface-descriptor]
+vendor-string-id = 1
+product-string-id = 2
+
+; Interface vendor string (id can't be 0)
+[string-descriptor 1]
+string = Motorola Mobility, LLC
+
+; Interface product string (id can't be 0)
+[string-descriptor 2]
+string = HDK
+
+; Control protocol on CPort 0
+[cport-descriptor 0]
+bundle = 0
+protocol = 0x00
+
+; Control protocol Bundle 0
+[bundle-descriptor 0]
+class = 0
+
+; Battery on CPort 5
+[cport-descriptor 5]
+bundle = 1
+protocol = 0x08
+
+; Motorola specific on CPort 6
+[cport-descriptor 6]
+bundle = 1
+protocol = 0xff
+
+; GPIO Phy on CPort 7
+[cport-descriptor 7]
+bundle = 1
+protocol = 0x02
+
+; HID on CPort 8
+[cport-descriptor 8]
+bundle = 1
+protocol = 0x05
+
+; LOOPBACK protocol on CPort 9
+[cport-descriptor 9]
+bundle = 1
+protocol = 0x11
+
+; Bundle 1
+[bundle-descriptor 1]
+class = 0xff
