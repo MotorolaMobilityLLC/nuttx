@@ -1,0 +1,13 @@
+usb_test: a tool to perform transfer with APBridgeA USB gadget.
+
+usb_test [-s size] [-n count]
+	 -s size: size of data to send: 0 <= size <= 2040
+	 -c count: number of packet to send: count > 0
+
+usb_send send greybus message (only greybus header is valid) to APBRidgeA.
+APBridgeA should send back exactly the same message.
+
+APBridgeA firmware must use dummy backend
+(enumerate and send back Greybus message) and Greybus modules must not be loaded.
+
+usb_test should only print message if there are errors.
