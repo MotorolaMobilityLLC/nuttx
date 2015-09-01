@@ -59,6 +59,7 @@ int svc_connection_create(uint8_t, uint16_t, uint8_t, uint16_t, uint8_t, uint8_t
 int svc_dme_peer_get(uint8_t, uint16_t, uint16_t, uint16_t*, uint32_t*);
 int svc_dme_peer_set(uint8_t, uint16_t, uint16_t, uint32_t, uint16_t*);
 int svc_connection_destroy(uint8_t, uint16_t, uint8_t, uint16_t);
+int svc_hot_unplug(uint8_t);
 
 int svcd_start(void);
 void svcd_stop(void);

@@ -60,8 +60,13 @@ struct svc *svc = &the_svc;
 
 #define SVC_EVENT_TYPE_READY_AP       0x1
 #define SVC_EVENT_TYPE_READY_OTHER    0x2
+#define SVC_EVENT_TYPE_HOT_UNPLUG     0x3
 
 struct svc_event_ready_other {
+    uint8_t port;
+};
+
+struct svc_event_hot_unplug {
     uint8_t port;
 };
 
@@ -70,6 +75,7 @@ struct svc_event {
     struct list_head events;
     union {
         struct svc_event_ready_other ready_other;
+        struct svc_event_hot_unplug hot_unplug;
     } data;
 };
 
@@ -482,6 +488,18 @@ static int svc_handle_ap(void) {
     return 0;
 }
 
+static int svc_handle_hot_unplug(uint8_t portid) {
+    int intf_id;
+
+    dbg_info("Hot_unplug event received for port %u\n", portid);
+    intf_id = interface_get_id_by_portid(portid);
+    if (intf_id < 0) {
+        return intf_id;
+    }
+
+    return gb_svc_intf_hot_unplug(intf_id);
+}
+
 static int svc_handle_module_ready(uint8_t portid) {
     int rc, intf_id;
     uint32_t unipro_mfg_id, unipro_prod_id, ara_vend_id, ara_prod_id;
@@ -516,6 +534,31 @@ static int svc_handle_module_ready(uint8_t portid) {
 }
 
 /**
+ * @brief Send hot_unplug event from the interface detection signals
+ */
+int svc_hot_unplug(uint8_t portid)
+{
+    struct svc_event *svc_ev;
+    int rc = 0;
+
+    pthread_mutex_lock(&svc->lock);
+
+    svc_ev = svc_event_create(SVC_EVENT_TYPE_HOT_UNPLUG);
+    if (!svc_ev) {
+        dbg_error("Couldn't create event\n");
+        rc = -ENOMEM;
+    } else {
+        svc_ev->data.hot_unplug.port = portid;
+        list_add(&svc_events, &svc_ev->events);
+        pthread_cond_signal(&svc->cv);
+    }
+
+    pthread_mutex_unlock(&svc->lock);
+
+    return rc;
+}
+
+/**
  * @brief Main event loop processing routine
  */
 static int svc_handle_events(void) {
@@ -527,6 +570,9 @@ static int svc_handle_events(void) {
         switch (event->type) {
         case SVC_EVENT_TYPE_READY_OTHER:
             svc_handle_module_ready(event->data.ready_other.port);
+            break;
+        case SVC_EVENT_TYPE_HOT_UNPLUG:
+            svc_handle_hot_unplug(event->data.hot_unplug.port);
             break;
         default:
             dbg_error("Unknown event %d\n", event->type);
