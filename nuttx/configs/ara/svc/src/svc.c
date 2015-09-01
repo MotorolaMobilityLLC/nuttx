@@ -422,6 +422,40 @@ int svc_route_create(uint8_t intf1_id, uint8_t dev1_id,
 }
 
 /**
+ * @brief Destroy a bidirectional route through the switch
+ */
+int svc_route_destroy(uint8_t intf1_id, uint8_t intf2_id) {
+    struct tsb_switch *sw = svc->sw;
+    int rc;
+    int port1_id, port2_id;
+    int dev1_id, dev2_id;
+
+    port1_id = interface_get_portid_by_id(intf1_id);
+    port2_id = interface_get_portid_by_id(intf2_id);
+    if (port1_id < 0 || port2_id < 0) {
+        return -EINVAL;
+    }
+    dev1_id = interface_get_devid_by_id(intf1_id);
+    dev2_id = interface_get_devid_by_id(intf2_id);
+    if (dev1_id < 0 || dev2_id < 0) {
+        return -EINVAL;
+    }
+
+    rc = switch_invalidate_routing_table(sw,
+                                         dev1_id,
+                                         port1_id,
+                                         dev2_id,
+                                         port2_id);
+    if (rc) {
+        dbg_error("Failed to destroy route [p=%d,d=%d]<->[p=%d,d=%d]\n",
+                  port1_id, dev1_id, port2_id, dev2_id);
+        return rc;
+    }
+
+    return 0;
+}
+
+/**
  * @brief Handle AP module boot
  */
 static int svc_handle_ap(void) {

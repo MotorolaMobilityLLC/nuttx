@@ -54,6 +54,7 @@ extern struct svc *svc;
 
 int svc_intf_device_id(uint8_t, uint8_t);
 int svc_route_create(uint8_t, uint8_t, uint8_t, uint8_t);
+int svc_route_destroy(uint8_t, uint8_t);
 int svc_connection_create(uint8_t, uint16_t, uint8_t, uint16_t, uint8_t, uint8_t);
 int svc_dme_peer_get(uint8_t, uint16_t, uint16_t, uint16_t*, uint32_t*);
 int svc_dme_peer_set(uint8_t, uint16_t, uint16_t, uint32_t, uint16_t*);
