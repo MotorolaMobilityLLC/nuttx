@@ -494,6 +494,7 @@ static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
     unsigned int cportid;
 
     req->len = len;
+    req->flags = USBDEV_REQFLAGS_NULLPKT;
     memcpy(req->buf, payload, len);
 
     cportid = get_cportid(payload);
