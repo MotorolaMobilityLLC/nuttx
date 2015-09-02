@@ -29,12 +29,22 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
+#include <nuttx/gpio.h>
 #include <nuttx/lib.h>
 #include <nuttx/util.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/device.h>
 #include <nuttx/device_spi.h>
+
+#include "up_arch.h"
+
+#include "chip.h"
+#include "tsb_scm.h"
+
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+#include "tsb_spi_es2.h"
+#endif
 
 /**
  * SPI device state
@@ -56,6 +66,10 @@ struct tsb_spi_info {
     uint32_t            reg_base;
     /** SPI device state */
     enum tsb_spi_state  state;
+    /** bit mask of current SPI protocol mode */
+    uint16_t            mode;
+    /** gpio index to use as cs instead of hw cs */
+    int8_t              cs_gpio[1];
 
     /** bit masks of supported SPI protocol mode */
     uint16_t            modes;
@@ -71,6 +85,16 @@ struct tsb_spi_info {
     /** Exclusive access for operation */
     sem_t               lock;
 };
+
+static uint32_t spi_read(int offset)
+{
+    return getreg32(SPI_BASE + offset);
+}
+
+static void spi_write(int offset, uint32_t b)
+{
+    putreg32(b, SPI_BASE + offset);
+}
 
 /**
  * @brief Lock SPI bus for exclusive access
@@ -155,6 +179,10 @@ static int tsb_spi_select(struct device *dev, int devid)
         return -EINVAL;
     }
 
+    if (devid >= ARRAY_SIZE(info->cs_gpio)) {
+        return -EINVAL;
+    }
+
     info = device_get_private(dev);
 
     sem_wait(&info->lock);
@@ -164,11 +192,18 @@ static int tsb_spi_select(struct device *dev, int devid)
         return -EPERM;
     }
 
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    if (info->cs_gpio[devid] != -1) {
+        uint8_t cs_active = info->mode & SPI_MODE_CS_HIGH ? 1 : 0;
+        gpio_direction_out(info->cs_gpio[devid], cs_active);
+    }
+#else
     /* TODO: Implement chip-select code.
      *
      * Because SPI master only supported on Toshiba ES3 chip, the hardware
      * isn't ready, so we only add dummy code for testing.
      */
+#endif
     sem_post(&info->lock);
     return 0;
 }
@@ -195,6 +230,10 @@ static int tsb_spi_deselect(struct device *dev, int devid)
         return -EINVAL;
     }
 
+    if (devid >= ARRAY_SIZE(info->cs_gpio)) {
+        return -EINVAL;
+    }
+
     info = device_get_private(dev);
 
     sem_wait(&info->lock);
@@ -204,11 +243,18 @@ static int tsb_spi_deselect(struct device *dev, int devid)
         return -EPERM;
     }
 
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    if (info->cs_gpio[devid] != -1) {
+        uint8_t cs_active = info->mode & SPI_MODE_CS_HIGH ? 1 : 0;
+        gpio_direction_out(info->cs_gpio[devid], !cs_active);
+    }
+#else
     /* TODO: Implement chip-select code.
      *
      * Because SPI master only supported on Toshiba ES3 chip, the hardware
      * isn't ready, so we only add dummy code for testing.
      */
+#endif
     sem_post(&info->lock);
     return 0;
 }
@@ -244,11 +290,27 @@ static int tsb_spi_setfrequency(struct device *dev, uint32_t *frequency)
         sem_post(&info->lock);
         return -EPERM;
     }
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    uint32_t v;
+    if (*frequency < 12*1000*1000) {
+        *frequency = 6*1000*1000;
+        v = 0x00;
+    } else if (*frequency < 24*1000*1000) {
+        *frequency = 12*1000*1000;
+        v = 0x01;
+    } else {
+        *frequency = 24*1000*1000;
+        v = 0x10;
+    }
+
+    tsb_set_spi_clock(v);
+#else
     /* TODO: Change SPI hardware clock
      *
      * Because SPI master only supported on Toshiba ES3 chip, the hardware
      * isn't ready, so we only add dummy code for testing.
      */
+#endif
     sem_post(&info->lock);
     return 0;
 }
@@ -285,11 +347,24 @@ static int tsb_spi_setmode(struct device *dev, uint16_t mode)
         sem_post(&info->lock);
         return -EPERM;
     }
+
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    uint16_t allowed = SPI_MODE_0;
+#if defined(CONFIG_ARCH_CHIP_DEVICE_SPI_CS0_GPIO)
+    allowed |= SPI_MODE_CS_HIGH;
+#endif
+    if (mode & ~allowed) {
+        return -EINVAL;
+    }
+
+    info->mode = mode;
+#else
     /* TODO: change SPI mode register
      *
      * Because SPI master only supported on Toshiba ES3 chip, the hardware
      * isn't ready, so we only add dummy code for testing.
      */
+#endif
     sem_post(&info->lock);
     return 0;
 }
@@ -332,6 +407,123 @@ static int tsb_spi_setbits(struct device *dev, int nbits)
     return 0;
 }
 
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+/**
+ * @brief Internal exchange function using PIO and the secondary buffer
+ *
+ * Perform an exchange using programmed I/O (PIO) using only the secondary
+ * buffer.  Block until the exchange is complete.
+ *
+ * @param dev pointer to structure of device data
+ * @param txbuffer pointer to the data to send
+ * @param rxbuffer pointer to the buffer to receive data into
+ * @param nbytes number of bytes to exchange, up to TSB_SPIB0_PRG_SEC_DAT_SIZE.
+ * @return 0 on success, negative errno on error
+ */
+static int __tsb_spi_exchange_single(struct device *dev, void *txbuffer,
+                                          void *rxbuffer, int nbytes)
+{
+    void *sec_buf = (void *)(SPI_BASE + TSB_SPIB0_PRG_SEC_DAT_BASE);
+
+    /* Clear the status bits */
+    spi_write(TSB_SPIB_PRG_ACC_STAT, 0);
+
+    /* Set up the secondary buffer */
+    memcpy(sec_buf, txbuffer, nbytes);
+
+    /* Subtract 1 since it is assumed */
+    uint32_t v = (nbytes - 1) & TSB_SEC_BUF_DAT_BYTE_CNT_MASK;
+    v <<= TSB_SEC_BUF_DAT_BYTE_CNT_SHIFT;
+    v |= TSB_SEC_BUF_EN | TSB_SPI_CYC_GO;
+    spi_write(TSB_SPIB_PRG_ACC_CTRL_1, v);
+
+    /* Wait for the transaction to complete. */
+    while (1) {
+        v = spi_read(TSB_SPIB_PRG_ACC_STAT);
+        if (v & TSB_SPI_CYC_DONE) {
+            break;
+        }
+    }
+
+    /* Extract the secondary buffer */
+    if (rxbuffer) {
+        memcpy(rxbuffer, sec_buf, nbytes);
+    }
+
+    return 0;
+}
+
+/**
+ * @brief Internal exchange function using PIO and both the primary and
+ * secondary buffers
+ *
+ * Perform an exchange using programmed I/O (PIO) using both the primary
+ * and secondary buffers.  Block until the exchange is complete.
+ * This is useful when using HW CS and a single transfer is slightly larger
+ * than the secondary buffer (e.g. a 256-byte page write).
+ *
+ * @param dev pointer to structure of device data
+ * @param txbuffer pointer to the data to send
+ * @param rxbuffer pointer to the buffer to receive data into
+ * @param nbytes number of bytes to exchange, up to TSB_SPIB0_PRG_PRI_DAT_SIZE +
+ * TSB_SPIB0_PRG_SEC_DAT_SIZE.
+ * @return 0 on success, negative errno on error
+ */
+static int __tsb_spi_exchange_dual(struct device *dev, void *txbuffer,
+                                          void *rxbuffer, int nbytes)
+{
+    void *pri_buf = (void *)(SPI_BASE + TSB_SPIB0_PRG_PRI_DAT_BASE);
+    void *sec_buf = (void *)(SPI_BASE + TSB_SPIB0_PRG_SEC_DAT_BASE);
+
+    /* Clear the status bits */
+    spi_write(TSB_SPIB_PRG_ACC_STAT, 0);
+
+    uint32_t v = TSB_SPI_CYC_GO;
+
+    /* Set up the primary buffer */
+    ssize_t pri_size = MIN(nbytes, TSB_SPIB0_PRG_PRI_DAT_SIZE);
+    memcpy(pri_buf, txbuffer, pri_size);
+
+    /* Subtract 1 since it is assumed */
+    v |= ((pri_size - 1) & TSB_PRI_BUF_DAT_BYTE_CNT_MASK)
+           << TSB_PRI_BUF_DAT_BYTE_CNT_SHIFT;
+    v |= TSB_PRI_BUF_EN;
+
+    /* Set up the secondary buffer */
+    ssize_t sec_size = nbytes - pri_size;
+    if (sec_size > 0) {
+        memcpy(sec_buf, txbuffer + pri_size, sec_size);
+
+        /* Subtract 1 since it is assumed */
+        v |= ((sec_size - 1) & TSB_SEC_BUF_DAT_BYTE_CNT_MASK)
+              << TSB_SEC_BUF_DAT_BYTE_CNT_SHIFT;
+        v |= TSB_SEC_BUF_EN;
+    }
+
+    spi_write(TSB_SPIB_PRG_ACC_CTRL_1, v);
+
+    /* Wait for the transaction to complete. */
+    while (1) {
+        v = spi_read(TSB_SPIB_PRG_ACC_STAT);
+        if (v & TSB_SPI_CYC_DONE) {
+            break;
+        }
+    }
+
+    /* Extract the primary buffer */
+    if (rxbuffer) {
+        memcpy(rxbuffer, pri_buf, pri_size);
+
+        /* Extract the secondary buffer */
+        if (sec_size > 0) {
+            memcpy(rxbuffer + pri_size, sec_buf, sec_size);
+        }
+    }
+
+    return 0;
+}
+#endif
+
 /**
  * @brief Exchange a block of data from SPI
  *
@@ -372,6 +564,36 @@ static int tsb_spi_exchange(struct device *dev,
         goto err_unlock;
     }
 
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    txbuf = transfer->txbuffer;
+    rxbuf = transfer->rxbuffer;
+
+    if (transfer->nwords > TSB_SPIB0_PRG_SEC_DAT_SIZE &&
+         transfer->nwords <= TSB_SPIB0_PRG_PRI_DAT_SIZE +
+                              TSB_SPIB0_PRG_SEC_DAT_SIZE) {
+        /* If the transfer is bigger than the secondary buffer, but can fit
+           in both the primary and secondary buffers, then use them both. */
+        __tsb_spi_exchange_dual(dev, txbuf, rxbuf, transfer->nwords);
+    } else {
+        /* If the transfer is bigger than the primary and secondary buffers,
+           then do multiple transfers using the secondary buffer.
+           NOTE: Each iteration will toggle the HW CS.  Use GPIO CS if CS
+           has to be active for the entire transfer. */
+        int num_iterations = transfer->nwords / TSB_SPIB0_PRG_SEC_DAT_SIZE;
+        for (i=0; i < num_iterations; i++) {
+            __tsb_spi_exchange_single(dev, txbuf, rxbuf,
+                                          TSB_SPIB0_PRG_SEC_DAT_SIZE);
+
+            txbuf += TSB_SPIB0_PRG_SEC_DAT_SIZE;
+            rxbuf += TSB_SPIB0_PRG_SEC_DAT_SIZE;
+        }
+
+        int remainder = transfer->nwords % TSB_SPIB0_PRG_SEC_DAT_SIZE;
+        if (remainder) {
+            __tsb_spi_exchange_single(dev, txbuf, rxbuf, remainder);
+        }
+    }
+#else
     /* TODO: Implement SPI transfer function
      *
      * Because SPI master only supported on Toshiba ES3 chip, the hardware
@@ -388,6 +610,7 @@ static int tsb_spi_exchange(struct device *dev,
             rxbuf[i] = (uint8_t)i;
         }
     }
+#endif
 err_unlock:
     sem_post(&info->lock);
     return ret;
@@ -433,6 +656,15 @@ static int tsb_spi_getcaps(struct device *dev, struct device_spi_caps *caps)
 
     sem_wait(&info->lock);
 
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    caps->modes = SPI_MODE_0;
+#if defined(CONFIG_ARCH_CHIP_DEVICE_SPI_CS0_GPIO)
+    caps->modes |= SPI_MODE_CS_HIGH;
+#endif
+    caps->flags = 0;
+    caps->bpw = BIT(8-1);
+    caps->csnum = 1;
+#else
     /* TODO: Add query hardware capabilities code.
      *
      * Because SPI master only supported on Toshiba ES3 chip, the hardware
@@ -446,6 +678,7 @@ static int tsb_spi_getcaps(struct device *dev, struct device_spi_caps *caps)
     caps->flags = 0;
     caps->bpw = BIT(8-1) | BIT(16-1) | BIT(32-1);
     caps->csnum = 1;
+#endif
 
     sem_post(&info->lock);
     return 0;
@@ -472,6 +705,9 @@ static int tsb_spi_dev_open(struct device *dev)
         return -EINVAL;
     }
     info = device_get_private(dev);
+
+    tsb_clk_enable(TSB_CLK_SPIP);
+    tsb_clk_enable(TSB_CLK_SPIS);
 
     sem_wait(&info->lock);
 
@@ -506,6 +742,9 @@ static void tsb_spi_dev_close(struct device *dev)
     }
     info = device_get_private(dev);
 
+    tsb_clk_disable(TSB_CLK_SPIP);
+    tsb_clk_disable(TSB_CLK_SPIS);
+
     sem_wait(&info->lock);
     info->state = TSB_SPI_STATE_CLOSED;
     sem_post(&info->lock);
@@ -527,6 +766,7 @@ static int tsb_spi_dev_probe(struct device *dev)
     struct device_resource *r;
     irqstate_t flags;
     int ret = 0;
+    int i;
 
     if (!dev) {
         return -EINVAL;
@@ -558,6 +798,19 @@ static int tsb_spi_dev_probe(struct device *dev)
     info->dev = dev;
     info->reg_base = r->start;
     info->state = TSB_SPI_STATE_CLOSED;
+    info->mode = 0;
+    for (i=0; i < ARRAY_SIZE(info->cs_gpio); i++) {
+        info->cs_gpio[i] = -1;
+    }
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+#if defined(CONFIG_ARCH_CHIP_DEVICE_SPI_CS0_GPIO)
+    tsb_set_pinshare(TSB_PIN_GPIO15);
+    gpio_direction_out(15, 1);
+    info->cs_gpio[0] = 15;
+#else
+    tsb_clr_pinshare(TSB_PIN_GPIO15);
+#endif
+#endif
     device_set_private(dev, info);
     sem_init(&info->bus, 0, 1);
     sem_init(&info->lock, 0, 1);
