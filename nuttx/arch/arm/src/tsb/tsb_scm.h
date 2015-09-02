@@ -218,5 +218,6 @@ enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id);
 enum tsb_product_id tsb_get_product_id(void);
 int tsb_request_pinshare(uint32_t bits);
 int tsb_release_pinshare(uint32_t bits);
+void tsb_set_spi_clock(uint32_t freq_bits);
 
 #endif /* __ARCH_ARM_SRC_TSB_TSB_SCM_H */
