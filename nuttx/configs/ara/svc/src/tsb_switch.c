@@ -786,51 +786,43 @@ int switch_setup_routing_table(struct tsb_switch *sw,
     int rc;
     uint8_t id_mask[16];
 
-    dbg_verbose("Setup routing table [%u:%u]<->[%u:%u]\n",
+    dbg_verbose("Setup routing table [p=%u:d=%u]<->[p=%u:d=%u]\n",
                 device_id_0, port_id_0, device_id_1, port_id_1);
 
     // Set MaskId for devices 0->1
-    rc = switch_dev_id_mask_get(sw,
-                                port_id_0,
-                                id_mask);
+    rc = switch_dev_id_mask_get(sw, port_id_0, id_mask);
     if (rc && (rc != -EOPNOTSUPP)) {
-        dbg_error("Failed to get MaskId for port %d\n", port_id_0);
+        dbg_error("Failed to get MaskId for port %u\n", port_id_0);
         return rc;
     }
 
     SET_VALID_ENTRY(device_id_1);
 
-    rc = switch_dev_id_mask_set(sw,
-                                port_id_0,
-                                id_mask);
+    rc = switch_dev_id_mask_set(sw, port_id_0, id_mask);
     if (rc && (rc != -EOPNOTSUPP)) {
-        dbg_error("Failed to set MaskId for port %d\n", port_id_0);
+        dbg_error("Failed to set MaskId for port %u\n", port_id_0);
         return rc;
     }
 
     // Set MaskId for devices 1->0
-    rc = switch_dev_id_mask_get(sw,
-                                port_id_1,
-                                id_mask);
+    rc = switch_dev_id_mask_get(sw, port_id_1, id_mask);
     if (rc && (rc != -EOPNOTSUPP)) {
-        dbg_error("Failed to get MaskId for port %d\n", port_id_1);
+        dbg_error("Failed to get MaskId for port %u\n", port_id_1);
         return rc;
     }
 
     SET_VALID_ENTRY(device_id_0);
 
-    rc = switch_dev_id_mask_set(sw,
-                                port_id_1,
-                                id_mask);
+    rc = switch_dev_id_mask_set(sw, port_id_1, id_mask);
     if (rc && (rc != -EOPNOTSUPP)) {
-        dbg_error("Failed to set MaskId for port %d\n", port_id_1);
+        dbg_error("Failed to set MaskId for port %u\n", port_id_1);
         return rc;
     }
 
     // Setup routing table for devices 0->1
     rc = switch_lut_set(sw, port_id_0, device_id_1, port_id_1);
     if (rc) {
-        dbg_error("Failed to set Lut for source port %d, disabling\n",
+        dbg_error("Failed to set Lut for source port %u, disabling\n",
                   port_id_0);
         /* Undo deviceid_valid on failure */
         switch_dme_peer_set(sw, port_id_0, N_DEVICEID_VALID,
@@ -841,7 +833,7 @@ int switch_setup_routing_table(struct tsb_switch *sw,
     // Setup routing table for devices 1->0
     rc = switch_lut_set(sw, port_id_1, device_id_0, port_id_0);
     if (rc) {
-        dbg_error("Failed to set Lut for source port %d, disabling\n",
+        dbg_error("Failed to set Lut for source port %u, disabling\n",
                   port_id_1);
         /* Undo deviceid_valid on failure */
         switch_dme_peer_set(sw, port_id_1, N_DEVICEID_VALID,
