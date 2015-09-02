@@ -33,7 +33,6 @@
 #ifndef _NUTTX_GREYBUS_TSB_UNIPRO_H_
 #define _NUTTX_GREYBUS_TSB_UNIPRO_H_
 
-#include <stdbool.h>
 #include <nuttx/unipro/unipro.h>
 
 /*
@@ -124,6 +123,5 @@
 
 int tsb_unipro_mbox_set(uint32_t val, int peer);
 int tsb_unipro_set_init_status(uint32_t val);
-bool tsb_is_stage_2(void);
 
 #endif
