@@ -46,6 +46,7 @@
 #define TSB_SCM_SOFTRESETRELEASE0       0x00000100
 #define TSB_SCM_CLOCKGATING0            0x00000200
 #define TSB_SCM_CLOCKENABLE0            0x00000300
+#define TSB_SPI_CLOCK_SELECTOR          0x00000480
 #define TSB_SCM_PID                     0x00000704 // named MODULEID1 in ES1
 #define TSB_SCM_PINSHARE                0x00000800
 #define TSB_IO_DRIVE_STRENGTH0          0x00000A00
@@ -245,4 +246,9 @@ void tsb_clk_dump(void)
     for (i = 0; i < ARRAY_SIZE(clk_names); i++) {
         dbg("%12s: %s\n", clk_names[i].name, (tsb_clk_status(clk_names[i].clk) ? "ON" : "OFF"));
     }
+}
+
+void tsb_set_spi_clock(uint32_t freq_bits)
+{
+    scm_write(TSB_SPI_CLOCK_SELECTOR, freq_bits);
 }
