@@ -224,6 +224,7 @@ config ARCH_CHIP_DEVICE_SPI
 	---help---
 		TSB SPI Master Driver
 
+
 config ARCH_CHIP_DEVICE_SDIO
 	bool "SDIO Support"
 	depends on ARCH_CHIP_GPBRIDGE
@@ -246,6 +247,21 @@ config TSB_UNIPRO_MAX_INFLIGHT_BUFCOUNT
 		On APBridgeA the default inflight bufcount is 1 because by
 		default CPorts are muxed on one EP. TSB_UNIPRO_MAX_INFLIGHT_BUFCOUNT
 		will be used for direct mapped-endpoint.
+
+config ARCH_CHIP_DEVICE_HID
+	bool "HID Support"
+	depends on ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
+	default n
+	---help---
+		TSB HID Device Driver
+
+config ARCH_CHIP_DEVICE_SPI_CS0_GPIO
+	bool "Use GPIO for SPI CS0"
+	depends on ARCH_CHIP_DEVICE_SPI
+	default n
+	---help---
+		TSB SPI Bit-Bang Device Driver
 
 choice
 	prompt "Drive Strength for the TRACE Signals"
