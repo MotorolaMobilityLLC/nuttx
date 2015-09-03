@@ -131,6 +131,10 @@ config GREYBUS_SDIO_PHY
 	select DEVICE_CORE
 	default n
 
+config GREYBUS_RAW
+	bool "Vendor Raw Support"
+	default n
+
 config GREYBUS_VENDOR
 	bool "Vendor Specific Protocol"
 	default n
