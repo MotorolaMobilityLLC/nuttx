@@ -49,6 +49,7 @@ extern void gb_pwm_register(int cport);
 extern void gb_spi_register(int cport);
 extern void gb_uart_register(int cport);
 extern void gb_hid_register(int cport);
+extern void gb_raw_register(int cport);
 extern void gb_vendor_register(int cport);
 extern void gb_lights_register(int cport);
 extern void gb_sdio_register(int cport);
@@ -156,7 +157,6 @@ void enable_cports(void)
         }
 #endif
 
-
 #ifdef CONFIG_GREYBUS_PWM_PHY
         if (protocol == GREYBUS_PROTOCOL_PWM) {
             gb_info("Registering PWM greybus driver.\n");
@@ -199,6 +199,13 @@ void enable_cports(void)
             gb_info("Registering HID greybus driver. id= %d\n", id);
             gb_hid_register(id);
 	}
+#endif
+
+#ifdef CONFIG_GREYBUS_RAW
+        if (protocol == GREYBUS_PROTOCOL_RAW) {
+            gb_info("Registering Raw greybus driver.\n");
+            gb_raw_register(id);
+        }
 #endif
 
 #ifdef CONFIG_GREYBUS_VENDOR
