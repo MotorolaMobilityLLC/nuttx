@@ -156,6 +156,10 @@
 #define STM32_GPIOH_BASE     0x48001c00     /* 0x48001c00-0x48001fff: GPIO Port H */
 #define STM32_OTGFS_BASE     0x50000000     /* 0x50000000-0x5003ffff: USB OTG FS */
 #define STM32_ADC_BASE       0x50040000     /* 0x50040000-0x500403ff: ADC */
+#  define STM32_ADC1_BASE    0x50040000     /*                        ADC1 */
+#  define STM32_ADC2_BASE    0x50040100     /*                        ADC2 */
+#  define STM32_ADC3_BASE    0x50040200     /*                        ADC3 */
+#  define STM32_ADCCMN_BASE  0x50040300     /*                        Common */
 #define STM32_AES_BASE       0x50060000     /* 0x50060000-0x500603ff: AES */
 #define STM32_RNG_BASE       0x50060800     /* 0x50060800-0x50060bff: RNG */
 
@@ -168,4 +172,3 @@
 #define STM32_DEBUGMCU_BASE 0xe0042000
 
 #endif /* __ARCH_ARM_SRC_STM32_CHIP_STM32L4X6XX_MEMORYMAP_H */
-

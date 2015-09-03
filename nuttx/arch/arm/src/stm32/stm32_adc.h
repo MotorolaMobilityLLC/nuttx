@@ -44,7 +44,7 @@
 
 #include "chip.h"
 
-#if defined(CONFIG_STM32_STM32F30XX)
+#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
 #  include "chip/stm32f30xxx_adc.h"
 #else
 #  include "chip/stm32_adc.h"
@@ -604,4 +604,3 @@ EXTERN struct adc_dev_s *stm32_adcinitialize(int intf, const uint8_t *chanlist,
 
 #endif /* CONFIG_STM32_ADC || CONFIG_STM32_ADC2 || CONFIG_STM32_ADC3 */
 #endif /* __ARCH_ARM_SRC_STM32_STM32_ADC_H */
-

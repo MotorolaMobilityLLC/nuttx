@@ -279,6 +279,19 @@
 
 /* AHB2 peripheral reset register */
 
+#define RCC_AHB2RSTR_GPIOARST      (1 << 0)  /* Bit 0:  IO port A reset */
+#define RCC_AHB2RSTR_GPIOBRST      (1 << 1)  /* Bit 1:  IO port B reset */
+#define RCC_AHB2RSTR_GPIOCRST      (1 << 2)  /* Bit 2:  IO port C reset */
+#define RCC_AHB2RSTR_GPIODRST      (1 << 3)  /* Bit 3:  IO port D reset */
+#define RCC_AHB2RSTR_GPIOERST      (1 << 4)  /* Bit 4:  IO port E reset */
+#define RCC_AHB2RSTR_GPIOFRST      (1 << 5)  /* Bit 5:  IO port F reset */
+#define RCC_AHB2RSTR_GPIOGRST      (1 << 6)  /* Bit 6:  IO port G reset */
+#define RCC_AHB2RSTR_GPIOHRST      (1 << 7)  /* Bit 7:  IO port H reset */
+#define RCC_AHB2RSTR_OTGFSRST      (1 << 12) /* Bit 12: USB OTG FS reset */
+#define RCC_AHB2RSTR_ADCRST        (1 << 13) /* Bit 13: ADC reset */
+#define RCC_AHB2RSTR_AESRST        (1 << 16) /* Bit 16: AES hardare accelerator reset */
+#define RCC_AHB2RSTR_RNGRST        (1 << 18) /* Bit 18: Random number generator reset */
+
 /* AHB3 peripheral reset register */
 
 /* APB1 Peripheral reset register 1 */
@@ -395,6 +408,12 @@
 #  define RCC_CCIPR_USART2SEL_SYSCLK (1 << RCC_CCIPR_USART2SEL_SHIFT) /* 01: SYSCLK selected as USART2 clock */
 #  define RCC_CCIPR_USART2SEL_HSI    (2 << RCC_CCIPR_USART2SEL_SHIFT) /* 10: HSI clock selected as USART2 clock */
 #  define RCC_CCIPR_USART2SEL_LSE    (3 << RCC_CCIPR_USART2SEL_SHIFT) /* 11: LSE clock selected as USART2 clock */
+#define RCC_CCIPR_ADCSEL_SHIFT       (28)       /* Bits 28-29: ADCs clock source selection */
+#define RCC_CCIPR_ADCSEL_MASK        (3 << RCC_CCIPR_ADCSEL_SHIFT)
+#  define RCC_CCIPR_ADCSEL_NONE      (0 << RCC_CCIPR_ADCSEL_SHIFT) /* 00: No clock selected */
+#  define RCC_CCIPR_ADCSEL_PLLSAI1   (1 << RCC_CCIPR_ADCSEL_SHIFT) /* 01: PLLSAI1 clock selected as ADCs clock */
+#  define RCC_CCIPR_ADCSEL_PLLSAI2   (2 << RCC_CCIPR_ADCSEL_SHIFT) /* 10: PLLSAI2 clock selected as ADCs clock */
+#  define RCC_CCIPR_ADCSEL_SYSCLK    (3 << RCC_CCIPR_ADCSEL_SHIFT) /* 11: System clock selected as ADCs clock */
 
 /* Backup domain control register (incomplete) */
 
@@ -421,4 +440,3 @@
 #define RCC_CSR_LPWRRSTF            (1 << 31) /* Bit 31: Low-Power reset flag */
 
 #endif /* __ARCH_ARM_SRC_STM32_CHIP_STM32L4X6XX_RCC_H */
-
