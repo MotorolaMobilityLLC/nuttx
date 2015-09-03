@@ -508,8 +508,8 @@ static int svc_handle_module_ready(uint8_t portid) {
      * Ara vendor id and product ID attributes don't exist on ES2 silicon.
      * These are unused for now.
      */
-    ara_vend_id = 0xdead;
-    ara_prod_id = 0xbeef;
+    ara_vend_id = 0x0000;
+    ara_prod_id = 0x0000;
 
     return gb_svc_intf_hotplug(intf_id, unipro_mfg_id, unipro_prod_id,
                                ara_vend_id, ara_prod_id);
