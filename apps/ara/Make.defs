@@ -135,6 +135,10 @@ ifeq ($(CONFIG_SERVICE_MANAGER),y)
 CONFIGURED_APPS += ara/service_mgr
 endif
 
+ifeq ($(CONFIG_ARA_BATTERY_TEST),y)
+CONFIGURED_APPS += ara/battery
+endif
+
 ifeq ($(CONFIG_ARA_GB_TAPE),y)
 CONFIGURED_APPS += ara/gb_tape
 endif

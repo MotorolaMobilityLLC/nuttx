@@ -65,6 +65,7 @@
 
 # Keep this list sorted alphabetically, adding new apps in the right place.
 SUBDIRS  = apbridge
+SUBDIRS += battery
 SUBDIRS += bdbpm
 SUBDIRS += bringup_entry
 SUBDIRS += debug
@@ -93,6 +94,7 @@ SUBDIRS += usb-host
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 # Keep this list sorted alphabetically, adding new apps in the right place.
+CNTXTDIRS += battery
 CNTXTDIRS += bdbpm
 CNTXTDIRS += bringup_entry
 CNTXTDIRS += debug
