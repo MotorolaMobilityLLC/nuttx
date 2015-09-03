@@ -55,43 +55,67 @@ class = 0
 
 ; GPIO protocol on CPort 3
 [cport-descriptor 3]
-bundle = 1
+bundle = 2
 protocol = 0x02
+
+[bundle-descriptor 2]
+class = 2
 
 ; I2C protocol on CPort 4
 [cport-descriptor 4]
-bundle = 1
+bundle = 3
 protocol = 0x03
+
+[bundle-descriptor 3]
+class = 3
 
 ; UART protocol on CPort 5
 [cport-descriptor 5]
-bundle = 1
+bundle = 4
 protocol = 0x04
+
+[bundle-descriptor 4]
+class = 4
 
 ; USB protocol on CPort 6
 [cport-descriptor 6]
-bundle = 1
+bundle = 6
 protocol = 0x06
+
+[bundle-descriptor 6]
+class = 6
 
 ; SDIO protocol on CPort 7
 [cport-descriptor 7]
-bundle = 1
+bundle = 7
 protocol = 0x07
+
+[bundle-descriptor 7]
+class = 7
 
 ; BATTERY protocol on CPort 8
 [cport-descriptor 8]
-bundle = 1
+bundle = 8
 protocol = 0x08
+
+[bundle-descriptor 8]
+class = 8
 
 ; PWM protocol on CPort 9
 [cport-descriptor 9]
-bundle = 1
+bundle = 9
 protocol = 0x09
+
+[bundle-descriptor 9]
+class = 9
 
 ; SPI protocol on CPort 10
 [cport-descriptor 10]
-bundle = 1
+bundle = 11
 protocol = 0x0b
+
+[bundle-descriptor 11]
+class = 11
 
 ; DISPLAY (0x0c) automatically set up by SVC to use CPort 16
 
@@ -103,20 +127,24 @@ protocol = 0x0b
 
 ; VIBRATOR protocol on CPort 11
 [cport-descriptor 11]
-bundle = 1
+bundle = 16
 protocol = 0x10
+
+[bundle-descriptor 16]
+class = 16
 
 ; LOOPBACK protocol on CPort 12
 [cport-descriptor 12]
-bundle = 1
+bundle = 17
 protocol = 0x11
+
+[bundle-descriptor 17]
+class = 17
 
 ; HID protocol on CPort 13
 [cport-descriptor 13]
-bundle = 1
+bundle = 5
 protocol = 0x05
 
-; Bundle 1
-; It is unclear what the 'class' field should be set to
-[bundle-descriptor 1]
-class = 1
+[bundle-descriptor 5]
+class = 5
