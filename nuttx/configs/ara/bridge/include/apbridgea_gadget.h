@@ -35,7 +35,6 @@ struct apbridge_dev_s;
 
 struct apbridge_usb_driver
 {
-  int (*usb_to_svc)(struct apbridge_dev_s *dev, void *payload, size_t size);
   int (*usb_to_unipro)(struct apbridge_dev_s *dev, void *payload, size_t size);
   int (*init)(struct apbridge_dev_s *dev);
 };

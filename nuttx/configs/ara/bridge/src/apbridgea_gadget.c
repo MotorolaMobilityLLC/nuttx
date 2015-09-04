@@ -153,7 +153,6 @@
 
 /* Vender specific control requests *******************************************/
 
-#define APBRIDGE_RWREQUEST_SVC          (0x01)
 #define APBRIDGE_RWREQUEST_LOG          (0x02)
 #define APBRIDGE_RWREQUEST_EP_MAPPING   (0x03)
 #define APBRIDGE_ROREQUEST_CPORT_COUNT  (0x04)
@@ -233,7 +232,6 @@ struct cport_to_ep {
 
 enum ctrlreq_state {
     USB_REQ,
-    GREYBUS_SVC_REQ,
     GREYBUS_LOG,
     GREYBUS_EP_MAPPING,
 };
@@ -803,11 +801,9 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
                                    struct usbdev_req_s *req)
 {
     struct apbridge_dev_s *priv;
-    struct apbridge_usb_driver *drv;
     int *req_priv;
 
     priv = (struct apbridge_dev_s *) ep->priv;
-    drv = priv->driver;
 
     if (req->result || req->xfrd != req->len) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_REQRESULT),
@@ -816,8 +812,6 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
 
     req_priv = (int *)request_get_priv(req);
     if (req_priv) {
-        if (*req_priv == GREYBUS_SVC_REQ)
-            drv->usb_to_svc(NULL, req->buf, req->len);
         if (*req_priv == GREYBUS_EP_MAPPING)
             map_cport_to_ep(priv, (struct cport_to_ep *)req->buf);
         kmm_free(req_priv);
@@ -1376,15 +1370,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
         {
             if ((ctrl->type & USB_REQ_RECIPIENT_MASK) ==
                 USB_REQ_RECIPIENT_INTERFACE) {
-                if (ctrl->req == APBRIDGE_RWREQUEST_SVC) {
-                    if ((ctrl->type & USB_DIR_IN) != 0) {
-                        *(uint32_t *) req->buf = 0xdeadbeef;
-                        ret = 4;
-                    } else {
-                        *req_priv = GREYBUS_SVC_REQ;
-                        ret = len;
-                    }
-                } else if (ctrl->req == APBRIDGE_RWREQUEST_LOG) {
+                if (ctrl->req == APBRIDGE_RWREQUEST_LOG) {
                     if ((ctrl->type & USB_DIR_IN) == 0) {
                     } else {
 #if defined(CONFIG_APB_USB_LOG)
