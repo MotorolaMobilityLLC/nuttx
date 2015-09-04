@@ -227,7 +227,7 @@ static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
             intf_id);
             return rc;
         }
-    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && retries-- > 0);
+    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && --retries > 0);
 
     if (!retries) {
         return -ETIMEDOUT;
@@ -241,7 +241,7 @@ static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
             dbg_error("Failed to poll mailbox on interface %u\n", intf_id);
             return rc;
         }
-    } while (val != TSB_MAIL_RESET && retries-- > 0);
+    } while (val != TSB_MAIL_RESET && --retries > 0);
 
     if (!retries) {
         return -ETIMEDOUT;
