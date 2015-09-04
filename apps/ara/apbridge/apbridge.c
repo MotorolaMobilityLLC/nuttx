@@ -62,22 +62,13 @@ static int release_buffer(int status, const void *buf, void *priv)
     return usb_release_buffer(priv, buf);
 }
 
-static int usb_to_unipro(struct apbridge_dev_s *dev, void *buf, size_t len)
+static int usb_to_unipro(struct apbridge_dev_s *dev, unsigned cportid,
+                         void *buf, size_t len)
 {
-    struct gb_operation_hdr *hdr = buf;
-    unsigned int cportid;
-
     gb_dump(buf, len);
 
-    if (len < sizeof(*hdr))
+    if (len < sizeof(struct gb_operation_hdr))
         return -EPROTO;
-
-    /*
-     * Retreive and clear the cport id stored in the header pad bytes.
-     */
-    cportid = hdr->pad[1] << 8 | hdr->pad[0];
-    hdr->pad[0] = 0;
-    hdr->pad[1] = 0;
 
     return apbridge_backend.usb_to_unipro(cportid, buf, len,
                                           release_buffer, dev);
@@ -85,8 +76,6 @@ static int usb_to_unipro(struct apbridge_dev_s *dev, void *buf, size_t len)
 
 int recv_from_unipro(unsigned int cportid, void *buf, size_t len)
 {
-    struct gb_operation_hdr *hdr = (void *)buf;
-
     /*
      * FIXME: Remove when UniPro driver provides the actual buffer length.
      */
@@ -94,13 +83,10 @@ int recv_from_unipro(unsigned int cportid, void *buf, size_t len)
 
     gb_dump(buf, len);
 
-    /* Store the cport id in the header pad bytes (if we have a header). */
-    if (len >= sizeof(*hdr)) {
-        hdr->pad[0] = cportid & 0xff;
-        hdr->pad[1] = (cportid >> 8) & 0xff;
-    }
+    if (len < sizeof(struct gb_operation_hdr))
+        return -EPROTO;
 
-    return unipro_to_usb(g_usbdev, buf, len);
+    return unipro_to_usb(g_usbdev, cportid, buf, len);
 }
 
 static void *apbridge_wait_and_init(void *p_data)

@@ -457,18 +457,21 @@ static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
  * @return 0 in success or -EINVAL if len is too big
  */
 
-int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
-                  size_t len)
+int unipro_to_usb(struct apbridge_dev_s *priv, unsigned int cportid,
+                  const void *payload, size_t len)
 {
     uint8_t epno;
-    unsigned int cportid;
     struct usbdev_ep_s *ep;
     struct usbdev_req_s *req;
+    struct gb_operation_hdr *hdr = (void *)payload;
 
     if (len > APBRIDGE_REQ_SIZE)
         return -EINVAL;
 
-    cportid = get_cportid(payload);
+    /* Store the cport id in the header pad bytes. */
+    hdr->pad[0] = cportid & 0xff;
+    hdr->pad[1] = (cportid >> 8) & 0xff;
+
     epno = priv->cport_to_epin_n[cportid];
     ep = priv->ep[epno & USB_EPNO_MASK];
     req = get_request(ep, usbclass_wrcomplete, APBRIDGE_REQ_SIZE, NULL);
@@ -849,15 +852,22 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
     case OK:                    /* Normal completion */
         usbtrace(TRACE_CLASSRDCOMPLETE, 0);
         ep_n = BULKEP_TO_N(ep);
+        hdr = (struct gb_operation_hdr *)req->buf;
         /* Legacy ep: copy from payload cportid */
         if (ep_n != 0) {
-            hdr = (struct gb_operation_hdr *)req->buf;
             cportid = priv->epout_to_cport_n[ep_n];
             hdr->pad[0] = cportid & 0xff;
             hdr->pad[1] = (cportid >> 8) & 0xff;
         }
 
-        drv->usb_to_unipro(priv, req->buf , req->xfrd);
+        /*
+         * Retreive and clear the cport id stored in the header pad bytes.
+         */
+        cportid = hdr->pad[1] << 8 | hdr->pad[0];
+        hdr->pad[0] = 0;
+        hdr->pad[1] = 0;
+
+        drv->usb_to_unipro(priv, cportid, req->buf , req->xfrd);
         break;
 
     case -ESHUTDOWN:           /* Disconnection */

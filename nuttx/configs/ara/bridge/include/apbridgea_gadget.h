@@ -35,11 +35,13 @@ struct apbridge_dev_s;
 
 struct apbridge_usb_driver
 {
-  int (*usb_to_unipro)(struct apbridge_dev_s *dev, void *payload, size_t size);
+  int (*usb_to_unipro)(struct apbridge_dev_s *dev, unsigned int cportid,
+                       void *payload, size_t size);
   int (*init)(struct apbridge_dev_s *dev);
 };
 
-int unipro_to_usb(struct apbridge_dev_s *dev, const void *payload, size_t size);
+int unipro_to_usb(struct apbridge_dev_s *dev, unsigned cportid,
+                  const void *payload, size_t size);
 
 void usb_wait(struct apbridge_dev_s *dev);
 int usbdev_apbinitialize(struct device *dev,
