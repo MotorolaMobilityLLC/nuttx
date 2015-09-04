@@ -38,6 +38,7 @@
 #elif defined(CONFIG_GB_LOG_DUMP)
 #define GB_LOG_LEVEL (GB_LOG_ERROR | GB_LOG_WARNING | GB_LOG_DEBUG | \
                       GB_LOG_DUMP)
+#define GB_DUMP_LINE_LENGTH 16
 #else
 #define GB_LOG_LEVEL (GB_LOG_INFO)
 #endif
@@ -58,13 +59,22 @@ void _gb_log(const char *fmt, ...)
 
 void _gb_dump(const char *func, __u8 *buf, size_t size)
 {
-    int i;
+    int i, count;
     irqstate_t flags;
 
     flags = irqsave();
     lowsyslog("%s:\n", func);
+    count = 0;
     for (i = 0; i < size; i++) {
         lowsyslog( "%02x ", buf[i]);
+        /**
+         * Add line-breaks every so often to divide the dump into readable rows
+         * of bytes.
+         */
+        if (++count == GB_DUMP_LINE_LENGTH) {
+            lowsyslog("\n");
+            count = 0;
+        }
     }
     lowsyslog("\n");
     irqrestore(flags);
