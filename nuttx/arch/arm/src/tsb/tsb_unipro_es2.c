@@ -1217,7 +1217,7 @@ int tsb_unipro_mbox_set(uint32_t val, int peer) {
             lldbg("%s(): TSB_INTERRUPTSTATUS poll failed: %d\n", __func__, rc);
             return rc;
         }
-    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && retries-- > 0);
+    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && --retries > 0);
 
     if (!retries) {
         return -ETIMEDOUT;
@@ -1231,7 +1231,7 @@ int tsb_unipro_mbox_set(uint32_t val, int peer) {
             lldbg("%s(): TSB_MAILBOX poll failed: %d\n", __func__, rc);
             return rc;
         }
-    } while (val != TSB_MAIL_RESET && retries-- > 0);
+    } while (val != TSB_MAIL_RESET && --retries > 0);
 
     if (!retries) {
         return -ETIMEDOUT;
