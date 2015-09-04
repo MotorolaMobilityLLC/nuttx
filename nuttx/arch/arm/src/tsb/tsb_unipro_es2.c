@@ -1108,7 +1108,7 @@ static int unipro_send_sync(unsigned int cportid,
     tx_arg.unipro_tx_arg.eom_addr = (count == len) ? CPORT_EOM_BIT(cport) : NULL;
 
     if (dma_channel == DEVICE_DMA_INVALID_CHANNEL) {
-        memcpy(tx_buf, buf, len);
+        memcpy(tx_buf, buf, count);
     } else {
         ret = device_dma_transfer(dma_dev, dma_channel, (void *)buf, tx_buf, count, &tx_arg);
         if (ret) {
@@ -1117,7 +1117,7 @@ static int unipro_send_sync(unsigned int cportid,
         }
     }
 #else
-    memcpy(tx_buf, buf, len);
+    memcpy(tx_buf, buf, count);
 #endif
 
     return (int) count;
