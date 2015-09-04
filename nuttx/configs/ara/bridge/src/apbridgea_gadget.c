@@ -449,21 +449,6 @@ static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
     return 0;
 }
 
-static int _to_usb(struct apbridge_dev_s *priv, uint8_t epno,
-                   const void *payload, size_t len)
-{
-    struct usbdev_ep_s *ep;
-    struct usbdev_req_s *req;
-
-    ep = priv->ep[epno & USB_EPNO_MASK];
-    req = get_request(ep, usbclass_wrcomplete, APBRIDGE_REQ_SIZE, NULL);
-    if (!req) {
-        return apbridge_queue(priv, ep, payload, len);
-    }
-
-    return _to_usb_submit(ep, req, payload, len);
-}
-
 /**
  * @brief Send incoming data from unipro to AP module
  * priv usb device.
@@ -477,14 +462,21 @@ int unipro_to_usb(struct apbridge_dev_s *priv, const void *payload,
 {
     uint8_t epno;
     unsigned int cportid;
+    struct usbdev_ep_s *ep;
+    struct usbdev_req_s *req;
 
     if (len > APBRIDGE_REQ_SIZE)
         return -EINVAL;
 
     cportid = get_cportid(payload);
     epno = priv->cport_to_epin_n[cportid];
+    ep = priv->ep[epno & USB_EPNO_MASK];
+    req = get_request(ep, usbclass_wrcomplete, APBRIDGE_REQ_SIZE, NULL);
+    if (!req) {
+        return apbridge_queue(priv, ep, payload, len);
+    }
 
-    return _to_usb(priv, epno, payload, len);
+    return _to_usb_submit(ep, req, payload, len);
 }
 
 int usb_release_buffer(struct apbridge_dev_s *priv, const void *buf)
