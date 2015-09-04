@@ -123,7 +123,7 @@ static inline void rcc_enableahb1(void)
 {
   uint32_t regval;
 
-  /* Set the appropriate bits in the AHB1ENR register to enabled the
+  /* Set the appropriate bits in the AHB1ENR register to enable the
    * selected AHB1 peripherals.
    */
 
@@ -161,7 +161,7 @@ static inline void rcc_enableahb2(void)
 {
   uint32_t regval;
 
-  /* Set the appropriate bits in the AHB2ENR register to enabled the
+  /* Set the appropriate bits in the AHB2ENR register to enable the
    * selected AHB2 peripherals.
    */
 
@@ -198,7 +198,12 @@ static inline void rcc_enableahb2(void)
   regval |= RCC_AHB2ENR_OTGFSEN;
 #endif
 
-  /* TODO: Add ADCEN & AESEN */
+#if defined(CONFIG_STM32_ADC1) || defined(CONFIG_STM32_ADC2) || defined(CONFIG_STM32_ADC3)
+  /* ADC clock enable */
+  regval |= RCC_AHB2ENR_ADCEN;
+#endif
+
+  /* TODO: Add AESEN */
 
 #ifdef CONFIG_STM32_RNG
   /* Random number generator clock enable */
@@ -233,7 +238,7 @@ static inline void rcc_enableapb1_1(void)
 {
   uint32_t regval;
 
-  /* Set the appropriate bits in the APB1ENR1 register to enabled the
+  /* Set the appropriate bits in the APB1ENR1 register to enable the
    * selected APB1 peripherals.
    */
 
@@ -353,7 +358,7 @@ static inline void rcc_enableapb1_2(void)
 {
   uint32_t regval;
 
-  /* Set the appropriate bits in the APB1ENR2 register to enabled the
+  /* Set the appropriate bits in the APB1ENR2 register to enable the
    * selected APB1 peripherals.
    */
 
@@ -376,7 +381,7 @@ static inline void rcc_enableapb2(void)
 {
   uint32_t regval;
 
-  /* Set the appropriate bits in the APB2ENR register to enabled the
+  /* Set the appropriate bits in the APB2ENR register to enable the
    * selected APB2 peripherals.
    */
 
@@ -412,6 +417,37 @@ static inline void rcc_enableapb2(void)
   /* TODO Add TIM15EN, TIM16EN, TIM17EN, SAI1EN, SAI2EN, and DFSDMEN */
 
   putreg32(regval, STM32_RCC_APB2ENR);   /* Enable peripherals */
+}
+
+/****************************************************************************
+ * Name: rcc_enableccip
+ *
+ * Description:
+ *   Set peripherals independent clock configuration.
+ *
+ ****************************************************************************/
+
+static inline void rcc_enableccip(void)
+{
+  uint32_t regval;
+
+  /* Certain peripherals have no clock selected even when their enable bit is
+   * set above. Set some defaults in the CCIPR register so those peripherals
+   * will at least have a clock.
+   */
+
+   regval = getreg32(STM32_RCC_CCIPR);
+
+#if defined(CONFIG_STM32_OTGFS) || defined(CONFIG_STM32_RNG)
+  /* TODO: What is a good default 48 MHz clock source? */
+#endif
+
+#if defined(CONFIG_STM32_ADC1) || defined(CONFIG_STM32_ADC2) || defined(CONFIG_STM32_ADC3)
+  /* Select SYSCLK as ADC clock source */
+  regval |= RCC_CCIPR_ADCSEL_SYSCLK;
+#endif
+
+   putreg32(regval, STM32_RCC_CCIPR);
 }
 
 /****************************************************************************
@@ -600,6 +636,7 @@ static inline void rcc_enableperipherals(void)
   rcc_enableapb1_1();
   rcc_enableapb1_2();
   rcc_enableapb2();
+  rcc_enableccip();
 }
 
 /****************************************************************************
