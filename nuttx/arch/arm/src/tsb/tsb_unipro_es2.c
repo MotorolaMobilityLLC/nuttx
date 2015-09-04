@@ -901,12 +901,13 @@ int tsb_unipro_mbox_set(uint32_t val, int peer) {
 #define ES2_INIT_STATUS(x) (x >> 24)
 
 int tsb_unipro_set_init_status(uint32_t val) {
-    int rc, unipro_rc = 0;
+    int rc;
+    uint32_t unipro_rc = 0;
 
     rc = unipro_attr_local_write(T_TSTSRCINCREMENT, ES2_INIT_STATUS(val),
                                  UNIPRO_SELINDEX_NULL, &unipro_rc);
     if (rc || unipro_rc) {
-        lldbg("init-status write failed: rc=%d, unipro_rc=%d\n", rc, unipro_rc);
+        lldbg("init-status write failed: rc=%d, unipro_rc=%u\n", rc, unipro_rc);
         return rc || unipro_rc;
     }
 
