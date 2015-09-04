@@ -40,6 +40,7 @@ extern struct device_driver tsb_i2s_driver;
 extern struct device_driver tsb_pwm_driver;
 extern struct device_driver tsb_spi_driver;
 extern struct device_driver tsb_uart_driver;
+extern struct device_driver tsb_sdio_driver;
 
 void tsb_driver_register(void)
 {
@@ -73,5 +74,9 @@ void tsb_driver_register(void)
 
 #ifdef CONFIG_ARCH_CHIP_DEVICE_UART
     device_register_driver(&tsb_uart_driver);
+#endif
+
+#ifdef CONFIG_ARCH_CHIP_DEVICE_SDIO
+    device_register_driver(&tsb_sdio_driver);
 #endif
 }

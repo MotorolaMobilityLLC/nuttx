@@ -36,6 +36,7 @@
 #include <nuttx/device_pwm.h>
 #include <nuttx/device_spi.h>
 #include <nuttx/device_uart.h>
+#include <nuttx/device_sdio.h>
 #include <nuttx/usb.h>
 #include <nuttx/usb_device.h>
 #ifdef CONFIG_ARCH_CHIP_DEVICE_GDMAC
@@ -171,6 +172,23 @@ static struct device_resource tsb_uart_resources[] = {
 };
 #endif
 
+#ifdef CONFIG_ARCH_CHIP_DEVICE_SDIO
+static struct device_resource tsb_sdio_resources[] = {
+    {
+        .name   = "sdio_reg_base",
+        .type   = DEVICE_RESOURCE_TYPE_REGS,
+        .start  = UHSSD_BASE,
+        .count  = UHSSD_SIZE,
+    },
+    {
+        .name   = "irq_sdio",
+        .type   = DEVICE_RESOURCE_TYPE_IRQ,
+        .start  = TSB_IRQ_UHS,
+        .count  = 1,
+    },
+};
+#endif
+
 static struct device tsb_devices[] = {
 #ifdef CONFIG_ARCH_CHIP_DEVICE_PLL
     {
@@ -248,6 +266,17 @@ static struct device tsb_devices[] = {
         .name           = "tsb_dma",
         .desc           = "TSB DMA Controller",
         .id             = 0,
+    },
+#endif
+
+#ifdef CONFIG_ARCH_CHIP_DEVICE_SDIO
+    {
+        .type           = DEVICE_TYPE_SDIO_HW,
+        .name           = "tsb_sdio",
+        .desc           = "TSB SDIO Controller",
+        .id             = 0,
+        .resources      = tsb_sdio_resources,
+        .resource_count = ARRAY_SIZE(tsb_sdio_resources),
     },
 #endif
 };

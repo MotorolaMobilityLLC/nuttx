@@ -206,6 +206,14 @@ config ARCH_CHIP_DEVICE_SPI
 	---help---
 		TSB SPI Master Driver
 
+config ARCH_CHIP_DEVICE_SDIO
+	bool "SDIO Support"
+	depends on ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
+	default n
+	---help---
+		TSB SDIO Driver
+
 choice
 	prompt "Drive Strength for the TRACE Signals"
 	default TSB_TRACE_DRIVESTRENGTH_MAX

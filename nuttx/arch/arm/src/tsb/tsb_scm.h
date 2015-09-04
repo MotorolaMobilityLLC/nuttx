@@ -138,6 +138,7 @@
 #define TSB_PIN_GPIO15          BIT(7)
 
 #if defined(CONFIG_TSB_CHIP_REV_ES2)
+#define TSB_PIN_SDIO            BIT(2)
 #define TSB_PIN_GPIO16          BIT(10)
 #define TSB_PIN_GPIO18          BIT(11)
 #define TSB_PIN_GPIO19          BIT(12)
