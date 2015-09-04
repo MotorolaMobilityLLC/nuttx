@@ -230,6 +230,8 @@ static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
     } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && --retries > 0);
 
     if (!retries) {
+        dbg_error("Timeout while getting TSB_INTERRUPTSTATUS: if=%u, cp=%u\n",
+                  intf_id, cport);
         return -ETIMEDOUT;
     } else {
         retries = 2048;
@@ -244,6 +246,8 @@ static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
     } while (val != TSB_MAIL_RESET && --retries > 0);
 
     if (!retries) {
+        dbg_error("Timeout while getting TSB_MAILBOX: if=%u, cp=%u\n",
+                  intf_id, cport);
         return -ETIMEDOUT;
     }
 
