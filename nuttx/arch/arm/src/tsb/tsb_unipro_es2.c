@@ -37,28 +37,19 @@
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-#include <nuttx/device_dma.h>
-#endif
 #include <arch/tsb/irq.h>
 #include <errno.h>
 
 #include "debug.h"
 #include "up_arch.h"
 #include "tsb_scm.h"
+#include "tsb_unipro.h"
 #include "tsb_unipro_es2.h"
 #include "tsb_es2_mphy_fixups.h"
 
 // See ENG-436
 #define MBOX_RACE_HACK_DELAY    100000
 
-#ifdef UNIPRO_DEBUG
-#define DBG_UNIPRO(fmt, ...) lldbg(fmt, __VA_ARGS__)
-#else
-#define DBG_UNIPRO(fmt, ...) ((void)0)
-#endif
-
-#define TRANSFER_MODE          (2)
 #define TRANSFER_MODE_2_CTRL_0 (0xAAAAAAAA) // Transfer mode 2 for CPorts 0-15
 /*
  * CPorts 16-43 are present on the AP Bridge only.  CPorts 16 and 17 are
@@ -68,50 +59,14 @@
 #define TRANSFER_MODE_2_CTRL_1 (0xAAAAAAA5) // Transfer mode 2 for CPorts 18-31
 #define TRANSFER_MODE_2_CTRL_2 (0x00AAAAAA) // Transfer mode 2 for CPorts 32-43
 
-struct cport {
-    struct unipro_driver *driver;
-    uint8_t *tx_buf;                // TX region for this CPort
-    uint8_t *rx_buf;                // RX region for this CPort
-    unsigned int cportid;
-    int connected;
-
-    struct list_head tx_fifo;
-};
-
-struct worker {
-    pthread_t thread;
-    sem_t tx_fifo_lock;
-};
-
-static struct worker worker;
-
-struct unipro_buffer {
-    struct list_head list;
-    unipro_send_completion_t callback;
-    void *priv;
-    bool som;
-    int byte_sent;
-    int len;
-    const void *data;
-};
-
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-typedef struct {
-    device_dma_unipro_tx_arg tx_arg;
-    unsigned int cportid;
-    size_t      data_len_remain_to_tx;
-} unipro_dma_transfer_arg;
-#endif
-
 #define CPORT_RX_BUF_BASE         (0x20000000U)
 #define CPORT_RX_BUF_SIZE         (CPORT_BUF_SIZE)
 #define CPORT_RX_BUF(cport)       (void*)(CPORT_RX_BUF_BASE + \
                                       (CPORT_RX_BUF_SIZE * cport))
+
 #define CPORT_TX_BUF_BASE         (0x50000000U)
-#define CPORT_TX_BUF_SIZE         (0x20000U)
 #define CPORT_TX_BUF(cport)       (uint8_t*)(CPORT_TX_BUF_BASE + \
                                       (CPORT_TX_BUF_SIZE * cport))
-#define CPORT_EOM_BIT(cport)      (cport->tx_buf + (CPORT_TX_BUF_SIZE - 1))
 
 #define CPORTID_CDSI0    (16)
 #define CPORTID_CDSI1    (17)
@@ -120,11 +75,6 @@ typedef struct {
 #define CPB_TX_BUFFER_SPACE_OFFSET_MASK CPB_TX_BUFFER_SPACE_MASK
 
 static struct cport *cporttable;
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-static struct device *dma_dev;
-static unsigned int dma_channel = DEVICE_DMA_INVALID_CHANNEL;
-static sem_t tx_sem;
-#endif
 
 #define APBRIDGE_CPORT_MAX 44 // number of CPorts available on the APBridges
 #define GPBRIDGE_CPORT_MAX 16 // number of CPorts available on the GPBridges
@@ -139,7 +89,7 @@ unsigned int unipro_cport_count(void) {
             APBRIDGE_CPORT_MAX : GPBRIDGE_CPORT_MAX);
 }
 
-static inline struct cport *cport_handle(unsigned int cportid) {
+struct cport *cport_handle(unsigned int cportid) {
     if (cportid >= unipro_cport_count() || cportid == CPORTID_CDSI0 ||
         cportid == CPORTID_CDSI1) {
         return NULL;
@@ -156,10 +106,6 @@ static uint32_t cport_get_status(struct cport*);
 static inline void clear_rx_interrupt(struct cport*);
 static inline void enable_rx_interrupt(struct cport*);
 static void configure_transfer_mode(int);
-static uint16_t unipro_get_tx_free_buffer_space(struct cport *cport);
-static inline void unipro_set_eom_flag(struct cport *cport);
-static int unipro_send_sync(unsigned int cportid,
-                            const void *buf, size_t len, bool som);
 static void dump_regs(void);
 
 /* irq handlers */
@@ -577,7 +523,7 @@ static void configure_transfer_mode(int mode) {
  * @return          free space in Unipro TX FIFO (in bytes)
  * @param[in]       cport: CPort handle
  */
-static uint16_t unipro_get_tx_free_buffer_space(struct cport *cport)
+uint16_t unipro_get_tx_free_buffer_space(struct cport *cport)
 {
     unsigned int cportid = cport->cportid;
     uint32_t tx_space;
@@ -588,15 +534,6 @@ static uint16_t unipro_get_tx_free_buffer_space(struct cport *cport)
                      CPB_TX_BUFFER_SPACE_OFFSET_MASK);
 
     return tx_space;
-}
-
-/**
- * @brief           Set EOM (End Of Message) flag
- * @param[in]       cport: CPort handle
- */
-static inline void unipro_set_eom_flag(struct cport *cport)
-{
-    putreg8(1, CPORT_EOM_BIT(cport));
 }
 
 /**
@@ -767,202 +704,6 @@ int unipro_init_cport(unsigned int cportid)
     return 0;
 }
 
-static void unipro_dequeue_tx_buffer(struct unipro_buffer *buffer, int status)
-{
-    irqstate_t flags;
-
-    DEBUGASSERT(buffer);
-
-    flags = irqsave();
-    list_del(&buffer->list);
-    irqrestore(flags);
-
-    if (buffer->callback) {
-        buffer->callback(status, buffer->data, buffer->priv);
-    }
-
-    free(buffer);
-}
-
-/**
- * @brief           send data over given UniPro CPort
- * @return          0 on success, -EINVAL on invalid parameter,
- *                  -EBUSY when buffer could not be completely transferred
- *                  (unipro_send_tx_buffer() shall be called again until
- *                  buffer is entirely sent (return value == 0)).
- * @param[in]       operation: greybus loopback operation
- */
-static int unipro_send_tx_buffer(struct cport *cport)
-{
-    irqstate_t flags;
-    struct unipro_buffer *buffer;
-    int retval;
-
-    if (!cport) {
-        return -EINVAL;
-    }
-
-    flags = irqsave();
-
-    if (list_is_empty(&cport->tx_fifo)) {
-        irqrestore(flags);
-        return 0;
-    }
-
-    buffer = list_entry(cport->tx_fifo.next, struct unipro_buffer, list);
-
-    irqrestore(flags);
-
-    retval = unipro_send_sync(cport->cportid,
-                              buffer->data + buffer->byte_sent,
-                              buffer->len - buffer->byte_sent, buffer->som);
-    if (retval < 0) {
-        unipro_dequeue_tx_buffer(buffer, retval);
-        lldbg("unipro_send_sync failed. Dropping message...\n");
-        return -EINVAL;
-    }
-
-    buffer->som = false;
-    buffer->byte_sent += retval;
-
-    if (buffer->byte_sent >= buffer->len) {
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-        if (dma_channel == DEVICE_DMA_INVALID_CHANNEL) {
-            unipro_set_eom_flag(cport);
-        }
-#else
-        unipro_set_eom_flag(cport);
-#endif
-        unipro_dequeue_tx_buffer(buffer, 0);
-        return 0;
-    }
-
-    return -EBUSY;
-}
-
-/**
- * @brief           Send data buffer(s) on CPort whenever ready.
- *                  Ensure that TX queues are reinspected until
- *                  all CPorts have no work available.
- *                  Then suspend again until new data is available.
- */
-static void *unipro_tx_worker(void *data)
-{
-    int i;
-    bool is_busy;
-    int retval;
-
-    while (1) {
-        /* Block until a buffer is pending on any CPort */
-        sem_wait(&worker.tx_fifo_lock);
-
-        do {
-            is_busy = false;
-
-            for (i = 0; i < unipro_cport_count(); i++) {
-                /* Browse all CPorts sending any pending buffers */
-                retval = unipro_send_tx_buffer(cport_handle(i));
-                if (retval == -EBUSY) {
-                    /*
-                     * Buffer only partially sent, have to try again for
-                     * remaining part.
-                     */
-                    is_busy = true;
-                }
-            }
-        } while (is_busy); /* exit when CPort(s) current pending buffer sent */
-    }
-
-    return NULL;
-}
-
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-/* This callback runs in DMA interrupt context, so don't spent too much time
- *  in this function before returning to the caller(DMA driver).
- */
-static enum device_dma_cmd unipro_dma_callback(unsigned int chan,
-        enum device_dma_event event, device_dma_transfer_arg *arg)
-{
-    enum device_dma_cmd cmd = DEVICE_DMA_CMD_STOP;
-    unipro_dma_transfer_arg *dma_transfer_arg =
-            (unipro_dma_transfer_arg *)arg;
-    unsigned int data_len =
-            dma_transfer_arg->data_len_remain_to_tx -
-            dma_transfer_arg->tx_arg.next_transfer_len;
-    struct cport *cport;
-    unsigned int len = 0;
-
-    switch (event) {
-    case DEVICE_DMA_EVENT_BLOCKED:
-        /* last DMA transfer request is done and dmac is waiting to continue
-         * transfer more data
-         */
-        cmd = DEVICE_DMA_CMD_STOP;
-
-        if (dma_transfer_arg->tx_arg.eom_addr != NULL) {
-            lldbg("ERROR: DMA is blocked after EOM.\n");
-            break;
-        }
-
-        cport = cport_handle(dma_transfer_arg->cportid);
-        if (!cport) {
-            break;
-        }
-
-        if (!cport->connected) {
-            lldbg("CP%d unconnected\n", cport->cportid);
-            break;
-        }
-
-        if (data_len > 0)
-        {
-            len = unipro_get_tx_free_buffer_space(cport);
-
-            if (len > data_len) {
-                len = data_len;
-            }
-
-            dma_transfer_arg->tx_arg.next_transfer_len = len;
-            if (len > 0) {
-                dma_transfer_arg->tx_arg.eom_addr =
-                        (len == data_len) ? CPORT_EOM_BIT(cport) : NULL;
-                cmd = DEVICE_DMA_CMD_CONTINUE;
-            } else {
-                dma_transfer_arg->tx_arg.eom_addr = NULL;
-                cmd = DEVICE_DMA_CMD_STOP;
-            }
-        } else {
-            dma_transfer_arg->tx_arg.eom_addr = CPORT_EOM_BIT(cport);
-            cmd = DEVICE_DMA_CMD_CONTINUE;
-        }
-
-        dma_transfer_arg->data_len_remain_to_tx = data_len;
-        dma_transfer_arg->tx_arg.next_transfer_len = len;
-
-        break;
-    case DEVICE_DMA_EVENT_COMPLETED:
-        /* last DMA transfer is done and dmac is in stopped state. */
-        if ((dma_transfer_arg->data_len_remain_to_tx != 0) &&
-            (dma_transfer_arg->tx_arg.eom_addr == NULL)) {
-            lldbg("ERROR: DMA completed with %d byte(s) of data remain and EOM not set.\n", len);
-        }
-
-        dma_transfer_arg->data_len_remain_to_tx = data_len;
-        dma_transfer_arg->tx_arg.next_transfer_len = 0;
-
-        cmd = DEVICE_DMA_CMD_STOP;
-
-        sem_post(&tx_sem);
-        break;
-    default:
-        lldbg("ERROR: Invalid callback event %d.\n", event);
-        break;
-    }
-
-    return cmd;
-}
-#endif
-
 /**
  * @brief Initialize the UniPro core
  */
@@ -971,37 +712,16 @@ void unipro_init(void)
     unsigned int i;
     int retval;
     struct cport *cport;
-    size_t table_size = sizeof(struct cport) * unipro_cport_count();
 
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-    dma_dev = device_open(DEVICE_TYPE_DMA_HW, 0);
-    if (!dma_dev) {
-        lldbg("Failed to open DMA driver.\n");
-    } else {
-        device_dma_allocate_channel(dma_dev,
-                DEVICE_DMA_UNIPRO_TX_CHANNEL, &dma_channel);
-
-        if (dma_channel != DEVICE_DMA_INVALID_CHANNEL) {
-            sem_init (&tx_sem, 0, 0);
-            /* Register a callback function to make the DMA channel to
-             * operate in async mode.
-             */
-            device_dma_register_callback(dma_dev, dma_channel,
-                    unipro_dma_callback);
-        }
-    }
-#endif
-
-    sem_init(&worker.tx_fifo_lock, 0, 0);
-
-    retval = pthread_create(&worker.thread, NULL, unipro_tx_worker, NULL);
-    if (retval) {
-        lldbg("Failed to create worker thread: %s.\n", strerror(errno));
+    cporttable = zalloc(sizeof(struct cport) * unipro_cport_count());
+    if (!cporttable) {
         return;
     }
 
-    cporttable = zalloc(table_size);
-    if (!cporttable) {
+    retval = unipro_tx_init();
+    if (retval) {
+        free(cporttable);
+        cporttable = NULL;
         return;
     }
 
@@ -1059,189 +779,6 @@ void unipro_init(void)
     unipro_info();
 #endif
     lldbg("UniPro enabled\n");
-}
-
-/**
- * @brief           send data over UniPro asynchronously (not blocking)
- * @return          0 on success, <0 otherwise
- * @param[in]       cportid: target CPort ID
- * @param[in]       buf: data buffer
- * @param[in]       len: data buffer length (in bytes)
- * @param[in]       callback: function called upon Tx completion
- * @param[in]       priv: optional argument passed to callback
- */
-int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
-                      unipro_send_completion_t callback, void *priv)
-{
-    struct cport *cport;
-    struct unipro_buffer *buffer;
-    irqstate_t flags;
-
-    if (len > CPORT_BUF_SIZE) {
-        return -EINVAL;
-    }
-
-    cport = cport_handle(cportid);
-    if (!cport) {
-        return -EINVAL;
-    }
-
-    if (!cport->connected) {
-        lldbg("CP%u unconnected\n", cport->cportid);
-        return -EPIPE;
-    }
-
-    DEBUGASSERT(TRANSFER_MODE == 2);
-
-    buffer = zalloc(sizeof(*buffer));
-    if (!buffer) {
-        return -ENOMEM;
-    }
-    list_init(&buffer->list);
-    buffer->som = true;
-    buffer->len = len;
-    buffer->callback = callback;
-    buffer->priv = priv;
-    buffer->data = buf;
-
-    flags = irqsave();
-    list_add(&cport->tx_fifo, &buffer->list);
-    irqrestore(flags);
-
-    sem_post(&worker.tx_fifo_lock);
-    return 0;
-}
-
-/**
- * @brief send data down a CPort
- * @param cportid cport to send down
- * @param buf data buffer
- * @param len size of data to send
- * @param 0 on success, <0 on error
- */
-int unipro_send(unsigned int cportid, const void *buf, size_t len)
-{
-    int ret, sent;
-    bool som;
-    struct cport *cport;
-
-    if (len > CPORT_BUF_SIZE) {
-        return -EINVAL;
-    }
-
-    cport = cport_handle(cportid);
-    if (!cport) {
-        return -EINVAL;
-    }
-
-    for (som = true, sent = 0; sent < len;) {
-        ret = unipro_send_sync(cportid, buf + sent, len - sent, som);
-        if (ret < 0) {
-            return ret;
-        } else if (ret == 0) {
-            continue;
-        }
-        sent += ret;
-        som = false;
-    }
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-    if (dma_channel == DEVICE_DMA_INVALID_CHANNEL) {
-        unipro_set_eom_flag(cport);
-    }
-#else
-    unipro_set_eom_flag(cport);
-#endif
-
-    return 0;
-}
-
-/**
- * @brief           Send data down to a CPort
- * @return          number of bytes effectively sent (>= 0), or error code (< 0)
- * @param[in]       cportid: cport to send down
- * @param[in]       buf: data buffer
- * @param[in]       len: size of data to send
- * @param[in]       som: "start of message" flag
- */
-static int unipro_send_sync(unsigned int cportid,
-                            const void *buf, size_t len, bool som)
-{
-    struct cport *cport;
-    uint16_t count;
-    uint8_t *tx_buf;
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-    unipro_dma_transfer_arg dma_transfer_arg;
-    int ret;
-#endif
-
-    if (len > CPORT_BUF_SIZE) {
-        return -EINVAL;
-    }
-
-    cport = cport_handle(cportid);
-    if (!cport) {
-        return -EINVAL;
-    }
-
-    if (!cport->connected) {
-        lldbg("CP%d unconnected\n", cport->cportid);
-        return -EPIPE;
-    }
-
-    DEBUGASSERT(TRANSFER_MODE == 2);
-
-    /*
-     * If this is not the start of a new message,
-     * message data must be written to first address of CPort Tx Buffer + 1.
-     */
-    if (!som) {
-        tx_buf = cport->tx_buf + sizeof(uint32_t);
-    } else {
-        tx_buf = cport->tx_buf;
-    }
-
-    count = unipro_get_tx_free_buffer_space(cport);
-    if (!count) {
-        /* No free space in TX FIFO, cannot send anything. */
-        DBG_UNIPRO("No free space in CP%d Tx Buffer\n", cportid);
-        return 0;
-    } else if (count > len) {
-        count = len;
-    }
-    /* Copy message data in CPort Tx FIFO */
-    DBG_UNIPRO("Sending %u bytes to CP%d\n", count, cportid);
-#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-    if (dma_channel == DEVICE_DMA_INVALID_CHANNEL) {
-        memcpy(tx_buf, buf, count);
-    } else {
-        /* set the remaining data len after this transfer. */
-        dma_transfer_arg.data_len_remain_to_tx = len;
-        dma_transfer_arg.tx_arg.next_transfer_len = count;
-        dma_transfer_arg.cportid = cportid;
-
-        /* Should set the eom_addr as below, but I'm faking it test my code
-         * for now since none-of the unipro messages are large enough to cause
-         *  fragmentation.
-         */
-        dma_transfer_arg.tx_arg.eom_addr =
-                (count == len) ? CPORT_EOM_BIT(cport) : NULL;
-        ret = device_dma_transfer(dma_dev, dma_channel, (void *)buf,
-                tx_buf, count, (device_dma_transfer_arg*)&dma_transfer_arg);
-
-        if (ret) {
-            DBG_UNIPRO("ERROR: DMA Failed: %d\n", -ret);
-            return 0;
-        }
-
-        sem_wait(&tx_sem);
-
-        return len - dma_transfer_arg.data_len_remain_to_tx;
-    }
-#else
-    memcpy(tx_buf, buf, count);
-#endif
-
-    return (int) count;
 }
 
 /**
