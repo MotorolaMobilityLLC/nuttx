@@ -68,17 +68,17 @@ config TSB_CHIP_REV
 	default "es2" if TSB_CHIP_REV_ES2
 
 config ARCH_CHIP_DEVICE_GDMAC
-    bool "GDMAC support"
-    depends on TSB_CHIP_REV_ES2
-    select DEVICE_CORE
-    ---help---
-        TSB GDMAC Driver
+	bool "GDMAC support"
+	depends on TSB_CHIP_REV_ES2
+	select DEVICE_CORE
+	---help---
+		TSB GDMAC Driver
 
 config ARCH_UNIPROTX_USE_DMA
-    bool "Enable DMA for Unipro TX"
-    depends on ARCH_CHIP_DEVICE_GDMAC
-    ---help---
-        Enable UniPro TX to utilize DMA to move data.
+	bool "Enable DMA for Unipro TX"
+	depends on ARCH_CHIP_DEVICE_GDMAC
+	---help---
+		Enable UniPro TX to utilize DMA to move data.
 
 config ARCH_UNIPROTX_DMA_NUM_CHANNELS
 	int "Number of UniPro TX Channels"
