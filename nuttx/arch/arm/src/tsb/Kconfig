@@ -80,6 +80,11 @@ config ARCH_UNIPROTX_USE_DMA
     ---help---
         Enable UniPro TX to utilize DMA to move data.
 
+config ARCH_UNIPROTX_DMA_NUM_CHANNELS
+	int "Number of UniPro TX Channels"
+	default 1
+	depends on ARCH_UNIPROTX_USE_DMA
+
 choice
 	prompt "Toshiba PinShare1 conflict"
 	default ARCH_CHIP_PINSHARE1_NONE
