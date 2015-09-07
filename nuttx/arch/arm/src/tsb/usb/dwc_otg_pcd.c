@@ -125,7 +125,8 @@ void dwc_otg_request_done(dwc_otg_pcd_ep_t * ep, dwc_otg_pcd_request_t * req,
 	}
 
 	ep->stopped = stopped;
-	DWC_FREE(req);
+	if (!DWC_CIRCLEQ_ENTRY_IN_QUEUE(req, ring_entry))
+		DWC_FREE(req);
 }
 
 /**
@@ -2448,11 +2449,14 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 		return -DWC_E_INVALID;
 	}
 
-	if (atomic_alloc) {
-		req = DWC_ALLOC_ATOMIC(sizeof(*req));
-	} else {
-		req = DWC_ALLOC(sizeof(*req));
-	}
+    req = dwc_otg_pcd_get_queue_req(ep, dma_buf);
+    if (!req) {
+	    if (atomic_alloc) {
+		    req = DWC_ALLOC_ATOMIC(sizeof(*req));
+	    } else {
+		    req = DWC_ALLOC(sizeof(*req));
+	    }
+    }
 
 	if (!req) {
 		return -DWC_E_NO_MEMORY;
@@ -2647,6 +2651,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 #ifdef DWC_UTE_CFI
 			}
 #endif
+			dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
 			dwc_otg_ep_start_transfer(GET_CORE_IF(pcd),
 						  &ep->dwc_ep);
 		}
@@ -2654,6 +2659,9 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 
 	if (req != 0) {
 		++pcd->request_pending;
+		if (!(DWC_CIRCLEQ_EMPTY(&ep->queue) && !ep->stopped)) {
+			dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
+		}
 		DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
 		if (ep->dwc_ep.is_in && ep->stopped
 		    && !(GET_CORE_IF(pcd)->dma_enable)) {
@@ -2704,6 +2712,8 @@ int dwc_otg_pcd_ep_dequeue(dwc_otg_pcd_t * pcd, void *ep_handle,
 		DWC_SPINUNLOCK_IRQRESTORE(pcd->lock, flags);
 		return -DWC_E_INVALID;
 	}
+
+	dwc_otg_pcd_dequeue_req(pcd->core_if, ep, req);
 
 	if (!DWC_CIRCLEQ_EMPTY_ENTRY(req, queue_entry)) {
 		dwc_otg_request_done(ep, req, -DWC_E_RESTART);
