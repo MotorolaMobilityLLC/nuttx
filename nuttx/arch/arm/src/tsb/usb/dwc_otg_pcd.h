@@ -159,6 +159,9 @@ typedef struct dwc_otg_pcd_ep {
 
 	/** queue of dwc_otg_pcd_requests. */
 	struct req_list queue;
+	struct req_list ring;
+	dwc_spinlock_t *ring_lock;
+
 	unsigned stopped:1;
 	unsigned disabling:1;
 	unsigned dma:1;

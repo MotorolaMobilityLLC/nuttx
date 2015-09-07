@@ -957,6 +957,9 @@ static void dwc_otg_pcd_init_ep(dwc_otg_pcd_t * pcd, dwc_otg_pcd_ep_t * pcd_ep,
 	pcd_ep->dwc_ep.desc_addr = 0;
 	pcd_ep->dwc_ep.dma_desc_addr = 0;
 	DWC_CIRCLEQ_INIT(&pcd_ep->queue);
+	DWC_CIRCLEQ_INIT(&pcd_ep->ring);
+	if (!pcd_ep->ring_lock)
+		pcd_ep->ring_lock = DWC_SPINLOCK_ALLOC();
 }
 
 /**
@@ -991,6 +994,7 @@ static void dwc_otg_pcd_reinit(dwc_otg_pcd_t * pcd)
 			dwc_otg_pcd_init_ep(pcd, ep, 1 /* IN */ , i);
 
 			DWC_CIRCLEQ_INIT(&ep->queue);
+			DWC_CIRCLEQ_INIT(&ep->ring);
 		}
 		hwcfg1 >>= 2;
 	}
@@ -1008,6 +1012,7 @@ static void dwc_otg_pcd_reinit(dwc_otg_pcd_t * pcd)
 			 */
 			dwc_otg_pcd_init_ep(pcd, ep, 0 /* OUT */ , i);
 			DWC_CIRCLEQ_INIT(&ep->queue);
+			DWC_CIRCLEQ_INIT(&ep->ring);
 		}
 		hwcfg1 >>= 2;
 	}
@@ -1016,6 +1021,48 @@ static void dwc_otg_pcd_reinit(dwc_otg_pcd_t * pcd)
 	pcd->ep0.dwc_ep.maxpacket = MAX_EP0_SIZE;
 	pcd->ep0.dwc_ep.type = DWC_OTG_EP_TYPE_CONTROL;
 }
+
+/**
+ * Remove ep's
+ */
+static void dwc_otg_pcd_remove_ep(dwc_otg_pcd_t * pcd)
+{
+	int i;
+	uint32_t hwcfg1;
+	dwc_otg_pcd_ep_t *ep;
+	int in_ep_cntr, out_ep_cntr;
+	uint32_t num_in_eps = (GET_CORE_IF(pcd))->dev_if->num_in_eps;
+	uint32_t num_out_eps = (GET_CORE_IF(pcd))->dev_if->num_out_eps;
+
+	/**
+	 * Initialize the EP0 structure.
+	 */
+	ep = &pcd->ep0;
+	DWC_SPINLOCK_FREE(ep->ring_lock);
+
+	in_ep_cntr = 0;
+	hwcfg1 = (GET_CORE_IF(pcd))->hwcfg1.d32 >> 3;
+	for (i = 1; in_ep_cntr < num_in_eps; i++) {
+		if ((hwcfg1 & 0x1) == 0) {
+			ep = &pcd->in_ep[in_ep_cntr];
+			in_ep_cntr++;
+			DWC_SPINLOCK_FREE(ep->ring_lock);
+		}
+		hwcfg1 >>= 2;
+	}
+
+	out_ep_cntr = 0;
+	hwcfg1 = (GET_CORE_IF(pcd))->hwcfg1.d32 >> 2;
+	for (i = 1; out_ep_cntr < num_out_eps; i++) {
+		if ((hwcfg1 & 0x1) == 0) {
+			ep = &pcd->out_ep[out_ep_cntr];
+			out_ep_cntr++;
+			DWC_SPINLOCK_FREE(ep->ring_lock);
+		}
+		hwcfg1 >>= 2;
+	}
+}
+
 
 /**
  * This function is called when the SRP timer expires. The SRP should
@@ -1318,6 +1365,7 @@ void dwc_otg_pcd_remove(dwc_otg_pcd_t * pcd)
 {
 	dwc_otg_dev_if_t *dev_if = GET_CORE_IF(pcd)->dev_if;
 	int i;
+	dwc_otg_pcd_remove_ep(pcd);
 	if (pcd->core_if->core_params->dev_out_nak) {
 		for (i = 0; i < MAX_EPS_CHANNELS; i++) {
 			DWC_TIMER_CANCEL(pcd->core_if->ep_xfer_timer[i]);
