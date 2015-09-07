@@ -4019,7 +4019,8 @@ void dwc_otg_ep_start_transfer(dwc_otg_core_if_t * core_if, dwc_ep_t * ep)
 					/** This is used for interrupt out transfers*/
 					if (!ep->xfer_len)
 						ep->xfer_len = ep->total_len;
-					init_dma_desc_chain(core_if, ep);
+					if (!ep->desc_cnt)
+						init_dma_desc_chain(core_if, ep);
 
 					if (core_if->core_params->dev_out_nak) {
 						if (ep->type == DWC_OTG_EP_TYPE_BULK) {

@@ -2421,14 +2421,8 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 					byte_count = residue;
 				} else {
 #endif
-
-					for (i = 0; i < ep->dwc_ep.desc_cnt;
-					     ++i) {
-						desc_sts = dma_desc->status;
-						byte_count += desc_sts.b.bytes;
-						dma_desc++;
-					}
-
+					desc_sts = req->dma_desc->status;
+					byte_count += desc_sts.b.bytes;
 #ifdef DWC_UTE_CFI
 				}
 #endif
