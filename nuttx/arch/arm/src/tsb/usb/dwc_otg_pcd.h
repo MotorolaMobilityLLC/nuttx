@@ -142,6 +142,7 @@ typedef struct dwc_otg_pcd_request {
 
 	 DWC_CIRCLEQ_ENTRY(dwc_otg_pcd_request) queue_entry;
 	 DWC_CIRCLEQ_ENTRY(dwc_otg_pcd_request) ring_entry;
+	dwc_otg_dev_dma_desc_t *dma_desc;
 #ifdef DWC_UTE_PER_IO
 	struct dwc_iso_xreq_port ext_req;
 	//void *priv_ereq_nport; /*  */

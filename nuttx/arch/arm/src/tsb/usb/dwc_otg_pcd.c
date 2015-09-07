@@ -2433,6 +2433,32 @@ static void dwc_otg_pcd_dequeue_req(dwc_otg_core_if_t * core_if,
 	DWC_SPINUNLOCK_IRQRESTORE(ep->ring_lock, flags);
 }
 
+static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
+				     dwc_otg_pcd_ep_t *ep)
+{
+	int i = 0;
+	unsigned int desc_cnt;
+	dwc_otg_pcd_request_t *req;
+	dwc_otg_dev_dma_desc_t *dma_desc;
+
+	desc_cnt = 0;
+	/* count request available in ring buffer */
+	DWC_CIRCLEQ_FOREACH(req, &ep->ring, ring_entry) {
+		desc_cnt++;
+	}
+
+	if (desc_cnt > MAX_DMA_DESC_CNT)
+		desc_cnt = MAX_DMA_DESC_CNT;
+
+	ep->dwc_ep.desc_cnt = desc_cnt;
+	DWC_CIRCLEQ_FOREACH(req, &ep->ring, ring_entry) {
+		/** DMA Descriptor Setup */
+		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
+		init_ring_dma_desc(&ep->dwc_ep, dma_desc, req->dma, req->length);
+		req->dma_desc = dma_desc;
+		i++;
+	}
+}
 
 int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 			 uint8_t * buf, dwc_dma_t dma_buf, uint32_t buflen,
