@@ -27,14 +27,14 @@
  */
 
 /*
- * @file    configs/ara/svc/src/up_bdb_pm.h
- * @brief   ARA BDB Power Measurement Library
+ * @file    configs/ara/svc/src/pwr_mon.h
+ * @brief   ARA Power Measurement Library
  * @author  Patrick Titiano
  */
 
 #define DBG_COMP DBG_POWER
 
-#include <up_bdb_pm.h>
+#include <pwr_mon.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -95,7 +95,7 @@ enum {
 #define INA230_SHUNT_VALUE          2 /* mohm */
 
 /* Device Names Table */
-static const char bdbpm_dev_names[DEV_COUNT][DEV_NAME_MAX_LENGTH] = {
+static const char arapm_dev_names[DEV_COUNT][DEV_NAME_MAX_LENGTH] = {
     "SWitch",
     "APB1",
     "APB2",
@@ -108,7 +108,7 @@ static const char bdbpm_dev_names[DEV_COUNT][DEV_NAME_MAX_LENGTH] = {
 };
 
 /* Power Rail Names Table */
-static const char bdbpm_rail_names[DEV_MAX_RAIL_COUNT][DEV_COUNT][RAIL_NAME_MAX_LENGTH] = {
+static const char arapm_rail_names[DEV_MAX_RAIL_COUNT][DEV_COUNT][RAIL_NAME_MAX_LENGTH] = {
     {"VSW_1P1_PLL", "VAPB1_1P1_CORE", "VAPB2_1P1_CORE", "VAPB3_1P1_CORE", "VGPB1_1P1_CORE", "VGPB2_1P1_CORE",
 #ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
      "SVC_1P8_VDD",
@@ -152,7 +152,7 @@ static const char bdbpm_rail_names[DEV_MAX_RAIL_COUNT][DEV_COUNT][RAIL_NAME_MAX_
 };
 
 /* Power Measurement Chip (INA230) I2C Addresses Table */
-static const uint8_t bdbpm_i2c_addr[DEV_MAX_RAIL_COUNT][DEV_COUNT] = {
+static const uint8_t arapm_i2c_addr[DEV_MAX_RAIL_COUNT][DEV_COUNT] = {
     {VSW_1P1_PLL_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VAPB_1P1_CORE_I2C_ADDR, VGPB_1P1_CORE_I2C_ADDR, VGPB_1P1_CORE_I2C_ADDR,
 #ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
      SVC_1P8_VDD_I2C_ADDR,
@@ -196,9 +196,9 @@ static const uint8_t bdbpm_i2c_addr[DEV_MAX_RAIL_COUNT][DEV_COUNT] = {
 };
 
 static struct i2c_dev_s *i2c_dev;
-static uint32_t bdbpm_current_lsb;
-static ina230_conversion_time bdbpm_ct;
-static ina230_avg_count bdbpm_avg_count;
+static uint32_t arapm_current_lsb;
+static ina230_conversion_time arapm_ct;
+static ina230_avg_count arapm_avg_count;
 static int current_dev;
 
 /**
@@ -206,13 +206,13 @@ static int current_dev;
  * @return          device name (string) on success, NULL in case of error.
  * @param[in]       dev: device ID
  */
-const char *bdbpm_dev_name(uint8_t dev)
+const char *arapm_dev_name(uint8_t dev)
 {
     if (dev >= DEV_COUNT) {
         return NULL;
     }
 
-    return bdbpm_dev_names[dev];
+    return arapm_dev_names[dev];
 }
 
 /**
@@ -221,7 +221,7 @@ const char *bdbpm_dev_name(uint8_t dev)
  * @param[in]       dev: device ID
  * @param[in]       rail: rail ID
  */
-const char *bdbpm_rail_name(uint8_t dev, uint8_t rail)
+const char *arapm_rail_name(uint8_t dev, uint8_t rail)
 {
     switch (dev) {
     case DEV_SW:
@@ -253,7 +253,7 @@ const char *bdbpm_rail_name(uint8_t dev, uint8_t rail)
         return NULL;
     }
 
-    return bdbpm_rail_names[rail][dev];
+    return arapm_rail_names[rail][dev];
 }
 
 /**
@@ -263,7 +263,7 @@ const char *bdbpm_rail_name(uint8_t dev, uint8_t rail)
  * @param[out]      dev: device ID
  * @param[out]      rail: power rail ID
  */
-int bdbpm_rail_id(const char *name, uint8_t *dev, uint8_t *rail)
+int arapm_rail_id(const char *name, uint8_t *dev, uint8_t *rail)
 {
     int ret = 0;
 
@@ -430,7 +430,7 @@ int bdbpm_rail_id(const char *name, uint8_t *dev, uint8_t *rail)
  * @param[in]       name: power rail name
  * @param[out]      dev: device ID
  */
-int bdbpm_device_id(const char *name, uint8_t *dev)
+int arapm_device_id(const char *name, uint8_t *dev)
 {
     int ret = 0;
 
@@ -471,7 +471,7 @@ int bdbpm_device_id(const char *name, uint8_t *dev)
  * @return          0 on success, standard error codes otherwise.
  * @param[in]       dev: device ID
  */
-static int bdbpm_ina230_select(uint8_t dev)
+static int arapm_ina230_select(uint8_t dev)
 {
     if (dev == current_dev) {
         dbg_verbose("%s(): device already selected (%u).\n", __func__, dev);
@@ -485,42 +485,42 @@ static int bdbpm_ina230_select(uint8_t dev)
     switch (dev) {
     case DEV_SW:
         dbg_verbose("%s(): dev=%s select\n",
-                    __func__, bdbpm_dev_name(dev));
+                    __func__, arapm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL1_A, 0);
         gpio_set_value(I2C_INA230_SEL1_B, 0);
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB1:
         dbg_verbose("%s(): dev=%s select\n",
-                    __func__, bdbpm_dev_name(dev));
+                    __func__, arapm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL1_A, 1);
         gpio_set_value(I2C_INA230_SEL1_B, 0);
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB2:
         dbg_verbose("%s(): dev=%s select\n",
-                    __func__, bdbpm_dev_name(dev));
+                    __func__, arapm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL1_A, 0);
         gpio_set_value(I2C_INA230_SEL1_B, 1);
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_APB3:
         dbg_verbose("%s(): dev=%s select\n",
-                    __func__, bdbpm_dev_name(dev));
+                    __func__, arapm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL1_A, 1);
         gpio_set_value(I2C_INA230_SEL1_B, 1);
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
         break;
     case DEV_GPB1:
         dbg_verbose("%s(): dev=%s select\n",
-                    __func__, bdbpm_dev_name(dev));
+                    __func__, arapm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL2_A, 0);
         gpio_set_value(I2C_INA230_SEL2_B, 0);
         gpio_set_value(I2C_INA230_SEL2_INH, 0);
         break;
     case DEV_GPB2:
         dbg_verbose("%s(): dev=%s select\n",
-                    __func__, bdbpm_dev_name(dev));
+                    __func__, arapm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL2_A, 1);
         gpio_set_value(I2C_INA230_SEL2_B, 0);
         gpio_set_value(I2C_INA230_SEL2_INH, 0);
@@ -528,7 +528,7 @@ static int bdbpm_ina230_select(uint8_t dev)
 #ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
     case DEV_SVC:
         dbg_verbose("%s(): dev=%s select\n",
-                    __func__, bdbpm_dev_name(dev));
+                    __func__, arapm_dev_name(dev));
         gpio_set_value(I2C_INA230_SEL2_A, 0);
         gpio_set_value(I2C_INA230_SEL2_B, 1);
         gpio_set_value(I2C_INA230_SEL2_INH, 0);
@@ -551,7 +551,7 @@ static int bdbpm_ina230_select(uint8_t dev)
  * @param[in]       dev: device ID
  * @param[in]       rail: power rail ID
  */
-static uint8_t bdbpm_i2c_addr_get(uint8_t dev, uint8_t rail)
+static uint8_t arapm_i2c_addr_get(uint8_t dev, uint8_t rail)
 {
     switch (dev) {
     case DEV_SW:
@@ -583,7 +583,7 @@ static uint8_t bdbpm_i2c_addr_get(uint8_t dev, uint8_t rail)
         return INVALID_I2C_ADDR;
     }
 
-    return bdbpm_i2c_addr[rail][dev];
+    return arapm_i2c_addr[rail][dev];
 }
 
 /**
@@ -591,7 +591,7 @@ static uint8_t bdbpm_i2c_addr_get(uint8_t dev, uint8_t rail)
  * @return          power rail count (>0) on success, -EINVAL otherwise.
  * @param[in]       dev: device ID
  */
-int bdbpm_dev_rail_count(uint8_t dev)
+int arapm_dev_rail_count(uint8_t dev)
 {
     int rcount;
 
@@ -628,7 +628,7 @@ int bdbpm_dev_rail_count(uint8_t dev)
  * @param[in]       ct: sampling conversion time to be used
  * @param[in]       avg_count: averaging sample count (>0)
  */
-int bdbpm_init(uint32_t current_lsb_uA,
+int arapm_init(uint32_t current_lsb_uA,
                ina230_conversion_time ct,
                ina230_avg_count avg_count)
 {
@@ -641,7 +641,7 @@ int bdbpm_init(uint32_t current_lsb_uA,
         return -ENXIO;
     }
 
-    bdbpm_current_lsb = current_lsb_uA;
+    arapm_current_lsb = current_lsb_uA;
     if (ct >= ina230_ct_count) {
         dbg_error("%s(): invalid conversion time! (%u)\n", __func__, ct);
         up_i2cuninitialize(i2c_dev);
@@ -652,8 +652,8 @@ int bdbpm_init(uint32_t current_lsb_uA,
         up_i2cuninitialize(i2c_dev);
         return -EINVAL;
     }
-    bdbpm_ct = ct;
-    bdbpm_avg_count = avg_count;
+    arapm_ct = ct;
+    arapm_avg_count = avg_count;
 
     current_dev = -1;
 
@@ -678,7 +678,7 @@ int bdbpm_init(uint32_t current_lsb_uA,
  * @brief           Deinitialize power measurement HW.
  *                  Last function to be called when measurements completed.
  */
-void bdbpm_deinit(void)
+void arapm_deinit(void)
 {
     gpio_set_value(I2C_INA230_SEL1_A, 1);
     gpio_set_value(I2C_INA230_SEL1_B, 1);
@@ -712,146 +712,146 @@ void bdbpm_deinit(void)
  * @param[in]       dev: device ID
  * @param[in]       rail: power rail ID
  */
-bdbpm_rail *bdbpm_init_rail(uint8_t dev, uint8_t rail)
+arapm_rail *arapm_init_rail(uint8_t dev, uint8_t rail)
 {
-    bdbpm_rail *bdbpm_r = NULL;
+    arapm_rail *arapm_r = NULL;
     ina230_device *ina230_dev = NULL;
     uint8_t addr;
     int ret;
 
     if (dev > DEV_COUNT) {
         dbg_error("%s(): invalid dev! (%hhu)\n", __func__, dev);
-        goto bdbpm_init_device_end;
+        goto arapm_init_device_end;
     }
 
-    if (bdbpm_dev_rail_count(dev) == -EINVAL) {
+    if (arapm_dev_rail_count(dev) == -EINVAL) {
         dbg_error("%s(): invalid rail! (%hhu)\n", __func__, rail);
-        goto bdbpm_init_device_end;
+        goto arapm_init_device_end;
     }
 
     dbg_verbose("%s(%u, %u): initializing %s rail...\n",
-                __func__, dev, rail, bdbpm_rail_name(dev, rail));
+                __func__, dev, rail, arapm_rail_name(dev, rail));
     /* Configure I2C Mux */
-    ret = bdbpm_ina230_select(dev);
+    ret = arapm_ina230_select(dev);
     if (ret) {
         dbg_error("%s(): failed to configure i2c mux! (%d)\n", __func__, ret);
-        goto bdbpm_init_device_end;
+        goto arapm_init_device_end;
     }
     /* Retrieve device I2C address */
-    addr = bdbpm_i2c_addr_get(dev, rail);
+    addr = arapm_i2c_addr_get(dev, rail);
     if (addr == INVALID_I2C_ADDR) {
         dbg_error("%s(): failed to Retrieve i2c addr!\n", __func__);
-        goto bdbpm_init_device_end;
+        goto arapm_init_device_end;
     }
     /* Init device */
     dbg_verbose("%s(): calling ina230_init() with addr=0x%02X, mohm=%u, lsb=%uuA, ct=%u, avg_count=%u, mode=%u\n",
-                __func__, addr, INA230_SHUNT_VALUE, bdbpm_current_lsb, bdbpm_ct, bdbpm_avg_count, ina230_shunt_bus_cont);
+                __func__, addr, INA230_SHUNT_VALUE, arapm_current_lsb, arapm_ct, arapm_avg_count, ina230_shunt_bus_cont);
     ina230_dev = ina230_init(i2c_dev, addr,
-                           INA230_SHUNT_VALUE, bdbpm_current_lsb,
-                           bdbpm_ct,
-                           bdbpm_avg_count,
+                           INA230_SHUNT_VALUE, arapm_current_lsb,
+                           arapm_ct,
+                           arapm_avg_count,
                            ina230_shunt_bus_cont);
     if (ina230_dev == NULL) {
         dbg_error("%s(): failed to init device!\n", __func__);
-        goto bdbpm_init_device_end;
+        goto arapm_init_device_end;
     }
     /* Allocating memory for structure */
-    bdbpm_r = malloc(sizeof(bdbpm_rail));
-    if (!bdbpm_r) {
+    arapm_r = malloc(sizeof(arapm_rail));
+    if (!arapm_r) {
         dbg_error("%s(): failed to alloc memory!\n", __func__);
         ina230_deinit(ina230_dev);
-        goto bdbpm_init_device_end;
+        goto arapm_init_device_end;
     }
-    bdbpm_r->ina230_dev = ina230_dev;
-    bdbpm_r->dev = dev;
-    bdbpm_r->rail = rail;
-    bdbpm_r->dev_name = bdbpm_dev_name(dev);
-    bdbpm_r->rail_name = bdbpm_rail_name(dev, rail);
+    arapm_r->ina230_dev = ina230_dev;
+    arapm_r->dev = dev;
+    arapm_r->rail = rail;
+    arapm_r->dev_name = arapm_dev_name(dev);
+    arapm_r->rail_name = arapm_rail_name(dev, rail);
     dbg_verbose("%s(): %s device init done.\n",
-                __func__, bdbpm_rail_name(dev, rail));
+                __func__, arapm_rail_name(dev, rail));
 
-bdbpm_init_device_end:
-    return bdbpm_r;
+arapm_init_device_end:
+    return arapm_r;
 }
 
 /**
  * @brief           Return the time between 2 measurement samples.
  * @return          time between 2 measurement samples in microseconds
  *                  0 in case of error
- * @param[in]       bdbpm_r: power rail device structure
+ * @param[in]       arapm_r: power rail device structure
  */
-uint32_t bdbpm_get_sampling_time(bdbpm_rail *bdbpm_r)
+uint32_t arapm_get_sampling_time(arapm_rail *arapm_r)
 {
-    if (!bdbpm_r) {
-        dbg_error("%s(): invalid bdbpm_r!\n", __func__);
+    if (!arapm_r) {
+        dbg_error("%s(): invalid arapm_r!\n", __func__);
         return 0;
     }
 
-    return ina230_get_sampling_time(bdbpm_r->ina230_dev->ct,
-                                    bdbpm_r->ina230_dev->count,
+    return ina230_get_sampling_time(arapm_r->ina230_dev->ct,
+                                    arapm_r->ina230_dev->count,
                                     ina230_shunt_bus_cont);
 }
 
 /**
  * @brief           Deinitialize HW & SW structure of a given power rail.
- * @param[in]       bdbpm_r: power rail device structure
+ * @param[in]       arapm_r: power rail device structure
  */
-void bdbpm_deinit_rail(bdbpm_rail *bdbpm_r)
+void arapm_deinit_rail(arapm_rail *arapm_r)
 {
     int ret;
 
-    if (!bdbpm_r) {
-        dbg_error("%s(): invalid bdbpm_r!\n", __func__);
+    if (!arapm_r) {
+        dbg_error("%s(): invalid arapm_r!\n", __func__);
         return;
     }
 
     dbg_verbose("%s(): deinitializing %s device...\n",
-                __func__, bdbpm_r->rail_name);
+                __func__, arapm_r->rail_name);
     /* Configure I2C Mux */
-    ret = bdbpm_ina230_select(bdbpm_r->dev);
+    ret = arapm_ina230_select(arapm_r->dev);
     if (ret) {
         dbg_error("%s(): failed to configure i2c mux! (%d)\n",
                   __func__, ret);
         return;
     }
     /* Deinit device */
-    ina230_deinit(bdbpm_r->ina230_dev);
+    ina230_deinit(arapm_r->ina230_dev);
     /* Free memory */
-    free(bdbpm_r);
+    free(arapm_r);
     dbg_verbose("%s(): device deinit done.\n", __func__);
 }
 
 /**
  * @brief           Return sampled data of a given power rail.
  * @return          0 on success, standard error codes otherwise.
- * @param[in]       bdbpm_r: power rail device structure
+ * @param[in]       arapm_r: power rail device structure
  * @param[out]      m: power measurement data (voltage, current, power)
  */
-int bdbpm_measure_rail(bdbpm_rail *bdbpm_r, pwr_measure *m)
+int arapm_measure_rail(arapm_rail *arapm_r, pwr_measure *m)
 {
     int ret;
 
-    if ((!bdbpm_r) || (!m)) {
+    if ((!arapm_r) || (!m)) {
         dbg_error("%s(): NULL pointer!\n", __func__);
         return -EINVAL;
     }
-    dbg_verbose("%s(): measuring %s rail...\n", __func__, bdbpm_r->rail_name);
+    dbg_verbose("%s(): measuring %s rail...\n", __func__, arapm_r->rail_name);
 
     /* Configure I2C Mux */
-    ret = bdbpm_ina230_select(bdbpm_r->dev);
+    ret = arapm_ina230_select(arapm_r->dev);
     if (ret) {
         dbg_error("%s(): failed to configure i2c mux! (%d)\n",
                   __func__, ret);
         return ret;
     }
     /* Get measurement data */
-    ret = ina230_get_data(bdbpm_r->ina230_dev, m);
+    ret = ina230_get_data(arapm_r->ina230_dev, m);
     if (ret) {
         dbg_error("%s(): failed to retrieve measurement data! (%d)\n",
                   __func__, ret);
     } else {
         dbg_verbose("%s(): %s measurement: %duV %duA %duW\n", __func__,
-                    bdbpm_r->rail_name, m->uV, m->uA, m->uW);
+                    arapm_r->rail_name, m->uV, m->uA, m->uW);
     }
 
     return ret;

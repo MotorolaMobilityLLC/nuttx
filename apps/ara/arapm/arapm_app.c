@@ -27,7 +27,7 @@
  */
 
 /*
- * @file    apps/ara/bdbpm/bdbpm_app.c
+ * @file    apps/ara/arapm/arapm_app.c
  * @brief   BDB Power Measurement SVC Application
  * @author  Patrick Titiano
  */
@@ -37,7 +37,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pwr_measure.h>
-#include <up_bdb_pm.h>
+#include <pwr_mon.h>
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
@@ -49,15 +49,15 @@
 #define DEFAULT_LOOPCOUNT           1
 #define DEFAULT_CONTINUOUS          0
 
-/* #define DEBUG_BDBPM */
+/* #define DEBUG_ARAPM */
 
-#ifdef DEBUG_BDBPM
+#ifdef DEBUG_ARAPM
 #define dbg_verbose printf
 #else
 #define dbg_verbose(format, ...)
 #endif
 
-static bdbpm_rail *bdbpm_rails[DEV_COUNT][DEV_MAX_RAIL_COUNT];
+static arapm_rail *arapm_rails[DEV_COUNT][DEV_MAX_RAIL_COUNT];
 static pwr_measure measurements[DEV_COUNT][DEV_MAX_RAIL_COUNT];
 static uint32_t refresh_rate = DEFAULT_REFRESH_RATE;
 static uint32_t loopcount = DEFAULT_LOOPCOUNT;
@@ -88,7 +88,7 @@ static const char ct_strings[ina230_ct_count + 1][8] = {
  */
 static void usage(void)
 {
-            printf("Usage: bdbpm [-d device] [-r rail] [-i current_lsb] [-t conversion_time] [-g avg_count] [-u refresh_rate] [-l loop] [-c] [-h]\n");
+            printf("Usage: arapm [-d device] [-r rail] [-i current_lsb] [-t conversion_time] [-g avg_count] [-u refresh_rate] [-l loop] [-c] [-h]\n");
             printf("         -d: select device (SW, APB[1-3], GPB[1-2])"
 #ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
                    ", SVC"
@@ -120,7 +120,7 @@ static void usage(void)
  * @param[out]      d_start: device start ID
  * @param[out]      d_end: device end ID
  */
-static void bdbpm_main_get_device_list(uint8_t *d_start, uint8_t *d_end)
+static void arapm_main_get_device_list(uint8_t *d_start, uint8_t *d_end)
 {
     if (user_dev_id == DEV_COUNT) {
         *d_start = 0;
@@ -140,12 +140,12 @@ static void bdbpm_main_get_device_list(uint8_t *d_start, uint8_t *d_end)
  * @param[out]      r_start: power rail start ID
  * @param[out]      r_end: power rail end ID
  */
-static void bdbpm_main_get_rail_list(uint8_t dev,
+static void arapm_main_get_rail_list(uint8_t dev,
                                     uint8_t *r_start, uint8_t *r_end)
 {
     if (user_rail_id == DEV_MAX_RAIL_COUNT) {
         *r_start = 0;
-        *r_end = bdbpm_dev_rail_count(dev);
+        *r_end = arapm_dev_rail_count(dev);
     } else {
         *r_start = user_rail_id;
         *r_end = user_rail_id + 1;
@@ -159,7 +159,7 @@ static void bdbpm_main_get_rail_list(uint8_t dev,
  * @return          conversion time
  * @param[in]       optarg: user option
  */
-static ina230_conversion_time bdbpm_main_optarg_to_ct(const char *optarg)
+static ina230_conversion_time arapm_main_optarg_to_ct(const char *optarg)
 {
     if (!optarg) {
         return ina230_ct_count;
@@ -189,7 +189,7 @@ static ina230_conversion_time bdbpm_main_optarg_to_ct(const char *optarg)
  * @return          string
  * @param[in]       time: INA230 conversion time
  */
-static const char *bdbpm_main_ct_to_string(ina230_conversion_time time)
+static const char *arapm_main_ct_to_string(ina230_conversion_time time)
 {
     if (time >=  ina230_ct_count) {
         return ct_strings[ina230_ct_count];
@@ -203,7 +203,7 @@ static const char *bdbpm_main_ct_to_string(ina230_conversion_time time)
  * @return          averaging count
  * @param[in]       optarg: user option
  */
-static ina230_avg_count bdbpm_main_optarg_to_avg_count(const char *optarg)
+static ina230_avg_count arapm_main_optarg_to_avg_count(const char *optarg)
 {
     uint32_t val;
 
@@ -251,7 +251,7 @@ static ina230_avg_count bdbpm_main_optarg_to_avg_count(const char *optarg)
  * @param[in]       argc: user arguments count
  * @param[in]       argv: user arguments
  */
-static int bdbpm_main_get_user_options(int argc, char **argv)
+static int arapm_main_get_user_options(int argc, char **argv)
 {
     char c;
     int ret = 0;
@@ -276,7 +276,7 @@ static int bdbpm_main_get_user_options(int argc, char **argv)
     while ((c = getopt(argc, argv, "xhcd:r:l:u:i:t:n:")) != 255) {
         switch (c) {
         case 'd':
-            ret = bdbpm_device_id(optarg, &user_dev_id);
+            ret = arapm_device_id(optarg, &user_dev_id);
             if (ret) {
                 fprintf(stderr, "Invalid device! (%s)\n", optarg);
                 return -EINVAL;
@@ -287,7 +287,7 @@ static int bdbpm_main_get_user_options(int argc, char **argv)
             break;
 
         case 'r':
-            ret = bdbpm_rail_id(optarg, &user_dev_id, &user_rail_id);
+            ret = arapm_rail_id(optarg, &user_dev_id, &user_rail_id);
             if (ret) {
                 fprintf(stderr, "Invalid rail! (%s)\n", optarg);
                 return -EINVAL;
@@ -313,11 +313,11 @@ static int bdbpm_main_get_user_options(int argc, char **argv)
             break;
 
         case 't':
-            conversion_time = bdbpm_main_optarg_to_ct(optarg);
+            conversion_time = arapm_main_optarg_to_ct(optarg);
             if (conversion_time == ina230_ct_count) {
                 conversion_time = DEFAULT_CONVERSION_TIME;
                 fprintf(stderr, "Invalid conversion time (%s)! Using default %s.\n",
-                        optarg, bdbpm_main_ct_to_string(conversion_time));
+                        optarg, arapm_main_ct_to_string(conversion_time));
             } else {
                 dbg_verbose("%s => conversion_time=%u.\n", optarg, conversion_time);
                 printf("Selected %s conversion time.\n", optarg);
@@ -325,7 +325,7 @@ static int bdbpm_main_get_user_options(int argc, char **argv)
             break;
 
         case 'n':
-            avg_count = bdbpm_main_optarg_to_avg_count(optarg);
+            avg_count = arapm_main_optarg_to_avg_count(optarg);
             if (avg_count == ina230_avg_count_max) {
                 avg_count = DEFAULT_AVG_SAMPLE_COUNT;
                 fprintf(stderr, "Invalid averaging sample count (%s)! Using default %u.\n",
@@ -385,7 +385,7 @@ static int bdbpm_main_get_user_options(int argc, char **argv)
  * @brief           Return maximum rail count depending on user options.
  * @return          maximum rail count
  */
-static uint8_t bdbpm_main_get_max_rail_count(void)
+static uint8_t arapm_main_get_max_rail_count(void)
 {
     uint8_t max_rcount;
 
@@ -393,7 +393,7 @@ static uint8_t bdbpm_main_get_max_rail_count(void)
         max_rcount = DEV_MAX_RAIL_COUNT;
     } else {
         if (user_rail_id == DEV_MAX_RAIL_COUNT) {
-            max_rcount = bdbpm_dev_rail_count(user_dev_id);
+            max_rcount = arapm_dev_rail_count(user_dev_id);
         } else {
             max_rcount = 1;
         }
@@ -406,25 +406,25 @@ static uint8_t bdbpm_main_get_max_rail_count(void)
  * @brief           Collect power measurements of all user-selected rails.
  * @return          0 on success, standard error codes otherwise
  */
-static int bdbpm_main_collect_measurements(void)
+static int arapm_main_collect_measurements(void)
 {
     int ret = 0;
     uint8_t d_start, d_end;
     uint8_t r_start, r_end;
     uint8_t d, r;
 
-    bdbpm_main_get_device_list(&d_start, &d_end);
+    arapm_main_get_device_list(&d_start, &d_end);
     for (d = d_start; d < d_end; d++) {
-        bdbpm_main_get_rail_list(d, &r_start, &r_end);
+        arapm_main_get_rail_list(d, &r_start, &r_end);
         for (r = r_start; r < r_end; r++) {
-            ret = bdbpm_measure_rail(bdbpm_rails[d][r], &measurements[d][r]);
+            ret = arapm_measure_rail(arapm_rails[d][r], &measurements[d][r]);
             if (ret) {
                 fprintf(stderr, "failed to collect %s measurements!!! (%d)\n",
-                    bdbpm_rail_name(d, r), ret);
+                    arapm_rail_name(d, r), ret);
                 return ret;
             } else {
                 dbg_verbose("%s(): %s: %uuV %uuA %uuW\n", __func__,
-                    bdbpm_rail_name(d, r),
+                    arapm_rail_name(d, r),
                     measurements[d][r].uV, measurements[d][r].uA,
                     measurements[d][r].uW);
             }
@@ -437,14 +437,14 @@ static int bdbpm_main_collect_measurements(void)
 /**
  * @brief           Init variables used for drawing table in console.
  */
-static void bdbpm_main_display_init(void)
+static void arapm_main_display_init(void)
 {
     int max_rcount;
     uint8_t r;
 
     sprintf(separator, "---------------");
     sprintf(header, "| Module/Rail |");
-    max_rcount = bdbpm_main_get_max_rail_count();
+    max_rcount = arapm_main_get_max_rail_count();
     for (r = 0; r < max_rcount; r++) {
         strcat(separator, "---------------------");
         strcat(header, "                    |");
@@ -454,7 +454,7 @@ static void bdbpm_main_display_init(void)
 /**
  * @brief           Draw a table in console displaying all measurements.
  */
-static void bdbpm_main_display_measurements(void)
+static void arapm_main_display_measurements(void)
 {
     uint8_t d_start, d_end;
     uint8_t r_start, r_end;
@@ -462,14 +462,14 @@ static void bdbpm_main_display_measurements(void)
     int max_rcount;
     char s[23];
 
-    bdbpm_main_get_device_list(&d_start, &d_end);
+    arapm_main_get_device_list(&d_start, &d_end);
     if (csv_export) {
         if (timestamp == 0) {
             printf("%-14s", "Timestamp (ms)");
             for (d = d_start; d < d_end; d++) {
-                bdbpm_main_get_rail_list(d, &r_start, &r_end);
+                arapm_main_get_rail_list(d, &r_start, &r_end);
                 for (r = r_start; r < r_end; r++) {
-                    sprintf(s, "%s (mW)", bdbpm_rail_name(d, r));
+                    sprintf(s, "%s (mW)", arapm_rail_name(d, r));
                     printf(", %23s", s);
                 }
             }
@@ -477,7 +477,7 @@ static void bdbpm_main_display_measurements(void)
         }
         printf("%14u", timestamp / 1000);
         for (d = d_start; d < d_end; d++) {
-            bdbpm_main_get_rail_list(d, &r_start, &r_end);
+            arapm_main_get_rail_list(d, &r_start, &r_end);
             for (r = r_start; r < r_end; r++) {
                 printf(", %23d", measurements[d][r].uW);
             }
@@ -487,13 +487,13 @@ static void bdbpm_main_display_measurements(void)
         printf("%s\n", separator);
         printf("%s\n", header);
 
-        max_rcount = bdbpm_main_get_max_rail_count();
+        max_rcount = arapm_main_get_max_rail_count();
         for (d = d_start; d < d_end; d++) {
-            printf("| %-11s |", bdbpm_dev_name(d));
-            bdbpm_main_get_rail_list(d, &r_start, &r_end);
+            printf("| %-11s |", arapm_dev_name(d));
+            arapm_main_get_rail_list(d, &r_start, &r_end);
             for (r = 0; r < max_rcount; r++) {
                 if ((r_start + r) < r_end) {
-                    printf(" %-18s |", bdbpm_rail_name(d, r_start + r));
+                    printf(" %-18s |", arapm_rail_name(d, r_start + r));
                 } else {
                     printf(" %-18s |", "");
                 }
@@ -533,7 +533,7 @@ static void bdbpm_main_display_measurements(void)
  * @brief           Do all the necessary initializations.
  * @return          0 on success, standard error codes otherwise.
  */
-static int bdbpm_main_init(void)
+static int arapm_main_init(void)
 {
     uint8_t d, r;
     uint8_t d_start, d_end;
@@ -543,7 +543,7 @@ static int bdbpm_main_init(void)
     timestamp = 0;
 
     /* Init library */
-    ret = bdbpm_init(current_lsb, conversion_time, avg_count);
+    ret = arapm_init(current_lsb, conversion_time, avg_count);
     if (ret) {
         fprintf(stderr, "Error during initialization!!! (%d)\n", ret);
         return ret;
@@ -552,7 +552,7 @@ static int bdbpm_main_init(void)
     /* Clear pointers and measurements*/
     for (d = 0; d < DEV_COUNT; d++) {
         for (r = 0; r < DEV_MAX_RAIL_COUNT; r++) {
-            bdbpm_rails[d][r] = NULL;
+            arapm_rails[d][r] = NULL;
             measurements[d][r].uV = 0;
             measurements[d][r].uA = 0;
             measurements[d][r].uW = 0;
@@ -560,27 +560,27 @@ static int bdbpm_main_init(void)
     }
 
     /* Init all necessary power measurement rails */
-    bdbpm_main_get_device_list(&d_start, &d_end);
+    arapm_main_get_device_list(&d_start, &d_end);
     for (d = d_start; d < d_end; d++) {
-        bdbpm_main_get_rail_list(d, &r_start, &r_end);
+        arapm_main_get_rail_list(d, &r_start, &r_end);
         for (r = r_start; r < r_end; r++) {
-            bdbpm_rails[d][r] = bdbpm_init_rail(d, r);
-            if (!bdbpm_rails[d][r]) {
+            arapm_rails[d][r] = arapm_init_rail(d, r);
+            if (!arapm_rails[d][r]) {
                 fprintf(stderr, "%s(): Failed to init %s rail! (%d)\n",
-                        __func__, bdbpm_rail_name(d, r), ret);
+                        __func__, arapm_rail_name(d, r), ret);
                 return -EIO;
            }
         }
     }
 
-    bdbpm_main_display_init();
+    arapm_main_display_init();
 
     /* Check user configured refresh rate >= configured sampling time */
-    if (refresh_rate < bdbpm_get_sampling_time(bdbpm_rails[d_start][r_start])) {
+    if (refresh_rate < arapm_get_sampling_time(arapm_rails[d_start][r_start])) {
         printf("WARNING: configured refresh rate (%uus) < configured sampling time (%uus).\n",
                refresh_rate,
-               bdbpm_get_sampling_time(bdbpm_rails[d_start][r_start]));
-        refresh_rate = bdbpm_get_sampling_time(bdbpm_rails[d_start][r_start]);
+               arapm_get_sampling_time(arapm_rails[d_start][r_start]));
+        refresh_rate = arapm_get_sampling_time(arapm_rails[d_start][r_start]);
         printf("         Changing refresh rate to %uus.\n\n", refresh_rate);
     }
 
@@ -589,7 +589,7 @@ static int bdbpm_main_init(void)
      * an initial delay is required before starting collecting measurements
      * (or 0 will be read).
      */
-    usleep(bdbpm_get_sampling_time(bdbpm_rails[d_start][r_start]));
+    usleep(arapm_get_sampling_time(arapm_rails[d_start][r_start]));
 
     printf("Power measurement HW initialized.\n");
     return 0;
@@ -598,22 +598,22 @@ static int bdbpm_main_init(void)
 /**
  * @brief           Do all the necessary deinitializations.
  */
-static void bdbpm_main_deinit(void)
+static void arapm_main_deinit(void)
 {
     uint8_t d, r;
     uint8_t d_start, d_end;
     uint8_t r_start, r_end;
 
-    bdbpm_main_get_device_list(&d_start, &d_end);
+    arapm_main_get_device_list(&d_start, &d_end);
     for (d = d_start; d < d_end; d++) {
-        bdbpm_main_get_rail_list(d, &r_start, &r_end);
+        arapm_main_get_rail_list(d, &r_start, &r_end);
         for (r = r_start; r < r_end; r++) {
-            if (bdbpm_rails[d][r]) {
-                bdbpm_deinit_rail(bdbpm_rails[d][r]);
+            if (arapm_rails[d][r]) {
+                arapm_deinit_rail(arapm_rails[d][r]);
             }
         }
     }
-    bdbpm_deinit();
+    arapm_deinit();
 
     printf("Power measurement HW and library deinitialized.\n\n");
 }
@@ -628,20 +628,20 @@ static void bdbpm_main_deinit(void)
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
-int bdbpm_main(int argc, char *argv[])
+int arapm_main(int argc, char *argv[])
 #endif
 {
     int ret;
 
-    ret = bdbpm_main_get_user_options(argc, argv);
+    ret = arapm_main_get_user_options(argc, argv);
     if (ret) {
         usage();
         exit(-EINVAL);
     }
 
-    ret = bdbpm_main_init();
+    ret = arapm_main_init();
     if (ret) {
-        bdbpm_main_deinit();
+        arapm_main_deinit();
         exit(ret);
     }
 
@@ -652,12 +652,12 @@ int bdbpm_main(int argc, char *argv[])
     }
 
     do {
-        ret = bdbpm_main_collect_measurements();
+        ret = arapm_main_collect_measurements();
         if (ret) {
             break;
         }
 
-        bdbpm_main_display_measurements();
+        arapm_main_display_measurements();
 
         timestamp += refresh_rate;
         if (!continuous) {
@@ -673,7 +673,7 @@ int bdbpm_main(int argc, char *argv[])
     } while (loopcount != 0);
     printf("\n");
 
-    bdbpm_main_deinit();
+    arapm_main_deinit();
 
     return 0;
 }

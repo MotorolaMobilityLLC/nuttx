@@ -77,13 +77,13 @@ CSRCS		+= gb_svc.c
 
 ifeq ($(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC),y)
 CSRCS		+= board-bdb2a.c
-CSRCS		+= up_bdb_pm.c
+CSRCS		+= pwr_mon.c
 CSRCS       += up_adc.c up_spring_pm.c
 endif
 
 ifeq ($(CONFIG_ARCH_BOARD_ARA_SDB_SVC),y)
 CSRCS		+= board-sdb.c
-CSRCS		+= up_bdb_pm.c
+CSRCS		+= pwr_mon.c
 endif
 
 ifeq ($(CONFIG_NSH_ARCHINIT),y)

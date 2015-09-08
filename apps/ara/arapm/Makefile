@@ -34,7 +34,7 @@ include $(APPDIR)/Make.defs
 
 # PWRM built-in application info
 
-APPNAME = bdbpm
+APPNAME = arapm
 PRIORITY = SCHED_PRIORITY_DEFAULT
 STACKSIZE = 2048
 
@@ -42,7 +42,7 @@ STACKSIZE = 2048
 
 ASRCS =
 CSRCS =
-MAINSRC = bdbpm_app.c
+MAINSRC = arapm_app.c
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))

@@ -27,13 +27,13 @@
  */
 
 /*
- * @file    configs/ara/svc/src/up_bdb_pm.h
- * @brief   ARA BDB Power Measurement Library
+ * @file    configs/ara/svc/src/pwr_mon.h
+ * @brief   ARA Power Measurement Library
  * @author  Patrick Titiano
  */
 
-#ifndef __UP_BDB_PM_H__
-#define __UP_BDB_PM_H__
+#ifndef __PWR_MON_H__
+#define __PWR_MON_H__
 
 #include <stdint.h>
 #include <ina230.h>
@@ -106,20 +106,20 @@ typedef struct {
     uint8_t rail;
     const char *dev_name;
     const char *rail_name;
-} bdbpm_rail;
+} arapm_rail;
 
-int bdbpm_init(uint32_t current_lsb_uA,
+int arapm_init(uint32_t current_lsb_uA,
                ina230_conversion_time ct,
                ina230_avg_count avg_count);
-bdbpm_rail *bdbpm_init_rail(uint8_t dev, uint8_t rail);
-uint32_t bdbpm_get_sampling_time(bdbpm_rail *bdbpm_r);
-int bdbpm_measure_rail(bdbpm_rail *bdbpm_dev, pwr_measure *m);
-const char *bdbpm_dev_name(uint8_t dev);
-const char *bdbpm_rail_name(uint8_t dev, uint8_t rail);
-int bdbpm_device_id(const char *name, uint8_t *dev);
-int bdbpm_rail_id(const char *name, uint8_t *dev, uint8_t *rail);
-int bdbpm_dev_rail_count(uint8_t dev);
-void bdbpm_deinit_rail(bdbpm_rail *bdbpm_dev);
-void bdbpm_deinit(void);
+arapm_rail *arapm_init_rail(uint8_t dev, uint8_t rail);
+uint32_t arapm_get_sampling_time(arapm_rail *arapm_r);
+int arapm_measure_rail(arapm_rail *arapm_dev, pwr_measure *m);
+const char *arapm_dev_name(uint8_t dev);
+const char *arapm_rail_name(uint8_t dev, uint8_t rail);
+int arapm_device_id(const char *name, uint8_t *dev);
+int arapm_rail_id(const char *name, uint8_t *dev, uint8_t *rail);
+int arapm_dev_rail_count(uint8_t dev);
+void arapm_deinit_rail(arapm_rail *arapm_dev);
+void arapm_deinit(void);
 
 #endif

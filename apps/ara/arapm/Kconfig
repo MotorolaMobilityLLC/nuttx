@@ -29,7 +29,7 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-config ARA_SVC_BDBPM
+config ARA_SVC_ARAPM
 	bool "Ara SVC Power Measurement"
 	default n if !DEBUG
 	default y if DEBUG
@@ -37,11 +37,11 @@ config ARA_SVC_BDBPM
 	---help---
 		Enable the Ara SVC Power Measurement Application
 
-if ARA_SVC_BDBPM
+if ARA_SVC_ARAPM
 
-config ARA_SVC_BDBPM_PROGNAME
+config ARA_SVC_ARAPM_PROGNAME
 	string "Ara SVC Power Measurement Application"
-	default "bdbpm"
+	default "arapm"
 	depends on BUILD_KERNEL
 	---help---
 		This is the name of the program that will be use when the
