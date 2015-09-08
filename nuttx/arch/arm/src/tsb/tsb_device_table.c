@@ -36,7 +36,6 @@
 #include <nuttx/device_pwm.h>
 #include <nuttx/device_spi.h>
 #include <nuttx/device_uart.h>
-#include <nuttx/device_hid.h>
 #include <nuttx/usb.h>
 #include <nuttx/usb_device.h>
 #ifdef CONFIG_ARCH_CHIP_DEVICE_GDMAC
@@ -248,15 +247,6 @@ static struct device tsb_devices[] = {
         .type           = DEVICE_TYPE_DMA_HW,
         .name           = "tsb_dma",
         .desc           = "TSB DMA Device",
-        .id             = 0,
-    },
-#endif
-
-#ifdef CONFIG_ARCH_CHIP_DEVICE_HID
-    {
-        .type           = DEVICE_TYPE_HID_HW,
-        .name           = "tsb_hid",
-        .desc           = "TSB HID Device Driver",
         .id             = 0,
     },
 #endif

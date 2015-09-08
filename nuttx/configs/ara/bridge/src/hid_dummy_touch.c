@@ -74,11 +74,15 @@
 #define CLICK_PRESSURE                  20
 #define SWIPE_PRESSURE                  30
 
+#ifdef CONFIG_TSB_CHIP_REV_ES2
+#define GPIO_TRIGGER                    26   /* Trigger GPIO pin for testing */
+#else
 #define GPIO_TRIGGER                    0   /* Trigger GPIO pin for testing */
+#endif
 #define DEFAULT_DEBOUNCE_TIME           25  /* 250ms (1 SysTick = 10ms) */
 #define TOUCH_SAMPLE_RATE               20000 /* 20ms */
 
-static int tsb_hid_get_report_length(struct device *dev, uint8_t report_type,
+static int hid_get_report_length(struct device *dev, uint8_t report_type,
                                      uint8_t report_id);
 
 static struct device *hid_dev = NULL;
@@ -152,7 +156,7 @@ struct hid_waitq {
 /**
  * Private HID device information
  */
-struct tsb_hid_info {
+struct hiddev_info {
     /** Driver model representation of the device */
     struct device *dev;
 
@@ -291,7 +295,7 @@ struct hid_size_info hid_sizeinfo[] =
  * @param info - pointer to structure of HID private data
  * @param testcase - type of multitouch test case
  */
-int update_touch_data(struct tsb_hid_info *info, uint8_t testcase)
+int update_touch_data(struct hiddev_info *info, uint8_t testcase)
 {
     int i = 0, ret = 0;
 
@@ -367,10 +371,10 @@ int update_touch_data(struct tsb_hid_info *info, uint8_t testcase)
  *
  * @param context - pointer to structure of device data
  */
-void tsb_hid_thread_func(void *context)
+void hid_thread_func(void *context)
 {
     struct device *dev = context;
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     uint8_t testcase = 0;
 
     /* check input parameters */
@@ -388,7 +392,7 @@ void tsb_hid_thread_func(void *context)
         /* wait for gpio trigger event */
         pthread_cond_wait(&info->wq.cond, &info->wq.mutex);
         if (info->wq.abort) {
-            /* exit tsb_hid_thread_func loop */
+            /* exit hid_thread_func loop */
             break;
         }
 
@@ -424,7 +428,7 @@ void tsb_hid_thread_func(void *context)
 static int get_input_report(struct device *dev, uint8_t report_id,
                             uint8_t *data, uint16_t len)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
 
     /* check input parameters */
     if (!dev || !device_get_private(dev)) {
@@ -457,7 +461,7 @@ static int get_input_report(struct device *dev, uint8_t report_id,
 static int get_feature_report(struct device *dev, uint8_t report_id,
                             uint8_t *data, uint16_t len)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int rptlen = 0;
 
     /* check input parameters */
@@ -472,7 +476,7 @@ static int get_feature_report(struct device *dev, uint8_t report_id,
         return -EINVAL;
     }
 
-    rptlen = tsb_hid_get_report_length(dev, HID_FEATURE_REPORT, report_id);
+    rptlen = hid_get_report_length(dev, HID_FEATURE_REPORT, report_id);
     if (report_id != REPORT_ID_ZERO) {
         /* if report id isn't zero, return data need to contain 1-Byte report
          * id value */
@@ -518,7 +522,7 @@ static int set_output_report(struct device *dev, uint8_t report_id,
 static int set_feature_report(struct device *dev, uint8_t report_id,
                             uint8_t *data, uint16_t len)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int rptlen = 0;
 
     /* check input parameters */
@@ -533,7 +537,7 @@ static int set_feature_report(struct device *dev, uint8_t report_id,
         return -EINVAL;
     }
 
-    rptlen = tsb_hid_get_report_length(dev, HID_FEATURE_REPORT, report_id);
+    rptlen = hid_get_report_length(dev, HID_FEATURE_REPORT, report_id);
 
     if (len < rptlen) {
         /* no enough buffer space to receive feature data */
@@ -557,10 +561,10 @@ static int set_feature_report(struct device *dev, uint8_t report_id,
  *
  * @param context - pointer to structure of device data
  */
-int tsb_hid_irq_event(int irq, FAR void *context)
+int hid_irq_event(int irq, FAR void *context)
 {
     struct device *dev = hid_dev;
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     uint8_t new_gpiostate = 0;
     int elapsed = 0;
 
@@ -597,9 +601,9 @@ int tsb_hid_irq_event(int irq, FAR void *context)
  * @param dev - pointer to structure of device data
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_power_on(struct device *dev)
+static int hid_power_on(struct device *dev)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int ret = 0;
 
     /* check input parameters */
@@ -633,9 +637,9 @@ err_poweron:
  * @param dev - pointer to structure of device data
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_power_off(struct device *dev)
+static int hid_power_off(struct device *dev)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int ret = 0;
 
     /* check input parameters */
@@ -670,9 +674,9 @@ err_poweroff:
  * @param desc - pointer to structure of HID device descriptor
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_get_desc(struct device *dev, struct hid_descriptor *desc)
+static int hid_get_desc(struct device *dev, struct hid_descriptor *desc)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
 
     /* check input parameters */
     if (!dev || !device_get_private(dev) || !desc) {
@@ -696,9 +700,9 @@ static int tsb_hid_get_desc(struct device *dev, struct hid_descriptor *desc)
  * @param desc - pointer to HID report descriptor
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_get_report_desc(struct device *dev, uint8_t *desc)
+static int hid_get_report_desc(struct device *dev, uint8_t *desc)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
 
     /* check input parameters */
     if (!dev || !device_get_private(dev) || !desc) {
@@ -724,10 +728,10 @@ static int tsb_hid_get_report_desc(struct device *dev, uint8_t *desc)
  * @param report_id - HID report id
  * @return the report size on success, negative errno on error
  */
-static int tsb_hid_get_report_length(struct device *dev, uint8_t report_type,
+static int hid_get_report_length(struct device *dev, uint8_t report_type,
                                      uint8_t report_id)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int ret = 0, i;
 
     /* check input parameters */
@@ -759,10 +763,10 @@ static int tsb_hid_get_report_length(struct device *dev, uint8_t report_type,
  * @param report_type - HID report type
  * @return the report size on success, negative errno on error
  */
-static int tsb_hid_get_maximum_report_length(struct device *dev,
+static int hid_get_maximum_report_length(struct device *dev,
                                              uint8_t report_type)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int i = 0, maxlen = 0, id = 0;
 
     /* check input parameters */
@@ -804,10 +808,10 @@ static int tsb_hid_get_maximum_report_length(struct device *dev,
  * @param len - max input buffer size
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_get_report(struct device *dev, uint8_t report_type,
+static int hid_get_report(struct device *dev, uint8_t report_type,
                               uint8_t report_id, uint8_t *data, uint16_t len)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int ret = 0;
 
     /* check input parameters */
@@ -851,10 +855,10 @@ err_getreport:
  * @param len - max output buffer size
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_set_report(struct device *dev, uint8_t report_type,
+static int hid_set_report(struct device *dev, uint8_t report_type,
                               uint8_t report_id, uint8_t *data, uint16_t len)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int ret = 0;
 
     /* check input parameters */
@@ -895,10 +899,10 @@ err_setreport:
  * @param callback - callback function for notify event
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_register_callback(struct device *dev,
+static int hid_register_callback(struct device *dev,
                                      hid_event_callback callback)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
 
     /* check input parameters */
     if (!dev || !device_get_private(dev) || !callback) {
@@ -920,9 +924,9 @@ static int tsb_hid_register_callback(struct device *dev,
  * @param dev - pointer to structure of device data
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_unregister_callback(struct device *dev)
+static int hid_unregister_callback(struct device *dev)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
 
     /* check input parameters */
     if (!dev || !device_get_private(dev)) {
@@ -949,9 +953,9 @@ static int tsb_hid_unregister_callback(struct device *dev)
  * @param dev - pointer to structure of device data
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_dev_open(struct device *dev)
+static int hid_dev_open(struct device *dev)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
     int ret = 0;
 
     /* check input parameter */
@@ -1006,7 +1010,7 @@ static int tsb_hid_dev_open(struct device *dev)
     gpio_direction_in(GPIO_TRIGGER);
     gpio_mask_irq(GPIO_TRIGGER);
     set_gpio_triggering(GPIO_TRIGGER, IRQ_TYPE_EDGE_BOTH);
-    gpio_irqattach(GPIO_TRIGGER, tsb_hid_irq_event);
+    gpio_irqattach(GPIO_TRIGGER, hid_irq_event);
 
     /* initialize waitqueue */
     info->wq.abort = 0;
@@ -1014,7 +1018,7 @@ static int tsb_hid_dev_open(struct device *dev)
     pthread_cond_init(&info->wq.cond, NULL);
 
     /* create thread to send demo report data */
-    if (pthread_create(&info->hid_thread, NULL, (void*)tsb_hid_thread_func,
+    if (pthread_create(&info->hid_thread, NULL, (void*)hid_thread_func,
                        (void*)dev) != 0) {
         ret = -EIO;
     }
@@ -1033,9 +1037,9 @@ err_open:
  *
  * @param dev - pointer to structure of device data
  */
-static void tsb_hid_dev_close(struct device *dev)
+static void hid_dev_close(struct device *dev)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
 
     /* check input parameter */
     if (!dev || !device_get_private(dev)) {
@@ -1051,7 +1055,7 @@ static void tsb_hid_dev_close(struct device *dev)
     }
 
     if (info->state & HID_DEVICE_FLAG_POWERON) {
-        tsb_hid_power_off(dev);
+        hid_power_off(dev);
     }
 
     /* uninitialize GPIO pin */
@@ -1097,9 +1101,9 @@ err_close:
  * @param dev - pointer to structure of device data
  * @return 0 on success, negative errno on error
  */
-static int tsb_hid_dev_probe(struct device *dev)
+static int hid_dev_probe(struct device *dev)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
 
     if (!dev) {
         return -EINVAL;
@@ -1130,9 +1134,9 @@ static int tsb_hid_dev_probe(struct device *dev)
  *
  * @param dev - pointer to structure of device data
  */
-static void tsb_hid_dev_remove(struct device *dev)
+static void hid_dev_remove(struct device *dev)
 {
-    struct tsb_hid_info *info = NULL;
+    struct hiddev_info *info = NULL;
 
     /* check input parameter */
     if (!dev || !device_get_private(dev)) {
@@ -1141,7 +1145,7 @@ static void tsb_hid_dev_remove(struct device *dev)
     info = device_get_private(dev);
 
     if (info->state & HID_DEVICE_FLAG_OPEN) {
-        tsb_hid_dev_close(dev);
+        hid_dev_close(dev);
     }
     info->state = 0;
     sem_destroy(&info->lock);
@@ -1151,30 +1155,30 @@ static void tsb_hid_dev_remove(struct device *dev)
     free(info);
 }
 
-static struct device_hid_type_ops tsb_hid_type_ops = {
-    .power_on = tsb_hid_power_on,
-    .power_off = tsb_hid_power_off,
-    .get_descriptor = tsb_hid_get_desc,
-    .get_report_descriptor = tsb_hid_get_report_desc,
-    .get_report_length = tsb_hid_get_report_length,
-    .get_maximum_report_length = tsb_hid_get_maximum_report_length,
-    .get_report = tsb_hid_get_report,
-    .set_report = tsb_hid_set_report,
-    .register_callback = tsb_hid_register_callback,
-    .unregister_callback = tsb_hid_unregister_callback,
+static struct device_hid_type_ops hid_type_ops = {
+    .power_on = hid_power_on,
+    .power_off = hid_power_off,
+    .get_descriptor = hid_get_desc,
+    .get_report_descriptor = hid_get_report_desc,
+    .get_report_length = hid_get_report_length,
+    .get_maximum_report_length = hid_get_maximum_report_length,
+    .get_report = hid_get_report,
+    .set_report = hid_set_report,
+    .register_callback = hid_register_callback,
+    .unregister_callback = hid_unregister_callback,
 };
 
-static struct device_driver_ops tsb_hid_driver_ops = {
-    .probe          = tsb_hid_dev_probe,
-    .remove         = tsb_hid_dev_remove,
-    .open           = tsb_hid_dev_open,
-    .close          = tsb_hid_dev_close,
-    .type_ops       = &tsb_hid_type_ops,
+static struct device_driver_ops hid_driver_ops = {
+    .probe          = hid_dev_probe,
+    .remove         = hid_dev_remove,
+    .open           = hid_dev_open,
+    .close          = hid_dev_close,
+    .type_ops       = &hid_type_ops,
 };
 
-struct device_driver tsb_hid_driver = {
+struct device_driver hid_touch_driver = {
     .type       = DEVICE_TYPE_HID_HW,
-    .name       = "tsb_hid",
-    .desc       = "TSB HID Driver",
-    .ops        = &tsb_hid_driver_ops,
+    .name       = "hid_touch",
+    .desc       = "Multi-Touch HID Driver",
+    .ops        = &hid_driver_ops,
 };

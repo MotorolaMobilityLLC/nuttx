@@ -38,6 +38,14 @@ config ARA_BRIDGE_HAVE_USB3813
 	depends on DEVICE_CORE
 	default y
 
+config ARA_BRIDGE_HAVE_HID_TOUCH
+	bool "Multi-Touch HID Support"
+	select GPIO
+	select DEVICE_CORE
+	default n
+	---help---
+		Multi-Touch HID Device Driver
+
 config ARA_BRIDGE_HAVE_CAMERA
 	bool "Camera support for Board"
 	default n
