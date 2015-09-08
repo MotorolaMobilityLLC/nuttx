@@ -996,6 +996,9 @@ int tca64xx_init(void **driver_data, tca64xx_part part, struct i2c_dev_s *dev,
         gpio_clear_interrupt(tca64xx->irq);
         gpio_unmask_irq(tca64xx->irq);
 
+        /* Initialize the work queue */
+        tca64xx->work.worker = NULL;
+
         /* Create polling worker */
         tca64xx->worker_exit = false;
         sprintf(buf, "%p", tca64xx);
