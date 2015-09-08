@@ -524,7 +524,7 @@ static int svc_handle_module_ready(uint8_t portid) {
     int rc, intf_id;
     uint32_t unipro_mfg_id, unipro_prod_id, ara_vend_id, ara_prod_id;
 
-    dbg_info("Hotplug event received for port: %u\n", portid);
+    dbg_info("Hotplug event received for port %u\n", portid);
     intf_id  = interface_get_id_by_portid(portid);
     if (intf_id < 0) {
         return intf_id;
@@ -703,7 +703,7 @@ static int svcd_main(int argc, char **argv) {
                 break;
             }
 
-            dbg_info("AP initialized on interface  %u\n", svc->ap_intf_id);
+            dbg_info("AP initialized on interface %u\n", svc->ap_intf_id);
             svc->ap_initialized = 1;
         }
 
