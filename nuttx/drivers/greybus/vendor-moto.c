@@ -31,16 +31,10 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
-#ifdef CONFIG_GREYBUS_MODS
-#  include <arch/board/mods.h>
-#endif
 #include <arch/byteorder.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/greybus/greybus.h>
-#ifdef CONFIG_GREYBUS_MODS
-#  include <nuttx/greybus/mods.h>
-#endif
 
 #ifdef CONFIG_RAMLOG_SYSLOG
 #  include <nuttx/syslog/ramlog.h>
@@ -50,33 +44,6 @@
 
 #define GB_VENDOR_MOTO_VERSION_MAJOR     0
 #define GB_VENDOR_MOTO_VERSION_MINOR     1
-
-#ifdef CONFIG_GREYBUS_MODS
-static void attach_cb(FAR void *arg, enum base_attached_e state)
-{
-  switch (state)
-    {
-      case BASE_ATTACHED_OFF:
-        {
-          /* Base is off and/or dead. Enable base charging to recover. */
-          mods_vbus_en_sw(true);
-          dbg("Base charging is enabled\n");
-          break;
-        }
-
-      case BASE_ATTACHED:
-      case BASE_DETACHED:
-      case BASE_INVALID:
-      default:
-        {
-          /* Ensure that base charging is disabled */
-          mods_vbus_en_sw(false);
-          dbg("Base charging is disabled\n");
-          break;
-        }
-    }
-}
-#endif
 
 static uint8_t gb_vendor_moto_protocol_version(struct gb_operation *operation)
 {
@@ -88,20 +55,6 @@ static uint8_t gb_vendor_moto_protocol_version(struct gb_operation *operation)
 
     response->major = GB_VENDOR_MOTO_VERSION_MAJOR;
     response->minor = GB_VENDOR_MOTO_VERSION_MINOR;
-    return GB_OP_SUCCESS;
-}
-
-static uint8_t gb_vendor_moto_charge_base(struct gb_operation *operation)
-{
-    struct gb_vendor_moto_charge_base_request *request =
-        gb_operation_get_request_payload(operation);
-
-    lowsyslog("charge_base: enable=%d\n", request->enable);
-
-#ifdef CONFIG_GREYBUS_MODS
-    mods_vbus_en_sw(request->enable > 0);
-#endif
-
     return GB_OP_SUCCESS;
 }
 
@@ -178,24 +131,14 @@ static uint8_t gb_vendor_moto_pwr_up_reason(struct gb_operation *operation)
 #endif
 }
 
-static int gb_vendor_moto_init(unsigned int cport)
-{
-#ifdef CONFIG_GREYBUS_MODS
-    mods_attach_register(attach_cb, NULL);
-#endif
-    return 0;
-}
-
 static struct gb_operation_handler gb_vendor_moto_handlers[] = {
     GB_HANDLER(GB_VENDOR_MOTO_PROTOCOL_VERSION, gb_vendor_moto_protocol_version),
-    GB_HANDLER(GB_VENDOR_MOTO_CHARGE_BASE, gb_vendor_moto_charge_base),
     GB_HANDLER(GB_VENDOR_MOTO_GET_DMESG, gb_vendor_moto_get_dmesg),
     GB_HANDLER(GB_VENDOR_MOTO_GET_LAST_DMESG, gb_vendor_moto_get_last_dmesg),
     GB_HANDLER(GB_VENDOR_MOTO_GET_PWR_UP_REASON, gb_vendor_moto_pwr_up_reason),
 };
 
 static struct gb_driver gb_vendor_moto_driver = {
-    .init = gb_vendor_moto_init,
     .op_handlers = gb_vendor_moto_handlers,
     .op_handlers_count = ARRAY_SIZE(gb_vendor_moto_handlers),
 };

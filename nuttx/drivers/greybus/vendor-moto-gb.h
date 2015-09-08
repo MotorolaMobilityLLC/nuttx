@@ -32,10 +32,9 @@
 #include <nuttx/greybus/types.h>
 
 #define GB_VENDOR_MOTO_PROTOCOL_VERSION   0x01
-#define GB_VENDOR_MOTO_CHARGE_BASE        0x02
-#define GB_VENDOR_MOTO_GET_DMESG          0x03
-#define GB_VENDOR_MOTO_GET_LAST_DMESG     0x04
-#define GB_VENDOR_MOTO_GET_PWR_UP_REASON  0x05
+#define GB_VENDOR_MOTO_GET_DMESG          0x02
+#define GB_VENDOR_MOTO_GET_LAST_DMESG     0x03
+#define GB_VENDOR_MOTO_GET_PWR_UP_REASON  0x04
 
 /*
  * This is slightly less than max greybus payload size to allow for headers
@@ -48,11 +47,6 @@ struct gb_vendor_moto_proto_version_response {
 	__u8	major;
 	__u8	minor;
 };
-
-struct gb_vendor_moto_charge_base_request {
-	__u8	enable;
-};
-/* charge base response has no payload */
 
 /* get (last) dmesg request has no payload */
 struct gb_vendor_moto_get_dmesg_response {
