@@ -55,6 +55,7 @@
 #define STM32_GPIO_AFRL_OFFSET     0x0020 /* GPIO alternate function low register */
 #define STM32_GPIO_AFRH_OFFSET     0x0024 /* GPIO alternate function high register */
 #define STM32_GPIO_BRR_OFFSET      0x0028 /* GPIO port bit reset register */
+#define STM32_GPIO_ASCR_OFFSET     0x002c /* GPIO port analog switch control register */
 
 /* Register Addresses ***************************************************************/
 
@@ -70,6 +71,7 @@
 #  define STM32_GPIOA_AFRL          (STM32_GPIOA_BASE+STM32_GPIO_AFRL_OFFSET)
 #  define STM32_GPIOA_AFRH          (STM32_GPIOA_BASE+STM32_GPIO_AFRH_OFFSET)
 #  define STM32_GPIOA_BRR           (STM32_GPIOA_BASE+STM32_GPIO_BRR_OFFSET)
+#  define STM32_GPIOA_ASCR          (STM32_GPIOA_BASE+STM32_GPIO_ASCR_OFFSET)
 #endif
 
 #if STM32_NGPIO_PORTS > 1
@@ -84,6 +86,7 @@
 #  define STM32_GPIOB_AFRL          (STM32_GPIOB_BASE+STM32_GPIO_AFRL_OFFSET)
 #  define STM32_GPIOB_AFRH          (STM32_GPIOB_BASE+STM32_GPIO_AFRH_OFFSET)
 #  define STM32_GPIOB_BRR           (STM32_GPIOB_BASE+STM32_GPIO_BRR_OFFSET)
+#  define STM32_GPIOB_ASCR          (STM32_GPIOB_BASE+STM32_GPIO_ASCR_OFFSET)
 #endif
 
 #if STM32_NGPIO_PORTS > 2
@@ -98,6 +101,7 @@
 #  define STM32_GPIOC_AFRL          (STM32_GPIOC_BASE+STM32_GPIO_AFRL_OFFSET)
 #  define STM32_GPIOC_AFRH          (STM32_GPIOC_BASE+STM32_GPIO_AFRH_OFFSET)
 #  define STM32_GPIOC_BRR           (STM32_GPIOC_BASE+STM32_GPIO_BRR_OFFSET)
+#  define STM32_GPIOC_ASCR          (STM32_GPIOC_BASE+STM32_GPIO_ASCR_OFFSET)
 #endif
 
 #if STM32_NGPIO_PORTS > 3
@@ -112,6 +116,7 @@
 #  define STM32_GPIOD_AFRL          (STM32_GPIOD_BASE+STM32_GPIO_AFRL_OFFSET)
 #  define STM32_GPIOD_AFRH          (STM32_GPIOD_BASE+STM32_GPIO_AFRH_OFFSET)
 #  define STM32_GPIOD_BRR           (STM32_GPIOD_BASE+STM32_GPIO_BRR_OFFSET)
+#  define STM32_GPIOD_ASCR          (STM32_GPIOD_BASE+STM32_GPIO_ASCR_OFFSET)
 #endif
 
 #if STM32_NGPIO_PORTS > 4
@@ -126,6 +131,7 @@
 #  define STM32_GPIOE_AFRL          (STM32_GPIOE_BASE+STM32_GPIO_AFRL_OFFSET)
 #  define STM32_GPIOE_AFRH          (STM32_GPIOE_BASE+STM32_GPIO_AFRH_OFFSET)
 #  define STM32_GPIOE_BRR           (STM32_GPIOE_BASE+STM32_GPIO_BRR_OFFSET)
+#  define STM32_GPIOE_ASCR          (STM32_GPIOE_BASE+STM32_GPIO_ASCR_OFFSET)
 #endif
 
 #if STM32_NGPIO_PORTS > 5
@@ -140,6 +146,7 @@
 #  define STM32_GPIOF_AFRL          (STM32_GPIOF_BASE+STM32_GPIO_AFRL_OFFSET)
 #  define STM32_GPIOF_AFRH          (STM32_GPIOF_BASE+STM32_GPIO_AFRH_OFFSET)
 #  define STM32_GPIOF_BRR           (STM32_GPIOF_BASE+STM32_GPIO_BRR_OFFSET)
+#  define STM32_GPIOF_ASCR          (STM32_GPIOF_BASE+STM32_GPIO_ASCR_OFFSET)
 #endif
 
 #if STM32_NGPIO_PORTS > 6
@@ -154,6 +161,7 @@
 #  define STM32_GPIOG_AFRL          (STM32_GPIOG_BASE+STM32_GPIO_AFRL_OFFSET)
 #  define STM32_GPIOG_AFRH          (STM32_GPIOG_BASE+STM32_GPIO_AFRH_OFFSET)
 #  define STM32_GPIOG_BRR           (STM32_GPIOG_BASE+STM32_GPIO_BRR_OFFSET)
+#  define STM32_GPIOG_ASCR          (STM32_GPIOG_BASE+STM32_GPIO_ASCR_OFFSET)
 #endif
 
 #if STM32_NGPIO_PORTS > 7
@@ -168,6 +176,7 @@
 #  define STM32_GPIOH_AFRL          (STM32_GPIOH_BASE+STM32_GPIO_AFRL_OFFSET)
 #  define STM32_GPIOH_AFRH          (STM32_GPIOH_BASE+STM32_GPIO_AFRH_OFFSET)
 #  define STM32_GPIOH_BRR           (STM32_GPIOH_BASE+STM32_GPIO_BRR_OFFSET)
+#  define STM32_GPIOH_ASCR          (STM32_GPIOH_BASE+STM32_GPIO_ASCR_OFFSET)
 #endif
 
 /* Register Bitfield Definitions ****************************************************/
@@ -366,5 +375,8 @@
 
 #define GPIO_BRR(n)                (1 << (n))
 
-#endif /* __ARCH_ARM_SRC_STM32_CHIP_STM32L4X6XX_GPIO_H */
+/* GPIO port analog switch control register */
 
+#define GPIO_ASCR(n)               (1 << (n))
+
+#endif /* __ARCH_ARM_SRC_STM32_CHIP_STM32L4X6XX_GPIO_H */

@@ -514,6 +514,18 @@ int stm32_configgpio(uint32_t cfgset)
   regval |= (setting << GPIO_PUPDR_SHIFT(pin));
   putreg32(regval, base + STM32_GPIO_PUPDR_OFFSET);
 
+#ifdef CONFIG_STM32_STM32L4X6
+  /* Set the analog switch (analog mode only) */
+
+  regval = getreg32(base + STM32_GPIO_ASCR_OFFSET);
+  regval &= ~GPIO_ASCR(pin);
+  if ((pinmode == GPIO_MODER_ANALOG) && (cfgset & GPIO_ADC))
+    {
+      regval |= GPIO_ASCR(pin);
+    }
+  putreg32(regval, base + STM32_GPIO_ASCR_OFFSET);
+#endif
+
   /* Set the alternate function (Only alternate function pins) */
 
   if (pinmode == GPIO_MODER_ALT)

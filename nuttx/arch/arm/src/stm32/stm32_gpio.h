@@ -218,21 +218,33 @@
  *  - Alternate function open-drain with pull-up or pull-down capability
  *  - Analog
  *
- * 20-bit Encoding:       1111 1111 1100 0000 0000
- *                        9876 5432 1098 7654 3210
- *                        ---- ---- ---- ---- ----
- * Inputs:                MMUU .... ...X PPPP BBBB
- * Outputs:               MMUU .... FFOV PPPP BBBB
- * Alternate Functions:   MMUU AAAA FFO. PPPP BBBB
- * Analog:                MM.. .... .... PPPP BBBB
+ * 21-bit Encoding:       2 1111 1111 1100 0000 0000
+ *                        0 9876 5432 1098 7654 3210
+ *                        - ---- ---- ---- ---- ----
+ * Inputs:                . MMUU .... ...X PPPP BBBB
+ * Outputs:               . MMUU .... FFOV PPPP BBBB
+ * Alternate Functions:   . MMUU AAAA FFO. PPPP BBBB
+ * Analog:                S MM.. .... .... PPPP BBBB
  */
+
+#ifdef CONFIG_STM32_STM32L4X6
+/* Analog switch selection (analog only):
+ *
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * S .... .... .... .... ....
+ */
+
+#  define GPIO_ADC                    (1 << 20)                  /* Bit 20: 1=Connect analog to ADC */
+#endif
 
 /* Mode:
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * MM.. .... .... .... ....
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . MM.. .... .... .... ....
  */
 
 #define GPIO_MODE_SHIFT               (18)                       /* Bits 18-19: GPIO port mode */
@@ -244,10 +256,10 @@
 
 /* Input/output pull-ups/downs (not used with analog):
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * ..UU .... .... .... ....
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . ..UU .... .... .... ....
  */
 
 #define GPIO_PUPD_SHIFT               (16)                       /* Bits 16-17: Pull-up/pull down */
@@ -258,10 +270,10 @@
 
 /* Alternate Functions:
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * .... AAAA .... .... ....
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . .... AAAA .... .... ....
  */
 
 #define GPIO_AF_SHIFT                 (12)                       /* Bits 12-15: Alternate function */
@@ -286,10 +298,10 @@
 
 /* Output/Alt function frequency selection:
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * .... .... FF.. .... ....
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . .... .... FF.. .... ....
  */
 
 #define GPIO_SPEED_SHIFT              (10)                       /* Bits 10-11: GPIO frequency selection */
@@ -310,10 +322,10 @@
 
 /* Output/Alt function type selection:
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * .... .... ..O. .... ....
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . .... .... ..O. .... ....
  */
 
 #define GPIO_OPENDRAIN                (1 << 9)                   /* Bit9: 1=Open-drain output */
@@ -323,10 +335,10 @@
  * If the pin is an input, this bit is overloaded to provide the qualifier to
  * distinquish input pull-up and -down:
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * .... .... ...V .... ....
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . .... .... ...V .... ....
  */
 
 #define GPIO_OUTPUT_SET               (1 << 8)                   /* Bit 8: If output, inital value of output */
@@ -334,20 +346,20 @@
 
 /* External interrupt selection (GPIO inputs only):
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * .... .... ...X .... ....
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . .... .... ...X .... ....
  */
 
 #define GPIO_EXTI                     (1 << 8)                    /* Bit 8: Configure as EXTI interrupt */
 
 /* This identifies the GPIO port:
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * .... .... .... PPPP ....
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . .... .... .... PPPP ....
  */
 
 #define GPIO_PORT_SHIFT               (4)                        /* Bit 4-7:  Port number */
@@ -372,10 +384,10 @@
 
 /* This identifies the bit in the port:
  *
- * 1111 1111 1100 0000 0000
- * 9876 5432 1098 7654 3210
- * ---- ---- ---- ---- ----
- * .... .... .... .... BBBB
+ * 2 1111 1111 1100 0000 0000
+ * 0 9876 5432 1098 7654 3210
+ * - ---- ---- ---- ---- ----
+ * . .... .... .... .... BBBB
  */
 
 #define GPIO_PIN_SHIFT                (0)                        /* Bits 0-3: GPIO number: 0-15 */
