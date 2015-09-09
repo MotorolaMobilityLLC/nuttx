@@ -3233,6 +3233,24 @@ config STM32_I2C_DUTY16_9
 
 endmenu
 
+menu "ADC Configuration"
+	depends on STM32_STM32L4X6 && STM32_ADC
+
+choice
+	prompt "ADC trigger mode"
+	default STM32_ADC_SWTRIG
+	---help---
+		Select the event that will trigger the A-to-D conversion sequence.
+
+config STM32_ADC_SWTRIG
+	bool "Software trigger"
+	---help---
+		A-to-D Conversion is initiated only by software via an ioctl()
+
+endchoice # Trigger mode
+
+endmenu
+
 menu "SDIO Configuration"
 	depends on STM32_SDIO
 

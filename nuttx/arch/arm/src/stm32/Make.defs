@@ -216,7 +216,11 @@ endif
 endif
 
 ifeq ($(CONFIG_ADC),y)
+ifeq ($(CONFIG_STM32_STM32L4X6),y)
+CHIP_CSRCS += stm32l4x6xx_adc.c
+else
 CHIP_CSRCS += stm32_adc.c
+endif
 endif
 
 ifeq ($(CONFIG_DAC),y)
