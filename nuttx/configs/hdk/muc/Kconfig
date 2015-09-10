@@ -37,4 +37,11 @@ config PM_BUTTON_ACTIVITY
 		The activity weight to report to the power management subsystem when
 		a button is pressed.
 
+config MODS_RAW
+	bool "Mods Raw support"
+	default n
+	depends on GREYBUS_RAW
+	select DEVICE_CORE
+	---help---
+		Enable Generic Raw support
 endif

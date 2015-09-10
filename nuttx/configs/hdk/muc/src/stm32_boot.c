@@ -40,6 +40,7 @@
 #include <nuttx/config.h>
 #include <nuttx/device.h>
 #include <nuttx/device_hid.h>
+#include <nuttx/device_raw.h>
 #include <nuttx/device_table.h>
 #include <nuttx/util.h>
 
@@ -70,6 +71,14 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_HID_HW,
         .name = "hid_buttons",
         .desc = "Generic HID buttons",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_MODS_RAW
+    {
+        .type = DEVICE_TYPE_RAW_HW,
+        .name = "mods_raw",
+        .desc = "Reference Raw Interface",
         .id   = 0,
     },
 #endif
@@ -174,6 +183,10 @@ void board_initialize(void)
 #ifdef CONFIG_HID_BUTTONS
   extern struct device_driver hid_buttons_driver;
   device_register_driver(&hid_buttons_driver);
+#endif
+#ifdef CONFIG_MODS_RAW
+  extern struct device_driver mods_raw_driver;
+  device_register_driver(&mods_raw_driver);
 #endif
 #endif
 }

@@ -70,6 +70,10 @@ ifeq ($(CONFIG_HID_BUTTONS),y)
 CSRCS += stm32_hidbuttons.c
 endif
 
+ifeq ($(CONFIG_MODS_RAW),y)
+CSRCS += stm32_modsraw.c
+endif
+
 ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
