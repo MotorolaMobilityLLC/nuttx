@@ -55,6 +55,7 @@ enum {
     STOP,
     LINKTEST,
     LINKSTATUS,
+    ROUTINGTABLE,
     DME_IO,
     TESTFEATURE,
     MAX_CMD,
@@ -73,6 +74,7 @@ static const struct command commands[] = {
     [LINKTEST] = {'l', "linktest",
                   "test UniPro link power mode configuration"},
     [LINKSTATUS] = {'s', "linkstatus", "print UniPro link status bit mask"},
+    [ROUTINGTABLE] = {'r', "routingtable", "dump Switch routing table"},
     [DME_IO]  = {'d', "dme", "get/set DME attributes"},
     [TESTFEATURE] = {'t', "testfeature", "UniPro test feature"},
 };
@@ -482,6 +484,23 @@ static int link_status(int argc, char *argv[]) {
     } else {
         printk("Link status: 0x%x\n", link_status);
     }
+    return rc;
+}
+
+static int dump_routing_table(int argc, char *argv[])
+{
+    struct tsb_switch *sw = svc->sw;
+    int rc;
+
+    if (!sw) {
+        return -ENODEV;
+    }
+
+    rc = switch_dump_routing_table(sw);
+    if (rc) {
+        printk("Error: could not dump Switch routing table: %d.\n", rc);
+    }
+
     return rc;
 }
 
@@ -1067,6 +1086,9 @@ int svc_main(int argc, char *argv[])
         break;
     case LINKSTATUS:
         rc = link_status(argc, argv);
+        break;
+    case ROUTINGTABLE:
+        rc = dump_routing_table(argc, argv);
         break;
     case DME_IO:
         rc = dme_io(argc, argv);
