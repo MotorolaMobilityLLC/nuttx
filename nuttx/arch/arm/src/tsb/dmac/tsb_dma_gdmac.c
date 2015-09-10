@@ -48,6 +48,9 @@
 #include "tsb_dma.h"
 
 #define TSB_DMA_GDMAC_CHANNELS        8
+#define TSB_DMA_GDMAC_EVENTS          32
+
+#define TSB_DMA_GDMAC_INVALID_EVENT   0xFFFFFFFF
 
 /* GDMAC register addresses */
 #define GDMAC_CONTROL_REGS_OFFSET   0x0000
@@ -67,12 +70,13 @@
      DMA_SEV_SIZE + DMA_END_SIZE + DMA_LP_SIZE * 2 + DMA_LPEND_SIZE)
 
 /* Define PL330 events associated with each channel. */
-#define GDMAC_EVENT(channel_id)             (channel_id)
+#define GDMAC_END_OF_TX_EVENT(channel_info)  (channel_info->end_of_tx_event)
 #define GDMAC_EVENT_MASK(channel_id)        (1 << channel_id)
 #define DMA_CHANNEL_TO_TSB_IRQ(channel_id)  (channel_id + TSB_IRQ_GDMAC00)
-#define IRQN_TO_DMA_CHANNEL(irqn)           \
+#define IRQN_TO_DMA_CHANNEL(irqn)            \
     ((irqn - TSB_IRQ_GDMAC00 >= TSB_DMA_GDMAC_CHANNELS) ?\
-     DEVICE_DMA_INVALID_CHANNEL : irqn - TSB_IRQ_GDMAC00)
+     DEVICE_DMA_INVALID_CHANNEL :            \
+     gdmac_event_to_channel_map[irqn - TSB_IRQ_GDMAC00])
 
 #define GDMAC_DO_LOOPBACK                   (1)
 #define GDMAC_DONOT_LOOPBACK                (0)
@@ -148,6 +152,8 @@ typedef struct {
 /* a fixed value write to UniPro EOM register after EOM packet was sent. */
 static const uint8_t eom_value = 0x01;
 
+static unsigned int gdmac_event_to_channel_map[TSB_DMA_GDMAC_EVENTS];
+
 /* GDMAC device */
 struct device *tsb_dma_gdmac_dev = NULL;
 
@@ -177,6 +183,7 @@ static const uint8_t tsb_dma_gdma_unipro_tx_prg[] = {
 
 /* structure for UniPro TX channel information. */
 typedef struct {
+    unsigned int end_of_tx_event;
     sem_t tx_sem;
     uint8_t *dma_program_start;
     volatile uint32_t *eom_dest_addr;
@@ -195,6 +202,28 @@ struct tsb_dma_channel_info {
          */
     };
 };
+
+static inline unsigned int gdmac_allocate_event(unsigned int channel_id)
+{
+    unsigned int index;
+
+    for (index = 0; index < TSB_DMA_GDMAC_EVENTS; index++) {
+        if (gdmac_event_to_channel_map[index]
+                == DEVICE_DMA_INVALID_CHANNEL) {
+            gdmac_event_to_channel_map[index] = channel_id;
+            return index;
+        }
+    }
+
+    return TSB_DMA_GDMAC_INVALID_EVENT;
+}
+
+static inline void gdmac_release_event(unsigned int event)
+{
+    if (event < TSB_DMA_GDMAC_EVENTS) {
+        gdmac_event_to_channel_map[event] = DEVICE_DMA_INVALID_CHANNEL;
+    }
+}
 
 static inline void dma_execute_instruction(uint8_t* insn)
 {
@@ -308,6 +337,16 @@ int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel)
         return -ENOMEM;
     }
 
+    /* allocate an end of transfer event; */
+    unipro_tx_channel->end_of_tx_event = gdmac_allocate_event(
+            channel->channel_id);
+    if (unipro_tx_channel->end_of_tx_event == TSB_DMA_GDMAC_INVALID_EVENT) {
+        free(unipro_tx_channel);
+
+        lldbg("Unable to allocate GDMAC event.\n");
+        return -ENOMEM;
+    }
+
     prog_ptr = &unipro_tx_channel->dma_program[0];
 
     /* make a copy of the UniPro TX binary code. */
@@ -321,7 +360,7 @@ int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel)
 
     /* Set a pointer to the PL330 event used for this UniPro TX channel. */
     prog_ptr += DMA_MOV_SIZE + DMA_LD_SIZE + DMA_ST_SIZE + DMA_WMB_SIZE;
-    prog_ptr[1] |= GDMAC_EVENT(channel->channel_id) << 3;
+    prog_ptr[1] |= GDMAC_END_OF_TX_EVENT(unipro_tx_channel) << 3;
     prog_ptr += DMA_SEV_SIZE + DMA_END_SIZE;
 
     /* Set a pointer to the starting address of this UniPro PL330 program */
@@ -345,7 +384,7 @@ int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel)
 
     /* Set a pointer to the PL330 event used for this UniPro TX channel. */
     prog_ptr += DMA_LP_SIZE + DMA_LPEND_SIZE + DMA_WMB_SIZE;
-    prog_ptr[1] |= GDMAC_EVENT(channel->channel_id) << 3;
+    prog_ptr[1] |= GDMAC_END_OF_TX_EVENT(unipro_tx_channel) << 3;
 
     /* Set interrupt handler for this GDMAC UniPro TX channel */
     ret = irq_attach(DMA_CHANNEL_TO_TSB_IRQ(channel->channel_id),
@@ -370,6 +409,10 @@ int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel)
 
 void tsb_dma_init_controller(struct device *dev)
 {
+    /* initialize all events are available. */
+    memset(&gdmac_event_to_channel_map[0], 0xFF,
+            sizeof(gdmac_event_to_channel_map));
+
     /* enable clock to GDMAC and reset GDMAC. */
     tsb_clk_enable(TSB_CLK_GDMA);
     tsb_reset(TSB_RST_GDMA);
