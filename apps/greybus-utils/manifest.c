@@ -52,6 +52,10 @@ extern void gb_hid_register(int cport);
 extern void gb_vendor_register(int cport);
 extern void gb_lights_register(int cport);
 extern void gb_sdio_register(int cport);
+extern void gb_aud_register(int cport);
+extern void gb_i2s_direct_tx_register(int cport);
+extern void gb_i2s_direct_rx_register(int cport);
+extern void gb_i2s_direct_mgmt_register(int cport);
 
 struct greybus {
     struct list_head cports;
@@ -157,6 +161,22 @@ void enable_cports(void)
         if (protocol == GREYBUS_PROTOCOL_PWM) {
             gb_info("Registering PWM greybus driver.\n");
             gb_pwm_register(id);
+        }
+#endif
+
+#ifdef CONFIG_GREYBUS_MODS_I2S_PHY
+        if (protocol == GREYBUS_PROTOCOL_I2S_MGMT) {
+            gb_info("Registering I2S Direct MGMT greybus driver.\n");
+            gb_i2s_direct_mgmt_register(id);
+        } else if (protocol == GREYBUS_PROTOCOL_I2S_RECEIVER) {
+            gb_info("Registering I2S Direct RECEIVER greybus driver.\n");
+            gb_i2s_direct_rx_register(id);
+        } else if (protocol == GREYBUS_PROTOCOL_I2S_TRANSMITTER) {
+            gb_info("Registering I2S Direct TRANSMITTER greybus driver.\n");
+            gb_i2s_direct_tx_register(id);
+        } else if (protocol == GREYBUS_PROTOCOL_MODS_AUDIO) {
+            gb_info("Registering Audio greybus driver.\n");
+            gb_aud_register(id);
         }
 #endif
 
