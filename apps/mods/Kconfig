@@ -4,4 +4,5 @@
 #
 
 source "$APPSDIR/mods/diet/Kconfig"
+source "$APPSDIR/mods/raw/Kconfig"
 source "$APPSDIR/mods/spi_reg/Kconfig"

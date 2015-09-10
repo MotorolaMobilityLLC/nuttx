@@ -1,0 +1,22 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config MODS_RAW
+	bool "Mods Raw"
+	default n
+	---help---
+		Send Raw Data
+
+if MODS_RAW
+
+config MODS_RAW_PROGNAME
+	string "Program name"
+	default "raw"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+endif

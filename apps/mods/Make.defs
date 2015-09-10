@@ -10,3 +10,6 @@ endif
 ifeq ($(CONFIG_MODS_DIET),y)
 CONFIGURED_APPS += mods/diet
 endif
+ifeq ($(CONFIG_MODS_RAW),y)
+CONFIGURED_APPS += mods/raw
+endif
