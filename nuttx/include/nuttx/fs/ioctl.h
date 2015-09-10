@@ -245,6 +245,12 @@
 #define ANIOC_TRIGGER     _ANIOC(0x0001)  /* Trigger one conversion
                                            * IN: None
                                            * OUT: None */
+#define ANIOC_WDOG_UPPER  _ANIOC(0x0002)  /* Set upper threshold for watchdog
+                                           * IN: Threshold value
+                                           * OUT: None */
+#define ANIOC_WDOG_LOWER  _ANIOC(0x0003)  /* Set lower threshold for watchdog
+                                           * IN: Threshold value
+                                           * OUT: None */
 
 /* NuttX PWM ioctl definitions (see nuttx/pwm.h) ****************************/
 
