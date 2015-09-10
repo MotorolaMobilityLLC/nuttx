@@ -47,7 +47,7 @@
 static int tsb_dma_register_callback(struct device *dev, unsigned int chan,
         device_dma_callback callback)
 {
-    struct tsb_dma_info *info = device_get_private (dev);
+    struct tsb_dma_info *info = device_get_private(dev);
 
     if (!info) {
         return -EIO;
@@ -57,11 +57,11 @@ static int tsb_dma_register_callback(struct device *dev, unsigned int chan,
         return -EINVAL;
     }
 
-    sem_wait (&info->dma_channel[chan].lock);
+    sem_wait(&info->dma_channel[chan].lock);
 
     info->dma_channel[chan].callback = callback;
 
-    sem_post (&info->dma_channel[chan].lock);
+    sem_post(&info->dma_channel[chan].lock);
 
     return 0;
 }
@@ -69,7 +69,7 @@ static int tsb_dma_register_callback(struct device *dev, unsigned int chan,
 static int tsb_dma_transfer(struct device *dev, unsigned int chan, void *src,
         void *dst, size_t len, device_dma_transfer_arg *arg)
 {
-    struct tsb_dma_info *info = device_get_private (dev);
+    struct tsb_dma_info *info = device_get_private(dev);
 
     if (!info) {
         return -EIO;
@@ -79,24 +79,24 @@ static int tsb_dma_transfer(struct device *dev, unsigned int chan, void *src,
         return -EINVAL;
     }
 
-    sem_wait (&info->dma_channel[chan].lock);
+    sem_wait(&info->dma_channel[chan].lock);
 
-    // Call the dma transfer function associated with GDMAC channel
+    /* Call the dma transfer function associated with GDMAC channel */
     if (info->dma_channel[chan].do_dma_transfer != NULL) {
-        info->dma_channel[chan].do_dma_transfer (&info->dma_channel[chan], src,
+        info->dma_channel[chan].do_dma_transfer(&info->dma_channel[chan], src,
                 dst, len, arg);
     }
 
-    sem_post (&info->dma_channel[chan].lock);
+    sem_post(&info->dma_channel[chan].lock);
 
     return 0;
 }
 
-// TODO!! add support for other transfer types
+/* TODO!! add support for other transfer types */
 static int tsb_dma_allocate_channel(struct device *dev,
         enum device_dma_channel_type type, unsigned int *chan)
 {
-    struct tsb_dma_info *info = device_get_private (dev);
+    struct tsb_dma_info *info = device_get_private(dev);
     int ret = -ENOMEM;
     int index;
 
@@ -114,7 +114,7 @@ static int tsb_dma_allocate_channel(struct device *dev,
             switch (type) {
             case DEVICE_DMA_UNIPRO_TX_CHANNEL:
                 info->dma_channel[index].channel_id = index;
-                ret = tsb_dma_allocal_unipro_tx_channel (
+                ret = tsb_dma_allocal_unipro_tx_channel(
                         &info->dma_channel[index]);
                 if (ret == 0) {
                     *chan = index;
@@ -141,7 +141,7 @@ static int tsb_dma_allocate_channel(struct device *dev,
 
 static int tsb_dma_release_channel(struct device *dev, unsigned int *chan)
 {
-    struct tsb_dma_info *info = device_get_private (dev);
+    struct tsb_dma_info *info = device_get_private(dev);
 
     if (!info) {
         return -EIO;
@@ -152,7 +152,7 @@ static int tsb_dma_release_channel(struct device *dev, unsigned int *chan)
     }
 
     if (info->dma_channel[*chan].release_channel != NULL) {
-        info->dma_channel[*chan].release_channel (&info->dma_channel[*chan]);
+        info->dma_channel[*chan].release_channel(&info->dma_channel[*chan]);
     }
     info->dma_channel[*chan].channel_info = NULL;
     *chan = DEVICE_DMA_INVALID_CHANNEL;
@@ -163,17 +163,17 @@ static int tsb_dma_release_channel(struct device *dev, unsigned int *chan)
 static int tsb_dma_open(struct device *dev)
 {
     struct tsb_dma_info *info;
-    unsigned int chan = tsb_dma_max_number_of_channels ();
+    unsigned int chan = tsb_dma_max_number_of_channels();
     int ret, rc = 0;
 
-    info = zalloc (sizeof(*info) + sizeof(struct tsb_dma_channel) * chan);
+    info = zalloc(sizeof(*info) + sizeof(struct tsb_dma_channel) * chan);
     if (!info) {
         return -ENOMEM;
     }
 
     info->max_number_of_channels = chan;
     for (chan = 0; chan < info->max_number_of_channels; chan++) {
-        ret = sem_init (&info->dma_channel[chan].lock, 0, 1);
+        ret = sem_init(&info->dma_channel[chan].lock, 0, 1);
         if (ret != OK) {
             rc = -errno;
             break;
@@ -182,23 +182,23 @@ static int tsb_dma_open(struct device *dev)
 
     if (rc) {
         for (; chan; chan--) {
-            sem_destroy (&info->dma_channel[chan - 1].lock);
+            sem_destroy(&info->dma_channel[chan - 1].lock);
         }
 
-        free (info);
+        free(info);
         return rc;
     }
 
-    device_set_private (dev, info);
+    device_set_private(dev, info);
 
-    tsb_dma_init_controller (dev);
+    tsb_dma_init_controller(dev);
 
     return 0;
 }
 
 static void tsb_dma_close(struct device *dev)
 {
-    struct tsb_dma_info *info = device_get_private (dev);
+    struct tsb_dma_info *info = device_get_private(dev);
     unsigned int chan;
 
     if (!info) {
@@ -206,32 +206,32 @@ static void tsb_dma_close(struct device *dev)
     }
 
     for (chan = 0; chan < info->max_number_of_channels; chan++) {
-        sem_destroy (&info->dma_channel[chan].lock);
+        sem_destroy(&info->dma_channel[chan].lock);
     }
 
-    tsb_dma_deinit_controller (dev);
+    tsb_dma_deinit_controller(dev);
 
-    device_set_private (dev, NULL);
+    device_set_private(dev, NULL);
 
-    free (info);
+    free(info);
 }
 
-static struct device_dma_type_ops tsb_dma_type_ops =
-        { .register_callback = tsb_dma_register_callback,
-          .allocate_channel = tsb_dma_allocate_channel,
-          .release_channel = tsb_dma_release_channel,
-          .transfer = tsb_dma_transfer
-        };
+static struct device_dma_type_ops tsb_dma_type_ops = {
+        .register_callback = tsb_dma_register_callback,
+        .allocate_channel = tsb_dma_allocate_channel,
+        .release_channel = tsb_dma_release_channel,
+        .transfer = tsb_dma_transfer
+};
 
-static struct device_driver_ops tsb_dma_driver_ops =
-        { .open = tsb_dma_open,
-          .close = tsb_dma_close,
-          .type_ops = &tsb_dma_type_ops
-        };
+static struct device_driver_ops tsb_dma_driver_ops = {
+        .open = tsb_dma_open,
+        .close = tsb_dma_close,
+        .type_ops = &tsb_dma_type_ops
+};
 
-struct device_driver tsb_dma_driver =
-        { .type = DEVICE_TYPE_DMA_HW,
-          .name = "tsb_dma",
-          .desc = "TSB DMA Device",
-          .ops = &tsb_dma_driver_ops
-        };
+struct device_driver tsb_dma_driver = {
+        .type = DEVICE_TYPE_DMA_HW,
+        .name = "tsb_dma",
+        .desc = "TSB DMA Device",
+        .ops = &tsb_dma_driver_ops
+};

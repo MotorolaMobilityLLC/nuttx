@@ -65,7 +65,8 @@ enum device_dma_channel_type {
 };
 
 typedef struct {
-    uint8_t *eom_addr; // om_addr Address of EOM area (NULL means don't write to EOM area)
+    /* eom_addr Address of EOM area (NULL means don't write to EOM area) */
+    uint8_t *eom_addr;
 } device_dma_unipro_tx_arg;
 
 typedef union {
@@ -95,14 +96,15 @@ struct device_dma_type_ops {
  *         -errno: Cause of failure
  */
 static inline int device_dma_register_callback(struct device *dev,
-        unsigned int chan, device_dma_callback callback) {
-    DEVICE_DRIVER_ASSERT_OPS (dev);
+        unsigned int chan, device_dma_callback callback)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
-    if (!device_is_open (dev))
+    if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS (dev, dma)->register_callback)
-        return DEVICE_DRIVER_GET_OPS (dev, dma)->register_callback (dev, chan,
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->register_callback)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->register_callback(dev, chan,
                 callback);
 
     return -ENOSYS;
@@ -116,14 +118,15 @@ static inline int device_dma_register_callback(struct device *dev,
  *         -errno: Cause of failure
  */
 static inline int device_dma_allocate_channel(struct device *dev,
-        enum device_dma_channel_type type, unsigned int *chan) {
-    DEVICE_DRIVER_ASSERT_OPS (dev);
+        enum device_dma_channel_type type, unsigned int *chan)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
-    if (!device_is_open (dev))
+    if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS (dev, dma)->allocate_channel)
-        return DEVICE_DRIVER_GET_OPS (dev, dma)->allocate_channel (dev, type,
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->allocate_channel)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->allocate_channel(dev, type,
                 chan);
 
     return -ENOSYS;
@@ -137,14 +140,15 @@ static inline int device_dma_allocate_channel(struct device *dev,
  *         -errno: Cause of failure
  */
 static inline int device_dma_release_channel(struct device *dev,
-        unsigned int *chan) {
-    DEVICE_DRIVER_ASSERT_OPS (dev);
+        unsigned int *chan)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
-    if (!device_is_open (dev))
+    if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS (dev, dma)->release_channel)
-        return DEVICE_DRIVER_GET_OPS (dev, dma)->release_channel (dev, chan);
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->release_channel)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->release_channel(dev, chan);
 
     return -ENOSYS;
 }
@@ -162,14 +166,15 @@ static inline int device_dma_release_channel(struct device *dev,
  *         -errno: Cause of failure
  */
 static inline int device_dma_transfer(struct device *dev, unsigned int chan,
-        void *src, void *dst, size_t len, device_dma_transfer_arg *arg) {
-    DEVICE_DRIVER_ASSERT_OPS (dev);
+        void *src, void *dst, size_t len, device_dma_transfer_arg *arg)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
-    if (!device_is_open (dev))
+    if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS (dev, dma)->transfer)
-        return DEVICE_DRIVER_GET_OPS (dev, dma)->transfer (dev, chan, src, dst,
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->transfer)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->transfer(dev, chan, src, dst,
                 len, arg);
 
     return -ENOSYS;

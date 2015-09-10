@@ -32,9 +32,10 @@
 #ifndef __ARCH_ARM_SRC_TSB_DMA_PL330_ASMH
 #define __ARCH_ARM_SRC_TSB_DMA_PL330_ASMH
 
-// Define MACROs for PL330 GDMAC binary code.
-// Define values in PL320 instructions
-#define DMA_UINT32(value)           (value & 0xFF), ((value >> 8) & 0xFF), ((value >> 16) & 0xFF), ((value >> 24) & 0xFF)
+/* Define values field in PL320 instructions */
+#define DMA_UINT32(value)           \
+    (value & 0xFF), ((value >> 8) & 0xFF), ((value >> 16) & 0xFF), \
+    ((value >> 24) & 0xFF)
 #define DMAADD_sar                  0x00
 #define DMAADD_dar                  0x20
 #define DMAGO_s                     0x00
@@ -50,17 +51,18 @@
 #define DMAMOV_dar                  0x02
 #define DMAMOV_ccr                  0x01
 #define DMAWFE_                     0x00
-#define DMAWFE_i                    0x02
+#define DMAWFE_invalid              0x02
 #define DMAWFP_S                    0x00
 #define DMAWFP_B                    0x02
 #define DMAWFP_P                    0x01
 
-// define MACROs for PL330 instruction.
+/* define MACROs for PL330 instruction. */
 #define DMAADDH(reg, value)         (0x54 | DMAADD_##reg), DMA_UINT32(value)
 #define DMAADDNH(reg, value)        (0x5C | DMAADD_##reg), DMA_UINT32(value)
 #define DMAEND                      (0x00)
 #define DMAFLUSH(peripheral)        (0x35), (peripheral << 3)
-#define DMAGO(ch, secure, addr)     (0xA0 | DMAGO_##secure), ch, DMA_UINT32((uint32_t)addr)
+#define DMAGO(ch, secure, addr)     \
+    (0xA0 | DMAGO_##secure), ch, DMA_UINT32((uint32_t)addr)
 #define DMAKILL                     (0x01)
 #define DMALD                       (0x04)
 #define DMALDS                      (0x05)
@@ -72,7 +74,8 @@
 #define DMALPENDS(lc, value)        (0x39 | DMALPENDT_##lc), value
 #define DMALPENDB(lc, value)        (0x3B | DMALPENDT_##lc), value
 #define DMALPFE
-#define DMAMOV(reg, value)          (0xBC), (DMAMOV_##reg), DMA_UINT32((uint32_t)value)
+#define DMAMOV(reg, value)          \
+    (0xBC), (DMAMOV_##reg), DMA_UINT32((uint32_t)value)
 #define DMANOP                      (0x18)
 #define DMARMB                      (0x12)
 #define DMASEV(event)               (0x34), (event << 3)
@@ -82,12 +85,14 @@
 #define DMASTPS(peripheral)         (0x29), (peripheral << 3)
 #define DMASTPB(peripheral)         (0x2B), (peripheral << 3)
 #define DMASTZ                      (0x0C)
-#define DMAWFE(event,inval_i_cache) (0x36), (DMAWFE_##inval_i_cache | event << 3)
+#define DMAWFE(event,inval_i_cache) \
+    (0x36), (DMAWFE_##inval_i_cache | event << 3)
 #define DMAWFP(peripheral, type)    (0x30 | DMAWFP_##type), (peripheral << 3)
 #define DMAWMB                      (0x13)
 
-// Define size of PL330 instructions. We need them to calculate the offset to
-// modify the values in the PL330 programs.
+/* Define size of PL330 instructions. We need them to calculate the offset to
+ * modify the values in the PL330 programs.
+ */
 #define DMA_ADD_SIZE                3
 #define DMA_END_SIZE                1
 #define DMA_FLUSHP_SIZE             2
