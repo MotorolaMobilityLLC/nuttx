@@ -25,90 +25,166 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include <errno.h>
 #include <nuttx/greybus/greybus.h>
-#include <arch/chip/unipro.h>
 #include <nuttx/audio/i2s.h>
 #include <nuttx/audio/audio.h>
+#include <nuttx/device_audio.h>
+#include <apps/greybus-utils/utils.h>
 
 #include "i2s-gb.h"
+#include "audio-gb.h"
 
-struct gb_audio_s {
-    struct audio_lowerhalf_s *rx_aud_dev_s;
-    struct audio_lowerhalf_s *tx_aud_dev_s;
-    int i2s_tx_cport;
-    int i2s_rx_cport;
-    int i2s_mgmnt_cport;
+
+#define GB_AUD_VERSION_MAJOR        0x00
+#define GB_AUD_VERSION_MINOR        0x01
+#define GB_AUD_BUNDLE_0_DEV_ID          0x02
+#define GB_AUD_BUNDLE_0_ID              0x00
+
+struct gb_aud_info {
+    uint16_t            bundle_id;
+    char                *dev_type;
+    unsigned int        dev_id;
+    struct device       *dev;
 };
 
-static struct gb_audio_s gb_aud;
+static struct gb_aud_info dev_info = {
+        .bundle_id  = GB_AUD_BUNDLE_0_ID,
+        .dev_type   = DEVICE_TYPE_MUC_AUD_HW,
+        .dev_id     = GB_AUD_BUNDLE_0_DEV_ID,
+};
 
-
-uint8_t gb_audio_i2s_get_supported_cfgs(struct gb_i2s_mgmt_get_supported_configurations_response *response)
+static uint8_t gb_aud_protocol_version(struct gb_operation *operation)
 {
-    struct gb_i2s_mgmt_configuration *conf;
+    struct gb_audio_proto_version_response *response;
 
-    //TODO: call driver ops to get capabilities send hardcoded cfg for now
-    response->config_count = 1;
+    gb_debug("%s()\n", __func__);
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
 
-    conf = &response->config[0];
-    conf->sample_frequency = 48000;
-    conf->ll_mclk_role = GB_I2S_MGMT_ROLE_MASTER;
-    conf->num_channels = 2;
-    conf->bytes_per_channel = 2;
-    conf->byte_order = GB_I2S_MGMT_BYTE_ORDER_LE;
-    conf->spatial_locations = (GB_I2S_MGMT_SPATIAL_LOCATION_FL |
-                    GB_I2S_MGMT_SPATIAL_LOCATION_FR);
-    conf->ll_protocol = (GB_I2S_MGMT_PROTOCOL_I2S);
-    conf->ll_bclk_role = GB_I2S_MGMT_ROLE_MASTER;
-    conf->ll_wclk_role = GB_I2S_MGMT_ROLE_MASTER;
-    conf->ll_wclk_polarity = GB_I2S_MGMT_POLARITY_NORMAL;
-    conf->ll_wclk_change_edge = GB_I2S_MGMT_EDGE_FALLING;
-    conf->ll_wclk_tx_edge = GB_I2S_MGMT_EDGE_RISING;
-    conf->ll_wclk_rx_edge = GB_I2S_MGMT_EDGE_FALLING;
-    conf->ll_data_offset = 1;
+    response->major = GB_AUD_VERSION_MAJOR;
+    response->minor = GB_AUD_VERSION_MINOR;
 
     return GB_OP_SUCCESS;
 }
 
-uint8_t gb_audio_i2s_set_supported_cfgs(struct gb_i2s_mgmt_configuration *config)
+static uint8_t gb_aud_get_supported_use_case(struct gb_operation *operation)
 {
+    struct gb_audio_get_supported_usecases_response *response;
+    int ret;
+    uint32_t gb_use_cases;
 
-    //call driver ops to get capabilities channels, sample rate, bit rate
+    gb_debug("%s()\n", __func__);
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    ret = device_audio_get_supported_use_cases(dev_info.dev, &gb_use_cases);
+    if (ret)
+        return GB_OP_SUCCESS;
+
+     response->use_cases = gb_use_cases;
 
     return GB_OP_SUCCESS;
 }
 
-uint8_t gb_audio_i2s_activate_cport(int cport)
+static uint8_t gb_aud_get_vol_range(struct gb_operation *operation)
 {
-    //call tx/rx aud dev start() here
+    struct gb_audio_get_volume_db_range_response *response;
+    int ret;
+    struct device_aud_vol_range gb_vol_range;
+
+    gb_debug("%s()\n", __func__);
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+
+    ret = device_audio_get_volume_db_range(dev_info.dev, &gb_vol_range);
+    if (ret)
+        return GB_OP_SUCCESS;
+
+    response->vol_range.min = gb_vol_range.min;
+    response->vol_range.step = gb_vol_range.step;
+
     return GB_OP_SUCCESS;
 }
 
-uint8_t gb_audio_i2s_deactivate_cport(int cport)
+static uint8_t gb_aud_protocol_set_use_case(struct gb_operation *operation)
 {
-    //call tx/rx aud dev stop() here
+    struct gb_audio_set_use_case_request *request =
+                            gb_operation_get_request_payload(operation);
+    int ret;
+
+    gb_debug("%s()\n", __func__);
+
+    ret =  device_audio_set_use_case(dev_info.dev, request->use_case);
+    if (ret)
+        return -EIO;
+
     return GB_OP_SUCCESS;
 }
 
-
-int gb_audio_i2s_rx_init(int cport)
+static uint8_t gb_aud_protocol_set_volume(struct gb_operation *operation)
 {
-     gb_aud.i2s_rx_cport = cport;
-    //call driver specific output set up here
+    struct gb_audio_set_volume_db_request *request =
+                            gb_operation_get_request_payload(operation);
+    int ret;
+
+    gb_debug("%s()\n", __func__);
+
+    ret =  device_audio_set_volume(dev_info.dev, request->vol_step);
+    if (ret)
+        return -EIO;
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_aud_protocol_set_sys_volume(struct gb_operation *operation)
+{
+    struct gb_audio_set_system_volume_db_request *request =
+                            gb_operation_get_request_payload(operation);
+    int ret;
+
+    gb_debug("%s()\n", __func__);
+
+    ret =  device_audio_set_sys_volume(dev_info.dev, request->vol_db);
+    if (ret)
+        return -EIO;
+
+    return GB_OP_SUCCESS;
+}
+
+static int gb_aud_init(unsigned int cport)
+{
+
+    gb_debug("%s()\n", __func__);
+    dev_info.dev = device_open(dev_info.dev_type, dev_info.dev_id);
+    if (!dev_info.dev)
+        return -EIO;
+
     return 0;
 }
 
-int gb_audio_i2s_tx_init(int cport)
-{
-     gb_aud.i2s_tx_cport = cport;
-    //call driver specific input setup here
-    return 0;
-}
+static struct gb_operation_handler gb_aud_handlers[] = {
+    GB_HANDLER(GB_AUDIO_PROTOCOL_VERSION, gb_aud_protocol_version),
+    GB_HANDLER(GB_AUDIO_GET_VOLUME_DB_RANGE, gb_aud_get_vol_range),
+    GB_HANDLER(GB_AUDIO_GET_SUPPORTED_USE_CASES, gb_aud_get_supported_use_case),
+    GB_HANDLER(GB_AUDIO_SET_USE_CASE, gb_aud_protocol_set_use_case),
+    GB_HANDLER(GB_AUDIO_SET_VOLUME, gb_aud_protocol_set_volume),
+    GB_HANDLER(GB_AUDIO_SET_SYSTEM_VOLUME, gb_aud_protocol_set_sys_volume),
+};
 
-int gb_audio_i2s_mgmt_init(int cport)
+static struct gb_driver gb_aud_driver = {
+    .init = gb_aud_init,
+    .op_handlers = (struct gb_operation_handler*)gb_aud_handlers,
+    .op_handlers_count = ARRAY_SIZE(gb_aud_handlers),
+};
+
+void gb_aud_register(int cport)
 {
-    gb_aud.i2s_mgmnt_cport = cport;
-    // call driver init here
-    return 0;
+    gb_debug("%s()\n", __func__);
+
+    gb_register_driver(cport, &gb_aud_driver);
 }

@@ -71,6 +71,18 @@ config GREYBUS_I2S_AUDIO
 	bool "Audio support"
 	default n
 
+config GREYBUS_MODS_AUDIO
+	bool "Audio support"
+	default n
+
+if GREYBUS_MODS_AUDIO
+choice
+  prompt "Select a audio dev driver"
+config GREYBUS_MODS_AUDIO_TFA9890
+  bool "TFA9890"
+endchoice
+endif
+
 if GREYBUS_BATTERY
 choice
   prompt "Select a battery driver"
