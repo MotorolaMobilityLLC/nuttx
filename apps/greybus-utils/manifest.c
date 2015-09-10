@@ -57,6 +57,7 @@ extern void gb_aud_register(int cport);
 extern void gb_i2s_direct_tx_register(int cport);
 extern void gb_i2s_direct_rx_register(int cport);
 extern void gb_i2s_direct_mgmt_register(int cport);
+extern void gb_ptp_register(int cport);
 
 struct greybus {
     struct list_head cports;
@@ -226,6 +227,12 @@ void enable_cports(void)
         if (protocol == GREYBUS_PROTOCOL_SDIO) {
             gb_info("Registering SDIO greybus driver.\n");
             gb_sdio_register(id);
+        }
+
+#ifdef CONFIG_GREYBUS_PTP
+        if (protocol == GREYBUS_PROTOCOL_PTP) {
+             gb_info("Registering PTP greybus driver.\n");
+             gb_ptp_register(id);
         }
 #endif
     }
