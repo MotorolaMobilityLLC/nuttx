@@ -122,6 +122,10 @@ static void adc_help(FAR struct adc_state_s *adc)
          CONFIG_EXAMPLES_ADC_DEVPATH, g_adcstate.devpath ? g_adcstate.devpath : "NONE");
   message("  [-n count] selects the samples to collect.  "
          "Default: 1 Current: %d\n", adc->count);
+  message("  [-u upper_thres] Watchdog upper threshold.  "
+         "Default: -1 Current: %d\n", adc->wd_upper_thres);
+  message("  [-l lower_thres] Watchdog lower threshold.  "
+         "Default: -1 Current: %d\n", adc->wd_lower_thres);
   message("  [-h] shows this message and exits\n");
 }
 #endif
@@ -206,6 +210,18 @@ static void parse_args(FAR struct adc_state_s *adc, int argc, FAR char **argv)
             index += nargs;
             break;
 
+          case 'u':
+            nargs = arg_decimal(&argv[index], &value);
+            adc->wd_upper_thres = (uint32_t)value;
+            index += nargs;
+            break;
+
+          case 'l':
+            nargs = arg_decimal(&argv[index], &value);
+            adc->wd_lower_thres = (uint32_t)value;
+            index += nargs;
+            break;
+
           case 'h':
             adc_help(adc);
             exit(0);
@@ -262,6 +278,8 @@ int adc_main(int argc, char *argv[])
 
       adc_devpath(&g_adcstate, CONFIG_EXAMPLES_ADC_DEVPATH);
 
+      g_adcstate.wd_upper_thres = -1;
+      g_adcstate.wd_lower_thres = -1;
       g_adcstate.initialized = true;
     }
 
@@ -315,6 +333,28 @@ int adc_main(int argc, char *argv[])
      */
 
     msgflush();
+
+    if (g_adcstate.wd_upper_thres >= 0)
+      {
+        /* Set upper threshold */
+
+        ret = ioctl(fd, ANIOC_WDOG_UPPER, g_adcstate.wd_upper_thres);
+        if (ret < 0)
+          {
+            message("adc_main: ANIOC_WDOG_UPPER ioctl failed: %d\n", errno);
+          }
+      }
+
+    if (g_adcstate.wd_lower_thres >= 0)
+      {
+        /* Set lower threshold */
+
+        ret = ioctl(fd, ANIOC_WDOG_LOWER, g_adcstate.wd_lower_thres);
+        if (ret < 0)
+          {
+            message("adc_main: ANIOC_WDOG_LOWER ioctl failed: %d\n", errno);
+          }
+      }
 
 #ifdef CONFIG_EXAMPLES_ADC_SWTRIG
     /* Issue the software trigger to start ADC conversion */

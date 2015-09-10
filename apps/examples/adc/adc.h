@@ -101,6 +101,8 @@ struct adc_state_s
 #if defined(CONFIG_NSH_BUILTIN_APPS) || defined(CONFIG_EXAMPLES_ADC_NSAMPLES)
   int       count;
 #endif
+  int       wd_upper_thres;
+  int       wd_lower_thres;
 };
 
 /****************************************************************************
