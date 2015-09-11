@@ -86,6 +86,9 @@
      GDMAC_CHANNEL_REGS_ADDRESS)->channel_status_regs[thread_id].csr & 0x0F)\
             == 0)
 
+#define GDMAC_PROGRAM_SET_EVENT(event_field, event) \
+    putreg8(getreg8(&event_field) | event << 3, &event_field)
+
 /* Structures for PL330 GDMAC registers */
 typedef struct {
     uint32_t dsr;
@@ -149,6 +152,49 @@ typedef struct {
     uint32_t pcell_id_3;
 } tsb_dma_gdmac_id_regs;
 
+#define GDMAC_INSTR_DMAMOV(value_name)      \
+    struct __attribute__((__packed__))      \
+    { uint8_t instr[2]; uint32_t value; } value_name
+#define GDMAC_INSTR_DMASEV(value_name)      \
+    struct __attribute__((__packed__))      \
+    { uint8_t instr[1]; uint8_t value; } value_name
+#define GDMAC_INSTR_DMALP(value_name)       \
+    struct __attribute__((__packed__))      \
+    { uint8_t instr[1]; uint8_t value; } value_name
+#define GDMAC_INSTR_DMAWFE(value_name)      \
+    struct __attribute__((__packed__))      \
+    { uint8_t instr[1]; uint8_t value; } value_name
+#define GDMAC_INSTR_DMALPEND(value_name)    \
+    struct __attribute__((__packed__))      \
+    { uint8_t instr[1]; uint8_t value; } value_name
+
+/* structure for UniPro TX channel information. */
+typedef struct {
+    unsigned int end_of_tx_event;
+    sem_t tx_sem;
+
+    /* Channel program. */
+    struct __attribute__((__packed__)) {
+        uint8_t gdmac_program[0];
+        uint8_t unipro_eom[0];
+        GDMAC_INSTR_DMAMOV(unipro_eom_value_addr);
+        GDMAC_INSTR_DMAMOV(unipro_eom_reg_addr);
+        uint8_t pad0[DMA_LD_SIZE + DMA_ST_SIZE + DMA_WMB_SIZE];
+        GDMAC_INSTR_DMASEV(unipro_eom_tx_event);
+        uint8_t pad10[DMA_END_SIZE];
+        uint8_t unipro_program_entry_point[DMA_MOV_SIZE];
+        GDMAC_INSTR_DMAMOV(unipro_src_addr);
+        GDMAC_INSTR_DMAMOV(unipro_dst_addr);
+        uint8_t unipro_continue_tx[0];
+        GDMAC_INSTR_DMALP(unpro_len_loopcount);
+        uint8_t pad20[DMA_LD_SIZE + DMA_ST_SIZE + DMA_LPEND_SIZE];
+        GDMAC_INSTR_DMALP(unpro_eom_loopcount);
+        uint8_t unipro_eom_loopback[DMA_LPEND_SIZE + DMA_WMB_SIZE];
+        GDMAC_INSTR_DMASEV(unipro_end_of_tx_event);
+        uint8_t pad100[DMA_END_SIZE];
+    };
+} tsb_dma_gdmac_unipro_tx_channel;
+
 /* a fixed value write to UniPro EOM register after EOM packet was sent. */
 static const uint8_t eom_value = 0x01;
 
@@ -170,7 +216,7 @@ static const uint8_t tsb_dma_gdma_unipro_tx_prg[] = {
         DMAMOV(ccr, 0x01C04701),
         DMAMOV(sar, 0),
         DMAMOV(dar, 0),
-        DMALP(lc0, GDMAC_DONOT_LOOPBACK),
+        DMALP(lc0, 0),
         DMALD,
         DMAST,
         DMALPEND(lc0, DMA_LD_SIZE + DMA_ST_SIZE),
@@ -180,19 +226,6 @@ static const uint8_t tsb_dma_gdma_unipro_tx_prg[] = {
         DMASEV(0),
         DMAEND
 };
-
-/* structure for UniPro TX channel information. */
-typedef struct {
-    unsigned int end_of_tx_event;
-    sem_t tx_sem;
-    uint8_t *dma_program_start;
-    volatile uint32_t *eom_dest_addr;
-    volatile uint8_t *eom_lc_addr;
-    volatile uint32_t *tx_src_addr;
-    volatile uint32_t *tx_dest_addr;
-    volatile uint8_t *tx_lc_addr;
-    uint8_t dma_program[sizeof(tsb_dma_gdma_unipro_tx_prg)];
-} tsb_dma_gdmac_unipro_tx_channel;
 
 struct tsb_dma_channel_info {
     union {
@@ -295,28 +328,27 @@ static int gdmac_unipro_tx_transfer(struct tsb_dma_channel *channel, void* buf,
     int status;
 
     /* Set the source and destination addresses, as well as the data count. */
-    *unipro_tx_channel->tx_src_addr = (uint32_t) buf;
-    *unipro_tx_channel->tx_dest_addr = (uint32_t) tx_buf;
-    *unipro_tx_channel->tx_lc_addr = (uint8_t) len;
-
+    unipro_tx_channel->unipro_src_addr.value = (uint32_t) buf;
+    unipro_tx_channel->unipro_dst_addr.value = (uint32_t) tx_buf;
+    unipro_tx_channel->unpro_len_loopcount.value = (uint8_t) len;
     if (unipro_tx_arg->eom_addr != NULL) {
         /* If this is the last fragmented message, set loop count to 2 to
          * cause the GDMAC to run the little piece of code at the very top to
          * hit the EOM register.
          */
-        *unipro_tx_channel->eom_lc_addr = GDMAC_DO_LOOPBACK;
-        *unipro_tx_channel->eom_dest_addr = (uint32_t) unipro_tx_arg->eom_addr;
+        unipro_tx_channel->unpro_eom_loopcount.value = GDMAC_DO_LOOPBACK;
+        unipro_tx_channel->unipro_eom_reg_addr.value = (uint32_t) unipro_tx_arg->eom_addr;
     } else {
         /* If this is NOT the last fragmented message, set loop count to 1 to
          * cause the GDMAC to raise the AP interrupt event and ends the
          * execution.
          */
-        *unipro_tx_channel->eom_lc_addr = GDMAC_DONOT_LOOPBACK;
+        unipro_tx_channel->unpro_eom_loopcount.value = GDMAC_DONOT_LOOPBACK;
     }
 
     /* Start the transfer and wait for end of transfer interrupt. */
     status = dma_start_thread(channel->channel_id,
-            unipro_tx_channel->dma_program_start);
+            &unipro_tx_channel->unipro_program_entry_point[0]);
 
     sem_wait(&unipro_tx_channel->tx_sem);
 
@@ -327,15 +359,17 @@ static int gdmac_unipro_tx_transfer(struct tsb_dma_channel *channel, void* buf,
 int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel)
 {
     int ret;
-    tsb_dma_gdmac_unipro_tx_channel *unipro_tx_channel = zalloc(
-            sizeof(tsb_dma_gdmac_unipro_tx_channel));
-    volatile  uint8_t *prog_ptr;
+    tsb_dma_gdmac_unipro_tx_channel *unipro_tx_channel;
+    struct tsb_dma_channel_info *channel_info = zalloc(
+            sizeof(struct tsb_dma_channel_info));
     volatile tsb_dma_gdmac_control_regs *control_regs =
             (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
 
-    if (unipro_tx_channel == NULL) {
+    if (channel_info == NULL) {
         return -ENOMEM;
     }
+
+    unipro_tx_channel = &channel_info->unipro_tx_channel;
 
     /* allocate an end of transfer event; */
     unipro_tx_channel->end_of_tx_event = gdmac_allocate_event(
@@ -347,44 +381,21 @@ int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel)
         return -ENOMEM;
     }
 
-    prog_ptr = &unipro_tx_channel->dma_program[0];
-
     /* make a copy of the UniPro TX binary code. */
-    memcpy((uint8_t *)prog_ptr, &tsb_dma_gdma_unipro_tx_prg[0],
+    memcpy(&unipro_tx_channel->gdmac_program[0],
+            &tsb_dma_gdma_unipro_tx_prg[0],
             sizeof(tsb_dma_gdma_unipro_tx_prg));
 
-    /* Set a pointer to the EOM register address. */
-    *(uint32_t*) (&prog_ptr[2]) = (uint32_t) &eom_value;
-    prog_ptr += DMA_MOV_SIZE;
-    unipro_tx_channel->eom_dest_addr = (uint32_t*) (prog_ptr + 2);
+    /* Set the source address of EOM flag. */
+    unipro_tx_channel->unipro_eom_value_addr.value = (uint32_t)&eom_value;
 
     /* Set a pointer to the PL330 event used for this UniPro TX channel. */
-    prog_ptr += DMA_MOV_SIZE + DMA_LD_SIZE + DMA_ST_SIZE + DMA_WMB_SIZE;
-    prog_ptr[1] |= GDMAC_END_OF_TX_EVENT(unipro_tx_channel) << 3;
-    prog_ptr += DMA_SEV_SIZE + DMA_END_SIZE;
+    GDMAC_PROGRAM_SET_EVENT(unipro_tx_channel->unipro_eom_tx_event.value,
+            GDMAC_END_OF_TX_EVENT(unipro_tx_channel));
 
-    /* Set a pointer to the starting address of this UniPro PL330 program */
-    unipro_tx_channel->dma_program_start = (uint8_t *)prog_ptr;
-
-    /* Set pointers to the source and destination address,as well as the
-     * size of this GDMAC UniPro TX data transfer.
-     */
-    prog_ptr += DMA_MOV_SIZE;
-    unipro_tx_channel->tx_src_addr = (uint32_t*) (prog_ptr + 2);
-    prog_ptr += DMA_MOV_SIZE;
-    unipro_tx_channel->tx_dest_addr = (uint32_t*) (prog_ptr + 2);
-    prog_ptr += DMA_MOV_SIZE;
-    unipro_tx_channel->tx_lc_addr = prog_ptr + 1;
-
-    /* Set a pointer to the EOM condition counter. There is no if statement in
-     * PL330, we are using loop count to simulate the if statement.
-     */
-    prog_ptr += DMA_LP_SIZE + DMA_LD_SIZE + DMA_ST_SIZE + DMA_LPEND_SIZE;
-    unipro_tx_channel->eom_lc_addr = prog_ptr + 1;
-
-    /* Set a pointer to the PL330 event used for this UniPro TX channel. */
-    prog_ptr += DMA_LP_SIZE + DMA_LPEND_SIZE + DMA_WMB_SIZE;
-    prog_ptr[1] |= GDMAC_END_OF_TX_EVENT(unipro_tx_channel) << 3;
+    /* Set EOP (end-of-packet) transfer event. */
+    GDMAC_PROGRAM_SET_EVENT(unipro_tx_channel->unipro_end_of_tx_event.value,
+            GDMAC_END_OF_TX_EVENT(unipro_tx_channel));
 
     /* Set interrupt handler for this GDMAC UniPro TX channel */
     ret = irq_attach(DMA_CHANNEL_TO_TSB_IRQ(channel->channel_id),
