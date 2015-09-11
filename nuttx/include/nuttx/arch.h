@@ -745,6 +745,29 @@ uintptr_t pgalloc(uintptr_t brkaddr, unsigned int npages);
 #endif
 
 /****************************************************************************
+ * Name: up_getuid
+ *
+ * Description:
+ *   Get Unique Device ID (UID). The UID could be used for serial numbers, as
+ *   part of security keys, etc. The UID cannot be altered by the user.
+ *
+ *   This function supports UIDs of up to 128 bits. If 128 bits are not
+ *   available, then the MSBs should be 0.
+ *
+ * Inputs:
+ *   uid_low - Pointer to location to store the lower 64 bits of the UID
+ *   uid_high - Pointer to location to store the upper 64 bits of the UID
+ *
+ * Return:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARCH_UID
+int up_getuid(uint64_t *uid_high, uint64_t *uid_low);
+#endif
+
+/****************************************************************************
  * Address Environment Interfaces
  *
  * Low-level interfaces used in binfmt/ to instantiate tasks with address

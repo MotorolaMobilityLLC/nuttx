@@ -609,6 +609,19 @@ config ARCH_RAMVECTORS
 		If ARCH_RAMVECTORS is defined, then the architecture will support
 		modifiable vectors in a RAM-based vector table.
 
+config ARCH_HAVE_UID
+	bool
+	default n
+
+config ARCH_UID
+	bool "Support Unique Device ID (UID)"
+	default n
+	depends on ARCH_HAVE_UID
+	---help---
+		Adds Unique Device ID (UID) interface for use by drivers. The
+		UID could be used for serial numbers, as part of security keys,
+		etc. The UID cannot be altered by the user.
+
 comment "Board Settings"
 
 config BOARD_LOOPSPERMSEC
