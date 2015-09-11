@@ -188,6 +188,11 @@ long long int llabs(long long int j);
 void     qsort(void *base, size_t nmemb, size_t size,
                int(*compar)(const void *, const void *));
 
+/* Binary search */
+
+void     *bsearch(const void *key, const void *base, size_t nmemb,
+                  size_t size, int (*compar)(const void *, const void *));
+
 #ifdef CONFIG_CAN_PASS_STRUCTS
 struct mallinfo mallinfo(void);
 #else
