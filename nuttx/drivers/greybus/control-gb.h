@@ -74,5 +74,7 @@ struct gb_control_get_ids_response {
     __le32    unipro_prod_id;
     __le32    ara_vend_id;
     __le32    ara_prod_id;
-};
+    __le64    uid_low;
+    __le64    uid_high;
+} __packed;
 #endif /* __CONTROL_GB_H__ */

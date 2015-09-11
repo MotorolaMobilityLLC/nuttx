@@ -30,6 +30,7 @@
 
 #include <string.h>
 #include <arch/byteorder.h>
+#include <nuttx/arch.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/unipro/unipro.h>
@@ -157,6 +158,11 @@ static uint8_t gb_control_get_ids(struct gb_operation *operation)
     response->unipro_prod_id = CONFIG_UNIPRO_PROD_ID;
     response->ara_vend_id = CONFIG_ARA_VEND_ID;
     response->ara_prod_id = CONFIG_ARA_PROD_ID;
+
+#ifdef CONFIG_ARCH_UID
+    /* Populate the UID from the microprocessor */
+    up_getuid(&response->uid_high, &response->uid_low);
+#endif
 
     return GB_OP_SUCCESS;
 }
