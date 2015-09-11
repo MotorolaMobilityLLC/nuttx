@@ -47,6 +47,7 @@
 #include "tsb_switch_driver_es2.h"
 #include "stm32.h"
 #include <up_adc.h>
+#include "pwr_mon.h"
 
 #define SVC_LED_GREEN       (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_PORTB | \
                              GPIO_OUTPUT_SET | GPIO_PIN0)
@@ -248,6 +249,105 @@ DECLARE_SPRING_INTERFACE(8, STM32_GPIO_PIN(GPIO_PORTG | GPIO_PIN15), 13,
                          U96_GPIO_PIN(3), ARA_IFACE_WD_ACTIVE_LOW);
 
 DECLARE_EXPANSION_INTERFACE(sma, NULL, 12, 0, 0, 0, 0, 0);
+
+#define I2C_SEL1_A      BIT(0)
+#define I2C_SEL1_B      BIT(1)
+#define I2C_SEL1_INH    BIT(2)
+#define I2C_SEL2_A      BIT(3)
+#define I2C_SEL2_B      BIT(4)
+#define I2C_SEL2_INH    BIT(5)
+
+/*
+ * Power rail groups definitions.
+ *
+ * If a bit is set in i2c_sel, then drive the GPIO low.
+ */
+static struct pwrmon_dev_ctx __attribute__((unused)) pwr_devs[] = {
+    {
+        .name = "SWitch",
+        .i2c_sel = I2C_SEL1_A | I2C_SEL1_B | I2C_SEL1_INH,
+        .rails = {
+            DEFINE_PWR_RAIL("VSW_1P1_PLL",        0x42),
+            DEFINE_PWR_RAIL("VSW_1P1_CORE",       0x41),
+            DEFINE_PWR_RAIL("VSW_1P8_UNIPRO",     0x47),
+            DEFINE_PWR_RAIL("VSW_1P8_IO",         0x48),
+        },
+        .num_rails = 4,
+    },
+    {
+        .name = "APB1",
+        .i2c_sel = I2C_SEL1_B | I2C_SEL1_INH,
+        .rails = {
+            DEFINE_PWR_RAIL("VAPB1_1P1_CORE",     0x41),
+            DEFINE_PWR_RAIL("VAPB1_1P1_PLL1",     0x42),
+            DEFINE_PWR_RAIL("VAPB1_1P2_CDSI_PLL", 0x4A),
+            DEFINE_PWR_RAIL("VAPB1_1P2_CDSI",     0x4B),
+            DEFINE_PWR_RAIL("VAPB1_1P2_HSIC",     0x46),
+            DEFINE_PWR_RAIL("VAPB1_1P8_UNIPRO",   0x47),
+            DEFINE_PWR_RAIL("VAPB1_1P8_IO",       0x48),
+            DEFINE_PWR_RAIL("VAPB1_1P1_PLL2",     0x43),
+        },
+        .num_rails = 8,
+    },
+    {
+        .name = "APB2",
+        .i2c_sel = I2C_SEL1_A | I2C_SEL1_INH,
+        .rails = {
+            DEFINE_PWR_RAIL("VAPB2_1P1_CORE",     0x41),
+            DEFINE_PWR_RAIL("VAPB2_1P1_PLL1",     0x42),
+            DEFINE_PWR_RAIL("VAPB2_1P2_CDSI_PLL", 0x4A),
+            DEFINE_PWR_RAIL("VAPB2_1P2_CDSI",     0x4B),
+            DEFINE_PWR_RAIL("VAPB2_1P2_HSIC",     0x46),
+            DEFINE_PWR_RAIL("VAPB2_1P8_UNIPRO",   0x47),
+            DEFINE_PWR_RAIL("VAPB2_1P8_IO",       0x48),
+            DEFINE_PWR_RAIL("VAPB2_1P1_PLL2",     0x43),
+        },
+        .num_rails = 8,
+    },
+    {
+        .name = "APB3",
+        .i2c_sel = I2C_SEL1_INH,
+        .rails = {
+            DEFINE_PWR_RAIL("VAPB3_1P1_CORE",     0x41),
+            DEFINE_PWR_RAIL("VAPB3_1P1_PLL1",     0x42),
+            DEFINE_PWR_RAIL("VAPB3_1P2_CDSI_PLL", 0x4A),
+            DEFINE_PWR_RAIL("VAPB3_1P2_CDSI",     0x4B),
+            DEFINE_PWR_RAIL("VAPB3_1P2_HSIC",     0x46),
+            DEFINE_PWR_RAIL("VAPB3_1P8_UNIPRO",   0x47),
+            DEFINE_PWR_RAIL("VAPB3_1P8_IO",       0x48),
+            DEFINE_PWR_RAIL("VAPB3_1P1_PLL2",     0x43),
+        },
+        .num_rails = 8,
+    },
+    {
+        .name = "GPB1",
+        .i2c_sel = I2C_SEL2_A | I2C_SEL2_B | I2C_SEL2_INH,
+        .rails = {
+            DEFINE_PWR_RAIL("VGPB1_1P1_CORE",     0x41),
+            DEFINE_PWR_RAIL("VGPB1_1P1_PLL1",     0x42),
+            DEFINE_PWR_RAIL("VGPB1_SDIO",         0x49),
+            DEFINE_PWR_RAIL("VGPB1_1P2_HSIC",     0x46),
+            DEFINE_PWR_RAIL("VGPB1_1P8_UNIPRO",   0x47),
+            DEFINE_PWR_RAIL("VGPB1_1P8_IO",       0x48),
+            DEFINE_PWR_RAIL("VGPB1_1P1_PLL2",     0x43),
+        },
+        .num_rails = 7,
+    },
+    {
+        .name = "GPB2",
+        .i2c_sel = I2C_SEL2_B | I2C_SEL2_INH,
+        .rails = {
+            DEFINE_PWR_RAIL("VGPB2_1P1_CORE",     0x41),
+            DEFINE_PWR_RAIL("VGPB2_1P1_PLL1",     0x42),
+            DEFINE_PWR_RAIL("VGPB2_SDIO",         0x49),
+            DEFINE_PWR_RAIL("VGPB2_1P2_HSIC",     0x46),
+            DEFINE_PWR_RAIL("VGPB2_1P8_UNIPRO",   0x47),
+            DEFINE_PWR_RAIL("VGPB2_1P8_IO",       0x48),
+            DEFINE_PWR_RAIL("VGPB2_1P1_PLL2",     0x43),
+        },
+        .num_rails = 7,
+    },
+};
 
 /*
  * Important note: Always declare the spring interfaces last.

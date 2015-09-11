@@ -43,6 +43,29 @@
 #define DEV_NAME_MAX_LENGTH         8
 #define RAIL_NAME_MAX_LENGTH        20
 
+struct pwrmon_rail_ctx {
+    const char *name;
+    uint8_t i2c_addr;
+};
+
+struct pwrmon_dev_ctx {
+    const char *name;
+    /*
+     * Bitmask containing the description of GPIO lines to drive in order
+     * select specific power measurement devices. This is board-specific
+     * and is interpreted by the board files.
+     */
+    uint32_t i2c_sel;
+    struct pwrmon_rail_ctx rails[DEV_MAX_RAIL_COUNT];
+    size_t num_rails;
+};
+
+#define DEFINE_PWR_RAIL(_name, _i2c_addr)                               \
+    {                                                                   \
+        .name = _name,                                                  \
+        .i2c_addr = _i2c_addr,                                          \
+    }
+
 typedef enum {
     DEV_SW,
     DEV_APB1,
