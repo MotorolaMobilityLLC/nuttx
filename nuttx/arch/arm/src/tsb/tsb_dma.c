@@ -66,6 +66,22 @@ static int tsb_dma_register_callback(struct device *dev, unsigned int chan,
     return 0;
 }
 
+enum device_dma_cmd tsb_dma_transfer_done_callback(struct device *dev, unsigned int chan, enum device_dma_event event,
+        device_dma_transfer_arg *arg)
+{
+    struct tsb_dma_info *info = device_get_private (dev);
+    enum device_dma_cmd ret;
+
+    if (info->dma_channel[chan].callback == NULL) {
+        sem_post(&info->dma_channel[chan].tx_sem);
+        ret = DEVICE_DMA_CMD_STOP;
+    } else {
+        ret= info->dma_channel[chan].callback(chan, event, arg);
+    }
+
+    return ret;
+}
+
 static int tsb_dma_transfer(struct device *dev, unsigned int chan, void *src,
         void *dst, size_t len, device_dma_transfer_arg *arg)
 {
@@ -85,6 +101,10 @@ static int tsb_dma_transfer(struct device *dev, unsigned int chan, void *src,
     if (info->dma_channel[chan].do_dma_transfer != NULL) {
         info->dma_channel[chan].do_dma_transfer(&info->dma_channel[chan], src,
                 dst, len, arg);
+
+        if (info->dma_channel[chan].callback == NULL) {
+            sem_wait (&info->dma_channel[chan].tx_sem);
+        }
     }
 
     sem_post(&info->dma_channel[chan].lock);
@@ -99,6 +119,7 @@ static int tsb_dma_allocate_channel(struct device *dev,
     struct tsb_dma_info *info = device_get_private(dev);
     int ret = -ENOMEM;
     int index;
+    irqstate_t flags;
 
     if (!info) {
         return -EIO;
@@ -107,6 +128,8 @@ static int tsb_dma_allocate_channel(struct device *dev,
     if (chan == NULL) {
         return -EINVAL;
     }
+
+    flags = irqsave();
 
     *chan = DEVICE_DMA_INVALID_CHANNEL;
     for (index = 0; index < info->max_number_of_channels; index++) {
@@ -134,6 +157,12 @@ static int tsb_dma_allocate_channel(struct device *dev,
             }
             break;
         }
+    }
+
+    irqrestore(flags);
+
+    if (ret == 0) {
+        sem_init(&info->dma_channel[index].tx_sem, 0, 0);
     }
 
     return ret;

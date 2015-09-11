@@ -29,38 +29,41 @@
  * @brief Pseudo DMA driver that uses memcpy instead of real DMA
  */
 
+#ifndef __TSB_DMA_GDMAC_H
+#define __TSB_DMA_GDMAC_H
+
 #include <nuttx/device_dma.h>
 
 struct tsb_dma_channel;
 struct tsb_dma_channel_info;
 
-// Transfer function for GDMAC channel
+/* Transfer function for GDMAC channel. */
 typedef int (*dma_do_trandsfer)(struct tsb_dma_channel *channel, void *src,
         void *dst, size_t len, device_dma_transfer_arg *arg);
 
-// Transfer Done function for GDMAC channel
-//typedef void (*gdmac_transfer_done_handler)(struct tsb_dma_gdmac_channel_info *channel_info);
-
+/* Transfer Done function for GDMAC channel */
 typedef void (*dma_release_channel)(struct tsb_dma_channel *channel_info);
 
-// structure for GDMAC channel information.
+/* structure for GDMAC channel information. */
 struct tsb_dma_channel {
     unsigned int channel_id;
     dma_do_trandsfer do_dma_transfer;
     dma_release_channel release_channel;
 
     sem_t lock;
+
+    /* For async transfer. */
+    sem_t tx_sem;
+    struct device *dev;
     device_dma_callback callback;
 
     struct tsb_dma_channel_info *channel_info;
 };
 
-// structure for GDMAC device driver's private info.
+/* structure for GDMAC device driver's private info. */
 struct tsb_dma_info {
     unsigned int max_number_of_channels;
     struct tsb_dma_channel dma_channel[0];
-    // Added event info later for event allocation. Currently, we statically associate
-    // events to GDMAC channels.
 };
 
 extern int tsb_dma_max_number_of_channels(void);
@@ -68,3 +71,8 @@ extern void tsb_dma_init_controller(struct device *);
 extern void tsb_dma_deinit_controller(struct device *);
 extern int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel);
 
+extern enum device_dma_cmd tsb_dma_transfer_done_callback(struct device *dev,
+        unsigned int chan, enum device_dma_event event,
+        device_dma_transfer_arg *arg);
+
+#endif /* __TSB_DMA_GDMAC_H */

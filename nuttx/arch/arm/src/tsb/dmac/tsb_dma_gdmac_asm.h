@@ -29,10 +29,13 @@
  * @brief Define macros to generate PL330 instructions.
  */
 
-#ifndef __ARCH_ARM_SRC_TSB_DMA_PL330_ASMH
-#define __ARCH_ARM_SRC_TSB_DMA_PL330_ASMH
+#ifndef __ARCH_ARM_SRC_TSB_DMA_PL330_ASM_H
+#define __ARCH_ARM_SRC_TSB_DMA_PL330_ASM_H
 
-/* Define values field in PL320 instructions */
+/* Define values in PL320 instructions */
+/* Define values in PL320 instructions */
+
+/* Define values in PL320 instructions */
 #define DMA_UINT32(value)           \
     (value & 0xFF), ((value >> 8) & 0xFF), ((value >> 16) & 0xFF), \
     ((value >> 24) & 0xFF)
@@ -113,4 +116,4 @@
 #define DMA_WFP_SIZE                2
 #define DMA_WMB_SIZE                1
 
-#endif // __ARCH_ARM_SRC_TSB_DMA_PL330_ASMH
+#endif /* __ARCH_ARM_SRC_TSB_DMA_PL330_ASM_H */

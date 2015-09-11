@@ -95,6 +95,14 @@ struct unipro_buffer {
     const void *data;
 };
 
+#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
+typedef struct {
+    device_dma_unipro_tx_arg tx_arg;
+    unsigned int cportid;
+    size_t      data_len_remain_to_tx;
+} unipro_dma_transfer_arg;
+#endif
+
 #define CPORT_RX_BUF_BASE         (0x20000000U)
 #define CPORT_RX_BUF_SIZE         (CPORT_BUF_SIZE)
 #define CPORT_RX_BUF(cport)       (void*)(CPORT_RX_BUF_BASE + \
@@ -115,6 +123,7 @@ static struct cport *cporttable;
 #ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
 static struct device *dma_dev;
 static unsigned int dma_channel = DEVICE_DMA_INVALID_CHANNEL;
+static sem_t tx_sem;
 #endif
 
 #define APBRIDGE_CPORT_MAX 44 // number of CPorts available on the APBridges
@@ -867,6 +876,93 @@ static void *unipro_tx_worker(void *data)
     return NULL;
 }
 
+#ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
+/* This callback runs in DMA interrupt context, so don't spent too much time
+ *  in this function before returning to the caller(DMA driver).
+ */
+static enum device_dma_cmd unipro_dma_callback(unsigned int chan,
+        enum device_dma_event event, device_dma_transfer_arg *arg)
+{
+    enum device_dma_cmd cmd = DEVICE_DMA_CMD_STOP;
+    unipro_dma_transfer_arg *dma_transfer_arg =
+            (unipro_dma_transfer_arg *)arg;
+    unsigned int data_len =
+            dma_transfer_arg->data_len_remain_to_tx -
+            dma_transfer_arg->tx_arg.next_transfer_len;
+    struct cport *cport;
+    unsigned int len = 0;
+
+    switch (event) {
+    case DEVICE_DMA_EVENT_BLOCKED:
+        /* last DMA transfer request is done and dmac is waiting to continue
+         * transfer more data
+         */
+        cmd = DEVICE_DMA_CMD_STOP;
+
+        if (dma_transfer_arg->tx_arg.eom_addr != NULL) {
+            lldbg("ERROR: DMA is blocked after EOM.\n");
+            break;
+        }
+
+        cport = cport_handle(dma_transfer_arg->cportid);
+        if (!cport) {
+            break;
+        }
+
+        if (!cport->connected) {
+            lldbg("CP%d unconnected\n", cport->cportid);
+            break;
+        }
+
+        if (data_len > 0)
+        {
+            len = unipro_get_tx_free_buffer_space(cport);
+
+            if (len > data_len) {
+                len = data_len;
+            }
+
+            dma_transfer_arg->tx_arg.next_transfer_len = len;
+            if (len > 0) {
+                dma_transfer_arg->tx_arg.eom_addr =
+                        (len == data_len) ? CPORT_EOM_BIT(cport) : NULL;
+                cmd = DEVICE_DMA_CMD_CONTINUE;
+            } else {
+                dma_transfer_arg->tx_arg.eom_addr = NULL;
+                cmd = DEVICE_DMA_CMD_STOP;
+            }
+        } else {
+            dma_transfer_arg->tx_arg.eom_addr = CPORT_EOM_BIT(cport);
+            cmd = DEVICE_DMA_CMD_CONTINUE;
+        }
+
+        dma_transfer_arg->data_len_remain_to_tx = data_len;
+        dma_transfer_arg->tx_arg.next_transfer_len = len;
+
+        break;
+    case DEVICE_DMA_EVENT_COMPLETED:
+        /* last DMA transfer is done and dmac is in stopped state. */
+        if ((dma_transfer_arg->data_len_remain_to_tx != 0) &&
+            (dma_transfer_arg->tx_arg.eom_addr == NULL)) {
+            lldbg("ERROR: DMA completed with %d byte(s) of data remain and EOM not set.\n", len);
+        }
+
+        dma_transfer_arg->data_len_remain_to_tx = data_len;
+        dma_transfer_arg->tx_arg.next_transfer_len = 0;
+
+        cmd = DEVICE_DMA_CMD_STOP;
+
+        sem_post(&tx_sem);
+        break;
+    default:
+        lldbg("ERROR: Invalid callback event %d.\n", event);
+        break;
+    }
+
+    return cmd;
+}
+#endif
+
 /**
  * @brief Initialize the UniPro core
  */
@@ -882,7 +978,17 @@ void unipro_init(void)
     if (!dma_dev) {
         lldbg("Failed to open DMA driver.\n");
     } else {
-        device_dma_allocate_channel(dma_dev, DEVICE_DMA_UNIPRO_TX_CHANNEL, &dma_channel);
+        device_dma_allocate_channel(dma_dev,
+                DEVICE_DMA_UNIPRO_TX_CHANNEL, &dma_channel);
+
+        if (dma_channel != DEVICE_DMA_INVALID_CHANNEL) {
+            sem_init (&tx_sem, 0, 0);
+            /* Register a callback function to make the DMA channel to
+             * operate in async mode.
+             */
+            device_dma_register_callback(dma_dev, dma_channel,
+                    unipro_dma_callback);
+        }
     }
 #endif
 
@@ -1064,7 +1170,7 @@ static int unipro_send_sync(unsigned int cportid,
     uint16_t count;
     uint8_t *tx_buf;
 #ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-    device_dma_transfer_arg tx_arg;
+    unipro_dma_transfer_arg dma_transfer_arg;
     int ret;
 #endif
 
@@ -1105,16 +1211,31 @@ static int unipro_send_sync(unsigned int cportid,
     /* Copy message data in CPort Tx FIFO */
     DBG_UNIPRO("Sending %u bytes to CP%d\n", count, cportid);
 #ifdef CONFIG_ARCH_UNIPROTX_USE_DMA
-    tx_arg.unipro_tx_arg.eom_addr = (count == len) ? CPORT_EOM_BIT(cport) : NULL;
-
     if (dma_channel == DEVICE_DMA_INVALID_CHANNEL) {
         memcpy(tx_buf, buf, count);
     } else {
-        ret = device_dma_transfer(dma_dev, dma_channel, (void *)buf, tx_buf, count, &tx_arg);
+        /* set the remaining data len after this transfer. */
+        dma_transfer_arg.data_len_remain_to_tx = len;
+        dma_transfer_arg.tx_arg.next_transfer_len = count;
+        dma_transfer_arg.cportid = cportid;
+
+        /* Should set the eom_addr as below, but I'm faking it test my code
+         * for now since none-of the unipro messages are large enough to cause
+         *  fragmentation.
+         */
+        dma_transfer_arg.tx_arg.eom_addr =
+                (count == len) ? CPORT_EOM_BIT(cport) : NULL;
+        ret = device_dma_transfer(dma_dev, dma_channel, (void *)buf,
+                tx_buf, count, (device_dma_transfer_arg*)&dma_transfer_arg);
+
         if (ret) {
             DBG_UNIPRO("ERROR: DMA Failed: %d\n", -ret);
-            return ret;
+            return 0;
         }
+
+        sem_wait(&tx_sem);
+
+        return len - dma_transfer_arg.data_len_remain_to_tx;
     }
 #else
     memcpy(tx_buf, buf, count);

@@ -67,6 +67,7 @@ enum device_dma_channel_type {
 typedef struct {
     /* eom_addr Address of EOM area (NULL means don't write to EOM area) */
     uint8_t *eom_addr;
+    uint16_t next_transfer_len;
 } device_dma_unipro_tx_arg;
 
 typedef union {
@@ -74,8 +75,8 @@ typedef union {
     uint32_t dummy;
 } device_dma_transfer_arg;
 
-typedef enum device_dma_event (*device_dma_callback)(struct device *dev,
-        unsigned int chan, enum device_dma_event event, void *arg);
+typedef enum device_dma_cmd (*device_dma_callback)(unsigned int chan,
+        enum device_dma_event event, device_dma_transfer_arg *arg);
 
 struct device_dma_type_ops {
     int (*register_callback)(struct device *dev, unsigned int chan,
