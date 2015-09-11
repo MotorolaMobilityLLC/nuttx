@@ -165,7 +165,12 @@ static struct gb_operation_handler *find_operation_handler(uint8_t type,
         return NULL;
     }
 
-    /* binary search -- bsearch from libc is not implemented by nuttx */
+    /*
+     * This function is performance sensitive, so let's use an inline binary
+     * search algorithm. The libc version takes pointer to the comparison
+     * function as argument which is then called via full-blown function
+     * calls. The below version doesn't require calling any other function.
+     */
     l = 0;
     r = driver->op_handlers_count - 1;
     while (l <= r) {
