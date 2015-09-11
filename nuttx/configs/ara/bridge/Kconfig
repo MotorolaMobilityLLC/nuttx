@@ -46,6 +46,14 @@ config ARA_BRIDGE_HAVE_HID_TOUCH
 	---help---
 		Multi-Touch HID Device Driver
 
+config ARA_BRIDGE_HAVE_LIGHTS
+	bool "Lights Support"
+	depends on ARCH_CHIP_GPBRIDGE
+	select DEVICE_CORE
+	default n
+	---help---
+		Lights Device Driver
+
 config ARA_BRIDGE_HAVE_CAMERA
 	bool "Camera support for Board"
 	default n

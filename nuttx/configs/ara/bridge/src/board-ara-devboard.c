@@ -41,6 +41,7 @@
 #include <nuttx/usb.h>
 #include <nuttx/i2c.h>
 #include <nuttx/gpio/tca64xx.h>
+#include <nuttx/device_lights.h>
 
 #include "tsb_scm.h"
 #include "up_arch.h"
@@ -132,6 +133,14 @@ static struct device devices[] = {
         .id             = 0,
     },
 #endif
+#ifdef CONFIG_ARA_BRIDGE_HAVE_LIGHTS
+    {
+        .type           = DEVICE_TYPE_LIGHTS_HW,
+        .name           = "lights",
+        .desc           = "Lights Device Driver",
+        .id             = 0,
+    },
+#endif
 };
 
 static struct device_table bdb_device_table = {
@@ -156,6 +165,10 @@ static void bdb_driver_register(void)
 #ifdef CONFIG_ARA_BRIDGE_HAVE_HID_TOUCH
     extern struct device_driver hid_touch_driver;
     device_register_driver(&hid_touch_driver);
+#endif
+#ifdef CONFIG_ARA_BRIDGE_HAVE_LIGHTS
+    extern struct device_driver lights_driver;
+    device_register_driver(&lights_driver);
 #endif
 }
 #endif

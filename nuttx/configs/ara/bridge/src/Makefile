@@ -68,6 +68,10 @@ ifeq ($(CONFIG_ARA_BRIDGE_HAVE_HID_TOUCH),y)
 CSRCS		+= hid_dummy_touch.c
 endif
 
+ifeq ($(CONFIG_ARA_BRIDGE_HAVE_LIGHTS),y)
+CSRCS		+= lights_dummy.c
+endif
+
 ifeq ($(CONFIG_APBRIDGEA),y)
 CSRCS += apbridgea_gadget.c
 endif
