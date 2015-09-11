@@ -262,3 +262,7 @@ endif
 ifeq ($(CONFIG_GPIO_CHIP_STM32),y)
 CHIP_CSRCS += stm32_gpio_chip.c
 endif
+
+ifeq ($(CONFIG_ARCH_UID),y)
+CHIP_CSRCS += stm32_getuid.c
+endif

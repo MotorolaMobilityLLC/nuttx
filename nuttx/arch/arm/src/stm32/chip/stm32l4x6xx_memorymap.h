@@ -68,7 +68,9 @@
                                             /* 0x10010000-0x1ffeffff: Reserved */
 #define STM32_SYSMEM_BASE    0x1fff0000     /* 0x1fff0000-0x1fff6fff: System memory */
 #define STM32_OTP_BASE       0x1fff7000     /* 0x1fff7000-0x1fff73ff: OTP area */
-                                            /* 0x1fff7400-0x1fff77ff: Reserved */
+                                            /* 0x1fff7400-0x1fff758f: Reserved */
+#define STM32_UID_BASE       0x1fff7590     /* 0x1fff7590-0x1fff759b: UID */
+                                            /* 0x1fff759c-0x1fff77ff: Reserved */
 #define STM32_OPTION_BASE    0x1fff7800     /* 0x1fff7800-0x1fff780f: Option bytes */
                                             /* 0x1fff7810-0x1fff7fff: Reserved */
 #define STM32_SYSMEM2_BASE   0x1fff8000     /* 0x1fff8000-0x1fffefff: System memory */
