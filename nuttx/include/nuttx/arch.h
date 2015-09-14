@@ -768,6 +768,26 @@ int up_getuid(uint64_t *uid_high, uint64_t *uid_low);
 #endif
 
 /****************************************************************************
+ * Name: up_resetflags
+ *
+ * Description:
+ *   Get the microprocessor reset flags. The reset flags are useful for
+ *   distinguishing between a normal and an abnormal power-up. Abnormal
+ *   power-ups could include watchdog resets, brown outs, or panics.
+ *
+ * Inputs:
+ *   flags - Pointer to location to store the reset flags
+ *
+ * Return:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARCH_RESET_FLAGS
+int up_resetflags(uint32_t *flags);
+#endif
+
+/****************************************************************************
  * Address Environment Interfaces
  *
  * Low-level interfaces used in binfmt/ to instantiate tasks with address

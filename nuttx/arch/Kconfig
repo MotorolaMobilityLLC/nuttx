@@ -622,6 +622,19 @@ config ARCH_UID
 		UID could be used for serial numbers, as part of security keys,
 		etc. The UID cannot be altered by the user.
 
+config ARCH_HAVE_RESET_FLAGS
+	bool
+	default n
+
+config ARCH_RESET_FLAGS
+	bool "Support Reset Flags"
+	default n
+	depends on ARCH_HAVE_RESET_FLAGS
+	---help---
+		Adds reset flags interface for use by drivers. The reset flags are
+		useful for distinguishing between a normal and an abnormal power-up.
+		Abnormal power-ups could include watchdog resets, brown outs, or panics.
+
 comment "Board Settings"
 
 config BOARD_LOOPSPERMSEC
