@@ -317,6 +317,10 @@ ifeq ($(CONFIG_EXAMPLES_USBTERM),y)
 CONFIGURED_APPS += examples/usbterm
 endif
 
+ifeq ($(CONFIG_EXAMPLES_VERSION),y)
+CONFIGURED_APPS += examples/version
+endif
+
 ifeq ($(CONFIG_EXAMPLES_WATCHDOG),y)
 CONFIGURED_APPS += examples/watchdog
 endif
