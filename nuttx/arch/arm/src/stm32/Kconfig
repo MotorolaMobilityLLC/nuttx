@@ -669,6 +669,7 @@ config STM32_STM32L4X6
 	bool
 	default n
 	select ARCH_HAVE_UID
+	select ARCH_HAVE_RESET_FLAGS
 	select STM32_HAVE_OTGFS
 	select STM32_HAVE_USART3
 	select STM32_HAVE_USART4

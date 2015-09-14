@@ -266,3 +266,7 @@ endif
 ifeq ($(CONFIG_ARCH_UID),y)
 CHIP_CSRCS += stm32_getuid.c
 endif
+
+ifeq ($(CONFIG_ARCH_RESET_FLAGS),y)
+CHIP_CSRCS += stm32_resetflags.c
+endif

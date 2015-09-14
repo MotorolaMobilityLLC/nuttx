@@ -433,10 +433,16 @@
 
 #define RCC_CSR_LSION               (1 << 0)  /* Bit 0: Internal Low Speed oscillator enable */
 #define RCC_CSR_LSIRDY              (1 << 1)  /* Bit 1: Internal Low Speed oscillator Ready */
+#define RCC_CSR_RMVF                (1 << 23) /* Bit 23: Remove reset flag */
+#define RCC_CSR_FWRSTF              (1 << 24) /* Bit 24: Firewall reset flag */
+#define RCC_CSR_OBLRSTF             (1 << 25) /* Bit 25: Option byte loader reset flag */
 #define RCC_CSR_PINRSTF             (1 << 26) /* Bit 26: PIN reset flag */
+#define RCC_CSR_BORRSTF             (1 << 27) /* Bit 27: Brown Out Reset flag */
 #define RCC_CSR_SFTRSTF             (1 << 28) /* Bit 28: Software Reset flag */
 #define RCC_CSR_IWDGRSTF            (1 << 29) /* Bit 29: Independent Watchdog reset flag */
 #define RCC_CSR_WWDGRSTF            (1 << 30) /* Bit 30: Window watchdog reset flag */
 #define RCC_CSR_LPWRRSTF            (1 << 31) /* Bit 31: Low-Power reset flag */
+
+#define RCC_CSR_RSTF_MASK           (0xff000000)
 
 #endif /* __ARCH_ARM_SRC_STM32_CHIP_STM32L4X6XX_RCC_H */
