@@ -34,7 +34,9 @@
 #ifdef CONFIG_GREYBUS_MODS
 #  include <arch/board/mods.h>
 #endif
+#include <arch/byteorder.h>
 
+#include <nuttx/arch.h>
 #include <nuttx/greybus/greybus.h>
 #ifdef CONFIG_GREYBUS_MODS
 #  include <nuttx/greybus/mods.h>
@@ -155,6 +157,27 @@ static uint8_t gb_vendor_moto_get_last_dmesg(struct gb_operation *operation)
 #endif
 }
 
+static uint8_t gb_vendor_moto_pwr_up_reason(struct gb_operation *operation)
+{
+#ifdef CONFIG_ARCH_RESET_FLAGS
+    struct gb_vendor_moto_pwr_up_reason_response *response;
+    int ret;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    ret = up_resetflags(&response->reason);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+    response->reason = cpu_to_le32(response->reason);
+
+    return GB_OP_SUCCESS;
+#else
+    return GB_OP_NONEXISTENT;
+#endif
+}
+
 static int gb_vendor_moto_init(unsigned int cport)
 {
 #ifdef CONFIG_GREYBUS_MODS
@@ -168,6 +191,7 @@ static struct gb_operation_handler gb_vendor_moto_handlers[] = {
     GB_HANDLER(GB_VENDOR_MOTO_CHARGE_BASE, gb_vendor_moto_charge_base),
     GB_HANDLER(GB_VENDOR_MOTO_GET_DMESG, gb_vendor_moto_get_dmesg),
     GB_HANDLER(GB_VENDOR_MOTO_GET_LAST_DMESG, gb_vendor_moto_get_last_dmesg),
+    GB_HANDLER(GB_VENDOR_MOTO_GET_PWR_UP_REASON, gb_vendor_moto_pwr_up_reason),
 };
 
 static struct gb_driver gb_vendor_moto_driver = {

@@ -35,6 +35,7 @@
 #define GB_VENDOR_MOTO_CHARGE_BASE        0x02
 #define GB_VENDOR_MOTO_GET_DMESG          0x03
 #define GB_VENDOR_MOTO_GET_LAST_DMESG     0x04
+#define GB_VENDOR_MOTO_GET_PWR_UP_REASON  0x05
 
 /*
  * This is slightly less than max greybus payload size to allow for headers
@@ -57,5 +58,10 @@ struct gb_vendor_moto_charge_base_request {
 struct gb_vendor_moto_get_dmesg_response {
 	char	buf[GB_VENDOR_MOTO_DMESG_SIZE];
 };
+
+/* power up reason request has no payload */
+struct gb_vendor_moto_pwr_up_reason_response {
+	__le32	reason;
+} __packed;
 
 #endif /* _GREYBUS_VENDOR_MOTO_H_ */
