@@ -39,6 +39,8 @@
 #include <pwr_measure.h>
 #include <nuttx/i2c.h>
 
+#define INA230_MAX_DEVS     8       /* ina230 supports 8 i2c addresses */
+
 typedef enum {
     ina230_ct_140us = 0x0,          /* 140us */
     ina230_ct_204us = 0x1,          /* 204us */
