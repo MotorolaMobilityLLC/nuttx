@@ -73,6 +73,8 @@ struct greybus g_greybus = {
 
 static const unsigned char bridge_manifest[] = {
 #include "manifest.inc"
+, 
+#include "signature.inc"
 };
 
 static void *alloc_cport(void)
@@ -489,4 +491,9 @@ int get_manifest_size(void)
     struct greybus_manifest_header *mh = get_manifest_blob();
 
     return mh ? le16_to_cpu(mh->size) : 0;
+}
+
+int get_signed_manifest_size(void)
+{
+    return sizeof(bridge_manifest);
 }

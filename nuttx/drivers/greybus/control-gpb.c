@@ -61,7 +61,7 @@ static uint8_t gb_control_get_manifest_size(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->size = cpu_to_le16(get_manifest_size());
+    response->size = cpu_to_le16(get_signed_manifest_size());
 
     return GB_OP_SUCCESS;
 }
@@ -70,7 +70,7 @@ static uint8_t gb_control_get_manifest(struct gb_operation *operation)
 {
     struct gb_control_get_manifest_response *response;
     struct greybus_manifest_header *mh;
-    int size = get_manifest_size();
+    int size = get_signed_manifest_size();
 
     response = gb_operation_alloc_response(operation, size);
     if (!response)

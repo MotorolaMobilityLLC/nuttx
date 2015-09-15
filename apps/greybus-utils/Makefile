@@ -92,9 +92,11 @@ endif
 MANIFESTS ?= $(addprefix manifests/, $(MANIFEST))
 MNFS = $(addsuffix .mnfs, $(MANIFESTS))
 MNFB = $(addsuffix .mnfb, $(MANIFESTS))
+MNSG = $(addsuffix .mnsg, $(MANIFESTS))
 
 ALL_MNFS = $(wildcard manifests/*.mnfs) $(OOT_MANIFEST)
 ALL_MNFB = $(subst .mnfs,.mnfb,$(ALL_MNFS))
+ALL_MNSG = $(subst .mnfs,.mnsg,$(ALL_MNFS))
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   BIN		= ..\libapps$(LIBEXT)
@@ -125,8 +127,20 @@ $(COBJS): %$(OBJEXT): %.c
 %.mnfb: %.mnfs
 	manifesto $<
 
-manifest.inc: $(MNFB)
+%.mnsg: %.mnfb
+	openssl dgst -sha256 -sign testkey_priv.key -out $@ $<
+
+ifneq ($(MANIFESTS),)
+signature.inc: $(MNSG)
+	echo signature.inc : $(MNSG) $(MANIFESTS)
 	xxd -i < $< > $@
+
+manifest.inc: $(MNFB)
+	@echo manifest.inc : $(MNFB) $(MANIFESTS)
+	xxd -i < $< > $@
+
+MANIFEST_INCS := manifest.inc signature.inc
+endif
 
 .built: $(OBJS)
 	$(call ARCHIVE, $(BIN), $(OBJS))
@@ -137,7 +151,7 @@ install:
 context:
 	@true
 
-.depend: Makefile $(SRCS) manifest.inc
+.depend: Makefile $(SRCS) $(MANIFEST_INCS)
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
@@ -148,6 +162,7 @@ clean:
 	$(call DELFILE, .built)
 	$(call CLEAN)
 	$(call DELFILE, manifest.inc $(ALL_MNFB))
+	$(call DELFILE, signature.inc $(ALL_MNSG))
 
 distclean: clean
 	$(call DELFILE, Make.dep)
