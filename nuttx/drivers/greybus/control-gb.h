@@ -44,6 +44,7 @@
 #define GB_CONTROL_TYPE_CONNECTED               0x05
 #define GB_CONTROL_TYPE_DISCONNECTED            0x06
 
+#define GB_CONTROL_TYPE_REBOOT_FLASH            0x7e
 #define GB_CONTROL_TYPE_GET_IDS                 0x7f
 
 /* version request has no payload */
@@ -67,6 +68,9 @@ struct gb_control_connected_request {
     __le16    cport_id;
 };
 /* Control protocol [dis]connected response has no payload */
+
+/* Control protocol reboot flash request had no payload */
+/* Control protocol reboot flash response had no payload */
 
 /* Control protocol get_ids request has no payload */
 struct gb_control_get_ids_response {

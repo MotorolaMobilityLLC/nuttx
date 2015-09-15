@@ -31,6 +31,7 @@
 #include <string.h>
 #include <arch/byteorder.h>
 #include <nuttx/arch.h>
+#include <nuttx/progmem.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/unipro/unipro.h>
@@ -147,6 +148,45 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+/**
+ * @brief sets the flag to tell the bootloader to stay in flash mode
+ */
+static uint8_t gb_control_reboot_flash(struct gb_operation *operation)
+{
+#ifdef CONFIG_PROGMEM
+    const static uint32_t REBOOT_FLASH_VAL[] = { 0x424f4f54, 0x4d4f4445 };
+    size_t written;
+    size_t last_page = up_progmem_npages() - 1;
+    size_t page_size = up_progmem_pagesize(last_page);
+    size_t addr = up_progmem_getaddress(last_page);
+
+    if ((REBOOT_FLASH_VAL[0] == ((uint32_t *)addr)[0]) &&
+        (REBOOT_FLASH_VAL[1] == ((uint32_t *)addr)[1])) {
+        gb_info("already set so skip writing\n");
+        return 0;
+    }
+
+    /* return of this function is backwards 0 = true */
+    if (up_progmem_ispageerased(last_page) != 0) {
+        gb_debug("erasing page %d\n", last_page);
+        written = up_progmem_erasepage(last_page);
+        if (written != page_size) {
+            gb_error("error erasing page\n");
+            return GB_OP_UNKNOWN_ERROR;
+        }
+    }
+
+    written = up_progmem_write(addr, REBOOT_FLASH_VAL,
+            sizeof(REBOOT_FLASH_VAL));
+    if (written != sizeof(REBOOT_FLASH_VAL))
+        return GB_OP_UNKNOWN_ERROR;
+    else
+        return GB_OP_SUCCESS;
+#else
+    return GB_OP_SUCCESS;
+#endif
+}
+
 static uint8_t gb_control_get_ids(struct gb_operation *operation)
 {
     struct gb_control_get_ids_response *response;
@@ -174,6 +214,7 @@ static struct gb_operation_handler gb_control_handlers[] = {
     GB_HANDLER(GB_CONTROL_TYPE_CONNECTED, gb_control_connected),
     GB_HANDLER(GB_CONTROL_TYPE_DISCONNECTED, gb_control_disconnected),
     GB_HANDLER(GB_CONTROL_TYPE_GET_IDS, gb_control_get_ids),
+    GB_HANDLER(GB_CONTROL_TYPE_REBOOT_FLASH, gb_control_reboot_flash),
 };
 
 struct gb_driver control_driver = {
