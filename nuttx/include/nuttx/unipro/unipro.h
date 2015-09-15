@@ -49,7 +49,6 @@ struct unipro_driver {
 
 unsigned int unipro_cport_count(void);
 void unipro_init(void);
-int unipro_init_cport(unsigned int cportid);
 void unipro_info(void);
 int unipro_send(unsigned int cportid, const void *buf, size_t len);
 int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
