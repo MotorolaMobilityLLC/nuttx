@@ -64,6 +64,5 @@ static inline uint8_t mods_rfr_get(void)
 }
 
 void mods_host_int_set(bool value);
-void mods_vbus_en_sw(bool value);
 
 #endif /* _STM32_MODS_H_ */

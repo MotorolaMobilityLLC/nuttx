@@ -34,13 +34,3 @@ void mods_host_int_set(bool value)
 {
     stm32_gpiowrite(GPIO_MODS_CORE_INT, value);
 }
-
-void mods_vbus_en_sw(bool value)
-{
-#if defined(CONFIG_CHARGER_BQ24292)
-    if (value)
-        bq24292_set_chg(BQ24292_OTG_1300MA);
-    else
-        bq24292_set_chg(BQ24292_CHG_BATTERY);
-#endif
-}
