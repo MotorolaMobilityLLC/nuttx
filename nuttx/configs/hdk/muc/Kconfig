@@ -44,4 +44,11 @@ config MODS_RAW
 	select DEVICE_CORE
 	---help---
 		Enable Generic Raw support
+
++config PTP_DEVICE
+	bool "Power transfer protocol device"
+	default n
+	depends on GREYBUS_PTP && CHARGER_BQ24292
+	---help---
+		Enable power transfer protocol
 endif

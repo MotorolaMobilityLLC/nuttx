@@ -40,6 +40,7 @@
 #include <nuttx/config.h>
 #include <nuttx/device.h>
 #include <nuttx/device_hid.h>
+#include <nuttx/device_ptp.h>
 #include <nuttx/device_raw.h>
 #include <nuttx/device_table.h>
 #include <nuttx/util.h>
@@ -79,6 +80,14 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_RAW_HW,
         .name = "mods_raw",
         .desc = "Reference Raw Interface",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_PTP_DEVICE
+    {
+        .type = DEVICE_TYPE_PTP_HW,
+        .name = "ptp_device",
+        .desc = "Power transfer protocol",
         .id   = 0,
     },
 #endif
@@ -187,6 +196,10 @@ void board_initialize(void)
 #ifdef CONFIG_MODS_RAW
   extern struct device_driver mods_raw_driver;
   device_register_driver(&mods_raw_driver);
+#endif
+#ifdef CONFIG_PTP_DEVICE
+  extern struct device_driver ptp_driver;
+  device_register_driver(&ptp_driver);
 #endif
 #endif
 }

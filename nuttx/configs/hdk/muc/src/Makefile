@@ -82,6 +82,10 @@ ifeq ($(CONFIG_MODS_DIET),y)
 CSRCS += stm32_mods.c
 endif
 
+ifeq ($(CONFIG_PTP_DEVICE),y)
+CSRCS += stm32_ptp.c
+endif
+
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(ASRCS) $(CSRCS)
