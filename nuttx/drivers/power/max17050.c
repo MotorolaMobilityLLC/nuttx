@@ -98,7 +98,7 @@
 #define MAX17050_DQ_ACC_DIV             16
 #define MAX17050_DP_ACC                 0x0C80
 
-extern struct max17050_config max17050_cfg;
+extern const struct max17050_config max17050_cfg;
 
 struct max17050_dev_s
 {
@@ -623,6 +623,14 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
     int ret;
     pthread_t por_thread;
 
+    /*
+     * Sanity check configuration and bomb out if supplied invalid values.
+     * SNS resistor value must be non-zero to avoid dividing by zero when
+     * calcuating current.
+     */
+    if (!max17050_cfg.sns_resistor)
+        return NULL;
+
     priv = (FAR struct max17050_dev_s *)kmm_zalloc(sizeof(*priv));
     if (priv) {
         sem_init(&priv->batsem, 0, 1);
@@ -646,10 +654,6 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
         if (ret < 0)
             goto err;
 
-        // Avoid deviding by zero when calcuating current
-        if (!max17050_cfg.sns_resistor)
-            max17050_cfg.sns_resistor = 10000; // in mOhm
-
         // Configure device after Power-On Reset or with the new configuration
         if (ret & MAX17050_STATUS_POR || max17050_new_config(priv)) {
             pthread_create(&por_thread, NULL, max17050_por, priv);
@@ -664,4 +668,3 @@ err:
     kmm_free(priv);
     return NULL;
 }
-

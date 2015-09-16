@@ -35,7 +35,7 @@
 // data, otherwise data is only programmed after Power-On reset of the device.
 
 #ifdef CONFIG_BATTERY_MAX17050_SAMPLE_CFG
-struct max17050_config max17050_cfg = {
+const struct max17050_config max17050_cfg = {
     .version        = 0xFF00,
     // Application specific settings
     .config         = 0x0210,   // Enable Temperature channel with updates every 1.4S
