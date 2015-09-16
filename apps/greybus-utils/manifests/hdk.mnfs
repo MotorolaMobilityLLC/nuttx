@@ -57,6 +57,11 @@ protocol = 0x11
 bundle = 1
 protocol = 0xfe
 
+; PTP on CPort 11
+[cport-descriptor 11]
+bundle = 1
+protocol = 0xef
+
 ; Bundle 1
 [bundle-descriptor 1]
 class = 0xff
