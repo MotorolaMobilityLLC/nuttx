@@ -38,7 +38,7 @@ struct bq24292_config {
 };
 
 // Battery specific device configuration
-extern struct bq24292_config bq24292_cfg[];
-extern int bq24292_cfg_size;
+extern const struct bq24292_config bq24292_cfg[];
+extern const int bq24292_cfg_size;
 
 #endif // __DRIVERS_POWER_BQ24292_CONFIG_H

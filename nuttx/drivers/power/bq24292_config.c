@@ -32,7 +32,7 @@
 
 // Charging Configurations
 #ifdef CONFIG_CHARGER_BQ24292_SAMPLE_CFG
-struct bq24292_config bq24292_cfg[] = {
+const struct bq24292_config bq24292_cfg[] = {
     // reg  mask  set
     { 0x00, 0xFF, 0x3D },   // EN_HIZ = 0, VINDMP = 4.44V, IINLIM = 1.5A
     { 0x01, 0x0F, 0x0B },   // SYS_MIN = 3.5V, BOOST_LIM = 1.3A
@@ -42,8 +42,8 @@ struct bq24292_config bq24292_cfg[] = {
     { 0x05, 0xFF, 0x80 },   // EN_TERM = 1, TERM_STAT = 0, WATCHDOG = DISABLE, CHG_TIMER = 8hrs
     { 0x07, 0x4F, 0x4B },   // TMR2X_EN = 1, CHGRG_FAULT_INT = 1, BAT_FAULT_INT = 1
 };
-
-int bq24292_cfg_size = sizeof(bq24292_cfg) / sizeof(struct bq24292_config);
 #else
 // Place charging configurations for actual batteries here
 #endif
+
+const int bq24292_cfg_size = sizeof(bq24292_cfg) / sizeof(struct bq24292_config);
