@@ -60,7 +60,7 @@
  */
 
 #elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F30XX) ||\
-      defined(CONFIG_STM32_STM32F40XX)
+      defined(CONFIG_STM32_STM32F40XX) || defined(CONFIG_STM32_STM32L4X6)
 #  include "chip/stm32_rtcc.h"
 #endif
 
