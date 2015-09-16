@@ -330,13 +330,17 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len)
     sem_init(&desc.lock, 0, 0);
 
     retval = unipro_send_async(cportid, buf, len, unipro_send_cb, &desc);
-    if (retval)
-        return retval;
+    if (retval) {
+        goto out;
+    }
 
     sem_wait(&desc.lock);
+    retval = desc.retval;
+
+out:
     sem_destroy(&desc.lock);
 
-    return desc.retval;
+    return retval;
 }
 
 int unipro_tx_init(void)
