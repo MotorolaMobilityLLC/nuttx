@@ -68,7 +68,7 @@ struct greybus g_greybus = {
     .cports = LIST_INIT(g_greybus.cports),
 };
 
-static unsigned char bridge_manifest[] = {
+static const unsigned char bridge_manifest[] = {
 #include "manifest.inc"
 };
 
