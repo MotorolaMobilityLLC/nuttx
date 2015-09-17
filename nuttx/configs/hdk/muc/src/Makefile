@@ -42,10 +42,6 @@ AOBJS = $(ASRCS:.S=$(OBJEXT))
 
 CSRCS = stm32_boot.c stm32_bringup.c stm32_sysclk.c
 
-ifeq ($(CONFIG_HAVE_CXX),y)
-CSRCS += stm32_cxxinitialize.c
-endif
-
 ifeq ($(CONFIG_ARCH_BUTTONS),y)
 CSRCS += stm32_buttons.c
 endif
