@@ -39,7 +39,9 @@
 
 #include "datalink.h"
 
-#define MODS_NUM_CPORTS         (32)
+#ifndef CONFIG_GREYBUS_MODS_NUM_CPORTS
+#  define CONFIG_GREYBUS_MODS_NUM_CPORTS  (32)
+#endif
 
 struct mods_msg
 {
@@ -50,7 +52,7 @@ struct mods_msg
 
 unsigned int unipro_cport_count(void)
 {
-  return MODS_NUM_CPORTS;
+  return CONFIG_GREYBUS_MODS_NUM_CPORTS;
 }
 
 /* Handle to Mods data link layer */

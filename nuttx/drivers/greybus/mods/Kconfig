@@ -1,3 +1,9 @@
+config GREYBUS_MODS_NUM_CPORTS
+	int "Maximum number of CPorts"
+	default 10
+	---help---
+		CPort numbers in the manifest must remain below this number (default 10).
+
 choice
 	prompt "Select a Mods bus"
 config GREYBUS_MODS_SPI
