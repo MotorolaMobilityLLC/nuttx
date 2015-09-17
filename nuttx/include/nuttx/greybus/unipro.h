@@ -289,7 +289,7 @@
 #define T_TSTDSTON                   0x40a1
 #define T_TSTDSTERRORDETECTIONENABLE 0x40a2
 #define T_TSTDSTPATTERN              0x40a3
-#define T_TSTDSTINCEMENT             0x40a4
+#define T_TSTDSTINCREMENT            0x40a4
 #define T_TSTDSTMESSAGECOUNT         0x40a5
 #define T_TSTDSTMESSAGEOFFSET        0x40a6
 #define T_TSTDSTMESSAGESIZE          0x40a7
