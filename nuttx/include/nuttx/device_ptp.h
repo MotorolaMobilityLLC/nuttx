@@ -46,7 +46,7 @@ enum ptp_int_rcv_functionality {
     PTP_INT_RCV_NEVER           = 0x00,
     PTP_INT_RCV_FIRST           = 0x01,
     PTP_INT_RCV_SECOND          = 0x02,
-    PTP_INT_RCV_PARALLEL        = 0x04,
+    PTP_INT_RCV_PARALLEL        = 0x03,
 };
 
 enum ptp_ext_functionality {
