@@ -696,6 +696,7 @@ CONFIG_GREYBUS=y
 # CONFIG_GREYBUS_UART_PHY is not set
 # CONFIG_GREYBUS_HID is not set
 # CONFIG_GREYBUS_FEATURE_HAVE_TIMESTAMPS is not set
+# CONFIG_GREYBUS_LIGHTS is not set
 
 #
 # Networking Support
