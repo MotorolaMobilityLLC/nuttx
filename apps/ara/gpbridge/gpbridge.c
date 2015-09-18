@@ -59,7 +59,7 @@ int bridge_main(int argc, char *argv[])
 
     enable_cports();
     tsb_unipro_set_init_status(INIT_STATUS_OPERATING);
-    tsb_unipro_mbox_set(TSB_MAIL_READY_OTHER, true);
+    tsb_unipro_mbox_send(TSB_MAIL_READY_OTHER);
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");

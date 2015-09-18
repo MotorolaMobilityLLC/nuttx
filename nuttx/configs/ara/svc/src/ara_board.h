@@ -61,6 +61,10 @@
 #define U135_GPIO_PIN(p)        (U135_GPIO_CHIP_START + (p))
 #define U701_GPIO_PIN(p)        (U701_GPIO_CHIP_START + (p))
 
+/* ES2-specific repurposing of an attribute */
+#define ES2_MBOX_ACK_ATTR       T_TSTSRCINTERMESSAGEGAP
+#define MBOX_ACK_ATTR           ES2_MBOX_ACK_ATTR
+
 struct io_expander_info {
     void *io_exp_driver_data;
     uint32_t reset;

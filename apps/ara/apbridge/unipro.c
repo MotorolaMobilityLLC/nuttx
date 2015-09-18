@@ -80,7 +80,7 @@ static void unipro_backend_init(void)
     /*
      * Tell the SVC that the AP Module is ready
      */
-    tsb_unipro_mbox_set(TSB_MAIL_READY_AP, true);
+    tsb_unipro_mbox_send(TSB_MAIL_READY_AP);
 }
 
 void apbridge_backend_register(struct apbridge_backend *apbridge_backend)

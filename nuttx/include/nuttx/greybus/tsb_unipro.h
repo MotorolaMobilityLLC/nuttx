@@ -103,6 +103,19 @@
 #define TSB_DEEPSTALLCFG           0xd0a2
 #define TSB_DEEPSTALLSTATUS        0xd0a3
 
+/* Special attributes for dealing with chip-specific Mailbox ACK attribute */
+#define ES2_MBOX_ACK_ATTR       T_TSTSRCINTERMESSAGEGAP
+#define ES3_SYSTEM_STATUS_15    0x610f
+#define ES3_MBOX_ACK_ATTR       ES3_SYSTEM_STATUS_15
+
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    #define MBOX_ACK_ATTR   ES2_MBOX_ACK_ATTR
+#elif defined(CONFIG_TSB_CHIP_REV_ES3)
+    #define MBOX_ACK_ATTR   ES3_MBOX_ACK_ATTR
+#endif
+
+int tsb_unipro_mbox_send(uint32_t val);
+
 /* Init status values */
 #define INIT_STATUS_UNINITIALIZED                            (0x000000000)
 #define INIT_STATUS_OPERATING                                (1 << 24)
@@ -121,7 +134,6 @@
 #define INIT_STATUS_STATUS_MASK                              (0x7f000000)
 #define INIT_STATUS_ERROR_CODE_MASK                          (0x00ffffff)
 
-int tsb_unipro_mbox_set(uint32_t val, int peer);
 int tsb_unipro_set_init_status(uint32_t val);
 
 #endif

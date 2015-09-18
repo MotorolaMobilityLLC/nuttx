@@ -101,37 +101,11 @@ static struct tsb_switch_event_listener evl = {
     .cb = event_cb,
 };
 
-/**
- * @brief "Acknowledge" a write to the switch's mailbox.  The mailbox is a DME
- * register in the vendor-defined space present on Toshiba bridges. This is used
- * as a notification to the bridge that the SVC has read what the bridge wrote
- * to the switch's mailbox.
- */
-static int svc_mailbox_ack(uint8_t portid) {
-    int rc;
-    uint32_t val;
-
-    rc = switch_dme_set(svc->sw, portid, TSB_MAILBOX, 0, 0);
-    if (rc) {
-        dbg_error("Failed to ack to port %u\n", portid);
-        return rc;
-    }
-    rc = switch_dme_get(svc->sw, portid, TSB_MAILBOX, 0, &val);
-    if (rc) {
-        dbg_error("Failed to reread mailbox ack on port %u\n", portid);
-        return rc;
-    }
-
-    return 0;
-}
-
-
 static int event_cb(struct tsb_switch_event *ev) {
 
     switch (ev->type) {
     case TSB_SWITCH_EVENT_MAILBOX:
         event_mailbox(ev);
-        svc_mailbox_ack(ev->mbox.port);
         break;
     }
     return 0;
@@ -208,46 +182,37 @@ static int svc_gb_init(void) {
  * notification.
  */
 static int svc_mailbox_poke(uint8_t intf_id, uint8_t cport) {
-    uint32_t val, irq_status = 0, retries = 2048;
+    uint32_t val, retries = 2048;
     int rc;
     uint32_t portid = interface_get_portid_by_id(intf_id);
+
+    rc = switch_dme_peer_set(svc->sw, portid, MBOX_ACK_ATTR, 0, TSB_MAIL_RESET);
+    if (rc) {
+        dbg_error("Failed to re-ack mbox of intf %u: %d\n", intf_id, rc);
+        dbg_error("mbox ack attr was 0x%x\n", MBOX_ACK_ATTR);
+        return rc;
+    }
 
     rc = switch_dme_peer_set(svc->sw, portid,
                              TSB_MAILBOX, 0, cport + 1);
     if (rc) {
-        dbg_error("Failed to notify intf %u\n", intf_id);
+        dbg_error("Failed to notify intf %u: %d\n", intf_id, rc);
         return rc;
     }
 
     do {
-        rc = switch_dme_peer_get(svc->sw, portid, TSB_INTERRUPTSTATUS, 0,
-                                 &irq_status);
+        rc = switch_dme_peer_get(svc->sw, portid, MBOX_ACK_ATTR, 0, &val);
         if (rc) {
-            dbg_error("Failed to poll mailbox irq status on intf %u\n",
-            intf_id);
+            dbg_error("Failed to poll MBOX_ACK_ATTR (0x%x) on intf %u: %d\n",
+                      MBOX_ACK_ATTR, intf_id, rc);
             return rc;
         }
-    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && --retries > 0);
+    } while ((uint16_t)val != (uint16_t)(cport + 1) && --retries > 0);
 
     if (!retries) {
-        dbg_error("Timeout while getting TSB_INTERRUPTSTATUS: if=%u, cp=%u\n",
-                  intf_id, cport);
-        return -ETIMEDOUT;
-    } else {
-        retries = 2048;
-    }
-
-    do {
-        rc = switch_dme_peer_get(svc->sw, portid, TSB_MAILBOX, 0, &val);
-        if (rc) {
-            dbg_error("Failed to poll mailbox on interface %u\n", intf_id);
-            return rc;
-        }
-    } while (val != TSB_MAIL_RESET && --retries > 0);
-
-    if (!retries) {
-        dbg_error("Timeout while getting TSB_MAILBOX: if=%u, cp=%u\n",
-                  intf_id, cport);
+        dbg_error("MBOX_ACK_ATTR (0x%x) poll on intf %u timeout: 0x%x != 0x%x\n",
+                  MBOX_ACK_ATTR, intf_id, (uint16_t)(cport + 1),
+                  (uint16_t)val);
         return -ETIMEDOUT;
     }
 

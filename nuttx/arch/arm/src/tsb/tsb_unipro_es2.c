@@ -416,6 +416,8 @@ static int irq_rx_eom(int irq, void *context) {
     return 0;
 }
 
+static int tsb_unipro_mbox_ack(uint16_t val);
+
 /**
  * @brief See ENG-376.
  *
@@ -447,6 +449,12 @@ static int irq_unipro(int irq, void *context) {
     if (rc) {
         goto done;
     }
+    if (cportid >= unipro_cport_count()) {
+        DBG_UNIPRO("cportid %d in mailbox exceeds count of cports %d\n",
+                   cportid, unipro_cport_count());
+        rc = -EINVAL;
+        goto done;
+    }
     cportid--;
 
     DBG_UNIPRO("Enabling E2EFC on cport %u\n", cportid);
@@ -462,21 +470,8 @@ static int irq_unipro(int irq, void *context) {
 
     configure_connected_cport(cportid);
 
-    /*
-     * Clear the mailbox. This triggers another a local interrupt which we have
-     * to clear.
-     */
-    rc = unipro_attr_local_write(TSB_MAILBOX, 0, 0, NULL);
-    if (rc) {
-        goto done;
-    }
-
-    rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0, NULL);
-    if (rc) {
-        goto done;
-    }
-
-    rc = unipro_attr_local_read(TSB_MAILBOX, &cportid, 0, NULL);
+    /* Acknowledge the mailbox write */
+    rc = tsb_unipro_mbox_ack(cportid + 1);
     if (rc) {
         goto done;
     }
@@ -937,43 +932,47 @@ int unipro_driver_unregister(unsigned int cportid)
 /**
  * @brief Set the mailbox value and wait for it to be cleared.
  */
-int tsb_unipro_mbox_set(uint32_t val, int peer) {
+int tsb_unipro_mbox_send(uint32_t val) {
     int rc;
     uint32_t irq_status, retries = 2048;
 
-    rc = unipro_attr_write(TSB_MAILBOX, val, 0, peer, NULL);
+    rc = unipro_attr_peer_write(TSB_MAILBOX, val, 0, NULL);
     if (rc) {
-        lldbg("TSB_MAILBOX write failed: %d\n", rc);
+        lldbg("%s: TSB_MAILBOX write failed: %d\n", __func__, rc);
         return rc;
     }
 
     do {
-        rc = unipro_attr_read(TSB_INTERRUPTSTATUS, &irq_status, 0, peer, NULL);
+        rc = unipro_attr_peer_read(TSB_INTERRUPTSTATUS, &irq_status, 0, NULL);
         if (rc) {
-            lldbg("%s(): TSB_INTERRUPTSTATUS poll failed: %d\n", __func__, rc);
+            lldbg("%s: TSB_INTERRUPTSTATUS poll failed: %d\n", __func__, rc);
             return rc;
         }
     } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && --retries > 0);
 
     if (!retries) {
-        return -ETIMEDOUT;
-    } else {
-        retries = 2048;
-    }
-
-    do {
-        rc = unipro_attr_read(TSB_MAILBOX, &val, 0, peer, NULL);
-        if (rc) {
-            lldbg("%s(): TSB_MAILBOX poll failed: %d\n", __func__, rc);
-            return rc;
-        }
-    } while (val != TSB_MAIL_RESET && --retries > 0);
-
-    if (!retries) {
+        lldbg("%s: poll of mbox ISR timed out\n", __func__);
         return -ETIMEDOUT;
     }
 
     return rc;
+}
+
+/**
+ * Since the switch has no 32-bit MBOX_ACK_ATTR attribute, we need to repurpose
+ * a 16-bit attribute, which means that received mbox values must fit inside a
+ * uint16_t.
+ */
+static int tsb_unipro_mbox_ack(uint16_t val) {
+    int rc;
+
+    rc = unipro_attr_local_write(MBOX_ACK_ATTR, val, 0, NULL);
+    if (rc) {
+        lldbg("MBOX_ACK_ATTR complement write of 0x%x failed: %d\n", val, rc);
+        return rc;
+    }
+
+    return 0;
 }
 
 #define ES2_INIT_STATUS(x) (x >> 24)

@@ -35,7 +35,7 @@
 int bringup_entry(int argc, char *argv[])
 {
     unipro_init();
-    tsb_unipro_mbox_set(TSB_MAIL_READY_OTHER, true);
+    tsb_unipro_mbox_send(TSB_MAIL_READY_OTHER);
     return nsh_main(argc, argv);
 }
 
