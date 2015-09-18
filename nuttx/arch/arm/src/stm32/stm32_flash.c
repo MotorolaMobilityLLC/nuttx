@@ -55,9 +55,9 @@
 
 #include "up_arch.h"
 
-/* Only for the STM32F10xx family for now */
-
-#if defined(CONFIG_STM32_STM32F10XX) || defined (CONFIG_STM32_STM32F40XX)
+#if defined(CONFIG_STM32_STM32F10XX)  || \
+    defined (CONFIG_STM32_STM32F40XX) || \
+    defined (CONFIG_STM32_STM32L4X6)
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -103,7 +103,7 @@ void stm32_flash_lock(void)
  * Public Functions
  ************************************************************************************/
 
-#ifdef CONFIG_STM32_STM32F10XX
+#if defined CONFIG_STM32_STM32F10XX || defined(CONFIG_STM32_STM32L4X6)
 
 size_t up_progmem_pagesize(size_t page)
 {
@@ -224,25 +224,63 @@ bool up_progmem_isuniform(void)
 #endif /* def STM32_FLASH_PAGESIZE */
 }
 
-ssize_t up_progmem_erasepage(size_t page)
+#if defined(CONFIG_STM32_STM32L4X6)
+
+ssize_t _up_progmem_erase_page(size_t page)
+{
+  uint32_t flash_status;
+  uint32_t page_offset = (page & STM32_FLASH_PAGE_BANK_MASK);
+
+  /* 1. Check that no Flash memory operation is ongoing by checking the BSY */
+  /*    bit in the Flash status register (FLASH_SR).                        */
+
+  while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY) up_waste();
+
+  /* 2. Check and clear all error programming flags due to a previous       */
+  /*    programming.                                                        */
+
+  flash_status = getreg32(STM32_FLASH_SR);
+  if (flash_status)
+    {
+      modifyreg32(STM32_FLASH_SR, 0, flash_status);
+    }
+
+  /* 3. Set the PER bit and select the page you wish to erase (PNB) with the */
+  /*    associated bank (BKER) in the Flash control register (FLASH_CR).     */
+
+  if (page < STM32_FLASH_PAGE_PER_BANK)
+    {
+      modifyreg32(STM32_FLASH_CR, FLASH_CR_BKER, 0);
+    }
+  else
+    {
+      modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_BKER);
+    }
+  modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_PER);
+  modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_SNB(page_offset));
+
+  /* 4. Set the STRT bit in the FLASH_CR register.                         */
+
+  modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_STRT);
+
+  /* 5. Wait for the BSY bit to be cleared in the FLASH_SR register and    */
+  /*    clear previous settings.                                           */
+
+  while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY) up_waste();
+
+  modifyreg32(STM32_FLASH_CR,
+      FLASH_CR_BKER | FLASH_CR_PER | FLASH_CR_SNB(page_offset), 0);
+
+  return 0;
+}
+
+#else
+
+ssize_t _up_progmem_erase_page(size_t page)
 {
 #ifdef CONFIG_STM32_STM32F10XX
   size_t page_address;
 #endif /* def CONFIG_STM32_STM32F10XX */
-
-  if (page >= STM32_FLASH_NPAGES)
-    {
-      return -EFAULT;
-    }
-
-  /* Get flash ready and begin erasing single page */
-
-  if (!(getreg32(STM32_RCC_CR) & RCC_CR_HSION))
-    {
-      return -EPERM;
-    }
-
-  stm32_flash_unlock();
 
   modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_PAGE_ERASE);
 
@@ -259,6 +297,37 @@ ssize_t up_progmem_erasepage(size_t page)
   while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY) up_waste();
 
   modifyreg32(STM32_FLASH_CR, FLASH_CR_PAGE_ERASE, 0);
+
+  return 0;
+}
+
+#endif
+
+ssize_t up_progmem_erasepage(size_t page)
+{
+  ssize_t err = 0;
+
+  if (page >= STM32_FLASH_NPAGES)
+    {
+      return -EFAULT;
+    }
+
+  /* Get flash ready and begin erasing single page */
+
+  if (!(getreg32(STM32_RCC_CR) & RCC_CR_HSION))
+    {
+      return -EPERM;
+    }
+
+  stm32_flash_unlock();
+
+  err = _up_progmem_erase_page(page);
+  if (err)
+    {
+       return err;
+    }
+
+  stm32_flash_lock();
 
   /* Verify */
   if (up_progmem_ispageerased(page) == 0)
@@ -295,6 +364,90 @@ ssize_t up_progmem_ispageerased(size_t page)
 
   return bwritten;
 }
+
+#if defined (CONFIG_STM32_STM32L4X6)
+static ssize_t up_progmem_write_dword(size_t addr, const uint32_t buf[], size_t bytes)
+{
+  uint32_t flash_status;
+  size_t w, words = bytes / 4;
+  uint32_t *a;
+
+  /* Align to double word */
+
+  if ((bytes & 0x7) || (addr & 0x7))
+    {
+      return -EINVAL;
+    }
+
+  if ((addr < STM32_FLASH_BASE) ||
+      ((addr + bytes) > (STM32_FLASH_BASE + STM32_FLASH_SIZE)))
+    {
+      return -EFAULT;
+    }
+
+  stm32_flash_unlock();
+
+  /* 1. Check that no Flash main memory operation is ongoing by checking    */
+  /*    the BSY bit in the Flash status register (FLASH_SR).                */
+
+  while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY) up_waste();
+
+  /* 2. Check and clear all error programming flags due to a previous       */
+  /*    programming. If not, PGSERR is set.                                 */
+
+  flash_status = getreg32(STM32_FLASH_SR);
+  if (flash_status)
+    {
+      modifyreg32(STM32_FLASH_SR, 0, flash_status);
+    }
+
+  /* 3. Set the PG bit in the Flash control register (FLASH_CR).            */
+
+  modifyreg32(STM32_FLASH_CR, 0, FLASH_CR_PG);
+
+  /* 4. Perform the data write operation at the desired memory address,     */
+  /*    inside main memory block. Only double word can be programmed.       */
+  /*    – Write a first word in an address aligned with double word         */
+  /*    – Write the second word                                             */
+
+  for (a = (uint32_t *)addr, w = 0; w < words; a += 2, w += 2)
+    {
+      putreg32(buf[w], a);
+      putreg32(buf[w + 1], a + 1);
+    }
+
+  /* 5. Wait until the BSY bit is cleared in the FLASH_SR register.         */
+
+  while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY) up_waste();
+
+  /* 6. Check that EOP flag is set in the FLASH_SR register (meaning that   */
+  /*    the programming operation has succeed), and clear it by software.   */
+
+  flash_status = getreg32(STM32_FLASH_SR);
+  if (flash_status & FLASH_SR_EOP)
+    {
+      modifyreg32(STM32_FLASH_SR, 0, FLASH_SR_EOP);
+    }
+  else
+    {
+        bytes = -EIO;
+    }
+
+  /* 7. Clear the PG bit in the FLASH_SR register                           */
+
+  modifyreg32(STM32_FLASH_CR, FLASH_CR_PG, 0);
+
+  stm32_flash_lock();
+
+  return bytes;
+}
+
+ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
+{
+   return up_progmem_write_dword(addr, (const uint32_t *)buf, count);
+}
+
+#else
 
 ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
 {
@@ -362,5 +515,6 @@ ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
   modifyreg32(STM32_FLASH_CR, FLASH_CR_PG, 0);
   return written;
 }
+#endif
 
 #endif /* defined(CONFIG_STM32_STM32F10XX) || defined (CONFIG_STM32_STM32F40XX) */
