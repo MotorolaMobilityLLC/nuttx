@@ -573,3 +573,10 @@ menuconfig GREYBUS
 if GREYBUS
 source drivers/greybus/Kconfig
 endif # GREYBUS
+
+if ARCH_HAVE_PROGMEM
+config PROGMEM
+	bool "Enable flash programming"
+	default n
+endif
+

@@ -873,6 +873,10 @@ config FLASH_SIZE
 
 endif # BOOT_RUNFROMFLASH && ARCH_USE_MMU
 
+config ARCH_HAVE_PROGMEM
+    bool
+    default n
+
 config ARCH_HAVE_SDRAM
 	bool
 	default n
