@@ -396,6 +396,10 @@ int unipro_attr_access(uint16_t attr,
                        int peer,
                        int write);
 
+void unipro_remote_boot(unsigned int coprtid,
+                        const uint8_t *src,
+                        const size_t src_size);
+
 int unipro_driver_register(struct unipro_driver *drv, unsigned int cportid);
 int unipro_driver_unregister(unsigned int cportid);
 void unipro_if_rx(unsigned int, void *, size_t);

@@ -312,6 +312,67 @@ int unipro_attr_access(uint16_t attr,
 }
 
 /**
+ * @brief perform a remote register write over UniPro.
+ *        Only supported on ES2 in transfer mode 1.
+ * @param address register address
+ * @param value register value
+ */
+static void unipro_write_remote_reg(uint32_t address, uint32_t value) {
+    const int cportid = 0;
+    uint8_t *const tx_buf = CPORT_TX_BUF(cportid);
+    uint8_t *const tx_eom_addr = tx_buf + CPORT_TX_BUF_SIZE - 1;
+
+    /* Start vector */
+    putreg32(address, &tx_buf[0]);
+    putreg32(0xffffffff, &tx_buf[4]);
+    putreg32(value, &tx_buf[8]);
+    putreg8(1, tx_eom_addr);
+}
+
+/**
+ * @brief perform a remote memory write over UniPro.
+ *        Only supported on ES2 in transfer mode 1.
+ * @param dst memory address on remote device
+ * @param src source address on local device
+ * @param len length of memory
+ */
+static void unipro_write_remote_block(unsigned int cportid, uint32_t dst, const uint8_t *src, size_t len) {
+    uint8_t *const tx_buf = CPORT_TX_BUF(cportid);
+    uint8_t *const tx_eom_addr = tx_buf + CPORT_TX_BUF_SIZE - 1;
+
+    putreg32(dst, &tx_buf[0]);
+    putreg32(0xffffffff, &tx_buf[4]);
+    memcpy(&tx_buf[8], src, len);
+    putreg8(1, tx_eom_addr);
+}
+
+/**
+ * @brief perform a remote boot over UniPro.
+ *        Only supported on ES2 in transfer mode 1.
+ *        Remote device must have SPIBOOT_N deasserted, be released from
+ *        reset, and UniPro L4 must be configured.
+ * @param src source address of code on local device
+ * @param src_size length of code
+ */
+void unipro_remote_boot(unsigned int cportid, const uint8_t *src, const size_t src_size) {
+    configure_transfer_mode(1);
+
+    const uint8_t *src_end = src + src_size;
+    uint32_t dst = 0x10000000;
+
+    while (src < src_end) {
+        const size_t BLOCK_SIZE = 128;
+        size_t len = MIN(src_end - src, BLOCK_SIZE);
+        unipro_write_remote_block(cportid, dst, src, len);
+        dst += len;
+        src += len;
+    }
+
+    /* SOFTRESETRELEASE0 = SRST_rstgn2cm3upSysReset_N */
+    unipro_write_remote_reg(0x40000100, 1);
+}
+
+/**
  * @brief Clear UniPro interrupts on a given cport
  * @param cport cport
  */
