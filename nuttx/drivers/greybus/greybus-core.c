@@ -44,7 +44,7 @@
 #include <string.h>
 #include <errno.h>
 
-#define DEFAULT_STACK_SIZE      2048
+#define DEFAULT_STACK_SIZE      CONFIG_PTHREAD_STACK_DEFAULT
 #define TIMEOUT_IN_MS           1000
 #define GB_INVALID_TYPE         0
 
