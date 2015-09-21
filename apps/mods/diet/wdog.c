@@ -46,6 +46,8 @@
 #define WDOG_TIMEOUT_MS  15000
 #define WDOG_PING_MS      5000
 
+#define WDOG_STACK_SIZE    512
+
 #ifdef CONFIG_WATCHDOG
 int wdog_fd;
 
@@ -72,6 +74,7 @@ int wdog_init(void)
 {
 #ifdef CONFIG_WATCHDOG
   int ret;
+  pthread_attr_t thread_attr;
   pthread_t wdog_thread;
 
   ret = up_wdginitialize();
@@ -108,8 +111,11 @@ int wdog_init(void)
       return ret;
     }
 
-  pthread_create(&wdog_thread, NULL, wdog_ping_thread, NULL);
+  pthread_attr_init(&thread_attr);
+  pthread_attr_setstacksize(&thread_attr, WDOG_STACK_SIZE);
+  pthread_create(&wdog_thread, &thread_attr, wdog_ping_thread, NULL);
   pthread_detach(wdog_thread);
+  pthread_attr_destroy(&thread_attr);
 #endif
 
   return OK;
