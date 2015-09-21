@@ -47,6 +47,7 @@
 
 /* #define DEBUG_SPRINGPM */
 
+#undef dbg_verbose
 #ifdef DEBUG_SPRINGPM
 #define dbg_verbose printf
 #else

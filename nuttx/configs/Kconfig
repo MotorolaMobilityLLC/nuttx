@@ -723,6 +723,8 @@ config ARCH_BOARD_ARA_BDB2A_SVC
 	select SPI_OWNBUS
 	select SPI_EXCHANGE
 	select STM32_SPI1
+	select SENSORS
+	select INA230
 	---help---
 		The ARA SVC is based on the STMicro STM32F417IG microcontroller
 		(ARM Cortex-M4 with FPU + crypto).
@@ -738,6 +740,8 @@ config ARCH_BOARD_ARA_SDB_SVC
 	select SPI_OWNBUS
 	select SPI_EXCHANGE
 	select STM32_SPI1
+	select SENSORS
+	select INA230
 	---help---
 		The ARA SVC is based on the STMicro STM32F417IG microcontroller
 		(ARM Cortex-M4 with FPU + crypto).

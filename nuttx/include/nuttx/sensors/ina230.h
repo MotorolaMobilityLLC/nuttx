@@ -36,7 +36,6 @@
 #define __INA_230_H__
 
 #include <stdint.h>
-#include <pwr_measure.h>
 #include <nuttx/i2c.h>
 
 #define INA230_MAX_DEVS     8       /* ina230 supports 8 i2c addresses */
@@ -76,6 +75,13 @@ typedef enum {
     ina230_power_mode_count = 0x8
 } ina230_power_mode;
 
+typedef struct {
+    int32_t uV; /* uV */
+    int32_t uA; /* uA */
+    int32_t uW; /* uW */
+} ina230_sample;
+
+
 typedef struct
 {
     struct i2c_dev_s *i2c_dev;  /* Nuttx I2C bus handler */
@@ -97,7 +103,7 @@ uint32_t ina230_avg_count_to_int(ina230_avg_count avg_count);
 uint32_t ina230_get_sampling_time(ina230_conversion_time ct,
                                  ina230_avg_count avg_count,
                                  ina230_power_mode mode);
-int ina230_get_data(ina230_device *dev, pwr_measure *m);
+int ina230_get_data(ina230_device *dev, ina230_sample *m);
 int ina230_deinit(ina230_device *dev);
 
 #endif

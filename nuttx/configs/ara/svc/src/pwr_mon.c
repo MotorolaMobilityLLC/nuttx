@@ -827,7 +827,7 @@ void arapm_deinit_rail(arapm_rail *arapm_r)
  * @param[in]       arapm_r: power rail device structure
  * @param[out]      m: power measurement data (voltage, current, power)
  */
-int arapm_measure_rail(arapm_rail *arapm_r, pwr_measure *m)
+int arapm_measure_rail(arapm_rail *arapm_r, ina230_sample *m)
 {
     int ret;
 

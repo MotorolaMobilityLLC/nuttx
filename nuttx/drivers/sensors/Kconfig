@@ -31,3 +31,8 @@ config DEBUG_QENCODER
 	bool "Enable Qencoder Debug"
 	default n
 	depends on QENCODER
+
+config INA230
+	bool "TI ina230 power monitor support"
+	default n
+	depends on I2C

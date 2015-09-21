@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <pwr_measure.h>
 #include <pwr_mon.h>
 #include <signal.h>
 #include <string.h>
@@ -59,7 +58,7 @@
 #endif
 
 static arapm_rail *arapm_rails[DEV_COUNT][DEV_MAX_RAIL_COUNT];
-static pwr_measure measurements[DEV_COUNT][DEV_MAX_RAIL_COUNT];
+static ina230_sample measurements[DEV_COUNT][DEV_MAX_RAIL_COUNT];
 static uint32_t refresh_rate = DEFAULT_REFRESH_RATE;
 static uint32_t loopcount = DEFAULT_LOOPCOUNT;
 static uint8_t continuous = DEFAULT_CONTINUOUS;

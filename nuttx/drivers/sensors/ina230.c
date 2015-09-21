@@ -34,7 +34,7 @@
 
 #define DBG_COMP ARADBG_POWER
 
-#include <ina230.h>
+#include <nuttx/sensors/ina230.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -446,7 +446,7 @@ ina230_device *ina230_init(struct i2c_dev_s *i2c_dev, uint8_t addr,
  * @param[in]       dev: INA230 device
  * @param[in]       m: measurement data (voltage, current, power)
  */
-int ina230_get_data(ina230_device *dev, pwr_measure *m)
+int ina230_get_data(ina230_device *dev, ina230_sample *m)
 {
     int ret;
     int16_t raw_vbus, raw_current, raw_power;

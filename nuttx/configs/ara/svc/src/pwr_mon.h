@@ -36,8 +36,7 @@
 #define __PWR_MON_H__
 
 #include <stdint.h>
-#include <ina230.h>
-#include <pwr_measure.h>
+#include <nuttx/sensors/ina230.h>
 
 #define DEV_MAX_RAIL_COUNT          8
 
@@ -111,7 +110,7 @@ int arapm_init(uint32_t current_lsb_uA,
                ina230_avg_count avg_count);
 arapm_rail *arapm_init_rail(uint8_t dev, uint8_t rail);
 uint32_t arapm_get_sampling_time(arapm_rail *arapm_r);
-int arapm_measure_rail(arapm_rail *arapm_dev, pwr_measure *m);
+int arapm_measure_rail(arapm_rail *arapm_dev, ina230_sample *m);
 const char *arapm_dev_name(uint8_t dev);
 const char *arapm_rail_name(uint8_t dev, uint8_t rail);
 int arapm_device_id(const char *name, uint8_t *dev);

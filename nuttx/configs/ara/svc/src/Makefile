@@ -69,7 +69,6 @@ AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c svc.c interface.c vreg.c
 CSRCS		+= tsb_switch.c
-CSRCS		+= ina230.c
 CSRCS		+= tsb_switch_es2.c
 CSRCS		+= tsb_es2_mphy_fixups.c
 CSRCS		+= unipro_svc.c
