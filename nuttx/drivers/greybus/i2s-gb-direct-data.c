@@ -47,6 +47,8 @@
 #define GB_I2S_DIRECT_DATA_VERSION_MAJOR        0x00
 #define GB_I2S_DIRECT_DATA_VERSION_MINOR        0x01
 
+#define GB_I2S_DIRECT_DATA_STACK_SIZE           512
+
 extern void gb_i2s_set_rx_cport(int cport);
 extern void gb_i2s_set_tx_cport(int cport);
 
@@ -91,12 +93,14 @@ static struct gb_driver gb_i2s_direct_data_tx_driver = {
     .init = gb_i2s_direct_data_tx_init,
     .op_handlers = (struct gb_operation_handler*)gb_i2s_direct_data_handlers,
     .op_handlers_count = ARRAY_SIZE(gb_i2s_direct_data_handlers),
+    .stack_size = GB_I2S_DIRECT_DATA_STACK_SIZE,
 };
 
 static struct gb_driver gb_i2s_direct_data_rx_driver = {
     .init = gb_i2s_direct_data_rx_init,
     .op_handlers = (struct gb_operation_handler*)gb_i2s_direct_data_handlers,
     .op_handlers_count = ARRAY_SIZE(gb_i2s_direct_data_handlers),
+    .stack_size = GB_I2S_DIRECT_DATA_STACK_SIZE,
 };
 
 void gb_i2s_direct_rx_register(int cport, int protocol_id)
