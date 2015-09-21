@@ -47,8 +47,7 @@ PRIORITY = SCHED_PRIORITY_DEFAULT
 STACKSIZE = 768
 
 ASRCS =
-CSRCS =
-MAINSRC = stackmonitor.c
+CSRCS = stackmonitor.c
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
