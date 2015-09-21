@@ -120,6 +120,10 @@ ifeq ($(CONFIG_GREYBUS_VENDOR_MOTO),y)
 CSRCS += vendor-moto.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_FIRMWARE),y)
+CSRCS += firmware-gb.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_PTP),y)
 CSRCS += ptp.c
 endif

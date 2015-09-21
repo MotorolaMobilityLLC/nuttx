@@ -135,6 +135,27 @@ config GREYBUS_VENDOR_MOTO
 endchoice
 endif
 
+config GREYBUS_FIRMWARE
+	bool "Greybus Firmware Flashing"
+	select SCHED_WORKQUEUE
+	select PROGMEM
+	default n
+
+if GREYBUS_FIRMWARE
+	config FIRMWARE_FLASH_ADDRESS
+	hex "Flash Target Base Address"
+	default 0x08008000
+		---help---
+		Address on flash of the OS installation
+
+	config FIRMWARE_CHUNK_SIZE
+		hex "Chunk Size"
+		default 1000
+		---help---
+		Maximum size to transport for flashing.  Limited
+		by the maximum Greybus message size.
+endif
+
 config GREYBUS_PTP
 	bool "Power transfer support"
 	select DEVICE_CORE
