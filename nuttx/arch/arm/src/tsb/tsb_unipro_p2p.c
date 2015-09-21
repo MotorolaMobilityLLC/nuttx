@@ -154,44 +154,58 @@ void unipro_reset(void) {
     tsb_reset(TSB_RST_UNIPROSYS);
 }
 
+void unipro_p2p_setup_cport(unsigned int cport, int peer) {
+    const uint32_t cport_flags = 2; /* CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N */
+    const uint32_t traffic_class = 0; /* tc0 */
+    const uint32_t token_value = 0x20;
+    const uint32_t max_segment = 0x118;
+
+    uint32_t rc;
+
+    /* Disable CPORT before making changes */
+    unipro_attr_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport, peer, &rc);
+
+    unipro_attr_write(T_PEERDEVICEID, CONFIG_UNIPRO_REMOTE_DEVICEID, cport, peer, &rc);
+    unipro_attr_write(T_PEERCPORTID, cport, cport, peer, &rc);
+
+    unipro_attr_write(T_TRAFFICCLASS, traffic_class, cport, peer, &rc);
+    unipro_attr_write(T_TXTOKENVALUE, token_value, cport, peer, &rc);
+    unipro_attr_write(T_RXTOKENVALUE, token_value, cport, peer, &rc);
+    unipro_attr_write(T_CPORTFLAGS, cport_flags, cport, peer, &rc);
+
+    unipro_attr_write(T_CPORTMODE, CPORT_MODE_APPLICATION, cport, peer, &rc);
+    unipro_attr_write(T_CREDITSTOSEND, 0, cport, peer, &rc);
+
+    uint32_t val = 0;
+    unipro_attr_read(T_LOCALBUFFERSPACE, &val, cport, 1 /* peer */, &rc);
+    if (val) {
+        unipro_attr_write(T_PEERBUFFERSPACE, val, cport, peer, &rc);
+    }
+
+    unipro_attr_write(TSB_MAXSEGMENTCONFIG, max_segment, cport, peer, &rc);
+
+    /* Enable CPORT */
+    unipro_attr_write(T_CONNECTIONSTATE, 1 /* connected */, cport, peer, &rc);
+}
+
 void unipro_p2p_setup(void) {
     uint32_t i;
-    uint32_t result_code;
-//    uint32_t attr_val;
+    uint32_t rc;
 
+    unipro_attr_write(PA_TXTERMINATION, 1, 0 /* selector */, 1 /* peer */, &rc);
+    unipro_attr_write(PA_RXTERMINATION, 1, 0 /* selector */, 1 /* peer */, &rc);
+
+    /* Configure the L4 attributes. */
     for (i=0; i < unipro_cport_count(); i++) {
-
-        lldbg("attributes for cport=%d\n", i);
-
-        /* Disable CPORT before making changes */
-        unipro_attr_write(T_CONNECTIONSTATE, 0, i /* selector */, 0 /* peer */, &result_code);
-
-        unipro_attr_write(T_PEERDEVICEID, CONFIG_UNIPRO_REMOTE_DEVICEID, i /* selector */, 0 /* peer */, &result_code);
-        unipro_attr_write(T_PEERCPORTID, i, i /* selector */, 0 /* peer */, &result_code);
-
-        unipro_attr_write(T_TRAFFICCLASS, 0, i /* selector */, 0 /* peer */, &result_code);
-        unipro_attr_write(T_TXTOKENVALUE, 0x20, i /* selector */, 0 /* peer */, &result_code);
-        unipro_attr_write(T_RXTOKENVALUE, 0x20, i /* selector */, 0 /* peer */, &result_code);
-        unipro_attr_write(T_CPORTFLAGS, 2 /*CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N*/, i /* selector */, 0 /* peer */, &result_code);
-
-        unipro_attr_write(T_CPORTMODE, CPORT_MODE_APPLICATION, i /* selector */, 0 /* peer */, &result_code);
-        unipro_attr_write(T_CREDITSTOSEND, 0, i /* selector */, 0 /* peer */, &result_code);
-
-//        unipro_attr_read(T_LOCALBUFFERSPACE, &attr_val, i /* selector */, 1 /* peer */, &result_code);
-//        unipro_attr_write(T_PEERBUFFERSPACE, attr_val, i /* selector */, 0 /* peer */, &result_code);
-
-        unipro_attr_write(TSB_MAXSEGMENTCONFIG, 0x118, i /* selector */, 0 /* peer */, &result_code);
-
-        /* Enable CPORT */
-        unipro_attr_write(T_CONNECTIONSTATE, 1, i /* selector */, 0 /* peer */, &result_code);
+        unipro_p2p_setup_cport(i, 0 /* local */);
+#if defined(CONFIG_ICE_APBA)
+        unipro_p2p_setup_cport(i, 1 /* peer */);
+#endif
     }
 
 #if defined(CONFIG_ICE_APBA)
-    unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, 0x22 /* PWM */, 0 /*series */, 1 /* termination */);
-//    unipro_powermode_change(2 /* txgear */, 2 /* rxgear */, 0x11 /* HS */, 0 /*series */, 1 /* termination */);
-#else
-    unipro_attr_write(PA_TXTERMINATION, 1, 0 /* selector */, 0 /* peer */, &result_code);
-    unipro_attr_write(PA_RXTERMINATION, 1, 0 /* selector */, 0 /* peer */, &result_code);
+    /* Initiate a powermode change. */
+    unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, PA_PWRMODE_PWM, UNIPRO_HS_SERIES_A, 1 /* termination */);
 #endif
 }
 
