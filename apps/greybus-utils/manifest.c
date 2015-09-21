@@ -53,6 +53,7 @@ extern void gb_raw_register(int cport);
 extern void gb_vendor_register(int cport);
 extern void gb_lights_register(int cport);
 extern void gb_sdio_register(int cport);
+extern void gb_firmware_register(int cport);
 extern void gb_aud_register(int cport);
 extern void gb_i2s_direct_tx_register(int cport);
 extern void gb_i2s_direct_rx_register(int cport);
@@ -104,6 +105,7 @@ void enable_cports(void)
     struct gb_cport *gb_cport;
     __attribute__((unused)) int id;
     __attribute__((unused)) int protocol;
+
     list_foreach(&g_greybus.cports, iter) {
         gb_cport = list_entry(iter, struct gb_cport, list);
         id = gb_cport->id;
@@ -228,6 +230,14 @@ void enable_cports(void)
             gb_info("Registering SDIO greybus driver.\n");
             gb_sdio_register(id);
         }
+#endif
+
+#ifdef CONFIG_GREYBUS_FIRMWARE
+        if (protocol == GREYBUS_PROTOCOL_FIRMWARE) {
+             gb_info("Registering greybus firmware driver.\n");
+             gb_firmware_register(id);
+        }
+#endif
 
 #ifdef CONFIG_GREYBUS_PTP
         if (protocol == GREYBUS_PROTOCOL_PTP) {
