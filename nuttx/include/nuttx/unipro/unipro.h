@@ -239,6 +239,8 @@ void unipro_rxbuf_free(unsigned int cportid, void *ptr);
 #define PA_TXTERMINATION               0x1569
 #define PA_HSSERIES                    0x156a
 #define PA_PWRMODE                     0x1571
+    #define PA_PWRMODE_HS              (0x11)
+    #define PA_PWRMODE_PWM             (0x22)
 #define PA_ACTIVERXDATALANES           0x1580
 #define PA_CONNECTEDRXDATALANES        0x1581
 #define PA_RXPWRSTATUS                 0x1582
