@@ -34,7 +34,7 @@
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/power/battery.h>
 
-#include "battery-gb.h"
+#include "battery-mods.h"
 
 struct battery_dev_s *bdev;
 

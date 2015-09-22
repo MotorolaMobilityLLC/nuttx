@@ -34,7 +34,7 @@
 #include <nuttx/greybus/greybus.h>
 #include <apps/greybus-utils/utils.h>
 
-#include "battery-gb.h"
+#include "battery-mods.h"
 
 /* Version of the Greybus battery protocol we support */
 #define GB_BATTERY_VERSION_MAJOR    0x00
