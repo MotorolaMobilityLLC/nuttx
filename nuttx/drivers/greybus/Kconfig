@@ -86,21 +86,6 @@ config GREYBUS_TFA9890_I2C_BUS
     ---help---
        I2C bus to use to communicate with device (default 1).
 
-if GREYBUS_BATTERY
-choice
-  prompt "Select a battery driver"
-config GREYBUS_BATTERY_MAX17050
-  bool "MAX17050"
-endchoice
-endif
-
-config GREYBUS_BATTERY_MAX17050_I2C_BUS
-	int "MAX17050 I2C Bus Number"
-	default 1
-	depends on GREYBUS_BATTERY_MAX17050
-	---help---
-		I2C bus to use to communicate with device (default 1).
-
 config GREYBUS_LOOPBACK
 	bool "Loopback support"
 	default n
