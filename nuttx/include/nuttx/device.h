@@ -39,6 +39,7 @@ enum device_resource_type {
     DEVICE_RESOURCE_TYPE_INVALID,
     DEVICE_RESOURCE_TYPE_REGS,
     DEVICE_RESOURCE_TYPE_IRQ,
+    DEVICE_RESOURCE_TYPE_GPIO,
 };
 
 struct device_resource {
