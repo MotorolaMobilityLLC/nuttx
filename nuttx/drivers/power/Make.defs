@@ -55,7 +55,7 @@ endif
 
 ifeq ($(CONFIG_BATTERY),y)
 
-CSRCS += battery.c
+CSRCS += battery_pwr.c
 
 # Add I2C-based battery drivers
 
