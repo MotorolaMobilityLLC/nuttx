@@ -39,6 +39,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/device.h>
+#include <nuttx/device_battery.h>
 #include <nuttx/device_hid.h>
 #include <nuttx/device_ptp.h>
 #include <nuttx/device_raw.h>
@@ -88,6 +89,14 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_PTP_HW,
         .name = "ptp_device",
         .desc = "Power transfer protocol",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_MAX17050_DEVICE
+    {
+        .type = DEVICE_TYPE_BATTERY_DEVICE,
+        .name = "max17050_battery",
+        .desc = "MAX17050 Battery Driver",
         .id   = 0,
     },
 #endif
@@ -201,6 +210,11 @@ void board_initialize(void)
   extern struct device_driver ptp_driver;
   device_register_driver(&ptp_driver);
 #endif
+#ifdef CONFIG_MAX17050_DEVICE
+  extern struct device_driver batt_driver;
+  device_register_driver(&batt_driver);
+#endif
+
 #endif
 }
 #endif

@@ -51,4 +51,11 @@ config MODS_RAW
 	depends on GREYBUS_PTP && CHARGER_BQ24292
 	---help---
 		Enable power transfer protocol
+
+config MAX17050_DEVICE
+	bool "MAX17050 battery device"
+	default n
+	depends on BATTERY_MAX17050
+	select DEVICE_CORE
+
 endif
