@@ -343,14 +343,13 @@ int main(int argc, char *argv[])
         fread(&hdr[1], 1, size - sizeof(*hdr), file);
 
         transfer_data(dev_handle, ep_set, data, size);
-        libusb_handle_events_timeout(ctx, &tv);
     }
     fclose(file);
 
     tv.tv_sec = 1;
     printf("Waiting for transfer completion\n");
     while (!list_is_empty(&transfers)) {
-        libusb_handle_events_timeout(ctx, &tv);
+        libusb_handle_events(ctx);
     }
 
     r = libusb_release_interface(dev_handle, 0);
