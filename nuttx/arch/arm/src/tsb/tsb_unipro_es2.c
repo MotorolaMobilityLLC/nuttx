@@ -682,6 +682,7 @@ void unipro_info(void)
  */
 int unipro_init_cport(unsigned int cportid)
 {
+    uint32_t ahm_address;
     struct cport *cport = cport_handle(cportid);
 
     if (!cport) {
@@ -694,12 +695,21 @@ int unipro_init_cport(unsigned int cportid)
     _unipro_reset_cport(cportid);
 
     /*
+     * AHM_ADDRESS_16 and AHM_ADDRESS_17 don't exist,
+     * and there is no offset AHM_ADDRESS_18 and AHM_ADDRESS_15,
+     * then we need to apply an offset for cport above 16.
+     */
+    if (cportid < CPORTID_CDSI0)
+        ahm_address = AHM_ADDRESS_00 + (cportid * sizeof(uint32_t));
+    else
+        ahm_address = AHM_ADDRESS_00 + ((cportid - 2) * sizeof(uint32_t));
+
+    /*
      * FIXME: We presently specify a fixed receive buffer address
      *        for each CPort.  That approach won't work for a
      *        pipelined zero-copy system.
      */
-    unipro_write(AHM_ADDRESS_00 + (cportid * sizeof(uint32_t)),
-                 (uint32_t)CPORT_RX_BUF(cportid));
+    unipro_write(ahm_address, (uint32_t)CPORT_RX_BUF(cportid));
 
 #ifdef UNIPRO_DEBUG
     unipro_info();
