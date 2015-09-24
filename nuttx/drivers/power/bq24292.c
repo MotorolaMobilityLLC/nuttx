@@ -28,36 +28,31 @@
 
 #include <debug.h>
 #include <errno.h>
-#include <pthread.h>
 #include <semaphore.h>
 
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/power/bq24292.h>
+#include <nuttx/wqueue.h>
 
 #include "bq24292_config.h"
 
 static sem_t sem = SEM_INITIALIZER(1);
-static sem_t pg  = SEM_INITIALIZER(0);
+static struct work_s pg_work;
 
 static FAR struct i2c_dev_s *i2c;
 
 #define BQ24292_I2C_ADDR    0x6B
 
-static void *pg_worker(void *v)
+static void pg_worker(FAR void *arg)
 {
-    do {
-        // Configure registers every time power is attached
-        bq24292_configure();
-    } while(!sem_wait(&pg));
-
-    return NULL;
+    // Configure registers every time power is attached
+    bq24292_configure();
 }
 
 static int pg_isr(int irq, void *context)
 {
-    sem_post(&pg);
-    return OK;
+    return work_queue(HPWORK, &pg_work, pg_worker, NULL, 0);
 }
 
 static int reg_read(uint8_t reg)
@@ -177,7 +172,6 @@ int bq24292_configure(void)
 int bq24292_driver_init(int16_t pg_n)
 {
     int ret;
-    pthread_t vbus_thread;
 
     ret = sem_wait(&sem);
     if (ret < 0) {
@@ -218,15 +212,9 @@ int bq24292_driver_init(int16_t pg_n)
         goto init_done;
     }
 
-    ret = pthread_create(&vbus_thread, NULL, pg_worker, NULL);
-    if (ret) {
-        dbg("failed to create thread\n");
-        goto init_done;
-    }
-
-    ret = pthread_detach(vbus_thread);
+    ret = work_queue(HPWORK, &pg_work, pg_worker, NULL, 0);
     if (ret)
-        dbg("failed to detach thread\n");
+        dbg("failed to run worker thread\n");
 
 init_done:
     sem_post(&sem);
