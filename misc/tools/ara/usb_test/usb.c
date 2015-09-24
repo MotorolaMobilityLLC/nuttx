@@ -60,6 +60,13 @@ struct loopback_transfer {
     struct libusb_transfer *response;
 };
 
+struct transfer_param
+{
+    unsigned int ep_set;
+    unsigned int size;
+    unsigned int count;
+};
+
 static LIST_DECLARE(transfers);
 int transfer_error = 0;
 
@@ -249,22 +256,25 @@ void help(void)
     exit(0);
 }
 
-void getopts(int argc, char *argv[],
-             unsigned int *ep_set, unsigned int *size, unsigned int *count)
+void getopts(int argc, char *argv[], struct transfer_param *param)
 {
     int r;
     int opt;
 
+    param->count = 1;
+    param->size = 0;
+    param->ep_set = 0;
+
     while ((opt = getopt(argc, argv, "he:s:c:")) != -1) {
         switch (opt) {
         case 'c':
-            r = sscanf(optarg, "%u", count);
-            if (r != 1 || *count <= 0)
+            r = sscanf(optarg, "%u", &param->count);
+            if (r != 1 || param->count <= 0)
                 help();
             break;
         case 's':
-            r = sscanf(optarg, "%u", size);
-            if (r != 1 || *size < 0 || *size > MTU)
+            r = sscanf(optarg, "%u", &param->size);
+            if (r != 1 || param->size < 0 || param->size > MTU)
                 help();
             break;
         default:
@@ -278,13 +288,11 @@ int main(int argc, char *argv[])
     int i;
     int r;
     ssize_t cnt;
-
-    unsigned int count = 1;
     unsigned int size = 0;
-    unsigned int ep_set = 0;
 
     unsigned char *data;
     struct gb_operation_hdr *hdr;
+    struct transfer_param param;
 
     struct timeval tv = {.tv_sec = 0,.tv_usec = 0 };
 
@@ -294,8 +302,7 @@ int main(int argc, char *argv[])
     libusb_device_handle *dev_handle;
     libusb_context *ctx = NULL;
 
-    getopts(argc, argv, &ep_set, &size, &count);
-    size += sizeof(*hdr);
+    getopts(argc, argv, &param);
 
     r = libusb_init(&ctx);
     if (r < 0) {
@@ -334,7 +341,9 @@ int main(int argc, char *argv[])
 
     printf("Start transfer\n");
     file = fopen("/dev/urandom", "r");
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < param.count; i++) {
+        size = param.size;
+        size += sizeof(*hdr);
 
         data = malloc(size);
         hdr = (struct gb_operation_hdr *)data;
@@ -342,7 +351,7 @@ int main(int argc, char *argv[])
         hdr->id = htole16(i);
         fread(&hdr[1], 1, size - sizeof(*hdr), file);
 
-        transfer_data(dev_handle, ep_set, data, size);
+        transfer_data(dev_handle, param.ep_set, data, size);
     }
     fclose(file);
 
