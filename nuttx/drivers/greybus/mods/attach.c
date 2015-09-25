@@ -28,8 +28,6 @@
 
 #include <debug.h>
 #include <errno.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -40,6 +38,7 @@
 #include <nuttx/greybus/mods.h>
 #include <nuttx/list.h>
 #include <nuttx/power/pm.h>
+#include <nuttx/wqueue.h>
 
 /*
  * Priority to report to PM framework when reporting activity. Report high
@@ -56,53 +55,49 @@ struct notify_node_s
 
 struct mods_attach_data_s
 {
-  pthread_t attach_thread;
   struct list_head notify_list;
-  sem_t attach_lock;
+  struct work_s attach_work;
   enum base_attached_e base_state;
 };
 
 static struct mods_attach_data_s *mods_attach_data;
 
-static void *base_attach_worker(void *v)
+static void base_attach_worker(FAR void *arg)
 {
-  struct mods_attach_data_s *ad = (struct mods_attach_data_s *)v;
+  struct mods_attach_data_s *ad = (struct mods_attach_data_s *)arg;
   enum base_attached_e base_state;
   struct list_head *iter;
   struct list_head *iter_next;
   struct notify_node_s *node;
 
-  while (1)
-    {
-      pm_activity(PM_MODS_ACTIVITY);
-      usleep(100000);
-
-      base_state  = (gpio_get_value(GPIO_MODS_SL_BPLUS_EN)   & 0x01) << 0;
+  base_state  = (gpio_get_value(GPIO_MODS_SL_BPLUS_EN)   & 0x01) << 0;
 #ifdef GPIO_MODS_SL_FORCEFLASH
-      base_state |= (gpio_get_value(GPIO_MODS_SL_FORCEFLASH) & 0x01) << 1;
+  base_state |= (gpio_get_value(GPIO_MODS_SL_FORCEFLASH) & 0x01) << 1;
 #endif
 
-      if (ad->base_state != base_state)
+  if (ad->base_state != base_state)
+    {
+      dbg("base_state=%d\n", base_state);
+      ad->base_state = base_state;
+
+      list_foreach_safe(&ad->notify_list, iter, iter_next)
         {
-          dbg("base_state=%d\n", base_state);
-          ad->base_state = base_state;
-
-          list_foreach_safe(&ad->notify_list, iter, iter_next)
-            {
-              node = list_entry(iter, struct notify_node_s, list);
-              node->callback(node->arg, base_state);
-            }
+          node = list_entry(iter, struct notify_node_s, list);
+          node->callback(node->arg, base_state);
         }
-
-      sem_wait(&ad->attach_lock);
     }
-
-  return NULL;
 }
 
 static int base_attach_isr(int irq, void *context)
 {
-  sem_post(&mods_attach_data->attach_lock);
+  pm_activity(PM_MODS_ACTIVITY);
+
+  if (work_available(&mods_attach_data->attach_work))
+    {
+      work_queue(HPWORK, &mods_attach_data->attach_work,
+                 base_attach_worker, mods_attach_data, 0);
+    }
+
   return OK;
 }
 
@@ -136,22 +131,11 @@ int mods_attach_register(mods_attach_t callback, void *arg)
 
 int mods_attach_init(void)
 {
-  int ret;
-
   mods_attach_data = zalloc(sizeof(struct mods_attach_data_s));
   if (!mods_attach_data)
       return -ENOMEM;
 
   list_init(&mods_attach_data->notify_list);
-  sem_init(&mods_attach_data->attach_lock, 0, 0);
-
-  ret = pthread_create(&mods_attach_data->attach_thread, NULL,
-                       base_attach_worker, mods_attach_data);
-  if (ret)
-    {
-      free(mods_attach_data);
-      return ret;
-    }
 
   gpio_irqattach(GPIO_MODS_SL_BPLUS_EN, base_attach_isr);
   set_gpio_triggering(GPIO_MODS_SL_BPLUS_EN, IRQ_TYPE_EDGE_BOTH);
@@ -160,6 +144,10 @@ int mods_attach_init(void)
   gpio_irqattach(GPIO_MODS_SL_FORCEFLASH, base_attach_isr);
   set_gpio_triggering(GPIO_MODS_SL_FORCEFLASH, IRQ_TYPE_EDGE_BOTH);
 #endif
+
+  /* Run work immediately to get initial state of base */
+  work_queue(HPWORK, &mods_attach_data->attach_work,
+             base_attach_worker, mods_attach_data, 0);
 
   return 0;
 }
