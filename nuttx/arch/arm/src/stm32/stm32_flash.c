@@ -420,18 +420,18 @@ static ssize_t up_progmem_write_dword(size_t addr, const uint32_t buf[], size_t 
 
   while (getreg32(STM32_FLASH_SR) & FLASH_SR_BSY) up_waste();
 
-  /* 6. Check that EOP flag is set in the FLASH_SR register (meaning that   */
-  /*    the programming operation has succeed), and clear it by software.   */
+  /* 6. Since we are not explicitly using the EOP interrupt, check the      */
+  /*    status for any errors.  Ignore the EOP bit since it would not       */
+  /*    indicate an error if it were set.  Clear whatever is there          */
+  /*    either way.                                                         */
 
   flash_status = getreg32(STM32_FLASH_SR);
-  if (flash_status & FLASH_SR_EOP)
+  if (flash_status & ~FLASH_SR_EOP)
     {
-      modifyreg32(STM32_FLASH_SR, 0, FLASH_SR_EOP);
+      dbg("!!!Error flash status =0x%08x\n", addr, flash_status);
+      bytes = -EIO;
     }
-  else
-    {
-        bytes = -EIO;
-    }
+  modifyreg32(STM32_FLASH_SR, 0, flash_status);
 
   /* 7. Clear the PG bit in the FLASH_SR register                           */
 
