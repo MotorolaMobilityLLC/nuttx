@@ -46,7 +46,7 @@
 struct mods_msg
 {
   __le16  size;
-  __u8    cport;
+  __le16  cport;
   __u8    gb_msg[0];
 } __packed;
 
@@ -71,7 +71,7 @@ static int network_recv(const void *buf, size_t len)
       return -EINVAL;
     }
 
-  greybus_rx_handler(m->cport, m->gb_msg, le16_to_cpu(m->size));
+  greybus_rx_handler(le16_to_cpu(m->cport), m->gb_msg, le16_to_cpu(m->size));
 
   return 0;
 }
@@ -86,7 +86,7 @@ static void network_init(void)
   dl = mods_dl_init(&mods_dl_cb);
 }
 
-static int network_send(unsigned int cportid, const void *buf, size_t len)
+static int network_send(unsigned int cport, const void *buf, size_t len)
 {
   struct mods_msg *m = (struct mods_msg *)network_buffer;
 
@@ -94,7 +94,7 @@ static int network_send(unsigned int cportid, const void *buf, size_t len)
       return -ENOMEM;
 
   m->size = cpu_to_le16(len);
-  m->cport = cportid;
+  m->cport = cpu_to_le16(cport);
   memcpy(m->gb_msg, buf, len);
 
   return MODS_DL_SEND(dl, m, len + sizeof(struct mods_msg));
