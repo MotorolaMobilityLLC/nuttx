@@ -45,9 +45,11 @@
  * Included Files
  ************************************************************************************/
 
+#include <errno.h>
+#include <string.h>
+
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
-#include <errno.h>
 
 #include "stm32_flash.h"
 #include "stm32_rcc.h"
@@ -366,22 +368,36 @@ ssize_t up_progmem_ispageerased(size_t page)
 }
 
 #if defined (CONFIG_STM32_STM32L4X6)
+
+static inline void write_single_dword(uint32_t *a, const uint32_t dword[])
+{
+  putreg32(dword[0], a);
+  putreg32(dword[1], a + 1);
+}
+
 static ssize_t up_progmem_write_dword(size_t addr, const uint32_t buf[], size_t bytes)
 {
   uint32_t flash_status;
-  size_t w, words = bytes / 4;
+  size_t w;   /* word counter */
+  uint8_t pad[8];     /* one double word worth for any trailing data */
+  size_t double_words = bytes / 8;
+  size_t pad_bytes = bytes % 8;
   uint32_t *a;
 
   /* Align to double word */
 
-  if ((bytes & 0x7) || (addr & 0x7))
+  if (addr & 0x7)
     {
+      dbg("!!!Error not aligned @ 0x%08x [%lu]\n", addr, __LINE__);
       return -EINVAL;
     }
 
   if ((addr < STM32_FLASH_BASE) ||
       ((addr + bytes) > (STM32_FLASH_BASE + STM32_FLASH_SIZE)))
     {
+      dbg("!!!Error  0x%08x..0x%08x out of range 0x%08x..0x%08x\n",
+          addr, addr + bytes,
+          STM32_FLASH_BASE, (STM32_FLASH_BASE + STM32_FLASH_SIZE));
       return -EFAULT;
     }
 
@@ -410,10 +426,17 @@ static ssize_t up_progmem_write_dword(size_t addr, const uint32_t buf[], size_t 
   /*    – Write a first word in an address aligned with double word         */
   /*    – Write the second word                                             */
 
-  for (a = (uint32_t *)addr, w = 0; w < words; a += 2, w += 2)
+  for (a = (uint32_t *)addr, w = 0; w < double_words * 2; a += 2, w += 2)
     {
-      putreg32(buf[w], a);
-      putreg32(buf[w + 1], a + 1);
+      write_single_dword(a, &buf[w]);
+    }
+
+  /* see if we have any trailing bytes and write them */
+  if (pad_bytes)
+    {
+      memset(pad, 0xff, sizeof(pad));
+      memcpy(pad, (const void *)&buf[w], pad_bytes);
+      write_single_dword(a, (uint32_t *)pad);
     }
 
   /* 5. Wait until the BSY bit is cleared in the FLASH_SR register.         */
