@@ -102,14 +102,14 @@ static void setup_exchange(FAR struct mods_spi_dl_s *priv)
   /* Verify not already setup to tranceive packet */
   if (atomic_get(&priv->xfer))
     {
-      dbg("Already setup to tranceive packet. Do nothing.\n");
+      vdbg("Already setup to tranceive packet. Do nothing.\n");
       goto already_setup;
     }
 
   /* Only setup exchange if base has asserted wake */
   if (!atomic_get(&priv->wake))
     {
-      dbg("WAKE not asserted\n");
+      vdbg("WAKE not asserted\n");
       goto no_wake;
     }
   atomic_dec(&priv->wake);
@@ -162,7 +162,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 
   if (state == BASE_DETACHED)
     {
-      dbg("Cleaning up datalink\n");
+      vdbg("Cleaning up datalink\n");
 
       /* Reset GPIOs to initial state */
       mods_host_int_set(false);
@@ -199,7 +199,7 @@ static int txn_finished_cb(void *v)
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
   struct mods_spi_msg *m = (struct mods_spi_msg *)priv->rx_buf;
 
-  dbg("Tranceive complete: hdr_bits=0x%02X\n", m->hdr_bits);
+  vdbg("Tranceive complete: hdr_bits=0x%02X\n", m->hdr_bits);
 
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
@@ -282,7 +282,7 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
   __u8 *dbuf = (__u8 *)buf;
   int pl_size;
 
-  dbg("len=%d\n", len);
+  vdbg("len=%d\n", len);
 
   if (len > MODS_DL_PAYLOAD_MAX_SZ)
       return -E2BIG;
@@ -363,7 +363,7 @@ static struct pm_callback_s pm_callback =
 
 static int wake_isr(int irq, void *context)
 {
-  dbg("Wake signal asserted by base\n");
+  vdbg("Wake signal asserted by base\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
   atomic_inc(&mods_spi_dl.wake);
