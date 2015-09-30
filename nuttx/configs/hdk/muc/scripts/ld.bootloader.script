@@ -1,5 +1,5 @@
 /****************************************************************************
- * configs/hdk/muc/scripts/ld.script
+ * configs/hdk/muc/scripts/ld.bootloader.script
  *
  *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -46,7 +46,7 @@
 
 MEMORY
 {
-    flash (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
+    flash (rx) : ORIGIN = 0x080E0000, LENGTH = 128K
     sram (rwx) : ORIGIN = 0x20000000, LENGTH = 95K
     sramlog (rwx) : ORIGIN = 0x20017C00, LENGTH = 1K
 }

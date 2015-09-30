@@ -1,5 +1,5 @@
 #!/bin/bash
-# configs/hdk/muc/r1/setenv.sh
+# configs/hdk/muc/bootloader/setenv.sh
 #
 #   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -47,7 +47,7 @@ if [ -z "${PATH_ORIG}" ]; then
   export PATH_ORIG="${PATH}"
 fi
 
-export NUTTX_CONFIG_BASE=hdk/muc/r1
+export NUTTX_CONFIG_BASE=hdk/muc/bootloader
 
 # this will need to be updated based on your configuration
 if [ -z "${ANDROID_BUILD_TOP}" ]; then
@@ -109,7 +109,7 @@ function _menuconfig()
 }
 
 alias mm="_build_nuttx $WD"
-alias flash="st-flash write $WD/nuttx.bin 0x8000000"
+alias flash="st-flash --reset write $WD/nuttx.bin 0x80E0000"
 alias mc="_menuconfig $WD"
 alias dl="_diff_locals $WD"
 alias cl="_cp_locals $WD"

@@ -1,5 +1,5 @@
 ############################################################################
-# configs/hdk/muc/r1/Make.defs
+# configs/hdk/muc/bootloader/Make.defs
 #
 #   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -37,7 +37,7 @@ include ${TOPDIR}/.config
 include ${TOPDIR}/tools/Config.mk
 include ${TOPDIR}/arch/arm/src/armv7-m/Toolchain.defs
 
-LDSCRIPT = ld.script
+LDSCRIPT = ld.bootloader.script
 
 ifeq ($(WINTOOL),y)
   # Windows-native toolchains
