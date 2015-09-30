@@ -122,7 +122,7 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
         return GB_OP_INVALID;
     }
 
-    unipro_reset_cport(le16_to_cpu(request->cport_id));
+    unipro_reset_cport(le16_to_cpu(request->cport_id), NULL, NULL);
 
     retval = gb_stop_listening(le16_to_cpu(request->cport_id));
     if (retval) {
