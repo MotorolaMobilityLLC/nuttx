@@ -86,6 +86,36 @@ static void unipro_dequeue_tx_buffer(struct unipro_buffer *buffer, int status)
     free(buffer);
 }
 
+static void unipro_flush_cport(struct cport *cport)
+{
+    struct unipro_buffer *buffer;
+
+    if (list_is_empty(&cport->tx_fifo)) {
+        goto reset;
+    }
+
+    buffer = list_entry(cport->tx_fifo.next, struct unipro_buffer, list);
+
+    if (buffer->som) {
+        unipro_set_eom_flag(cport);
+    }
+
+    while (!list_is_empty(&cport->tx_fifo)) {
+        buffer = list_entry(cport->tx_fifo.next, struct unipro_buffer, list);
+        unipro_dequeue_tx_buffer(buffer, -ECONNRESET);
+    }
+
+reset:
+    _unipro_reset_cport(cport->cportid);
+    cport->pending_reset = false;
+    if (cport->reset_completion_cb) {
+        cport->reset_completion_cb(cport->cportid,
+                                   cport->reset_completion_cb_priv);
+    }
+    cport->reset_completion_cb = cport->reset_completion_cb_priv = NULL;
+}
+
+
 /**
  * @brief           send data over given UniPro CPort
  * @return          0 on success, -EINVAL on invalid parameter,
@@ -107,6 +137,9 @@ static int unipro_send_tx_buffer(struct cport *cport)
     flags = irqsave();
 
     if (list_is_empty(&cport->tx_fifo)) {
+        if (cport->pending_reset) {
+            unipro_flush_cport(cport);
+        }
         irqrestore(flags);
         return 0;
     }
@@ -114,6 +147,10 @@ static int unipro_send_tx_buffer(struct cport *cport)
     buffer = list_entry(cport->tx_fifo.next, struct unipro_buffer, list);
 
     irqrestore(flags);
+
+    if (cport->pending_reset) {
+        unipro_flush_cport(cport);
+    }
 
     retval = unipro_send_sync(cport->cportid,
                               buffer->data + buffer->byte_sent,
@@ -174,6 +211,11 @@ static void *unipro_tx_worker(void *data)
 
 void unipro_reset_notify(unsigned int cportid)
 {
+    /*
+     * if the tx worker is blocked on the semaphore, post something on it
+     * in order to unlock it and have the reset happen right away.
+     */
+    sem_post(&worker.tx_fifo_lock);
 }
 
 /**
@@ -199,6 +241,10 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
     cport = cport_handle(cportid);
     if (!cport) {
         return -EINVAL;
+    }
+
+    if (cport->pending_reset) {
+        return -EPIPE;
     }
 
     if (!cport->connected) {
@@ -247,6 +293,10 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len)
     cport = cport_handle(cportid);
     if (!cport) {
         return -EINVAL;
+    }
+
+    if (cport->pending_reset) {
+        return -EPIPE;
     }
 
     for (som = true, sent = 0; sent < len;) {
