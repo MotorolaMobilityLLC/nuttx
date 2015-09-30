@@ -66,6 +66,7 @@
 #include <nuttx/unipro/unipro.h>
 #include <arch/byteorder.h>
 #include <arch/board/apbridgea_gadget.h>
+#include <nuttx/wdog.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -155,6 +156,11 @@
 #define APBRIDGE_RWREQUEST_LOG          (0x02)
 #define APBRIDGE_RWREQUEST_EP_MAPPING   (0x03)
 #define APBRIDGE_ROREQUEST_CPORT_COUNT  (0x04)
+#define APBRIDGE_WOREQUEST_CPORT_RESET  (0x05)
+
+#define TIMEOUT_IN_MS           300
+#define ONE_SEC_IN_MSEC         1000
+#define RESET_TIMEOUT_DELAY (TIMEOUT_IN_MS * CLOCKS_PER_SEC) / ONE_SEC_IN_MSEC
 
 /* Misc Macros ****************************************************************/
 
@@ -1371,6 +1377,58 @@ int usb_get_log(void *buf, int len)
 }
 #endif
 
+struct cport_reset_priv {
+    struct usbdev_req_s *req;
+    struct usbdev_ep_s *ep0;
+    struct wdog_s timeout_wd;
+};
+
+static void cport_reset_cb(unsigned int cportid, void *data)
+{
+    struct cport_reset_priv *priv = data;
+    int ret;
+
+    priv->req->len = 0;
+    priv->req->flags = USBDEV_REQFLAGS_NULLPKT;
+
+    ret = EP_SUBMIT(priv->ep0, priv->req);
+    if (ret < 0) {
+        usbclass_ep0incomplete(priv->ep0, priv->req);
+    }
+}
+
+static void cport_reset_timeout(int argc, uint32_t data, ...)
+{
+    struct cport_reset_priv *priv = (struct cport_reset_priv*) data;
+
+    if (argc != 1)
+        return;
+
+    wd_delete(&priv->timeout_wd);
+    usbclass_ep0incomplete(priv->ep0, priv->req);
+
+    free(priv);
+}
+
+static int reset_cport(unsigned int cportid, struct usbdev_req_s *req,
+                       struct usbdev_ep_s *ep0)
+{
+    struct cport_reset_priv *priv;
+
+    priv = zalloc(sizeof(*priv));
+    if (!priv) {
+        return -ENOMEM;
+    }
+
+    wd_static(&priv->timeout_wd);
+    priv->req = req;
+    priv->ep0 = ep0;
+
+    wd_start(&priv->timeout_wd, RESET_TIMEOUT_DELAY, cport_reset_timeout, 1,
+             priv);
+    return unipro_reset_cport(cportid, cport_reset_cb, priv);
+}
+
 /****************************************************************************
  * Name: usbclass_setup
  *
@@ -1580,6 +1638,12 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                         *(uint16_t *) req->buf =
                             cpu_to_le16(unipro_cport_count());
                         ret = sizeof(uint16_t);
+                    } else {
+                        ret = -EINVAL;
+                    }
+                } else if (ctrl->req == APBRIDGE_WOREQUEST_CPORT_RESET) {
+                    if (!(ctrl->type & USB_DIR_IN)) {
+                        ret = reset_cport(index, req, dev->ep0);
                     } else {
                         ret = -EINVAL;
                     }
