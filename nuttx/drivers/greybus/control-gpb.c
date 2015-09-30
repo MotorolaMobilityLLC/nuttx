@@ -32,6 +32,7 @@
 #include <arch/byteorder.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
+#include <nuttx/unipro/unipro.h>
 #include <apps/greybus-utils/manifest.h>
 
 #include "control-gb.h"
@@ -120,6 +121,8 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
         gb_error("dropping short message\n");
         return GB_OP_INVALID;
     }
+
+    unipro_reset_cport(le16_to_cpu(request->cport_id));
 
     retval = gb_stop_listening(le16_to_cpu(request->cport_id));
     if (retval) {
