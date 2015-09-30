@@ -261,21 +261,19 @@ int svc_connection_create(uint8_t intf1_id, uint16_t cport1_id,
         return rc;
     }
 
-    if (flags & CPORT_FLAGS_E2EFC) {
-        /*
-         * Poke bridge mailboxes and wait for them to enable E2EFC.
-         * @jira{ENG-376}
-         */
-        rc = svc_mailbox_poke(intf1_id, cport1_id);
-        if (rc) {
-            dbg_error("Failed to notify intf %u\n", intf1_id);
-            return rc;
-        }
-        rc = svc_mailbox_poke(intf2_id, cport2_id);
-        if (rc) {
-            dbg_error("Failed to notify intf %u\n", intf2_id);
-            return rc;
-        }
+    /*
+     * Poke bridge mailboxes.
+     * @jira{ENG-376}
+     */
+    rc = svc_mailbox_poke(intf1_id, cport1_id);
+    if (rc) {
+        dbg_error("Failed to notify intf %u\n", intf1_id);
+        return rc;
+    }
+    rc = svc_mailbox_poke(intf2_id, cport2_id);
+    if (rc) {
+        dbg_error("Failed to notify intf %u\n", intf2_id);
+        return rc;
     }
 
     return 0;

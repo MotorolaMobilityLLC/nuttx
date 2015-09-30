@@ -457,15 +457,21 @@ static int irq_unipro(int irq, void *context) {
     }
     cportid--;
 
-    DBG_UNIPRO("Enabling E2EFC on cport %u\n", cportid);
-    if (cportid < 32) {
-        e2efc = unipro_read(CPB_RX_E2EFC_EN_0);
-        e2efc |= (1 << cportid);
-        unipro_write(CPB_RX_E2EFC_EN_0, e2efc);
-    } else if (cportid < APBRIDGE_CPORT_MAX) {
-        e2efc = unipro_read(CPB_RX_E2EFC_EN_1);
-        e2efc |= (1 << (cportid - 32));
-        unipro_write(CPB_RX_E2EFC_EN_1, e2efc);
+    rc = unipro_attr_local_read(T_CPORTFLAGS, &val, cportid, NULL);
+    if (rc) {
+        goto done;
+    }
+    if (val & CPORT_FLAGS_E2EFC) {
+        DBG_UNIPRO("Enabling E2EFC on cport %u\n", cportid);
+        if (cportid < 32) {
+            e2efc = unipro_read(CPB_RX_E2EFC_EN_0);
+            e2efc |= (1 << cportid);
+            unipro_write(CPB_RX_E2EFC_EN_0, e2efc);
+        } else if (cportid < APBRIDGE_CPORT_MAX) {
+            e2efc = unipro_read(CPB_RX_E2EFC_EN_1);
+            e2efc |= (1 << (cportid - 32));
+            unipro_write(CPB_RX_E2EFC_EN_1, e2efc);
+        }
     }
 
     configure_connected_cport(cportid);
