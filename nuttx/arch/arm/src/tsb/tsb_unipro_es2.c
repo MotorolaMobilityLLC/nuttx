@@ -59,6 +59,8 @@
 #define TRANSFER_MODE_2_CTRL_1 (0xAAAAAAA5) // Transfer mode 2 for CPorts 18-31
 #define TRANSFER_MODE_2_CTRL_2 (0x00AAAAAA) // Transfer mode 2 for CPorts 32-43
 
+#define CPORT_SW_RESET_BITS 3
+
 #define CPORT_RX_BUF_BASE         (0x20000000U)
 #define CPORT_RX_BUF_SIZE         (CPORT_BUF_SIZE)
 #define CPORT_RX_BUF(cport)       (void*)(CPORT_RX_BUF_BASE + \
@@ -816,6 +818,63 @@ int unipro_attr_write(uint16_t attr,
                       uint32_t *result_code)
 {
     return unipro_attr_access(attr, &val, selector, peer, 1, result_code);
+}
+
+int _unipro_reset_cport(unsigned int cportid)
+{
+    int rc;
+    int retval = 0;
+    uint32_t result;
+    uint32_t tx_reset_offset;
+    uint32_t rx_reset_offset;
+    uint32_t tx_queue_empty_offset;
+    unsigned tx_queue_empty_bit;
+
+    if (cportid >= unipro_cport_count()) {
+        return -EINVAL;
+    }
+
+    tx_queue_empty_offset = CPB_TXQUEUEEMPTY_0 + ((cportid / 32) << 2);
+    tx_queue_empty_bit = (1 << (cportid % 32));
+
+    while (!(getreg32(AIO_UNIPRO_BASE + tx_queue_empty_offset) &
+                tx_queue_empty_bit)) {
+    }
+
+    tx_reset_offset = TX_SW_RESET_00 + (cportid << 2);
+    rx_reset_offset = RX_SW_RESET_00 + (cportid << 2);
+
+    putreg32(CPORT_SW_RESET_BITS, AIO_UNIPRO_BASE + tx_reset_offset);
+
+    rc = unipro_attr_local_write(T_CONNECTIONSTATE, 0, cportid, &result);
+    if (rc || result) {
+        lowsyslog("error resetting T_CONNECTIONSTATE (%d)\n", result);
+        retval = -EIO;
+    }
+
+    rc = unipro_attr_local_write(T_LOCALBUFFERSPACE, 0, cportid, &result);
+    if (rc || result) {
+        lowsyslog("error resetting T_LOCALBUFFERSPACE (%d)\n", result);
+        retval = -EIO;
+    }
+
+    rc = unipro_attr_local_write(T_PEERBUFFERSPACE, 0, cportid, &result);
+    if (rc || result) {
+        lowsyslog("error resetting T_PEERBUFFERSPACE (%d)\n", result);
+        retval = -EIO;
+    }
+
+    rc = unipro_attr_local_write(T_CREDITSTOSEND, 0, cportid, &result);
+    if (rc || result) {
+        lowsyslog("error resetting T_CREDITSTOSEND (%d)\n", result);
+        retval = -EIO;
+    }
+
+    putreg32(CPORT_SW_RESET_BITS, AIO_UNIPRO_BASE + rx_reset_offset);
+    putreg32(0, AIO_UNIPRO_BASE + tx_reset_offset);
+    putreg32(0, AIO_UNIPRO_BASE + rx_reset_offset);
+
+    return retval;
 }
 
 /**
