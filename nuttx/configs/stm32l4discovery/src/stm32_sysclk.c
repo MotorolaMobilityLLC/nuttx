@@ -126,12 +126,12 @@ void stm32_board_clockconfig(void)
        * not used, leave it off to save power.
        */
 
-      /* Enable FLASH prefetch, instruction cache, data cache, and 0 wait states */
+      /* Enable FLASH prefetch, instruction cache, data cache, and 2 wait states */
 
 #ifdef CONFIG_STM32_FLASH_PREFETCH
-      regval = (FLASH_ACR_LATENCY_0 | FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN);
+      regval = (FLASH_ACR_LATENCY_2 | FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN);
 #else
-      regval = (FLASH_ACR_LATENCY_0 | FLASH_ACR_ICEN | FLASH_ACR_DCEN);
+      regval = (FLASH_ACR_LATENCY_2 | FLASH_ACR_ICEN | FLASH_ACR_DCEN);
 #endif
       putreg32(regval, STM32_FLASH_ACR);
 
