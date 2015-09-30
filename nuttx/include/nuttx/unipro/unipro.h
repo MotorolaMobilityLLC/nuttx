@@ -37,6 +37,7 @@
 
 typedef int (*unipro_send_completion_t)(int status, const void *buf,
                                         void *priv);
+typedef void (*cport_reset_completion_cb_t)(unsigned int cportid, void *data);
 
 struct unipro_driver {
     const char name[32];
@@ -53,6 +54,8 @@ int unipro_send(unsigned int cportid, const void *buf, size_t len);
 int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
                       unipro_send_completion_t callback, void *priv);
 int unipro_unpause_rx(unsigned int cportid);
+int unipro_reset_cport(unsigned int cportid, cport_reset_completion_cb_t cb,
+                       void *priv);
 
 /*
  * Lower level attribute read/write.

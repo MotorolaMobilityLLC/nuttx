@@ -29,6 +29,8 @@
 #ifndef __TSB_UNIPRO_H__
 #define __TSB_UNIPRO_H__
 
+#include <nuttx/unipro/unipro.h>
+
 #ifdef UNIPRO_DEBUG
 #define DBG_UNIPRO(fmt, ...) lldbg(fmt, __VA_ARGS__)
 #else
@@ -47,6 +49,10 @@ struct cport {
     unsigned int cportid;
     int connected;
 
+    volatile bool pending_reset;
+    cport_reset_completion_cb_t reset_completion_cb;
+    void *reset_completion_cb_priv;
+
     struct list_head tx_fifo;
 };
 
@@ -54,6 +60,7 @@ struct cport *cport_handle(unsigned int cportid);
 uint16_t unipro_get_tx_free_buffer_space(struct cport *cport);
 int unipro_tx_init(void);
 int _unipro_reset_cport(unsigned int cportid);
+void unipro_reset_notify(unsigned int cportid);
 
 #endif /* __TSB_UNIPRO_H__ */
 

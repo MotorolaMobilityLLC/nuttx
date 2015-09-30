@@ -877,6 +877,24 @@ int _unipro_reset_cport(unsigned int cportid)
     return retval;
 }
 
+int unipro_reset_cport(unsigned int cportid, cport_reset_completion_cb_t cb,
+                       void *priv)
+{
+    struct cport *cport;
+
+    cport = cport_handle(cportid);
+    if (!cport)
+        return -EINVAL;
+
+    cport->reset_completion_cb_priv = priv;
+    cport->reset_completion_cb = cb;
+    cport->pending_reset = true;
+
+    unipro_reset_notify(cportid);
+
+    return 0;
+}
+
 /**
  * @brief Register a driver with the unipro core
  * @param drv unipro driver to register

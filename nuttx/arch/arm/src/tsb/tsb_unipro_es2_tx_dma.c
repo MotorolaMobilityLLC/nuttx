@@ -275,6 +275,10 @@ static void *unipro_tx_worker(void *data)
     return NULL;
 }
 
+void unipro_reset_notify(unsigned int cportid)
+{
+}
+
 int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
                       unipro_send_completion_t callback, void *priv)
 {
@@ -287,6 +291,10 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
         lowsyslog("unipro: invalid cport id: %u, dropping message...\n",
                   cportid);
         return -EINVAL;
+    }
+
+    if (cport->pending_reset) {
+        return -EPIPE;
     }
 
     desc = zalloc(sizeof(*desc));

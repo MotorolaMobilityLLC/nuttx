@@ -172,6 +172,10 @@ static void *unipro_tx_worker(void *data)
     return NULL;
 }
 
+void unipro_reset_notify(unsigned int cportid)
+{
+}
+
 /**
  * @brief           send data over UniPro asynchronously (not blocking)
  * @return          0 on success, <0 otherwise
