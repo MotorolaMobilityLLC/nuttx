@@ -33,28 +33,4 @@
 #include <nuttx/greybus/types.h>
 #include <nuttx/greybus/loopback.h> /* For greybus loopback request types. */
 
-/* version request has no payload */
-struct gb_loopback_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
-
-struct gb_loopback_transfer_request {
-	__le32	len;
-	__u8    data[0];
-};
-
-struct gb_loopback_transfer_response {
-	__le32	len;
-	__le32	reserved0;
-	__le32	reserved1;
-	__u8    data[0];
-};
-
-struct gb_loopback_sync_transfer {
-	__le32	len;
-	__le32	chksum;
-	__u8    data[0];
-};
-
 #endif
