@@ -179,6 +179,19 @@ static inline struct gb_operation *gb_operation_get_response_op(struct gb_operat
     return op->response;
 }
 
+static inline uint8_t
+gb_operation_get_response_result(struct gb_operation *operation)
+{
+    uint8_t ret = GB_OP_INTERNAL;
+
+    if (operation->response) {
+        struct gb_operation_hdr *hdr =
+            (struct gb_operation_hdr *)(operation->response)->request_buffer;
+        ret = hdr->result;
+    }
+    return ret;
+}
+
 static inline const char *gb_driver_name(struct gb_driver *driver)
 {
     return driver->name;
