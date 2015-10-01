@@ -622,6 +622,10 @@ config ARCH_UID
 		UID could be used for serial numbers, as part of security keys,
 		etc. The UID cannot be altered by the user.
 
+config ARCH_HAVE_SYSRESET
+	bool
+	default n
+
 config ARCH_HAVE_RESET_FLAGS
 	bool
 	default n

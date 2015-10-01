@@ -768,6 +768,18 @@ int up_getuid(uint64_t *uid_high, uint64_t *uid_low);
 #endif
 
 /****************************************************************************
+ * Name: up_systemreset
+ *
+ * Description:
+ *   Resets the microprocessor. This function will not return.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARCH_HAVE_SYSRESET
+void up_systemreset(void) noreturn_function;
+#endif
+
+/****************************************************************************
  * Name: up_resetflags
  *
  * Description:
