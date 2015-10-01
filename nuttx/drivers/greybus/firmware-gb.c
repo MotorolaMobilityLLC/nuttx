@@ -132,8 +132,13 @@ static int gb_firmware_size(uint8_t stage, size_t *size)
     struct gb_firmware_size_request *request;
     struct gb_firmware_size_response *response;
     struct gb_operation *operation;
+    struct gb_operation *response_op;
+    uint8_t result;
     int ret = -EFAULT;
 
+    *size = 0;
+
+    gb_info("gb_firmware_size enter\n");
     operation = gb_operation_create(g_firmware_info->cport,
             GB_FIRMWARE_TYPE_FIRMWARE_SIZE, sizeof(*request));
     if (!operation) {
@@ -156,13 +161,22 @@ static int gb_firmware_size(uint8_t stage, size_t *size)
         return -EIO;
     }
 
-    if (operation->response) {
-        response = gb_operation_get_request_payload(operation->response);
+    result = gb_operation_get_response_result(operation);
+    if (result != GB_OP_SUCCESS) {
+        gb_error("Invalid response got result %d\n", result);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    response_op = gb_operation_get_response_op(operation);
+    if (response_op) {
+        response = gb_operation_get_request_payload(response_op);
         g_firmware_info->firmware_size = le32_to_cpu(response->size);
         *size = le32_to_cpu(response->size);
         ret = 0;
     }
 
+out:
     gb_operation_destroy(operation);
 
     return ret;
@@ -350,8 +364,13 @@ static void gb_firmware_worker(FAR void *arg)
 
     err = gb_firmware_size(GB_FIRMWARE_BOOT_STAGE_ONE, &firmware_size);
     if (err) {
-        gb_error("failed to get firmware size\n");
+        gb_error("failed to get firmware size %d\n", err);
         status = GB_FIRMWARE_BOOT_STATUS_INVALID;
+        goto ready_to_boot;
+    }
+
+    if (firmware_size == 0) {
+        gb_error("Refusing to flash firmware size of 0\n")
         goto ready_to_boot;
     }
 
