@@ -108,7 +108,8 @@ struct gb_firmware_info {
     uint32_t base_address;
     uint32_t chunk_size;
     uint32_t firmware_size;
-    struct work_s work;
+    struct work_s flash_work;
+    struct work_s reset_work;
 };
 
 static struct gb_firmware_info *g_firmware_info = NULL;
@@ -293,6 +294,13 @@ static int gb_firmware_get_firmware(size_t size)
     return ret;
 }
 
+static void gb_firmware_reset_worker(FAR void *arg)
+{
+#ifdef CONFIG_ARCH_HAVE_SYSRESET
+    up_systemreset(); /* will not return */
+#endif
+}
+
 static int gb_firmware_ready_to_boot(uint8_t stage, uint8_t status)
 {
     struct gb_firmware_ready_to_boot_request *request;
@@ -317,6 +325,14 @@ static int gb_firmware_ready_to_boot(uint8_t stage, uint8_t status)
     }
 
     gb_operation_destroy(operation);
+
+    /* cancel any work and reset ourselves */
+    if (!work_available(&g_firmware_info->reset_work))
+        work_cancel(LPWORK, &g_firmware_info->reset_work);
+
+    work_queue(LPWORK, &g_firmware_info->reset_work,
+            gb_firmware_reset_worker, NULL,
+            MSEC2TICK(GB_FIRMWARE_FLASH_DELAY_MS));
 
     return 0;
 }
@@ -361,15 +377,16 @@ ready_to_boot:
  */
 static uint8_t gb_firmware_ap_ready(struct gb_operation *operation)
 {
-    if (!work_available(&g_firmware_info->work))
-        work_cancel(LPWORK, &g_firmware_info->work);
+    if (!work_available(&g_firmware_info->flash_work))
+        work_cancel(LPWORK, &g_firmware_info->flash_work);
 
     /* Kick off the flashing, but delay long enough to allow the
      * response to this message to be received or timeout.
      * (either one works).
      */
-    work_queue(LPWORK, &g_firmware_info->work, gb_firmware_worker,
-                      NULL, MSEC2TICK(GB_FIRMWARE_FLASH_DELAY_MS));
+    work_queue(LPWORK, &g_firmware_info->flash_work,
+            gb_firmware_worker, NULL,
+            MSEC2TICK(GB_FIRMWARE_FLASH_DELAY_MS));
     return GB_OP_SUCCESS;
 }
 
@@ -391,7 +408,8 @@ static int gb_firmware_init(unsigned int cport)
 static void gb_firmware_exit(unsigned int cport)
 {
     if (g_firmware_info) {
-        work_cancel(LPWORK, &g_firmware_info->work);
+        work_cancel(LPWORK, &g_firmware_info->flash_work);
+        work_cancel(LPWORK, &g_firmware_info->reset_work);
         free(g_firmware_info);
     }
     g_firmware_info = NULL;
