@@ -163,7 +163,7 @@ static uint8_t gb_control_reboot_flash(struct gb_operation *operation)
     if ((REBOOT_FLASH_VAL[0] == ((uint32_t *)addr)[0]) &&
         (REBOOT_FLASH_VAL[1] == ((uint32_t *)addr)[1])) {
         gb_info("already set so skip writing\n");
-        return 0;
+        goto do_reset;
     }
 
     /* return of this function is backwards 0 = true */
@@ -172,19 +172,22 @@ static uint8_t gb_control_reboot_flash(struct gb_operation *operation)
         written = up_progmem_erasepage(last_page);
         if (written != page_size) {
             gb_error("error erasing page\n");
-            return GB_OP_UNKNOWN_ERROR;
+            goto do_reset;
         }
     }
 
     written = up_progmem_write(addr, REBOOT_FLASH_VAL,
             sizeof(REBOOT_FLASH_VAL));
     if (written != sizeof(REBOOT_FLASH_VAL))
-        return GB_OP_UNKNOWN_ERROR;
-    else
-        return GB_OP_SUCCESS;
-#else
-    return GB_OP_SUCCESS;
+        gb_error("error writing flash\n");
+
+do_reset:
+#ifdef CONFIG_ARCH_HAVE_SYSRESET
+    up_systemreset(); /* will not return */
 #endif
+#endif
+
+    return GB_OP_SUCCESS;
 }
 
 static uint8_t gb_control_get_ids(struct gb_operation *operation)
