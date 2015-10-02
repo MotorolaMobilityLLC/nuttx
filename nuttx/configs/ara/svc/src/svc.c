@@ -534,7 +534,64 @@ static int svc_handle_module_ready(uint8_t portid) {
 }
 
 /**
- * @brief Send hot_unplug event from the interface detection signals
+ * @brief Consume hotplug state for all ports and send events to the AP
+ */
+static int svc_consume_hotplug_events(void)
+{
+    int i;
+    irqstate_t flags;
+
+    /*
+     * Disable IRQs so that no new hotplug or hot-unplug event arrives
+     * from the detection signals.
+     */
+    flags = irqsave();
+
+    for (i = 0; i < SWITCH_PORT_MAX; i++) {
+        switch (interface_consume_hotplug_state(i)) {
+        /* Port is plugged in, send event to the AP */
+        case HOTPLUG_ST_PLUGGED:
+            svc_hot_plug(i);
+            break;
+        /* Port unplugged, send event to the AP */
+        case HOTPLUG_ST_UNPLUGGED:
+            svc_hot_unplug(i);
+            break;
+        /* State not initialized yet or event already consumed, do nothing */
+        case HOTPLUG_ST_UNKNOWN:
+        default:
+            break;
+        }
+    }
+
+    irqrestore(flags);
+
+    return 0;
+}
+
+/**
+ * @brief Handle hot_plug event from the interface detection signals
+ *
+ * Store the hotplug state for the interface until the AP is ready.
+ * The actual hotplug event will be sent to the AP after the
+ * handshake mechanism with the bridge succeeds.
+ */
+ int svc_hot_plug(uint8_t portid)
+ {
+    pthread_mutex_lock(&svc->lock);
+
+    if (!svc->ap_initialized) {
+        /* If AP is not ready yet, store the state for later retrieval */
+        interface_store_hotplug_state(portid, HOTPLUG_ST_PLUGGED);
+    }
+
+    pthread_mutex_unlock(&svc->lock);
+
+    return 0;
+}
+
+/**
+ * @brief Send hot_plug event from the interface detection signals
  */
 int svc_hot_unplug(uint8_t portid)
 {
@@ -543,16 +600,30 @@ int svc_hot_unplug(uint8_t portid)
 
     pthread_mutex_lock(&svc->lock);
 
-    svc_ev = svc_event_create(SVC_EVENT_TYPE_HOT_UNPLUG);
-    if (!svc_ev) {
-        dbg_error("Couldn't create event\n");
-        rc = -ENOMEM;
+    if (svc->ap_initialized) {
+        /*
+         * If AP is ready, generate an event to send
+         *
+         * Filter out AP hot_unplug
+         */
+        if (interface_get_portid_by_id(svc->ap_intf_id) == portid) {
+            goto out;
+        }
+        svc_ev = svc_event_create(SVC_EVENT_TYPE_HOT_UNPLUG);
+        if (!svc_ev) {
+            dbg_error("Couldn't create SVC_EVENT_TYPE_HOT_UNPLUG event\n");
+            rc = -ENOMEM;
+        } else {
+            svc_ev->data.hot_unplug.port = portid;
+            list_add(&svc_events, &svc_ev->events);
+            pthread_cond_signal(&svc->cv);
+        }
     } else {
-        svc_ev->data.hot_unplug.port = portid;
-        list_add(&svc_events, &svc_ev->events);
-        pthread_cond_signal(&svc->cv);
+        /* If AP is not ready yet, store the state for later retrieval */
+        interface_store_hotplug_state(portid, HOTPLUG_ST_UNPLUGGED);
     }
 
+out:
     pthread_mutex_unlock(&svc->lock);
 
     return rc;
@@ -713,6 +784,9 @@ static int svcd_main(int argc, char **argv) {
 
             dbg_info("AP initialized on interface %u\n", svc->ap_intf_id);
             svc->ap_initialized = 1;
+
+            /* Send hotplug events to the AP */
+            svc_consume_hotplug_events();
         }
 
         if (svc->ap_initialized) {
@@ -763,6 +837,9 @@ int svcd_start(void) {
         pthread_mutex_unlock(&svc->lock);
         return -EBUSY;
     }
+
+    svc->ap_initialized = 0;
+    svc->ap_intf_id = 0;
 
     rc = task_create("svcd", SVCD_PRIORITY, SVCD_STACK_SIZE, svcd_main, NULL);
     if (rc == ERROR) {
