@@ -30,9 +30,10 @@
 #include <nuttx/greybus/mods.h>
 #include <nuttx/power/bq24292.h>
 
+#include <debug.h>
 #include <errno.h>
 
-int ptp_set_current_flow(struct device *dev, uint8_t direction)
+static int ptp_set_current_flow(struct device *dev, uint8_t direction)
 {
     switch (direction) {
     case PTP_CURRENT_OFF:
@@ -50,8 +51,7 @@ int ptp_set_current_flow(struct device *dev, uint8_t direction)
     }
 }
 
-#ifdef CONFIG_GREYBUS_MODS
-static void attach_cb(FAR void *arg, enum base_attached_e state)
+static void ptp_attach_cb(FAR void *arg, enum base_attached_e state)
 {
     switch (state) {
     case BASE_ATTACHED_OFF:
@@ -68,21 +68,25 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
     }
 }
 
-int ptp_probe(struct device *dev)
+static int ptp_open(struct device *dev)
 {
-    mods_attach_register(attach_cb, NULL);
+    int retval;
+
+    retval = mods_attach_register(ptp_attach_cb, NULL);
+    if (retval) {
+        dbg("failed to register mods_attach cb\n");
+        return retval;
+    }
+
     return 0;
 }
-#endif
 
 static struct device_ptp_type_ops ptp_type_ops = {
     .set_current_flow = ptp_set_current_flow,
 };
 
 static struct device_driver_ops ptp_driver_ops = {
-#ifdef CONFIG_GREYBUS_MODS
-    .probe = ptp_probe,
-#endif
+    .open = ptp_open,
     .type_ops = &ptp_type_ops,
 };
 
