@@ -72,7 +72,6 @@ struct mods_spi_dl_s
   FAR struct spi_dev_s *spi;     /* SPI handle */
 
   struct mods_dl_cb_s *cb;       /* Callbacks to network layer */
-  atomic_t wake;                 /* Flag to indicate wake line asserted */
   atomic_t xfer;                 /* Flag to indicate transfer in progress */
   struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
   struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
@@ -103,12 +102,11 @@ static void setup_exchange(FAR struct mods_spi_dl_s *priv)
     }
 
   /* Only setup exchange if base has asserted wake */
-  if (!atomic_get(&priv->wake))
+  if (gpio_get_value(GPIO_MODS_WAKE_N))
     {
       vdbg("WAKE not asserted\n");
       goto no_wake;
     }
-  atomic_dec(&priv->wake);
 
   /* Set flag to indicate a transfer is setup */
   atomic_inc(&priv->xfer);
@@ -355,7 +353,6 @@ static int wake_isr(int irq, void *context)
   vdbg("Wake signal asserted by base\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
-  atomic_inc(&mods_spi_dl.wake);
   setup_exchange(&mods_spi_dl);
 
   return OK;
@@ -382,7 +379,6 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
       0 /* tailroom */, NULL /* alloc_callback */, NULL /* free_callback */,
       NULL /* arg */);
   mods_spi_dl.txc_rb = mods_spi_dl.txp_rb;
-  atomic_init(&mods_spi_dl.wake, 0);
   atomic_init(&mods_spi_dl.xfer, 0);
 
   /* RDY GPIO must be initialized before the WAKE interrupt */
