@@ -190,6 +190,44 @@ do_reset:
     return GB_OP_SUCCESS;
 }
 
+/**
+ * @brief performs a simple reset of the system
+ */
+static uint8_t gb_control_reboot_reset(struct gb_operation *operation)
+{
+#ifdef CONFIG_ARCH_HAVE_SYSRESET
+    up_systemreset(); /* will not return */
+#endif
+
+    return GB_OP_INVALID;
+}
+
+/**
+ * @brief performs the desired reboot type specified in the mode field
+ * of the request.
+ */
+static uint8_t gb_control_reboot(struct gb_operation *operation)
+{
+    struct gb_control_reboot_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    switch (request->mode) {
+    case GB_CONTROL_REBOOT_MODE_BOOTLOADER:
+        return gb_control_reboot_flash(operation);
+    case GB_CONTROL_REBOOT_MODE_RESET:
+        return gb_control_reboot_reset(operation);
+    }
+
+    gb_error("unsupported reboot mode\n");
+
+    return GB_OP_INVALID;
+}
+
 static uint8_t gb_control_get_ids(struct gb_operation *operation)
 {
     struct gb_control_get_ids_response *response;
@@ -217,7 +255,7 @@ static struct gb_operation_handler gb_control_handlers[] = {
     GB_HANDLER(GB_CONTROL_TYPE_CONNECTED, gb_control_connected),
     GB_HANDLER(GB_CONTROL_TYPE_DISCONNECTED, gb_control_disconnected),
     GB_HANDLER(GB_CONTROL_TYPE_GET_IDS, gb_control_get_ids),
-    GB_HANDLER(GB_CONTROL_TYPE_REBOOT_FLASH, gb_control_reboot_flash),
+    GB_HANDLER(GB_CONTROL_TYPE_REBOOT, gb_control_reboot),
 };
 
 struct gb_driver control_driver = {

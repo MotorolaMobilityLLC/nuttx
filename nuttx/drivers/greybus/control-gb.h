@@ -44,8 +44,12 @@
 #define GB_CONTROL_TYPE_CONNECTED               0x05
 #define GB_CONTROL_TYPE_DISCONNECTED            0x06
 
-#define GB_CONTROL_TYPE_REBOOT_FLASH            0x7e
+#define GB_CONTROL_TYPE_REBOOT                  0x7e
 #define GB_CONTROL_TYPE_GET_IDS                 0x7f
+
+/* Valid modes for the reboot request */
+#define GB_CONTROL_REBOOT_MODE_RESET            0x01
+#define GB_CONTROL_REBOOT_MODE_BOOTLOADER       0x02
 
 /* version request has no payload */
 struct gb_control_proto_version_response {
@@ -69,8 +73,11 @@ struct gb_control_connected_request {
 };
 /* Control protocol [dis]connected response has no payload */
 
-/* Control protocol reboot flash request had no payload */
-/* Control protocol reboot flash response had no payload */
+/* Control protocol reboot request */
+struct gb_control_reboot_request {
+    __u8      mode;
+} __packed;
+/* Control protocol reboot has no response */
 
 /* Control protocol get_ids request has no payload */
 struct gb_control_get_ids_response {
