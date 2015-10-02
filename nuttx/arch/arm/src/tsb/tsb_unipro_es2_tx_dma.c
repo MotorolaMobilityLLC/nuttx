@@ -48,12 +48,6 @@
 #endif
 
 #define UNIPRO_DMA_CHANNEL_COUNT CONFIG_ARCH_UNIPROTX_DMA_NUM_CHANNELS
-#define containerof(x, s, f) ((void*) ((char*)(x) - offsetof(s, f)))
-
-struct dma_channel {
-    unsigned id;
-    struct list_head list;
-};
 
 struct unipro_xfer_descriptor {
     struct cport *cport;
@@ -63,9 +57,9 @@ struct unipro_xfer_descriptor {
     void *priv;
     unipro_send_completion_t callback;
 
-    size_t remaining_xfer_len;
-    device_dma_transfer_arg dma_arg;
-    struct dma_channel *channel;
+    size_t data_offset;
+    //device_dma_transfer_arg dma_arg;
+    void *channel;
 
     struct list_head list;
 };
@@ -82,108 +76,17 @@ static struct {
 
 static struct {
     struct device *dev;
-    struct dma_channel channel[UNIPRO_DMA_CHANNEL_COUNT];
+    void *channel[UNIPRO_DMA_CHANNEL_COUNT];
     struct list_head free_channel_list;
     sem_t dma_channel_lock;
     int max_channel;
 } unipro_dma;
 
-static int unipro_continue_xfer(struct unipro_xfer_descriptor *desc)
+static void *pick_dma_channel(struct cport *cport)
 {
-    size_t xfer_len;
+    void *chan = unipro_dma.channel[cport->cportid % unipro_dma.max_channel];
 
-    desc->remaining_xfer_len -= desc->dma_arg.unipro_tx_arg.next_transfer_len;
-
-    xfer_len = unipro_get_tx_free_buffer_space(desc->cport);
-    if (!xfer_len)
-        return -ENOSPC;
-
-    xfer_len = MIN(desc->remaining_xfer_len, xfer_len);
-    desc->dma_arg.unipro_tx_arg.next_transfer_len = xfer_len;
-
-    if (xfer_len == desc->remaining_xfer_len)
-        desc->dma_arg.unipro_tx_arg.eom_addr = CPORT_EOM_BIT(desc->cport);
-
-    return 0;
-}
-
-static void release_dma_channel(struct dma_channel *channel)
-{
-    irqstate_t flags;
-
-    flags = irqsave();
-    list_add(&unipro_dma.free_channel_list, &channel->list);
-    irqrestore(flags);
-
-    sem_post(&unipro_dma.dma_channel_lock);
-}
-
-static void unipro_xfer_pause(struct unipro_xfer_descriptor *desc)
-{
-    release_dma_channel(desc->channel);
-    desc->channel = NULL;
-}
-
-static void unipro_xfer_dequeue_descriptor(struct unipro_xfer_descriptor *desc)
-{
-    irqstate_t flags;
-
-    flags = irqsave();
-    list_del(&desc->list);
-    irqrestore(flags);
-
-    release_dma_channel(desc->channel);
-    free(desc);
-}
-
-static enum device_dma_cmd unipro_dma_callback(unsigned int channel,
-                                               enum device_dma_event event,
-                                               device_dma_transfer_arg *arg)
-{
-    struct unipro_xfer_descriptor *desc =
-        containerof(arg, struct unipro_xfer_descriptor, dma_arg);
-    int retval;
-
-
-    switch (event) {
-    case DEVICE_DMA_EVENT_BLOCKED:
-        retval = unipro_continue_xfer(desc);
-        if (retval) {
-            unipro_xfer_pause(desc);
-            return DEVICE_DMA_CMD_STOP;
-        }
-        return DEVICE_DMA_CMD_CONTINUE;
-
-    case DEVICE_DMA_EVENT_COMPLETED:
-        if (desc->callback)
-            desc->callback(0, desc->data, desc->priv);
-
-        unipro_xfer_dequeue_descriptor(desc);
-        return DEVICE_DMA_CMD_STOP;
-
-    default:
-        if (desc->callback)
-            desc->callback(-EBADE, desc->data, desc->priv);
-
-        unipro_xfer_dequeue_descriptor(desc);
-        return DEVICE_DMA_CMD_STOP;
-    }
-}
-
-static struct dma_channel *pick_free_dma_channel(void)
-{
-    struct dma_channel *channel;
-    irqstate_t flags;
-
-    sem_wait(&unipro_dma.dma_channel_lock);
-
-    channel = containerof(unipro_dma.free_channel_list.next, struct dma_channel,
-                          list);
-    flags = irqsave();
-    list_del(&channel->list);
-    irqrestore(flags);
-
-    return channel;
+    return chan;
 }
 
 static struct unipro_xfer_descriptor *pick_tx_descriptor(unsigned int cport_count)
@@ -200,7 +103,7 @@ static struct unipro_xfer_descriptor *pick_tx_descriptor(unsigned int cport_coun
             continue;
 
         desc = containerof(cport->tx_fifo.next, struct unipro_xfer_descriptor,
-                           list);
+                list);
         if (desc->channel)
             continue;
 
@@ -213,24 +116,74 @@ static struct unipro_xfer_descriptor *pick_tx_descriptor(unsigned int cport_coun
     return NULL;
 }
 
-static int unipro_dma_xfer(struct unipro_xfer_descriptor *desc,
-                           struct dma_channel *channel)
+static inline void unipro_dma_tx_set_eom_flag(struct cport *cport)
+{
+    putreg8(1, CPORT_EOM_BIT(cport));
+}
+
+static void unipro_xfer_dequeue_descriptor(struct unipro_xfer_descriptor *desc)
+{
+    irqstate_t flags;
+
+    flags = irqsave();
+    list_del(&desc->list);
+    irqrestore(flags);
+
+    free(desc);
+}
+
+static int unipro_dma_tx_callback(struct device *dev, void *chan,
+        struct device_dma_op *op, unsigned int event, void *arg)
+{
+    struct unipro_xfer_descriptor *desc = arg;
+
+    if (event & DEVICE_DMA_CALLBACK_EVENT_COMPLETE) {
+        if (desc->data_offset >= desc->len) {
+            unipro_dma_tx_set_eom_flag(desc->cport);
+
+            list_del(&desc->list);
+            device_dma_op_free(unipro_dma.dev, op);
+
+            if (desc->callback != NULL) {
+                desc->callback(0, desc->data, desc->priv);
+            }
+            unipro_xfer_dequeue_descriptor(desc);
+        } else {
+            desc->channel = NULL;
+
+            sem_post(&worker.tx_fifo_lock);
+        }
+    }
+
+    return OK;
+}
+
+static int unipro_dma_xfer(struct unipro_xfer_descriptor *desc, void *channel)
 {
     int retval;
     size_t xfer_len;
     void *cport_buf;
     void *xfer_buf;
+    struct device_dma_op *dma_op = NULL;
 
     xfer_len = unipro_get_tx_free_buffer_space(desc->cport);
     if (!xfer_len)
         return -ENOSPC;
 
-    xfer_len = MIN(desc->remaining_xfer_len, xfer_len);
+    xfer_len = MIN(desc->len - desc->data_offset, xfer_len);
 
     desc->channel = channel;
-    desc->dma_arg.unipro_tx_arg.next_transfer_len = xfer_len;
-    if (xfer_len == desc->remaining_xfer_len)
-        desc->dma_arg.unipro_tx_arg.eom_addr = CPORT_EOM_BIT(desc->cport);
+    retval = device_dma_op_alloc(unipro_dma.dev, 1, 0, &dma_op);
+    if (retval != OK) {
+        lowsyslog("unipro: failed allocate a DMA op, retval = %d.\n", retval);
+        return retval;
+    }
+
+    dma_op->callback = (void *) unipro_dma_tx_callback;
+    dma_op->callback_arg = desc;
+    dma_op->callback_events = DEVICE_DMA_CALLBACK_EVENT_COMPLETE;
+    dma_op->sg_count = 1;
+    dma_op->sg[0].len = xfer_len;
 
     DBG_UNIPRO("xfer: chan=%u, len=%zu\n", channel->id, xfer_len);
 
@@ -238,15 +191,19 @@ static int unipro_dma_xfer(struct unipro_xfer_descriptor *desc,
     xfer_buf = (void*) desc->data;
 
     /* resuming a paused xfer */
-    if (desc->remaining_xfer_len != desc->len) {
-        cport_buf = (char*) cport_buf + 1; /* skip the start byte */
+    if (desc->data_offset != 0) {
+        cport_buf = (char*) cport_buf + sizeof(uint32_t); /* skip the first DWORD */
 
         /* move buffer offset to the beginning of the remaning bytes to xfer */
-        xfer_buf = (char*) xfer_buf + (desc->len - desc->remaining_xfer_len);
+        xfer_buf = (char*) xfer_buf + desc->data_offset;
     }
 
-    retval = device_dma_transfer(unipro_dma.dev, channel->id, xfer_buf,
-                                 cport_buf, xfer_len, &desc->dma_arg);
+    dma_op->sg[0].src_addr = (off_t) xfer_buf;
+    dma_op->sg[0].dst_addr = (off_t) cport_buf;
+
+    desc->data_offset += xfer_len;
+
+    retval = device_dma_enqueue(unipro_dma.dev, channel, dma_op);
     if (retval) {
         lowsyslog("unipro: failed to start DMA transfer: %d\n", retval);
         return retval;
@@ -265,10 +222,12 @@ static void *unipro_tx_worker(void *data)
         /* Block until a buffer is pending on any CPort */
         sem_wait(&worker.tx_fifo_lock);
 
-        channel = pick_free_dma_channel();
+        // channel = pick_free_dma_channel();
         do {
             desc = pick_tx_descriptor(cport_count);
         } while (!desc);
+
+        channel = pick_dma_channel(desc->cport);
 
         unipro_dma_xfer(desc, channel);
     }
@@ -281,7 +240,7 @@ void unipro_reset_notify(unsigned int cportid)
 }
 
 int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
-                      unipro_send_completion_t callback, void *priv)
+        unipro_send_completion_t callback, void *priv)
 {
     struct cport *cport;
     struct unipro_xfer_descriptor *desc;
@@ -290,7 +249,7 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
     cport = cport_handle(cportid);
     if (!cport) {
         lowsyslog("unipro: invalid cport id: %u, dropping message...\n",
-                  cportid);
+                cportid);
         return -EINVAL;
     }
 
@@ -303,7 +262,8 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
         return -ENOMEM;
 
     desc->data = buf;
-    desc->len = desc->remaining_xfer_len = len;
+    desc->len = len;
+    desc->data_offset = 0;
     desc->callback = callback;
     desc->priv = priv;
     desc->cport = cport;
@@ -322,6 +282,7 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
 static int unipro_send_cb(int status, const void *buf, void *priv)
 {
     struct unipro_xfer_descriptor_sync *desc = priv;
+
     if (!desc)
         return -EINVAL;
 
@@ -356,6 +317,7 @@ int unipro_tx_init(void)
 {
     int i;
     int retval;
+    int avail_chan = 0;
 
     sem_init(&worker.tx_fifo_lock, 0, 0);
     sem_init(&unipro_dma.dma_channel_lock, 0, 0);
@@ -366,34 +328,45 @@ int unipro_tx_init(void)
         return -ENODEV;
     }
 
-    unipro_dma.max_channel = -1;
+    unipro_dma.max_channel = 0;
     list_init(&unipro_dma.free_channel_list);
+    avail_chan = device_dma_chan_free_count(unipro_dma.dev);
 
-    for (i = 0; i < ARRAY_SIZE(unipro_dma.channel); i++) {
-        device_dma_allocate_channel(unipro_dma.dev,
-                                    DEVICE_DMA_UNIPRO_TX_CHANNEL,
-                                    &unipro_dma.channel[i].id);
-        if (unipro_dma.channel[i].id == DEVICE_DMA_INVALID_CHANNEL) {
+    if (avail_chan > ARRAY_SIZE(unipro_dma.channel)) {
+        avail_chan = ARRAY_SIZE(unipro_dma.channel);
+    }
+
+    for (i = 0; i < avail_chan; i++) {
+        struct device_dma_params chan_params = {
+                .src_dev = DEVICE_DMA_DEV_MEM,
+                .src_devid = 0,
+                .src_inc_options = DEVICE_DMA_INC_AUTO,
+                .dst_dev = DEVICE_DMA_DEV_MEM, .dst_devid = 0,
+                .dst_inc_options = DEVICE_DMA_INC_AUTO,
+                .transfer_size = DEVICE_DMA_TRANSFER_SIZE_64,
+                .burst_len = DEVICE_DMA_BURST_LEN_16,
+                .swap = DEVICE_DMA_SWAP_SIZE_NONE,
+        };
+
+        device_dma_chan_alloc(unipro_dma.dev, &chan_params,
+                &unipro_dma.channel[i]);
+
+        if (unipro_dma.channel[i] == NULL) {
             lowsyslog("unipro: couldn't allocate all %u requested channel(s)\n",
-                      ARRAY_SIZE(unipro_dma.channel));
+                    ARRAY_SIZE(unipro_dma.channel));
             break;
         }
 
         unipro_dma.max_channel++;
-        sem_post(&unipro_dma.dma_channel_lock);
-        list_add(&unipro_dma.free_channel_list, &unipro_dma.channel[i].list);
-        device_dma_register_callback(unipro_dma.dev, unipro_dma.channel[i].id,
-                                     unipro_dma_callback);
     }
 
-    if (unipro_dma.max_channel < 0) {
+    if (unipro_dma.max_channel <= 0) {
         lowsyslog("unipro: couldn't allocate a single DMA channel\n");
         retval = -ENODEV;
         goto error_no_channel;
     }
 
-    lowsyslog("unipro: %d DMA channel(s) allocated\n",
-              unipro_dma.max_channel + 1);
+    lowsyslog("unipro: %d DMA channel(s) allocated\n", unipro_dma.max_channel);
 
     retval = pthread_create(&worker.thread, NULL, unipro_tx_worker, NULL);
     if (retval) {
@@ -404,11 +377,12 @@ int unipro_tx_init(void)
     return 0;
 
 error_worker_create:
-    for (i = 0; i <= unipro_dma.max_channel; i++) {
-        device_dma_release_channel(unipro_dma.dev, &unipro_dma.channel[i].id);
+
+    for (i = 0; i < unipro_dma.max_channel; i++) {
+        device_dma_chan_free(unipro_dma.dev, &unipro_dma.channel[i]);
     }
 
-    unipro_dma.max_channel = -1;
+    unipro_dma.max_channel = 0;
 
 error_no_channel:
     device_close(unipro_dma.dev);

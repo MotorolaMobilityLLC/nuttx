@@ -37,6 +37,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/device.h>
 #include <nuttx/device_dma.h>
+#include <nuttx/list.h>
 
 #include "debug.h"
 #include "up_arch.h"
@@ -44,185 +45,162 @@
 #include "tsb_scm.h"
 #include "tsb_dma.h"
 
-static int tsb_dma_register_callback(struct device *dev, unsigned int chan,
-        device_dma_callback callback)
+enum tsb_dma_op_state {
+    TSB_DMA_OP_STATE_IDLE,
+    TSB_DMA_OP_STATE_QUEUED,
+    TSB_DMA_OP_STATE_STARTING,
+    TSB_DMA_OP_STATE_RUNNING,
+    TSB_DMA_OP_STATE_COMPLETING,
+    TSB_DMA_OP_STATE_COMPLETED,
+    TSB_DMA_OP_STATE_ERROR,
+    TSB_DMA_OP_STATE_UNDEFINED
+};
+
+struct tsb_dma_op {
+    struct list_head list_node;
+    int chan_id;
+    enum tsb_dma_op_state state;
+    enum device_dma_error error;
+    unsigned int events;
+    struct device_dma_op op;
+};
+
+/* structure for GDMAC device driver's private info. */
+struct tsb_dma_info {
+    pthread_mutex_t lock;
+    unsigned int max_chan;
+    unsigned int avail_chan;
+
+    struct list_head completed_queue;
+    sem_t op_completed_sem;
+    pthread_t irq_thread;
+    bool driver_closed;
+
+    struct tsb_dma_chan *chans[0];
+};
+
+static int tsb_dma_restart_chan(struct device *dev,
+        struct tsb_dma_chan *dma_chan)
 {
-    struct tsb_dma_info *info = device_get_private(dev);
-
-    if (!info) {
-        return -EIO;
-    }
-
-    if (chan >= info->max_number_of_channels) {
-        return -EINVAL;
-    }
-
-    sem_wait(&info->dma_channel[chan].lock);
-
-    info->dma_channel[chan].callback = callback;
-
-    sem_post(&info->dma_channel[chan].lock);
-
-    return 0;
-}
-
-enum device_dma_cmd tsb_dma_transfer_done_callback(struct device *dev, unsigned int chan, enum device_dma_event event,
-        device_dma_transfer_arg *arg)
-{
-    struct tsb_dma_info *info = device_get_private (dev);
-    enum device_dma_cmd ret;
-
-    if (info->dma_channel[chan].callback == NULL) {
-        sem_post(&info->dma_channel[chan].tx_sem);
-        ret = DEVICE_DMA_CMD_STOP;
-    } else {
-        ret= info->dma_channel[chan].callback(chan, event, arg);
-    }
-
-    return ret;
-}
-
-static int tsb_dma_transfer(struct device *dev, unsigned int chan, void *src,
-        void *dst, size_t len, device_dma_transfer_arg *arg)
-{
-    struct tsb_dma_info *info = device_get_private(dev);
-
-    if (!info) {
-        return -EIO;
-    }
-
-    if ((chan >= info->max_number_of_channels) || !src || !dst || !len) {
-        return -EINVAL;
-    }
-
-    sem_wait(&info->dma_channel[chan].lock);
-
-    /* Call the dma transfer function associated with GDMAC channel */
-    if (info->dma_channel[chan].do_dma_transfer != NULL) {
-        info->dma_channel[chan].do_dma_transfer(&info->dma_channel[chan], src,
-                dst, len, arg);
-
-        if (info->dma_channel[chan].callback == NULL) {
-            sem_wait (&info->dma_channel[chan].tx_sem);
-        }
-    }
-
-    sem_post(&info->dma_channel[chan].lock);
-
-    return 0;
-}
-
-/* TODO!! add support for other transfer types */
-static int tsb_dma_allocate_channel(struct device *dev,
-        enum device_dma_channel_type type, unsigned int *chan)
-{
-    struct tsb_dma_info *info = device_get_private(dev);
-    int ret = -ENOMEM;
-    int index;
+    struct list_head *next_op = NULL;
     irqstate_t flags;
+    int retval = OK;
 
-    if (!info) {
-        return -EIO;
-    }
-
-    if (chan == NULL) {
-        return -EINVAL;
-    }
+    pthread_mutex_lock(&dma_chan->chan_mutex);
 
     flags = irqsave();
 
-    *chan = DEVICE_DMA_INVALID_CHANNEL;
-    for (index = 0; index < info->max_number_of_channels; index++) {
-        if (info->dma_channel[index].channel_info == NULL) {
-            switch (type) {
-            case DEVICE_DMA_UNIPRO_TX_CHANNEL:
-                info->dma_channel[index].channel_id = index;
-                ret = tsb_dma_allocal_unipro_tx_channel(
-                        &info->dma_channel[index]);
-                if (ret == 0) {
-                    *chan = index;
-                    ret = 0;
+    list_foreach(&dma_chan->queue, next_op)
+    {
+        struct tsb_dma_op
+        *dma_op = list_entry(next_op, struct tsb_dma_op, list_node);
+
+        if (dma_op->state == TSB_DMA_OP_STATE_QUEUED) {
+            dma_op->state = TSB_DMA_OP_STATE_STARTING;
+
+            irqrestore(flags);
+
+            retval = gdmac_start_op(dev, dma_chan, &dma_op->op, &dma_op->error);
+
+            flags = irqsave();
+
+            if (retval == OK) {
+                /* there is a chance the op already completed when we get to
+                 * here. If that is the case we don't need to set the op state
+                 * to running because it might already set to completed state.
+                 */
+                if (dma_op->state == TSB_DMA_OP_STATE_STARTING) {
+                    dma_op->state = TSB_DMA_OP_STATE_RUNNING;
                 }
-                break;
-            case DEVICE_DMA_AUDIO_INPUT_CHANNEL:
-            case DEVICE_DMA_AUDIO_OUTPUT_CHANNEL:
-            case DEVICE_DMA_MEMORY_TO_MEMORY_CHANNEL:
-            case DEVICE_DMA_MEMORY_TO_PERIPHERAL_CHANNEL:
-            case DEVICE_DMA_PERIPHERAL_TO_MEMORY_CHANNEL:
-                ret = -EINVAL;
-                break;
-            default:
-                ret = -EINVAL;
-                break;
+            } else {
+                lldbg("failed to start op.\n");
+                dma_op->error = DEVICE_DMA_ERROR_DMA_FAILED;
+                dma_op->state = TSB_DMA_OP_STATE_ERROR;
             }
-            break;
         }
+        break;
     }
 
     irqrestore(flags);
 
-    if (ret == 0) {
-        sem_init(&info->dma_channel[index].tx_sem, 0, 0);
-    }
+    pthread_mutex_unlock(&dma_chan->chan_mutex);
 
-    return ret;
+    return retval;
 }
 
-static int tsb_dma_release_channel(struct device *dev, unsigned int *chan)
+static void *tsb_dma_process_completed_op(void *arg)
 {
-    struct tsb_dma_info *info = device_get_private(dev);
+    struct device *dev = arg;
+    struct tsb_dma_info *dma_info = device_get_private(dev);
 
-    if (!info) {
-        return -EIO;
+    while (dma_info->driver_closed == 0) {
+        struct list_head *node, *next_node;
+
+        sem_wait(&dma_info->op_completed_sem);
+
+        list_foreach_safe(&dma_info->completed_queue, node, next_node) {
+            struct tsb_dma_op* dma_op;
+
+            list_del(node);
+            dma_op = list_entry(node, struct tsb_dma_op, list_node);
+
+            if ((dma_op->op.callback_events & DEVICE_DMA_CALLBACK_EVENT_COMPLETE)
+                    && (dma_op->op.callback != NULL)) {
+                dma_op->state = TSB_DMA_OP_STATE_COMPLETED;
+                dma_op->op.callback(dev, &dma_info->chans[dma_op->chan_id],
+                        (void *) &dma_op->op,
+                        DEVICE_DMA_CALLBACK_EVENT_COMPLETE,
+                        dma_op->op.callback_arg);
+                tsb_dma_restart_chan(dev, dma_info->chans[dma_op->chan_id]);
+            }
+        }
     }
 
-    if ((chan == NULL) || (*chan >= info->max_number_of_channels)) {
-        return -EINVAL;
-    }
-
-    if (info->dma_channel[*chan].release_channel != NULL) {
-        info->dma_channel[*chan].release_channel(&info->dma_channel[*chan]);
-    }
-    info->dma_channel[*chan].channel_info = NULL;
-    *chan = DEVICE_DMA_INVALID_CHANNEL;
-
-    return 0;
+    return NULL;
 }
 
 static int tsb_dma_open(struct device *dev)
 {
     struct tsb_dma_info *info;
-    unsigned int chan = tsb_dma_max_number_of_channels();
-    int ret, rc = 0;
+    unsigned int chan;
+    int retval = 0;
 
-    info = zalloc(sizeof(*info) + sizeof(struct tsb_dma_channel) * chan);
+    gdmac_init_controller(dev);
+
+    chan = gdmac_max_number_of_channels();
+
+    info = zalloc(
+            sizeof(struct tsb_dma_info) + sizeof(struct tsb_dma_chan *) * chan);
     if (!info) {
         return -ENOMEM;
     }
 
-    info->max_number_of_channels = chan;
-    for (chan = 0; chan < info->max_number_of_channels; chan++) {
-        ret = sem_init(&info->dma_channel[chan].lock, 0, 1);
-        if (ret != OK) {
-            rc = -errno;
-            break;
-        }
-    }
+    info->driver_closed = false;
 
-    if (rc) {
-        for (; chan; chan--) {
-            sem_destroy(&info->dma_channel[chan - 1].lock);
-        }
+    pthread_mutex_init(&info->lock, NULL);
+    sem_init(&info->op_completed_sem, 0, 0);
 
-        free(info);
-        return rc;
-    }
+    info->max_chan = chan;
+    info->avail_chan = chan;
+
+    list_init(&info->completed_queue);
 
     device_set_private(dev, info);
 
-    tsb_dma_init_controller(dev);
+    retval = pthread_create(&info->irq_thread, NULL,
+            tsb_dma_process_completed_op, dev);
+    if (retval) {
+        gdmac_deinit_controller(dev);
 
-    return 0;
+        device_set_private(dev, NULL);
+        free(info);
+
+        retval = -retval;
+    } else {
+        pthread_mutex_unlock(&info->lock);
+    }
+
+    return retval;
 }
 
 static void tsb_dma_close(struct device *dev)
@@ -234,22 +212,447 @@ static void tsb_dma_close(struct device *dev)
         return;
     }
 
-    for (chan = 0; chan < info->max_number_of_channels; chan++) {
-        sem_destroy(&info->dma_channel[chan].lock);
+    info->driver_closed = true;
+    sem_post(&info->op_completed_sem);
+
+    pthread_join(info->irq_thread, NULL);
+
+    for (chan = 0; chan < info->max_chan; chan++) {
+        if (info->chans[chan] == NULL) {
+            device_dma_chan_free(dev, info->chans[chan]);
+        }
     }
 
-    tsb_dma_deinit_controller(dev);
+    gdmac_deinit_controller(dev);
+
+    pthread_mutex_destroy(&info->lock);
 
     device_set_private(dev, NULL);
 
     free(info);
 }
 
+static int tsb_dma_get_caps(struct device *dev, struct device_dma_caps *caps)
+{
+    if ((caps == NULL) || (dev == NULL)) {
+        return -EINVAL;
+    }
+
+    return gdmac_get_caps(dev, caps);
+}
+
+static int tsb_dma_chan_free_count(struct device *dev)
+{
+    struct tsb_dma_info *info;
+
+    if (dev == NULL) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+
+    if (!info) {
+        return -EIO;
+    }
+
+    return info->avail_chan;
+}
+
+static int tsb_dma_check_chan_params(struct device_dma_params *params)
+{
+    if ((params->src_inc_options != DEVICE_DMA_INC_AUTO) &&
+        (params->src_inc_options != DEVICE_DMA_INC_NOAUTO)) {
+        return DEVICE_DMA_ERROR_BAD_FLAG;
+    }
+
+    if ((params->dst_inc_options != DEVICE_DMA_INC_AUTO) &&
+        (params->dst_inc_options != DEVICE_DMA_INC_NOAUTO)) {
+        return DEVICE_DMA_ERROR_BAD_FLAG;
+    }
+
+    if ((params->transfer_size > DEVICE_DMA_TRANSFER_SIZE_64) ||
+        ((params->transfer_size & (params->transfer_size - 1)) != 0)) {
+        return DEVICE_DMA_ERROR_BAD_TX_SIZE;
+    }
+
+    if ((params->burst_len > DEVICE_DMA_BURST_LEN_16) ||
+        ((params->burst_len & (params->burst_len - 1)) != 0)) {
+        return DEVICE_DMA_ERROR_BAD_BURST_LEN;
+    }
+
+    if ((params->swap > DEVICE_DMA_SWAP_SIZE_128) ||
+        ((params->swap & (params->swap - 1)) != 0)) {
+        return DEVICE_DMA_ERROR_BAD_SWAP;
+    }
+
+    return DEVICE_DMA_ERROR_NONE;
+}
+
+static int tsb_dma_chan_alloc(struct device *dev,
+        struct device_dma_params *params, void **chan)
+{
+    struct tsb_dma_info *info;
+    int retval = -ENOMEM;
+    int index;
+
+    if ((dev == NULL) || (params == NULL) || (chan == NULL)) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    if (!info) {
+        return -EIO;
+    }
+
+    if (info->avail_chan == 0) {
+        return -ENOMEM;
+    }
+
+    retval = tsb_dma_check_chan_params(params);
+    if (retval != DEVICE_DMA_ERROR_NONE) {
+        return retval;
+    }
+
+    pthread_mutex_lock(&info->lock);
+
+    for (index = 0; index < info->max_chan; index++) {
+        if (info->chans[index] == NULL) {
+            struct tsb_dma_chan *dma_chan;
+
+            retval = gdmac_chan_alloc(dev, params, &dma_chan);
+
+            if (retval == OK) {
+                dma_chan->chan_id = index;
+                pthread_mutex_init(&dma_chan->chan_mutex, NULL);
+
+                list_init(&dma_chan->queue);
+
+                /* Save a copy of channel parameters so we can check the op
+                 * parameters against its.
+                 */
+                memcpy(&dma_chan->chan_params, params, sizeof(*params));
+
+                info->chans[index] = dma_chan;
+
+                *chan = dma_chan;
+                info->avail_chan--;
+            }
+            break;
+        }
+    }
+
+    pthread_mutex_lock(&info->lock);
+
+    return retval;
+}
+
+static int tsb_dma_chan_free(struct device *dev, void *chan)
+{
+    struct tsb_dma_info *info;
+    struct tsb_dma_chan *dma_chan = chan;
+    int retval = -ENOMEM;
+
+    if ((dev == NULL) || (chan == NULL)) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    if (!info) {
+        return -EIO;
+    }
+
+    if (info->chans[dma_chan->chan_id] == dma_chan) {
+        irqstate_t flags;
+        struct list_head *node, *next_node;
+
+        pthread_mutex_lock(&info->lock);
+
+        flags = irqsave();
+
+        list_foreach_safe(&dma_chan->queue, node, next_node) {
+            struct tsb_dma_op *dma_op;
+
+            dma_op = list_entry(node, struct tsb_dma_op, list_node);
+
+            if (dma_op->state == TSB_DMA_OP_STATE_QUEUED) {
+                struct device_dma_op *dev_op = &dma_op->op;
+                list_del(node);
+
+                dma_op->state = DEVICE_DMA_CALLBACK_EVENT_DEQUEUED;
+                if ((dev_op->callback != NULL) &&
+                    (dev_op->callback_events &
+                            DEVICE_DMA_CALLBACK_EVENT_DEQUEUED)) {
+                    dev_op->callback(dev, chan, dev_op,
+                            DEVICE_DMA_CALLBACK_EVENT_DEQUEUED,
+                            dev_op->callback_arg);
+                }
+            }
+        }
+
+        irqrestore(flags);
+
+        if (list_is_empty(&dma_chan->queue) != true) {
+            retval = -EIO;
+        } else {
+            pthread_mutex_destroy(&dma_chan->chan_mutex);
+
+            info->chans[dma_chan->chan_id] = NULL;
+            info->avail_chan++;
+            retval = gdmac_chan_free(dev, dma_chan);
+        }
+
+        pthread_mutex_unlock(&info->lock);
+    }
+
+    return retval;
+}
+
+static int tsb_dma_op_alloc(struct device *dev, unsigned int sg_count,
+        unsigned int extra, struct device_dma_op **op)
+{
+    struct tsb_dma_info *info;
+    struct tsb_dma_op *dma_op;
+
+    if ((dev == NULL) || (op == NULL)) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    if (!info) {
+        return -EIO;
+    }
+
+    dma_op = zalloc(
+            sizeof(struct tsb_dma_op) + sizeof(struct device_dma_sg) * sg_count
+                    + extra);
+    if (dma_op == NULL) {
+        return -ENOMEM;
+    } else {
+        list_init(&dma_op->list_node);
+        dma_op->state = TSB_DMA_OP_STATE_IDLE;
+        dma_op->error = DEVICE_DMA_ERROR_NONE;
+
+        *op = &dma_op->op;
+    }
+
+    return OK;
+}
+
+static int tsb_dma_op_free(struct device *dev, struct device_dma_op *op)
+{
+    struct tsb_dma_info *info;
+    struct tsb_dma_op *dma_op;
+
+    if ((dev == NULL) || (op == NULL)) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    if (!info) {
+        return -EIO;
+    }
+
+    dma_op = containerof(op, struct tsb_dma_op, op);
+    if ((list_is_empty(&dma_op->list_node) == 0) &&
+        ((dma_op->state != TSB_DMA_OP_STATE_IDLE) ||
+         (dma_op->state != TSB_DMA_OP_STATE_COMPLETED))) {
+        return -EINVAL;
+    } else {
+        free(dma_op);
+    }
+
+    return OK;
+}
+
+static int tsb_dma_op_is_complete(struct device *dev, struct device_dma_op *op)
+{
+    struct tsb_dma_info *info;
+    struct tsb_dma_op *dma_op;
+
+    if ((dev == NULL) || (op == NULL)) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    if (!info) {
+        return -EIO;
+    }
+
+    dma_op = containerof(op, struct tsb_dma_op, op);
+
+    return (dma_op->state == TSB_DMA_OP_STATE_COMPLETED) ? 1 : 0;
+}
+
+static int tsb_dma_op_get_error(struct device *dev, struct device_dma_op *op,
+        enum device_dma_error *error)
+{
+    struct tsb_dma_info *info;
+    struct tsb_dma_op *dma_op;
+
+    if ((op == NULL) || (error == NULL)) {
+        return -EINVAL;
+    }
+
+    if (dev == NULL) {
+        *error = DEVICE_DMA_ERROR_BAD_DEV;
+        return OK;
+    }
+
+    dma_op = containerof(op, struct tsb_dma_op, op);
+
+    info = device_get_private(dev);
+    if (!info) {
+        *error = DEVICE_DMA_ERROR_BAD_DEV;
+        return OK;
+    }
+
+    *error = dma_op->error;
+
+    return OK;
+}
+
+static int tsb_dma_enqueue(struct device *dev, void *chan,
+        struct device_dma_op *op)
+{
+    struct tsb_dma_info *info;
+    struct tsb_dma_op *dma_op;
+    struct tsb_dma_chan *dma_chan = (struct tsb_dma_chan *) chan;
+    irqstate_t flags;
+    int retval = -EIO;
+
+    if ((chan == NULL) || (op == NULL)) {
+        return -EINVAL;
+    }
+
+    dma_op = containerof(op, struct tsb_dma_op, op);
+
+    if (dev == NULL) {
+        dma_op->error = DEVICE_DMA_ERROR_BAD_DEV;
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    if (!info) {
+        dma_op->error = DEVICE_DMA_ERROR_BAD_DEV;
+        return -EIO;
+    }
+
+    /* Check the op if there is any alignment issue */
+    retval = gdmac_chan_check_op_params(dev, dma_chan, op);
+    if (retval != DEVICE_DMA_ERROR_NONE) {
+        lldbg("Failed in parameters check.\n");
+        dma_op->error = retval;
+
+        return -EINVAL;
+    }
+
+    retval = OK;
+
+    flags = irqsave();
+
+    /* Add the op to the queue on the channel */
+    if (dma_op->state == TSB_DMA_OP_STATE_IDLE) {
+        list_add(&dma_chan->queue, &dma_op->list_node);
+        dma_op->state = TSB_DMA_OP_STATE_QUEUED;
+        retval = OK;
+    }
+
+    irqrestore(flags);
+
+    tsb_dma_restart_chan(dev, dma_chan);
+
+    return retval;
+}
+
+static int tsb_dma_dequeue(struct device *dev, void *chan,
+        struct device_dma_op *op)
+{
+    struct tsb_dma_info *info;
+    struct tsb_dma_op *dma_op;
+    irqstate_t flags;
+    int retval = -EIO;
+
+    if ((dev == NULL) || (op == NULL)) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    if (!info) {
+        return -EIO;
+    }
+
+    dma_op = containerof(op, struct tsb_dma_op, op);
+
+    flags = irqsave();
+
+    /* Make sure if the op is in the queued state before we dequeue it from
+     * from the queue. If the op is already started, we can't stop the DMAC
+     * and delete it.
+     */
+    if (dma_op->state == TSB_DMA_OP_STATE_QUEUED) {
+        struct device_dma_op *dev_op = &dma_op->op;
+
+        list_del(&dma_op->list_node);
+
+        dma_op->state = DEVICE_DMA_CALLBACK_EVENT_DEQUEUED;
+        if ((dev_op->callback != NULL) &&
+            (dev_op->callback_events &
+                    DEVICE_DMA_CALLBACK_EVENT_DEQUEUED)) {
+            dev_op->callback(dev, chan, dev_op,
+                    DEVICE_DMA_CALLBACK_EVENT_DEQUEUED,
+                    dev_op->callback_arg);
+        }
+        retval = OK;
+    }
+
+    irqrestore(flags);
+
+    return retval;
+}
+
+int tsb_dma_callback(struct device *dev, struct tsb_dma_chan *dma_chan,
+        int event)
+{
+    struct tsb_dma_info *info = device_get_private(dev);
+    struct list_head *next_op;
+
+    /* This routine runs in the interrupt context, so there is no other
+     * thread would manipulate the the op other than the user callback
+     * routine which wouldn't happen until the op is removed from the
+     * completed queue.
+     */
+    list_foreach(&dma_chan->queue, next_op)
+    {
+        struct tsb_dma_op
+        *dma_op = list_entry(next_op, struct tsb_dma_op, list_node);
+
+        /* Make sure the op is in either starting or running state. */
+        if ((dma_op->state == TSB_DMA_OP_STATE_STARTING)
+                || (dma_op->state == TSB_DMA_OP_STATE_RUNNING)) {
+            dma_op->state = TSB_DMA_OP_STATE_COMPLETING;
+
+            list_del(next_op);
+            list_add(&info->completed_queue, next_op);
+
+            sem_post(&info->op_completed_sem);
+        }
+        break;
+    }
+
+    return OK;
+}
+
 static struct device_dma_type_ops tsb_dma_type_ops = {
-        .register_callback = tsb_dma_register_callback,
-        .allocate_channel = tsb_dma_allocate_channel,
-        .release_channel = tsb_dma_release_channel,
-        .transfer = tsb_dma_transfer
+        .get_caps = tsb_dma_get_caps,
+        .chan_free_count = tsb_dma_chan_free_count,
+        .chan_alloc = tsb_dma_chan_alloc,
+        .chan_free = tsb_dma_chan_free,
+        .op_alloc = tsb_dma_op_alloc,
+        .op_free = tsb_dma_op_free,
+        .op_is_complete = tsb_dma_op_is_complete,
+        .op_get_error = tsb_dma_op_get_error,
+        .enqueue = tsb_dma_enqueue,
+        .dequeue = tsb_dma_dequeue
 };
 
 static struct device_driver_ops tsb_dma_driver_ops = {

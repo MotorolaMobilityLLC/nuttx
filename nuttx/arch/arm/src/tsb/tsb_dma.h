@@ -32,47 +32,34 @@
 #ifndef __TSB_DMA_GDMAC_H
 #define __TSB_DMA_GDMAC_H
 
+#include <nuttx/list.h>
 #include <nuttx/device_dma.h>
+#include <pthread.h>
 
-struct tsb_dma_channel;
-struct tsb_dma_channel_info;
+#define TSB_DMA_SG_MAX				2
 
-/* Transfer function for GDMAC channel. */
-typedef int (*dma_do_trandsfer)(struct tsb_dma_channel *channel, void *src,
-        void *dst, size_t len, device_dma_transfer_arg *arg);
-
-/* Transfer Done function for GDMAC channel */
-typedef void (*dma_release_channel)(struct tsb_dma_channel *channel_info);
+struct gdmac_chan;
 
 /* structure for GDMAC channel information. */
-struct tsb_dma_channel {
-    unsigned int channel_id;
-    dma_do_trandsfer do_dma_transfer;
-    dma_release_channel release_channel;
-
-    sem_t lock;
-
-    /* For async transfer. */
-    sem_t tx_sem;
-    struct device *dev;
-    device_dma_callback callback;
-
-    struct tsb_dma_channel_info *channel_info;
+struct tsb_dma_chan {
+    unsigned int chan_id;
+    pthread_mutex_t chan_mutex;
+    struct list_head queue;
+    struct device_dma_params chan_params;
 };
 
-/* structure for GDMAC device driver's private info. */
-struct tsb_dma_info {
-    unsigned int max_number_of_channels;
-    struct tsb_dma_channel dma_channel[0];
-};
+extern int gdmac_max_number_of_channels(void);
+extern void gdmac_init_controller(struct device *);
+extern void gdmac_deinit_controller(struct device *);
+extern int gdmac_get_caps(struct device *dev, struct device_dma_caps *caps);
+extern int gdmac_chan_alloc(struct device *dev,
+        struct device_dma_params *params, struct tsb_dma_chan **tsb_chan);
+extern int gdmac_chan_free(struct device *dev, struct tsb_dma_chan *tsb_chan);
+extern int gdmac_start_op(struct device *dev, struct tsb_dma_chan *tsb_chan,
+        struct device_dma_op *op, enum device_dma_error *error);
+extern int gdmac_chan_check_op_params(struct device *dev,
+        struct tsb_dma_chan *tsb_chan, struct device_dma_op *op);
 
-extern int tsb_dma_max_number_of_channels(void);
-extern void tsb_dma_init_controller(struct device *);
-extern void tsb_dma_deinit_controller(struct device *);
-extern int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel);
-
-extern enum device_dma_cmd tsb_dma_transfer_done_callback(struct device *dev,
-        unsigned int chan, enum device_dma_event event,
-        device_dma_transfer_arg *arg);
-
+extern int tsb_dma_callback(struct device *dev, struct tsb_dma_chan *tsb_chan,
+        int event);
 #endif /* __TSB_DMA_GDMAC_H */

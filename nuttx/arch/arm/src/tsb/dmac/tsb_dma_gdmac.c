@@ -47,10 +47,29 @@
 #include "tsb_dma_gdmac_asm.h"
 #include "tsb_dma.h"
 
-#define TSB_DMA_GDMAC_CHANNELS        8
-#define TSB_DMA_GDMAC_EVENTS          32
+#define GDMAC_NUMBER_OF_CHANNELS    8
+#define GDMAC_NUMBER_OF_EVENTS      32
 
-#define TSB_DMA_GDMAC_INVALID_EVENT   0xFFFFFFFF
+#define GDMAC_INVALID_EVENT         0xFFFFFFFF
+#define GDMAC_INVALID_CHANNEL       NULL
+
+#define GDMAC_DO_LOOPBACK           (1)
+#define GDMAC_DONOT_LOOPBACK        (0)
+
+#define GDMAC_INSTRUCTION(offset, type, name)	\
+	    struct __attribute__((__packed__))      \
+	    { uint8_t instr[offset]; type value; } name
+
+#define GDMAC_INSTR_DMAMOV(value_name)      \
+    GDMAC_INSTRUCTION(2, uint32_t, value_name)
+#define GDMAC_INSTR_DMASEV(value_name)      \
+    GDMAC_INSTRUCTION(1, uint8_t, value_name)
+#define GDMAC_INSTR_DMALP(value_name)       \
+    GDMAC_INSTRUCTION(1, uint8_t, value_name)
+#define GDMAC_INSTR_DMAWFE(value_name)      \
+    GDMAC_INSTRUCTION(1, uint8_t, value_name)
+#define GDMAC_INSTR_DMALPEND(value_name)    \
+    GDMAC_INSTRUCTION(1, uint8_t, value_name)
 
 /* GDMAC register addresses */
 #define GDMAC_CONTROL_REGS_OFFSET   0x0000
@@ -66,24 +85,14 @@
 #define GDMAC_ID_REGS_ADDRESS       (GDMAC_BASE + GDMAC_ID_REGS_OFFSET)
 
 /* Define PL330 events associated with each channel. */
-#define GDMAC_END_OF_TX_EVENT(channel_info)  (channel_info->end_of_tx_event)
-#define GDMAC_NEXT_TX_EVENT(channel_info)    (channel_info->next_tx_event)
 #define GDMAC_EVENT_MASK(event)              (1 << event)
-#define DMA_CHANNEL_TO_TSB_IRQ(event_id)     (event_id + TSB_IRQ_GDMAC00)
-#define IRQN_TO_DMA_CHANNEL(irqn)            \
-    ((irqn - TSB_IRQ_GDMAC00 >= TSB_DMA_GDMAC_CHANNELS) ?\
-     DEVICE_DMA_INVALID_CHANNEL :            \
-     gdmac_event_to_channel_map[irqn - TSB_IRQ_GDMAC00])
-
-#define GDMAC_DO_LOOPBACK                   (1)
-#define GDMAC_DONOT_LOOPBACK                (0)
-
-#define UNIPRO_LOOPBACK_COUNT(src, dst)     \
-    (offsetof(tsb_dma_gdmac_unipro_tx_channel, src) - \
-     offsetof(tsb_dma_gdmac_unipro_tx_channel, dst))
-
-#define GDMAC_PROGRAM_SET_EVENT(event_field, event) \
-    putreg8(getreg8(&event_field) | event << 3, &event_field)
+#define IRQN_TO_DMA_EVENT(irqn)              \
+	((irqn - TSB_IRQ_GDMAC00 >= GDMAC_NUMBER_OF_EVENTS) ?\
+     GDMAC_INVALID_EVENT : (irqn - TSB_IRQ_GDMAC00))
+#define GDMAC_EVENT_TO_DMA_CHANNEL(event_id) \
+    &gdmac_event_to_chan_map[event_id]
+#define GDMAC_EVENT_TO_IRQN(event_id)        \
+    (event_id + TSB_IRQ_GDMAC00)
 
 /* Structures for PL330 GDMAC registers */
 typedef struct {
@@ -98,7 +107,7 @@ typedef struct {
     uint32_t fsrc;
     uint32_t ftrd;
     uint32_t pad1;
-    uint32_t ftr[TSB_DMA_GDMAC_CHANNELS];
+    uint32_t ftr[GDMAC_NUMBER_OF_CHANNELS];
 } tsb_dma_gdmac_control_regs;
 
 typedef struct {
@@ -116,9 +125,9 @@ typedef struct {
 
 typedef struct {
     tsb_dma_gdmac_channel_status_regs
-        channel_status_regs[TSB_DMA_GDMAC_CHANNELS];
+        channel_status_regs[GDMAC_NUMBER_OF_CHANNELS];
     tsb_dma_gdmac_channel_control_regs
-        channel_control_regs[TSB_DMA_GDMAC_CHANNELS];
+        channel_control_regs[GDMAC_NUMBER_OF_CHANNELS];
 } tsb_dma_gdmac_channel_regs;
 
 typedef struct {
@@ -148,201 +157,98 @@ typedef struct {
     uint32_t pcell_id_3;
 } tsb_dma_gdmac_id_regs;
 
-#define GDMAC_INSTR_DMAMOV(value_name)      \
-    struct __attribute__((__packed__))      \
-    { uint8_t instr[2]; uint32_t value; } value_name
-#define GDMAC_INSTR_DMASEV(value_name)      \
-    struct __attribute__((__packed__))      \
-    { uint8_t instr[1]; uint8_t value; } value_name
-#define GDMAC_INSTR_DMALP(value_name)       \
-    struct __attribute__((__packed__))      \
-    { uint8_t instr[1]; uint8_t value; } value_name
-#define GDMAC_INSTR_DMAWFE(value_name)      \
-    struct __attribute__((__packed__))      \
-    { uint8_t instr[1]; uint8_t value; } value_name
-#define GDMAC_INSTR_DMALPEND(value_name)    \
-    struct __attribute__((__packed__))      \
-    { uint8_t instr[1]; uint8_t value; } value_name
-
-/* structure for UniPro TX channel information. */
+/* structure for memory to memory transfer channel information. */
 typedef struct {
-    unsigned int end_of_tx_event;
-    unsigned int next_tx_event;
-
     /* Channel program. */
     struct __attribute__((__packed__)) {
         uint8_t gdmac_program[0];
-        uint8_t unipro_tx_prg_end[DMA_END_SIZE];
-        uint8_t unipro_eom[0];
-        GDMAC_INSTR_DMAMOV(unipro_eom_value_addr);
-        GDMAC_INSTR_DMAMOV(unipro_eom_reg_addr);
-        uint8_t pad0[DMA_LD_SIZE + DMA_ST_SIZE + DMA_WMB_SIZE];
-        GDMAC_INSTR_DMASEV(unipro_eom_tx_event);
-        uint8_t pad10[DMA_END_SIZE];
-        uint8_t unipro_starting_tx[0];
-        GDMAC_INSTR_DMAMOV(unipro_src_addr);
-        GDMAC_INSTR_DMAMOV(unipro_dst_addr);
-        uint8_t unipro_continue_tx[0];
-        GDMAC_INSTR_DMALP(unpro_len_loopcount);
-        uint8_t pad20[DMA_LD_SIZE + DMA_ST_SIZE + DMA_LPEND_SIZE];
-        GDMAC_INSTR_DMALP(unpro_eom_loopcount);
-        uint8_t unipro_eom_loopback[DMA_LPEND_SIZE + DMA_WMB_SIZE];
-        GDMAC_INSTR_DMASEV(unipro_end_of_tx_event);
-        GDMAC_INSTR_DMAWFE(unipro_next_tx_event);
-        GDMAC_INSTR_DMALP(unipro_next_loopcount);
-        GDMAC_INSTR_DMALPEND(unipro_next_loopback);
-        uint8_t pad30[DMA_END_SIZE];
-        /* PL330 program starting point */
-        uint8_t unipro_program_entry_point[DMA_MOV_SIZE];
-        GDMAC_INSTR_DMALP(unipro_start_loopcount);
-        GDMAC_INSTR_DMALPEND(unipro_start_tx_loopback);
-        uint8_t pad40[DMA_LP_SIZE];
-        GDMAC_INSTR_DMALPEND(unipro_start_eom_loopback);
-        uint8_t pad50[DMA_END_SIZE];
+        GDMAC_INSTR_DMAMOV(chan_ctrl_reg);
+        GDMAC_INSTR_DMAMOV(source_addr);
+        GDMAC_INSTR_DMAMOV(dest_addr);
+        GDMAC_INSTR_DMALP(block_count);
+        GDMAC_INSTR_DMALP(block_length);
+        uint16_t block_load_and_store;
+        uint8_t pad0[DMA_LPEND_SIZE + DMA_LPEND_SIZE];
+        GDMAC_INSTR_DMALP(data_length);
+        uint8_t pad1[DMA_LD_SIZE + DMA_ST_SIZE + DMA_LPEND_SIZE +
+                     DMA_WMB_SIZE];
+        GDMAC_INSTR_DMASEV(end_of_tx_event);
+        uint8_t pad2[DMA_END_SIZE];
     };
-} tsb_dma_gdmac_unipro_tx_channel;
+} mem_to_mem_chan;
 
-typedef enum {
-    GDMAC_CHANNEL_STOPPED,
-    GDMAC_CHANNEL_RUNNING,
-    GDMAC_CHANNEL_BLOCKED,
-    GDMAC_CHANNEL_KILLING,
-    GDMAC_CHANNEL_UNDEFINED
-} gdmac_channel_state;
+typedef int (*gdmac_transfer)(struct device *dev, struct tsb_dma_chan *chan,
+        struct device_dma_op *op, enum device_dma_error *error);
 
-typedef gdmac_channel_state (*gdmac_process_callback_cmd)(struct device *,
-        struct tsb_dma_channel *, enum device_dma_cmd);
+typedef void (*gdmac_release_channel)(struct tsb_dma_chan *chan);
 
-struct tsb_dma_channel_info {
-    gdmac_channel_state state;
-    device_dma_transfer_arg *current_transfer_arg;
-    gdmac_process_callback_cmd process_callback_cmd;
+struct gdmac_chan {
+    struct tsb_dma_chan tsb_chan;
+    struct device *gdmac_dev;
+    unsigned int end_of_tx_event;
+    gdmac_transfer do_dma_transfer;
+    gdmac_release_channel release_channel;
+
     union {
-        tsb_dma_gdmac_unipro_tx_channel unipro_tx_channel;
+        mem_to_mem_chan mem2mem_chan;
     /* other GDMAC channels will be added as more GDMAC channels are supported
      */
     };
 };
 
-/* template for UniPro Tx GDMAC binary code. */
-static const uint8_t tsb_dma_gdma_unipro_tx_prg[] = {
-        /* unipro_tx_prg_end */
-        DMAEND,
-        /* unipro_eom */
+/* template for memory to memory GDMAC binary code. */
+static const uint8_t gdmac_mem2mem_program[] = {
+        DMAMOV(ccr, 0x01C04701),
         DMAMOV(sar, 0),
         DMAMOV(dar, 0),
+        DMALP(lc0, 0),
+        DMALP(lc1, 0),
         DMALD,
         DMAST,
-        DMAWMB,
-        DMASEV(0),
-        DMAEND,
-        /* unipro_starting_tx */
-        DMAMOV(sar, 0),
-        DMAMOV(dar, 0),
-        /* unipro_continue_tx */
+        DMALPEND(lc1, DMA_LD_SIZE + DMA_ST_SIZE),
+        DMALPEND(lc0,
+                DMA_LP_SIZE + DMA_LD_SIZE + DMA_ST_SIZE + DMA_LPEND_SIZE),
         DMALP(lc0, 0),
         DMALD,
         DMAST,
         DMALPEND(lc0, DMA_LD_SIZE + DMA_ST_SIZE),
-        DMALP(lc0, GDMAC_DONOT_LOOPBACK),
-        DMALPEND(lc0,
-                UNIPRO_LOOPBACK_COUNT(unipro_eom_loopback, unipro_eom)),
         DMAWMB,
         DMASEV(0),
-        DMAWFE(0, invalid),
-        DMALP(lc0, GDMAC_DONOT_LOOPBACK),
-        DMALPEND(lc0, 0),
-        /* DMA execution starts here. Not the first instruction. */
-        DMAEND,
-        DMAMOV(ccr, 0x01C04701),
-        DMALP(lc0, GDMAC_DO_LOOPBACK),
-        DMALPEND(lc0,
-                UNIPRO_LOOPBACK_COUNT(unipro_start_tx_loopback, unipro_starting_tx)),
-        DMALP(lc0, GDMAC_DO_LOOPBACK),
-        DMALPEND(lc0,
-                UNIPRO_LOOPBACK_COUNT(unipro_start_eom_loopback, unipro_eom)),
-        DMAEND
+    };
+
+struct gdmac_event {
+    struct gdmac_chan *dma_chan;
+    int event;
 };
 
-/* A fixed value write to UniPro EOM register after EOM packet was sent. */
-static const uint8_t eom_value = 0x01;
+static struct gdmac_event gdmac_event_to_chan_map[GDMAC_NUMBER_OF_EVENTS];
 
-/* GDMAC device */
-struct device *tsb_dma_gdmac_dev = NULL;
+static const uint16_t skip_mem_load_and_store = (DMANOP | (DMANOP << 8));
+static const uint16_t do_mem_load_and_store = (DMALD | (DMAST << 8));
 
-static unsigned int gdmac_event_to_channel_map[TSB_DMA_GDMAC_EVENTS];
-
-static inline gdmac_channel_state gdmac_get_channel_state(
-        unsigned int channel_id)
+static inline int gdmac_allocate_event(struct gdmac_chan *chan, int event,
+        unsigned int *event_id)
 {
-    tsb_dma_gdmac_channel_regs *gdmac_channel_regs =
-            (tsb_dma_gdmac_channel_regs *) GDMAC_CHANNEL_REGS_ADDRESS;
-    gdmac_channel_state channel_state = GDMAC_CHANNEL_UNDEFINED;
-    uint32_t csr_reg =
-            getreg32(&gdmac_channel_regs->channel_status_regs[channel_id].csr);
+    int index;
 
-    switch (csr_reg & 0x0F) {
-    case 0x0:
-        channel_state = GDMAC_CHANNEL_STOPPED;
-        break;
-    case 0x1:
-    case 0x2:
-    case 0x3:
-    case 0x5:
-    case 0x7:
-    case 0x9:
-        channel_state = GDMAC_CHANNEL_RUNNING;
-        break;
-    case 0x4:
-        channel_state = GDMAC_CHANNEL_BLOCKED;
-        break;
-    case 0x8:
-        channel_state = GDMAC_CHANNEL_KILLING;
-        break;
-    default:
-        channel_state = GDMAC_CHANNEL_UNDEFINED;
-        break;
-    }
+    for (index = 0; index < GDMAC_NUMBER_OF_EVENTS; index++) {
+        if (gdmac_event_to_chan_map[index].dma_chan == NULL) {
+            gdmac_event_to_chan_map[index].dma_chan = chan;
+            gdmac_event_to_chan_map[index].event = event;
 
-    return channel_state;
-}
-
-static inline enum device_dma_event gdmac_get_device_dma_event(
-        unsigned int channel_id)
-{
-    switch (gdmac_get_channel_state(channel_id)) {
-    case GDMAC_CHANNEL_STOPPED:
-        return DEVICE_DMA_EVENT_COMPLETED;
-        break;
-    case GDMAC_CHANNEL_BLOCKED:
-        return DEVICE_DMA_EVENT_BLOCKED;
-        break;
-    default:
-        break;
-    }
-
-    return DEVICE_DMA_EVENT_INVALID;
-}
-
-static inline unsigned int gdmac_allocate_event(unsigned int channel_id)
-{
-    unsigned int index;
-
-    for (index = 0; index < TSB_DMA_GDMAC_EVENTS; index++) {
-        if (gdmac_event_to_channel_map[index]
-                == DEVICE_DMA_INVALID_CHANNEL) {
-            gdmac_event_to_channel_map[index] = channel_id;
-            return index;
+            *event_id = index;
+            return OK;
         }
     }
 
-    return TSB_DMA_GDMAC_INVALID_EVENT;
+    return -ENOMEM;
 }
 
-static inline void gdmac_release_event(unsigned int event)
+static inline void gdmac_release_event(unsigned int event_id)
 {
-    if (event < TSB_DMA_GDMAC_EVENTS) {
-        gdmac_event_to_channel_map[event] = DEVICE_DMA_INVALID_CHANNEL;
+    if (event_id < GDMAC_NUMBER_OF_EVENTS) {
+        gdmac_event_to_chan_map[event_id].dma_chan = NULL;
+        gdmac_event_to_chan_map[event_id].event = 0;
     }
 }
 
@@ -362,8 +268,7 @@ static inline void dma_execute_instruction(uint8_t* insn)
     putreg32(0, &dbg_regs->dbg_cmd);
 }
 
-static bool inline dma_start_thread(uint8_t thread_id,
-        uint8_t* program_addr)
+static bool inline dma_start_thread(uint8_t thread_id, uint8_t* program_addr)
 {
     uint8_t go_instr[] = { DMAGO(thread_id, ns, program_addr) };
 
@@ -372,47 +277,27 @@ static bool inline dma_start_thread(uint8_t thread_id,
     return true;
 }
 
-static bool inline dma_signal_event(uint8_t event_id)
-{
-    uint8_t go_instr[] = { DMASEV(event_id), 0, 0, 0, 0, 0, 0, 0 };
-
-    dma_execute_instruction(&go_instr[0]);
-
-    return true;
-}
-
-int tsb_dma_irq_handler(int irq, void *context)
+int gdmac_irq_handler(int irq, void *context)
 {
     tsb_dma_gdmac_control_regs *control_regs =
             (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
-    unsigned int channel = IRQN_TO_DMA_CHANNEL(irq);
+    unsigned int event_id = IRQN_TO_DMA_EVENT(irq);
+    struct gdmac_event *event_entry;
     (void) context;
 
-    if (channel != DEVICE_DMA_INVALID_CHANNEL) {
-        putreg32(GDMAC_EVENT_MASK(channel), &control_regs->intclr);
+    if (event_id == GDMAC_INVALID_EVENT) {
+        lldbg("Error: invalid irq %d\n", irq);
+        return OK;
+    }
 
-        if (tsb_dma_gdmac_dev == NULL) {
-            lldbg("Invalid device handle.\n");
-        } else {
-            struct tsb_dma_info *info = device_get_private(
-                    tsb_dma_gdmac_dev);
-            struct tsb_dma_channel_info *channel_info =
-                    info->dma_channel[channel].channel_info;
-            enum device_dma_cmd callback_cmd;
+    putreg32(GDMAC_EVENT_MASK(event_id), &control_regs->intclr);
 
-            callback_cmd = tsb_dma_transfer_done_callback(tsb_dma_gdmac_dev,
-                    channel, gdmac_get_device_dma_event(channel),
-                    channel_info->current_transfer_arg);
+    event_entry = GDMAC_EVENT_TO_DMA_CHANNEL(event_id);
+    if (event_entry != NULL) {
+        struct gdmac_chan *gdmac_chan = event_entry->dma_chan;
 
-            if ((callback_cmd != DEVICE_DMA_CMD_NONE)
-                    && (channel_info->process_callback_cmd != NULL)) {
-                channel_info->state = channel_info->process_callback_cmd(
-                        tsb_dma_gdmac_dev, &info->dma_channel[channel],
-                        callback_cmd);
-            } else {
-
-            }
-        }
+        tsb_dma_callback(gdmac_chan->gdmac_dev, &gdmac_chan->tsb_chan,
+                event_entry->event);
     } else {
         lldbg("received invalid DMA interrupt(%d)\n", irq);
     }
@@ -420,300 +305,264 @@ int tsb_dma_irq_handler(int irq, void *context)
     return OK;
 }
 
-void gdmac_unipro_tx_release_channel(struct tsb_dma_channel *channel)
+void gdmac_mem2mem_release_channel(struct tsb_dma_chan *tsb_chan)
 {
-    if (channel->channel_info != NULL) {
-        struct tsb_dma_channel_info *channel_info = channel->channel_info;
+    struct gdmac_chan *gdmac_chan =
+            containerof(tsb_chan, struct gdmac_chan, tsb_chan);
 
-        gdmac_release_event(
-                channel_info->unipro_tx_channel.end_of_tx_event);
-        gdmac_release_event(
-                channel_info->unipro_tx_channel.next_tx_event);
+    gdmac_release_event(gdmac_chan->end_of_tx_event);
 
-        free(channel_info);
-        channel->channel_info = NULL;
-        channel->do_dma_transfer = NULL;
-        channel->release_channel = NULL;
-    }
+    free(gdmac_chan);
 }
 
-static gdmac_channel_state gdmac_unipro_stop_tx(
-        struct tsb_dma_channel *channel)
+static int gdmac_mem2mem_transfer(struct device *dev,
+        struct tsb_dma_chan *tsb_chan, struct device_dma_op *op,
+        enum device_dma_error *error)
 {
-    tsb_dma_gdmac_unipro_tx_channel *unipro_tx_channel =
-            &channel->channel_info->unipro_tx_channel;
+    struct gdmac_chan
+    *gdmac_chan = containerof(tsb_chan, struct gdmac_chan, tsb_chan);
 
-    putreg32(GDMAC_DONOT_LOOPBACK,
-             &unipro_tx_channel->unipro_next_loopcount.value);
+    mem_to_mem_chan *mem2mem_chan = &gdmac_chan->mem2mem_chan;
+    struct device_dma_sg *sg = &op->sg[0];
+    int retval = OK;
+    size_t data_len = sg->len;
+    uint32_t numb_of_blocks = (data_len + 255) / 256;
 
-    dma_signal_event(unipro_tx_channel->next_tx_event);
-
-    return GDMAC_CHANNEL_STOPPED;
-}
-
-static gdmac_channel_state gdmac_unipro_continue_tx(
-        struct tsb_dma_channel *channel)
-{
-    gdmac_channel_state ret = GDMAC_CHANNEL_RUNNING;
-
-    tsb_dma_gdmac_unipro_tx_channel *unipro_tx_channel =
-            &channel->channel_info->unipro_tx_channel;
-    device_dma_unipro_tx_arg *unipro_tx_arg =
-            &channel->channel_info->current_transfer_arg->unipro_tx_arg;
-
-    if (unipro_tx_arg->next_transfer_len > 0) {
-        if (unipro_tx_arg->eom_addr != NULL) {
-            /* If this is the last fragmented message, set loop count to 2 to
-             * cause the GDMAC to run the little piece of code at the very top
-             *  to hit the EOM register.
-             */
-            unipro_tx_channel->unpro_eom_loopcount.value = GDMAC_DO_LOOPBACK;
-            unipro_tx_channel->unipro_eom_reg_addr.value =
-                    (uint32_t) unipro_tx_arg->eom_addr;
-        } else {
-            /* If this is NOT the last fragmented message, set loop count to 1 to
-             * cause the GDMAC to raise the AP interrupt event and ends the
-             * execution.
-             */
-            unipro_tx_channel->unpro_eom_loopcount.value = GDMAC_DONOT_LOOPBACK;
-        }
-
-        /* setup the lenght of next transfer and set case to 3 to perform next
-         * transfer
-         */
-        unipro_tx_channel->unpro_len_loopcount.value =
-                (uint8_t) unipro_tx_arg->next_transfer_len;
-        unipro_tx_channel->unipro_next_loopcount.value = GDMAC_DO_LOOPBACK;
-        unipro_tx_channel->unipro_next_loopback.value =
-                UNIPRO_LOOPBACK_COUNT(unipro_next_loopback, unipro_continue_tx);
-    } else {
-        if (unipro_tx_arg->eom_addr != NULL) {
-            unipro_tx_channel->unipro_next_loopcount.value = GDMAC_DO_LOOPBACK;
-            unipro_tx_channel->unipro_eom_reg_addr.value =
-                    (uint32_t) unipro_tx_arg->eom_addr;
-            unipro_tx_channel->unipro_next_loopback.value =
-                    UNIPRO_LOOPBACK_COUNT(unipro_next_loopback, unipro_eom);
-        } else {
-            lldbg("ERROR: cmd is continue and len is 0 and eom if false. Stopping GDMAC.\n");
-            unipro_tx_channel->unipro_next_loopcount.value =
-                    GDMAC_DONOT_LOOPBACK;
-            ret = GDMAC_CHANNEL_STOPPED;
-        }
-    }
-
-    dma_signal_event(unipro_tx_channel->next_tx_event);
-
-    return ret;
-}
-
-static gdmac_channel_state gdmac_unipro_process_callback_cmd(
-        struct device *dev, struct tsb_dma_channel *dma_channel,
-        enum device_dma_cmd cmd)
-{
-    gdmac_channel_state channel_state = gdmac_get_channel_state(
-            dma_channel->channel_id);
-
-    switch (channel_state) {
-    case GDMAC_CHANNEL_STOPPED:
-        if (cmd != DEVICE_DMA_CMD_STOP) {
-            lldbg("GDMAC Stopped while callback command = %d\n", cmd);
-        }
-        break;
-    case GDMAC_CHANNEL_RUNNING:
-        lldbg("GDMAC is running while callback command = %d\n",
-                cmd);
-        break;
-    case GDMAC_CHANNEL_BLOCKED:
-        if (dma_channel->channel_info->state == GDMAC_CHANNEL_RUNNING) {
-            if (cmd == DEVICE_DMA_CMD_CONTINUE) {
-                gdmac_unipro_continue_tx(dma_channel);
-            } else {
-                if (cmd == DEVICE_DMA_CMD_STOP) {
-                    gdmac_unipro_stop_tx(dma_channel);
-                } else {
-                    lldbg("GDMAC is blocked while callback cmd is %d\n",
-                          cmd);
-                }
-            }
-        } else {
-            lldbg("GDMAC is blocked while channel is not in running state\n");
-        }
-        break;
-    default:
-        break;
-    }
-
-    return channel_state;
-}
-
-static int gdmac_unipro_tx_transfer(struct tsb_dma_channel *dma_channel,
-        void* buf, void *tx_buf, size_t len, device_dma_transfer_arg *arg)
-{
-    device_dma_unipro_tx_arg *unipro_tx_arg =
-            (device_dma_unipro_tx_arg*) arg;
-    tsb_dma_gdmac_unipro_tx_channel *unipro_tx_channel =
-            &dma_channel->channel_info->unipro_tx_channel;
-    gdmac_channel_state channel_state = gdmac_get_channel_state(
-            dma_channel->channel_id);
-    int status;
-
-    if ((dma_channel->channel_info->state != GDMAC_CHANNEL_STOPPED)
-            && (channel_state != GDMAC_CHANNEL_STOPPED)) {
-        lldbg("GDMAC is in running state.\n");
-    }
-
-    /* data len is 0 and EOM register address is not set. */
-    if ((len == 0) && (unipro_tx_arg->eom_addr == NULL)) {
+    if (op->sg_count != 1) {
+        lldbg("Error: sg_count != 1.");
         return -EINVAL;
     }
 
     /* Set the source and destination addresses, as well as the data count. */
-    unipro_tx_channel->unipro_src_addr.value = (uint32_t) buf;
-    unipro_tx_channel->unipro_dst_addr.value = (uint32_t) tx_buf;
-    unipro_tx_channel->unpro_len_loopcount.value = (uint8_t) len;
-    if (unipro_tx_arg->eom_addr != NULL) {
-        /* If this is the last fragmented message, set loop count to 2 to
-         * cause the GDMAC to run the little piece of code at the very top to
-         * hit the EOM register.
-         */
-        unipro_tx_channel->unpro_eom_loopcount.value = GDMAC_DO_LOOPBACK;
-        unipro_tx_channel->unipro_eom_reg_addr.value = (uint32_t) unipro_tx_arg->eom_addr;
-        if (len == 0) {
-            unipro_tx_channel->unipro_start_loopcount.value =
-                    GDMAC_DONOT_LOOPBACK;
-            unipro_tx_channel->unipro_eom_reg_addr.value =
-                    (uint32_t) unipro_tx_arg->eom_addr;
-        } else {
-            unipro_tx_channel->unipro_start_loopcount.value = GDMAC_DO_LOOPBACK;
+    mem2mem_chan->source_addr.value = (uint32_t) sg->src_addr;
+    mem2mem_chan->dest_addr.value = (uint32_t) sg->dst_addr;
+    if (numb_of_blocks-- > 1) {
+        if (numb_of_blocks > 256) {
+            lldbg("Error: Data len too large!");
+            return -EINVAL;
         }
+
+        mem2mem_chan->block_count.value = (uint8_t) (numb_of_blocks - 1);
+        mem2mem_chan->block_length.value = 255;
+        mem2mem_chan->block_load_and_store = do_mem_load_and_store;
+        data_len -= numb_of_blocks * 256;
     } else {
-        /* If this is NOT the last fragmented message, set loop count to 1 to
-         * cause the GDMAC to raise the AP interrupt event and ends the
-         * execution.
-         */
-        unipro_tx_channel->unpro_eom_loopcount.value = GDMAC_DONOT_LOOPBACK;
+        mem2mem_chan->block_count.value = 0;
+        mem2mem_chan->block_length.value = 0;
+        mem2mem_chan->block_load_and_store = skip_mem_load_and_store;
     }
 
-    dma_channel->channel_info->current_transfer_arg = arg;
-    dma_channel->channel_info->process_callback_cmd =
-            gdmac_unipro_process_callback_cmd;
+    if (data_len <= 256) {
+        mem2mem_chan->data_length.value = (uint8_t) data_len - 1;
+    }
 
     /* Start the transfer and wait for end of transfer interrupt. */
-    dma_channel->channel_info->state = GDMAC_CHANNEL_RUNNING;
-    status = dma_start_thread(dma_channel->channel_id,
-            &unipro_tx_channel->unipro_program_entry_point[0]);
+    if (dma_start_thread(tsb_chan->chan_id, &mem2mem_chan->gdmac_program[0])
+            == false) {
+        retval = -EIO;
+    }
 
-    return status;
+    return retval;
 }
 
 /* Allocate an UniPro TX channel. */
-int tsb_dma_allocal_unipro_tx_channel(struct tsb_dma_channel *channel)
+int tsb_gdmac_allocal_mem2Mem_chan(struct device *dev,
+        struct device_dma_params *params, struct tsb_dma_chan **tsb_chan)
 {
-    int ret;
-    tsb_dma_gdmac_unipro_tx_channel *unipro_tx_channel;
-    struct tsb_dma_channel_info *channel_info = zalloc(
-            sizeof(struct tsb_dma_channel_info));
+    int retval = OK;
+    mem_to_mem_chan *mem2mem_chan;
+    struct gdmac_chan *gdmac_chan;
     tsb_dma_gdmac_control_regs *control_regs =
             (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
 
-    if (channel_info == NULL) {
+    gdmac_chan = zalloc(sizeof(struct gdmac_chan));
+    if (gdmac_chan == NULL) {
         return -ENOMEM;
     }
-
-    unipro_tx_channel = &channel_info->unipro_tx_channel;
 
     /* allocate an end of transfer event; */
-    unipro_tx_channel->end_of_tx_event = gdmac_allocate_event(
-            channel->channel_id);
-    unipro_tx_channel->next_tx_event = gdmac_allocate_event(
-            channel->channel_id);
-
-    if ((unipro_tx_channel->end_of_tx_event == TSB_DMA_GDMAC_INVALID_EVENT)
-            || (unipro_tx_channel->next_tx_event
-                    == TSB_DMA_GDMAC_INVALID_EVENT)) {
-        if (unipro_tx_channel->end_of_tx_event
-                != TSB_DMA_GDMAC_INVALID_EVENT) {
-            gdmac_release_event(unipro_tx_channel->end_of_tx_event);
-        }
-
-        if (unipro_tx_channel->next_tx_event != TSB_DMA_GDMAC_INVALID_EVENT) {
-            gdmac_release_event(unipro_tx_channel->next_tx_event);
-        }
-
-        free(unipro_tx_channel);
-
+    retval = gdmac_allocate_event(gdmac_chan,
+            DEVICE_DMA_CALLBACK_EVENT_COMPLETE, &gdmac_chan->end_of_tx_event);
+    if (retval != OK) {
+        free(gdmac_chan);
         lldbg("Unable to allocate GDMAC event(s).\n");
-        return -ENOMEM;
+        return retval;
     }
 
+    mem2mem_chan = &gdmac_chan->mem2mem_chan;
+
     /* make a copy of the UniPro TX binary code. */
-    memcpy(&unipro_tx_channel->gdmac_program[0],
-            &tsb_dma_gdma_unipro_tx_prg[0],
-            sizeof(tsb_dma_gdma_unipro_tx_prg));
+    memcpy(&mem2mem_chan->gdmac_program[0], &gdmac_mem2mem_program[0],
+            sizeof(gdmac_mem2mem_program));
 
-    /* Set the source address of EOM flag. */
-    unipro_tx_channel->unipro_eom_value_addr.value = (uint32_t)&eom_value;
-
-    /* Set a pointer to the PL330 event used for this UniPro TX channel. */
-    GDMAC_PROGRAM_SET_EVENT(unipro_tx_channel->unipro_eom_tx_event.value,
-            GDMAC_END_OF_TX_EVENT(unipro_tx_channel));
-
-    /* Set EOP (end-of-packet) transfer event. */
-    GDMAC_PROGRAM_SET_EVENT(unipro_tx_channel->unipro_end_of_tx_event.value,
-            GDMAC_END_OF_TX_EVENT(unipro_tx_channel));
-
-    /* Set next transfer event. */
-    GDMAC_PROGRAM_SET_EVENT(unipro_tx_channel->unipro_next_tx_event.value,
-            GDMAC_NEXT_TX_EVENT(unipro_tx_channel));
+    /* Set end of transfer event. */
+    mem2mem_chan->end_of_tx_event.value |= (gdmac_chan->end_of_tx_event << 3);
 
     /* Set interrupt handler for this GDMAC UniPro TX channel. */
-    ret = irq_attach(
-            DMA_CHANNEL_TO_TSB_IRQ(
-                    GDMAC_END_OF_TX_EVENT(unipro_tx_channel)),
-            tsb_dma_irq_handler);
-    if (ret != OK) {
+    retval = irq_attach(GDMAC_EVENT_TO_IRQN(gdmac_chan->end_of_tx_event),
+            gdmac_irq_handler);
+    if (retval != OK) {
         lldbg("Failed to attach interrupt %d.\n",
-                DMA_CHANNEL_TO_TSB_IRQ(
-                        GDMAC_END_OF_TX_EVENT(unipro_tx_channel)));
+                GDMAC_EVENT_TO_IRQN(gdmac_chan->end_of_tx_event));
         return -EIO;
     } else {
-        putreg32(GDMAC_EVENT_MASK(
-                 GDMAC_END_OF_TX_EVENT(unipro_tx_channel)),
-                 &control_regs->inten);
-        up_enable_irq(
-                DMA_CHANNEL_TO_TSB_IRQ(
-                        GDMAC_END_OF_TX_EVENT(unipro_tx_channel)));
+        uint32_t enable_flags = getreg32(&control_regs->inten);
+
+        putreg32(GDMAC_EVENT_MASK(gdmac_chan->end_of_tx_event) | enable_flags,
+                &control_regs->inten);
+        up_enable_irq(GDMAC_EVENT_TO_IRQN(gdmac_chan->end_of_tx_event));
     }
 
     /* Set the transfer and transfer done handlers */
-    channel->do_dma_transfer = gdmac_unipro_tx_transfer;
-    channel->release_channel = gdmac_unipro_tx_release_channel;
-    channel->channel_info = channel_info;
+    gdmac_chan->do_dma_transfer = gdmac_mem2mem_transfer;
+    gdmac_chan->release_channel = gdmac_mem2mem_release_channel;
+    gdmac_chan->gdmac_dev = dev;
 
-    channel_info->state = GDMAC_CHANNEL_STOPPED;
+    *tsb_chan = &gdmac_chan->tsb_chan;
+
+    return retval;
+}
+
+int gdmac_get_caps(struct device *dev, struct device_dma_caps *caps)
+{
+    caps->addr_alignment = DEVICE_DMA_ALIGNMENT_8 | DEVICE_DMA_ALIGNMENT_16
+            | DEVICE_DMA_ALIGNMENT_32 | DEVICE_DMA_ALIGNMENT_64;
+    caps->transfer_sizes = DEVICE_DMA_TRANSFER_SIZE_8
+            | DEVICE_DMA_TRANSFER_SIZE_16 | DEVICE_DMA_TRANSFER_SIZE_32
+            | DEVICE_DMA_TRANSFER_SIZE_64;
+    caps->burst_len = 0xFFFF;
+    caps->swap_options = DEVICE_DMA_SWAP_SIZE_NONE | DEVICE_DMA_SWAP_SIZE_16
+            | DEVICE_DMA_SWAP_SIZE_32 | DEVICE_DMA_SWAP_SIZE_64
+            | DEVICE_DMA_SWAP_SIZE_128;
+    caps->inc_options = DEVICE_DMA_INC_AUTO | DEVICE_DMA_INC_NOAUTO;
+    caps->sg_max = TSB_DMA_SG_MAX;
 
     return 0;
 }
 
-void tsb_dma_init_controller(struct device *dev)
+int gdmac_chan_alloc(struct device *dev, struct device_dma_params *params,
+        struct tsb_dma_chan **tsb_chan)
+{
+    int retval = OK;
+
+    if ((params->src_dev == DEVICE_DMA_DEV_MEM)
+            && (params->dst_dev == DEVICE_DMA_DEV_MEM)) {
+        if ((params->src_devid != 0) || (params->dst_devid != 0)) {
+            return -EINVAL;
+        }
+
+        retval = tsb_gdmac_allocal_mem2Mem_chan(dev, params, tsb_chan);
+    } else {
+        lldbg("user requested not supported DMA channel.\n");
+    }
+
+    return retval;
+}
+
+int gdmac_start_op(struct device *dev, struct tsb_dma_chan *tsb_chan,
+        struct device_dma_op *op, enum device_dma_error *error)
+{
+    int retval = OK;
+    struct gdmac_chan *gdmac_chan =
+            containerof(tsb_chan, struct gdmac_chan, tsb_chan);
+
+    if (gdmac_chan->do_dma_transfer != NULL) {
+        retval = gdmac_chan->do_dma_transfer(dev, tsb_chan, op, error);
+    } else {
+        retval = -EIO;
+    }
+
+    return retval;
+}
+
+void gdmac_init_controller(struct device *dev)
 {
     /* initialize all events are available. */
-    memset(&gdmac_event_to_channel_map[0], 0xFF,
-            sizeof(gdmac_event_to_channel_map));
+    memset(&gdmac_event_to_chan_map[0], 0, sizeof(gdmac_event_to_chan_map));
 
     /* enable clock to GDMAC and reset GDMAC. */
     tsb_clk_enable(TSB_CLK_GDMA);
     tsb_reset(TSB_RST_GDMA);
-
-    tsb_dma_gdmac_dev = dev;
 }
 
-void tsb_dma_deinit_controller(struct device *dev)
+void gdmac_deinit_controller(struct device *dev)
 {
-    tsb_dma_gdmac_dev = NULL;
+    tsb_clk_disable(TSB_CLK_GDMA);
+
+    return;
 }
 
-int tsb_dma_max_number_of_channels(void)
+int gdmac_max_number_of_channels(void)
 {
-    return TSB_DMA_GDMAC_CHANNELS;
+    int numb_of_chan = 0;
+    tsb_dma_gdmac_config_regs *config_regs =
+            (tsb_dma_gdmac_config_regs*) GDMAC_CONFIG_REGS_ADDRESS;
+
+    numb_of_chan = (getreg32(&config_regs->cr0) & 0x70) >> 4;
+    numb_of_chan++;
+
+    return numb_of_chan;
+}
+
+int gdmac_chan_check_op_params(struct device *dev,
+        struct tsb_dma_chan *tsb_chan, struct device_dma_op *op)
+{
+    struct device_dma_params *chan_params = &tsb_chan->chan_params;
+    int retval = DEVICE_DMA_ERROR_NONE;
+    uint32_t index;
+
+    if (chan_params->swap != DEVICE_DMA_SWAP_SIZE_NONE) {
+        uint32_t aligment_mask = chan_params->swap - 1;
+
+        for (index = 0; index < op->sg_count; index++) {
+            struct device_dma_sg *desc = &op->sg[index];
+
+            if (((desc->src_addr & aligment_mask) != 0) ||
+                ((desc->dst_addr & aligment_mask) != 0)) {
+                return DEVICE_DMA_ERROR_BAD_ADDR;
+            }
+
+            if (desc->len & aligment_mask) {
+                return DEVICE_DMA_ERROR_BAD_LEN;
+            }
+
+            if (chan_params->src_inc_options == DEVICE_DMA_INC_NOAUTO) {
+                if (chan_params->transfer_size < chan_params->swap) {
+                    return DEVICE_DMA_ERROR_BAD_TX_SIZE;
+                }
+            }
+
+            if (chan_params->dst_inc_options == DEVICE_DMA_INC_NOAUTO) {
+                if (chan_params->transfer_size < chan_params->swap) {
+                    return DEVICE_DMA_ERROR_BAD_TX_SIZE;
+                }
+            } else {
+                uint32_t total_burst_len =
+                        chan_params->transfer_size * chan_params->burst_len;
+
+                if ((total_burst_len & aligment_mask) != 0) {
+                    return DEVICE_DMA_ERROR_BAD_BURST_LEN;
+                }
+            }
+        }
+    }
+
+    return retval;
+}
+
+int gdmac_chan_free(struct device *dev, struct tsb_dma_chan *tsb_chan)
+{
+    tsb_dma_gdmac_control_regs *control_regs =
+            (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
+    struct gdmac_chan *gdmac_chan =
+            containerof(tsb_chan, struct gdmac_chan, tsb_chan);
+    uint32_t enable_flags = getreg32(&control_regs->inten);
+
+    putreg32(~GDMAC_EVENT_MASK(gdmac_chan->end_of_tx_event) & enable_flags,
+            &control_regs->inten);
+    up_disable_irq(GDMAC_EVENT_TO_IRQN(gdmac_chan->end_of_tx_event));
+
+    free(tsb_chan);
+
+    return OK;
 }

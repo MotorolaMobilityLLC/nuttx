@@ -35,148 +35,351 @@
 
 #include <nuttx/util.h>
 #include <nuttx/device.h>
-#include <semaphore.h>
+
+#define containerof(x, s, f) ((void*) ((char*)(x) - offsetof(s, f)))
 
 #define DEVICE_TYPE_DMA_HW                 "dma"
 
-#define DEVICE_DMA_INVALID_CHANNEL         0xFFFFFFFF
+/* Size of a single transfer in bits */
+#define DEVICE_DMA_TRANSFER_SIZE_8          BIT(0)
+#define DEVICE_DMA_TRANSFER_SIZE_16         BIT(1)
+#define DEVICE_DMA_TRANSFER_SIZE_32         BIT(2)
+#define DEVICE_DMA_TRANSFER_SIZE_64         BIT(3)
 
-enum device_dma_event {
-    DEVICE_DMA_EVENT_INVALID,
-    DEVICE_DMA_EVENT_BLOCKED,
-    DEVICE_DMA_EVENT_COMPLETED,
-    DEVICE_DMA_EVENT_ERROR_UNKOWN,
+/* Size of a single burst in bytes */
+#define DEVICE_DMA_BURST_LEN_1              BIT(0)
+#define DEVICE_DMA_BURST_LEN_2              BIT(1)
+#define DEVICE_DMA_BURST_LEN_3              BIT(2)
+#define DEVICE_DMA_BURST_LEN_4              BIT(3)
+#define DEVICE_DMA_BURST_LEN_5              BIT(4)
+#define DEVICE_DMA_BURST_LEN_6              BIT(5)
+#define DEVICE_DMA_BURST_LEN_7              BIT(6)
+#define DEVICE_DMA_BURST_LEN_8              BIT(7)
+#define DEVICE_DMA_BURST_LEN_9              BIT(8)
+#define DEVICE_DMA_BURST_LEN_10             BIT(9)
+#define DEVICE_DMA_BURST_LEN_11             BIT(10)
+#define DEVICE_DMA_BURST_LEN_12             BIT(11)
+#define DEVICE_DMA_BURST_LEN_13             BIT(12)
+#define DEVICE_DMA_BURST_LEN_14             BIT(13)
+#define DEVICE_DMA_BURST_LEN_15             BIT(14)
+#define DEVICE_DMA_BURST_LEN_16             BIT(15)
+
+/* In bits */
+#define DEVICE_DMA_SWAP_SIZE_NONE           BIT(0)
+#define DEVICE_DMA_SWAP_SIZE_16             BIT(1)
+#define DEVICE_DMA_SWAP_SIZE_32             BIT(2)
+#define DEVICE_DMA_SWAP_SIZE_64             BIT(3)
+#define DEVICE_DMA_SWAP_SIZE_128            BIT(4)
+
+/* Options for the specified source and destination devices */
+#define DEVICE_DMA_INC_AUTO                 BIT(0)
+#define DEVICE_DMA_INC_NOAUTO               BIT(1)
+
+/* Event that the callback should be called for */
+#define DEVICE_DMA_CALLBACK_EVENT_START     BIT(0)
+#define DEVICE_DMA_CALLBACK_EVENT_COMPLETE  BIT(1)
+#define DEVICE_DMA_CALLBACK_EVENT_DEQUEUED  BIT(2)
+#define DEVICE_DMA_CALLBACK_EVENT_ERROR     BIT(3)
+
+/* Alignments for the source and destination address */
+#define DEVICE_DMA_ALIGNMENT_8              BIT(0)
+#define DEVICE_DMA_ALIGNMENT_16             BIT(1)
+#define DEVICE_DMA_ALIGNMENT_32             BIT(2)
+#define DEVICE_DMA_ALIGNMENT_64             BIT(3)
+
+enum device_dma_error {
+    DEVICE_DMA_ERROR_NONE,
+    DEVICE_DMA_ERROR_INVALID,
+    DEVICE_DMA_ERROR_BAD_DEV,
+    DEVICE_DMA_ERROR_BAD_FLAG,
+    DEVICE_DMA_ERROR_BAD_TX_SIZE,
+    DEVICE_DMA_ERROR_BAD_BURST_LEN,
+    DEVICE_DMA_ERROR_BAD_SWAP,
+    DEVICE_DMA_ERROR_BAD_ADDR,
+    DEVICE_DMA_ERROR_BAD_LEN,
+    DEVICE_DMA_ERROR_DMA_FAILED,
+    DEVICE_DMA_ERROR_UNKOWN_FAILURE = 0xff,
 };
 
-enum device_dma_cmd {
-    DEVICE_DMA_CMD_INVALID,
-    DEVICE_DMA_CMD_NONE,
-    DEVICE_DMA_CMD_CONTINUE,
-    DEVICE_DMA_CMD_STOP,
+enum device_dma_dev {
+    DEVICE_DMA_DEV_INVALID, DEVICE_DMA_DEV_MEM, DEVICE_DMA_DEV_IO,
 };
 
-enum device_dma_channel_type {
-    DEVICE_DMA_UNIPRO_TX_CHANNEL,
-    DEVICE_DMA_AUDIO_INPUT_CHANNEL,
-    DEVICE_DMA_AUDIO_OUTPUT_CHANNEL,
-    DEVICE_DMA_MEMORY_TO_MEMORY_CHANNEL,
-    DEVICE_DMA_MEMORY_TO_PERIPHERAL_CHANNEL,
-    DEVICE_DMA_PERIPHERAL_TO_MEMORY_CHANNEL,
+struct device_dma_caps {
+    unsigned int addr_alignment;
+    unsigned int transfer_sizes; /* DEVICE_DMA_TRANSFER_SIZE_* */
+    unsigned int burst_len; /* DEVICE_DMA_BURST_LEN_* */
+    unsigned int swap_options; /* DEIVCE_DMA_SWAP_SIZE_* */
+    unsigned int inc_options; /* DEVICE_DMA_INC_* */
+    unsigned int sg_max;
 };
 
-typedef struct {
-    /* eom_addr Address of EOM area (NULL means don't write to EOM area) */
-    uint8_t *eom_addr;
-    uint16_t next_transfer_len;
-} device_dma_unipro_tx_arg;
+struct device_dma_sg {
+    off_t src_addr;
+    off_t dst_addr;
+    size_t len;
+};
 
-typedef union {
-    device_dma_unipro_tx_arg unipro_tx_arg;
-    uint32_t dummy;
-} device_dma_transfer_arg;
+struct device_dma_op;
 
-typedef enum device_dma_cmd (*device_dma_callback)(unsigned int chan,
-        enum device_dma_event event, device_dma_transfer_arg *arg);
+typedef int (*device_dma_op_callback)(struct device *dev, void *chan,
+        struct device_dma_op *op, unsigned int event, void *arg);
+
+struct device_dma_op {
+    device_dma_op_callback callback;
+    void *callback_arg;
+    unsigned int callback_events;
+    unsigned int sg_count;
+    struct device_dma_sg sg[0];
+};
+
+struct device_dma_params {
+    enum device_dma_dev src_dev;
+    unsigned int src_devid;
+    unsigned int src_inc_options;
+    enum device_dma_dev dst_dev;
+    unsigned int dst_devid;
+    unsigned int dst_inc_options;
+    unsigned int transfer_size;
+    unsigned int burst_len;
+    unsigned int swap;
+};
 
 struct device_dma_type_ops {
-    int (*register_callback)(struct device *dev, unsigned int chan,
-            device_dma_callback callback);
-    int (*allocate_channel)(struct device *dev,
-            enum device_dma_channel_type type, unsigned int *chan);
-    int (*release_channel)(struct device *dev, unsigned int *chan);
-    int (*transfer)(struct device *dev, unsigned int chan, void *src, void *dst,
-            size_t len, device_dma_transfer_arg *arg);
+    int (*get_caps)(struct device *dev, struct device_dma_caps *caps);
+    int (*chan_free_count)(struct device *dev);
+    int (*chan_alloc)(struct device *dev, struct device_dma_params *params,
+            void **chanp);
+    int (*chan_free)(struct device *dev, void *chan);
+    int (*op_alloc)(struct device *dev, unsigned int sg_count,
+            unsigned int extra, struct device_dma_op **opp);
+    int (*op_free)(struct device *dev, struct device_dma_op *op);
+    int (*op_is_complete)(struct device *dev, struct device_dma_op *op);
+    int (*op_get_error)(struct device *dev, struct device_dma_op *op,
+            enum device_dma_error *error);
+    int (*enqueue)(struct device *dev, void *chan, struct device_dma_op *op);
+    int (*dequeue)(struct device *dev, void *chan, struct device_dma_op *op);
 };
 
 /**
- * @brief Register a callback for the DMA controller
- * @param dev DMA device callback is registered for
- * @param chan DMA channel callback is registered for
- * @param callback The callback routine
- * @return 0: DMA callback is registered for that DMA controller & channel
+ * @brief Get DMA device's capabilites for specified type
+ *
+ * Implies that the DMA driver has knowledge of the capabilities for
+ * each type of DMA type.
+ *
+ * @param dev DMA device whose capabilities are queried
+ * @param type DMA type whose capabilities are queried
+ * @param capabilites pointer to capabilities structure that will be filled out
+ * @return 0: Query successful
  *         -errno: Cause of failure
  */
-static inline int device_dma_register_callback(struct device *dev,
-        unsigned int chan, device_dma_callback callback)
+static inline int device_dma_get_caps(struct device *dev,
+        struct device_dma_caps *caps)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS(dev, dma)->register_callback)
-        return DEVICE_DRIVER_GET_OPS(dev, dma)->register_callback(dev, chan,
-                callback);
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->get_caps)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->get_caps(dev, caps);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Get number of unallocated DMA channels
+ * @param dev DMA device whose number of free channels is queried
+ * @return 'n': Number of unallocated/free DMA channels
+ *         -errno: Cause of failure
+ */
+static inline int device_dma_chan_free_count(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->chan_free_count)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->chan_free_count(dev);
 
     return -ENOSYS;
 }
 
 /**
  * @brief Allocate a DMA channel
- * @param dev DMA device to use
- * @param chan DMA channel to use
- * @return 0: DMA channel allocated
+ * @param dev DMA device whose channel is being allocated
+ * @param chanp Pointer to DMA channel cookie
+ * @return 0: Success
  *         -errno: Cause of failure
  */
-static inline int device_dma_allocate_channel(struct device *dev,
-        enum device_dma_channel_type type, unsigned int *chan)
+static inline int device_dma_chan_alloc(struct device *dev,
+        struct device_dma_params *params, void **chanp)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS(dev, dma)->allocate_channel)
-        return DEVICE_DRIVER_GET_OPS(dev, dma)->allocate_channel(dev, type,
-                chan);
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->chan_alloc)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->chan_alloc(dev, params, chanp);
 
     return -ENOSYS;
 }
 
 /**
- * @brief Release an allocated DMA channel
- * @param dev DMA device to use
- * @param chan DMA channel to use
- * @return 0: DMA channel released
+ * @brief Free a DMA channel
+ * @param dev DMA device whose channel is being freed
+ * @param chan DMA channel cookie
+ * @return 0: Success
  *         -errno: Cause of failure
  */
-static inline int device_dma_release_channel(struct device *dev,
-        unsigned int *chan)
+static inline int device_dma_chan_free(struct device *dev, void *chan)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS(dev, dma)->release_channel)
-        return DEVICE_DRIVER_GET_OPS(dev, dma)->release_channel(dev, chan);
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->chan_free)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->chan_free(dev, chan);
 
     return -ENOSYS;
 }
 
 /**
- * @brief Start a DMA transfer
- * @param dev DMA device to use
- * @param chan DMA channel to use
- * @param src Address of data source
- * @param dst Address of data destination
- * @param len Number of bytes to transfer
- * @param eom_addr Address of EOM area (NULL means don't write to EOM area)
- * @param arg Argument to be passed to the callback
- * @return 0: DMA transfer started
+ * @brief Allocate a DMA operation structure
+ * @param dev DMA device
+ * @param opp Pointer to pointer of dma_op structure being allocated
+ * @return 0: Success
  *         -errno: Cause of failure
  */
-static inline int device_dma_transfer(struct device *dev, unsigned int chan,
-        void *src, void *dst, size_t len, device_dma_transfer_arg *arg)
+static inline int device_dma_op_alloc(struct device *dev, unsigned int sg_count,
+        unsigned int extra, struct device_dma_op **opp)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS(dev, dma)->transfer)
-        return DEVICE_DRIVER_GET_OPS(dev, dma)->transfer(dev, chan, src, dst,
-                len, arg);
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->op_alloc)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->op_alloc(dev, sg_count, extra,
+                opp);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Free a DMA operation structure
+ * @param dev DMA device
+ * @param opp Pointer to dma_op structure being freed
+ * @return 0: Success
+ *         -errno: Cause of failure
+ */
+static inline int device_dma_op_free(struct device *dev,
+        struct device_dma_op *op)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->op_free)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->op_free(dev, op);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Check if DMA operation is complete
+ * @param dev DMA device
+ * @param op operation being checked
+ * @return 0: Operation is not complete
+ *         1: Operations is complete
+ *         -errno: Cause of failure
+ */
+static inline int device_dma_op_is_complete(struct device *dev,
+        struct device_dma_op *op)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->op_is_complete)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->op_is_complete(dev, op);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Retrieve operation error code
+ * @param dev DMA device
+ * @param op operation being checked
+ * @param error the error code
+ * @return 0: Operation successful
+ *         -errno: Cause of failure
+ */
+static inline int device_dma_op_get_error(struct device *dev,
+        struct device_dma_op *op, enum device_dma_error *error)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->op_get_error)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->op_get_error(dev, op, error);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Enqueue (and possibly start) DMA operation
+ *
+ * If the DMA channel is busy, the 'op' will be queued and executed in the
+ * order received by the driver.  If caller wishes to block until the DMA
+ * is complete, it can block on a semaphore which should be unblocked by
+ * the callback routine.
+ *
+ * @param dev DMA device operation queued is queued for
+ * @param chan DMA channel cookie
+ * @param op device_dma_op structure describing the entire DMA operation
+ * @return 0: Successfully queued
+ *         -errno: Cause of failure
+ */
+static inline int device_dma_enqueue(struct device *dev, void *chan,
+        struct device_dma_op *op)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->enqueue)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->enqueue(dev, chan, op);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Dequeue a DMA operation
+ * @param dev DMA device whose operation is being dequeued
+ * @param chan DMA channel cookie
+ * @param op device_dma_op structure being dequeued
+ * @return 0: Successfully dequeued
+ *         -errno: Cause of failure
+ */
+static inline int device_dma_dequeue(struct device *dev, void *chan,
+        struct device_dma_op *op)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, dma)->dequeue)
+        return DEVICE_DRIVER_GET_OPS(dev, dma)->dequeue(dev, chan, op);
 
     return -ENOSYS;
 }
