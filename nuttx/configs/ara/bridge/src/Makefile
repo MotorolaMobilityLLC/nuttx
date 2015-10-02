@@ -81,6 +81,10 @@ ifeq ($(CONFIG_ARA_BRIDGE_HAVE_BATTERY),y)
 CSRCS += battery_dummy.c
 endif
 
+ifeq ($(CONFIG_ARCH_CHIP_DEVICE_SDIO),y)
+CSRCS += sdio_board.c
+endif
+
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 OOT_OBJS	?= # injected when doing out of tree development
 

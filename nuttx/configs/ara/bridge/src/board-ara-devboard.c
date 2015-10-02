@@ -61,6 +61,12 @@
 #include <nuttx/device_battery.h>
 #endif
 
+#ifdef CONFIG_ARCH_CHIP_DEVICE_SDIO
+#include <nuttx/device_sdio_board.h>
+#define SD_POWER_EN_PIN    9 /* GPIO 9 */
+#define SD_CARD_DETECT_PIN 22 /* GPIO 22 */
+#endif
+
 #ifdef CONFIG_APBRIDGEA
 /* must pull up or drive high on SDB APBridgeA to bring Helium out of reset */
 #define HELIUM_EXT_NRST_BTN_GPIO 0
@@ -100,6 +106,23 @@ static int io_expander_init(void)
 #endif
 
 #ifdef CONFIG_DEVICE_CORE
+#ifdef CONFIG_ARCH_CHIP_DEVICE_SDIO
+static struct device_resource sdio_board_resources[] = {
+    {
+        .name  = "sdio_gpio_power",
+        .type  = DEVICE_RESOURCE_TYPE_GPIO,
+        .start = SD_POWER_EN_PIN,
+        .count = 1,
+    },
+    {
+        .name  = "sdio_gpio_cd",
+        .type  = DEVICE_RESOURCE_TYPE_GPIO,
+        .start = SD_CARD_DETECT_PIN,
+        .count = 1,
+    },
+};
+#endif
+
 static struct device devices[] = {
 #ifdef CONFIG_ARA_BRIDGE_HAVE_USB4624
     {
@@ -141,6 +164,16 @@ static struct device devices[] = {
         .id             = 0,
     },
 #endif
+#ifdef CONFIG_ARCH_CHIP_DEVICE_SDIO
+    {
+        .type           = DEVICE_TYPE_SDIO_BOARD_HW,
+        .name           = "sdio_board",
+        .desc           = "SDIO Board Device Driver",
+        .id             = 0,
+        .resources      = sdio_board_resources,
+        .resource_count = ARRAY_SIZE(sdio_board_resources),
+    },
+#endif
 };
 
 static struct device_table bdb_device_table = {
@@ -169,6 +202,10 @@ static void bdb_driver_register(void)
 #ifdef CONFIG_ARA_BRIDGE_HAVE_LIGHTS
     extern struct device_driver lights_driver;
     device_register_driver(&lights_driver);
+#endif
+#ifdef CONFIG_ARCH_CHIP_DEVICE_SDIO
+    extern struct device_driver sdio_board_driver;
+    device_register_driver(&sdio_board_driver);
 #endif
 }
 #endif
