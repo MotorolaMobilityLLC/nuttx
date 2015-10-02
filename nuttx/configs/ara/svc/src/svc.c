@@ -135,7 +135,7 @@ static int event_mailbox(struct tsb_switch_event *ev) {
     case TSB_MAIL_READY_OTHER:
         svc_ev = svc_event_create(SVC_EVENT_TYPE_READY_OTHER);
         if (!svc_ev) {
-            dbg_error("Couldn't create event\n");
+            dbg_error("Couldn't create TSB_MAIL_READY_OTHER event\n");
         }
         svc_ev->data.ready_other.port = ev->mbox.port;
         list_add(&svc_events, &svc_ev->events);
@@ -510,13 +510,15 @@ static int svc_handle_module_ready(uint8_t portid) {
         return intf_id;
     }
 
-    rc = switch_dme_peer_get(svc->sw, portid, DME_DDBL1_MANUFACTURERID, 0, &unipro_mfg_id);
+    rc = switch_dme_peer_get(svc->sw, portid, DME_DDBL1_MANUFACTURERID, 0,
+                             &unipro_mfg_id);
     if (rc) {
         dbg_error("Failed to read manufacturer id: %d\n", rc);
         return rc;
     }
 
-    rc = switch_dme_peer_get(svc->sw, portid, DME_DDBL1_PRODUCTID, 0, &unipro_prod_id);
+    rc = switch_dme_peer_get(svc->sw, portid, DME_DDBL1_PRODUCTID, 0,
+                             &unipro_prod_id);
     if (rc) {
         dbg_error("Failed to read product id: %d\n", rc);
         return rc;
