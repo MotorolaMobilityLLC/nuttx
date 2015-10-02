@@ -85,10 +85,6 @@ struct mods_spi_dl_s
    */
   __u8 rcvd_payload[MODS_DL_PAYLOAD_MAX_SZ];
   int rcvd_payload_idx;
-
-#ifdef CONFIG_PM
-  enum pm_state_e pmstate;       /* Current power management state */
-#endif
 };
 
 static void setup_exchange(FAR struct mods_spi_dl_s *priv)
@@ -348,23 +344,9 @@ static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
   return OK;
 }
 
-static void pm_notify(struct pm_callback_s *cb, enum pm_state_e state)
-{
-  mods_spi_dl.pmstate = state;
-
-  /* If state is returned to normal and base has requested wake, setup for
-   * SPI exchange.
-   */
-  if ((PM_NORMAL == state) && atomic_get(&mods_spi_dl.wake))
-    {
-      setup_exchange(&mods_spi_dl);
-    }
-}
-
 static struct pm_callback_s pm_callback =
 {
   .prepare = pm_prepare,
-  .notify = pm_notify,
 };
 #endif
 
@@ -374,16 +356,7 @@ static int wake_isr(int irq, void *context)
 
   pm_activity(PM_ACTIVITY_WAKE);
   atomic_inc(&mods_spi_dl.wake);
-
-#ifdef CONFIG_PM
-  /* If running at full speed ("normal"), go ahead and setup SPI exchange.
-   * else, wait until power management returns system state to normal.
-   */
-  if (PM_NORMAL == mods_spi_dl.pmstate)
-#endif
-    {
-      setup_exchange(&mods_spi_dl);
-    }
+  setup_exchange(&mods_spi_dl);
 
   return OK;
 }
