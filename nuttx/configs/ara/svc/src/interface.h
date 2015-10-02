@@ -62,14 +62,22 @@ enum wd_debounce_state {
 /* Wake & Detect debounce time */
 #define WD_DEBOUNCE_TIME_MS         300
 
+/* Hotplug state */
+enum hotplug_state {
+    HOTPLUG_ST_UNKNOWN,             /* Unknown or unitialized */
+    HOTPLUG_ST_PLUGGED,             /* Port is plugged in */
+    HOTPLUG_ST_UNPLUGGED,           /* Nothing plugged in port  */
+};
+
 /*
  * Wake & Detect signals information
  */
 struct wd_data {
-    uint16_t gpio;                  /* GPIO number */
-    enum wd_debounce_state db_state;/* Debounce state */
-    struct timeval debounce_tv;     /* Last time of signal debounce check */
-    struct work_s work;             /* Work queue for delayed state check */
+    uint16_t gpio;                      /* GPIO number */
+    enum wd_debounce_state db_state;    /* Debounce state */
+    enum wd_debounce_state last_state;  /* Last stable debounce state */
+    struct timeval debounce_tv;         /* Last time of signal debounce check */
+    struct work_s work;                 /* Work queue for delayed state check */
 };
 
 #define ARA_IFACE_WD_ACTIVE_LOW     false
@@ -106,6 +114,7 @@ struct interface {
     unsigned int wake_out;
     struct wd_data wake_in;
     struct wd_data detect_in;
+    enum hotplug_state hp_state;
 };
 
 #define interface_foreach(iface, idx)                       \
@@ -137,6 +146,9 @@ static inline int interface_read_wake_detect(void)
 {
     return -EOPNOTSUPP;
 }
+int interface_store_hotplug_state(uint8_t port_id, enum hotplug_state hotplug);
+enum hotplug_state interface_consume_hotplug_state(uint8_t port_id);
+enum hotplug_state interface_get_hotplug_state(struct interface *iface);
 
 /**
  * @brief Test if an interface connects to a built-in peer on the board.

@@ -46,6 +46,7 @@
 #include "interface.h"
 #include "vreg.h"
 #include "string.h"
+#include "svc.h"
 
 #define POWER_OFF_TIME_IN_US            (500000)
 #define WAKEOUT_PULSE_DURATION_IN_US    (100000)
@@ -189,6 +190,62 @@ bool interface_get_pwr_state(struct interface *iface)
     }
 
     return iface->power_state;
+}
+
+
+/*
+ * Interface power control helper, to be used by the DETECT_IN/hotplug
+ * mechanism.
+ *
+ * Power OFF the interface
+ */
+static int interface_power_off(struct interface *iface)
+{
+    int rc;
+
+    if (!iface) {
+        return -EINVAL;
+    }
+
+    rc = interface_pwr_disable(iface);
+    if (rc < 0) {
+        dbg_error("Failed to disable interface %s\n", iface->name);
+        return rc;
+    }
+
+    return 0;
+}
+
+/*
+ * Interface power control helper, to be used by the DETECT_IN/hotplug
+ * mechanism.
+ *
+ * Power ON the interface in order to cleanly reboot the interface
+ * module(s). Then an initial handshake between the module(s) and the
+ * interface can take place.
+ */
+static int interface_power_on(struct interface *iface)
+{
+    int rc;
+
+    if (!iface) {
+        return -EINVAL;
+    }
+
+    /* Power ON and generate WAKE_OUT */
+    rc = interface_pwr_enable(iface);
+    if (rc < 0) {
+        dbg_error("Failed to enable interface %s\n", iface->name);
+        return rc;
+    }
+
+    rc = interface_generate_wakeout(iface, false);
+    if (rc) {
+        dbg_error("Failed to generate wakeout on interface %s\n", iface->name);
+        return rc;
+    }
+
+    return 0;
 }
 
 
@@ -357,6 +414,91 @@ uint8_t interface_pm_get_chan(struct interface *iface)
 
     return iface->pm->chan;
 }
+
+
+/**
+ * @brief Store the hotplug/unplug state of the interface, from the
+ * port ID.
+ *
+ * This function is used to bufferize the last state of the interface
+ * while the AP is not yet ready to accept hotplug events. This prevents
+ * multiple hotplug and hot-unplug events to be sent to the AP when
+ * it is ready.
+ */
+int interface_store_hotplug_state(uint8_t port_id, enum hotplug_state hotplug)
+{
+    irqstate_t flags;
+    int intf_id;
+
+    intf_id = interface_get_id_by_portid(port_id);
+    if (intf_id < 0) {
+        dbg_error("%s: cannot get interface from portId %u\n" , __func__,
+                  port_id);
+        return -EINVAL;
+    }
+
+    flags = irqsave();
+    interfaces[intf_id - 1]->hp_state = hotplug;
+    irqrestore(flags);
+
+    return 0;
+}
+
+
+/**
+ * @brief Consume the hotplug/unplug state of the interface, from the
+ * port ID.
+ *
+ * This function is used to retrieve and clear the state of the interface
+ * in order to generate an event to be sent to the AP.
+ */
+enum hotplug_state interface_consume_hotplug_state(uint8_t port_id)
+{
+    enum hotplug_state hp_state;
+    int intf_id;
+    irqstate_t flags;
+
+    intf_id = interface_get_id_by_portid(port_id);
+    if (intf_id < 0) {
+        return HOTPLUG_ST_UNKNOWN;
+    }
+
+    flags = irqsave();
+    hp_state = interfaces[intf_id - 1]->hp_state;
+    interfaces[intf_id - 1]->hp_state = HOTPLUG_ST_UNKNOWN;
+    irqrestore(flags);
+
+    return hp_state;
+}
+
+
+/**
+ * @brief Get the hotplug state of an interface from the DETECT_IN signal
+ */
+enum hotplug_state interface_get_hotplug_state(struct interface *iface)
+{
+    bool polarity, active;
+    enum hotplug_state hs = HOTPLUG_ST_UNKNOWN;
+    irqstate_t flags;
+
+    flags = irqsave();
+
+    if (iface->detect_in.gpio) {
+        polarity = (iface->flags & ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH) ?
+                   true : false;
+        active = (gpio_get_value(iface->detect_in.gpio) == polarity);
+        if (active) {
+            hs = HOTPLUG_ST_PLUGGED;
+        } else {
+            hs = HOTPLUG_ST_UNPLUGGED;
+        }
+    }
+
+    irqrestore(flags);
+
+    return hs;
+}
+
 
 /**
  * @brief Get the interface struct from the Wake & Detect gpio
@@ -660,6 +802,8 @@ int interface_init(struct interface **ints,
     interface_foreach(ifc, i) {
         ifc->wake_in.db_state = WD_ST_INVALID;
         ifc->detect_in.db_state = WD_ST_INVALID;
+        ifc->wake_in.last_state = WD_ST_INVALID;
+        ifc->detect_in.last_state = WD_ST_INVALID;
         rc = interface_install_wd_handler(&ifc->wake_in);
         if (rc)
             return rc;
