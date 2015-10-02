@@ -783,23 +783,28 @@ int interface_init(struct interface **ints,
     nr_spring_interfaces = nr_spring_ints;
 
     interface_foreach(ifc, i) {
-        rc = interface_pwr_enable(ifc);
-        if (rc < 0) {
-            dbg_error("Failed to enable interface %s\n", ifc->name);
-            interface_exit();
-            return rc;
+        /* Initialize the hotplug state */
+        ifc->hp_state = interface_get_hotplug_state(ifc);
+        /* Power on/off the interface based on the DETECT_IN signal state */
+        switch (ifc->hp_state) {
+        case HOTPLUG_ST_PLUGGED:
+            /* Port is plugged in, power ON the interface */
+            if (interface_power_on(ifc) < 0) {
+                dbg_error("Failed to power ON interface %s\n", ifc->name);
+            }
+            break;
+        case HOTPLUG_ST_UNPLUGGED:
+            /* Port unplugged, power OFF the interface */
+            if (interface_power_off(ifc) < 0) {
+                dbg_error("Failed to power OFF interface %s\n", ifc->name);
+            }
+            break;
+        case HOTPLUG_ST_UNKNOWN:
+        default:
+            break;
         }
-        rc = interface_generate_wakeout(ifc, false);
-        if (rc < 0) {
-            dbg_error("Failed to generate wakeout on interface %s\n",
-                      ifc->name);
-            interface_exit();
-            return rc;
-        }
-    }
 
-    /* Install handlers for WAKE_IN and DETECT_IN signals */
-    interface_foreach(ifc, i) {
+        /* Install handlers for WAKE_IN and DETECT_IN signals */
         ifc->wake_in.db_state = WD_ST_INVALID;
         ifc->detect_in.db_state = WD_ST_INVALID;
         ifc->wake_in.last_state = WD_ST_INVALID;
