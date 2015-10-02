@@ -597,12 +597,31 @@ static int interface_wd_handler(int irq, void *context)
             if (timercmp(&diff, &timeout_tv, >=)) {
                 /* We have a stable signal */
                 wd->db_state = WD_ST_ACTIVE_STABLE;
-                /* Warn higher layers of the new stable active state */
                 dbg_verbose("W&D: got stable %s_%s %s (gpio %d)\n",
                             iface->name,
                             (wd == &iface->wake_in) ? "wake_in" : "detect_in",
                             active ? "Act" : "Ina",
                             irq);
+                /*
+                 * DETECT_IN transition to active
+                 *
+                 * - Power ON the interface
+                 *   Note: If coming back to the active stable state from
+                 *         the same last stable state after an unstable
+                 *         transition, power cycle (OFF/ON) the interface.
+                 *         In that case consecutive hotplug events are
+                 *         sent to the AP.
+                 * - Signal HOTPLUG state to the higher layer
+                 */
+                if (wd == &iface->detect_in) {
+                    if (wd->last_state == WD_ST_ACTIVE_STABLE) {
+                        interface_power_off(iface);
+                    }
+                    interface_power_on(iface);
+                    svc_hot_plug(iface->switch_portid);
+                }
+                /* Save last stable state for power ON/OFF handling */
+                wd->last_state = wd->db_state;
             } else {
                 /* Check for a stable signal after the debounce timeout */
                 interface_wd_delay_check(wd);
@@ -612,7 +631,6 @@ static int interface_wd_handler(int irq, void *context)
             gettimeofday(&wd->debounce_tv, NULL);
             wd->db_state = WD_ST_INACTIVE_DEBOUNCE;
             interface_wd_delay_check(wd);
-            /* Warn the higher layers of the unstable signal */
         }
         break;
     case WD_ST_INACTIVE_DEBOUNCE:
@@ -623,12 +641,23 @@ static int interface_wd_handler(int irq, void *context)
             if (timercmp(&diff, &timeout_tv, >=)) {
                 /* We have a stable signal */
                 wd->db_state = WD_ST_INACTIVE_STABLE;
-                /* Warn higher layers of the new stable inactive state */
                 dbg_verbose("W&D: got stable %s_%s %s (gpio %d)\n",
                             iface->name,
                             (wd == &iface->wake_in) ? "wake_in" : "detect_in",
                             active ? "Act" : "Ina",
                             irq);
+                /*
+                 * DETECT_IN transition to inactive
+                 *
+                 * Power OFF the interface
+                 * Signal HOTPLUG state to the higher layer
+                 */
+                if (wd == &iface->detect_in) {
+                    interface_power_off(iface);
+                    svc_hot_unplug(iface->switch_portid);
+                }
+                /* Save last stable state for power ON/OFF handling */
+                wd->last_state = wd->db_state;
             } else {
                 /* Check for a stable signal after the debounce timeout */
                 interface_wd_delay_check(wd);
@@ -638,7 +667,6 @@ static int interface_wd_handler(int irq, void *context)
             gettimeofday(&wd->debounce_tv, NULL);
             wd->db_state = WD_ST_ACTIVE_DEBOUNCE;
             interface_wd_delay_check(wd);
-            /* Warn the higher layers of the unstable signal */
         }
         break;
     case WD_ST_ACTIVE_STABLE:
@@ -647,7 +675,6 @@ static int interface_wd_handler(int irq, void *context)
             gettimeofday(&wd->debounce_tv, NULL);
             wd->db_state = WD_ST_INACTIVE_DEBOUNCE;
             interface_wd_delay_check(wd);
-            /* Warn the higher layers of the change */
         }
         break;
     case WD_ST_INACTIVE_STABLE:
@@ -656,7 +683,6 @@ static int interface_wd_handler(int irq, void *context)
             gettimeofday(&wd->debounce_tv, NULL);
             wd->db_state = WD_ST_ACTIVE_DEBOUNCE;
             interface_wd_delay_check(wd);
-            /* Warn the higher layers of the change */
         }
         break;
     }
