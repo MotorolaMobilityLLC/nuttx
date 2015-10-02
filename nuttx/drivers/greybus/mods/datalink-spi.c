@@ -50,9 +50,9 @@
 /* Size of payload of individual SPI packet (in bytes) */
 #define MODS_SPI_MSG_PAYLOAD_SZ (32)
 
-#define HDR_BIT_VALID (0x01 << 7)
-#define HDR_BIT_MORE  (0x01 << 6)
-#define HDR_BIT_RSVD  (0x3F << 0)
+#define HDR_BIT_VALID  (0x01 << 7)  /* 1 = valid packet, 0 = dummy packet */
+#define HDR_BIT_RSVD   (0x03 << 5)  /* Reserved */
+#define HDR_BIT_PKTS   (0x1F << 0)  /* How many additional packets to expect */
 
 /* Priority to report to PM framework when WAKE line asserted. */
 #define PM_ACTIVITY_WAKE 10
@@ -68,10 +68,10 @@ struct mods_spi_msg
 
 struct mods_spi_dl_s
 {
-  struct mods_dl_s dl;          /* Externally visible part of the data link interface */
+  struct mods_dl_s dl;           /* Externally visible part of the data link interface */
   FAR struct spi_dev_s *spi;     /* SPI handle */
 
-  struct mods_dl_cb_s *cb;      /* Callbacks to network layer */
+  struct mods_dl_cb_s *cb;       /* Callbacks to network layer */
   atomic_t wake;                 /* Flag to indicate wake line asserted */
   atomic_t xfer;                 /* Flag to indicate transfer in progress */
   struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
@@ -223,7 +223,7 @@ static int txn_finished_cb(void *v)
          MODS_SPI_MSG_PAYLOAD_SZ);
   priv->rcvd_payload_idx += MODS_SPI_MSG_PAYLOAD_SZ;
 
-  if (m->hdr_bits & HDR_BIT_MORE)
+  if (m->hdr_bits & HDR_BIT_PKTS)
     {
       /* Need additional packets */
       goto done;
@@ -281,14 +281,18 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
   irqstate_t flags;
   __u8 *dbuf = (__u8 *)buf;
   int pl_size;
+  int packets;
 
-  vdbg("len=%d\n", len);
+  /* Calculate how many packets are required to send whole payload */
+  packets = (remaining + MODS_SPI_MSG_PAYLOAD_SZ - 1) / MODS_SPI_MSG_PAYLOAD_SZ;
+
+  vdbg("len=%d, packets=%d\n", len, packets);
 
   if (len > MODS_DL_PAYLOAD_MAX_SZ)
       return -E2BIG;
 
   flags = irqsave();
-  while (remaining > 0)
+  while ((remaining > 0) && (packets > 0))
     {
       if (ring_buf_is_consumers(priv->txp_rb))
         {
@@ -299,9 +303,12 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
 
       m = ring_buf_get_data(priv->txp_rb);
 
+      /* Determine the payload size of this packet */
       pl_size = MIN(remaining, MODS_SPI_MSG_PAYLOAD_SZ);
+
+      /* Populate the SPI message */
       m->hdr_bits |= HDR_BIT_VALID;
-      m->hdr_bits |= (remaining > MODS_SPI_MSG_PAYLOAD_SZ) ? HDR_BIT_MORE : 0;
+      m->hdr_bits |= (--packets & HDR_BIT_PKTS);
       memcpy(m->data, dbuf, pl_size);
 
       remaining -= pl_size;
