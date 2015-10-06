@@ -32,6 +32,8 @@
 
 #include <stdio.h>
 
+#include <apps/ara/gb_loopback.h>
+#include <apps/ara/service_mgr.h>
 #include <apps/greybus-utils/utils.h>
 #include <apps/nsh.h>
 
@@ -42,6 +44,16 @@ extern int mods_user_init(void);
 #define MANIFEST_DEVICE_ID 2
 
 extern int wdog_init(void);
+
+static struct srvmgr_service services[] = {
+#if defined(CONFIG_ARA_GB_LOOPBACK)
+    {
+        .name = "gb_loopback",
+        .func = gb_loopback_service,
+    },
+#endif
+    { NULL, NULL }
+};
 
 int mods_main(int argc, char *argv[])
 {
@@ -54,6 +66,7 @@ int mods_main(int argc, char *argv[])
     enable_manifest("IID-1", NULL, MANIFEST_DEVICE_ID);
     mods_attach_init();
     mods_network_init();
+    srvmgr_start(services);
     enable_cports();
 
 #ifdef CONFIG_EXAMPLES_NSH
