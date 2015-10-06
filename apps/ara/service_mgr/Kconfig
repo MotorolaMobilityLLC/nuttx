@@ -32,7 +32,6 @@
 config SERVICE_MANAGER
 	bool "Ara service manager"
 	default n
-	depends on ARCH_CHIP_TSB
 	help
 	  Minimal service manager for ara apps. The application available
 	  from nsh is called srvctl and allows to interact with activated
