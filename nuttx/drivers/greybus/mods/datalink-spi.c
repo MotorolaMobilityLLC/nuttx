@@ -224,7 +224,6 @@ static int txn_finished_cb(void *v)
     }
 
   priv->cb->recv(priv->rcvd_payload, priv->rcvd_payload_idx);
-  memset(priv->rcvd_payload, 0, MODS_SPI_MSG_PAYLOAD_SZ);
   priv->rcvd_payload_idx = 0;
 
 done:
@@ -247,7 +246,7 @@ static int txn_error_cb(void *v)
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
 
-  memset(priv->rcvd_payload, 0, MODS_SPI_MSG_PAYLOAD_SZ);
+  /* Ignore any received payload from previous packets */
   priv->rcvd_payload_idx = 0;
 
   /* Clear transfer setup flag */
