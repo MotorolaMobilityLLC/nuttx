@@ -97,6 +97,10 @@ static struct {
         .restype        = DEVICE_RESOURCE_TYPE_IRQ,
         .restype_str    = "IRQ",
     },
+    {
+        .restype        = DEVICE_RESOURCE_TYPE_GPIO,
+        .restype_str    = "GPIO",
+    },
 };
 
 static char *dev_restype_to_str(enum device_resource_type restype)
