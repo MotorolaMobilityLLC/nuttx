@@ -127,6 +127,6 @@ static struct device_driver_ops usb3813_driver_ops = {
 struct device_driver usb3813_driver = {
     .type = DEVICE_TYPE_HSIC_DEVICE,
     .name = "usb3813",
-    .desc = "USB3813 HSIC Hub",
+    .desc = "USB3813 HSIC Hub Driver",
     .ops = &usb3813_driver_ops,
 };

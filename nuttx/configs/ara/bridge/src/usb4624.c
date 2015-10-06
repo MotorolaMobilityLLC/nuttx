@@ -127,6 +127,6 @@ static struct device_driver_ops usb4624_driver_ops = {
 struct device_driver usb4624_driver = {
     .type = DEVICE_TYPE_HSIC_DEVICE,
     .name = "usb4624",
-    .desc = "USB4624 HSIC Hub",
+    .desc = "USB4624 HSIC Hub Driver",
     .ops = &usb4624_driver_ops,
 };
