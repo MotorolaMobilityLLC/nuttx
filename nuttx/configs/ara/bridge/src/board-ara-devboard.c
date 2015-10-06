@@ -121,7 +121,7 @@ static struct device devices[] = {
     {
         .type           = DEVICE_TYPE_BATTERY_DEVICE,
         .name           = "ara_bridge_battery",
-        .desc           = "ARA BRIDGE BATTERY Driver",
+        .desc           = "Ara Bridge Battery Controller",
         .id             = 0,
     },
 #endif
@@ -129,7 +129,7 @@ static struct device devices[] = {
     {
         .type           = DEVICE_TYPE_HID_HW,
         .name           = "hid_touch",
-        .desc           = "Multi-Touch HID Driver",
+        .desc           = "Multi-Touch HID Controller",
         .id             = 0,
     },
 #endif
@@ -137,7 +137,7 @@ static struct device devices[] = {
     {
         .type           = DEVICE_TYPE_LIGHTS_HW,
         .name           = "lights",
-        .desc           = "Lights Device Driver",
+        .desc           = "Lights Device Controller",
         .id             = 0,
     },
 #endif
