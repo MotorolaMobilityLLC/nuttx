@@ -261,6 +261,6 @@ static struct device_driver_ops tsb_dma_driver_ops = {
 struct device_driver tsb_dma_driver = {
         .type = DEVICE_TYPE_DMA_HW,
         .name = "tsb_dma",
-        .desc = "TSB DMA Device",
+        .desc = "TSB DMA Driver",
         .ops = &tsb_dma_driver_ops
 };

@@ -1037,6 +1037,6 @@ static struct device_driver_ops tsb_spi_driver_ops = {
 struct device_driver tsb_spi_driver = {
     .type       = DEVICE_TYPE_SPI_HW,
     .name       = "tsb_spi",
-    .desc       = "TSB SPI Driver",
+    .desc       = "TSB SPI BitBang Driver",
     .ops        = &tsb_spi_driver_ops,
 };

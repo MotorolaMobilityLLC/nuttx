@@ -1159,6 +1159,6 @@ static struct device_driver_ops tsb_pwm_driver_ops = {
 struct device_driver tsb_pwm_driver = {
     .type       = DEVICE_TYPE_PWM_HW,
     .name       = "tsb_pwm",
-    .desc       = "TTSB PWM Controller",
+    .desc       = "TTSB PWM Driver",
     .ops        = &tsb_pwm_driver_ops,
 };
