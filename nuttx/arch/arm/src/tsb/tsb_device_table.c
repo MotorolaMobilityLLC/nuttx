@@ -196,7 +196,7 @@ static struct device tsb_devices[] = {
     {
         .type           = DEVICE_TYPE_USB_HCD,
         .name           = "dwc2_hcd",
-        .desc           = "DWC2 USB Host controller",
+        .desc           = "DWC2 USB Host Controller",
         .id             = 0,
     },
 #endif
@@ -204,7 +204,7 @@ static struct device tsb_devices[] = {
     {
         .type           = DEVICE_TYPE_USB_PCD,
         .name           = "dwc2_pcd",
-        .desc           = "DWC2 USB Device controller",
+        .desc           = "DWC2 USB Device Controller",
         .id             = 0,
     },
 #endif
@@ -224,7 +224,7 @@ static struct device tsb_devices[] = {
     {
         .type           = DEVICE_TYPE_SPI_HW,
         .name           = "tsb_spi",
-        .desc           = "TSB SPI master Controller",
+        .desc           = "TSB SPI Master Controller",
         .id             = 0,
         .resources      = tsb_spi_resources,
         .resource_count = ARRAY_SIZE(tsb_spi_resources),
@@ -246,7 +246,7 @@ static struct device tsb_devices[] = {
     {
         .type           = DEVICE_TYPE_DMA_HW,
         .name           = "tsb_dma",
-        .desc           = "TSB DMA Device",
+        .desc           = "TSB DMA Controller",
         .id             = 0,
     },
 #endif
