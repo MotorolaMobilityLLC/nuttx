@@ -32,6 +32,7 @@
 #include <arch/byteorder.h>
 #include <nuttx/arch.h>
 #include <nuttx/progmem.h>
+#include <nuttx/version.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/unipro/unipro.h>
@@ -239,6 +240,8 @@ static uint8_t gb_control_get_ids(struct gb_operation *operation)
     response->unipro_prod_id = CONFIG_UNIPRO_PROD_ID;
     response->ara_vend_id = CONFIG_ARA_VEND_ID;
     response->ara_prod_id = CONFIG_ARA_PROD_ID;
+    response->fw_version =
+            cpu_to_le32(CONFIG_VERSION_MAJOR << 16 | CONFIG_VERSION_MINOR);
 
 #ifdef CONFIG_ARCH_UID
     /* Populate the UID from the microprocessor */
