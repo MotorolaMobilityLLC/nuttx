@@ -32,7 +32,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <nuttx/util.h>
-#include <nuttx/greybus/unipro.h>
+#include <nuttx/unipro/unipro.h>
 
 #include "svc.h"
 #include "tsb_switch.h"

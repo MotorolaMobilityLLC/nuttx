@@ -34,7 +34,7 @@
 #define DBG_COMP    DBG_SWITCH
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
-#include <nuttx/greybus/unipro.h>
+#include <nuttx/unipro/unipro.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/wait.h>

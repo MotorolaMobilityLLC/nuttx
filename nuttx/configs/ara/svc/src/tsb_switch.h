@@ -37,7 +37,7 @@
 #include <sched.h>
 
 #include <nuttx/list.h>
-#include <nuttx/greybus/unipro.h>
+#include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
 
 #include "interface.h"
