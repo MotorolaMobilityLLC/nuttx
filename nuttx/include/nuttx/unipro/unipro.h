@@ -431,6 +431,10 @@ static inline int unipro_attr_peer_write(uint16_t attr,
  * modes.
  */
 enum unipro_pwr_mode {
+    /*
+     * These four values go into DME attributes. Don't change them.
+     */
+
     /** Permanently in FAST_STATE; i.e. a high speed (HS) M-PHY gear. */
     UNIPRO_FAST_MODE = 1,
     /** Permanently in SLOW_STATE; i.e. a PWM M-PHY gear. */
@@ -440,15 +444,18 @@ enum unipro_pwr_mode {
     /** Alternating automatically between SLOW_STATE (PWM) and SLEEP_STATE. */
     UNIPRO_SLOWAUTO_MODE = 5,
 
-    /** Hibernate mode */
-    UNIPRO_HIBERNATE_MODE = -1,
-    /** Powered off */
-    UNIPRO_OFF_MODE = -2,
+    /*
+     * These values are random and can be changed if needd.
+     */
 
+    /** Hibernate mode */
+    UNIPRO_HIBERNATE_MODE = 100,
+    /** Powered off */
+    UNIPRO_OFF_MODE = 101,
     /**
      * Special value to use when you don't want to change one link
      * direction's power mode */
-    UNIPRO_MODE_UNCHANGED = 7,
+    UNIPRO_MODE_UNCHANGED = 102,
 };
 
 /** @brief UniPro frequency series in high speed mode. */
@@ -486,7 +493,7 @@ struct unipro_pwr_user_data {
     uint16_t upro_pwr_afc1_req_timeout;
     const uint16_t reserved_tc2[3];
     const uint16_t reserved_tc3[3];
-};
+} __attribute__((__packed__));
 
 /**
  * @brief UniPro link per-direction configuration.
@@ -495,9 +502,9 @@ struct unipro_pwr_user_data {
  */
 struct unipro_pwr_cfg {
     enum unipro_pwr_mode  upro_mode;   /**< Power mode to set. */
-    unsigned int          upro_gear;   /**< M-PHY gear to use. */
-    unsigned int          upro_nlanes; /**< Number of active data lanes. */
-};
+    uint8_t               upro_gear;   /**< M-PHY gear to use. */
+    uint8_t               upro_nlanes; /**< Number of active data lanes. */
+} __attribute__((__packed__));
 
 /**
  * @brief UniPro link configuration.
@@ -513,8 +520,8 @@ struct unipro_link_cfg {
 #   define UPRO_LINKF_TX_TERMINATION (1U << 0) /**< TX termination is on. */
 #   define UPRO_LINKF_RX_TERMINATION (1U << 1) /**< RX termination is on. */
 #   define UPRO_LINKF_SCRAMBLING     (1U << 2) /**< Scrambling request. */
-    unsigned int flags;
-};
+    uint32_t flags;
+} __attribute__((__packed__));
 
 #define UNIPRO_PWR_CFG(_mode, gear, nlanes)                             \
     {                                                                   \
