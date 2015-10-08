@@ -40,6 +40,8 @@
 
 #include <nuttx/progmem.h>
 
+#define GB_FIRMWARE_TFTF_HDR_SIZE         512
+
 /* Version of the Greybus firmware protocol we support */
 #define GB_FIRMWARE_VERSION_MAJOR         0x00
 #define GB_FIRMWARE_VERSION_MINOR         0x01
@@ -96,6 +98,14 @@ struct gb_firmware_ready_to_boot_request {
     __u8      status;
 } __packed;
 /* Firmware protocol Ready to boot response has no payload */
+
+/* There is some useful information in the tftf header that we may want to */
+/* save off for the future.  This is just a stand in for that information  */
+/* since header_size is probably the least useful field (it is a fixed     */
+/* value)                                                                  */
+struct gb_firmware_tftf_header {
+    uint32_t header_size;
+};
 
 #define GB_FIRMWARE_FLASH_DELAY_MS 1000
 
@@ -242,16 +252,83 @@ static int gb_firmware_flash_chunk(uint32_t offset, uint8_t *data, size_t size)
     return (int)err;
 }
 
-static int gb_firmware_get_firmware(size_t size)
+static int gb_firmware_get_header(
+        size_t firmware_size,
+        struct gb_firmware_tftf_header *hdr)
 {
+    struct gb_operation *operation;
     struct gb_firmware_get_firmware_request *request;
     struct gb_firmware_get_firmware_response *response;
+    int ret = -ENOENT;
+
+    if (firmware_size < GB_FIRMWARE_TFTF_HDR_SIZE)
+        goto out;
+
+    operation = gb_operation_create(g_firmware_info->cport,
+            GB_FIRMWARE_TYPE_GET_FIRMWARE, sizeof(*request));
+    if (!operation) {
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    request = (struct gb_firmware_get_firmware_request *)
+    gb_operation_get_request_payload(operation);
+    if (!request) {
+        ret = -EIO;
+        goto cleanup;
+    }
+
+    request->offset = 0;
+    request->size = GB_FIRMWARE_TFTF_HDR_SIZE;
+
+    ret = gb_operation_send_request_sync(operation);
+    if (ret != GB_OP_SUCCESS) {
+        gb_error("failed to send firmware request\n");
+        ret = -EIO;
+        goto cleanup;
+    }
+
+    if (!operation->response) {
+        gb_error("No firmware received\n");
+        gb_operation_destroy(operation);
+        ret = -EIO;
+        goto cleanup;
+    }
+
+    response = gb_operation_get_request_payload(operation->response);
+
+    if (!memcmp(response->data, "TFTF", 4)) {
+        uint32_t *hdr_size_ptr = (uint32_t *)&response->data[4];
+        hdr->header_size =  *hdr_size_ptr;
+        ret = 0;
+    }
+
+cleanup:
+    gb_operation_destroy(operation);
+out:
+    return ret;
+}
+
+static int gb_firmware_get_firmware(size_t size)
+{
     struct gb_operation *operation;
+    struct gb_firmware_get_firmware_request *request;
+    struct gb_firmware_get_firmware_response *response;
     ssize_t remaining = size;
-    uint32_t offset = 0;
+    uint32_t fetch_offset = 0;
+    uint32_t write_offset = 0;
+    struct gb_firmware_tftf_header hdr = { .header_size = 0 };
     int ret;
 
-    ret = gb_firmware_setup_flash(size);
+    ret = gb_firmware_get_header(size, &hdr);
+    if (!ret) {                                             /* Header found */
+        fetch_offset = hdr.header_size;
+        remaining = size - fetch_offset;
+    } else if (ret != -ENOENT)       /* Error other than not finding header */
+        return ret;
+
+    /* erase program memory */
+    ret = gb_firmware_setup_flash(remaining);
     if (ret)
         return ret;
 
@@ -263,15 +340,14 @@ static int gb_firmware_get_firmware(size_t size)
             break;
         }
 
-        request = (struct gb_firmware_get_firmware_request *)
-        gb_operation_get_request_payload(operation);
+        request = gb_operation_get_request_payload(operation);
         if (!request) {
             gb_operation_destroy(operation);
             ret = -EIO;
             break;
         }
 
-        request->offset = offset;
+        request->offset = fetch_offset;
         request->size = MIN(g_firmware_info->chunk_size, remaining);
 
         ret = gb_operation_send_request_sync(operation);
@@ -291,7 +367,7 @@ static int gb_firmware_get_firmware(size_t size)
 
         response = gb_operation_get_request_payload(operation->response);
 
-        ret = gb_firmware_flash_chunk(offset, response->data, request->size);
+        ret = gb_firmware_flash_chunk(write_offset, response->data, request->size);
         if (ret) {
             /* well this isn't good!  what can we really do */
             gb_error("FLASHING FAILED!!!\n")
@@ -299,9 +375,11 @@ static int gb_firmware_get_firmware(size_t size)
             break;
         }
 
-        offset += request->size;
+        fetch_offset += request->size;
+        write_offset += request->size;
         remaining -= request->size;
         gb_debug("remaining bytes = %d\n", remaining);
+
         gb_operation_destroy(operation);
     }
 
