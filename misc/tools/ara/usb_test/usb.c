@@ -146,7 +146,7 @@ void recv_data_cb(struct libusb_transfer *response)
         goto complete;
     }
 
-    if (!memcmp(transfer->buffer, response->buffer, response->length))
+    if (memcmp(transfer->buffer, response->buffer, response->length))
         transfer_error++;
 
  complete:
@@ -363,6 +363,12 @@ int main(int argc, char *argv[])
     if (dev_handle)
         libusb_close(dev_handle);
     libusb_exit(ctx);
+
+    if (transfer_error) {
+        printf("%d/%d transfers failed\n",
+               transfer_error, param.count);
+        r = -1;
+    }
 
     return r;
 }
