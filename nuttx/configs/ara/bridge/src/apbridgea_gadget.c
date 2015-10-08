@@ -1502,6 +1502,7 @@ int usbdev_apbinitialize(struct device *dev,
     struct apbridge_driver_s *drvr;
     int ret;
     unsigned int i;
+    unsigned int cport_count = unipro_cport_count();
 
     /* Allocate the structures needed */
 
@@ -1528,7 +1529,7 @@ int usbdev_apbinitialize(struct device *dev,
         goto errout_with_alloc;
     }
 
-    for (i = 0; i < unipro_cport_count(); i++) {
+    for (i = 0; i < cport_count; i++) {
         priv->cport_to_epin_n[i] = CONFIG_APBRIDGE_EPBULKIN;
     }
     sem_init(&priv->config_sem, 0, 0);

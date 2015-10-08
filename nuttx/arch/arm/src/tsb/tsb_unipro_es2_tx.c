@@ -184,6 +184,7 @@ static void *unipro_tx_worker(void *data)
     int i;
     bool is_busy;
     int retval;
+    unsigned int cport_count = unipro_cport_count();
 
     while (1) {
         /* Block until a buffer is pending on any CPort */
@@ -192,7 +193,7 @@ static void *unipro_tx_worker(void *data)
         do {
             is_busy = false;
 
-            for (i = 0; i < unipro_cport_count(); i++) {
+            for (i = 0; i < cport_count; i++) {
                 /* Browse all CPorts sending any pending buffers */
                 retval = unipro_send_tx_buffer(cport_handle(i));
                 if (retval == -EBUSY) {

@@ -544,7 +544,7 @@ uint16_t unipro_get_tx_free_buffer_space(struct cport *cport)
 static void dump_regs(void) {
     uint32_t val;
     unsigned int rc;
-    unsigned int i;
+    unsigned int i, cport_count;
 
 #define DBG_ATTR(attr) do {                  \
     unipro_attr_local_read(attr, &val, 0, &rc); \
@@ -636,7 +636,8 @@ static void dump_regs(void) {
 
     lldbg("Connected CPorts:\n");
     lldbg("========================================\n");
-    for (i = 0; i < unipro_cport_count(); i++) {
+    cport_count = unipro_cport_count();
+    for (i = 0; i < cport_count; i++) {
         struct cport *cport = cport_handle(i);
         if (!cport) {
             continue;
@@ -722,11 +723,12 @@ int unipro_init_cport(unsigned int cportid)
  */
 void unipro_init(void)
 {
-    unsigned int i;
+    unsigned int i, cport_count;
     int retval;
     struct cport *cport;
 
-    cporttable = zalloc(sizeof(struct cport) * unipro_cport_count());
+    cport_count = unipro_cport_count();
+    cporttable = zalloc(sizeof(struct cport) * cport_count);
     if (!cporttable) {
         return;
     }
@@ -738,7 +740,7 @@ void unipro_init(void)
         return;
     }
 
-    for (i = 0; i < unipro_cport_count(); i++) {
+    for (i = 0; i < cport_count; i++) {
         cport = &cporttable[i];
         cport->tx_buf = CPORT_TX_BUF(i);
         cport->rx_buf = CPORT_RX_BUF(i);
@@ -764,7 +766,7 @@ void unipro_init(void)
      * Initialize cports.
      */
     unipro_write(UNIPRO_INT_EN, 0x0);
-    for (i = 0; i < unipro_cport_count(); i++) {
+    for (i = 0; i < cport_count; i++) {
         unipro_init_cport(i);
     }
     unipro_write(UNIPRO_INT_EN, 0x1);

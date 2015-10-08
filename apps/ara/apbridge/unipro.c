@@ -65,12 +65,13 @@ static struct unipro_driver unipro_driver = {
 static void unipro_backend_init(void)
 {
     int i;
+    unsigned int cport_count = unipro_cport_count();
 
     /* unipro_init() will initialize any non-display, non-camera CPorts */
     unipro_init();
 
     /* Now register a driver for those CPorts */
-    for (i = 0; i < unipro_cport_count(); i++) {
+    for (i = 0; i < cport_count; i++) {
         /* These cports are already allocated for display and camera */
         if (i == CPORTID_CDSI0 || i == CPORTID_CDSI1)
             continue;

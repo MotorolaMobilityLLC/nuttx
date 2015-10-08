@@ -186,12 +186,12 @@ static struct dma_channel *pick_free_dma_channel(void)
     return channel;
 }
 
-static struct unipro_xfer_descriptor *pick_tx_descriptor(void)
+static struct unipro_xfer_descriptor *pick_tx_descriptor(unsigned int cport_count)
 {
     struct unipro_xfer_descriptor *desc;
     int i;
 
-    for (i = 0; i < unipro_cport_count(); i++) {
+    for (i = 0; i < cport_count; i++) {
         struct cport *cport = cport_handle(i);
         if (!cport)
             continue;
@@ -259,6 +259,7 @@ static void *unipro_tx_worker(void *data)
 {
     struct dma_channel *channel;
     struct unipro_xfer_descriptor *desc;
+    unsigned int cport_count = unipro_cport_count();
 
     while (1) {
         /* Block until a buffer is pending on any CPort */
@@ -266,7 +267,7 @@ static void *unipro_tx_worker(void *data)
 
         channel = pick_free_dma_channel();
         do {
-            desc = pick_tx_descriptor();
+            desc = pick_tx_descriptor(cport_count);
         } while (!desc);
 
         unipro_dma_xfer(desc, channel);

@@ -804,12 +804,14 @@ uint8_t gb_operation_get_request_result(struct gb_operation *operation)
 int gb_init(struct gb_transport_backend *transport)
 {
     int i;
+    unsigned int cport_count;
 
     if (!transport)
         return -EINVAL;
 
-    g_cport = zalloc(sizeof(struct gb_cport_driver) * unipro_cport_count());
-    for (i = 0; i < unipro_cport_count(); i++) {
+    cport_count = unipro_cport_count();
+    g_cport = zalloc(sizeof(struct gb_cport_driver) * cport_count);
+    for (i = 0; i < cport_count; i++) {
         sem_init(&g_cport[i].rx_fifo_lock, 0, 0);
         list_init(&g_cport[i].rx_fifo);
         list_init(&g_cport[i].tx_fifo);
