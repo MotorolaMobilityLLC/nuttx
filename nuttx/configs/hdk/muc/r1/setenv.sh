@@ -109,7 +109,7 @@ function _menuconfig()
 }
 
 alias mm="_build_nuttx $WD"
-alias flash="st-flash write $WD/nuttx.bin 0x8000000"
+alias flash="st-flash --reset write $WD/nuttx.bin 0x8008000"
 alias mc="_menuconfig $WD"
 alias dl="_diff_locals $WD"
 alias cl="_cp_locals $WD"
