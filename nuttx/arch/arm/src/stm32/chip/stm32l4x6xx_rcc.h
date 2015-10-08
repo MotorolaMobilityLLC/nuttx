@@ -408,6 +408,24 @@
 #  define RCC_CCIPR_USART2SEL_SYSCLK (1 << RCC_CCIPR_USART2SEL_SHIFT) /* 01: SYSCLK selected as USART2 clock */
 #  define RCC_CCIPR_USART2SEL_HSI    (2 << RCC_CCIPR_USART2SEL_SHIFT) /* 10: HSI clock selected as USART2 clock */
 #  define RCC_CCIPR_USART2SEL_LSE    (3 << RCC_CCIPR_USART2SEL_SHIFT) /* 11: LSE clock selected as USART2 clock */
+#define RCC_CCIPR_USART3SEL_SHIFT    (4)       /* Bits 4-5: USART3 clock source selection */
+#define RCC_CCIPR_USART3SEL_MASK     (3 << RCC_CCIPR_USART3SEL_SHIFT)
+#  define RCC_CCIPR_USART3SEL_PCLK   (0 << RCC_CCIPR_USART3SEL_SHIFT) /* 00: PCLK selected as USART3 clock */
+#  define RCC_CCIPR_USART3SEL_SYSCLK (1 << RCC_CCIPR_USART3SEL_SHIFT) /* 01: SYSCLK selected as USART3 clock */
+#  define RCC_CCIPR_USART3SEL_HSI    (2 << RCC_CCIPR_USART3SEL_SHIFT) /* 10: HSI clock selected as USART3 clock */
+#  define RCC_CCIPR_USART3SEL_LSE    (3 << RCC_CCIPR_USART3SEL_SHIFT) /* 11: LSE clock selected as USART3 clock */
+#define RCC_CCIPR_UART4SEL_SHIFT     (6)       /* Bits 6-7: UART4 clock source selection */
+#define RCC_CCIPR_UART4SEL_MASK      (3 << RCC_CCIPR_UART4SEL_SHIFT)
+#  define RCC_CCIPR_UART4SEL_PCLK    (0 << RCC_CCIPR_UART4SEL_SHIFT) /* 00: PCLK selected as UART4 clock */
+#  define RCC_CCIPR_UART4SEL_SYSCLK  (1 << RCC_CCIPR_UART4SEL_SHIFT) /* 01: SYSCLK selected as UART4 clock */
+#  define RCC_CCIPR_UART4SEL_HSI     (2 << RCC_CCIPR_UART4SEL_SHIFT) /* 10: HSI clock selected as UART4 clock */
+#  define RCC_CCIPR_UART4SEL_LSE     (3 << RCC_CCIPR_UART4SEL_SHIFT) /* 11: LSE clock selected as UART4 clock */
+#define RCC_CCIPR_UART5SEL_SHIFT     (8)       /* Bits 8-9: UART5 clock source selection */
+#define RCC_CCIPR_UART5SEL_MASK      (3 << RCC_CCIPR_UART5SEL_SHIFT)
+#  define RCC_CCIPR_UART5SEL_PCLK    (0 << RCC_CCIPR_UART5SEL_SHIFT) /* 00: PCLK selected as UART5 clock */
+#  define RCC_CCIPR_UART5SEL_SYSCLK  (1 << RCC_CCIPR_UART5SEL_SHIFT) /* 01: SYSCLK selected as UART5 clock */
+#  define RCC_CCIPR_UART5SEL_HSI     (2 << RCC_CCIPR_UART5SEL_SHIFT) /* 10: HSI clock selected as UART5 clock */
+#  define RCC_CCIPR_UART5SEL_LSE     (3 << RCC_CCIPR_UART5SEL_SHIFT) /* 11: LSE clock selected as UART5 clock */
 #define RCC_CCIPR_ADCSEL_SHIFT       (28)       /* Bits 28-29: ADCs clock source selection */
 #define RCC_CCIPR_ADCSEL_MASK        (3 << RCC_CCIPR_ADCSEL_SHIFT)
 #  define RCC_CCIPR_ADCSEL_NONE      (0 << RCC_CCIPR_ADCSEL_SHIFT) /* 00: No clock selected */

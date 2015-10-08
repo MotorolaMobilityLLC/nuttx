@@ -515,7 +515,11 @@ static struct up_dev_s g_usart1priv =
   .bits          = CONFIG_USART1_BITS,
   .stopbits2     = CONFIG_USART1_2STOP,
   .baud          = CONFIG_USART1_BAUD,
+#ifdef STM32_USART1_FREQUENCY
+  .apbclock      = STM32_USART1_FREQUENCY,
+#else
   .apbclock      = STM32_PCLK2_FREQUENCY,
+#endif
   .usartbase     = STM32_USART1_BASE,
   .tx_gpio       = GPIO_USART1_TX,
   .rx_gpio       = GPIO_USART1_RX,
@@ -577,7 +581,11 @@ static struct up_dev_s g_usart2priv =
   .bits          = CONFIG_USART2_BITS,
   .stopbits2     = CONFIG_USART2_2STOP,
   .baud          = CONFIG_USART2_BAUD,
+#ifdef STM32_USART2_FREQUENCY
+  .apbclock      = STM32_USART2_FREQUENCY,
+#else
   .apbclock      = STM32_PCLK1_FREQUENCY,
+#endif
   .usartbase     = STM32_USART2_BASE,
   .tx_gpio       = GPIO_USART2_TX,
   .rx_gpio       = GPIO_USART2_RX,
@@ -639,7 +647,11 @@ static struct up_dev_s g_usart3priv =
   .bits          = CONFIG_USART3_BITS,
   .stopbits2     = CONFIG_USART3_2STOP,
   .baud          = CONFIG_USART3_BAUD,
+#ifdef STM32_USART3_FREQUENCY
+  .apbclock      = STM32_USART3_FREQUENCY,
+#else
   .apbclock      = STM32_PCLK1_FREQUENCY,
+#endif
   .usartbase     = STM32_USART3_BASE,
   .tx_gpio       = GPIO_USART3_TX,
   .rx_gpio       = GPIO_USART3_RX,
@@ -707,7 +719,11 @@ static struct up_dev_s g_uart4priv =
   .oflow         = false,
 #endif
   .baud          = CONFIG_UART4_BAUD,
+#ifdef STM32_UART4_FREQUENCY
+  .apbclock      = STM32_UART4_FREQUENCY,
+#else
   .apbclock      = STM32_PCLK1_FREQUENCY,
+#endif
   .usartbase     = STM32_UART4_BASE,
   .tx_gpio       = GPIO_UART4_TX,
   .rx_gpio       = GPIO_UART4_RX,
@@ -773,7 +789,11 @@ static struct up_dev_s g_uart5priv =
   .oflow         = false,
 #endif
   .baud           = CONFIG_UART5_BAUD,
+#ifdef STM32_UART5_FREQUENCY
+  .apbclock       = STM32_UART5_FREQUENCY,
+#else
   .apbclock       = STM32_PCLK1_FREQUENCY,
+#endif
   .usartbase      = STM32_UART5_BASE,
   .tx_gpio        = GPIO_UART5_TX,
   .rx_gpio        = GPIO_UART5_RX,
@@ -833,7 +853,11 @@ static struct up_dev_s g_usart6priv =
   .bits           = CONFIG_USART6_BITS,
   .stopbits2      = CONFIG_USART6_2STOP,
   .baud           = CONFIG_USART6_BAUD,
+#ifdef STM32_USART6_FREQUENCY
+  .apbclock       = STM32_USART6_FREQUENCY,
+#else
   .apbclock       = STM32_PCLK2_FREQUENCY,
+#endif
   .usartbase      = STM32_USART6_BASE,
   .tx_gpio        = GPIO_USART6_TX,
   .rx_gpio        = GPIO_USART6_RX,
@@ -895,7 +919,11 @@ static struct up_dev_s g_uart7priv =
   .bits           = CONFIG_UART7_BITS,
   .stopbits2      = CONFIG_UART7_2STOP,
   .baud           = CONFIG_UART7_BAUD,
+#ifdef STM32_UART7_FREQUENCY
+  .apbclock       = STM32_UART7_FREQUENCY,
+#else
   .apbclock       = STM32_PCLK1_FREQUENCY,
+#endif
   .usartbase      = STM32_UART7_BASE,
   .tx_gpio        = GPIO_UART7_TX,
   .rx_gpio        = GPIO_UART7_RX,
@@ -957,7 +985,11 @@ static struct up_dev_s g_uart8priv =
   .bits           = CONFIG_UART8_BITS,
   .stopbits2      = CONFIG_UART8_2STOP,
   .baud           = CONFIG_UART8_BAUD,
+#ifdef STM32_UART8_FREQUENCY
+  .apbclock       = STM32_UART8_FREQUENCY,
+#else
   .apbclock       = STM32_PCLK1_FREQUENCY,
+#endif
   .usartbase      = STM32_UART8_BASE,
   .tx_gpio        = GPIO_UART8_TX,
   .rx_gpio        = GPIO_UART8_RX,

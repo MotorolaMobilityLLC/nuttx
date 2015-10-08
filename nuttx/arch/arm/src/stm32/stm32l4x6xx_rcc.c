@@ -436,7 +436,7 @@ static inline void rcc_enableccip(void)
    * will at least have a clock.
    */
 
-   regval = getreg32(STM32_RCC_CCIPR);
+  regval = getreg32(STM32_RCC_CCIPR);
 
 #if defined(CONFIG_STM32_OTGFS) || defined(CONFIG_STM32_RNG)
   /* TODO: What is a good default 48 MHz clock source? */
@@ -447,7 +447,34 @@ static inline void rcc_enableccip(void)
   regval |= RCC_CCIPR_ADCSEL_SYSCLK;
 #endif
 
-   putreg32(regval, STM32_RCC_CCIPR);
+#ifdef STM32_BOARD_USEHSI
+#if defined(CONFIG_STM32_USART1) && (STM32_USART1_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set USART1 to use HSI clock */
+  regval |= RCC_CCIPR_USART1SEL_HSI;
+#endif
+
+#if defined(CONFIG_STM32_USART2) && (STM32_USART2_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set USART2 to use HSI clock */
+  regval |= RCC_CCIPR_USART2SEL_HSI;
+#endif
+
+#if defined(CONFIG_STM32_USART3) && (STM32_USART3_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set USART3 to use HSI clock */
+  regval |= RCC_CCIPR_USART3SEL_HSI;
+#endif
+
+#if defined(CONFIG_STM32_UART4) && (STM32_UART4_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set UART4 to use HSI clock */
+  regval |= RCC_CCIPR_UART4SEL_HSI;
+#endif
+
+#if defined(CONFIG_STM32_UART5) && (STM32_UART5_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set UART5 to use HSI clock */
+  regval |= RCC_CCIPR_UART5SEL_HSI;
+#endif
+#endif /* STM32_BOARD_USEHSI */
+
+  putreg32(regval, STM32_RCC_CCIPR);
 }
 
 /****************************************************************************
@@ -486,7 +513,9 @@ static void stm32_stdclockconfig(void)
         break;
       }
   }
-#elif defined(STM32_BOARD_USEHSE)
+#endif
+
+#ifdef STM32_BOARD_USEHSE
   /* Enable External High-Speed Clock (HSE) */
 
   regval  = getreg32(STM32_RCC_CR);
@@ -506,7 +535,9 @@ static void stm32_stdclockconfig(void)
         break;
       }
   }
-#else
+#endif
+
+#ifdef STM32_BOARD_USEMSI
   /* Set MSI clock to 8 MHz */
 
   regval  = getreg32(STM32_RCC_CR);
@@ -572,19 +603,9 @@ static void stm32_stdclockconfig(void)
 
       /* Set the PLL dividers and multiplers to configure the main PLL */
 
-#ifdef STM32_BOARD_USEHSI
       regval = (STM32_PLLCFG_PLLM | STM32_PLLCFG_PLLN | STM32_PLLCFG_PLLP |
-                RCC_PLLCFG_PLLSRC_HSI | STM32_PLLCFG_PLLQ | STM32_PLLCFG_PLLR |
+                STM32_PLLCFG_PLLSRC | STM32_PLLCFG_PLLQ | STM32_PLLCFG_PLLR |
                 RCC_PLLCFG_PLLREN);
-#elif defined(STM32_BOARD_USEHSE)
-      regval = (STM32_PLLCFG_PLLM | STM32_PLLCFG_PLLN | STM32_PLLCFG_PLLP |
-                RCC_PLLCFG_PLLSRC_HSE | STM32_PLLCFG_PLLQ | STM32_PLLCFG_PLLR |
-                RCC_PLLCFG_PLLREN);
-#else
-      regval = (STM32_PLLCFG_PLLM | STM32_PLLCFG_PLLN | STM32_PLLCFG_PLLP |
-                RCC_PLLCFG_PLLSRC_MSI | STM32_PLLCFG_PLLQ | STM32_PLLCFG_PLLR |
-                RCC_PLLCFG_PLLREN);
-#endif
       putreg32(regval, STM32_RCC_PLLCFG);
 
       /* Enable the main PLL */
@@ -630,13 +651,13 @@ static void stm32_stdclockconfig(void)
 
 static inline void rcc_enableperipherals(void)
 {
+  rcc_enableccip();
   rcc_enableahb1();
   rcc_enableahb2();
   rcc_enableahb3();
   rcc_enableapb1_1();
   rcc_enableapb1_2();
   rcc_enableapb2();
-  rcc_enableccip();
 }
 
 /****************************************************************************
