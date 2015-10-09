@@ -512,6 +512,10 @@ CONFIG_NPTHREAD_KEYS=4
 # CONFIG_SCHED_INSTRUMENTATION is not set
 
 #
+# Performance Tracking
+#
+
+#
 # Files and I/O
 #
 CONFIG_DEV_CONSOLE=y
