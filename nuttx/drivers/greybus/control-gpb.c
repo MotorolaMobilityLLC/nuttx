@@ -31,7 +31,7 @@
 #include <string.h>
 #include <arch/byteorder.h>
 #include <nuttx/arch.h>
-#include <nuttx/progmem.h>
+#include <nuttx/bootmode.h>
 #include <nuttx/version.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
@@ -156,38 +156,11 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
  */
 static uint8_t gb_control_reboot_flash(struct gb_operation *operation)
 {
-#ifdef CONFIG_PROGMEM
-    const static uint32_t REBOOT_FLASH_VAL[] = { 0x424f4f54, 0x4d4f4445 };
-    size_t written;
-    size_t last_page = up_progmem_npages() - 1;
-    size_t page_size = up_progmem_pagesize(last_page);
-    size_t addr = up_progmem_getaddress(last_page);
+    if (gb_bootmode_set(BOOTMODE_REQUEST_FLASH))
+        gb_error("error setting boot state to flash\n");
 
-    if ((REBOOT_FLASH_VAL[0] == ((uint32_t *)addr)[0]) &&
-        (REBOOT_FLASH_VAL[1] == ((uint32_t *)addr)[1])) {
-        gb_info("already set so skip writing\n");
-        goto do_reset;
-    }
-
-    /* return of this function is backwards 0 = true */
-    if (up_progmem_ispageerased(last_page) != 0) {
-        gb_debug("erasing page %d\n", last_page);
-        written = up_progmem_erasepage(last_page);
-        if (written != page_size) {
-            gb_error("error erasing page\n");
-            goto do_reset;
-        }
-    }
-
-    written = up_progmem_write(addr, REBOOT_FLASH_VAL,
-            sizeof(REBOOT_FLASH_VAL));
-    if (written != sizeof(REBOOT_FLASH_VAL))
-        gb_error("error writing flash\n");
-
-do_reset:
 #ifdef CONFIG_ARCH_HAVE_SYSRESET
     up_systemreset(); /* will not return */
-#endif
 #endif
 
     return GB_OP_SUCCESS;
