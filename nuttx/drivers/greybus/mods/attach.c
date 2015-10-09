@@ -62,6 +62,18 @@ struct mods_attach_data_s
 
 static struct mods_attach_data_s *mods_attach_data;
 
+static enum base_attached_e read_base_state(void)
+{
+  enum base_attached_e base_state;
+
+  base_state  = (gpio_get_value(GPIO_MODS_SL_BPLUS_EN)   & 0x01) << 0;
+#ifdef GPIO_MODS_SL_FORCEFLASH
+  base_state |= (gpio_get_value(GPIO_MODS_SL_FORCEFLASH) & 0x01) << 1;
+#endif
+
+  return base_state;
+}
+
 static void base_attach_worker(FAR void *arg)
 {
   struct mods_attach_data_s *ad = (struct mods_attach_data_s *)arg;
@@ -70,11 +82,7 @@ static void base_attach_worker(FAR void *arg)
   struct list_head *iter_next;
   struct notify_node_s *node;
 
-  base_state  = (gpio_get_value(GPIO_MODS_SL_BPLUS_EN)   & 0x01) << 0;
-#ifdef GPIO_MODS_SL_FORCEFLASH
-  base_state |= (gpio_get_value(GPIO_MODS_SL_FORCEFLASH) & 0x01) << 1;
-#endif
-
+  base_state = read_base_state();
   if (ad->base_state != base_state)
     {
       dbg("base_state=%d\n", base_state);
@@ -145,9 +153,8 @@ int mods_attach_init(void)
   set_gpio_triggering(GPIO_MODS_SL_FORCEFLASH, IRQ_TYPE_EDGE_BOTH);
 #endif
 
-  /* Run work immediately to get initial state of base */
-  work_queue(HPWORK, &mods_attach_data->attach_work,
-             base_attach_worker, mods_attach_data, 0);
+  /* Get the initial state of base */
+  mods_attach_data->base_state = read_base_state();
 
   return 0;
 }
