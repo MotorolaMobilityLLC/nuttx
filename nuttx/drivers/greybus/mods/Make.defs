@@ -37,6 +37,10 @@ ifeq ($(CONFIG_GREYBUS_MODS),y)
 CSRCS += attach.c
 CSRCS += network.c
 
+ifeq ($(CONFIG_PROGMEM),y)
+CSRCS += bootmode.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_MODS_SPI),y)
 CSRCS += datalink-spi.c
 endif
