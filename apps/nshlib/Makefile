@@ -132,6 +132,10 @@ ifeq ($(CONFIG_NETUTILS_CODECS),y)
 CSRCS += nsh_codeccmd.c
 endif
 
+ifeq ($(CONFIG_USEC_MEASURE_PERF),y)
+CSRCS += nsh_proctrackcmds.c
+endif
+
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
 

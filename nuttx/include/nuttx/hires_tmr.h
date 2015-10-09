@@ -41,6 +41,7 @@
 #ifdef CONFIG_ARCH_HAVE_HIRES_TIMER
 extern void hrt_gettimespec(struct timespec *ts);
 extern uint32_t hrt_getusec(void);
+extern void hrt_clear_rollover(void);
 #else
 static inline void hrt_gettimespec(struct timespec *ts)
 {

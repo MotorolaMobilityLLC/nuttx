@@ -58,6 +58,10 @@ ifeq ($(CONFIG_SCHED_CPULOAD),y)
 SCHED_SRCS += sched_cpuload.c
 endif
 
+ifeq ($(CONFIG_USEC_MEASURE_PERF),y)
+SCHED_SRCS += sched_perf_counter.c
+endif
+
 ifeq ($(CONFIG_SCHED_TICKLESS),y)
 SCHED_SRCS += sched_timerexpiration.c
 else

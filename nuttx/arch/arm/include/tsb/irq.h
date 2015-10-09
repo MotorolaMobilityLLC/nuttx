@@ -183,6 +183,8 @@ extern "C" {
 void tsb_dumpnvic(void);
 void tsb_irq_clear_pending(int);
 
+FAR const char* tsb_irq_name(int irq);
+
 #undef EXTERN
 #ifdef __cplusplus
 }

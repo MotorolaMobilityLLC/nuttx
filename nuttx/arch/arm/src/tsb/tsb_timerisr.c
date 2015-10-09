@@ -141,9 +141,6 @@ int up_timerisr(int irq, uint32_t *regs)
 {
     /* Process timer interrupt */
     sched_process_timer();
-    htr_rollover = false;
-    /* Clear the clock rollover bit */
-    getreg32(NVIC_SYSTICK_CTRL);
 
     return 0;
 }
@@ -158,6 +155,17 @@ void up_timer_initialize(void)
              NVIC_SYSTICK_CTRL_TICKINT   |
              NVIC_SYSTICK_CTRL_ENABLE,
              NVIC_SYSTICK_CTRL);
+}
+
+/*
+ * Ensure that the rollover indicator is reset after incrementing
+ * clock_systimer otherwise other the next call to timer_snapshot
+ * in IRQ state will be wrong
+ */
+void hrt_clear_rollover(void)
+{
+    getreg32(NVIC_SYSTICK_CTRL);
+    htr_rollover = false;
 }
 
 /*

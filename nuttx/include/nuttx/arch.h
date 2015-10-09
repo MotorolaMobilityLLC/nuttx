@@ -1,3 +1,31 @@
+/*
+ * Copyright (c) 2015 Google, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from this
+ * software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 /****************************************************************************
  * include/nuttx/arch.h
  *
@@ -51,7 +79,7 @@
  *    architecture-specific implementation in arch/
  *
  *    NOTE: up_ is supposed to stand for microprocessor; the u is like the
- *    Greek letter micron: µ. So it would be µP which is a common shortening
+ *    Greek letter micron: Âµ. So it would be ÂµP which is a common shortening
  *    of the word microprocessor.
  *
  * 2. Microprocessor-Specific Interfaces.
@@ -1699,6 +1727,116 @@ void sched_alarm_expiration(FAR const struct *ts);
 
 #if defined(CONFIG_SCHED_CPULOAD) && defined(CONFIG_SCHED_CPULOAD_EXTCLK)
 void weak_function sched_process_cpuload(void);
+#endif
+
+#if defined(CONFIG_USEC_MEASURE_PERF)
+/************************************************************************
+ * Name: get_perf_time
+ *
+ * Description:
+ *   Get the number of uSec since performance tracking was started
+ *   function will turn off interrupts before taking reading
+ *
+ * Inputs:
+ *   none
+ *
+ * Return Value:
+ *   uSec since last perftracking session was started
+ *
+ * Assumptions/Limitations:
+ *    timer rolls over every (1.19 hours)
+ *
+ ************************************************************************/
+inline uint32_t get_perf_time(void);
+
+/************************************************************************
+ * Name: start_perf_track
+ *
+ * Description:
+ *   Start or reset performance tracking.
+ *
+ * Inputs:
+ *   None
+ *
+ * Return Value:
+ *   None
+ *
+ ************************************************************************/
+void start_perf_track(void);
+
+/************************************************************************
+ * Name: stop_perf_track
+ *
+ * Description:
+ *   Stop performance tracking and gather performance data.
+ *
+ * Inputs:
+ *   ToDo
+ *
+ * Return Value:
+ *   OK (0) on success
+ *   -EPERM_STR
+ *
+ ************************************************************************/
+int stop_perf_track(void);
+
+/************************************************************************
+ * Name: get_total_perf_time
+ *
+ * Description:
+ *   Get the time performance tracking is or was active
+ *
+ * Inputs:
+ *   none
+ *
+ * Return Value:
+ *   Time from when performance tracking started to when it stopped.
+ *   or
+ *   If performance tracking has not stopped return time up till now.
+ *
+ ************************************************************************/
+uint32_t get_total_perf_time(void);
+
+/************************************************************************
+ * Name: irq_perf_foreach
+ *
+ * Description:
+ *   Every interrupt is enumerated and passed to handler of
+ *   "irq_perf_foreach_t" type.
+ *
+ * Inputs:
+ *   handler - irq_perf_foreach_t
+ *   arg - passed from original caller
+ *
+ * Return Value:
+ *   void
+ *
+ ************************************************************************/
+
+typedef void (*irq_perf_foreach_t)(int irq, FAR const char *name, uint32_t time, FAR void *arg);
+
+void irq_perf_foreach(irq_perf_foreach_t handler, FAR void *arg);
+
+/************************************************************************
+ * Name: sched_perf_foreach
+ *
+ * Description:
+ *   Every tcb is enumerated and passed to handler of
+ *   "sched_perf_foreach_t" type.
+ *
+ *   Each terminated process also tracked
+ *
+ * Inputs:
+ *   handler - sched_perf_foreach_t
+ *   arg - passed from original caller
+ *
+ * Return Value:
+ *   void
+ *
+ ************************************************************************/
+typedef void (*sched_perf_foreach_t)(pid_t pid, FAR const char *name, uint32_t time, FAR void *arg);
+
+void sched_perf_foreach(sched_perf_foreach_t handler, FAR void *arg);
 #endif
 
 /****************************************************************************

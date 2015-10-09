@@ -329,3 +329,66 @@ void tsb_dumpnvic(void) {
 
     irqrestore(flags);
 }
+
+#ifdef CONFIG_USEC_MEASURE_PERF
+
+/************************************************************************
+ * Name: tsb_irq_name
+ *
+ * Description:
+ *   Return a string name per irq number.
+ *
+ * Parameters:
+ *   irq - irq number
+ *
+ *   If invalid irq number is given string "IRQ_TOO_LARGE" is returned
+ *
+ * Return Value:
+ *   None
+ *
+ * Assumptions:
+ *
+ ************************************************************************/
+
+const char *irq_base_names[] = {
+	"IRQ_UNKNOWN",
+	"IRQ_UNKNOWN",
+	"IRQ_NMI",
+	"IRQ_HARDFAULT",
+	"IRQ_MEMFAULT",
+	"IRQ_BUSFAULT",
+	"IRQ_USAGEFAULT",
+	"IRQ_UNKNOWN",
+	"IRQ_UNKNOWN",
+	"IRQ_UNKNOWN",
+	"IRQ_UNKNOWN",
+	"IRQ_UNKNOWN",
+	"IRQ_SVCALL",
+	"IRQ_DBGMONITOR",
+	"IRQ_PENDSV",
+	"IRQ_SYSTICK"
+};
+
+/* macro to allow compile time checks with sizeof operator */
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
+
+FAR const char* tsb_irq_name(int irq)
+{
+	/* cause compile time assert if string array sizes are not aligned with size macros */
+	BUILD_BUG_ON((sizeof(irq_names)/sizeof(irq_names[0]) != ARMV7M_PERIPHERAL_INTERRUPTS));
+	BUILD_BUG_ON((sizeof(irq_base_names)/sizeof(irq_base_names[0]) != TSB_IRQ_EXT_BASE));
+	BUILD_BUG_ON(NR_IRQS != (TSB_IRQ_EXT_BASE + ARMV7M_PERIPHERAL_INTERRUPTS));
+
+    if(irq >= NR_IRQS)
+    {
+        return "IRQ_TOO_LARGE";
+    }
+    else if(irq < TSB_IRQ_EXT_BASE)
+    {
+        return irq_base_names[irq];
+    }
+
+    return irq_names[irq];
+}
+
+#endif

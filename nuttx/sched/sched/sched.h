@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2015 Google, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from this
+ * software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
 /****************************************************************************
  * sched/sched/sched.h
  *
@@ -90,6 +119,9 @@ struct pidhash_s
   pid_t pid;                   /* The full PID value */
 #ifdef CONFIG_SCHED_CPULOAD
   uint32_t ticks;              /* Number of ticks on this thread */
+#endif
+#ifdef CONFIG_USEC_MEASURE_PERF
+  uint32_t thread_time;         /* current uSec of thread use */
 #endif
 };
 
@@ -248,6 +280,19 @@ void sched_timer_reassess(void);
 
 #if defined(CONFIG_SCHED_CPULOAD) && !defined(CONFIG_SCHED_CPULOAD_EXTCLK)
 void weak_function sched_process_cpuload(void);
+#endif
+
+#if defined(CONFIG_USEC_MEASURE_PERF)
+void init_perf_track(void);
+
+inline uint32_t get_perf_time(void);
+inline uint32_t get_perf_diff_from_last(uint32_t current_time);
+
+void sched_track_switch(struct tcb_s* new_tcb);
+inline void sched_track_irq_stop(void);
+inline void sched_track_irq_start (int irq);
+void sched_track_pre_exit(struct tcb_s* dead_tcb);
+void sched_track_post_exit(struct tcb_s* new_tcb);
 #endif
 
 bool sched_verifytcb(FAR struct tcb_s *tcb);

@@ -525,6 +525,30 @@ config SCHED_INSTRUMENTATION
 
 endmenu # Performance Monitoring
 
+
+menu "Performance Tracking"
+
+config USEC_MEASURE_PERF
+
+    bool "Enable uSec CPU Performance Tracking"
+    default n
+    depends on ARCH_BOARD_ARA_BRIDGE
+    select SCHED_CPULOAD_EXTCLK if SCHED_TICKLESS
+    ---help---
+    Tracking each task and IRQ at context switch time to the uSec granularity.
+    Tracking is enabled/reset by calling API start_perf_track.
+    Tracking is stopped by calling API stop_perf_track.
+
+    Nuttx shell command "pt" can be used to control performance tracking
+    directly by the a user.
+
+    Timing is rounded to nearest micro-second.
+
+    Limitation of 1.19 hours traking time.
+    32bit rollover of 1 uSec counter limits traking time.
+
+endmenu # Performance Tracking
+
 menu "Files and I/O"
 
 config DEV_CONSOLE
