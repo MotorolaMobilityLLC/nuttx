@@ -32,13 +32,13 @@
 #include <stdlib.h>
 #include <nuttx/arch.h>
 #include <arch/byteorder.h>
+#include <nuttx/bootmode.h>
 #include <nuttx/clock.h>
+#include <nuttx/progmem.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 #include <apps/greybus-utils/manifest.h>
 #include <nuttx/wqueue.h>
-
-#include <nuttx/progmem.h>
 
 #define GB_FIRMWARE_TFTF_HDR_SIZE         512
 
@@ -327,6 +327,12 @@ static int gb_firmware_get_firmware(size_t size)
     } else if (ret != -ENOENT)       /* Error other than not finding header */
         return ret;
 
+    ret = gb_bootmode_set(BOOTMODE_FLASHING);
+    if (ret) {
+        gb_error("failed to write FLASHING barker\n");
+        return ret;
+    }
+
     /* erase program memory */
     ret = gb_firmware_setup_flash(remaining);
     if (ret)
@@ -381,6 +387,10 @@ static int gb_firmware_get_firmware(size_t size)
         gb_debug("remaining bytes = %d\n", remaining);
 
         gb_operation_destroy(operation);
+    }
+
+    if (!ret) {
+        ret = gb_bootmode_set(BOOTMODE_NORMAL);
     }
 
     return ret;
