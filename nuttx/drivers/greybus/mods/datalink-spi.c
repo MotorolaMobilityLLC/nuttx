@@ -72,6 +72,7 @@ struct mods_spi_dl_s
   FAR struct spi_dev_s *spi;     /* SPI handle */
 
   struct mods_dl_cb_s *cb;       /* Callbacks to network layer */
+  enum base_attached_e bstate;   /* Base state (attached/detached) */
   atomic_t xfer;                 /* Flag to indicate transfer in progress */
   struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
   struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
@@ -153,6 +154,8 @@ static void cleanup_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
 static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)arg;
+
+  priv->bstate = state;
 
   if (state == BASE_DETACHED)
     {
@@ -279,7 +282,10 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
   /* Calculate how many packets are required to send whole payload */
   packets = (remaining + MODS_SPI_MSG_PAYLOAD_SZ - 1) / MODS_SPI_MSG_PAYLOAD_SZ;
 
-  vdbg("len=%d, packets=%d\n", len, packets);
+  vdbg("len=%d, packets=%d, bstate=%d\n", len, packets, priv->bstate);
+
+  if (priv->bstate != BASE_ATTACHED)
+      return -ENODEV;
 
   if (len > MODS_DL_PAYLOAD_MAX_SZ)
       return -E2BIG;
