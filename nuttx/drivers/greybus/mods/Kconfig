@@ -1,0 +1,22 @@
+choice
+	prompt "Select a Mods bus"
+config GREYBUS_MODS_SPI
+	bool "SPI"
+
+config GREYBUS_MODS_I2C
+	bool "I2C"
+endchoice
+
+config GREYBUS_MODS_PORT
+	int "Mods Port Number"
+	default 1
+	---help---
+		Bus port to use to communicate with base (default 1).
+
+if GREYBUS_MODS_I2C
+
+config GREYBUS_MODS_I2C_ADDR
+	hex "Mods I2C Address"
+	default 0x55
+
+endif

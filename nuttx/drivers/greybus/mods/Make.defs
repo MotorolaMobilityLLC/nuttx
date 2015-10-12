@@ -1,5 +1,5 @@
 ############################################################################
-# drivers/greybus/slice/Make.defs
+# drivers/greybus/mods/Make.defs
 #
 #   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
 #
@@ -32,22 +32,22 @@
 #
 ############################################################################
 
-ifeq ($(CONFIG_GREYBUS_SLICE),y)
+ifeq ($(CONFIG_GREYBUS_MODS),y)
 
 CSRCS += attach.c
 CSRCS += network.c
 
-ifeq ($(CONFIG_GREYBUS_SLICE_SPI),y)
+ifeq ($(CONFIG_GREYBUS_MODS_SPI),y)
 CSRCS += datalink-spi.c
 endif
 
-ifeq ($(CONFIG_GREYBUS_SLICE_I2C),y)
+ifeq ($(CONFIG_GREYBUS_MODS_I2C),y)
 CSRCS += datalink-i2c.c
 endif
 
-# Include Slice build support
+# Include Mods build support
 
-DEPPATH += --dep-path greybus$(DELIM)slice
-VPATH += :greybus$(DELIM)slice
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)greybus$(DELIM)slice}
+DEPPATH += --dep-path greybus$(DELIM)mods
+VPATH += :greybus$(DELIM)mods
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)greybus$(DELIM)mods}
 endif

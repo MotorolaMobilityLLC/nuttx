@@ -26,68 +26,73 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _GREYBUS_SLICE_DATALINK_H_
-#define _GREYBUS_SLICE_DATALINK_H_
+#ifndef _GREYBUS_MODS_H_
+#define _GREYBUS_MODS_H_
 
 /*
- * Maximum total size (in bytes) of Slice message that can be sent to data
- * link layer.
+ * Base attach logic assumes this enum order. Do not change without changing
+ * both!
  */
-#define SLICE_DL_PAYLOAD_MAX_SZ (1024)
+
+enum base_attached_e
+{
+  BASE_DETACHED,
+  BASE_ATTACHED,
+  BASE_ATTACHED_OFF,
+  BASE_INVALID,
+};
+
+/* The type of the base attach/detach callback function */
+
+typedef void (*mods_attach_t)(void *arg, enum base_attached_e state);
 
 /****************************************************************************
- * Name: SLICE_DL_SEND
+ * Name: mods_attach_init
  *
  * Description:
- *   Send data over physical layer to the base. Required.
- *
- * Input Parameters:
- *   dev - Device-specific state data
- *   buf - A pointer to the buffer of data to be sent
- *   len - The length of the buffer to send
- *
- * Returned Value:
- *   0 on success, negative errno on failure.
- *
- ****************************************************************************/
-
-#define SLICE_DL_SEND(d,b,l) ((d)->ops->send(d,b,l))
-
-struct slice_dl_s;
-struct slice_dl_ops_s
-{
-  int  (*send)(FAR struct slice_dl_s *dev, FAR const void *buf, size_t len);
-};
-
-struct slice_dl_cb_s
-{
-  int  (*recv)(FAR const void *buf, size_t len);
-};
-
-/*
- * Slice data link private data.  This structure only defines the initial
- * fields of the structure visible to the client.  The specific implementation
- * may add additional, data link specific fields.
- */
-struct slice_dl_s
-{
-  FAR struct slice_dl_ops_s *ops;
-};
-
-/****************************************************************************
- * Name: slice_dl_init
- *
- * Description:
- *   Initialize the Slice data link layer.
+ *   Initialize the Mods attach notifications.
  *
  * Input Parameter:
- *   cb - callback structure
+ *   (None)
  *
  * Returned Value:
- *   Valid Slice data link structure reference on succcess; a NULL on failure
+ *   0 on success or negative errno on failure
  *
  ****************************************************************************/
 
-FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb);
+int mods_attach_init(void);
 
-#endif /* _GREYBUS_SLICE_DATALINK_H_ */
+/****************************************************************************
+ * Name: mods_attach_register
+ *
+ * Description:
+ *   Register for Mods attach/detach notifications.
+ *
+ * Input Parameters:
+ *   callback - Function to call on Mods attach/detach events.
+ *   arg      - Parameter to pass to callback function.
+ *
+ * Returned Value:
+ *   0 on success or negative errno on failure
+ *
+ ****************************************************************************/
+
+int mods_attach_register(mods_attach_t callback, void *arg);
+
+/****************************************************************************
+ * Name: mods_network_init
+ *
+ * Description:
+ *   Initialize the Mods network layer.
+ *
+ * Input Parameter:
+ *   (None)
+ *
+ * Returned Value:
+ *   0 on success or negative errno on failure
+ *
+ ****************************************************************************/
+
+int mods_network_init(void);
+
+#endif /* _GREYBUS_MODS_H_ */

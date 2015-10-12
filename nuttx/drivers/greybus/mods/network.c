@@ -37,9 +37,9 @@
 
 #include "datalink.h"
 
-#define SLICE_NUM_CPORTS         (32)
+#define MODS_NUM_CPORTS         (32)
 
-struct slice_msg
+struct mods_msg
 {
   __le16  size;
   __u8    dest_cport;
@@ -49,21 +49,21 @@ struct slice_msg
 
 unsigned int unipro_cport_count(void)
 {
-  return SLICE_NUM_CPORTS;
+  return MODS_NUM_CPORTS;
 }
 
-/* Maps Slice cport numbers to base cport numbers */
-static __u8 to_base_cport[SLICE_NUM_CPORTS];
+/* Maps Mods cport numbers to base cport numbers */
+static __u8 to_base_cport[MODS_NUM_CPORTS];
 
-/* Handle to Slice data link layer */
-static struct slice_dl_s *dl;
+/* Handle to Mods data link layer */
+static struct mods_dl_s *dl;
 
 /* Preallocated buffer for network messages */
-static __u8 network_buffer[SLICE_DL_PAYLOAD_MAX_SZ];
+static __u8 network_buffer[MODS_DL_PAYLOAD_MAX_SZ];
 
 static int network_recv(const void *buf, size_t len)
 {
-  struct slice_msg *m = (struct slice_msg *)buf;
+  struct mods_msg *m = (struct mods_msg *)buf;
 
   if (m->size >= len)
     {
@@ -71,7 +71,7 @@ static int network_recv(const void *buf, size_t len)
       return -EINVAL;
     }
 
-  if (m->dest_cport < SLICE_NUM_CPORTS)
+  if (m->dest_cport < MODS_NUM_CPORTS)
     {
       /* Save base cport so response can be sent back correctly */
       to_base_cport[m->dest_cport] = m->src_cport;
@@ -82,21 +82,21 @@ static int network_recv(const void *buf, size_t len)
   return 0;
 }
 
-struct slice_dl_cb_s slice_dl_cb =
+struct mods_dl_cb_s mods_dl_cb =
 {
   .recv = network_recv,
 };
 
 static void network_init(void)
 {
-  dl = slice_dl_init(&slice_dl_cb);
+  dl = mods_dl_init(&mods_dl_cb);
 }
 
 static int network_send(unsigned int cportid, const void *buf, size_t len)
 {
-  struct slice_msg *m = (struct slice_msg *)network_buffer;
+  struct mods_msg *m = (struct mods_msg *)network_buffer;
 
-  if (len > (SLICE_DL_PAYLOAD_MAX_SZ - sizeof(struct slice_msg)))
+  if (len > (MODS_DL_PAYLOAD_MAX_SZ - sizeof(struct mods_msg)))
       return -ENOMEM;
 
   m->size = len;
@@ -104,7 +104,7 @@ static int network_send(unsigned int cportid, const void *buf, size_t len)
   m->src_cport = cportid;
   memcpy(m->gb_msg, buf, len);
 
-  return SLICE_DL_SEND(dl, m, len + sizeof(struct slice_msg));
+  return MODS_DL_SEND(dl, m, len + sizeof(struct mods_msg));
 }
 
 static int network_listen(unsigned int cport)
@@ -119,7 +119,7 @@ static int network_stop_listening(unsigned int cport)
   return 0;
 }
 
-struct gb_transport_backend slice_network =
+struct gb_transport_backend mods_network =
 {
   .init = network_init,
   .send = network_send,
@@ -127,7 +127,7 @@ struct gb_transport_backend slice_network =
   .stop_listening = network_stop_listening,
 };
 
-int slice_network_init(void)
+int mods_network_init(void)
 {
-  return gb_init(&slice_network);
+  return gb_init(&mods_network);
 }

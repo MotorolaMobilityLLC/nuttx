@@ -38,7 +38,7 @@
 #include <nuttx/list.h>
 #include <nuttx/util.h>
 
-#include <arch/board/slice.h>
+#include <arch/board/mods.h>
 
 #include "datalink.h"
 
@@ -50,18 +50,18 @@
 
 static int i2c_write_cb(void *v);
 
-struct slice_i2c_msg
+struct mods_i2c_msg
 {
     uint8_t checksum;
     uint8_t hdr_bits;
     uint8_t data[I2C_BUF_SIZE];
 } __packed;
 
-struct slice_i2c_data
+struct mods_i2c_data
 {
   /* interfaces up in the stack layer */
-  struct slice_dl_s dl;
-  struct slice_dl_cb_s *cb;
+  struct mods_dl_s dl;
+  struct mods_dl_cb_s *cb;
 
   /* interfaces down in the stack */
   FAR struct i2c_dev_s *dev;
@@ -71,7 +71,7 @@ struct slice_i2c_data
   uint32_t rx_ndx;
   uint8_t rx_buf[I2C_BUF_SIZE];
 
-  uint8_t rx_payload[SLICE_DL_PAYLOAD_MAX_SZ];
+  uint8_t rx_payload[MODS_DL_PAYLOAD_MAX_SZ];
   int rx_payload_ndx;
 
   /* tx */
@@ -83,7 +83,7 @@ struct slice_i2c_data
 struct fifo_entry
 {
     union {
-        struct slice_i2c_msg *msg;
+        struct mods_i2c_msg *msg;
         uint8_t *payload;
     };
     int size;
@@ -100,7 +100,7 @@ static inline struct fifo_entry *fifo_entry_alloc(void)
       return NULL;
 
   entry->ndx = 0;
-  entry->size = sizeof(struct slice_i2c_msg);
+  entry->size = sizeof(struct mods_i2c_msg);
 
   entry->payload = (uint8_t *)zalloc(entry->size);
   if (!entry->payload)
@@ -133,9 +133,9 @@ static inline uint8_t calc_checksum(uint8_t *data, size_t len)
 
 /* called from transport_send                        */
 /* put the data on the tx_fifo and trigger the write */
-static int i2c_send(FAR struct slice_dl_s *dev, const void *buf, size_t len)
+static int i2c_send(FAR struct mods_dl_s *dev, const void *buf, size_t len)
 {
-  struct slice_i2c_data *slf = (struct slice_i2c_data *)dev;
+  struct mods_i2c_data *slf = (struct mods_i2c_data *)dev;
   struct fifo_entry *entry;
   size_t remaining;
   irqstate_t irq_flags;
@@ -145,7 +145,7 @@ static int i2c_send(FAR struct slice_dl_s *dev, const void *buf, size_t len)
   int i;
   uint8_t * dbuf = (uint8_t *)buf;
 
-  if (len > SLICE_DL_PAYLOAD_MAX_SZ)
+  if (len > MODS_DL_PAYLOAD_MAX_SZ)
     {
       lowsyslog("request too big\n");
       return -E2BIG;
@@ -173,7 +173,7 @@ static int i2c_send(FAR struct slice_dl_s *dev, const void *buf, size_t len)
    }
 
   /* trigger write */
-  slice_host_int_set(true);
+  mods_host_int_set(true);
 
   return 0;
 }
@@ -183,7 +183,7 @@ static int i2c_send(FAR struct slice_dl_s *dev, const void *buf, size_t len)
 /* once the fifo entry has been sent, then remove it */
 static int i2c_write_cb(void *v)
 {
-  struct slice_i2c_data *slf = (struct slice_i2c_data *)v;
+  struct mods_i2c_data *slf = (struct mods_i2c_data *)v;
   struct fifo_entry *entry;
   uint8_t val = 0;
 
@@ -200,7 +200,7 @@ static int i2c_write_cb(void *v)
         }
         if ((entry->ndx == 1) && (list_count(&slf->tx_fifo) == 1))
         {
-            slice_host_int_set(false);
+            mods_host_int_set(false);
         }
     }
 
@@ -212,7 +212,7 @@ static int i2c_write_cb(void *v)
 /* here we just fill the buffer until stop_cb is called */
 static int i2c_read_cb(void *v)
 {
-  struct slice_i2c_data *slf = (struct slice_i2c_data *)v;
+  struct mods_i2c_data *slf = (struct mods_i2c_data *)v;
   uint8_t val;
 
   slf->in_rx = true;
@@ -230,16 +230,16 @@ static int i2c_read_cb(void *v)
 /* called when when the i2c read transaction is complete */
 static int i2c_stop_cb(void *v)
 {
-  struct slice_i2c_data *slf = (struct slice_i2c_data *)v;
+  struct mods_i2c_data *slf = (struct mods_i2c_data *)v;
 
   if (slf->in_rx)
     {
-      struct slice_i2c_msg *msg = (struct slice_i2c_msg *)slf->rx_buf;
+      struct mods_i2c_msg *msg = (struct mods_i2c_msg *)slf->rx_buf;
 
       slf->in_rx = false;
       slf->rx_ndx = 0;
 
-      if (slf->rx_payload_ndx + I2C_BUF_SIZE > SLICE_DL_PAYLOAD_MAX_SZ)
+      if (slf->rx_payload_ndx + I2C_BUF_SIZE > MODS_DL_PAYLOAD_MAX_SZ)
         {
           slf->rx_payload_ndx = 0;
           return -EINVAL;
@@ -286,25 +286,25 @@ static struct i2c_cb_ops_s i2c_cb_ops =
   .stop = i2c_stop_cb,
 };
 
-static struct slice_dl_ops_s slice_dl_ops =
+static struct mods_dl_ops_s mods_dl_ops =
 {
   .send = i2c_send,
 };
 
-static struct slice_i2c_data i2c_data = 
+static struct mods_i2c_data i2c_data =
 {
-  .dl  = { &slice_dl_ops },
+  .dl  = { &mods_dl_ops },
 };
 
-FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
+FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
 {
   i2c_data.cb = cb;
-  i2c_data.dev = up_i2cinitialize(CONFIG_GREYBUS_SLICE_PORT);
+  i2c_data.dev = up_i2cinitialize(CONFIG_GREYBUS_MODS_PORT);
 
   list_init(&i2c_data.tx_fifo);
   i2c_data.in_rx = false;
 
-  if (I2C_SETOWNADDRESS(i2c_data.dev, CONFIG_GREYBUS_SLICE_I2C_ADDR, 7) == OK)
+  if (I2C_SETOWNADDRESS(i2c_data.dev, CONFIG_GREYBUS_MODS_I2C_ADDR, 7) == OK)
     {
       I2C_REGISTERCALLBACK(i2c_data.dev, &i2c_cb_ops, &i2c_data);
       lowsyslog("I2C primary slave setup complete!\n");
@@ -314,5 +314,5 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
       lowsyslog("I2C primary slave setup failed!\n");
     }
 
-  return (FAR struct slice_dl_s*)&i2c_data;
+  return (FAR struct mods_dl_s*)&i2c_data;
 }

@@ -31,13 +31,13 @@
 #include <fcntl.h>
 #include <stdlib.h>
 
-#ifdef CONFIG_GREYBUS_SLICE
-#  include <arch/board/slice.h>
+#ifdef CONFIG_GREYBUS_MODS
+#  include <arch/board/mods.h>
 #endif
 
 #include <nuttx/greybus/greybus.h>
-#ifdef CONFIG_GREYBUS_SLICE
-#  include <nuttx/greybus/slice.h>
+#ifdef CONFIG_GREYBUS_MODS
+#  include <nuttx/greybus/mods.h>
 #endif
 
 #ifdef CONFIG_RAMLOG_SYSLOG
@@ -49,7 +49,7 @@
 #define GB_VENDOR_MOTO_VERSION_MAJOR     0
 #define GB_VENDOR_MOTO_VERSION_MINOR     1
 
-#ifdef CONFIG_GREYBUS_SLICE
+#ifdef CONFIG_GREYBUS_MODS
 static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
   switch (state)
@@ -57,7 +57,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       case BASE_ATTACHED_OFF:
         {
           /* Base is off and/or dead. Enable base charging to recover. */
-          slice_vbus_en_sw(true);
+          mods_vbus_en_sw(true);
           dbg("Base charging is enabled\n");
           break;
         }
@@ -68,7 +68,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       default:
         {
           /* Ensure that base charging is disabled */
-          slice_vbus_en_sw(false);
+          mods_vbus_en_sw(false);
           dbg("Base charging is disabled\n");
           break;
         }
@@ -96,8 +96,8 @@ static uint8_t gb_vendor_moto_charge_base(struct gb_operation *operation)
 
     lowsyslog("charge_base: enable=%d\n", request->enable);
 
-#ifdef CONFIG_GREYBUS_SLICE
-    slice_vbus_en_sw(request->enable > 0);
+#ifdef CONFIG_GREYBUS_MODS
+    mods_vbus_en_sw(request->enable > 0);
 #endif
 
     return GB_OP_SUCCESS;
@@ -157,8 +157,8 @@ static uint8_t gb_vendor_moto_get_last_dmesg(struct gb_operation *operation)
 
 static int gb_vendor_moto_init(unsigned int cport)
 {
-#ifdef CONFIG_GREYBUS_SLICE
-    slice_attach_register(attach_cb, NULL);
+#ifdef CONFIG_GREYBUS_MODS
+    mods_attach_register(attach_cb, NULL);
 #endif
     return 0;
 }

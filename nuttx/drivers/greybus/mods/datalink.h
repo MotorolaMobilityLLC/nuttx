@@ -26,73 +26,68 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _GREYBUS_SLICE_H_
-#define _GREYBUS_SLICE_H_
+#ifndef _GREYBUS_MODS_DATALINK_H_
+#define _GREYBUS_MODS_DATALINK_H_
 
 /*
- * Base attach logic assumes this enum order. Do not change without changing
- * both!
+ * Maximum total size (in bytes) of Mods message that can be sent to data
+ * link layer.
  */
-
-enum base_attached_e
-{
-  BASE_DETACHED,
-  BASE_ATTACHED,
-  BASE_ATTACHED_OFF,
-  BASE_INVALID,
-};
-
-/* The type of the base attach/detach callback function */
-
-typedef void (*slice_attach_t)(void *arg, enum base_attached_e state);
+#define MODS_DL_PAYLOAD_MAX_SZ (1024)
 
 /****************************************************************************
- * Name: slice_attach_init
+ * Name: MODS_DL_SEND
  *
  * Description:
- *   Initialize the Slice attach notifications.
- *
- * Input Parameter:
- *   (None)
- *
- * Returned Value:
- *   0 on success or negative errno on failure
- *
- ****************************************************************************/
-
-int slice_attach_init(void);
-
-/****************************************************************************
- * Name: slice_attach_register
- *
- * Description:
- *   Register for Slice attach/detach notifications.
+ *   Send data over physical layer to the base. Required.
  *
  * Input Parameters:
- *   callback - Function to call on Slice attach/detach events.
- *   arg      - Parameter to pass to callback function.
+ *   dev - Device-specific state data
+ *   buf - A pointer to the buffer of data to be sent
+ *   len - The length of the buffer to send
  *
  * Returned Value:
- *   0 on success or negative errno on failure
+ *   0 on success, negative errno on failure.
  *
  ****************************************************************************/
 
-int slice_attach_register(slice_attach_t callback, void *arg);
+#define MODS_DL_SEND(d,b,l) ((d)->ops->send(d,b,l))
+
+struct mods_dl_s;
+struct mods_dl_ops_s
+{
+  int  (*send)(FAR struct mods_dl_s *dev, FAR const void *buf, size_t len);
+};
+
+struct mods_dl_cb_s
+{
+  int  (*recv)(FAR const void *buf, size_t len);
+};
+
+/*
+ * Mods data link private data.  This structure only defines the initial
+ * fields of the structure visible to the client.  The specific implementation
+ * may add additional, data link specific fields.
+ */
+struct mods_dl_s
+{
+  FAR struct mods_dl_ops_s *ops;
+};
 
 /****************************************************************************
- * Name: slice_network_init
+ * Name: mods_dl_init
  *
  * Description:
- *   Initialize the Slice network layer.
+ *   Initialize the Mods data link layer.
  *
  * Input Parameter:
- *   (None)
+ *   cb - callback structure
  *
  * Returned Value:
- *   0 on success or negative errno on failure
+ *   Valid Mods data link structure reference on succcess; a NULL on failure
  *
  ****************************************************************************/
 
-int slice_network_init(void);
+FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb);
 
-#endif /* _GREYBUS_SLICE_H_ */
+#endif /* _GREYBUS_MODS_DATALINK_H_ */

@@ -131,12 +131,12 @@ config GREYBUS_VENDOR_MOTO
 endchoice
 endif
 
-menuconfig GREYBUS_SLICE
-	bool "Slice Protocol"
+menuconfig GREYBUS_MODS
+	bool "Mods Protocol"
 	default n
 
-if GREYBUS_SLICE
-source drivers/greybus/slice/Kconfig
+if GREYBUS_MODS
+source drivers/greybus/mods/Kconfig
 endif
 
 config GREYBUS_FEATURE_HAVE_TIMESTAMPS

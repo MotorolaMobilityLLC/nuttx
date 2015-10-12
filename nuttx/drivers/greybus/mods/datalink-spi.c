@@ -35,10 +35,10 @@
 #include <sys/types.h>
 
 #include <arch/atomic.h>
-#include <arch/board/slice.h>
+#include <arch/board/mods.h>
 
 #include <nuttx/gpio.h>
-#include <nuttx/greybus/slice.h>
+#include <nuttx/greybus/mods.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/power/pm.h>
 #include <nuttx/ring_buf.h>
@@ -48,7 +48,7 @@
 #include "datalink.h"
 
 /* Size of payload of individual SPI packet (in bytes) */
-#define SLICE_SPI_MSG_PAYLOAD_SZ (32)
+#define MODS_SPI_MSG_PAYLOAD_SZ (32)
 
 #define HDR_BIT_VALID (0x01 << 7)
 #define HDR_BIT_MORE  (0x01 << 6)
@@ -57,33 +57,33 @@
 /* Priority to report to PM framework when WAKE line asserted. */
 #define PM_ACTIVITY_WAKE 10
 
-struct slice_spi_msg
+struct mods_spi_msg
 {
   __u8    hdr_bits;
-  __u8    data[SLICE_SPI_MSG_PAYLOAD_SZ];
+  __u8    data[MODS_SPI_MSG_PAYLOAD_SZ];
 
   /* Will be calculated automatically by HW */
   __le16  crc16;
 } __packed;
 
-struct slice_spi_dl_s
+struct mods_spi_dl_s
 {
-  struct slice_dl_s dl;          /* Externally visible part of the data link interface */
+  struct mods_dl_s dl;          /* Externally visible part of the data link interface */
   FAR struct spi_dev_s *spi;     /* SPI handle */
 
-  struct slice_dl_cb_s *cb;      /* Callbacks to network layer */
+  struct mods_dl_cb_s *cb;      /* Callbacks to network layer */
   atomic_t wake;                 /* Flag to indicate wake line asserted */
   atomic_t xfer;                 /* Flag to indicate transfer in progress */
   struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
   struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
 
-  __u8 rx_buf[sizeof(struct slice_spi_msg)];
+  __u8 rx_buf[sizeof(struct mods_spi_msg)];
 
   /*
    * Buffer to hold incoming payload (which could be spread across
    * multiple packets)
    */
-  __u8 rcvd_payload[SLICE_DL_PAYLOAD_MAX_SZ];
+  __u8 rcvd_payload[MODS_DL_PAYLOAD_MAX_SZ];
   int rcvd_payload_idx;
 
 #ifdef CONFIG_PM
@@ -91,7 +91,7 @@ struct slice_spi_dl_s
 #endif
 };
 
-static void setup_exchange(FAR struct slice_spi_dl_s *priv)
+static void setup_exchange(FAR struct mods_spi_dl_s *priv)
 {
   irqstate_t flags;
   struct ring_buf *rb;
@@ -131,26 +131,26 @@ static void setup_exchange(FAR struct slice_spi_dl_s *priv)
     }
 
   SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb),
-               priv->rx_buf, sizeof(struct slice_spi_msg));
+               priv->rx_buf, sizeof(struct mods_spi_msg));
 
   /* Deassert interrupt line (if appropriate) before asserting RDY */
   rb = ring_buf_get_next(rb);
-  slice_host_int_set(ring_buf_is_consumers(rb));
+  mods_host_int_set(ring_buf_is_consumers(rb));
 
   /* Signal to base that we're ready to tranceive */
-  slice_rfr_set(1);
+  mods_rfr_set(1);
 
 no_wake:
   /* Set the base interrupt line if data is available to be sent. */
-  slice_host_int_set(ring_buf_is_consumers(rb));
+  mods_host_int_set(ring_buf_is_consumers(rb));
 
 already_setup:
   irqrestore(flags);
 }
 
-static void cleanup_txc_rb_entry(FAR struct slice_spi_dl_s *priv)
+static void cleanup_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
 {
-  memset(ring_buf_get_data(priv->txc_rb), 0, sizeof(struct slice_spi_msg));
+  memset(ring_buf_get_data(priv->txc_rb), 0, sizeof(struct mods_spi_msg));
   ring_buf_reset(priv->txc_rb);
   ring_buf_pass(priv->txc_rb);
   priv->txc_rb = ring_buf_get_next(priv->txc_rb);
@@ -158,15 +158,15 @@ static void cleanup_txc_rb_entry(FAR struct slice_spi_dl_s *priv)
 
 static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
-  FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)arg;
+  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)arg;
 
   if (BASE_DETACHED)
     {
       dbg("Cleaning up datalink\n");
 
       /* Reset GPIOs to initial state */
-      slice_host_int_set(false);
-      slice_rfr_set(0);
+      mods_host_int_set(false);
+      mods_rfr_set(0);
 
       /* Cancel SPI transaction */
       SPI_SLAVE_DMA_CANCEL(priv->spi);
@@ -185,7 +185,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 static int txn_half_cb(void *v)
 {
   /* Deassert ready line to base */
-  slice_rfr_set(0);
+  mods_rfr_set(0);
 
   return 0;
 }
@@ -196,8 +196,8 @@ static int txn_half_cb(void *v)
  */
 static int txn_finished_cb(void *v)
 {
-  FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)v;
-  struct slice_spi_msg *m = (struct slice_spi_msg *)priv->rx_buf;
+  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
+  struct mods_spi_msg *m = (struct mods_spi_msg *)priv->rx_buf;
 
   dbg("Tranceive complete: hdr_bits=0x%02X\n", m->hdr_bits);
 
@@ -213,15 +213,15 @@ static int txn_finished_cb(void *v)
       goto done;
     }
 
-  if (priv->rcvd_payload_idx >= SLICE_DL_PAYLOAD_MAX_SZ)
+  if (priv->rcvd_payload_idx >= MODS_DL_PAYLOAD_MAX_SZ)
     {
       /* Too many packets received! */
       goto done;
     }
 
   memcpy(&priv->rcvd_payload[priv->rcvd_payload_idx], m->data,
-         SLICE_SPI_MSG_PAYLOAD_SZ);
-  priv->rcvd_payload_idx += SLICE_SPI_MSG_PAYLOAD_SZ;
+         MODS_SPI_MSG_PAYLOAD_SZ);
+  priv->rcvd_payload_idx += MODS_SPI_MSG_PAYLOAD_SZ;
 
   if (m->hdr_bits & HDR_BIT_MORE)
     {
@@ -230,7 +230,7 @@ static int txn_finished_cb(void *v)
     }
 
   priv->cb->recv(priv->rcvd_payload, priv->rcvd_payload_idx);
-  memset(priv->rcvd_payload, 0, SLICE_SPI_MSG_PAYLOAD_SZ);
+  memset(priv->rcvd_payload, 0, MODS_SPI_MSG_PAYLOAD_SZ);
   priv->rcvd_payload_idx = 0;
 
 done:
@@ -243,17 +243,17 @@ done:
  */
 static int txn_error_cb(void *v)
 {
-  FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)v;
+  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
 
   dbg("Tranceive error\n");
 
   /* Deassert ready line to base */
-  slice_rfr_set(0);
+  mods_rfr_set(0);
 
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
 
-  memset(priv->rcvd_payload, 0, SLICE_SPI_MSG_PAYLOAD_SZ);
+  memset(priv->rcvd_payload, 0, MODS_SPI_MSG_PAYLOAD_SZ);
   priv->rcvd_payload_idx = 0;
 
   /* Clear transfer setup flag */
@@ -272,11 +272,11 @@ static const struct spi_cb_ops_s cb_ops =
 };
 
 /* Called by network layer when there is data to be sent to base */
-static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
+static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
                       size_t len)
 {
-  FAR struct slice_spi_dl_s *priv = (FAR struct slice_spi_dl_s *)dl;
-  struct slice_spi_msg *m;
+  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)dl;
+  struct mods_spi_msg *m;
   int remaining = len;
   irqstate_t flags;
   __u8 *dbuf = (__u8 *)buf;
@@ -284,7 +284,7 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
 
   dbg("len=%d\n", len);
 
-  if (len > SLICE_DL_PAYLOAD_MAX_SZ)
+  if (len > MODS_DL_PAYLOAD_MAX_SZ)
       return -E2BIG;
 
   flags = irqsave();
@@ -299,9 +299,9 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
 
       m = ring_buf_get_data(priv->txp_rb);
 
-      pl_size = MIN(remaining, SLICE_SPI_MSG_PAYLOAD_SZ);
+      pl_size = MIN(remaining, MODS_SPI_MSG_PAYLOAD_SZ);
       m->hdr_bits |= HDR_BIT_VALID;
-      m->hdr_bits |= (remaining > SLICE_SPI_MSG_PAYLOAD_SZ) ? HDR_BIT_MORE : 0;
+      m->hdr_bits |= (remaining > MODS_SPI_MSG_PAYLOAD_SZ) ? HDR_BIT_MORE : 0;
       memcpy(m->data, dbuf, pl_size);
 
       remaining -= pl_size;
@@ -317,14 +317,14 @@ static int queue_data(FAR struct slice_dl_s *dl, const void *buf,
   return 0;
 }
 
-static struct slice_dl_ops_s slice_dl_ops =
+static struct mods_dl_ops_s mods_dl_ops =
 {
   .send = queue_data,
 };
 
-static struct slice_spi_dl_s slice_spi_dl =
+static struct mods_spi_dl_s mods_spi_dl =
 {
-  .dl  = { &slice_dl_ops },
+  .dl  = { &mods_dl_ops },
 };
 
 #ifdef CONFIG_PM
@@ -335,7 +335,7 @@ static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
    * awake to reply to commands.
    */
   if ((state >= PM_IDLE) &&
-      (!gpio_get_value(GPIO_SLICE_WAKE_N) || slice_rfr_get()))
+      (!gpio_get_value(GPIO_MODS_WAKE_N) || mods_rfr_get()))
       return -EIO;
 
   return OK;
@@ -343,14 +343,14 @@ static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
 
 static void pm_notify(struct pm_callback_s *cb, enum pm_state_e state)
 {
-  slice_spi_dl.pmstate = state;
+  mods_spi_dl.pmstate = state;
 
   /* If state is returned to normal and base has requested wake, setup for
    * SPI exchange.
    */
-  if ((PM_NORMAL == state) && atomic_get(&slice_spi_dl.wake))
+  if ((PM_NORMAL == state) && atomic_get(&mods_spi_dl.wake))
     {
-      setup_exchange(&slice_spi_dl);
+      setup_exchange(&mods_spi_dl);
     }
 }
 
@@ -366,53 +366,53 @@ static int wake_isr(int irq, void *context)
   dbg("Wake signal asserted by base\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
-  atomic_inc(&slice_spi_dl.wake);
+  atomic_inc(&mods_spi_dl.wake);
 
 #ifdef CONFIG_PM
   /* If running at full speed ("normal"), go ahead and setup SPI exchange.
    * else, wait until power management returns system state to normal.
    */
-  if (PM_NORMAL == slice_spi_dl.pmstate)
+  if (PM_NORMAL == mods_spi_dl.pmstate)
 #endif
     {
-      setup_exchange(&slice_spi_dl);
+      setup_exchange(&mods_spi_dl);
     }
 
   return OK;
 }
 
-FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
+FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
 {
   FAR struct spi_dev_s *spi;
 
   if (!cb)
     return NULL;
 
-  spi = up_spiinitialize(CONFIG_GREYBUS_SLICE_PORT);
+  spi = up_spiinitialize(CONFIG_GREYBUS_MODS_PORT);
   if (!spi)
     return NULL;
 
-  SPI_SLAVE_REGISTERCALLBACK(spi, &cb_ops, &slice_spi_dl);
+  SPI_SLAVE_REGISTERCALLBACK(spi, &cb_ops, &mods_spi_dl);
 
-  slice_spi_dl.cb = cb;
-  slice_spi_dl.spi = spi;
-  slice_spi_dl.txp_rb = ring_buf_alloc_ring(
-      (SLICE_DL_PAYLOAD_MAX_SZ / SLICE_SPI_MSG_PAYLOAD_SZ) + 1 /* entries */,
-      0 /* headroom */, sizeof(struct slice_spi_msg) /* data len */,
+  mods_spi_dl.cb = cb;
+  mods_spi_dl.spi = spi;
+  mods_spi_dl.txp_rb = ring_buf_alloc_ring(
+      (MODS_DL_PAYLOAD_MAX_SZ / MODS_SPI_MSG_PAYLOAD_SZ) + 1 /* entries */,
+      0 /* headroom */, sizeof(struct mods_spi_msg) /* data len */,
       0 /* tailroom */, NULL /* alloc_callback */, NULL /* free_callback */,
       NULL /* arg */);
-  slice_spi_dl.txc_rb = slice_spi_dl.txp_rb;
-  atomic_init(&slice_spi_dl.wake, 0);
-  atomic_init(&slice_spi_dl.xfer, 0);
+  mods_spi_dl.txc_rb = mods_spi_dl.txp_rb;
+  atomic_init(&mods_spi_dl.wake, 0);
+  atomic_init(&mods_spi_dl.xfer, 0);
 
   /* RDY GPIO must be initialized before the WAKE interrupt */
-  slice_rfr_init();
+  mods_rfr_init();
 
-  gpio_direction_in(GPIO_SLICE_WAKE_N);
-  gpio_irqattach(GPIO_SLICE_WAKE_N, wake_isr);
-  set_gpio_triggering(GPIO_SLICE_WAKE_N, IRQ_TYPE_EDGE_FALLING);
+  gpio_direction_in(GPIO_MODS_WAKE_N);
+  gpio_irqattach(GPIO_MODS_WAKE_N, wake_isr);
+  set_gpio_triggering(GPIO_MODS_WAKE_N, IRQ_TYPE_EDGE_FALLING);
 
-  slice_attach_register(attach_cb, &slice_spi_dl);
+  mods_attach_register(attach_cb, &mods_spi_dl);
 
 #ifdef CONFIG_PM
   if (pm_register(&pm_callback) != OK)
@@ -421,5 +421,5 @@ FAR struct slice_dl_s *slice_dl_init(struct slice_dl_cb_s *cb)
     }
 #endif
 
-  return (FAR struct slice_dl_s *)&slice_spi_dl;
+  return (FAR struct mods_dl_s *)&mods_spi_dl;
 }

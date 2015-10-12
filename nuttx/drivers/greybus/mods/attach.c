@@ -33,11 +33,11 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include <arch/board/slice.h>
+#include <arch/board/mods.h>
 #include <arch/irq.h>
 
 #include <nuttx/gpio.h>
-#include <nuttx/greybus/slice.h>
+#include <nuttx/greybus/mods.h>
 #include <nuttx/list.h>
 #include <nuttx/power/pm.h>
 
@@ -45,16 +45,16 @@
  * Priority to report to PM framework when reporting activity. Report high
  * activity since user-initiated.
  */
-#define PM_SLICE_ACTIVITY 10
+#define PM_MODS_ACTIVITY 10
 
 struct notify_node_s
 {
-  slice_attach_t callback;
+  mods_attach_t callback;
   void *arg;
   struct list_head list;
 };
 
-struct slice_attach_data_s
+struct mods_attach_data_s
 {
   pthread_t attach_thread;
   struct list_head notify_list;
@@ -62,11 +62,11 @@ struct slice_attach_data_s
   enum base_attached_e base_state;
 };
 
-static struct slice_attach_data_s *slice_attach_data;
+static struct mods_attach_data_s *mods_attach_data;
 
 static void *base_attach_worker(void *v)
 {
-  struct slice_attach_data_s *ad = (struct slice_attach_data_s *)v;
+  struct mods_attach_data_s *ad = (struct mods_attach_data_s *)v;
   enum base_attached_e base_state;
   struct list_head *iter;
   struct list_head *iter_next;
@@ -74,11 +74,11 @@ static void *base_attach_worker(void *v)
 
   while (1)
     {
-      pm_activity(PM_SLICE_ACTIVITY);
+      pm_activity(PM_MODS_ACTIVITY);
       usleep(100000);
 
-      base_state  = (gpio_get_value(GPIO_SLICE_SL_BPLUS_EN)   & 0x01) << 0;
-      base_state |= (gpio_get_value(GPIO_SLICE_SL_FORCEFLASH) & 0x01) << 1;
+      base_state  = (gpio_get_value(GPIO_MODS_SL_BPLUS_EN)   & 0x01) << 0;
+      base_state |= (gpio_get_value(GPIO_MODS_SL_FORCEFLASH) & 0x01) << 1;
 
       if (ad->base_state != base_state)
         {
@@ -100,11 +100,11 @@ static void *base_attach_worker(void *v)
 
 static int base_attach_isr(int irq, void *context)
 {
-  sem_post(&slice_attach_data->attach_lock);
+  sem_post(&mods_attach_data->attach_lock);
   return OK;
 }
 
-int slice_attach_register(slice_attach_t callback, void *arg)
+int mods_attach_register(mods_attach_t callback, void *arg)
 {
   irqstate_t flags;
   struct notify_node_s *node;
@@ -112,7 +112,7 @@ int slice_attach_register(slice_attach_t callback, void *arg)
   if (!callback)
       return -EINVAL;
 
-  if (!slice_attach_data)
+  if (!mods_attach_data)
       return -EAGAIN;
 
   node = malloc(sizeof(struct notify_node_s));
@@ -123,39 +123,39 @@ int slice_attach_register(slice_attach_t callback, void *arg)
   node->arg = arg;
 
   flags = irqsave();
-  list_add(&slice_attach_data->notify_list, &node->list);
+  list_add(&mods_attach_data->notify_list, &node->list);
   irqrestore(flags);
 
   /* Immediately call back with current state */
-  callback(arg, slice_attach_data->base_state);
+  callback(arg, mods_attach_data->base_state);
 
   return 0;
 }
 
-int slice_attach_init(void)
+int mods_attach_init(void)
 {
   int ret;
 
-  slice_attach_data = zalloc(sizeof(struct slice_attach_data_s));
-  if (!slice_attach_data)
+  mods_attach_data = zalloc(sizeof(struct mods_attach_data_s));
+  if (!mods_attach_data)
       return -ENOMEM;
 
-  list_init(&slice_attach_data->notify_list);
-  sem_init(&slice_attach_data->attach_lock, 0, 0);
+  list_init(&mods_attach_data->notify_list);
+  sem_init(&mods_attach_data->attach_lock, 0, 0);
 
-  ret = pthread_create(&slice_attach_data->attach_thread, NULL,
-                       base_attach_worker, slice_attach_data);
+  ret = pthread_create(&mods_attach_data->attach_thread, NULL,
+                       base_attach_worker, mods_attach_data);
   if (ret)
     {
-      free(slice_attach_data);
+      free(mods_attach_data);
       return ret;
     }
 
-  gpio_irqattach(GPIO_SLICE_SL_BPLUS_EN, base_attach_isr);
-  set_gpio_triggering(GPIO_SLICE_SL_BPLUS_EN, IRQ_TYPE_EDGE_BOTH);
+  gpio_irqattach(GPIO_MODS_SL_BPLUS_EN, base_attach_isr);
+  set_gpio_triggering(GPIO_MODS_SL_BPLUS_EN, IRQ_TYPE_EDGE_BOTH);
 
-  gpio_irqattach(GPIO_SLICE_SL_FORCEFLASH, base_attach_isr);
-  set_gpio_triggering(GPIO_SLICE_SL_FORCEFLASH, IRQ_TYPE_EDGE_BOTH);
+  gpio_irqattach(GPIO_MODS_SL_FORCEFLASH, base_attach_isr);
+  set_gpio_triggering(GPIO_MODS_SL_FORCEFLASH, IRQ_TYPE_EDGE_BOTH);
 
   return 0;
 }
