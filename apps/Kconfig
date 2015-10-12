@@ -72,3 +72,7 @@ endmenu
 menu "System Libraries and NSH Add-Ons"
 source "$APPSDIR/system/Kconfig"
 endmenu
+
+menu "Motorola Slice"
+source "$APPSDIR/slice/Kconfig"
+endmenu

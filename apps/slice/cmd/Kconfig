@@ -1,0 +1,22 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config SLICE_CMD
+	bool "Slice CMD"
+	default n
+	---help---
+		Enable the Slice command handler
+
+if SLICE_CMD
+
+config SLICE_CMD_PROGNAME
+	string "Program name"
+	default "slice_cmd"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+endif

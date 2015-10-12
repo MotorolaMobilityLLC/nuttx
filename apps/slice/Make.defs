@@ -1,0 +1,9 @@
+############################################################################
+#
+#   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
+#
+############################################################################
+
+ifeq ($(CONFIG_SLICE_CMD),y)
+CONFIGURED_APPS += slice/cmd
+endif
