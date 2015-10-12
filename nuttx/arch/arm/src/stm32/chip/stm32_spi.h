@@ -156,7 +156,7 @@
 #define SPI_CR2_RXNEIE            (1 << 6)  /* Bit 6: RX buffer not empty interrupt enable */
 #define SPI_CR2_TXEIE             (1 << 7)  /* Bit 7: Tx buffer empty interrupt enable */
 
-#ifdef CONFIG_STM32_STM32F30XX
+#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
 #define SPI_CR1_DS_SHIFT          (8)       /* Bits 8-11:  Data size */
 #define SPI_CR1_DS_MASK           (15 << SPI_CR1_DS_SHIFT)
 #  define SPI_CR1_DS_4BIT         (3 << SPI_CR1_DS_SHIFT)

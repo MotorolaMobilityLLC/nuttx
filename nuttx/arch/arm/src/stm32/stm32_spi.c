@@ -89,11 +89,6 @@
  * Definitions
  ************************************************************************************/
 /* Configuration ********************************************************************/
-/* SPI interrupts */
-
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-#  error "Interrupt driven SPI not yet supported"
-#endif
 
 /* Can't have both interrupt driven SPI and SPI DMA */
 
@@ -205,6 +200,14 @@ struct stm32_spidev_s
   uint32_t         actual;     /* Actual clock frequency */
   int8_t           nbits;      /* Width of word in bits (8 or 16) */
   uint8_t          mode;       /* Mode 0,1,2,3 */
+  uint8_t          mode_type;  /* Master or Slave */
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+  int		   (*isr)(int, void *);     /* Interrupt handler */
+#endif
+#ifdef CONFIG_SPI_SLAVE
+  struct spi_cb_ops_s *cb_ops; /* spi dev callbacks */
+  void *cb_v;                  /* Data pointer for spi dev callbacks */
+#endif
 #endif
 };
 
@@ -256,9 +259,58 @@ static void        spi_recvblock(FAR struct spi_dev_s *dev, FAR void *rxbuffer,
                                  size_t nwords);
 #endif
 
+#ifdef CONFIG_SPI_SLAVE
+static int spi_write_slave(FAR struct spi_dev_s *dev, const uint8_t *buffer);
+static int spi_read_slave(FAR struct spi_dev_s *dev, uint8_t *buffer);
+static int spi_registercallback(FAR struct spi_dev_s *dev, struct spi_cb_ops_s *cb_ops, void *v);
+#endif
+
 /* Initialization */
 
 static void        spi_portinitialize(FAR struct stm32_spidev_s *priv);
+
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+static int stm32_spi_isr(struct stm32_spidev_s *priv);
+static int stm32_spi_ss_isr(struct stm32_spidev_s *priv, int nss_gpio);
+#ifdef CONFIG_STM32_SPI1
+static int stm32_spi1_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI2
+static int stm32_spi2_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI3
+static int stm32_spi3_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI4
+static int stm32_spi4_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI5
+static int stm32_spi5_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI6
+static int stm32_spi6_isr(int irq, void *context);
+#endif
+
+#ifdef CONFIG_STM32_SPI1
+static int stm32_spi1_ss_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI2
+static int stm32_spi2_ss_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI3
+static int stm32_spi3_ss_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI4
+static int stm32_spi4_ss_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI5
+static int stm32_spi5_ss_isr(int irq, void *context);
+#endif
+#ifdef CONFIG_STM32_SPI6
+static int stm32_spi6_ss_isr(int irq, void *context);
+#endif
+
+#endif
 
 /************************************************************************************
  * Private Data
@@ -286,6 +338,11 @@ static const struct spi_ops_s g_sp1iops =
   .recvblock         = spi_recvblock,
 #endif
   .registercallback  = 0,
+#ifdef CONFIG_SPI_SLAVE
+    .slaveregistercallback = spi_registercallback,
+    .slave_write      = spi_write_slave,
+    .slave_read       = spi_read_slave
+#endif
 };
 
 static struct stm32_spidev_s g_spi1dev =
@@ -295,10 +352,15 @@ static struct stm32_spidev_s g_spi1dev =
   .spiclock = STM32_PCLK2_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI1,
+  .isr      = stm32_spi1_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI1_RX,
   .txch     = DMACHAN_SPI1_TX,
+#endif
+#ifdef CONFIG_SPI_SLAVE
+  .cb_ops     = NULL,
+  .cb_v       = NULL,
 #endif
 };
 #endif
@@ -325,6 +387,12 @@ static const struct spi_ops_s g_sp2iops =
   .recvblock         = spi_recvblock,
 #endif
   .registercallback  = 0,
+#ifdef CONFIG_SPI_SLAVE
+    .slaveregistercallback = spi_registercallback,
+    .slave_write      = spi_write_slave,
+    .slave_read       = spi_read_slave
+#endif
+
 };
 
 static struct stm32_spidev_s g_spi2dev =
@@ -334,10 +402,15 @@ static struct stm32_spidev_s g_spi2dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI2,
+  .isr      = stm32_spi2_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI2_RX,
   .txch     = DMACHAN_SPI2_TX,
+#endif
+#ifdef CONFIG_SPI_SLAVE
+  .cb_ops     = NULL,
+  .cb_v       = NULL,
 #endif
 };
 #endif
@@ -364,6 +437,11 @@ static const struct spi_ops_s g_sp3iops =
   .recvblock         = spi_recvblock,
 #endif
   .registercallback  = 0,
+#ifdef CONFIG_SPI_SLAVE
+    .slaveregistercallback = spi_registercallback,
+    .slave_write      = spi_write_slave,
+    .slave_read       = spi_read_slave
+#endif
 };
 
 static struct stm32_spidev_s g_spi3dev =
@@ -373,10 +451,15 @@ static struct stm32_spidev_s g_spi3dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI3,
+  .isr      = stm32_spi3_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI3_RX,
   .txch     = DMACHAN_SPI3_TX,
+#endif
+#ifdef CONFIG_SPI_SLAVE
+  .cb_ops     = NULL,
+  .cb_v       = NULL,
 #endif
 };
 #endif
@@ -403,6 +486,11 @@ static const struct spi_ops_s g_sp4iops =
   .recvblock         = spi_recvblock,
 #endif
   .registercallback  = 0,
+#ifdef CONFIG_SPI_SLAVE
+    .slaveregistercallback = spi_registercallback,
+    .slave_write      = spi_write_slave,
+    .slave_read       = spi_read_slave
+#endif
 };
 
 static struct stm32_spidev_s g_spi4dev =
@@ -412,10 +500,15 @@ static struct stm32_spidev_s g_spi4dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI4,
+  .isr      = stm32_spi4_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI4_RX,
   .txch     = DMACHAN_SPI4_TX,
+#endif
+#ifdef CONFIG_SPI_SLAVE
+  .cb_ops     = NULL,
+  .cb_v       = NULL,
 #endif
 };
 #endif
@@ -442,6 +535,11 @@ static const struct spi_ops_s g_sp5iops =
   .recvblock         = spi_recvblock,
 #endif
   .registercallback  = 0,
+#ifdef CONFIG_SPI_SLAVE
+    .slaveregistercallback = spi_registercallback,
+    .slave_write      = spi_write_slave,
+    .slave_read       = spi_read_slave
+#endif
 };
 
 static struct stm32_spidev_s g_spi5dev =
@@ -451,10 +549,15 @@ static struct stm32_spidev_s g_spi5dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI5,
+  .isr      = stm32_spi5_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI5_RX,
   .txch     = DMACHAN_SPI5_TX,
+#endif
+#ifdef CONFIG_SPI_SLAVE
+  .cb_ops     = NULL,
+  .cb_v       = NULL,
 #endif
 };
 #endif
@@ -481,6 +584,11 @@ static const struct spi_ops_s g_sp6iops =
   .recvblock         = spi_recvblock,
 #endif
   .registercallback  = 0,
+#ifdef CONFIG_SPI_SLAVE
+    .slaveregistercallback = spi_registercallback,
+    .slave_write      = spi_write_slave,
+    .slave_read       = spi_read_slave
+#endif
 };
 
 static struct stm32_spidev_s g_spi6dev =
@@ -490,10 +598,15 @@ static struct stm32_spidev_s g_spi6dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI6,
+  .isr      = stm32_spi6_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI6_RX,
   .txch     = DMACHAN_SPI6_TX,
+#endif
+#ifdef CONFIG_SPI_SLAVE
+  .cb_ops     = NULL,
+  .cb_v       = NULL,
 #endif
 };
 #endif
@@ -527,6 +640,26 @@ static inline uint16_t spi_getreg(FAR struct stm32_spidev_s *priv, uint8_t offse
 }
 
 /************************************************************************************
+ * Name: spi_getreg8
+ *
+ * Description:
+ *   Get the contents of the SPI register at offset
+ *
+ * Input Parameters:
+ *   priv   - private SPI device structure
+ *   offset - offset to the register of interest
+ *
+ * Returned Value:
+ *   The contents of the 8-bit register
+ *
+ ************************************************************************************/
+
+static inline uint8_t spi_getreg8(FAR struct stm32_spidev_s *priv, uint8_t offset)
+{
+  return getreg8(priv->spibase + offset);
+}
+
+/************************************************************************************
  * Name: spi_putreg
  *
  * Description:
@@ -546,6 +679,28 @@ static inline void spi_putreg(FAR struct stm32_spidev_s *priv, uint8_t offset, u
 {
   putreg16(value, priv->spibase + offset);
 }
+
+/************************************************************************************
+ * Name: spi_putreg8
+ *
+ * Description:
+ *   Write a 8-bit value to the SPI register at offset
+ *
+ * Input Parameters:
+ *   priv   - private SPI device structure
+ *   offset - offset to the register of interest
+ *   value  - the 8-bit value to be written
+ *
+ * Returned Value:
+ *   None
+ *
+ ************************************************************************************/
+
+static inline void spi_putreg8(FAR struct stm32_spidev_s *priv, uint8_t offset, uint8_t value)
+{
+  putreg8(value, priv->spibase + offset);
+}
+
 
 /************************************************************************************
  * Name: spi_readword
@@ -597,6 +752,63 @@ static inline void spi_writeword(FAR struct stm32_spidev_s *priv, uint16_t word)
 
   spi_putreg(priv, STM32_SPI_DR_OFFSET, word);
 }
+
+#ifdef CONFIG_SPI_SLAVE
+/************************************************************************************
+ * Name: spi_write_slave
+ *
+ * Description:
+ *   Write SPI data
+ *
+ ************************************************************************************/
+
+static int spi_write_slave(FAR struct spi_dev_s *dev, const uint8_t *buffer)
+{
+  FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
+
+  DEBUGASSERT(priv && priv->spibase);
+
+  spi_putreg8(priv, STM32_SPI_DR_OFFSET, buffer[0]);
+
+  spivdbg("Sent: %04x\n", buffer[0]);
+
+  return 0;
+}
+
+/************************************************************************************
+ * Name: spi_read_slave
+ *
+ * Description:
+ *   Read SPI data
+ *
+ ************************************************************************************/
+
+static int spi_read_slave(FAR struct spi_dev_s *dev, uint8_t *buffer)
+{
+  FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
+
+  DEBUGASSERT(priv && priv->spibase);
+
+  buffer[0] = spi_getreg8(priv, STM32_SPI_DR_OFFSET);
+  spivdbg("Return: %04x\n", buffer[0]);
+
+  return 0;
+}
+
+/*******************************************************************************
+ * Name: spi_registercallback
+ *
+ * Description:
+ *
+ *******************************************************************************/
+static int spi_registercallback(FAR struct spi_dev_s *dev, struct spi_cb_ops_s *cb_ops, void *v)
+{
+  FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
+  priv->cb_ops = cb_ops;
+  priv->cb_v = v;
+  return OK;
+}
+#endif
 
 /************************************************************************************
  * Name: spi_16bitmode
@@ -895,6 +1107,33 @@ static void spi_modifycr1(FAR struct stm32_spidev_s *priv, uint16_t setbits, uin
   cr1 |= setbits;
   spi_putreg(priv, STM32_SPI_CR1_OFFSET, cr1);
 }
+
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+/************************************************************************************
+ * Name: spi_modifycr2
+ *
+ * Description:
+ *   Clear and set bits in the CR2 register
+ *
+ * Input Parameters:
+ *   priv    - Device-specific state data
+ *   clrbits - The bits to clear
+ *   setbits - The bits to set
+ *
+ * Returned Value:
+ *   None
+ *
+ ************************************************************************************/
+
+static void spi_modifycr2(FAR struct stm32_spidev_s *priv, uint16_t setbits, uint16_t clrbits)
+{
+  uint16_t cr2;
+  cr2 = spi_getreg(priv, STM32_SPI_CR2_OFFSET);
+  cr2 &= ~clrbits;
+  cr2 |= setbits;
+  spi_putreg(priv, STM32_SPI_CR2_OFFSET, cr2);
+}
+#endif
 
 /************************************************************************************
  * Name: spi_lock
@@ -1451,6 +1690,236 @@ static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *rxbuffer, size_t 
 }
 #endif
 
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+static int stm32_spi_ss_isr(struct stm32_spidev_s *priv, int nss_gpio)
+{
+  int ss_state = stm32_gpioread(nss_gpio);
+
+  spivdbg("stm32_spi_ss_isr : %d\n", ss_state);
+
+  if (ss_state)
+    {
+      spi_modifycr1(priv, SPI_CR1_SSI, 0);
+      spi_modifycr2(priv, 0, SPI_CR2_TXEIE);
+      if (priv->cb_ops && priv->cb_ops->txn_end)
+          priv->cb_ops->txn_end(priv->cb_v);
+    }
+  else
+    {
+      spi_modifycr1(priv, 0, SPI_CR1_SSI);
+      spi_modifycr2(priv, SPI_CR2_TXEIE, 0);
+    }
+
+  return OK;
+}
+
+/************************************************************************************
+ * Name: stm32_spi_isr
+ *
+ * Description:
+ *  Common Interrupt Service Routine
+ *
+ ************************************************************************************/
+static int stm32_spi_isr(struct stm32_spidev_s *priv)
+{
+  uint32_t status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
+
+  if (status & SPI_SR_RXNE)
+    {
+      if (priv->cb_ops && priv->cb_ops->read)
+        priv->cb_ops->read(priv->cb_v);
+    }
+
+  if (status & SPI_SR_TXE)
+    {
+      if (priv->cb_ops && priv->cb_ops->write)
+        priv->cb_ops->write(priv->cb_v);
+    }
+
+  return OK;
+}
+
+#ifdef CONFIG_STM32_SPI1
+/************************************************************************************
+ * Name: stm32_spi1_isr
+ *
+ * Description:
+ *   SPI1 interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi1_isr(int irq, void *context)
+{
+  return stm32_spi_isr(&g_spi1dev);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI2
+/************************************************************************************
+ * Name: stm32_spi2_isr
+ *
+ * Description:
+ *   SPI2 interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi2_isr(int irq, void *context)
+{
+  return stm32_spi_isr(&g_spi2dev);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI3
+/************************************************************************************
+ * Name: stm32_spi3_isr
+ *
+ * Description:
+ *   SPI3 interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi3_isr(int irq, void *context)
+{
+  return stm32_spi_isr(&g_spi3dev);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI4
+/************************************************************************************
+ * Name: stm32_spi4_isr
+ *
+ * Description:
+ *   SPI4 interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi4_isr(int irq, void *context)
+{
+  return stm32_spi_isr(&g_spi4dev);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI5
+/************************************************************************************
+ * Name: stm32_spi5_isr
+ *
+ * Description:
+ *   SPI5 interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi5_isr(int irq, void *context)
+{
+  return stm32_spi_isr(&g_spi5dev);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI6
+/************************************************************************************
+ * Name: stm32_spi6_isr
+ *
+ * Description:
+ *   SPI6 interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi6_isr(int irq, void *context)
+{
+  return stm32_spi_isr(&g_spi6dev);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI1
+/************************************************************************************
+ * Name: stm32_spi1_ss_isr
+ *
+ * Description:
+ *   SPI1 SS interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi1_ss_isr(int irq, void *context)
+{
+  return stm32_spi_ss_isr(&g_spi1dev, GPIO_SPI1_NSS_SW);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI2
+/************************************************************************************
+ * Name: stm32_spi2_ss_isr
+ *
+ * Description:
+ *   SPI2 SS interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi2_ss_isr(int irq, void *context)
+{
+  return stm32_spi_ss_isr(&g_spi2dev, GPIO_SPI2_NSS_SW);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI3
+/************************************************************************************
+ * Name: stm32_spi3_ss_isr
+ *
+ * Description:
+ *   SPI3 SS interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi3_ss_isr(int irq, void *context)
+{
+  return stm32_spi_ss_isr(&g_spi3dev, GPIO_SPI3_NSS_SW);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI4
+/************************************************************************************
+ * Name: stm32_spi4_ss_isr
+ *
+ * Description:
+ *   SPI4 SS interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi4_ss_isr(int irq, void *context)
+{
+  return stm32_spi_ss_isr(&g_spi4dev, GPIO_SPI4_NSS_SW);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI5
+/************************************************************************************
+ * Name: stm32_spi5_ss_isr
+ *
+ * Description:
+ *   SPI5 SS interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi5_ss_isr(int irq, void *context)
+{
+  return stm32_spi_ss_isr(&g_spi5dev, GPIO_SPI5_NSS_SW);
+}
+#endif
+
+#ifdef CONFIG_STM32_SPI6
+/************************************************************************************
+ * Name: stm32_spi6_ss_isr
+ *
+ * Description:
+ *   SPI6 SS interrupt service routine
+ *
+ ************************************************************************************/
+
+static int stm32_spi6_ss_isr(int irq, void *context)
+{
+  return stm32_spi_ss_isr(&g_spi6dev, GPIO_SPI6_NSS_SW);
+}
+#endif
+#endif
+
 /************************************************************************************
  * Name: spi_portinitialize
  *
@@ -1470,19 +1939,38 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
   uint16_t setbits;
   uint16_t clrbits;
 
-  /* Configure CR1. Default configuration:
-   *   Mode 0:                        CPHA=0 and CPOL=0
-   *   Master:                        MSTR=1
-   *   8-bit:                         DFF=0
-   *   MSB tranmitted first:          LSBFIRST=0
-   *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
-   *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
-   */
+  if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+    {
+      /* Configure CR1. Slave configuration:
+       *   Mode 0:                        CPHA=0 and CPOL=0
+       *   Master:                        MSTR=0
+       *   8-bit:                         DFF=0
+       *   MSB tranmitted first:          LSBFIRST=0
+       *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
+       *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
+       */
 
-  clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
-            SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
-  setbits = SPI_CR1_MSTR|SPI_CR1_SSI|SPI_CR1_SSM;
-  spi_modifycr1(priv, setbits, clrbits);
+      clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_MSTR|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
+                SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
+      setbits = SPI_CR1_SSI|SPI_CR1_SSM;
+      spi_modifycr1(priv, setbits, clrbits);
+    }
+  else
+    {
+      /* Configure CR1. Default configuration:
+       *   Mode 0:                        CPHA=0 and CPOL=0
+       *   Master:                        MSTR=1
+       *   8-bit:                         DFF=0
+       *   MSB tranmitted first:          LSBFIRST=0
+       *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
+       *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
+       */
+
+      clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
+                SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
+      setbits = SPI_CR1_MSTR|SPI_CR1_SSI|SPI_CR1_SSM;
+      spi_modifycr1(priv, setbits, clrbits);
+    }
 
 #ifndef CONFIG_SPI_OWNBUS
   priv->frequency = 0;
@@ -1492,7 +1980,10 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
 
   /* Select a default frequency of approx. 400KHz */
 
-  spi_setfrequency((FAR struct spi_dev_s *)priv, 400000);
+  if (priv->mode_type == SPI_MODE_TYPE_MASTER)
+    {
+      spi_setfrequency((FAR struct spi_dev_s *)priv, 400000);
+    }
 
   /* CRCPOLY configuration */
 
@@ -1523,6 +2014,12 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
   DEBUGASSERT(priv->rxdma && priv->txdma);
 
   spi_putreg(priv, STM32_SPI_CR2_OFFSET, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
+#endif
+
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+  spi_modifycr2(priv, SPI_CR2_FRXTH | SPI_CR2_RXNEIE, 0);
+  irq_attach(priv->spiirq, priv->isr);
+  up_enable_irq(priv->spiirq);
 #endif
 
   /* Enable spi */
@@ -1571,6 +2068,11 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI1_MISO);
           stm32_configgpio(GPIO_SPI1_MOSI);
 
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+          stm32_gpiosetevent(GPIO_SPI1_NSS_SW, true, true, true, stm32_spi1_ss_isr);
+#endif
+          priv->mode_type = SPI1_MODE_TYPE;
+
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
@@ -1594,6 +2096,11 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI2_SCK);
           stm32_configgpio(GPIO_SPI2_MISO);
           stm32_configgpio(GPIO_SPI2_MOSI);
+
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+          stm32_gpiosetevent(GPIO_SPI2_NSS_SW, true, true, true, stm32_spi2_ss_isr);
+#endif
+          priv->mode_type = SPI2_MODE_TYPE;
 
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -1619,6 +2126,11 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI3_MISO);
           stm32_configgpio(GPIO_SPI3_MOSI);
 
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+          stm32_gpiosetevent(GPIO_SPI3_NSS_SW, true, true, true, stm32_spi3_ss_isr);
+#endif
+          priv->mode_type = SPI3_MODE_TYPE;
+
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
@@ -1642,6 +2154,11 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI4_SCK);
           stm32_configgpio(GPIO_SPI4_MISO);
           stm32_configgpio(GPIO_SPI4_MOSI);
+
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+          stm32_gpiosetevent(GPIO_SPI4_NSS_SW, true, true, true, stm32_spi4_ss_isr);
+#endif
+          priv->mode_type = SPI4_MODE_TYPE;
 
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -1667,6 +2184,11 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI5_MISO);
           stm32_configgpio(GPIO_SPI5_MOSI);
 
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+          stm32_gpiosetevent(GPIO_SPI5_NSS_SW, true, true, true, stm32_spi5_ss_isr);
+#endif
+          priv->mode_type = SPI5_MODE_TYPE;
+
           /* Set up default configuration: Master, 8-bit, etc. */
 
           spi_portinitialize(priv);
@@ -1690,6 +2212,11 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI6_SCK);
           stm32_configgpio(GPIO_SPI6_MISO);
           stm32_configgpio(GPIO_SPI6_MOSI);
+
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+          stm32_gpiosetevent(GPIO_SPI6_NSS_SW, true, true, true, stm32_spi6_ss_isr);
+#endif
+          priv->mode_type = SPI6_MODE_TYPE;
 
           /* Set up default configuration: Master, 8-bit, etc. */
 
