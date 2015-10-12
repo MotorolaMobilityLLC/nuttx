@@ -4,17 +4,9 @@
  *
  ****************************************************************************/
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
-
 #include <nuttx/config.h>
 #include <nuttx/i2c.h>
 #include <stdio.h>
-
-/****************************************************************************
- * Definitions
- ****************************************************************************/
 
 #define I2C_SLAVE_BUS  1
 #define I2C_MASTER_BUS 2
@@ -26,13 +18,27 @@
 #define logd(format, ...) \
   printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
 
-/****************************************************************************
- * Private Data
- ****************************************************************************/
+static int slice_cmd_read_cb(void *v)
+{
+  FAR struct i2c_dev_s *dev = (struct i2c_dev_s *)v;
+  uint8_t val;
+  I2C_SLAVE_READ(dev, &val, sizeof(val));
+  return 0;
+}
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+static int slice_cmd_write_cb(void *v)
+{
+  FAR struct i2c_dev_s *dev = (struct i2c_dev_s *)v;
+  uint8_t val = 42;
+  I2C_SLAVE_WRITE(dev, &val, sizeof(val));
+  return 0;
+}
+
+static struct i2c_cb_ops_s cb_ops =
+{
+  .read = slice_cmd_read_cb,
+  .write = slice_cmd_write_cb,
+};
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
@@ -46,7 +52,7 @@ int slice_cmd_main(int argc, char *argv[])
 
 #ifdef CONFIG_I2C_SLAVE
   if (I2C_SETOWNADDRESS(dev1, I2C_ADDRESS_SELF, 7) == OK) {
-    I2C_REGISTERCALLBACK(dev1, NULL);
+    I2C_REGISTERCALLBACK(dev1, &cb_ops, dev1);
     logd("Slave setup complete!\n");
   } else {
     logd("Slave setup failed!\n");
