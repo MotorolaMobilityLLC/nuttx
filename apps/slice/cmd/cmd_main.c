@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <arch/stm32/slice.h>
+
 #include <apps/greybus-utils/svc.h>
 
 #define EXTRA_FMT "%s: "
@@ -53,6 +55,8 @@ static int slice_cmd_recv_from_svc(void *buf, size_t length)
     if (slice_cmd_self.reg_val) {
       memcpy(slice_cmd_self.reg_val, buf, length);
       slice_cmd_self.reg_size = length;
+
+      slice_host_int_set(true);
       return 0;
     }
   }
@@ -95,6 +99,7 @@ static int slice_cmd_write_cb(void *v)
     slf->reg_idx = (slf->reg_idx + 1) % slf->reg_size;
     if (slf->reg_idx == 0) {
       /* host has read entire SVC message */
+      slice_host_int_set(false);
       free(slf->reg_val);
       slf->reg_val = NULL;
       slf->reg_size = 0;
@@ -125,6 +130,8 @@ static struct i2c_cb_ops_s cb_ops =
 int slice_cmd_main(int argc, char *argv[])
 {
   FAR struct i2c_dev_s *dev1;
+
+  slice_init();
 
   dev1 = up_i2cinitialize(CONFIG_SLICE_CMD_I2C_SLAVE_BUS);
   slice_cmd_self.i2c = dev1;
