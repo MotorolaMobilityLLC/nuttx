@@ -138,6 +138,11 @@ static void *slice_cmd_base_det_worker(void *v)
               send_svc_event(0, SLICE_MID, NULL);
               enable_cports();
             }
+          else
+            {
+              // Ensure that base charging is disabled
+              slice_vbus_en_sw(false);
+            }
         }
 
       sem_wait(&slf->base_det_lock);
