@@ -167,6 +167,18 @@
 #define GPIO_I2C3_SCL    GPIO_I2C3_SCL_1
 #define GPIO_I2C3_SDA    GPIO_I2C3_SDA_1
 
+/* SPI */
+
+#define GPIO_SPI1_MISO GPIO_SPI1_MISO_3
+#define GPIO_SPI1_MOSI GPIO_SPI1_MOSI_3
+#define GPIO_SPI1_SCK  GPIO_SPI1_SCK_3
+#define GPIO_SPI1_NSS_SW   GPIO_SPI1_NSS_3_SW
+
+#define SPI1_MODE_TYPE		SPI_MODE_TYPE_SLAVE
+
+#define stm32_spi1select NULL
+#define stm32_spi1status NULL
+
 /* Slice ****************************************************************************/
 #define GPIO_SLICE_CHG_CE_N       (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
                                    GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN1)
