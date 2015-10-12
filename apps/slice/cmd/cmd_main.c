@@ -31,6 +31,8 @@
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/i2c.h>
 #include <nuttx/list.h>
+#include <nuttx/power/pm.h>
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,6 +54,12 @@
  */
 #define SLICE_MID           "MID-1"
 
+/*
+ * Priority to report to PM framework when reporting activity. Report high
+ * activity since user-initiated.
+ */
+#define CONFIG_PM_SLICE_ACTIVITY 10
+
 #ifdef CONFIG_EXAMPLES_NSH
 extern int nsh_main(int argc, char *argv[]);
 #endif
@@ -65,6 +73,24 @@ struct slice_cmd_data
 
 static struct slice_cmd_data slice_cmd_self;
 
+#ifdef CONFIG_PM
+static int slice_cmd_pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
+{
+  // Do not allow standby when attached to a base. Need to stay awake to reply
+  // to commands
+  if ((state >= PM_STANDBY) && slice_cmd_self.base_attached)
+      return -EIO;
+
+  return OK;
+}
+
+static struct pm_callback_s slice_cmd_pmcb =
+{
+  // Only need to receive prepare callback
+  .prepare = slice_cmd_pm_prepare,
+};
+#endif
+
 static void *slice_cmd_base_present_worker(void *v)
 {
   struct slice_cmd_data *slf = (struct slice_cmd_data *)v;
@@ -72,6 +98,9 @@ static void *slice_cmd_base_present_worker(void *v)
 
   while (1)
     {
+      pm_activity(CONFIG_PM_SLICE_ACTIVITY);
+      usleep(100000);
+
       base_present = slice_is_base_present();
 
       if (slf->base_attached != base_present)
@@ -117,6 +146,12 @@ static void slice_cmd_init(void)
     {
       logd("Failed to configure GPIOs!\n");
     }
+#ifdef CONFIG_PM
+  else if (pm_register(&slice_cmd_pmcb) != OK)
+    {
+      logd("Failed register to power management!\n");
+    }
+#endif
 }
 
 static int slice_cmd_listen(unsigned int cport)

@@ -72,7 +72,7 @@ static void *wdog_ping_thread(void *v)
 
 int wdog_init(void)
 {
-#ifdef CONFIG_WATCHDOG
+#if defined(CONFIG_WATCHDOG) && !defined(CONFIG_PM)
   int ret;
   pthread_t wdog_thread;
 
