@@ -8,10 +8,10 @@
 
 # Sub-directories
 
-SUBDIRS = cmd diet spi_reg
+SUBDIRS = diet spi_reg
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
-CNTXTDIRS = cmd spi_reg
+CNTXTDIRS = spi_reg
 endif
 
 all: nothing

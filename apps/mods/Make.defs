@@ -4,13 +4,9 @@
 #
 ############################################################################
 
-ifeq ($(CONFIG_SLICE_SPI_REG),y)
-CONFIGURED_APPS += slice/spi_reg
+ifeq ($(CONFIG_MODS_SPI_REG),y)
+CONFIGURED_APPS += mods/spi_reg
 endif
-ifeq ($(CONFIG_SLICE_CMD),y)
-CONFIGURED_APPS += slice/cmd
+ifeq ($(CONFIG_MODS_DIET),y)
+CONFIGURED_APPS += mods/diet
 endif
-ifeq ($(CONFIG_SLICE_DIET),y)
-CONFIGURED_APPS += slice/diet
-endif
-

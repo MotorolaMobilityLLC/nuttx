@@ -1,8 +1,0 @@
-#
-# For a description of the syntax of this configuration file,
-# see misc/tools/kconfig-language.txt.
-#
-
-source "$APPSDIR/slice/cmd/Kconfig"
-source "$APPSDIR/slice/diet/Kconfig"
-source "$APPSDIR/slice/spi_reg/Kconfig"

@@ -28,7 +28,7 @@
  */
 
 #include <nuttx/config.h>
-#include <nuttx/greybus/slice.h>
+#include <nuttx/greybus/mods.h>
 
 #include <stdio.h>
 
@@ -39,13 +39,13 @@
 
 extern int wdog_init(void);
 
-int slice_main(int argc, char *argv[])
+int mods_main(int argc, char *argv[])
 {
     wdog_init();
 
     enable_manifest("IID-1", NULL, MANIFEST_DEVICE_ID);
-    slice_attach_init();
-    slice_network_init();
+    mods_attach_init();
+    mods_network_init();
     enable_cports();
 
 #ifdef CONFIG_EXAMPLES_NSH

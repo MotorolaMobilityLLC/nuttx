@@ -12,23 +12,23 @@
 #define logd(format, ...) \
   printf(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
 
-#define SLICE_NUM_REGS 8
+#define MODS_NUM_REGS 8
 
 FAR struct spi_dev_s *dev1;
 int txn_status = -1;
 
-struct slice_reg_data
+struct mods_reg_data
 {
   FAR struct spi_dev_s *dev;
   int addr;
-  uint8_t regs[SLICE_NUM_REGS];
+  uint8_t regs[MODS_NUM_REGS];
   uint8_t crc[2];
 };
 
 /* called when master is writing to slave */
-static int slice_reg_read_cb(void *v)
+static int mods_reg_read_cb(void *v)
 {
-  struct slice_reg_data *slf = (struct slice_reg_data *)v;
+  struct mods_reg_data *slf = (struct mods_reg_data *)v;
   FAR struct spi_dev_s *dev = slf->dev;
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   uint8_t val;
@@ -37,15 +37,15 @@ static int slice_reg_read_cb(void *v)
 
   if (slf->addr < 0)
     {
-      if (val < SLICE_NUM_REGS)
+      if (val < MODS_NUM_REGS)
         {
           slf->addr = val;
         }
     }
-  else 
+  else
     {
         slf->regs[slf->addr] = val;
-        slf->addr = (slf->addr + 1) % SLICE_NUM_REGS;
+        slf->addr = (slf->addr + 1) % MODS_NUM_REGS;
     }
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
@@ -56,10 +56,10 @@ static int slice_reg_read_cb(void *v)
 }
 
 /* called when master is reading from slave */
-static int slice_reg_write_cb(void *v)
+static int mods_reg_write_cb(void *v)
 {
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
-  struct slice_reg_data *slf = (struct slice_reg_data *)v;
+  struct mods_reg_data *slf = (struct mods_reg_data *)v;
   FAR struct spi_dev_s *dev = slf->dev;
   uint8_t val = 0x55;
 
@@ -69,9 +69,9 @@ static int slice_reg_write_cb(void *v)
 }
 
 /* called to end transaction */
-static int slice_reg_txn_end_cb(void *v)
+static int mods_reg_txn_end_cb(void *v)
 {
-  struct slice_reg_data *slf = (struct slice_reg_data *)v;
+  struct mods_reg_data *slf = (struct mods_reg_data *)v;
 
   slf->addr = -1;
 
@@ -79,9 +79,9 @@ static int slice_reg_txn_end_cb(void *v)
 }
 
 /* called to end transaction */
-static int slice_reg_txn_err_cb(void *v)
+static int mods_reg_txn_err_cb(void *v)
 {
-  struct slice_reg_data *slf = (struct slice_reg_data *)v;
+  struct mods_reg_data *slf = (struct mods_reg_data *)v;
   FAR struct spi_dev_s *dev = slf->dev;
   txn_status = -1;
 
@@ -95,14 +95,14 @@ static int slice_reg_txn_err_cb(void *v)
 
 static struct spi_cb_ops_s cb_ops =
 {
-  .read = slice_reg_read_cb,
-  .write = slice_reg_write_cb,
-  .txn_end = slice_reg_txn_end_cb,
-  .txn_err = slice_reg_txn_err_cb,
+  .read = mods_reg_read_cb,
+  .write = mods_reg_write_cb,
+  .txn_end = mods_reg_txn_end_cb,
+  .txn_err = mods_reg_txn_err_cb,
 };
 
 
-static struct slice_reg_data slice_self =
+static struct mods_reg_data mods_self =
 {
     .regs = { 0x00, 0x01, 0x02, 0x03,
               0x04, 0x05, 0x06, 0x07, },
@@ -114,26 +114,26 @@ static void dump_regs(void)
 {
     int i;
 
-    logd("address    %d\n",  slice_self.addr);
-    for (i = 0; i < SLICE_NUM_REGS; i++)
+    logd("address    %d\n",  mods_self.addr);
+    for (i = 0; i < MODS_NUM_REGS; i++)
     {
-        logd("%d 0x%02x\n", i, slice_self.regs[i]);
+        logd("%d 0x%02x\n", i, mods_self.regs[i]);
     }
 }
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
-int slice_spi_reg_main(int argc, char *argv[])
+int mods_spi_reg_main(int argc, char *argv[])
 #endif
 {
   if (dev1 == NULL)
     {
-      dev1 = up_spiinitialize(CONFIG_SLICE_SPI_REG_BUS);
-      slice_self.dev = dev1;
+      dev1 = up_spiinitialize(CONFIG_MODS_SPI_REG_BUS);
+      mods_self.dev = dev1;
       logd("Slave init complete!\n");
 #ifdef CONFIG_SPI_SLAVE
-      SPI_SLAVE_REGISTERCALLBACK(dev1, &cb_ops, &slice_self);
+      SPI_SLAVE_REGISTERCALLBACK(dev1, &cb_ops, &mods_self);
       logd("Slave setup complete!\n");
 #endif
     }
@@ -143,10 +143,9 @@ int slice_spi_reg_main(int argc, char *argv[])
 #ifdef CONFIG_STM32_SPI_DMA
   if (txn_status == -1)
     {
-      SPI_EXCHANGE(dev1,slice_self.regs, slice_self.regs, sizeof(slice_self.regs) + 2);
+      SPI_EXCHANGE(dev1,mods_self.regs, mods_self.regs, sizeof(mods_self.regs) + 2);
       logd("Slave DMA armed!\n");
     }
 #endif
   return 0;
 }
-

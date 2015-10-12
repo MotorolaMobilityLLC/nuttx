@@ -3,7 +3,7 @@
 # see misc/tools/kconfig-language.txt.
 #
 
-config SLICE_DIET
-	bool "Diet Slice"
+config MODS_DIET
+	bool "Diet Mods"
 	select GREYBUS_UTILS
 	default n
