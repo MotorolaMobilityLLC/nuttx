@@ -26,12 +26,4 @@ config SLICE_CMD_I2C_SLAVE_ADDR
 	---help---
 		I2C slave 7-bit device address (default: 0x55)
 
-config SLICE_CMD_PROGNAME
-	string "Program name"
-	default "slice_cmd"
-	depends on BUILD_KERNEL
-	---help---
-		This is the name of the program that will be use when the NSH ELF
-		program is installed.
-
 endif
