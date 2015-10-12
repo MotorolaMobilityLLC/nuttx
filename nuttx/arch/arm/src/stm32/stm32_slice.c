@@ -23,11 +23,17 @@ int slice_init(xcpt_t irqhandler)
     if (ret != OK)
         goto chg_ce_n_failed;
 
+    ret = stm32_configgpio(GPIO_SLICE_VIB_EN);
+    if (ret != OK)
+        goto vib_en_failed;
+
     // The gpio is configured inside stm32_gpiosetevent
     stm32_gpiosetevent(GPIO_SLICE_SL_BPLUS_EN, true, true, true, irqhandler);
 
     return OK;
 
+vib_en_failed:
+    stm32_unconfiggpio(GPIO_SLICE_CHG_CE_N);
 chg_ce_n_failed:
     stm32_unconfiggpio(GPIO_SLICE_SL_VBUS_EN_SW);
 vbus_en_sw_failed:
@@ -38,6 +44,10 @@ vbus_en_sw_failed:
 int slice_uninit(void)
 {
     int ret = stm32_unconfiggpio(GPIO_SLICE_SL_BPLUS_EN);
+    if (ret != OK)
+        return ret;
+
+    ret = stm32_unconfiggpio(GPIO_SLICE_VIB_EN);
     if (ret != OK)
         return ret;
 
