@@ -189,6 +189,16 @@ static int slice_cmd_recv_from_svc(void *buf, size_t length)
   return -1;
 }
 
+static int slice_cmd_base_det_isr(int irq, void *context)
+{
+  bool base_present = !slice_base_det_read(); // active low
+
+  logd("base_present=%d\n", base_present);
+  // TODO: implement once hardware issue resolved
+
+  return OK;
+}
+
 /* called when master is writing to slave */
 static int slice_cmd_read_cb(void *v)
 {
@@ -316,7 +326,7 @@ int slice_cmd_main(int argc, char *argv[])
 {
   FAR struct i2c_dev_s *dev1;
 
-  if (slice_init() == OK)
+  if (slice_init(slice_cmd_base_det_isr) == OK)
     {
       logd("GPIOs configured\n");
     }
