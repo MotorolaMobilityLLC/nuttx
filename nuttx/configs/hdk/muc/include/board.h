@@ -54,23 +54,6 @@
  ************************************************************************************/
 
 /* Clocking *************************************************************************/
-/* HDK will run off the 16MHz HSI clock.
- *
- *   System Clock source           : HSI
- *   SYSCLK(Hz)                    : 16000000     Selected by System Clock Mux
- *   HCLK(Hz)                      : 16000000     (STM32_RCC_CFGR_HPRE)
- *   AHB Prescaler                 : 1            (STM32_RCC_CFGR_HPRE)
- *   APB1 Prescaler                : 2            (STM32_RCC_CFGR_PPRE1)
- *   APB2 Prescaler                : 1            (STM32_RCC_CFGR_PPRE2)
- *   HSI Frequency(Hz)             : 16000000     (nominal)
- *   PLL                           : OFF
- *   Flash Latency(WS)             : 0
- *   Prefetch Buffer               : OFF
- *   Instruction cache             : ON
- *   Data cache                    : ON
- *   Require 48MHz for USB OTG FS, : Disabled (PLL off)
- *   SDIO and RNG clock
- */
 
 /* HSI - 16 MHz RC factory-trimmed
  * LSI - 32 KHz RC
@@ -105,17 +88,17 @@
 
 /* APB1 clock (PCLK1) is HCLK/2 */
 
-#define STM32_RCC_CFGR_PPRE1    RCC_CFGR_PPRE1_HCLKd2     /* PCLK1 = HCLK / 2 */
-#define STM32_PCLK1_FREQUENCY   (STM32_HCLK_FREQUENCY/2)
+#define STM32_RCC_CFGR_PPRE1    RCC_CFGR_PPRE1_HCLK       /* PCLK1 = HCLK / 1 */
+#define STM32_PCLK1_FREQUENCY   (STM32_HCLK_FREQUENCY/1)
 
-/* Timers driven from APB1 will be twice PCLK1 */
+/* Timers driven from APB1 will be equal to PCLK1 */
 
-#define STM32_APB1_TIM2_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM3_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM4_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM5_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM6_CLKIN   (2*STM32_PCLK1_FREQUENCY)
-#define STM32_APB1_TIM7_CLKIN   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM2_CLKIN   (STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM3_CLKIN   (STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM4_CLKIN   (STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM5_CLKIN   (STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM6_CLKIN   (STM32_PCLK1_FREQUENCY)
+#define STM32_APB1_TIM7_CLKIN   (STM32_PCLK1_FREQUENCY)
 
 /* APB2 clock (PCLK2) is HCLK */
 
@@ -136,7 +119,7 @@
  */
 
 #define STM32_TIM18_FREQUENCY   (STM32_PCLK2_FREQUENCY)
-#define STM32_TIM27_FREQUENCY   (2*STM32_PCLK1_FREQUENCY)
+#define STM32_TIM27_FREQUENCY   (STM32_PCLK1_FREQUENCY)
 
 /* The board only has one button */
 
