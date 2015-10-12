@@ -1,0 +1,22 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config SLICE_SPI_REG
+	bool "Slice SPI Reg"
+	default n
+	---help---
+		Enable the Slice Register Based Slave
+
+if SLICE_SPI_REG
+
+config SLICE_SPI_REG_PROGNAME
+	string "Program name"
+	default "slice_spi_reg"
+	depends on BUILD_KERNEL
+	---help---
+		This is the name of the program that will be use when the NSH ELF
+		program is installed.
+
+endif

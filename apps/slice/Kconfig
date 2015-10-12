@@ -4,3 +4,4 @@
 #
 
 source "$APPSDIR/slice/cmd/Kconfig"
+source "$APPSDIR/slice/spi_reg/Kconfig"
