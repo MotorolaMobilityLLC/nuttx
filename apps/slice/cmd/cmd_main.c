@@ -295,7 +295,14 @@ int slice_cmd_main(int argc, char *argv[])
 {
   FAR struct i2c_dev_s *dev1;
 
-  slice_init();
+  if (slice_init() == OK)
+    {
+      logd("GPIOs configured\n");
+    }
+  else
+    {
+      logd("Failed to configure GPIOs!\n");
+    }
 
   dev1 = up_i2cinitialize(CONFIG_SLICE_CMD_I2C_SLAVE_BUS);
 
@@ -303,12 +310,15 @@ int slice_cmd_main(int argc, char *argv[])
   slice_cmd_self.reg = SLICE_REG_NOT_SET;
   list_init(&slice_cmd_self.reg_svc_tx_fifo);
 
-  if (I2C_SETOWNADDRESS(dev1, CONFIG_SLICE_CMD_I2C_SLAVE_ADDR, 7) == OK) {
-    I2C_REGISTERCALLBACK(dev1, &cb_ops, &slice_cmd_self);
-    logd("Slave setup complete!\n");
-  } else {
-    logd("Slave setup failed!\n");
-  }
+  if (I2C_SETOWNADDRESS(dev1, CONFIG_SLICE_CMD_I2C_SLAVE_ADDR, 7) == OK)
+    {
+      I2C_REGISTERCALLBACK(dev1, &cb_ops, &slice_cmd_self);
+      logd("I2C slave setup complete!\n");
+    }
+  else
+    {
+      logd("I2C slave setup failed!\n");
+    }
 
   svc_register(slice_cmd_recv_from_svc);
   gb_init(&slice_cmd_unipro_backend);
