@@ -80,8 +80,8 @@ struct slice_cmd_data
 {
   FAR struct i2c_dev_s *i2c;
 
-  pthread_t base_det_thread;
-  sem_t base_det_lock;
+  pthread_t base_present_thread;
+  sem_t base_present_lock;
   bool base_attached;
 
   int reg;
@@ -118,14 +118,14 @@ static void slice_cmd_interrupt(struct slice_cmd_data *slf, uint8_t int_mask, bo
   slice_host_int_set(slf->reg_int > 0);
 }
 
-static void *slice_cmd_base_det_worker(void *v)
+static void *slice_cmd_base_present_worker(void *v)
 {
   struct slice_cmd_data *slf = (struct slice_cmd_data *)v;
   bool base_present;
 
   while (1)
     {
-      base_present = !slice_base_det_read(); // active low
+      base_present = slice_is_base_present();
 
       if (slf->base_attached != base_present)
         {
@@ -145,28 +145,28 @@ static void *slice_cmd_base_det_worker(void *v)
             }
         }
 
-      sem_wait(&slf->base_det_lock);
+      sem_wait(&slf->base_present_lock);
     }
 
   return NULL;
 }
 
-static int slice_cmd_base_det_isr(int irq, void *context)
+static int slice_cmd_base_present_isr(int irq, void *context)
 {
-  sem_post(&slice_cmd_self.base_det_lock);
+  sem_post(&slice_cmd_self.base_present_lock);
   return OK;
 }
 
 static void slice_cmd_init(void)
 {
-  sem_init(&slice_cmd_self.base_det_lock, 0, 0);
+  sem_init(&slice_cmd_self.base_present_lock, 0, 0);
 
-  if (pthread_create(&slice_cmd_self.base_det_thread, NULL,
-                     slice_cmd_base_det_worker, &slice_cmd_self))
+  if (pthread_create(&slice_cmd_self.base_present_thread, NULL,
+                     slice_cmd_base_present_worker, &slice_cmd_self))
     {
       logd("Failed to create pthread for interrupts!\n");
     }
-  else if (slice_init(slice_cmd_base_det_isr) != OK)
+  else if (slice_init(slice_cmd_base_present_isr) != OK)
     {
       logd("Failed to configure GPIOs!\n");
     }
