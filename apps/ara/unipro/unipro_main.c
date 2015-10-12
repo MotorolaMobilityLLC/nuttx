@@ -98,7 +98,7 @@ static int attr_read(int argc, char **argv) {
     return rc;
 }
 
-void print_usage(char **argv) {
+static void print_usage(char **argv) {
     printf("Usage: %s -r attr | -w attr [-s <selector] [-p]\n", argv[0]);
     printf("\tOptions:\n");
     printf("\t-r\t Read an attribute\n");
