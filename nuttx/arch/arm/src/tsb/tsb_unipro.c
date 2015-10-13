@@ -1203,6 +1203,11 @@ int tsb_unipro_mbox_send(uint32_t val) {
             lldbg("%s: TSB_INTERRUPTSTATUS poll failed: %d\n", __func__, rc);
             return rc;
         }
+#if defined(CONFIG_UNIPRO_P2P)
+        /* insert 1ms delay. unipro_attr_read() tends to hang when remote
+           an attribute is read in short interval. */
+        usleep(1000);
+#endif
     } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && --retries > 0);
 
     if (!retries) {
