@@ -38,6 +38,7 @@
 #include <nuttx/usb/usbdev.h>
 
 #include <arch/irq.h>
+#include <arch/byteorder.h>
 
 /**
  * \brief USB string
@@ -102,6 +103,34 @@ void gadget_add_cfgdesc(struct gadget_descriptor *g_desc,
                         const struct usb_desc_s *usb_desc[]);
 void gadget_set_strings(struct gadget_descriptor *g_desc,
                         const struct gadget_strings *str);
+
+/** Output request (host to device) */
+#define VENDOR_REQ_OUT      (0)
+/** Input request (device to host) */
+#define VENDOR_REQ_IN       BIT(0)
+/**
+ * Output request with data stage (host to device).
+ * The request callback will not be called until data stage complete.
+ */
+#define VENDOR_REQ_DATA     BIT(1)
+ /**
+  * Let the vendor request submit back the request.
+  */
+#define VENDOR_REQ_DEFER    BIT(2)
+
+typedef int (*control_request_callback)(struct usbdev_s *dev, uint8_t req,
+                                        uint16_t index, uint16_t value,
+                                        void *buf, uint16_t len);
+int vendor_request_handler(struct usbdev_s *dev,
+                           struct usbdev_req_s *req,
+                           const struct usb_ctrlreq_s *ctrl);
+void vendor_request_complete(struct usbdev_s *dev, int16_t result);
+void vendor_data_handler(struct usbdev_req_s *req);
+void vendor_request_deferred_submit(struct usbdev_s *dev, int result);
+int register_vendor_request(uint8_t req, uint8_t flags,
+                            control_request_callback cb);
+void unregister_vendor_request(uint8_t req);
+void unregister_all_vendor_request(void);
 
 #endif /* _COMMON_GADGET_H_ */
 

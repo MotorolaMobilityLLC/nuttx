@@ -31,6 +31,7 @@
 #include <string.h>
 #include <nuttx/util.h>
 #include <nuttx/bufram.h>
+#include <nuttx/list.h>
 #include <arch/board/common_gadget.h>
 
 #define REQ_SIZE_MUL (BUFRAM_PAGE_SIZE)
@@ -615,4 +616,206 @@ int gadget_control_handler(struct gadget_descriptor *g_desc,
     }
 
     return ret;
+}
+
+/* Vendor request API */
+
+struct vendor_request {
+    uint8_t req;
+    uint8_t flags;
+    control_request_callback cb;
+    struct list_head list;
+};
+
+static LIST_DECLARE(vendor_requests);
+static struct vendor_request *g_vendor_request = NULL;
+static struct usb_ctrlreq_s g_ctrl;
+static struct usbdev_s *g_dev;
+static struct usbdev_req_s *g_req;
+
+/**
+ * \brief Handle the control request data stage
+ * The host first send the control request and after send the data.
+ * In this case, the vendor request callback is called only after
+ * we receive data.
+ * \param req pointer to the request to execute (used for data stage)
+ */
+void vendor_data_handler(struct usbdev_req_s *req)
+{
+    if (!g_vendor_request)
+        return;
+
+    uint16_t value;
+    uint16_t index;
+
+    value = GETUINT16(g_ctrl.value);
+    index = GETUINT16(g_ctrl.index);
+
+    g_vendor_request->cb(g_dev, g_ctrl.req, value, index, req->buf, req->xfrd);
+    g_vendor_request = NULL;
+}
+
+static int vendor_request_submit(struct usbdev_s *dev,
+                                 struct usbdev_req_s *req, int result)
+{
+    if (result >= 0) {
+        result = EP_SUBMIT(dev->ep0, req);
+    }
+
+    if (result < 0) {
+        req->result = result;
+        req->callback(dev->ep0, req);
+    }
+
+    return result;
+}
+
+/**
+ * \brief Submit a vendor request
+ * Sometime, we may want to submit a request outside the
+ * vendor request callback.
+ * To use deferred request, you must set the VENDOR_REQUEST_DEFER flag.
+ * \param dev pointer to the usb device
+ */
+void vendor_request_deferred_submit(struct usbdev_s *dev, int result)
+{
+    struct usbdev_req_s *req = g_req;
+
+    if (!req) {
+        return;
+    } else {
+        g_req = NULL;
+    }
+
+    vendor_request_submit(dev, req, result);
+}
+
+/**
+ * \brief Handle vendor request
+ * Find a request handler and execute it.
+ * In case of out data stage (host to device), the callback is not called.
+ * We are waiting to receive the data to call it (vendor_data_handler()).
+ * If there are a data stage, the method will submit itself  the request.
+ * This method is expected to work with only one control endpoint.
+ * \param dev pointer to the usb device
+ * \param req pointer to the request to execute (used for data stage)
+ * \param ctrl pointer to the control request to execute
+ * \return the size of data to send or < 0 in case of error
+ */
+int vendor_request_handler(struct usbdev_s *dev,
+                           struct usbdev_req_s *req,
+                           const struct usb_ctrlreq_s *ctrl)
+{
+    int in;
+    uint16_t value;
+    uint16_t index;
+    uint16_t len;
+    int ret = -EOPNOTSUPP;
+    struct list_head *iter;
+    struct vendor_request *vendor_request;
+
+    value = GETUINT16(ctrl->value);
+    index = GETUINT16(ctrl->index);
+    len = GETUINT16(ctrl->len);
+
+    in = (ctrl->type & USB_DIR_IN) != 0;
+
+    if ((ctrl->type & USB_REQ_TYPE_MASK) == USB_REQ_TYPE_VENDOR) {
+        list_foreach(&vendor_requests, iter) {
+            vendor_request = list_entry(iter, struct vendor_request, list);
+            if (vendor_request->req == ctrl->req) {
+                /* in transfer: nothing special to do */
+                if (in && (vendor_request->flags & VENDOR_REQ_IN)) {
+                    ret = vendor_request->cb(dev, ctrl->req, index, value,
+                                             req->buf, len);
+                } else if (!(in && vendor_request->flags & VENDOR_REQ_IN)) {
+                    /* we don't expect data from host */
+                    if (!(vendor_request->flags & VENDOR_REQ_DATA)) {
+                        ret = vendor_request->cb(dev, ctrl->req, index, value,
+                                                 req->buf, len);
+                    /* wait to receive data before to call handler */
+                    } else {
+                        ret = len;
+                        g_vendor_request = vendor_request;
+                        memcpy(&g_ctrl, ctrl, sizeof(g_ctrl));
+                    }
+                }
+            }
+        }
+    }
+
+    if (ret >= 0) {
+        req->len = MIN(len, ret);
+        req->flags = USBDEV_REQFLAGS_NULLPKT;
+        if (vendor_request->flags && VENDOR_REQ_DEFER) {
+            g_req = req;
+        } else {
+            ret = vendor_request_submit(dev, req, ret);
+        }
+    }
+
+    return ret;
+}
+
+/**
+ * Register a new vendor request
+ * \param req the vendor request number
+ * \param flags configure how the request is handled
+ * \param cb the callback to call if this request is handled
+ * return 0 in sucess or < 0 in case of error
+ */
+int register_vendor_request(uint8_t req, uint8_t flags,
+                             control_request_callback cb)
+{
+    irqstate_t irq_flags;
+    struct vendor_request *vendor_request;
+
+    vendor_request = kmm_malloc(sizeof(*vendor_request));
+    if (!vendor_request)
+        return -ENOMEM;
+
+    irq_flags = irqsave();
+    vendor_request->req = req;
+    vendor_request->cb = cb;
+    vendor_request->flags = flags;
+    list_add(&vendor_requests, &vendor_request->list);
+    irqrestore(irq_flags);
+
+    return 0;
+}
+
+/**
+ * remove a vendor request from vendor request manager
+ * \param req the vendor request number of request to remove
+ */
+void unregister_vendor_request(uint8_t req)
+{
+    irqstate_t flags;
+    struct list_head *iter, *next;
+    struct vendor_request *vendor_request;
+
+    flags = irqsave();
+    list_foreach_safe(&vendor_requests, iter, next) {
+        vendor_request = list_entry(iter, struct vendor_request, list);
+        if (vendor_request->req == req) {
+            list_del(iter);
+            kmm_free(&vendor_request->list);
+        }
+    }
+    irqrestore(flags);
+}
+
+/**
+ * remove all vendor requests from vendor request manager
+ */
+void unregister_all_vendor_request(void)
+{
+    struct list_head *iter, *next;
+    struct vendor_request *vendor_request;
+
+    list_foreach_safe(&vendor_requests, iter, next) {
+        vendor_request = list_entry(iter, struct vendor_request, list);
+        list_del(iter);
+        kmm_free(&vendor_request->list);
+    }
 }
