@@ -365,6 +365,12 @@ struct apbridge_dev_s *driver_to_apbridge(struct usbdevclass_driver_s *drv)
     return CONTAINER_OF(drv, struct apbridge_dev_s, drvr);
 }
 
+static inline
+struct apbridge_dev_s *usbdev_to_apbridge(struct usbdev_s *dev)
+{
+    return dev->ep0->priv;
+}
+
 /**
  * @brief Wait until usb connection has been established
  * USB driver is not fully initialized until enumeration is done.
