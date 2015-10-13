@@ -710,22 +710,12 @@ static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config)
 static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
                                    struct usbdev_req_s *req)
 {
-    struct apbridge_dev_s *priv;
-    int *req_priv;
-
-    priv = ep_to_apbridge(ep);
-
     if (req->result || req->xfrd != req->len) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_REQRESULT),
                  (uint16_t) - req->result);
     }
 
-    req_priv = (int *)request_get_priv(req);
-    if (req_priv) {
-        if (*req_priv == GREYBUS_EP_MAPPING)
-            map_cport_to_ep(priv, (struct cport_to_ep *)req->buf);
-        kmm_free(req_priv);
-    }
+    vendor_data_handler(req);
     put_request(req);
 }
 
@@ -1070,8 +1060,7 @@ int usb_get_log(void *buf, int len)
 #endif
 
 struct cport_reset_priv {
-    struct usbdev_req_s *req;
-    struct usbdev_ep_s *ep0;
+    struct usbdev_s *dev;
     struct wdog_s timeout_wd;
     atomic_t refcount;
 };
@@ -1079,16 +1068,9 @@ struct cport_reset_priv {
 static void cport_reset_cb(unsigned int cportid, void *data)
 {
     struct cport_reset_priv *priv = data;
-    int ret;
 
     if (atomic_dec(&priv->refcount)) {
-        priv->req->len = 0;
-        priv->req->flags = USBDEV_REQFLAGS_NULLPKT;
-
-        ret = EP_SUBMIT(priv->ep0, priv->req);
-        if (ret < 0) {
-            usbclass_ep0incomplete(priv->ep0, priv->req);
-        }
+        vendor_request_deferred_submit(priv->dev, OK);
     } else {
         wd_delete(&priv->timeout_wd);
         free(priv);
@@ -1103,15 +1085,14 @@ static void cport_reset_timeout(int argc, uint32_t data, ...)
         return;
 
     if (atomic_dec(&priv->refcount)) {
-        usbclass_ep0incomplete(priv->ep0, priv->req);
+        vendor_request_deferred_submit(priv->dev, -ETIMEDOUT);
     } else {
         wd_delete(&priv->timeout_wd);
         free(priv);
     }
 }
 
-static int reset_cport(unsigned int cportid, struct usbdev_req_s *req,
-                       struct usbdev_ep_s *ep0)
+static int reset_cport(unsigned int cportid, struct usbdev_s *dev)
 {
     struct cport_reset_priv *priv;
 
@@ -1121,8 +1102,7 @@ static int reset_cport(unsigned int cportid, struct usbdev_req_s *req,
     }
 
     wd_static(&priv->timeout_wd);
-    priv->req = req;
-    priv->ep0 = ep0;
+    priv->dev = dev;
 
     /* a ref for the watchdog and one for the unipro stack */
     atomic_init(&priv->refcount, 2);
@@ -1130,6 +1110,74 @@ static int reset_cport(unsigned int cportid, struct usbdev_req_s *req,
     wd_start(&priv->timeout_wd, RESET_TIMEOUT_DELAY, cport_reset_timeout, 1,
              priv);
     return unipro_reset_cport(cportid, cport_reset_cb, priv);
+}
+
+static int greybus_log_vendor_request_in(struct usbdev_s *dev, uint8_t req,
+                                         uint16_t index, uint16_t value,
+                                         void *buf, uint16_t len)
+{
+    int ret;
+
+#if defined(CONFIG_APB_USB_LOG)
+    ret = usb_get_log(buf, len);
+#else
+    ret = 0;
+#endif
+
+    return ret;
+}
+
+static int ep_mapping_vendor_request_out(struct usbdev_s *dev, uint8_t req,
+                                         uint16_t index, uint16_t value,
+                                         void *buf, uint16_t len)
+{
+    map_cport_to_ep(usbdev_to_apbridge(dev), (struct cport_to_ep *)buf);
+    return len;
+}
+
+static int cport_count_vendor_request_in(struct usbdev_s *dev, uint8_t req,
+                                         uint16_t index, uint16_t value,
+                                         void *buf, uint16_t len)
+{
+    *(uint16_t *) buf = cpu_to_le16(unipro_cport_count());
+    return sizeof(uint16_t);
+}
+
+static int cport_reset_vendor_request_out(struct usbdev_s *dev, uint8_t req,
+                                          uint16_t index, uint16_t value,
+                                          void *buf, uint16_t len)
+{
+    return reset_cport(value, dev);
+}
+
+static int latency_tag_en_vendor_request_out(struct usbdev_s *dev, uint8_t req,
+                                             uint16_t index, uint16_t value,
+                                             void *buf, uint16_t len)
+{
+    int ret = -EINVAL;
+    struct apbridge_dev_s *priv = usbdev_to_apbridge(dev);
+
+    if (value < unipro_cport_count()) {
+        priv->ts[value].tag = true;
+        ret = 0;
+        lldbg("enable tagging for cportid %d\n", value);
+    }
+    return ret;
+}
+
+static int latency_tag_dis_vendor_request_out(struct usbdev_s *dev, uint8_t req,
+                                              uint16_t index, uint16_t value,
+                                              void *buf, uint16_t len)
+{
+    int ret = -EINVAL;
+    struct apbridge_dev_s *priv = usbdev_to_apbridge(dev);
+
+    if (value < unipro_cport_count()) {
+        priv->ts[value].tag = false;
+        ret = 0;
+        lldbg("disable tagging for cportid %d\n", value);
+    }
+    return ret;
 }
 
 /****************************************************************************
@@ -1154,7 +1202,6 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
     uint16_t index;
     uint16_t len;
     int ret = -EOPNOTSUPP;
-    bool do_not_send_response = false;
 
 #ifdef CONFIG_DEBUG
     if (!driver || !dev || !dev->ep0 || !ctrl) {
@@ -1268,70 +1315,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
         /* Put here vendor request */
     case USB_REQ_TYPE_VENDOR:
         {
-            if ((ctrl->type & USB_REQ_RECIPIENT_MASK) ==
-                USB_REQ_RECIPIENT_INTERFACE) {
-                if (ctrl->req == APBRIDGE_RWREQUEST_LOG) {
-                    if ((ctrl->type & USB_DIR_IN) == 0) {
-                    } else {
-#if defined(CONFIG_APB_USB_LOG)
-                        *req_priv = GREYBUS_LOG;
-                        ret = usb_get_log(req->buf, len);
-#else
-                        ret = 0;
-#endif
-                    }
-                } else if (ctrl->req == APBRIDGE_RWREQUEST_EP_MAPPING) {
-                    if ((ctrl->type & USB_DIR_IN) != 0) {
-                        *(uint32_t *) req->buf = 0xdeadbeef;
-                        ret = 4;
-                    } else {
-                        *req_priv = GREYBUS_EP_MAPPING;
-                        ret = len;
-                    }
-                } else if (ctrl->req == APBRIDGE_ROREQUEST_CPORT_COUNT) {
-                    if ((ctrl->type & USB_DIR_IN) != 0) {
-                        *(uint16_t *) req->buf =
-                            cpu_to_le16(unipro_cport_count());
-                        ret = sizeof(uint16_t);
-                    } else {
-                        ret = -EINVAL;
-                    }
-                } else if (ctrl->req == APBRIDGE_WOREQUEST_CPORT_RESET) {
-                    if (!(ctrl->type & USB_DIR_IN)) {
-                        ret = reset_cport(value, req, dev->ep0);
-                        if (!ret)
-                            do_not_send_response = true;
-                    } else {
-                        ret = -EINVAL;
-                    }
-                } else if (ctrl->req == APBRIDGE_ROREQUEST_LATENCY_TAG_EN) {
-                    if ((ctrl->type & USB_DIR_IN) != 0) {
-                        ret = -EINVAL;
-                    } else {
-                        ret = -EINVAL;
-                        if (value < unipro_cport_count()) {
-                            priv->ts[value].tag = true;
-                            ret = 0;
-                            lldbg("enable tagging for cportid %d\n", value);
-                        }
-                    }
-                } else if (ctrl->req == APBRIDGE_ROREQUEST_LATENCY_TAG_DIS) {
-                    if ((ctrl->type & USB_DIR_IN) != 0) {
-                        ret = -EINVAL;
-                    } else {
-                        ret = -EINVAL;
-                        if (value < unipro_cport_count()) {
-                            priv->ts[value].tag = false;
-                            ret = 0;
-                            lldbg("disable tagging for cportid %d\n", value);
-                        }
-                    }
-                } else {
-                    usbtrace(TRACE_CLSERROR
-                             (USBSER_TRACEERR_UNSUPPORTEDCLASSREQ),
-                             ctrl->type);
-                }
-            }
+            return vendor_request_handler(dev, req, ctrl);
         }
         break;
 
@@ -1344,7 +1328,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
      * value (ret < 0), the USB driver will stall.
      */
 
-    if (ret >= 0 && !do_not_send_response) {
+    if (ret >= 0) {
         req->len = min(len, ret);
         req->flags = USBDEV_REQFLAGS_NULLPKT;
         ret = EP_SUBMIT(dev->ep0, req);
@@ -1424,9 +1408,30 @@ int usbdev_apbinitialize(struct device *dev,
 {
     struct apbridge_dev_s *priv;
     struct usbdevclass_driver_s *drvr;
-    int ret;
+    int ret = -ENOMEM;
     unsigned int i;
     unsigned int cport_count = unipro_cport_count();
+
+    /* Register USB vendor requests */
+    if (register_vendor_request(APBRIDGE_RWREQUEST_LOG, VENDOR_REQ_IN,
+                                greybus_log_vendor_request_in))
+        goto errout_vendor_req;
+    if (register_vendor_request(APBRIDGE_RWREQUEST_EP_MAPPING, VENDOR_REQ_DATA,
+                            ep_mapping_vendor_request_out))
+        goto errout_vendor_req;
+    if (register_vendor_request(APBRIDGE_ROREQUEST_CPORT_COUNT, VENDOR_REQ_IN,
+                            cport_count_vendor_request_in))
+        goto errout_vendor_req;
+    if (register_vendor_request(APBRIDGE_WOREQUEST_CPORT_RESET,
+                            VENDOR_REQ_OUT | VENDOR_REQ_DEFER,
+                            cport_reset_vendor_request_out))
+        goto errout_vendor_req;
+    if (register_vendor_request(APBRIDGE_ROREQUEST_LATENCY_TAG_EN, VENDOR_REQ_OUT,
+                            latency_tag_en_vendor_request_out))
+        goto errout_vendor_req;
+    if (register_vendor_request(APBRIDGE_ROREQUEST_LATENCY_TAG_DIS, VENDOR_REQ_OUT,
+                            latency_tag_dis_vendor_request_out))
+        goto errout_vendor_req;
 
     /* Allocate the structures needed */
 
@@ -1493,5 +1498,7 @@ errout_with_alloc_ts:
     kmm_free(priv->cport_to_epin_n);
  errout_with_alloc:
     kmm_free(priv);
+errout_vendor_req:
+    unregister_all_vendor_request();
     return ret;
 }
