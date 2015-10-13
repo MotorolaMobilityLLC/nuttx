@@ -356,40 +356,6 @@
 #define SPI_SLAVE_REGISTERCALLBACK(d,c,v)  ((d)->ops->slaveregistercallback(d,c,v))
 
 /****************************************************************************
- * Name: SPI_SLAVE_WRITE
- *
- * Description:
- *   Send a block of data to the SPI master device.
- *
- * Input Parameters:
- *   dev    - Device-specific state data
- *   buffer - A pointer to the read-only buffer of data to be written to device
- *
- * Returned Value:
- *   0: success, <0: A negated errno
- *
- ****************************************************************************/
-
-#define SPI_SLAVE_WRITE(d,b) ((d)->ops->slave_write(d,b))
-
-/****************************************************************************
- * Name: SPI_SLAVE_READ
- *
- * Description:
- *   Receive a block of incoming data from SPI master device.
- *
- * Input Parameters:
- *   dev    - Device-specific state data
- *   buffer - A pointer to a buffer of data to receive the data from the device
- *
- * Returned Value:
- *   0: success, <0: A negated errno
- *
- ****************************************************************************/
-
-#define SPI_SLAVE_READ(d,b) ((d)->ops->slave_read(d,b))
-
-/****************************************************************************
  * Name: SPI_SLAVE_DMA_CANCEL
  *
  * Description:
@@ -408,10 +374,6 @@
 /* SPI Mode type defines */
 #define SPI_MODE_TYPE_MASTER	1
 #define SPI_MODE_TYPE_SLAVE	0
-
-/* SPI reset modes */
-#define SPI_PORT_RESET 1
-#define SPI_PORT_INITIALIZE 0
 
 /****************************************************************************
  * Public Types
@@ -484,20 +446,15 @@ struct spi_ops_s
 #ifdef CONFIG_SPI_SLAVE
   int    (*slaveregistercallback)(FAR struct spi_dev_s *dev,
                                   const struct spi_cb_ops_s *cb_ops, void *v);
-  int    (*slave_write)(FAR struct spi_dev_s *dev, const uint8_t *buffer);
-  int    (*slave_read)(FAR struct spi_dev_s *dev, uint8_t *buffer);
   void   (*slave_dma_cancel)(FAR struct spi_dev_s *dev);
 #endif
-
 };
 
 struct spi_cb_ops_s
 {
-  int (*read)(void *v);
-  int (*write)(void *v);
-  int (*txn_half)(void *v);
-  int (*txn_end)(void *v);
-  int (*txn_err)(void *v);
+  void (*txn_start)(void *v);
+  void (*txn_end)(void *v);
+  void (*txn_err)(void *v);
 };
 
 /* SPI private data.  This structure only defines the initial fields of the
