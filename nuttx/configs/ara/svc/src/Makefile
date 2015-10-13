@@ -85,6 +85,11 @@ CSRCS		+= board-sdb.c
 CSRCS		+= pwr_mon.c
 endif
 
+ifeq ($(CONFIG_ARCH_BOARD_ARA_DB3_SVC),y)
+CSRCS		+= board-db3.c
+CSRCS		+= pwr_mon.c
+endif
+
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
 CSRCS		+= up_nsh.c
 endif

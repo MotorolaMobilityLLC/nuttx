@@ -1841,7 +1841,8 @@ int switch_connection_create(struct tsb_switch *sw,
 
     return 0;
 
-#if !(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC || CONFIG_ARCH_BOARD_ARA_SDB_SVC)
+#if !(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC || CONFIG_ARCH_BOARD_ARA_SDB_SVC || \
+      CONFIG_ARCH_BOARD_ARA_DB3_SVC)
 err1:
     dbg_error("%s: couldn't set link power mode to default state.\n",
               __func__);

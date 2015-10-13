@@ -383,8 +383,9 @@
 /* BDB2A */
 #define GPIO_USART1_RX  GPIO_USART1_RX_2 /* PB7 */
 #define GPIO_USART1_TX  GPIO_USART1_TX_2 /* PB6 */
-#elif defined(CONFIG_ARCH_BOARD_ARA_SDB_SVC)
-/* SDB */
+#elif defined(CONFIG_ARCH_BOARD_ARA_SDB_SVC) || \
+      defined(CONFIG_ARCH_BOARD_ARA_DB3_SVC)
+/* SDB and DB3 */
 #define GPIO_USART1_RX  GPIO_USART1_RX_1 /* PA10 */
 #define GPIO_USART1_TX  GPIO_USART1_TX_1 /* PA9 */
 #endif
@@ -472,9 +473,14 @@
 /*
  * I2C
  */
-
+#if defined(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC) || \
+    defined(CONFIG_ARCH_BOARD_ARA_SDB_SVC)
 #define GPIO_I2C1_SCL GPIO_I2C1_SCL_1 /* PB6 is I2C1_SCL -> ETP161 */
 #define GPIO_I2C1_SDA GPIO_I2C1_SDA_1 /* PB7 is I2C1_SDA -> ETP166 */
+#elif defined(CONFIG_ARCH_BOARD_ARA_DB3_SVC)
+#define GPIO_I2C1_SCL GPIO_I2C1_SCL_2 /* PB8 is I2C1_SCL */
+#define GPIO_I2C1_SDA GPIO_I2C1_SDA_1 /* PB7 is I2C1_SDA */
+#endif
 
 #define GPIO_I2C2_SCL GPIO_I2C2_SCL_3 /* PH4 is I2C2_SCL */
 #define GPIO_I2C2_SDA GPIO_I2C2_SDA_3 /* PH5 is I2C2_SDA */
@@ -489,6 +495,14 @@
 #define GPIO_SPI1_MOSI          GPIO_SPI1_MOSI_1
 #define GPIO_SPI1_NSS           GPIO_SPI1_NSS_1
 #define GPIO_SPI1_SCK           GPIO_SPI1_SCK_1
+
+/*
+ * SPI2 to the Unipro Switch
+ */
+#define GPIO_SPI2_MISO          GPIO_SPI2_MISO_1
+#define GPIO_SPI2_MOSI          GPIO_SPI2_MOSI_1
+#define GPIO_SPI2_NSS           GPIO_SPI2_NSS_1
+#define GPIO_SPI2_SCK           GPIO_SPI2_SCK_2
 
 /* DMA Channel/Stream Selections *****************************************************/
 /* Stream selections are arbitrary for now but might become important in the future
