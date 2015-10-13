@@ -41,6 +41,7 @@
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbdev.h>
 #include <nuttx/mm/mm.h>
+#include <nuttx/util.h>
 
 #include <arch/irq.h>
 
@@ -61,10 +62,6 @@
 #define DWC_NENDPOINTS        (16)
 #endif
 #define EP0                   (0)
-
-#define CONTAINER_OF(ptr, type, mbr) ({                      \
-        const typeof( ((type *)0)->mbr ) *__mptr = (ptr);    \
-        (type *)( (char *)__mptr - offsetof(type,mbr) );})
 
 struct dwc_usbdev_ep_s {
     struct usbdev_ep_s ep;

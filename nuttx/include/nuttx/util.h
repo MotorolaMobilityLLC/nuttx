@@ -97,6 +97,10 @@
     })
 #endif
 
+#define CONTAINER_OF(ptr, type, mbr) ({                      \
+        const typeof( ((type *)0)->mbr ) *__mptr = (ptr);    \
+        (type *)( (char *)__mptr - offsetof(type,mbr) );})
+
 #endif
 
 
