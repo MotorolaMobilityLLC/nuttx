@@ -92,6 +92,8 @@ enum ara_iface_type {
     ARA_IFACE_TYPE_BLOCK,
     /* Expansion interface to external connectors (e.g. SMA) */
     ARA_IFACE_TYPE_EXPANSION,
+    /* Module port interface, as on DB3 board */
+    ARA_IFACE_TYPE_MODULE_PORT,
 };
 
 /* Interface flags */
@@ -161,6 +163,11 @@ enum hotplug_state interface_get_hotplug_state(struct interface *iface);
  */
 static inline int interface_is_builtin(struct interface *iface) {
     return !!(iface->if_type == ARA_IFACE_TYPE_BUILTIN);
+}
+
+/* @brief Test if an interface connects to a module port */
+static inline int interface_is_module_port(struct interface *iface) {
+    return !!(iface->if_type == ARA_IFACE_TYPE_MODULE_PORT);
 }
 
 uint8_t interface_pm_get_adc(struct interface *iface);
@@ -266,6 +273,32 @@ uint32_t interface_pm_get_spin(struct interface *iface);
         .pm = NULL,                                            \
         .wake_in = INIT_WD_DATA(wake_in_gpio),                 \
         .detect_in = INIT_WD_DATA(detect_in_gpio),             \
+    };
+
+/*
+ * Module port interface, as on DB3 board.
+ *
+ * There is only one pin for detect_in, wake_in and wake_out.
+ * If there is no Unipro port connected to the interface, portid
+ * is INVALID_PORT.
+ */
+#define DECLARE_MODULE_PORT_INTERFACE(_name, vreg_data,        \
+                                      portid,                  \
+                                      wake_detect_gpio,        \
+                                      detect_in_pol)           \
+    DECLARE_VREG(_name, vreg_data)                             \
+    static struct interface MAKE_INTERFACE(_name) = {          \
+        .name = #_name,                                        \
+        .if_type = ARA_IFACE_TYPE_MODULE_PORT,                 \
+        .flags = (detect_in_pol ?                              \
+                    ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH :     \
+                    ARA_IFACE_FLAG_DETECT_IN_ACTIVE_LOW),      \
+        .vreg = &MAKE_VREG(_name),                             \
+        .switch_portid = portid,                               \
+        .wake_out = 0,                                         \
+        .pm = NULL,                                            \
+        .wake_in = INIT_WD_DATA(0),                            \
+        .detect_in = INIT_WD_DATA(wake_detect_gpio),           \
     };
 
 #endif
