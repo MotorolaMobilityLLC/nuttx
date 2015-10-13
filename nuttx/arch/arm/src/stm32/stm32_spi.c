@@ -70,10 +70,8 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/spi/spi.h>
-#include <nuttx/wdog.h>
 
 #include <arch/board/board.h>
-
 
 #include "up_internal.h"
 #include "up_arch.h"
@@ -91,6 +89,11 @@
  * Definitions
  ************************************************************************************/
 /* Configuration ********************************************************************/
+/* SPI interrupts */
+
+#ifdef CONFIG_STM32_SPI_INTERRUPTS
+#  error "Interrupt driven SPI not yet supported"
+#endif
 
 /* Can't have both interrupt driven SPI and SPI DMA */
 
@@ -151,7 +154,12 @@
 #  error "Unknown STM32 DMA"
 #endif
 
-#define SPI_DMA_TIMEOUT     ((10 * CLK_TCK) / 1000) /* 10 mS */
+#define CALL_CB_IF_SET(priv, func)           \
+    if (priv->cb_ops && priv->cb_ops->func)  \
+      {                                      \
+        priv->cb_ops->func(priv->cb_v);      \
+      }
+
 /* Debug ****************************************************************************/
 /* Check if (non-standard) SPI debug is enabled */
 
@@ -195,7 +203,6 @@ struct stm32_spidev_s
   sem_t            txsem;      /* Wait for TX DMA to complete */
   uint32_t         txccr;      /* DMA control register for TX transfers */
   uint32_t         rxccr;      /* DMA control register for RX transfers */
-  WDOG_ID          timeout;    /* watchdog to timeout when bus is hung */
 #endif
 #ifndef CONFIG_SPI_OWNBUS
   sem_t            exclsem;    /* Held while chip is selected for mutual exclusion */
@@ -205,11 +212,8 @@ struct stm32_spidev_s
   uint8_t          mode;       /* Mode 0,1,2,3 */
 #endif
   uint8_t          mode_type;  /* Master or Slave */
-  uint8_t          init_type;  /* port reset or port initialize */
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-  int		   (*isr)(int, void *);     /* Interrupt handler */
-#endif
 #ifdef CONFIG_SPI_SLAVE
+  uint8_t          xfering;    /* Flag indicating transfer in progress */
   const struct spi_cb_ops_s *cb_ops; /* spi dev callbacks */
   void *cb_v;                  /* Data pointer for spi dev callbacks */
 #endif
@@ -244,8 +248,9 @@ static void        spi_dmatxsetup(FAR struct stm32_spidev_s *priv,
                                   FAR const void *txbuffer, FAR const void *txdummy, size_t nwords);
 static inline void spi_dmarxstart(FAR struct stm32_spidev_s *priv);
 static inline void spi_dmatxstart(FAR struct stm32_spidev_s *priv);
+#ifdef CONFIG_SPI_SLAVE
 static inline void spi_rxtxdmastop_slave(FAR struct spi_dev_s *dev);
-static void        spi_dma_timeout_handler(int argc, uint32_t arg, ...);
+#endif
 #endif
 
 /* SPI methods */
@@ -267,8 +272,6 @@ static void        spi_recvblock(FAR struct spi_dev_s *dev, FAR void *rxbuffer,
 #endif
 
 #ifdef CONFIG_SPI_SLAVE
-static int spi_write_slave(FAR struct spi_dev_s *dev, const uint8_t *buffer);
-static int spi_read_slave(FAR struct spi_dev_s *dev, uint8_t *buffer);
 static int spi_registercallback(FAR struct spi_dev_s *dev,
                                 const struct spi_cb_ops_s *cb_ops, void *v);
 #endif
@@ -277,27 +280,8 @@ static int spi_registercallback(FAR struct spi_dev_s *dev,
 
 static void        spi_portinitialize(FAR struct stm32_spidev_s *priv);
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-static int stm32_spi_isr(struct stm32_spidev_s *priv);
+#ifdef CONFIG_SPI_SLAVE
 static int stm32_spi_ss_isr(struct stm32_spidev_s *priv, int nss_gpio);
-#ifdef CONFIG_STM32_SPI1
-static int stm32_spi1_isr(int irq, void *context);
-#endif
-#ifdef CONFIG_STM32_SPI2
-static int stm32_spi2_isr(int irq, void *context);
-#endif
-#ifdef CONFIG_STM32_SPI3
-static int stm32_spi3_isr(int irq, void *context);
-#endif
-#ifdef CONFIG_STM32_SPI4
-static int stm32_spi4_isr(int irq, void *context);
-#endif
-#ifdef CONFIG_STM32_SPI5
-static int stm32_spi5_isr(int irq, void *context);
-#endif
-#ifdef CONFIG_STM32_SPI6
-static int stm32_spi6_isr(int irq, void *context);
-#endif
 
 #ifdef CONFIG_STM32_SPI1
 static int stm32_spi1_ss_isr(int irq, void *context);
@@ -318,7 +302,7 @@ static int stm32_spi5_ss_isr(int irq, void *context);
 static int stm32_spi6_ss_isr(int irq, void *context);
 #endif
 
-#endif
+#endif /* CONFIG_SPI_SLAVE */
 
 /************************************************************************************
  * Private Data
@@ -347,11 +331,9 @@ static const struct spi_ops_s g_sp1iops =
 #endif
   .registercallback  = 0,
 #ifdef CONFIG_SPI_SLAVE
-    .slaveregistercallback = spi_registercallback,
-    .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave,
+  .slaveregistercallback = spi_registercallback,
 #ifdef CONFIG_STM32_SPI_DMA
-    .slave_dma_cancel    = spi_rxtxdmastop_slave,
+  .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 #endif
 };
@@ -363,7 +345,6 @@ static struct stm32_spidev_s g_spi1dev =
   .spiclock = STM32_PCLK2_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI1,
-  .isr      = stm32_spi1_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI1_RX,
@@ -376,7 +357,6 @@ static struct stm32_spidev_s g_spi1dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
-  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -403,11 +383,9 @@ static const struct spi_ops_s g_sp2iops =
 #endif
   .registercallback  = 0,
 #ifdef CONFIG_SPI_SLAVE
-    .slaveregistercallback = spi_registercallback,
-    .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave,
+  .slaveregistercallback = spi_registercallback,
 #ifdef CONFIG_STM32_SPI_DMA
-    .slave_dma_cancel    = spi_rxtxdmastop_slave,
+  .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 #endif
 };
@@ -419,7 +397,6 @@ static struct stm32_spidev_s g_spi2dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI2,
-  .isr      = stm32_spi2_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI2_RX,
@@ -432,7 +409,6 @@ static struct stm32_spidev_s g_spi2dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
-  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -459,11 +435,9 @@ static const struct spi_ops_s g_sp3iops =
 #endif
   .registercallback  = 0,
 #ifdef CONFIG_SPI_SLAVE
-    .slaveregistercallback = spi_registercallback,
-    .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave,
+  .slaveregistercallback = spi_registercallback,
 #ifdef CONFIG_STM32_SPI_DMA
-    .slave_dma_cancel    = spi_rxtxdmastop_slave,
+  .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 #endif
 };
@@ -475,7 +449,6 @@ static struct stm32_spidev_s g_spi3dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI3,
-  .isr      = stm32_spi3_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI3_RX,
@@ -488,7 +461,6 @@ static struct stm32_spidev_s g_spi3dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
-  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -515,11 +487,9 @@ static const struct spi_ops_s g_sp4iops =
 #endif
   .registercallback  = 0,
 #ifdef CONFIG_SPI_SLAVE
-    .slaveregistercallback = spi_registercallback,
-    .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave,
+  .slaveregistercallback = spi_registercallback,
 #ifdef CONFIG_STM32_SPI_DMA
-    .slave_dma_cancel    = spi_rxtxdmastop_slave,
+  .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 #endif
 };
@@ -531,7 +501,6 @@ static struct stm32_spidev_s g_spi4dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI4,
-  .isr      = stm32_spi4_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI4_RX,
@@ -544,7 +513,6 @@ static struct stm32_spidev_s g_spi4dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
-  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -571,11 +539,9 @@ static const struct spi_ops_s g_sp5iops =
 #endif
   .registercallback  = 0,
 #ifdef CONFIG_SPI_SLAVE
-    .slaveregistercallback = spi_registercallback,
-    .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave,
+  .slaveregistercallback = spi_registercallback,
 #ifdef CONFIG_STM32_SPI_DMA
-    .slave_dma_cancel    = spi_rxtxdmastop_slave,
+  .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 #endif
 };
@@ -587,7 +553,6 @@ static struct stm32_spidev_s g_spi5dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI5,
-  .isr      = stm32_spi5_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI5_RX,
@@ -600,7 +565,6 @@ static struct stm32_spidev_s g_spi5dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
-  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -627,11 +591,9 @@ static const struct spi_ops_s g_sp6iops =
 #endif
   .registercallback  = 0,
 #ifdef CONFIG_SPI_SLAVE
-    .slaveregistercallback = spi_registercallback,
-    .slave_write      = spi_write_slave,
-    .slave_read       = spi_read_slave,
+  .slaveregistercallback = spi_registercallback,
 #ifdef CONFIG_STM32_SPI_DMA
-    .slave_dma_cancel    = spi_rxtxdmastop_slave,
+  .slave_dma_cancel    = spi_rxtxdmastop_slave,
 #endif
 #endif
 };
@@ -643,7 +605,6 @@ static struct stm32_spidev_s g_spi6dev =
   .spiclock = STM32_PCLK1_FREQUENCY,
 #ifdef CONFIG_STM32_SPI_INTERRUPTS
   .spiirq   = STM32_IRQ_SPI6,
-  .isr      = stm32_spi6_isr,
 #endif
 #ifdef CONFIG_STM32_SPI_DMA
   .rxch     = DMACHAN_SPI6_RX,
@@ -656,7 +617,6 @@ static struct stm32_spidev_s g_spi6dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
-  .init_type  = SPI_PORT_INITIALIZE,
 };
 #endif
 
@@ -689,26 +649,6 @@ static inline uint16_t spi_getreg(FAR struct stm32_spidev_s *priv, uint8_t offse
 }
 
 /************************************************************************************
- * Name: spi_getreg8
- *
- * Description:
- *   Get the contents of the SPI register at offset
- *
- * Input Parameters:
- *   priv   - private SPI device structure
- *   offset - offset to the register of interest
- *
- * Returned Value:
- *   The contents of the 8-bit register
- *
- ************************************************************************************/
-
-static inline uint8_t spi_getreg8(FAR struct stm32_spidev_s *priv, uint8_t offset)
-{
-  return getreg8(priv->spibase + offset);
-}
-
-/************************************************************************************
  * Name: spi_putreg
  *
  * Description:
@@ -728,28 +668,6 @@ static inline void spi_putreg(FAR struct stm32_spidev_s *priv, uint8_t offset, u
 {
   putreg16(value, priv->spibase + offset);
 }
-
-/************************************************************************************
- * Name: spi_putreg8
- *
- * Description:
- *   Write a 8-bit value to the SPI register at offset
- *
- * Input Parameters:
- *   priv   - private SPI device structure
- *   offset - offset to the register of interest
- *   value  - the 8-bit value to be written
- *
- * Returned Value:
- *   None
- *
- ************************************************************************************/
-
-static inline void spi_putreg8(FAR struct stm32_spidev_s *priv, uint8_t offset, uint8_t value)
-{
-  putreg8(value, priv->spibase + offset);
-}
-
 
 /************************************************************************************
  * Name: spi_readword
@@ -803,47 +721,6 @@ static inline void spi_writeword(FAR struct stm32_spidev_s *priv, uint16_t word)
 }
 
 #ifdef CONFIG_SPI_SLAVE
-/************************************************************************************
- * Name: spi_write_slave
- *
- * Description:
- *   Write SPI data
- *
- ************************************************************************************/
-
-static int spi_write_slave(FAR struct spi_dev_s *dev, const uint8_t *buffer)
-{
-  FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
-
-  DEBUGASSERT(priv && priv->spibase);
-
-  spi_putreg8(priv, STM32_SPI_DR_OFFSET, buffer[0]);
-
-  spivdbg("Sent: %04x\n", buffer[0]);
-
-  return 0;
-}
-
-/************************************************************************************
- * Name: spi_read_slave
- *
- * Description:
- *   Read SPI data
- *
- ************************************************************************************/
-
-static int spi_read_slave(FAR struct spi_dev_s *dev, uint8_t *buffer)
-{
-  FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
-
-  DEBUGASSERT(priv && priv->spibase);
-
-  buffer[0] = spi_getreg8(priv, STM32_SPI_DR_OFFSET);
-  spivdbg("Return: %04x\n", buffer[0]);
-
-  return 0;
-}
-
 /*******************************************************************************
  * Name: spi_registercallback
  *
@@ -882,33 +759,6 @@ static inline bool spi_16bitmode(FAR struct stm32_spidev_s *priv)
   return ((spi_getreg(priv, STM32_SPI_CR1_OFFSET) & SPI_CR1_DFF) != 0);
 #endif
 }
-
-#ifdef CONFIG_STM32_SPI_DMA
-/*******************************************************************************
- * Name: spi_dma_timeout_handler
- *
- * Description:
- *   Watchdog timer for timeout of SPI DMA operation
- *
- *******************************************************************************/
-
-static void spi_dma_timeout_handler(int argc, uint32_t arg, ...)
-{
-  struct stm32_spidev_s *priv = (struct stm32_spidev_s *)arg;
-
-  irqstate_t flags = irqsave();
-
-  spidbg("ERROR: DMA timeout, resetting SPI\n");
-  priv->init_type = SPI_PORT_RESET;
-  spi_portinitialize(priv);
-
-  /* error callback */
-  if (priv->cb_ops && priv->cb_ops->txn_err)
-    priv->cb_ops->txn_err(priv->cb_v);
-
-  irqrestore(flags);
-}
-#endif
 
 /************************************************************************************
  * Name: spi_dmarxwait
@@ -1010,52 +860,36 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 
   if (priv->mode_type == SPI_MODE_TYPE_MASTER)
     {
-      if (isr & DMA_CHAN_TCIF_BIT)
-        {
-          /* Wake-up the SPI driver */
+      /* Wake-up the SPI driver */
 
-          priv->rxresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
-          spi_dmarxwakeup(priv);
-        }
+      priv->rxresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
+      spi_dmarxwakeup(priv);
     }
+#ifdef CONFIG_SPI_SLAVE
   else
     {
-      if (isr & DMA_CHAN_TCIF_BIT)
-        {
-          spi_modifycr1(priv, SPI_CR1_SSM, 0);
+      spi_modifycr1(priv, SPI_CR1_SSM, 0);
+      priv->xfering = false;
 
-          wd_cancel(priv->timeout);
 #ifdef CONFIG_SPI_CRC16
-          status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
+      status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
 
-          if (status & SPI_SR_CRCERR)
-            {
-              /* clear the CRCERR bit */
-              status &= ~SPI_SR_CRCERR;
-              spi_putreg(priv, STM32_SPI_SR_OFFSET, status);
-              spivdbg("CRC error on read\n");
-
-              /* error callback */
-              if (priv->cb_ops && priv->cb_ops->txn_err)
-                priv->cb_ops->txn_err(priv->cb_v);
-            }
-          else
-            {
-              if (priv->cb_ops && priv->cb_ops->read)
-                priv->cb_ops->read(priv->cb_v);
-            }
-#else
-          if (priv->cb_ops && priv->cb_ops->read)
-            priv->cb_ops->read(priv->cb_v);
-#endif
-        }
-      else if (isr & DMA_CHAN_HTIF_BIT)
+      if (status & SPI_SR_CRCERR)
         {
-          wd_start(priv->timeout, SPI_DMA_TIMEOUT, spi_dma_timeout_handler, 1, (uint32_t)priv);
-          if (priv->cb_ops && priv->cb_ops->txn_half)
-            priv->cb_ops->txn_half(priv->cb_v);
+          /* clear the CRCERR bit */
+          status &= ~SPI_SR_CRCERR;
+          spi_putreg(priv, STM32_SPI_SR_OFFSET, status);
+          spivdbg("CRC error on read\n");
+
+          CALL_CB_IF_SET(priv, txn_err);
+        }
+      else
+#endif
+        {
+          CALL_CB_IF_SET(priv, txn_end);
         }
     }
+#endif
 }
 #endif
 
@@ -1078,11 +912,6 @@ static void spi_dmatxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 
       priv->txresult = isr | 0x080;  /* OR'ed with 0x80 to assure non-zero */
       spi_dmatxwakeup(priv);
-    }
-  else
-    {
-      if (priv->cb_ops && priv->cb_ops->write)
-        priv->cb_ops->write(priv->cb_v);
     }
 }
 #endif
@@ -1199,7 +1028,7 @@ static void spi_dmatxsetup(FAR struct stm32_spidev_s *priv, FAR const void *txbu
 static inline void spi_dmarxstart(FAR struct stm32_spidev_s *priv)
 {
   priv->rxresult = 0;
-  stm32_dmastart2(priv->rxdma, spi_dmarxcallback, priv, true, true);
+  stm32_dmastart(priv->rxdma, spi_dmarxcallback, priv, false);
 }
 #endif
 
@@ -1221,7 +1050,7 @@ static inline void spi_dmatxstart(FAR struct stm32_spidev_s *priv)
 
 
 /************************************************************************************
- * Name: spi_dma_end_slave
+ * Name: spi_rxtxdmastop_slave
  *
  * Description:
  *   End DMA transaction.
@@ -1884,144 +1713,100 @@ static void spi_recvblock(FAR struct spi_dev_s *dev, FAR void *rxbuffer, size_t 
 }
 #endif
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-static int stm32_spi_ss_isr(struct stm32_spidev_s *priv, int nss_gpio)
-{
-  int ss_state = stm32_gpioread(nss_gpio);
-
-  spivdbg("stm32_spi_ss_isr : %d\n", ss_state);
-
-  if (ss_state)
-    {
-      spi_modifycr1(priv, SPI_CR1_SSI, 0);
-      spi_modifycr2(priv, 0, SPI_CR2_TXEIE);
-      if (priv->cb_ops && priv->cb_ops->txn_end)
-          priv->cb_ops->txn_end(priv->cb_v);
-    }
-  else
-    {
-      spi_modifycr1(priv, 0, SPI_CR1_SSI);
-      spi_modifycr2(priv, SPI_CR2_TXEIE, 0);
-    }
-
-  return OK;
-}
-
+#ifdef CONFIG_SPI_SLAVE
 /************************************************************************************
- * Name: stm32_spi_isr
+ * Name: spi_portreset
  *
  * Description:
- *  Common Interrupt Service Routine
+ *   Resets the specified SPI port to its initial state.
+ *
+ * Input Parameter:
+ *   priv   - private SPI device structure
+ *
+ * Returned Value:
+ *   None
  *
  ************************************************************************************/
-static int stm32_spi_isr(struct stm32_spidev_s *priv)
+
+static void spi_portreset(FAR struct stm32_spidev_s *priv)
 {
-  uint32_t status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
+  uint16_t regval;
 
-  if (status & SPI_SR_RXNE)
+  switch (priv->spibase)
     {
-      if (priv->cb_ops && priv->cb_ops->read)
-        priv->cb_ops->read(priv->cb_v);
-    }
-
-  if (status & SPI_SR_TXE)
-    {
-      if (priv->cb_ops && priv->cb_ops->write)
-        priv->cb_ops->write(priv->cb_v);
-    }
-
-  return OK;
-}
-
 #ifdef CONFIG_STM32_SPI1
-/************************************************************************************
- * Name: stm32_spi1_isr
- *
- * Description:
- *   SPI1 interrupt service routine
- *
- ************************************************************************************/
+      case STM32_SPI1_BASE:
+        regval  = getreg16(STM32_RCC_APB2RSTR);
+        regval |= RCC_APB2RSTR_SPI1RST;
+        putreg16(regval, STM32_RCC_APB2RSTR);
 
-static int stm32_spi1_isr(int irq, void *context)
-{
-  return stm32_spi_isr(&g_spi1dev);
-}
+        regval &= ~(RCC_APB2RSTR_SPI1RST);
+        putreg16(regval, STM32_RCC_APB2RSTR);
+        break;
 #endif
 
 #ifdef CONFIG_STM32_SPI2
-/************************************************************************************
- * Name: stm32_spi2_isr
- *
- * Description:
- *   SPI2 interrupt service routine
- *
- ************************************************************************************/
+      case STM32_SPI2_BASE:
+        regval = getreg16(STM32_RCC_APB1RSTR1);
+        regval |= RCC_APB1RSTR1_SPI2RST;
+        putreg16(regval, STM32_RCC_APB1RSTR1);
 
-static int stm32_spi2_isr(int irq, void *context)
-{
-  return stm32_spi_isr(&g_spi2dev);
-}
+        regval &= ~(RCC_APB1RSTR1_SPI2RST);
+        putreg16(regval, STM32_RCC_APB1RSTR1);
+        break;
 #endif
 
 #ifdef CONFIG_STM32_SPI3
+      case STM32_SPI3_BASE:
+        regval = getreg16(STM32_RCC_APB1RSTR1);
+        regval |= RCC_APB1RSTR1_SPI3RST;
+        putreg16(regval, STM32_RCC_APB1RSTR1);
+
+        regval &= ~(RCC_APB1RSTR1_SPI3RST);
+        putreg16(regval, STM32_RCC_APB1RSTR1);
+        break;
+#endif
+
+      default:
+        break;
+    }
+}
+
 /************************************************************************************
- * Name: stm32_spi3_isr
+ * Name: stm32_spi_ss_isr
  *
  * Description:
- *   SPI3 interrupt service routine
+ *   SPI SS interrupt service routine
+ *
+ * Input Parameters:
+ *   priv   - private SPI device structure
+ *   nss_gpio - Pin for NSS
  *
  ************************************************************************************/
 
-static int stm32_spi3_isr(int irq, void *context)
+static int stm32_spi_ss_isr(struct stm32_spidev_s *priv, int nss_gpio)
 {
-  return stm32_spi_isr(&g_spi3dev);
+  int nss = stm32_gpioread(nss_gpio);
+
+  /* Check for start of transfer */
+  if (!nss && !(spi_getreg(priv, STM32_SPI_CR1_OFFSET) & SPI_CR1_SSM))
+    {
+      priv->xfering = true;
+      CALL_CB_IF_SET(priv, txn_start);
+    }
+
+  /* Check for end of frame before entire buffer is filled */
+  else if (priv->xfering)
+    {
+      priv->xfering = false;
+      spi_portreset(priv);
+      spi_portinitialize(priv);
+
+      CALL_CB_IF_SET(priv, txn_err);
+    }
+
+  return OK;
 }
-#endif
-
-#ifdef CONFIG_STM32_SPI4
-/************************************************************************************
- * Name: stm32_spi4_isr
- *
- * Description:
- *   SPI4 interrupt service routine
- *
- ************************************************************************************/
-
-static int stm32_spi4_isr(int irq, void *context)
-{
-  return stm32_spi_isr(&g_spi4dev);
-}
-#endif
-
-#ifdef CONFIG_STM32_SPI5
-/************************************************************************************
- * Name: stm32_spi5_isr
- *
- * Description:
- *   SPI5 interrupt service routine
- *
- ************************************************************************************/
-
-static int stm32_spi5_isr(int irq, void *context)
-{
-  return stm32_spi_isr(&g_spi5dev);
-}
-#endif
-
-#ifdef CONFIG_STM32_SPI6
-/************************************************************************************
- * Name: stm32_spi6_isr
- *
- * Description:
- *   SPI6 interrupt service routine
- *
- ************************************************************************************/
-
-static int stm32_spi6_isr(int irq, void *context)
-{
-  return stm32_spi_isr(&g_spi6dev);
-}
-#endif
 
 #ifdef CONFIG_STM32_SPI1
 /************************************************************************************
@@ -2034,7 +1819,7 @@ static int stm32_spi6_isr(int irq, void *context)
 
 static int stm32_spi1_ss_isr(int irq, void *context)
 {
-  return stm32_spi_ss_isr(&g_spi1dev, GPIO_SPI1_NSS_SW);
+  return stm32_spi_ss_isr(&g_spi1dev, GPIO_SPI1_NSS);
 }
 #endif
 
@@ -2049,7 +1834,7 @@ static int stm32_spi1_ss_isr(int irq, void *context)
 
 static int stm32_spi2_ss_isr(int irq, void *context)
 {
-  return stm32_spi_ss_isr(&g_spi2dev, GPIO_SPI2_NSS_SW);
+  return stm32_spi_ss_isr(&g_spi2dev, GPIO_SPI2_NSS);
 }
 #endif
 
@@ -2064,7 +1849,7 @@ static int stm32_spi2_ss_isr(int irq, void *context)
 
 static int stm32_spi3_ss_isr(int irq, void *context)
 {
-  return stm32_spi_ss_isr(&g_spi3dev, GPIO_SPI3_NSS_SW);
+  return stm32_spi_ss_isr(&g_spi3dev, GPIO_SPI3_NSS);
 }
 #endif
 
@@ -2079,7 +1864,7 @@ static int stm32_spi3_ss_isr(int irq, void *context)
 
 static int stm32_spi4_ss_isr(int irq, void *context)
 {
-  return stm32_spi_ss_isr(&g_spi4dev, GPIO_SPI4_NSS_SW);
+  return stm32_spi_ss_isr(&g_spi4dev, GPIO_SPI4_NSS);
 }
 #endif
 
@@ -2094,7 +1879,7 @@ static int stm32_spi4_ss_isr(int irq, void *context)
 
 static int stm32_spi5_ss_isr(int irq, void *context)
 {
-  return stm32_spi_ss_isr(&g_spi5dev, GPIO_SPI5_NSS_SW);
+  return stm32_spi_ss_isr(&g_spi5dev, GPIO_SPI5_NSS);
 }
 #endif
 
@@ -2109,10 +1894,10 @@ static int stm32_spi5_ss_isr(int irq, void *context)
 
 static int stm32_spi6_ss_isr(int irq, void *context)
 {
-  return stm32_spi_ss_isr(&g_spi6dev, GPIO_SPI6_NSS_SW);
+  return stm32_spi_ss_isr(&g_spi6dev, GPIO_SPI6_NSS);
 }
 #endif
-#endif
+#endif /* CONFIG_SPI_SLAVE */
 
 /************************************************************************************
  * Name: spi_portinitialize
@@ -2132,51 +1917,6 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
 {
   uint16_t setbits;
   uint16_t clrbits;
-  uint16_t periph_reset;
-
-  /* Reset SPI port */
-
-  if (priv->init_type == SPI_PORT_RESET)
-    {
-      switch (priv->spibase)
-        {
-          case STM32_SPI1_BASE:
-#ifdef CONFIG_STM32_SPI1
-            periph_reset = getreg16(STM32_RCC_APB2RSTR);
-            periph_reset |= RCC_APB2RSTR_SPI1RST;
-            putreg16(periph_reset, STM32_RCC_APB2RSTR);
-
-            periph_reset &= ~(RCC_APB2RSTR_SPI1RST);
-            putreg16(periph_reset, STM32_RCC_APB2RSTR);
-#endif
-          break;
-
-          case STM32_SPI2_BASE:
-#ifdef CONFIG_STM32_SPI2
-            periph_reset = getreg16(STM32_RCC_APB1RSTR1);
-            periph_reset |= RCC_APB1RSTR1_SPI2RST;
-            putreg16(periph_reset, STM32_RCC_APB1RSTR1);
-
-            periph_reset &= ~(RCC_APB1RSTR1_SPI2RST);
-            putreg16(periph_reset, STM32_RCC_APB1RSTR1);
-#endif
-          break;
-
-          case STM32_SPI3_BASE:
-#ifdef CONFIG_STM32_SPI3
-            periph_reset = getreg16(STM32_RCC_APB1RSTR1);
-            periph_reset |= RCC_APB1RSTR1_SPI3RST;
-            putreg16(periph_reset, STM32_RCC_APB1RSTR1);
-
-            periph_reset &= ~(RCC_APB1RSTR1_SPI3RST);
-            putreg16(periph_reset, STM32_RCC_APB1RSTR1);
-#endif
-          break;
-
-          default:
-          break;
-        }
-    }
 
   if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
     {
@@ -2187,7 +1927,6 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
        *   8-bit:                         CRCL=0
        *   MSB tranmitted first:          LSBFIRST=0
        *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
-       *   For DMA                        SSI=0 SSM=0
        *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
        */
 #if defined(CONFIG_STM32_STM32L4X6)
@@ -2198,7 +1937,6 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
                 SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
 #endif
       setbits = SPI_CR1_SSI|SPI_CR1_SSM;
-      spi_modifycr1(priv, setbits, clrbits);
     }
   else
     {
@@ -2219,8 +1957,8 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
                 SPI_CR1_RXONLY|SPI_CR1_DFF|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
 #endif
       setbits = SPI_CR1_MSTR|SPI_CR1_SSI|SPI_CR1_SSM;
-      spi_modifycr1(priv, setbits, clrbits);
     }
+  spi_modifycr1(priv, setbits, clrbits);
 
 #ifndef CONFIG_SPI_OWNBUS
   priv->frequency = 0;
@@ -2248,38 +1986,30 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
   /* Initialize the SPI semaphore that enforces mutually exclusive access */
 
 #ifndef CONFIG_SPI_OWNBUS
-  if (priv->init_type == SPI_PORT_INITIALIZE)
-    {
-      sem_init(&priv->exclsem, 0, 1);
-    }
+  sem_init(&priv->exclsem, 0, 1);
 #endif
 
   /* Initialize the SPI semaphores that is used to wait for DMA completion */
 
 #ifdef CONFIG_STM32_SPI_DMA
-  if (priv->init_type == SPI_PORT_INITIALIZE)
-    {
-      sem_init(&priv->rxsem, 0, 0);
-      sem_init(&priv->txsem, 0, 0);
+  sem_init(&priv->rxsem, 0, 0);
+  sem_init(&priv->txsem, 0, 0);
 
-      /* Allocate a watchdog timer */
+  /* Get DMA channels.  NOTE: stm32_dmachannel() will always assign the DMA channel.
+   * if the channel is not available, then stm32_dmachannel() will block and wait
+   * until the channel becomes available.  WARNING: If you have another device sharing
+   * a DMA channel with SPI and the code never releases that channel, then the call
+   * to stm32_dmachannel()  will hang forever in this function!  Don't let your
+   * design do that!
+   */
 
-      priv->timeout = wd_create();
-
-      DEBUGASSERT(priv->timeout != 0);
-
-      /* Get DMA channels.  NOTE: stm32_dmachannel() will always assign the DMA channel.
-       * if the channel is not available, then stm32_dmachannel() will block and wait
-       * until the channel becomes available.  WARNING: If you have another device sharing
-       * a DMA channel with SPI and the code never releases that channel, then the call
-       * to stm32_dmachannel()  will hang forever in this function!  Don't let your
-       * design do that!
-      */
-
+  if (!priv->rxdma)
       priv->rxdma = stm32_dmachannel(priv->rxch);
+  if (!priv->txdma)
       priv->txdma = stm32_dmachannel(priv->txch);
-      DEBUGASSERT(priv->rxdma && priv->txdma);
-    }
+
+  DEBUGASSERT(priv->rxdma && priv->txdma);
+
   spi_putreg(priv, STM32_SPI_CR2_OFFSET, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
 #endif
 
@@ -2290,20 +2020,9 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
     }
 #endif
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-  spi_modifycr2(priv, SPI_CR2_RXNEIE, 0);
-  if (priv->init_type == SPI_PORT_INITIALIZE)
-    {
-      irq_attach(priv->spiirq, priv->isr);
-      up_enable_irq(priv->spiirq);
-    }
-#endif
-
   /* Enable spi */
 
   spi_modifycr1(priv, SPI_CR1_SPE, 0);
-
-  priv->init_type = SPI_PORT_RESET;
 }
 
 /************************************************************************************
@@ -2347,8 +2066,9 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI1_MISO);
           stm32_configgpio(GPIO_SPI1_MOSI);
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-          stm32_gpiosetevent(GPIO_SPI1_NSS_SW, true, true, true, stm32_spi1_ss_isr);
+#ifdef CONFIG_SPI_SLAVE
+          if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+            stm32_gpiosetevent(GPIO_SPI1_NSS, true, true, true, stm32_spi1_ss_isr);
 #endif
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -2374,8 +2094,9 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI2_MISO);
           stm32_configgpio(GPIO_SPI2_MOSI);
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-          stm32_gpiosetevent(GPIO_SPI2_NSS_SW, true, true, true, stm32_spi2_ss_isr);
+#ifdef CONFIG_SPI_SLAVE
+          if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+            stm32_gpiosetevent(GPIO_SPI2_NSS, true, true, true, stm32_spi2_ss_isr);
 #endif
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -2401,8 +2122,9 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI3_MISO);
           stm32_configgpio(GPIO_SPI3_MOSI);
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-          stm32_gpiosetevent(GPIO_SPI3_NSS_SW, true, true, true, stm32_spi3_ss_isr);
+#ifdef CONFIG_SPI_SLAVE
+          if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+            stm32_gpiosetevent(GPIO_SPI3_NSS, true, true, true, stm32_spi3_ss_isr);
 #endif
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -2428,8 +2150,9 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI4_MISO);
           stm32_configgpio(GPIO_SPI4_MOSI);
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-          stm32_gpiosetevent(GPIO_SPI4_NSS_SW, true, true, true, stm32_spi4_ss_isr);
+#ifdef CONFIG_SPI_SLAVE
+          if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+            stm32_gpiosetevent(GPIO_SPI4_NSS, true, true, true, stm32_spi4_ss_isr);
 #endif
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -2455,8 +2178,9 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI5_MISO);
           stm32_configgpio(GPIO_SPI5_MOSI);
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-          stm32_gpiosetevent(GPIO_SPI5_NSS_SW, true, true, true, stm32_spi5_ss_isr);
+#ifdef CONFIG_SPI_SLAVE
+          if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+            stm32_gpiosetevent(GPIO_SPI5_NSS, true, true, true, stm32_spi5_ss_isr);
 #endif
           /* Set up default configuration: Master, 8-bit, etc. */
 
@@ -2482,8 +2206,9 @@ FAR struct spi_dev_s *up_spiinitialize(int port)
           stm32_configgpio(GPIO_SPI6_MISO);
           stm32_configgpio(GPIO_SPI6_MOSI);
 
-#ifdef CONFIG_STM32_SPI_INTERRUPTS
-          stm32_gpiosetevent(GPIO_SPI6_NSS_SW, true, true, true, stm32_spi6_ss_isr);
+#ifdef CONFIG_SPI_SLAVE
+          if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+            stm32_gpiosetevent(GPIO_SPI6_NSS, true, true, true, stm32_spi6_ss_isr);
 #endif
           /* Set up default configuration: Master, 8-bit, etc. */
 
