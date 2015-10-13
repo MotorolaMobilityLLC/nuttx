@@ -114,7 +114,7 @@ static void setup_exchange(FAR struct mods_spi_dl_s *priv)
 
   if (ring_buf_is_producers(rb))
     {
-      dbg("RX only\n");
+      dbg("RX\n");
 
       /* Claim a ring buffer entry from the producer for the dummy packet */
       ring_buf_pass(priv->txp_rb);
@@ -122,7 +122,7 @@ static void setup_exchange(FAR struct mods_spi_dl_s *priv)
     }
   else
     {
-      dbg("RX and TX\n");
+      dbg("RX/TX\n");
     }
 
   SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb),
@@ -177,26 +177,24 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 }
 
 /*
- * Called when transaction with base is half completed.
+ * Called when transaction with base has started.
  */
-static int txn_half_cb(void *v)
+static void txn_start_cb(void *v)
 {
   /* Deassert ready line to base */
   mods_rfr_set(0);
-
-  return 0;
 }
 
 /*
  * Called when transaction with base has completed. The CRC has been
  * successfully checked by the hardware.
  */
-static int txn_finished_cb(void *v)
+static void txn_finished_cb(void *v)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
   struct mods_spi_msg *m = (struct mods_spi_msg *)priv->rx_buf;
 
-  vdbg("Tranceive complete: hdr_bits=0x%02X\n", m->hdr_bits);
+  vdbg("hdr_bits=0x%02X\n", m->hdr_bits);
 
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
@@ -231,13 +229,12 @@ static int txn_finished_cb(void *v)
 
 done:
   setup_exchange(priv);
-  return 0;
 }
 
 /*
  * Called when transaction with base has errored.
  */
-static int txn_error_cb(void *v)
+static void txn_error_cb(void *v)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
 
@@ -256,15 +253,13 @@ static int txn_error_cb(void *v)
   atomic_dec(&priv->xfer);
 
   setup_exchange(priv);
-  return 0;
 }
 
 static const struct spi_cb_ops_s cb_ops =
 {
-  .read = txn_finished_cb,
+  .txn_start = txn_start_cb,
+  .txn_end = txn_finished_cb,
   .txn_err = txn_error_cb,
-  .txn_half = txn_half_cb,
-  /* write and txn_end callbacks not needed */
 };
 
 /* Called by network layer when there is data to be sent to base */
@@ -355,7 +350,7 @@ static struct pm_callback_s pm_callback =
 
 static int wake_isr(int irq, void *context)
 {
-  vdbg("Wake signal asserted by base\n");
+  vdbg("Asserted\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
   setup_exchange(&mods_spi_dl);
