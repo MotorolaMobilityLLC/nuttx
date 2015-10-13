@@ -195,6 +195,7 @@ struct apbridge_msg_s {
 
 struct apbridge_dev_s {
     struct usbdev_s *usbdev;    /* usbdev driver pointer */
+    struct usbdevclass_driver_s drvr;   /* gadget callback */
 
     uint8_t config;             /* Configuration number */
     sem_t config_sem;
@@ -209,21 +210,6 @@ struct apbridge_dev_s {
 
     struct apbridge_usb_driver *driver;
 };
-
-/* The internal version of the class driver */
-
-struct apbridge_driver_s {
-    struct usbdevclass_driver_s drvr;
-    struct apbridge_dev_s *dev;
-};
-
-/* This is what is allocated */
-
-struct apbridge_alloc_s {
-    struct apbridge_dev_s dev;
-    struct apbridge_driver_s drvr;
-};
-
 
 typedef uint16_t __le16;
 typedef uint8_t __u8;
@@ -372,6 +358,12 @@ static const struct usb_qualdesc_s g_qualdesc = {
     APBRIDGE_NCONFIGS,          /* nconfigs */
     0,                          /* reserved */
 };
+
+static inline
+struct apbridge_dev_s *driver_to_apbridge(struct usbdevclass_driver_s *drv)
+{
+    return CONTAINER_OF(drv, struct apbridge_dev_s, drvr);
+}
 
 /**
  * @brief Wait until usb connection has been established
@@ -1006,7 +998,7 @@ static void g_usbdesc_init(void) {
 static int usbclass_bind(struct usbdevclass_driver_s *driver,
                          struct usbdev_s *dev)
 {
-    struct apbridge_dev_s *priv = ((struct apbridge_driver_s *)driver)->dev;
+    struct apbridge_dev_s *priv = driver_to_apbridge(driver);
     int ret;
     int i;
 
@@ -1081,7 +1073,7 @@ static void usbclass_unbind(struct usbdevclass_driver_s *driver,
 
     /* Extract reference to private data */
 
-    priv = ((struct apbridge_driver_s *)driver)->dev;
+    priv = driver_to_apbridge(driver);
 
 #ifdef CONFIG_DEBUG
     if (!priv) {
@@ -1239,7 +1231,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
     /* Extract reference to private data */
 
     usbtrace(TRACE_CLASSSETUP, ctrl->req);
-    priv = ((struct apbridge_driver_s *)driver)->dev;
+    priv = driver_to_apbridge(driver);
 
 #ifdef CONFIG_DEBUG
     if (!priv) {
@@ -1507,7 +1499,7 @@ static void usbclass_disconnect(struct usbdevclass_driver_s *driver,
 
     /* Extract reference to private data */
 
-    priv = ((struct apbridge_driver_s *)driver)->dev;
+    priv = driver_to_apbridge(driver);
 
 #ifdef CONFIG_DEBUG
     if (!priv) {
@@ -1540,26 +1532,24 @@ static void usbclass_disconnect(struct usbdevclass_driver_s *driver,
 int usbdev_apbinitialize(struct device *dev,
                          struct apbridge_usb_driver *driver)
 {
-    struct apbridge_alloc_s *alloc;
     struct apbridge_dev_s *priv;
-    struct apbridge_driver_s *drvr;
+    struct usbdevclass_driver_s *drvr;
     int ret;
     unsigned int i;
     unsigned int cport_count = unipro_cport_count();
 
     /* Allocate the structures needed */
 
-    alloc = (struct apbridge_alloc_s *)
-        kmm_malloc(sizeof(struct apbridge_alloc_s));
-    if (!alloc) {
+    priv = (struct apbridge_dev_s *)
+        kmm_malloc(sizeof(struct apbridge_dev_s));
+    if (!priv) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_ALLOCDEVSTRUCT), 0);
         return -ENOMEM;
     }
 
     /* Convenience pointers into the allocated blob */
 
-    priv = &alloc->dev;
-    drvr = &alloc->drvr;
+    drvr = &priv->drvr;
 
     /* Initialize the USB driver structure */
 
@@ -1587,13 +1577,12 @@ int usbdev_apbinitialize(struct device *dev,
 
     /* Initialize the USB class driver structure */
 
-    drvr->drvr.speed = USB_SPEED_HIGH;
-    drvr->drvr.ops = &g_driverops;
-    drvr->dev = priv;
+    drvr->speed = USB_SPEED_HIGH;
+    drvr->ops = &g_driverops;
 
     /* Register the USB serial class driver */
 
-    ret = device_usbdev_register_gadget(dev, &drvr->drvr);
+    ret = device_usbdev_register_gadget(dev, drvr);
     if (ret) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_DEVREGISTER),
                  (uint16_t) - ret);
@@ -1607,12 +1596,12 @@ int usbdev_apbinitialize(struct device *dev,
     return OK;
 
  errout_with_init:
-    device_usbdev_unregister_gadget(dev, &drvr->drvr);
+    device_usbdev_unregister_gadget(dev, drvr);
 errout_cport_table:
     kmm_free(priv->ts);
 errout_with_alloc_ts:
     kmm_free(priv->cport_to_epin_n);
  errout_with_alloc:
-    kmm_free(alloc);
+    kmm_free(priv);
     return ret;
 }
