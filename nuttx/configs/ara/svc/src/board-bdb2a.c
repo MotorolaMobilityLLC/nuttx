@@ -482,7 +482,7 @@ static struct ara_board_info bdb2a_board_info = {
                        GPIO_OUTPUT_CLEAR | GPIO_PORTE | GPIO_PIN14),
         .gpio_irq   = (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | GPIO_PORTI | GPIO_PIN9),
         .rev        = SWITCH_REV_ES2,
-        .bus        = SW_SPI_PORT,
+        .bus        = SW_SPI_PORT_1,
         .spi_cs     = (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_SET | \
                        GPIO_PORTA | GPIO_PIN4)
     },

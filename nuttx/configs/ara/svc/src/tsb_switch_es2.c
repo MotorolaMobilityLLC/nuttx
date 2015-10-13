@@ -1841,7 +1841,7 @@ void tsb_switch_es2_exit(struct tsb_switch *sw) {
 
 
 /*
- * Required callbacks for NuttX SPI1. unused.
+ * Required callbacks for NuttX SPI. unused.
  */
 void stm32_spi1select(struct spi_dev_s *dev, enum spi_dev_e devid, bool selected) {
 }
@@ -1850,6 +1850,16 @@ uint8_t stm32_spi1status(struct spi_dev_s *dev, enum spi_dev_e devid) {
     return SPI_STATUS_PRESENT;
 }
 
+void stm32_spi2select(struct spi_dev_s *dev, enum spi_dev_e devid, bool selected) {
+}
+
+uint8_t stm32_spi2status(struct spi_dev_s *dev, enum spi_dev_e devid) {
+    return SPI_STATUS_PRESENT;
+}
+
+/*
+ * Actual SPI select routine
+ */
 static void es2_spi_select(struct tsb_switch *sw, int select) {
     /*
      * SW-472: The STM32 SPI peripheral does not delay until the last

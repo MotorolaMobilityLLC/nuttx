@@ -33,7 +33,8 @@
 #ifndef  _TSB_SWITCH_DRIVER_ES2_H_
 #define  _TSB_SWITCH_DRIVER_ES2_H_
 
-#define SW_SPI_PORT         (1)
+#define SW_SPI_PORT_1       (1)
+#define SW_SPI_PORT_2       (2)
 #define SWITCH_SPI_FREQUENCY 13000000
 
 // Max NULL frames to wait for a reply from the switch
