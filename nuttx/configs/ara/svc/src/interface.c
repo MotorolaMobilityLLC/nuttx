@@ -47,6 +47,7 @@
 #include "vreg.h"
 #include "string.h"
 #include "svc.h"
+#include "tsb_switch.h"
 
 #define POWER_OFF_TIME_IN_US            (500000)
 #define WAKEOUT_PULSE_DURATION_IN_US    (100000)
@@ -306,6 +307,11 @@ struct interface* interface_get_by_name(const char *name)
  */
 int interface_get_id_by_portid(uint8_t port_id) {
     unsigned int i;
+
+    if (port_id == INVALID_PORT) {
+        return -ENODEV;
+    }
+
     for (i = 0; i < nr_interfaces; i++) {
         if (interfaces[i]->switch_portid == port_id) {
             return i + 1;
@@ -319,11 +325,18 @@ int interface_get_id_by_portid(uint8_t port_id) {
  * @brief find a port_id given an intf_id
  */
 int interface_get_portid_by_id(uint8_t intf_id) {
+    int portid;
+
     if (!intf_id || intf_id > nr_interfaces) {
         return -EINVAL;
     }
 
-    return interfaces[intf_id - 1]->switch_portid;
+    portid = interfaces[intf_id - 1]->switch_portid;
+    if (portid == INVALID_PORT) {
+        return -ENODEV;
+    }
+
+    return portid;
 }
 
 /**
@@ -618,7 +631,9 @@ static int interface_wd_handler(int irq, void *context)
                         interface_power_off(iface);
                     }
                     interface_power_on(iface);
-                    svc_hot_plug(iface->switch_portid);
+                    if (iface->switch_portid != INVALID_PORT) {
+                        svc_hot_plug(iface->switch_portid);
+                    }
                 }
                 /* Save last stable state for power ON/OFF handling */
                 wd->last_state = wd->db_state;
@@ -654,7 +669,9 @@ static int interface_wd_handler(int irq, void *context)
                  */
                 if (wd == &iface->detect_in) {
                     interface_power_off(iface);
-                    svc_hot_unplug(iface->switch_portid);
+                    if (iface->switch_portid != INVALID_PORT) {
+                        svc_hot_unplug(iface->switch_portid);
+                    }
                 }
                 /* Save last stable state for power ON/OFF handling */
                 wd->last_state = wd->db_state;

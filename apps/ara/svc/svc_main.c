@@ -229,11 +229,19 @@ static int link_test_torture(unsigned int nlanes) {
     }
     interface_foreach(iface, i) {
         int a, g, t, rc2 = 0;
-        uint8_t port = (uint8_t)iface->switch_portid;
+        uint8_t port;
 
+        /* The test is only for builtin bridges */
         if (!interface_is_builtin(iface)) {
             continue;
         }
+
+        /* Check if there is a port on the interface */
+        if (iface->switch_portid == INVALID_PORT) {
+            continue;
+        }
+
+        port = (uint8_t) iface->switch_portid;
 
         printf("Testing interface %s, port %u\n", iface->name, port);
         if (pwm_maxgear > 1) {
@@ -304,11 +312,19 @@ static int link_test_torture(unsigned int nlanes) {
 
     printf("Finished power mode test. Results:\n");
     interface_foreach(iface, i) {
-        unsigned int port = iface->switch_portid;
+        unsigned int port;
 
+        /* The test is only for builtin bridges */
         if (!interface_is_builtin(iface)) {
             continue;
         }
+
+        /* Check if there is a port on the interface */
+        if (iface->switch_portid == INVALID_PORT) {
+            continue;
+        }
+
+        port = iface->switch_portid;
 
         printf("-----------------------------------------------------------\n");
         printf("Interface %s, port %u\n", iface->name, port);
@@ -437,6 +453,12 @@ static int link_test(int argc, char *argv[]) {
         printf("Must specify one of -p or -t.\n");
         link_test_usage(EXIT_FAILURE);
     }
+
+    if (port == INVALID_PORT) {
+        printf("No port present on interface\n");
+        link_test_usage(EXIT_FAILURE);
+    }
+
     if (nlanes <= 0) {
         printf("Number of lanes %d must be positive.\n", nlanes);
         link_test_usage(EXIT_FAILURE);
@@ -799,6 +821,13 @@ static int dme_io(int argc, char *argv[]) {
         port = iface->switch_portid;
     }
 
+    /* Check if port is valid */
+    if (port < 0 || port > SWITCH_PORT_MAX) {
+        printf("Invalid port %d, must be between %d and %d.\n",
+               port, 0, SWITCH_PORT_MAX - 1);
+        return EXIT_FAILURE;
+    }
+
     /*
      * Do the I/O.
      */
@@ -967,9 +996,23 @@ static int test_feature(int argc, char* argv[]) {
         test_feature_usage(EXIT_FAILURE);
     }
 
+    /* Check if there is a port on the interface */
+    if (src_iface->switch_portid == INVALID_PORT) {
+        printf("svc %s: no port present on source interface %s.\n",
+               longc, src_iface_name);
+        test_feature_usage(EXIT_FAILURE);
+    }
+
     dst_iface = interface_get_by_name(dst_iface_name);
     if (!dst_iface) {
         printf("svc %s: nonexistent destination interface %s.\n",
+               longc, dst_iface_name);
+        test_feature_usage(EXIT_FAILURE);
+    }
+
+    /* Check if there is a port on the interface */
+    if (dst_iface->switch_portid == INVALID_PORT) {
+        printf("svc %s: no port present on destination interface %s.\n",
                longc, dst_iface_name);
         test_feature_usage(EXIT_FAILURE);
     }
