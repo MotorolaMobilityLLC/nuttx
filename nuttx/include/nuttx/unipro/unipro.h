@@ -369,19 +369,16 @@ int unipro_reset_cport(unsigned int cportid, cport_reset_completion_cb_t cb,
 int unipro_attr_read(uint16_t attr,
                      uint32_t *val,
                      uint16_t selector,
-                     int peer,
-                     uint32_t *result_code);
+                     int peer);
 int unipro_attr_write(uint16_t attr,
                       uint32_t val,
                       uint16_t selector,
-                      int peer,
-                      uint32_t *result_code);
+                      int peer);
 int unipro_attr_access(uint16_t attr,
                        uint32_t *val,
                        uint16_t selector,
                        int peer,
-                       int write,
-                       uint32_t *result_code);
+                       int write);
 
 int unipro_driver_register(struct unipro_driver *drv, unsigned int cportid);
 int unipro_driver_unregister(unsigned int cportid);
@@ -389,34 +386,30 @@ void unipro_if_rx(unsigned int, void *, size_t);
 
 static inline int unipro_attr_local_read(uint16_t attr,
                                          uint32_t *val,
-                                         uint16_t selector,
-                                         uint32_t *result_code)
+                                         uint16_t selector)
 {
-    return unipro_attr_access(attr, val, selector, 0, 0, result_code);
+    return unipro_attr_access(attr, val, selector, 0, 0);
 }
 
 static inline int unipro_attr_peer_read(uint16_t attr,
                                         uint32_t *val,
-                                        uint16_t selector,
-                                        uint32_t *result_code)
+                                        uint16_t selector)
 {
-    return unipro_attr_access(attr, val, selector, 1, 0, result_code);
+    return unipro_attr_access(attr, val, selector, 1, 0);
 }
 
 static inline int unipro_attr_local_write(uint16_t attr,
                                           uint32_t val,
-                                          uint16_t selector,
-                                          uint32_t *result_code)
+                                          uint16_t selector)
 {
-    return unipro_attr_access(attr, &val, selector, 0, 1, result_code);
+    return unipro_attr_access(attr, &val, selector, 0, 1);
 }
 
 static inline int unipro_attr_peer_write(uint16_t attr,
                                          uint32_t val,
-                                         uint16_t selector,
-                                         uint32_t *result_code)
+                                         uint16_t selector)
 {
-    return unipro_attr_access(attr, &val, selector, 1, 1, result_code);
+    return unipro_attr_access(attr, &val, selector, 1, 1);
 }
 
 /*

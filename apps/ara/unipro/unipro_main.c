@@ -76,7 +76,7 @@ static int attr_read(int argc, char **argv) {
     unsigned int attr;
     unsigned int val;
     int peer = 0;
-    unsigned int rc;
+    int rc;
     unsigned int selector = 0;
 
     if (argc < 2) {
@@ -91,11 +91,11 @@ static int attr_read(int argc, char **argv) {
         selector = strtoul(argv[2], NULL, 10);
     }
 
-    unipro_attr_access(attr, &val, selector, peer, 0, &rc);
+    rc = unipro_attr_access(attr, &val, selector, peer, 0);
 
     printf("attr: %x peer: %u selector: %u val: %x resultcode: %x\n", attr, peer, selector, val, rc);
 
-    return 0;
+    return rc;
 }
 
 void print_usage(char **argv) {
@@ -117,7 +117,6 @@ int unipro_main(int argc, char **argv) {
     int peer = 0;
     unsigned int selector = 0;
     unsigned int attr;
-    uint32_t result_code;
 
     if (argc < 2) {
         return -1;
@@ -192,18 +191,18 @@ int unipro_main(int argc, char **argv) {
 
     printf("%s: %x Peer: %d Selector: %u\n", read ? "Read" : "Write", attr, peer, selector);
 
-    rc = unipro_attr_access(attr, &val, selector, peer, !read, &result_code);
+    rc = unipro_attr_access(attr, &val, selector, peer, !read);
     if (rc) {
-        printf("Attribute access failed: %u", rc);
+        printf("Attribute access failed: %d", rc);
         print_usage(argv);
-        return -1;
+        return rc;
     }
 
     if (read) {
-        printf("[%x]: %x result_code: %x\n", attr, val, result_code);
+        printf("[%x]: %x result_code: %x\n", attr, val, rc);
     } else {
-        printf("Wrote %x result_code: %x\n", val, result_code);
+        printf("Wrote %x result_code: %x\n", val, rc);
     }
 
-    return 0;
+    return rc;
 }

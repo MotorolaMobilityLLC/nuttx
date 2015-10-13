@@ -132,80 +132,71 @@ static void unipro_write(uint32_t offset, uint32_t v) {
 static int es2_fixup_mphy(void)
 {
     uint32_t debug_0720 = tsb_get_debug_reg(0x0720);
-    uint32_t urc;
+    int rc;
     const struct tsb_mphy_fixup *fu;
 
     /*
      * Apply the "register 2" map fixups.
      */
-    unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_TSB_REGISTER_2, 0,
-                            &urc);
-    if (urc) {
-        lldbg("%s: failed to switch to register 2 map: %u\n",
-              __func__, urc);
-        return urc;
+    rc = unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_TSB_REGISTER_2, 0);
+    if (rc) {
+        lldbg("%s: failed to switch to register 2 map: %d\n", __func__, rc);
+        return rc;
     }
     fu = tsb_register_2_map_mphy_fixups;
     do {
-        unipro_attr_local_write(fu->attrid, fu->value, fu->select_index,
-                                &urc);
-        if (urc) {
-            lldbg("%s: failed to apply register 1 map fixup: %u\n",
-                  __func__, urc);
-            return urc;
+        rc = unipro_attr_local_write(fu->attrid, fu->value, fu->select_index);
+        if (rc) {
+            lldbg("%s: failed to apply register 1 map fixup: %d\n", __func__,
+                  rc);
+            return rc;
         }
     } while (!tsb_mphy_fixup_is_last(fu++));
 
     /*
      * Switch to "normal" map.
      */
-    unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_NORMAL, 0,
-                            &urc);
-    if (urc) {
-        lldbg("%s: failed to switch to normal map: %u\n",
-              __func__, urc);
-        return urc;
+    rc = unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_NORMAL, 0);
+    if (rc) {
+        lldbg("%s: failed to switch to normal map: %d\n", __func__, rc);
+        return rc;
     }
 
     /*
      * Apply the "register 1" map fixups.
      */
-    unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_TSB_REGISTER_1, 0,
-                            &urc);
-    if (urc) {
-        lldbg("%s: failed to switch to register 1 map: %u\n",
-              __func__, urc);
-        return urc;
+    rc = unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_TSB_REGISTER_1, 0);
+    if (rc) {
+        lldbg("%s: failed to switch to register 1 map: %d\n", __func__, rc);
+        return rc;
     }
     fu = tsb_register_1_map_mphy_fixups;
     do {
         if (tsb_mphy_r1_fixup_is_magic(fu)) {
             /* The magic R1 fixups come from the mysterious and solemn
              * debug register 0x0720. */
-            unipro_attr_local_write(0x8002, (debug_0720 >> 1) & 0x1f, 0, &urc);
+            rc = unipro_attr_local_write(0x8002, (debug_0720 >> 1) & 0x1f, 0);
         } else {
-            unipro_attr_local_write(fu->attrid, fu->value, fu->select_index,
-                                    &urc);
+            rc = unipro_attr_local_write(fu->attrid, fu->value,
+                                         fu->select_index);
         }
-        if (urc) {
-            lldbg("%s: failed to apply register 1 map fixup: %u\n",
-                  __func__, urc);
-            return urc;
+        if (rc) {
+            lldbg("%s: failed to apply register 1 map fixup: %d\n", __func__,
+                  rc);
+            return rc;
         }
     } while (!tsb_mphy_fixup_is_last(fu++));
 
     /*
      * Switch to "normal" map.
      */
-    unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_NORMAL, 0,
-                            &urc);
-    if (urc) {
-        lldbg("%s: failed to switch to normal map: %u\n",
-              __func__, urc);
-        return urc;
+    rc = unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_NORMAL, 0);
+    if (rc) {
+        lldbg("%s: failed to switch to normal map: %d\n", __func__, rc);
+        return rc;
     }
 
-    return 0;
+    return rc;
 }
 
 /**
@@ -325,8 +316,7 @@ int unipro_attr_access(uint16_t attr,
                        uint32_t *val,
                        uint16_t selector,
                        int peer,
-                       int write,
-                       uint32_t *result_code) {
+                       int write) {
 
     uint32_t ctrl = (REG_ATTRACS_CTRL_PEERENA(peer) |
                      REG_ATTRACS_CTRL_SELECT(selector) |
@@ -348,15 +338,11 @@ int unipro_attr_access(uint16_t attr,
     /* Clear status bit */
     unipro_write(A2D_ATTRACS_INT_BEF, 0x1);
 
-    if (result_code) {
-        *result_code = unipro_read(A2D_ATTRACS_STS_00);
-    }
-
     if (!write) {
         *val = unipro_read(A2D_ATTRACS_DATA_STS_00);
     }
 
-    return 0;
+    return unipro_read(A2D_ATTRACS_STS_00);
 }
 
 /**
@@ -435,7 +421,7 @@ static int irq_unipro(int irq, void *context) {
     /*
      * Clear the initial interrupt
      */
-    rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0, NULL);
+    rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0);
     if (rc) {
         goto done;
     }
@@ -444,7 +430,7 @@ static int irq_unipro(int irq, void *context) {
      * Figure out which CPort to turn on FCT. The desired CPort is always
      * the mailbox value - 1.
      */
-    rc = unipro_attr_local_read(TSB_MAILBOX, &cportid, 0, NULL);
+    rc = unipro_attr_local_read(TSB_MAILBOX, &cportid, 0);
     if (rc) {
         goto done;
     }
@@ -456,7 +442,7 @@ static int irq_unipro(int irq, void *context) {
     }
     cportid--;
 
-    rc = unipro_attr_local_read(T_CPORTFLAGS, &val, cportid, NULL);
+    rc = unipro_attr_local_read(T_CPORTFLAGS, &val, cportid);
     if (rc) {
         goto done;
     }
@@ -543,16 +529,15 @@ uint16_t unipro_get_tx_free_buffer_space(struct cport *cport)
  */
 static void dump_regs(void) {
     uint32_t val;
-    unsigned int rc;
     unsigned int i, cport_count;
 
 #define DBG_ATTR(attr) do {                  \
-    unipro_attr_local_read(attr, &val, 0, &rc); \
+    (void)unipro_attr_local_read(attr, &val, 0); \
     lldbg("    [%s]: 0x%x\n", #attr, val);   \
 } while (0);
 
 #define DBG_CPORT_ATTR(attr, cportid) do {         \
-    unipro_attr_local_read(attr, &val, cportid, &rc); \
+    unipro_attr_local_read(attr, &val, cportid); \
     lldbg("    [%s]: 0x%x\n", #attr, val);         \
 } while (0);
 
@@ -783,7 +768,7 @@ void unipro_init(void)
     /*
      * Enable the mailbox interrupt
      */
-    retval = unipro_attr_local_write(TSB_INTERRUPTENABLE, 0x1 << 15, 0, NULL);
+    retval = unipro_attr_local_write(TSB_INTERRUPTENABLE, 0x1 << 15, 0);
     if (retval) {
         lldbg("Failed to enable mailbox interrupt\n");
     }
@@ -808,10 +793,9 @@ void unipro_init(void)
 int unipro_attr_read(uint16_t attr,
                      uint32_t *val,
                      uint16_t selector,
-                     int peer,
-                     uint32_t *result_code)
+                     int peer)
 {
-    return unipro_attr_access(attr, val, selector, peer, 0, result_code);
+    return unipro_attr_access(attr, val, selector, peer, 0);
 }
 
 /**
@@ -826,17 +810,15 @@ int unipro_attr_read(uint16_t attr,
 int unipro_attr_write(uint16_t attr,
                       uint32_t val,
                       uint16_t selector,
-                      int peer,
-                      uint32_t *result_code)
+                      int peer)
 {
-    return unipro_attr_access(attr, &val, selector, peer, 1, result_code);
+    return unipro_attr_access(attr, &val, selector, peer, 1);
 }
 
 int _unipro_reset_cport(unsigned int cportid)
 {
     int rc;
     int retval = 0;
-    uint32_t result;
     uint32_t tx_reset_offset;
     uint32_t rx_reset_offset;
     uint32_t tx_queue_empty_offset;
@@ -858,27 +840,27 @@ int _unipro_reset_cport(unsigned int cportid)
 
     putreg32(CPORT_SW_RESET_BITS, AIO_UNIPRO_BASE + tx_reset_offset);
 
-    rc = unipro_attr_local_write(T_CONNECTIONSTATE, 0, cportid, &result);
-    if (rc || result) {
-        lowsyslog("error resetting T_CONNECTIONSTATE (%d)\n", result);
+    rc = unipro_attr_local_write(T_CONNECTIONSTATE, 0, cportid);
+    if (rc) {
+        lowsyslog("error resetting T_CONNECTIONSTATE (%d)\n", rc);
         retval = -EIO;
     }
 
-    rc = unipro_attr_local_write(T_LOCALBUFFERSPACE, 0, cportid, &result);
-    if (rc || result) {
-        lowsyslog("error resetting T_LOCALBUFFERSPACE (%d)\n", result);
+    rc = unipro_attr_local_write(T_LOCALBUFFERSPACE, 0, cportid);
+    if (rc) {
+        lowsyslog("error resetting T_LOCALBUFFERSPACE (%d)\n", rc);
         retval = -EIO;
     }
 
-    rc = unipro_attr_local_write(T_PEERBUFFERSPACE, 0, cportid, &result);
-    if (rc || result) {
-        lowsyslog("error resetting T_PEERBUFFERSPACE (%d)\n", result);
+    rc = unipro_attr_local_write(T_PEERBUFFERSPACE, 0, cportid);
+    if (rc) {
+        lowsyslog("error resetting T_PEERBUFFERSPACE (%d)\n", rc);
         retval = -EIO;
     }
 
-    rc = unipro_attr_local_write(T_CREDITSTOSEND, 0, cportid, &result);
-    if (rc || result) {
-        lowsyslog("error resetting T_CREDITSTOSEND (%d)\n", result);
+    rc = unipro_attr_local_write(T_CREDITSTOSEND, 0, cportid);
+    if (rc) {
+        lowsyslog("error resetting T_CREDITSTOSEND (%d)\n", rc);
         retval = -EIO;
     }
 
@@ -953,14 +935,14 @@ int tsb_unipro_mbox_send(uint32_t val) {
     int rc;
     uint32_t irq_status, retries = 2048;
 
-    rc = unipro_attr_peer_write(TSB_MAILBOX, val, 0, NULL);
+    rc = unipro_attr_peer_write(TSB_MAILBOX, val, 0);
     if (rc) {
         lldbg("%s: TSB_MAILBOX write failed: %d\n", __func__, rc);
         return rc;
     }
 
     do {
-        rc = unipro_attr_peer_read(TSB_INTERRUPTSTATUS, &irq_status, 0, NULL);
+        rc = unipro_attr_peer_read(TSB_INTERRUPTSTATUS, &irq_status, 0);
         if (rc) {
             lldbg("%s: TSB_INTERRUPTSTATUS poll failed: %d\n", __func__, rc);
             return rc;
@@ -983,7 +965,7 @@ int tsb_unipro_mbox_send(uint32_t val) {
 static int tsb_unipro_mbox_ack(uint16_t val) {
     int rc;
 
-    rc = unipro_attr_local_write(MBOX_ACK_ATTR, val, 0, NULL);
+    rc = unipro_attr_local_write(MBOX_ACK_ATTR, val, 0);
     if (rc) {
         lldbg("MBOX_ACK_ATTR complement write of 0x%x failed: %d\n", val, rc);
         return rc;
@@ -996,13 +978,12 @@ static int tsb_unipro_mbox_ack(uint16_t val) {
 
 int tsb_unipro_set_init_status(uint32_t val) {
     int rc;
-    uint32_t unipro_rc = 0;
 
     rc = unipro_attr_local_write(T_TSTSRCINCREMENT, ES2_INIT_STATUS(val),
-                                 UNIPRO_SELINDEX_NULL, &unipro_rc);
-    if (rc || unipro_rc) {
-        lldbg("init-status write failed: rc=%d, unipro_rc=%u\n", rc, unipro_rc);
-        return rc || unipro_rc;
+                                 UNIPRO_SELINDEX_NULL);
+    if (rc) {
+        lldbg("init-status write failed: rc=%d\n", rc);
+        return rc;
     }
 
     return 0;
