@@ -153,6 +153,7 @@
 #define GPIO_SPI1_MISO   GPIO_SPI1_MISO_1
 #define GPIO_SPI1_MOSI   GPIO_SPI1_MOSI_1
 #define GPIO_SPI1_SCK    GPIO_SPI1_SCK_1
+#define GPIO_SPI1_NSS    GPIO_SPI1_NSS_2
 #define SPI1_MODE_TYPE   SPI_MODE_TYPE_MASTER
 #define stm32_spi1select NULL
 #define stm32_spi1status NULL
@@ -162,6 +163,7 @@
 #define GPIO_SPI2_MISO   GPIO_SPI2_MISO_1
 #define GPIO_SPI2_MOSI   GPIO_SPI2_MOSI_1
 #define GPIO_SPI2_SCK    GPIO_SPI2_SCK_1
+#define GPIO_SPI2_NSS    GPIO_SPI2_NSS_1
 #define SPI2_MODE_TYPE   SPI_MODE_TYPE_SLAVE
 #define stm32_spi2select NULL
 #define stm32_spi2status NULL
