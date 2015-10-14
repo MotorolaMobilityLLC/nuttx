@@ -65,7 +65,6 @@ struct greybus g_greybus = {
 static unsigned char bridge_manifest[] = {
 #include "manifest.inc"
 };
-static int g_device_id;
 
 static void *alloc_cport(void)
 {
@@ -251,7 +250,6 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
                 cport = alloc_cport();
                 cport->id = desc->cport.id;
                 cport->protocol = desc->cport.protocol_id;
-                cport->device_id = g_device_id;
                 gb_debug("cport_id = %d\n", cport->id);
             } else {
                 free_cport(desc->cport.id);
@@ -391,7 +389,6 @@ void enable_manifest(char *name, void *manifest, int device_id)
     }
 
     if (manifest) {
-        g_device_id = device_id;
         parse_manifest_blob(manifest);
         int iid = get_interface_id(name);
         if (iid > 0) {
@@ -410,7 +407,6 @@ void disable_manifest(char *name, void *priv, int device_id)
 
     manifest = get_manifest_blob();
     if (manifest) {
-        g_device_id = device_id;
         release_manifest_blob(manifest);
     }
 }

@@ -35,7 +35,6 @@ struct gb_cport {
     struct list_head list;
     int id;
     int protocol;
-    int device_id;
 };
 
 typedef void (*manifest_handler)(unsigned char *manifest_file,
