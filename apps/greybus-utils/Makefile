@@ -88,12 +88,6 @@ ifeq ($(CONFIG_CUSTOM_MANIFEST), y)
  MANIFEST = $(subst ",,$(CONFIG_MANIFEST))
 endif
 
-ifdef MANIFEST_REQUIRED
- ifndef MANIFEST
-  $(error MANIFEST unspecified or does not exist!)
- endif
-endif
-
 MANIFEST_TMP2 = $(subst -,_,$(MANIFEST))
 MANIFEST_TMP3 = $(addprefix manifests_, $(MANIFEST_TMP2))
 MANIFEST_TMP4 = $(addsuffix _mnfb, $(MANIFEST_TMP3))
