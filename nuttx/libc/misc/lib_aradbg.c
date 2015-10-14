@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Google Inc.
+ * Copyright (c) 2014, 2015 Google Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,23 +26,10 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/****************************************************************************
- * configs/endo/svc/src/up_debug.h
- * SVC support for debug print messages:
- * - allows to control the dump of the data, per component and with
- *   a debug level,
- * - dumps data out to an externally exposed interface (e.g. UART).
- *
- ****************************************************************************/
-#define DBG_COMP DBG_DBG    /* DBG_COMP macro of the component */
-#include <arch/board/board.h>
+#define ARADBG_COMP ARADBG_DBG    /* ARADBG_COMP macro of the component */
+#include <ara_debug.h>
 
-#include "up_debug.h"
-#include "up_internal.h"
-
-/* Debug control internal data */
-dbg_ctrl_t dbg_ctrl = { DBG_ALL, DBG_INFO };
-
+dbg_ctrl_t dbg_ctrl = { ARADBG_ALL, ARADBG_INFO };
 
 /* Get the level and components to enable debug for */
 void dbg_get_config(uint32_t *comp, uint32_t *level)
@@ -57,9 +44,9 @@ void dbg_get_config(uint32_t *comp, uint32_t *level)
 /* Configure the level and components to enable debug for */
 int dbg_set_config(uint32_t comp, uint32_t level)
 {
-    /* DBG_MAX is always enabled */
-    if (level > DBG_MAX)
-        level = DBG_MAX;
+    /* ARADBG_MAX is always enabled */
+    if (level > ARADBG_MAX)
+        level = ARADBG_MAX;
 
     dbg_ctrl.comp = comp;
     dbg_ctrl.lvl = level;

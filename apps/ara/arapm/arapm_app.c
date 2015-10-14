@@ -51,6 +51,7 @@
 
 /* #define DEBUG_ARAPM */
 
+#undef dbg_verbose
 #ifdef DEBUG_ARAPM
 #define dbg_verbose printf
 #else

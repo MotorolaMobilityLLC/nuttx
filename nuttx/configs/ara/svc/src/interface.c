@@ -30,7 +30,7 @@
  * @brief: Functions and definitions for interface block management.
  */
 
-#define DBG_COMP DBG_SVC     /* DBG_COMP macro of the component */
+#define DBG_COMP ARADBG_SVC     /* DBG_COMP macro of the component */
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
@@ -42,7 +42,7 @@
 #include <errno.h>
 
 #include "stm32.h"
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "interface.h"
 #include "vreg.h"
 #include "string.h"

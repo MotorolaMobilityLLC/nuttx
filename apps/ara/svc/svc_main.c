@@ -26,6 +26,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define DBG_COMP ARADBG_SVC
+#include <ara_debug.h>
+
 #include <nuttx/config.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,9 +42,6 @@
 #include "ara_board.h"
 #include "interface.h"
 #include "attr_names.h"
-
-#define DBG_COMP DBG_SVC
-#include "up_debug.h"
 
 /* These are the largest possible values -- not necessarily the
  * largest supported values. */

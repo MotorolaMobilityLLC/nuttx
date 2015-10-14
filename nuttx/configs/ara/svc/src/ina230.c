@@ -32,13 +32,13 @@
  * @author  Patrick Titiano
  */
 
-#define DBG_COMP DBG_POWER
+#define DBG_COMP ARADBG_POWER
 
 #include <ina230.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <up_debug.h>
+#include <ara_debug.h>
 
 #define INA230_CONFIG               0x00
 #define INA230_SHUNT_VOLTAGE        0x01

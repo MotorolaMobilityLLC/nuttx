@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define DBG_COMP DBG_SVC
+#define DBG_COMP ARADBG_SVC
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
@@ -43,7 +43,7 @@
 
 #include "string.h"
 #include "ara_board.h"
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "interface.h"
 #include "tsb_switch.h"
 #include "tsb_switch_driver_es2.h"

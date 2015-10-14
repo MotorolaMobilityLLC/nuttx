@@ -31,7 +31,7 @@
  * @author: Perry Hung
  */
 
-#define DBG_COMP    DBG_SWITCH
+#define DBG_COMP    ARADBG_SWITCH
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
@@ -45,7 +45,7 @@
 #include <arch/byteorder.h>
 
 #include "stm32.h"
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "tsb_switch.h"
 #include "tsb_switch_driver_es2.h"
 #include "tsb_switch_event.h"
@@ -195,12 +195,12 @@ static int es2_transfer_check_write_status(uint8_t *status_block,
         default:
             dbg_error("%s: invalid byte 0x%x in status block\n",
                       __func__, status_block[i]);
-            dbg_print_buf(DBG_ERROR, status_block, SWITCH_WRITE_STATUS_NNULL);
+            dbg_print_buf(ARADBG_ERROR, status_block, SWITCH_WRITE_STATUS_NNULL);
             return -EPROTO;
         }
     }
     dbg_error("%s: no STRW found in write status block:\n", __func__);
-    dbg_print_buf(DBG_ERROR, status_block, size);
+    dbg_print_buf(ARADBG_ERROR, status_block, size);
     return -EPROTO;
 
  block_found:
@@ -374,9 +374,9 @@ static int es2_write(struct tsb_switch *sw,
     SPI_EXCHANGE(spi_dev, NULL, rxbuf, SWITCH_WRITE_STATUS_NNULL);
 
     dbg_insane("Write payload:\n");
-    dbg_print_buf(DBG_INSANE, tx_buf, tx_size);
+    dbg_print_buf(ARADBG_INSANE, tx_buf, tx_size);
     dbg_insane("Write status:\n");
-    dbg_print_buf(DBG_INSANE, rxbuf, SWITCH_WRITE_STATUS_NNULL);
+    dbg_print_buf(ARADBG_INSANE, rxbuf, SWITCH_WRITE_STATUS_NNULL);
 
     // Make sure we use 16-bit frames
     size = sizeof write_header + tx_size + sizeof write_trailer
@@ -433,7 +433,7 @@ static int es2_read(struct tsb_switch *sw,
         }
 
         dbg_insane("RX Data:\n");
-        dbg_print_buf(DBG_INSANE, rxbuf, size);
+        dbg_print_buf(ARADBG_INSANE, rxbuf, size);
 
         if (!rx_buf) {
             break;
@@ -549,7 +549,7 @@ static int es2_irq_fifo_rx(struct tsb_switch *sw, unsigned int cportid) {
         rc = -EIO;
         goto fill_done;
     }
-    dbg_print_buf(DBG_VERBOSE, cport->rxbuf, len);
+    dbg_print_buf(ARADBG_VERBOSE, cport->rxbuf, len);
 
 fill_done:
     pthread_mutex_unlock(&cport->lock);
@@ -732,7 +732,7 @@ int es2_init_seq(struct tsb_switch *sw)
     SPI_EXCHANGE(spi_dev, NULL, rxbuf, SWITCH_WAIT_REPLY_LEN);
 
     dbg_insane("Init RX Data:\n");
-    dbg_print_buf(DBG_INSANE, rxbuf, SWITCH_WAIT_REPLY_LEN);
+    dbg_print_buf(ARADBG_INSANE, rxbuf, SWITCH_WAIT_REPLY_LEN);
 
     // Check for the transition from INIT to LNUL after sending INITs
     for (i = 0; i < SWITCH_WAIT_REPLY_LEN - 1; i++) {
@@ -1272,7 +1272,7 @@ static int es2_dump_routing_table(struct tsb_switch *sw) {
             return -1;
         }
         dbg_insane("%s(): Mask ID %d\n", __func__, unipro_portid);
-        dbg_print_buf(DBG_INSANE, valid_bitmask, sizeof(valid_bitmask));
+        dbg_print_buf(ARADBG_INSANE, valid_bitmask, sizeof(valid_bitmask));
 
         for (i = 0; i < 8; i++) {
             for (j = 0; j < 16; j++) {

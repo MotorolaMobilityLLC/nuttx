@@ -32,7 +32,7 @@
  * @author  Patrick Titiano
  */
 
-#define DBG_COMP DBG_POWER
+#define DBG_COMP ARADBG_POWER
 
 #include <pwr_mon.h>
 #include <stdio.h>
@@ -44,7 +44,7 @@
 #include <nuttx/gpio.h>
 #include <nuttx/gpio/tca64xx.h>
 
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "ara_board.h"
 
 #define VSW_1P1_PLL_I2C_ADDR        0x42

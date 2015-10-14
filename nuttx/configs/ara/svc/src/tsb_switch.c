@@ -31,7 +31,7 @@
  * @author: Jean Pihet
  */
 
-#define DBG_COMP    DBG_SWITCH
+#define DBG_COMP    ARADBG_SWITCH
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
 #include <nuttx/unipro/unipro.h>
@@ -44,7 +44,7 @@
 #include <nuttx/util.h>
 
 #include "stm32.h"
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "tsb_switch.h"
 #include "vreg.h"
 #include "tsb_switch_driver_es2.h"

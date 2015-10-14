@@ -26,7 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define DBG_COMP DBG_SVC
+#define DBG_COMP ARADBG_SVC
 
 #include <errno.h>
 #include <string.h>
@@ -39,7 +39,7 @@
 #include <arch/byteorder.h>
 
 #include "svc.h"
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "tsb_switch.h"
 #include "gb_svc.h"
 

@@ -66,10 +66,8 @@
 #include <nuttx/config.h>
 #include <ara_build_info.h>
 
-#include <debug.h>
-
-#define DBG_COMP DBG_DBG
-#include "up_debug.h"
+#define DBG_COMP ARADBG_DBG
+#include <ara_debug.h>
 
 /************************************************************************************
  * Pre-processor Definitions

@@ -31,7 +31,7 @@
  * @author: Jean Pihet
  */
 
-#define DBG_COMP DBG_POWER  /* DBG_COMP macro of the component */
+#define DBG_COMP ARADBG_POWER  /* DBG_COMP macro of the component */
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
@@ -39,7 +39,7 @@
 
 #include <errno.h>
 
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "vreg.h"
 
 /**

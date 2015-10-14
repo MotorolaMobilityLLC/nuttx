@@ -66,17 +66,16 @@
  * @author  Patrick Titiano, Gregory Nutt, Diego Sanchez
  */
 
-#define DBG_COMP DBG_POWER
+#define DBG_COMP ARADBG_POWER
 
 #include <nuttx/config.h>
 #include <errno.h>
-#include <debug.h>
+#include <ara_debug.h>
 #include <arch/board/board.h>
 #include <up_adc.h>
 #include <stm32_adc.h>
 #include <chip.h>
 #include <up_arch.h>
-#include <up_debug.h>
 
 #define CHECK_NULL_ARG(arg) \
     if ((void *) arg == NULL) { \

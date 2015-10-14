@@ -30,8 +30,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DBG_COMP DBG_DBG
-#include "up_debug.h"
+#define DBG_COMP ARADBG_DBG
+#include <ara_debug.h>
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])

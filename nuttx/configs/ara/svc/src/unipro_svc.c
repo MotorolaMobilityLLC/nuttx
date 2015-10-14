@@ -30,7 +30,7 @@
  * @brief SVC implementation of unipro stack
  */
 
-#define DBG_COMP DBG_SVC
+#define DBG_COMP ARADBG_SVC
 
 #include <errno.h>
 #include <stddef.h>
@@ -39,7 +39,7 @@
 #include <arch/board/board.h>
 #include <nuttx/unipro/unipro.h>
 
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "tsb_switch.h"
 #include "svc.h"
 

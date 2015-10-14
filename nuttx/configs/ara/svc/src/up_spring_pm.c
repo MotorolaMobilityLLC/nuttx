@@ -32,13 +32,12 @@
  * @author  Patrick Titiano
  */
 
-#define DBG_COMP DBG_POWER
+#define DBG_COMP ARADBG_POWER
 
 #include <up_adc.h>
 #include <nuttx/config.h>
 
 #include <errno.h>
-#include <debug.h>
 #include <fcntl.h>
 
 #include <nuttx/analog/adc.h>
@@ -48,7 +47,7 @@
 #include "stm32_adc.h"
 #include "chip.h"
 #include "up_arch.h"
-#include "up_debug.h"
+#include <ara_debug.h>
 #include <up_spring_pm.h>
 #include <svc.h>
 #include <assert.h>

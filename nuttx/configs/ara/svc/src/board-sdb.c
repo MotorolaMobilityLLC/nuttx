@@ -31,7 +31,7 @@
  * @author: Perry Hung
  */
 
-#define DBG_COMP DBG_SVC     /* DBG_COMP macro of the component */
+#define DBG_COMP ARADBG_SVC     /* DBG_COMP macro of the component */
 
 #include <nuttx/config.h>
 #include <nuttx/arch.h>
@@ -42,7 +42,7 @@
 #include "nuttx/gpio/stm32_gpio_chip.h"
 #include "nuttx/gpio/tca64xx.h"
 
-#include "up_debug.h"
+#include <ara_debug.h>
 #include "ara_board.h"
 #include "interface.h"
 #include "tsb_switch_driver_es2.h"

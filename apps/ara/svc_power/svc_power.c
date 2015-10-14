@@ -26,12 +26,13 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define DBG_COMP ARADBG_POWER
+#include <ara_debug.h>
+
 #include <nuttx/config.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DBG_COMP DBG_POWER
-#include "up_debug.h"
 #include "up_power.h"
 #include "interface.h"
 
