@@ -2717,11 +2717,12 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 			dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
 		}
 		DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
-		if (!ep->dwc_ep.is_in && ep->stopped) {
+		if (!ep->dwc_ep.is_in && ep->bna) {
 			/*
 			 * Endpoint may be disable because of BNA.
 			 * Enable endpoint since we have resolve the BNA
 			 */
+			ep->bna = 0;
 			dwc_otg_pcd_ep_resume(ep);
 		}
 		if (ep->dwc_ep.is_in && ep->stopped

@@ -168,6 +168,7 @@ typedef struct dwc_otg_pcd_ep {
 	unsigned disabling:1;
 	unsigned dma:1;
 	unsigned queue_sof:1;
+	unsigned bna:1;
 
 #ifdef DWC_EN_ISOC
 	/** ISOC req handle passed */

@@ -3261,6 +3261,8 @@ static void dwc_otg_pcd_handle_noniso_bna(dwc_otg_pcd_ep_t * ep)
 		DWC_WARN("Ep%d %s Descriptor count = %d \n", dwc_ep->num,
 			 (dwc_ep->is_in ? "IN" : "OUT"), dwc_ep->desc_cnt);
 
+	ep->bna = 1;
+
 	if (core_if->core_params->cont_on_bna && !dwc_ep->is_in
 							&& dwc_ep->type != DWC_OTG_EP_TYPE_CONTROL) {
 		uint32_t doepdma;
@@ -3280,11 +3282,6 @@ static void dwc_otg_pcd_handle_noniso_bna(dwc_otg_pcd_ep_t * ep)
 			sts.b.bs = BS_HOST_READY;
 			dma_desc->status.d32 = sts.d32;
 			enable_ep = 1;
-		} else {
-			if (dma_desc->status.b.bs == BS_HOST_READY) {
-				/* A least one buffer is available: re enable the endpoint */
-				enable_ep = 1;
-			}
 		}
 	}
 
@@ -3301,6 +3298,7 @@ static void dwc_otg_pcd_handle_noniso_bna(dwc_otg_pcd_ep_t * ep)
 	if (enable_ep) {
 		depctl.b.epena = 1;
 		depctl.b.cnak = 1;
+		ep->bna = 0;
 	}
 	DWC_MODIFY_REG32(addr, 0, depctl.d32);
 }
