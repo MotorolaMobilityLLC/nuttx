@@ -89,6 +89,10 @@ ifeq ($(CONFIG_GREYBUS_LIGHTS),y)
 CSRCS += lights.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_SDIO_PHY),y)
+CSRCS += sdio.c
+endif
+
 endif
 
 ifeq ($(CONFIG_GREYBUS_DEBUG),y)

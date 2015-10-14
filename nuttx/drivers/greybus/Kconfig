@@ -93,6 +93,11 @@ config GREYBUS_HID
 	select DEVICE_CORE
 	default n
 
+config GREYBUS_SDIO_PHY
+	bool "SDIO PHY support"
+	select DEVICE_CORE
+	default n
+
 config GREYBUS_FEATURE_HAVE_TIMESTAMPS
 	bool
 	default n
