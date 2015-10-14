@@ -88,11 +88,20 @@ ifeq ($(CONFIG_CUSTOM_MANIFEST), y)
  MANIFEST = $(subst ",,$(CONFIG_MANIFEST))
 endif
 
-MANIFESTS = $(addprefix manifests/, $(MANIFEST))
+ifeq ($(CONFIG_OOT_MANIFEST), y)
+ ifndef OOT_MANIFEST
+  $(error "out-of-tree manifest selected in Kconfig but global OOT_MANIFEST variable is undefined")
+ endif
+
+ MANIFEST = $(OOT_MANIFEST)
+ MANIFESTS = $(subst .mnfs,,$(OOT_MANIFEST))
+endif
+
+MANIFESTS ?= $(addprefix manifests/, $(MANIFEST))
 MNFS = $(addsuffix .mnfs, $(MANIFESTS))
 MNFB = $(addsuffix .mnfb, $(MANIFESTS))
 
-ALL_MNFS = $(wildcard manifests/*.mnfs)
+ALL_MNFS = $(wildcard manifests/*.mnfs) $(OOT_MANIFEST)
 ALL_MNFB = $(subst .mnfs,.mnfb,$(ALL_MNFS))
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)

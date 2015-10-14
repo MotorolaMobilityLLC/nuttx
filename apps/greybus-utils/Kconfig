@@ -62,6 +62,11 @@ config MANIFEST_ALL
 	bool "All Protocols"
 config CUSTOM_MANIFEST
 	bool "Custom manifest"
+config OOT_MANIFEST
+	bool "Out-of-tree manifest"
+	---help---
+		With this choice, the manifest in OOT_MANIFEST will be compiled and
+		linked to the in-tree object files.
 endchoice
 
 config MANIFEST
