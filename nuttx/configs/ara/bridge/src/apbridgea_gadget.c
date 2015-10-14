@@ -371,6 +371,11 @@ struct apbridge_dev_s *usbdev_to_apbridge(struct usbdev_s *dev)
     return dev->ep0->priv;
 }
 
+static inline struct apbridge_dev_s *ep_to_apbridge(struct usbdev_ep_s *ep)
+{
+    return (struct apbridge_dev_s *)ep->priv;
+}
+
 /**
  * @brief Wait until usb connection has been established
  * USB driver is not fully initialized until enumeration is done.
@@ -806,7 +811,7 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
     struct apbridge_dev_s *priv;
     int *req_priv;
 
-    priv = (struct apbridge_dev_s *) ep->priv;
+    priv = ep_to_apbridge(ep);
 
     if (req->result || req->xfrd != req->len) {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_REQRESULT),
@@ -856,7 +861,7 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
 
     /* Extract references to private data */
 
-    priv = (struct apbridge_dev_s *) ep->priv;
+    priv = ep_to_apbridge(ep);
     drv = priv->driver;
 
     /* Process the received data unless this is some unusual condition */
@@ -908,7 +913,7 @@ static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
     }
 #endif
 
-    priv = (struct apbridge_dev_s *) ep->priv;
+    priv = ep_to_apbridge(ep);
     info = apbridge_dequeue(priv);
     if (info) {
         _to_usb_submit(info->ep, req, info->buf, info->len);
