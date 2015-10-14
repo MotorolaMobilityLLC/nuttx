@@ -4756,6 +4756,7 @@ exit_xfercompl:
 							int i;
 							for (i = 0; i < ep->dwc_ep.desc_cnt; i++) {
 								if (ep->dwc_ep.desc_addr[i].status.b.bs == BS_DMA_DONE) {
+								    ep->dwc_ep.desc_addr[i].status.b.bs = BS_HOST_BUSY;
 									complete_ep(ep);
 								}
 							}
