@@ -38,11 +38,6 @@ struct gb_cport {
     int device_id;
 };
 
-struct manifest_file {
-    int id;
-    unsigned char *bin;
-};
-
 typedef void (*manifest_handler)(unsigned char *manifest_file,
                                  int device_id, int manifest_number);
 void foreach_manifest(manifest_handler handler);

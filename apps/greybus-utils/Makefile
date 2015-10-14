@@ -84,15 +84,8 @@ ifeq ($(CONFIG_MANIFEST_ALL), y)
  MANIFEST = all-modules
 endif
 
-ifeq ($(CONFIG_DST_DEVID), )
-CONFIG_DST_DEVID := 1
-endif
-
 ifeq ($(CONFIG_CUSTOM_MANIFEST), y)
  MANIFEST = $(subst ",,$(CONFIG_MANIFEST))
-else
- MANIFEST_COPY := $(MANIFEST)
- MANIFEST = $(CONFIG_DST_DEVID),$(MANIFEST_COPY)
 endif
 
 ifdef MANIFEST_REQUIRED
@@ -101,42 +94,16 @@ ifdef MANIFEST_REQUIRED
  endif
 endif
 
-comma:= ,
-empty:=
-space:= $(empty) $(empty)
-semicolon:= ;
-
-# Device ID -> Bridge/Spring Mapping
-# (keep this list in sync with the help in Kconfig and Device ID
-# definitions in nuttx/configs/ara/svc/src/svc.c):
-#	 1 -> APB1
-#	 2 -> APB2
-#	 3 -> APB3
-#	 4 -> GPB1
-#	 5 -> GPB2
-#	 6 -> Spring1
-#	 7 -> Spring2
-#	 8 -> Spring3
-#	 9 -> Spring4
-#	10 -> Spring5
-#	11 -> Spring6
-#	12 -> Spring7
-#	13 -> Spring8
-DEVID_LIST:= $(shell seq -s ' ' 13)
-
-MANIFEST_TMP = $(subst -,_,$(MANIFEST))
-MANIFEST_TMP2 = $(subst $(semicolon),$(space),$(MANIFEST_TMP))
-MANIFEST_TMP3 = $(subst $(comma),$(comma)manifests_, $(MANIFEST_TMP2))
-MANIFEST_TMP4 = $(addsuffix _mnfb}$(comma), $(MANIFEST_TMP3))
-MANIFEST_DEFINE = $(addprefix {, $(MANIFEST_TMP4))
-MANIFEST_DEVID_LIST = $(subst $(semicolon),$(space),$(MANIFEST))
-MANIFEST_DEVID_LIST2 = $(subst $(comma),$(space),$(MANIFEST_DEVID_LIST))
-MANIFEST_LIST = $(filter-out $(DEVID_LIST), $(MANIFEST_DEVID_LIST2))
-MANIFESTS = $(addprefix manifests/, $(MANIFEST_LIST))
+MANIFEST_TMP2 = $(subst -,_,$(MANIFEST))
+MANIFEST_TMP3 = $(addprefix manifests_, $(MANIFEST_TMP2))
+MANIFEST_TMP4 = $(addsuffix _mnfb, $(MANIFEST_TMP3))
+MANIFEST_DEFINE = $(MANIFEST_TMP4)
+MANIFESTS = $(addprefix manifests/, $(MANIFEST))
 MNFS = $(addsuffix .mnfs, $(MANIFESTS))
 MNFB = $(addsuffix .mnfb, $(MANIFESTS))
 MNFC = $(addsuffix .c, $(MANIFESTS))
-MNFC_INCLUDES = $(addprefix -include , $(sort $(MNFC))) #use sort to remove duplicate
+MNFC_INCLUDES = $(addprefix -include , $(MNFC))
+
 ALL_MNFS = $(wildcard manifests/*.mnfs)
 ALL_MNFB = $(subst .mnfs,.mnfb,$(ALL_MNFS))
 ALL_MNFC = $(subst .mnfs,.c,$(ALL_MNFS))

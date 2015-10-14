@@ -62,15 +62,8 @@ struct greybus g_greybus = {
     .cports = LIST_INIT(g_greybus.cports),
 };
 
-struct manifest_file manifest_files[] = { MANIFEST };
+static unsigned char *bridge_manifest = MANIFEST;
 static int g_device_id;
-
-void foreach_manifest(manifest_handler handler)
-{
-    int i = 0;
-    for (i = 0; i < ARRAY_SIZE(manifest_files); i++)
-        handler(manifest_files[i].bin, manifest_files[i].id, i);
-}
 
 static void *alloc_cport(void)
 {
@@ -372,7 +365,7 @@ static int get_interface_id(char *fname)
 
 void *get_manifest_blob(void)
 {
-    return manifest_files[0].bin;
+    return bridge_manifest;
 }
 
 void parse_manifest_blob(void *manifest)
