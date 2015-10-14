@@ -74,6 +74,21 @@
 #define TSB_DME_ERRORTIND          0xd064
 #define TSB_INTERRUPTENABLE        0xd080
 #define TSB_INTERRUPTSTATUS        0xd081
+    #define TSB_INTERRUPTSTATUS_ENDPOINTRSTIND (1 << 0)
+    #define TSB_INTERRUPTSTATUS_LINKSTARTUPIND (1 << 1)
+    #define TSB_INTERRUPTSTATUS_LINKLOSTIND (1 << 2)
+    #define TSB_INTERRUPTSTATUS_HIBERNATEENTERIND (1 << 3)
+    #define TSB_INTERRUPTSTATUS_HIBERNATEEXITIND (1 << 4)
+    #define TSB_INTERRUPTSTATUS_POWERMODIND (1 << 5)
+    #define TSB_INTERRUPTSTATUS_TESTMODEIND (1 << 6)
+    #define TSB_INTERRUPTSTATUS_ERRORPHYIND (1 << 7)
+    #define TSB_INTERRUPTSTATUS_ERRORDIND (1 << 8)
+    #define TSB_INTERRUPTSTATUS_ERRORNIND (1 << 9)
+    #define TSB_INTERRUPTSTATUS_ERRORTIND (1 << 10)
+    #define TSB_INTERRUPTSTATUS_PAINITERR (1 << 11)
+    /* reserved */
+    #define TSB_INTERRUPTSTATUS_LINKSTARTUPCNF (1 << 13)
+    #define TSB_INTERRUPTSTATUS_ (1 << 14)
     #define TSB_INTERRUPTSTATUS_MAILBOX (1 << 15)
 #define TSB_L2STATUS               0xd082
 #define TSB_POWERSTATE             0xd083
@@ -135,6 +150,7 @@ int tsb_unipro_mbox_send(uint32_t val);
 #define INIT_STATUS_STATUS_MASK                              (0x7f000000)
 #define INIT_STATUS_ERROR_CODE_MASK                          (0x00ffffff)
 
+int tsb_unipro_mbox_get(uint32_t *val, int peer);
 int tsb_unipro_set_init_status(uint32_t val);
 
 #endif

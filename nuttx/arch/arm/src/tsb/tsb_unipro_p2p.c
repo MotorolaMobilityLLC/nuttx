@@ -1,5 +1,6 @@
 /**
  * Copyright (c) 2014-2015 Google Inc.
+ * Copyright (c) 2015 Motorola Mobility, LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,17 +29,20 @@
  * @author Perry Hung
  * @brief MIPI UniPro stack for APBridge ES1
  */
-#include <string.h>
-#include <nuttx/util.h>
-#include <nuttx/irq.h>
-#include <nuttx/arch.h>
 
+#include <string.h>
+#include <errno.h>
+
+#include <nuttx/arch.h>
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
-
+#include <nuttx/irq.h>
 #include <nuttx/unipro/unipro.h>
+#include <nuttx/util.h>
+
 #include <arch/tsb/irq.h>
-#include <errno.h>
+
+#include <apps/ice/svc.h>
 
 #include "debug.h"
 #include "up_arch.h"
@@ -57,13 +61,6 @@ struct dbg_entry {
     uint32_t val;
     const char *const str;
 };
-
-#define ENABLE_UNIPRO_IRQ (0)
-
-#if ENABLE_UNIPRO_IRQ
-    static void unipro_irq_attach(void);
-    static int unipro_irq(int irq, void *context);
-#endif
 
 uint32_t unipro_read(uint32_t offset) {
     return getreg32((volatile unsigned int*)(AIO_UNIPRO_BASE + offset));
@@ -102,14 +99,6 @@ void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, ui
     uint32_t result_code;
     uint32_t attr_val;
 
-    /* Table 5-26 UniPro Power Mode Change Part 1 */
-    lldbg("5-26\n");
-    unipro_write(UNIPRO_INT_EN, 0x1);
-
-    /* Table 5-27 UniPro Power Mode Change Part 2 (See 5.7.7.2 UniPro Attribute Access */
-    lldbg("5-27\n");
-    unipro_attr_write(TSB_INTERRUPTENABLE, 0x20, 0 /* selector */, 0 /* peer */, &result_code);
-
     unipro_attr_write(PA_TXGEAR, txgear, 0 /* selector */, 0 /* peer */, &result_code);
     unipro_attr_write(PA_TXTERMINATION, termination, 0 /* selector */, 0 /* peer */, &result_code);
     unipro_attr_write(PA_HSSERIES, series, 0 /* selector */, 0 /* peer */, &result_code);
@@ -119,21 +108,7 @@ void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, ui
     unipro_attr_write(PA_RXTERMINATION, termination, 0 /* selector */, 0 /* peer */, &result_code);
     unipro_attr_write(PA_ACTIVERXDATALANES, 1, 0 /* selector */, 0 /* peer */, &result_code);
 
-
     unipro_attr_write(PA_PWRMODE, pwrmode, 0 /* selector */, 0 /* peer */, &result_code);
-
-    /* Table 5-28 UniPro Power Mode Change Part 3 */
-    lldbg("5-28: wait for powermode\n");
-    while (!(unipro_read(UNIPRO_INT_BEF) & 0x1)) {
-    }
-    lldbg("powermode change done\n");
-
-    /* Table 5-29 Check UniPro Power Mode Change (See 5.7.7.2 UniPro Attribute Access) */
-    lldbg("5-29\n");
-    unipro_attr_read(TSB_DME_POWERMODEIND, &attr_val, 0, 0, &result_code);
-    lldbg("got=%d, expected=%d\n", attr_val, 2);
-    unipro_attr_read(TSB_DME_POWERMODEIND, &attr_val, 0, 1, &result_code);
-    lldbg("got=%d, expected=%d\n", attr_val, 4);
 }
 
 /**
@@ -188,9 +163,49 @@ void unipro_p2p_setup_cport(unsigned int cport, int peer) {
     unipro_attr_write(T_CONNECTIONSTATE, 1 /* connected */, cport, peer, &rc);
 }
 
+void unipro_p2p_disconnect_cport(unsigned int cport, int peer) {
+    uint32_t rc;
+
+    uint32_t val = 0x3;
+    unipro_write(TX_SW_RESET_00 + cport * sizeof(val), val);
+    unipro_write(RX_SW_RESET_00 + cport * sizeof(val), val);
+
+    unipro_attr_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport, peer, &rc);
+    unipro_attr_write(T_CREDITSTOSEND, 0, cport, peer, &rc);
+
+    unipro_attr_read(T_LOCALBUFFERSPACE, &val, cport, peer, &rc);
+    unipro_attr_write(T_PEERBUFFERSPACE, val, cport, peer, &rc);
+
+    val = 0x0;
+    unipro_write(TX_SW_RESET_00 + cport * sizeof(val), val);
+    unipro_write(RX_SW_RESET_00 + cport * sizeof(val), val);
+}
+
+void unipro_p2p_setup_connection(unsigned int cport) {
+    /* Set-up the L4 attributes */
+    unipro_p2p_setup_cport(cport, 0 /* local */ );
+    unipro_p2p_setup_cport(cport, 1 /* peer */ );
+
+    /* Signal to the remote that the cport is ready. */
+    uint32_t rc = tsb_unipro_mbox_set(cport + 1, 1 /* peer */);
+    lldbg("set: rc=%d\n", rc);
+}
+
 void unipro_p2p_setup(void) {
     uint32_t i;
     uint32_t rc;
+
+    unipro_write(UNIPRO_INT_EN, 0x0);
+    unipro_write(LUP_INT_EN, 0x0);
+    unipro_write(A2D_ATTRACS_INT_EN, 0x0);
+    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
+
+    lldbg("%s", "wait for link\n");
+    unipro_write(LUP_INT_EN, 0x1);
+    while (!(unipro_read(LUP_INT_AFT) & 0x1)) {
+    }
+    lldbg("%s", "link up\n");
+    unipro_write(LUP_INT_EN, 0x0);
 
     unipro_attr_write(PA_TXTERMINATION, 1, 0 /* selector */, 1 /* peer */, &rc);
     unipro_attr_write(PA_RXTERMINATION, 1, 0 /* selector */, 1 /* peer */, &rc);
@@ -208,38 +223,6 @@ void unipro_p2p_setup(void) {
     unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, PA_PWRMODE_PWM, UNIPRO_HS_SERIES_A, 1 /* termination */);
 #endif
 }
-
-#if ENABLE_UNIPRO_IRQ
-static void unipro_irq_attach(void) {
-    irq_attach(TSB_IRQ_UNIPRO, unipro_irq);
-    up_enable_irq(TSB_IRQ_UNIPRO);
-}
-
-static int unipro_irq(int irq, void *context) {
-    uint32_t val;
-
-    DBG_UNIPRO("%s\n", __func__);
-    unipro_dump_ints();
-    unipro_dump_status();
-
-    val = unipro_read(UNIPRO_INT_AFT);
-    if (val) {
-        unipro_write(UNIPRO_INT_BEF, val);
-    }
-
-    val = unipro_read(LUP_INT_AFT);
-    if (val) {
-        unipro_write(LUP_INT_BEF, val);
-    }
-
-    val = unipro_read(A2D_ATTRACS_INT_AFT);
-    if (val) {
-        unipro_write(A2D_ATTRACS_INT_BEF, val );
-    }
-
-    return 0;
-}
-#endif
 
 const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     /*

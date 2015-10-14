@@ -151,7 +151,7 @@ static void dump_regs(void);
 
 /* irq handlers */
 static int irq_rx_eom(int, void*);
-#if !defined(CONFIG_UNIPRO_P2P)
+#if !defined(CONFIG_ICE_APBA)
 static int irq_unipro(int, void*);
 #endif
 
@@ -444,9 +444,89 @@ static int irq_rx_eom(int irq, void *context) {
     return 0;
 }
 
-#if !defined(CONFIG_UNIPRO_P2P)
 static int tsb_unipro_mbox_ack(uint16_t val);
 
+#if defined(CONFIG_ICE_APBA)
+int irq_unipro(int irq, void *context) {
+    uint32_t rc;
+    uint32_t val;
+
+    /* UniPro interrupt */
+    val = unipro_read(UNIPRO_INT_AFT);
+    if (val) {
+        uint32_t isr_val = 0;
+        unipro_attr_read(TSB_INTERRUPTSTATUS, &isr_val, 0, 0, &rc);
+
+        if (isr_val & TSB_INTERRUPTSTATUS_POWERMODIND) {
+            uint32_t pmi_val0 = 0;
+            unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val0, 0, 0, &rc);
+
+            uint32_t pmi_val1 = 0;
+            unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val1, 0, 1, &rc);
+
+            if (pmi_val0 == 2 && pmi_val1 == 4) {
+                DBG_UNIPRO("Powermode change successful\n");
+            } else {
+                // TODO: Handle error case
+            }
+        }
+
+        if (isr_val & TSB_INTERRUPTSTATUS_MAILBOX) {
+            uint32_t mbox_val = TSB_MAIL_RESET;
+            rc = unipro_attr_local_read(TSB_MAILBOX, &mbox_val, 0, NULL);
+            if (rc) {
+                goto done;
+            }
+
+            /*
+             * Clear the mailbox. This triggers another a local interrupt which we have
+             * to clear.
+             */
+            rc = unipro_attr_local_write(TSB_MAILBOX, 0, 0, NULL);
+            if (rc) {
+                goto done;
+            }
+
+            uint32_t tmp;
+            rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &tmp, 0, NULL);
+            if (rc) {
+                goto done;
+            }
+
+            rc = unipro_attr_local_read(TSB_MAILBOX, &tmp, 0, NULL);
+            if (rc) {
+                goto done;
+            }
+
+            if (mbox_val == TSB_MAIL_READY_OTHER) {
+                tsb_unipro_mbox_set(TSB_MAIL_RESET, 0 /* peer */);
+
+                /* Enable the control cport. */
+                const unsigned int cport = 0;
+                unipro_p2p_setup_cport(cport, 1 /* peer */);
+                rc = tsb_unipro_mbox_set(cport + 1, 1 /* peer */);
+            } else {
+                // TODO: Handle error case
+            }
+        }
+done:
+        unipro_write(UNIPRO_INT_BEF, val);
+    }
+
+    /* Link interrupt */
+    val = unipro_read(LUP_INT_AFT);
+    if (val) {
+        if (val & 0x1) {
+            /* Link up */
+        }
+
+        unipro_write(LUP_INT_BEF, val);
+    }
+
+    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
+    return rc;
+}
+#else
 /**
  * @brief See ENG-376.
  *
@@ -843,10 +923,6 @@ void unipro_init(void)
     int retval;
     struct cport *cport;
 
-#if defined(CONFIG_UNIPRO_P2P)
-    unipro_reset();
-#endif
-
     cport_count = unipro_cport_count();
     cporttable = zalloc(sizeof(struct cport) * cport_count);
     if (!cporttable) {
@@ -871,19 +947,6 @@ void unipro_init(void)
     unipro_write(LUP_INT_EN, 0x1);
 
 #if defined(CONFIG_UNIPRO_P2P)
-    unipro_write(UNIPRO_INT_EN, 0x0);
-    unipro_write(LUP_INT_EN, 0x0);
-    unipro_write(A2D_ATTRACS_INT_EN, 0x0);
-    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
-
-    /* Table 5-24 UniPro Link Up */
-    unipro_write(LUP_INT_EN, 0x1);
-
-    DBG_UNIPRO("%s", "5-24: wait for link\n");
-    while (!(unipro_read(LUP_INT_AFT) & 0x1)) {
-    }
-    DBG_UNIPRO("%s", "link up\n");
-
     unipro_p2p_setup();
 #endif
 
@@ -901,14 +964,14 @@ void unipro_init(void)
     unipro_write(UNIPRO_INT_EN, 0x0);
     for (i = 0; i < cport_count; i++) {
         unipro_init_cport(i);
-#if defined(CONFIG_UNIPRO_P2P)
+#if defined(CONFIG_ICE_APBA)
         configure_connected_cport(i);
 #endif
     }
     unipro_write(UNIPRO_INT_EN, 0x1);
 
 
-#if !defined(CONFIG_UNIPRO_P2P)
+#if !defined(CONFIG_ICE_APBA)
     /*
      * Disable FCT transmission. See ENG-376.
      */
@@ -916,6 +979,7 @@ void unipro_init(void)
     if (tsb_get_product_id() == tsb_pid_apbridge) {
         unipro_write(CPB_RX_E2EFC_EN_1, 0x0);
     }
+#endif
 
     /*
      * Enable the mailbox interrupt
@@ -926,8 +990,6 @@ void unipro_init(void)
     }
     irq_attach(TSB_IRQ_UNIPRO, irq_unipro);
     up_enable_irq(TSB_IRQ_UNIPRO);
-
-#endif
 
 #ifdef UNIPRO_DEBUG
     unipro_info();
@@ -1082,9 +1144,44 @@ int unipro_driver_unregister(unsigned int cportid)
         return -ENODEV;
     }
 
+#if defined(CONFIG_UNIPRO_P2P)
+    unipro_p2p_disconnect_cport(cport->cportid, 0 /* peer */);
+#endif
+
+    lldbg("Unregistered driver %s on %sconnected CP%u\n",
+          cport->driver->name, cport->connected ? "" : "un",
+          cport->cportid);
+
     cport->driver = NULL;
 
     return 0;
+}
+
+/**
+ * @brief Synchronously get the mailxbox value.
+ * Automatically re-try if the value is TSB_MAIL_RESET (0).
+ * @return 0 on success, <0 on error
+ */
+int tsb_unipro_mbox_get(uint32_t *val, int peer) {
+    uint32_t rc = -1;
+    uint32_t tempval = TSB_MAIL_RESET;
+
+    if (!val) {
+        return -EINVAL;
+    }
+
+    do {
+        rc = unipro_attr_read(TSB_MAILBOX, &tempval, 0, peer, &rc);
+    } while (!rc && tempval == TSB_MAIL_RESET);
+    if (rc) {
+        return rc;
+    }
+
+    if (!rc) {
+        *val = tempval;
+    }
+
+    return rc;
 }
 
 /**
@@ -1116,7 +1213,6 @@ int tsb_unipro_mbox_send(uint32_t val) {
     return rc;
 }
 
-#if !defined(CONFIG_UNIPRO_P2P)
 /**
  * Since the switch has no 32-bit MBOX_ACK_ATTR attribute, we need to repurpose
  * a 16-bit attribute, which means that received mbox values must fit inside a
@@ -1133,6 +1229,5 @@ static int tsb_unipro_mbox_ack(uint16_t val) {
 
     return 0;
 }
-#endif
 
 
