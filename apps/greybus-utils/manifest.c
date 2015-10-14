@@ -62,7 +62,9 @@ struct greybus g_greybus = {
     .cports = LIST_INIT(g_greybus.cports),
 };
 
-static unsigned char *bridge_manifest = MANIFEST;
+static unsigned char bridge_manifest[] = {
+#include "manifest.inc"
+};
 static int g_device_id;
 
 static void *alloc_cport(void)

@@ -88,19 +88,12 @@ ifeq ($(CONFIG_CUSTOM_MANIFEST), y)
  MANIFEST = $(subst ",,$(CONFIG_MANIFEST))
 endif
 
-MANIFEST_TMP2 = $(subst -,_,$(MANIFEST))
-MANIFEST_TMP3 = $(addprefix manifests_, $(MANIFEST_TMP2))
-MANIFEST_TMP4 = $(addsuffix _mnfb, $(MANIFEST_TMP3))
-MANIFEST_DEFINE = $(MANIFEST_TMP4)
 MANIFESTS = $(addprefix manifests/, $(MANIFEST))
 MNFS = $(addsuffix .mnfs, $(MANIFESTS))
 MNFB = $(addsuffix .mnfb, $(MANIFESTS))
-MNFC = $(addsuffix .c, $(MANIFESTS))
-MNFC_INCLUDES = $(addprefix -include , $(MNFC))
 
 ALL_MNFS = $(wildcard manifests/*.mnfs)
 ALL_MNFB = $(subst .mnfs,.mnfb,$(ALL_MNFS))
-ALL_MNFC = $(subst .mnfs,.c,$(ALL_MNFS))
 
 ifeq ($(CONFIG_WINDOWS_NATIVE),y)
   BIN		= ..\libapps$(LIBEXT)
@@ -131,8 +124,8 @@ $(COBJS): %$(OBJEXT): %.c
 %.mnfb: %.mnfs
 	manifesto $<
 
-%.c: %.mnfb
-	xxd -i $< > $@
+manifest.inc: $(MNFB)
+	xxd -i < $< > $@
 
 .built: $(OBJS)
 	$(call ARCHIVE, $(BIN), $(OBJS))
@@ -143,10 +136,10 @@ install:
 context:
 	@true
 
-manifest.o: $(MNFC) manifest.c
-	$(call COMPILE, -DMANIFEST="$(MANIFEST_DEFINE)" $(MNFC_INCLUDES) manifest.c, manifest.o)
+manifest.o: manifest.inc manifest.c
+	$(call COMPILE, manifest.c, manifest.o)
 
-.depend: Makefile $(SRCS)
+.depend: Makefile $(SRCS) manifest.inc
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
@@ -156,7 +149,7 @@ depend: .depend
 clean:
 	$(call DELFILE, .built)
 	$(call CLEAN)
-	$(call DELFILE, $(ALL_MNFC) $(ALL_MNFB))
+	$(call DELFILE, manifest.inc $(ALL_MNFB))
 
 distclean: clean
 	$(call DELFILE, Make.dep)
