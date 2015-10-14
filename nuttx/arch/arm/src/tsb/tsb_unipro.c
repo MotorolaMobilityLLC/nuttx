@@ -877,7 +877,9 @@ static int unipro_init_cport(unsigned int cportid)
     if (cport->connected)
         return 0;
 
+#if !defined(CONFIG_UNIPRO_P2P)
     _unipro_reset_cport(cportid);
+#endif
 
     atomic_init(&cport->inflight_buf_count, 0);
 #if defined(CONFIG_APBRIDGEA)
@@ -1179,6 +1181,48 @@ int tsb_unipro_mbox_get(uint32_t *val, int peer) {
 
     if (!rc) {
         *val = tempval;
+    }
+
+    return rc;
+}
+
+/**
+ * @brief Set the mailbox value and wait for it to be cleared.
+ */
+int tsb_unipro_mbox_set(uint32_t val, int peer) {
+    int rc;
+    uint32_t irq_status, retries = 2048;
+
+    rc = unipro_attr_write(TSB_MAILBOX, val, 0, peer, NULL);
+    if (rc) {
+        lldbg("TSB_MAILBOX write failed: %d\n", rc);
+        return rc;
+    }
+
+    do {
+        rc = unipro_attr_read(TSB_INTERRUPTSTATUS, &irq_status, 0, peer, NULL);
+        if (rc) {
+            lldbg("%s(): TSB_INTERRUPTSTATUS poll failed: %d\n", __func__, rc);
+            return rc;
+        }
+    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && --retries > 0);
+
+    if (!retries) {
+        return -ETIMEDOUT;
+    } else {
+        retries = 2048;
+    }
+
+    do {
+        rc = unipro_attr_read(TSB_MAILBOX, &val, 0, peer, NULL);
+        if (rc) {
+            lldbg("%s(): TSB_MAILBOX poll failed: %d\n", __func__, rc);
+            return rc;
+        }
+    } while (val != TSB_MAIL_RESET && --retries > 0);
+
+    if (!retries) {
+        return -ETIMEDOUT;
     }
 
     return rc;
