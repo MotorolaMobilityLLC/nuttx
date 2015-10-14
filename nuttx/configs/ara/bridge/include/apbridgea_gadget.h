@@ -30,6 +30,16 @@
 #define _APBRIDGEA_GADGET_H_
 
 #include <sys/types.h>
+#include <arch/board/common_gadget.h>
+
+/* Vender specific control requests *******************************************/
+
+#define APBRIDGE_RWREQUEST_LOG                  (0x02)
+#define APBRIDGE_RWREQUEST_EP_MAPPING           (0x03)
+#define APBRIDGE_ROREQUEST_CPORT_COUNT          (0x04)
+#define APBRIDGE_WOREQUEST_CPORT_RESET          (0x05)
+#define APBRIDGE_ROREQUEST_LATENCY_TAG_EN       (0x06)
+#define APBRIDGE_ROREQUEST_LATENCY_TAG_DIS      (0x07)
 
 struct apbridge_dev_s;
 

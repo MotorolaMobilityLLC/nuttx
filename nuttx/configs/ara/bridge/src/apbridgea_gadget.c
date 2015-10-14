@@ -67,7 +67,6 @@
 #include <arch/byteorder.h>
 #include <arch/board/common_gadget.h>
 #include <arch/board/apbridgea_gadget.h>
-#include <nuttx/wdog.h>
 #include <nuttx/greybus/greybus_timestamp.h>
 
 /****************************************************************************
@@ -149,19 +148,6 @@
 /* Buffer big enough for any of our descriptors */
 
 #define APBRIDGE_MXDESCLEN           (64)
-
-/* Vender specific control requests *******************************************/
-
-#define APBRIDGE_RWREQUEST_LOG                  (0x02)
-#define APBRIDGE_RWREQUEST_EP_MAPPING           (0x03)
-#define APBRIDGE_ROREQUEST_CPORT_COUNT          (0x04)
-#define APBRIDGE_WOREQUEST_CPORT_RESET          (0x05)
-#define APBRIDGE_ROREQUEST_LATENCY_TAG_EN       (0x06)
-#define APBRIDGE_ROREQUEST_LATENCY_TAG_DIS      (0x07)
-
-#define TIMEOUT_IN_MS           300
-#define ONE_SEC_IN_MSEC         1000
-#define RESET_TIMEOUT_DELAY (TIMEOUT_IN_MS * CLOCKS_PER_SEC) / ONE_SEC_IN_MSEC
 
 /* Misc Macros ****************************************************************/
 
@@ -1059,59 +1045,6 @@ int usb_get_log(void *buf, int len)
 }
 #endif
 
-struct cport_reset_priv {
-    struct usbdev_s *dev;
-    struct wdog_s timeout_wd;
-    atomic_t refcount;
-};
-
-static void cport_reset_cb(unsigned int cportid, void *data)
-{
-    struct cport_reset_priv *priv = data;
-
-    if (atomic_dec(&priv->refcount)) {
-        vendor_request_deferred_submit(priv->dev, OK);
-    } else {
-        wd_delete(&priv->timeout_wd);
-        free(priv);
-    }
-}
-
-static void cport_reset_timeout(int argc, uint32_t data, ...)
-{
-    struct cport_reset_priv *priv = (struct cport_reset_priv*) data;
-
-    if (argc != 1)
-        return;
-
-    if (atomic_dec(&priv->refcount)) {
-        vendor_request_deferred_submit(priv->dev, -ETIMEDOUT);
-    } else {
-        wd_delete(&priv->timeout_wd);
-        free(priv);
-    }
-}
-
-static int reset_cport(unsigned int cportid, struct usbdev_s *dev)
-{
-    struct cport_reset_priv *priv;
-
-    priv = zalloc(sizeof(*priv));
-    if (!priv) {
-        return -ENOMEM;
-    }
-
-    wd_static(&priv->timeout_wd);
-    priv->dev = dev;
-
-    /* a ref for the watchdog and one for the unipro stack */
-    atomic_init(&priv->refcount, 2);
-
-    wd_start(&priv->timeout_wd, RESET_TIMEOUT_DELAY, cport_reset_timeout, 1,
-             priv);
-    return unipro_reset_cport(cportid, cport_reset_cb, priv);
-}
-
 static int greybus_log_vendor_request_in(struct usbdev_s *dev, uint8_t req,
                                          uint16_t index, uint16_t value,
                                          void *buf, uint16_t len)
@@ -1133,21 +1066,6 @@ static int ep_mapping_vendor_request_out(struct usbdev_s *dev, uint8_t req,
 {
     map_cport_to_ep(usbdev_to_apbridge(dev), (struct cport_to_ep *)buf);
     return len;
-}
-
-static int cport_count_vendor_request_in(struct usbdev_s *dev, uint8_t req,
-                                         uint16_t index, uint16_t value,
-                                         void *buf, uint16_t len)
-{
-    *(uint16_t *) buf = cpu_to_le16(unipro_cport_count());
-    return sizeof(uint16_t);
-}
-
-static int cport_reset_vendor_request_out(struct usbdev_s *dev, uint8_t req,
-                                          uint16_t index, uint16_t value,
-                                          void *buf, uint16_t len)
-{
-    return reset_cport(value, dev);
 }
 
 static int latency_tag_en_vendor_request_out(struct usbdev_s *dev, uint8_t req,
@@ -1417,20 +1335,13 @@ int usbdev_apbinitialize(struct device *dev,
                                 greybus_log_vendor_request_in))
         goto errout_vendor_req;
     if (register_vendor_request(APBRIDGE_RWREQUEST_EP_MAPPING, VENDOR_REQ_DATA,
-                            ep_mapping_vendor_request_out))
-        goto errout_vendor_req;
-    if (register_vendor_request(APBRIDGE_ROREQUEST_CPORT_COUNT, VENDOR_REQ_IN,
-                            cport_count_vendor_request_in))
-        goto errout_vendor_req;
-    if (register_vendor_request(APBRIDGE_WOREQUEST_CPORT_RESET,
-                            VENDOR_REQ_OUT | VENDOR_REQ_DEFER,
-                            cport_reset_vendor_request_out))
+                                ep_mapping_vendor_request_out))
         goto errout_vendor_req;
     if (register_vendor_request(APBRIDGE_ROREQUEST_LATENCY_TAG_EN, VENDOR_REQ_OUT,
-                            latency_tag_en_vendor_request_out))
+                                latency_tag_en_vendor_request_out))
         goto errout_vendor_req;
     if (register_vendor_request(APBRIDGE_ROREQUEST_LATENCY_TAG_DIS, VENDOR_REQ_OUT,
-                            latency_tag_dis_vendor_request_out))
+                                latency_tag_dis_vendor_request_out))
         goto errout_vendor_req;
 
     /* Allocate the structures needed */
