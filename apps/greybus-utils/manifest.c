@@ -54,6 +54,7 @@ extern void gb_spi_register(int cport);
 extern void gb_uart_register(int cport);
 extern void gb_hid_register(int cport);
 extern void gb_lights_register(int cport);
+extern void gb_sdio_register(int cport);
 
 struct greybus {
     struct list_head cports;
@@ -205,6 +206,13 @@ void enable_cports(void)
         if (protocol == GREYBUS_PROTOCOL_LIGHTS) {
             gb_info("Registering Lights greybus driver. id= %d\n", id);
             gb_lights_register(id);
+        }
+#endif
+
+#ifdef CONFIG_GREYBUS_SDIO_PHY
+        if (protocol == GREYBUS_PROTOCOL_SDIO) {
+            gb_info("Registering SDIO greybus driver.\n");
+            gb_sdio_register(id);
         }
 #endif
     }
