@@ -32,6 +32,8 @@
 #include <stdlib.h>
 
 void unipro_p2p_setup_cport(unsigned int cport, int peer);
+void unipro_p2p_disconnect_cport(unsigned int cport, int peer);
+void unipro_p2p_setup_connection(unsigned int cport);
 void unipro_p2p_setup(void);
 
 void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination);
