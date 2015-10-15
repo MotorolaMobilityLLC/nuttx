@@ -47,23 +47,29 @@
 
 #include "datalink.h"
 
-/* Size of payload of individual SPI packet (in bytes) */
-#define MODS_SPI_MSG_PAYLOAD_SZ (32)
+/* Default payload size of a SPI packet (in bytes) */
+#define DEFAULT_PAYLOAD_SZ (32)
 
+/* SPI packet header bit definitions */
 #define HDR_BIT_VALID  (0x01 << 7)  /* 1 = valid packet, 0 = dummy packet */
 #define HDR_BIT_RSVD   (0x03 << 5)  /* Reserved */
 #define HDR_BIT_PKTS   (0x1F << 0)  /* How many additional packets to expect */
 
+/* SPI packet CRC size (in bytes) */
+#define CRC_SIZE       (2)
+
 /* Priority to report to PM framework when WAKE line asserted. */
 #define PM_ACTIVITY_WAKE 10
 
-struct mods_spi_msg
-{
-  __u8    hdr_bits;
-  __u8    data[MODS_SPI_MSG_PAYLOAD_SZ];
+/* Macro to determine the payload size from the packet size */
+#define PL_SIZE(pkt_size)  (pkt_size - sizeof(struct spi_msg_hdr) - CRC_SIZE)
 
-  /* Will be calculated automatically by HW */
-  __le16  crc16;
+/* Macro to determine the packet size from the payload size */
+#define PKT_SIZE(pl_size)  (pl_size + sizeof(struct spi_msg_hdr) + CRC_SIZE)
+
+struct spi_msg_hdr
+{
+  __u8 bits;
 } __packed;
 
 struct mods_spi_dl_s
@@ -74,10 +80,12 @@ struct mods_spi_dl_s
   struct mods_dl_cb_s *cb;       /* Callbacks to network layer */
   enum base_attached_e bstate;   /* Base state (attached/detached) */
   atomic_t xfer;                 /* Flag to indicate transfer in progress */
+  size_t pkt_size;               /* Size of packet (hdr + pl + CRC) in bytes */
+
   struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
   struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
 
-  __u8 rx_buf[sizeof(struct mods_spi_msg)];
+  __u8 *rx_buf;                  /* Buffer for received packets */
 
   /*
    * Buffer to hold incoming payload (which could be spread across
@@ -87,7 +95,55 @@ struct mods_spi_dl_s
   int rcvd_payload_idx;
 };
 
-static void setup_exchange(FAR struct mods_spi_dl_s *priv)
+static int set_packet_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
+{
+  struct ring_buf *tx_rb_new;
+  __u8 *rx_buf_new;
+
+  /* Only change packet size if TX buffer is empty */
+  if (priv->txp_rb != priv->txc_rb)
+      return -EBUSY;
+
+  /* Allocate RX buffer */
+  rx_buf_new = malloc(pkt_size);
+  if (!rx_buf_new)
+      return -ENOMEM;
+
+  /* Allocate TX ring buffer */
+  tx_rb_new = ring_buf_alloc_ring(
+      (MODS_DL_PAYLOAD_MAX_SZ / PL_SIZE(pkt_size)) + 1 /* entries */,
+      0 /* headroom */, pkt_size /* data len */,
+      0 /* tailroom */, NULL /* alloc_callback */, NULL /* free_callback */,
+      NULL /* arg */);
+  if (!tx_rb_new)
+    {
+      free(rx_buf_new);
+      return -ENOMEM;
+    }
+
+  /* Save new packet size */
+  priv->pkt_size = pkt_size;
+
+  /* Free any existing RX buffer (if any) */
+  if (priv->rx_buf)
+    free(priv->rx_buf);
+
+  /* Save pointer to new RX buffer */
+  priv->rx_buf = rx_buf_new;
+
+  /* Free existing TX ring buffer (if any) */
+  ring_buf_free_ring(priv->txp_rb, NULL /* free_callback */, NULL /* arg */);
+
+  /* Save pointer to new TX ring buffer */
+  priv->txp_rb = tx_rb_new;
+  priv->txc_rb = tx_rb_new;
+
+  dbg("%d bytes\n", priv->pkt_size);
+
+  return OK;
+}
+
+static void setup_xfer(FAR struct mods_spi_dl_s *priv)
 {
   irqstate_t flags;
   struct ring_buf *rb;
@@ -125,8 +181,7 @@ static void setup_exchange(FAR struct mods_spi_dl_s *priv)
       dbg("RX/TX\n");
     }
 
-  SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb),
-               priv->rx_buf, sizeof(struct mods_spi_msg));
+  SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb), priv->rx_buf, priv->pkt_size);
 
   /* Deassert interrupt line (if appropriate) before asserting RDY */
   rb = ring_buf_get_next(rb);
@@ -145,7 +200,7 @@ already_setup:
 
 static void cleanup_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
 {
-  memset(ring_buf_get_data(priv->txc_rb), 0, sizeof(struct mods_spi_msg));
+  memset(ring_buf_get_data(priv->txc_rb), 0, priv->pkt_size);
   ring_buf_reset(priv->txc_rb);
   ring_buf_pass(priv->txc_rb);
   priv->txc_rb = ring_buf_get_next(priv->txc_rb);
@@ -192,9 +247,10 @@ static void txn_start_cb(void *v)
 static void txn_finished_cb(void *v)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
-  struct mods_spi_msg *m = (struct mods_spi_msg *)priv->rx_buf;
+  struct spi_msg_hdr *hdr = (struct spi_msg_hdr *)priv->rx_buf;
+  size_t pl_size = PL_SIZE(priv->pkt_size);
 
-  vdbg("hdr_bits=0x%02X\n", m->hdr_bits);
+  vdbg("hdr.bits=0x%02X\n", hdr->bits);
 
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
@@ -202,33 +258,42 @@ static void txn_finished_cb(void *v)
   /* Clear transfer setup flag */
   atomic_dec(&priv->xfer);
 
-  if (!(m->hdr_bits & HDR_BIT_VALID))
+  if (!(hdr->bits & HDR_BIT_VALID))
     {
       /* Received a dummy packet - nothing to do! */
       goto done;
     }
 
-  if (priv->rcvd_payload_idx >= MODS_DL_PAYLOAD_MAX_SZ)
+  /* Check if un-packetizing is required */
+  if (MODS_DL_PAYLOAD_MAX_SZ != pl_size)
     {
-      /* Too many packets received! */
-      goto done;
+      if (priv->rcvd_payload_idx >= MODS_DL_PAYLOAD_MAX_SZ)
+        {
+          /* Too many packets received! */
+          goto done;
+        }
+
+      memcpy(&priv->rcvd_payload[priv->rcvd_payload_idx],
+             &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
+      priv->rcvd_payload_idx += pl_size;
+
+      if (hdr->bits & HDR_BIT_PKTS)
+        {
+          /* Need additional packets */
+          goto done;
+        }
+
+      priv->cb->recv(priv->rcvd_payload, priv->rcvd_payload_idx);
+      priv->rcvd_payload_idx = 0;
     }
-
-  memcpy(&priv->rcvd_payload[priv->rcvd_payload_idx], m->data,
-         MODS_SPI_MSG_PAYLOAD_SZ);
-  priv->rcvd_payload_idx += MODS_SPI_MSG_PAYLOAD_SZ;
-
-  if (m->hdr_bits & HDR_BIT_PKTS)
+  else
     {
-      /* Need additional packets */
-      goto done;
+      /* Un-packetizing not required */
+      priv->cb->recv(&priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
     }
-
-  priv->cb->recv(priv->rcvd_payload, priv->rcvd_payload_idx);
-  priv->rcvd_payload_idx = 0;
 
 done:
-  setup_exchange(priv);
+  setup_xfer(priv);
 }
 
 /*
@@ -252,7 +317,7 @@ static void txn_error_cb(void *v)
   /* Clear transfer setup flag */
   atomic_dec(&priv->xfer);
 
-  setup_exchange(priv);
+  setup_xfer(priv);
 }
 
 static const struct spi_cb_ops_s cb_ops =
@@ -267,15 +332,14 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
                       size_t len)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)dl;
-  struct mods_spi_msg *m;
   int remaining = len;
   irqstate_t flags;
   __u8 *dbuf = (__u8 *)buf;
-  int pl_size;
+  size_t pl_size = PL_SIZE(priv->pkt_size);
   int packets;
 
   /* Calculate how many packets are required to send whole payload */
-  packets = (remaining + MODS_SPI_MSG_PAYLOAD_SZ - 1) / MODS_SPI_MSG_PAYLOAD_SZ;
+  packets = (remaining + pl_size - 1) / pl_size;
 
   vdbg("len=%d, packets=%d, bstate=%d\n", len, packets, priv->bstate);
 
@@ -288,6 +352,10 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
   flags = irqsave();
   while ((remaining > 0) && (packets > 0))
     {
+      struct spi_msg_hdr *hdr;
+      __u8 *payload;
+      int this_pl;
+
       if (ring_buf_is_consumers(priv->txp_rb))
         {
           dbg("Ring buffer is full!\n");
@@ -295,26 +363,27 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
           return -ENOMEM;
         }
 
-      m = ring_buf_get_data(priv->txp_rb);
+      hdr = ring_buf_get_data(priv->txp_rb);
+      payload = ((__u8 *)ring_buf_get_data(priv->txp_rb)) + sizeof(*hdr);
 
       /* Determine the payload size of this packet */
-      pl_size = MIN(remaining, MODS_SPI_MSG_PAYLOAD_SZ);
+      this_pl = MIN(remaining, pl_size);
 
       /* Populate the SPI message */
-      m->hdr_bits |= HDR_BIT_VALID;
-      m->hdr_bits |= (--packets & HDR_BIT_PKTS);
-      memcpy(m->data, dbuf, pl_size);
+      hdr->bits  = HDR_BIT_VALID;
+      hdr->bits |= (--packets & HDR_BIT_PKTS);
+      memcpy(payload, dbuf, this_pl);
 
-      remaining -= pl_size;
-      dbuf += pl_size;
+      remaining -= this_pl;
+      dbuf += this_pl;
 
-      ring_buf_put(priv->txp_rb, sizeof(*m));
+      ring_buf_put(priv->txp_rb, priv->pkt_size);
       ring_buf_pass(priv->txp_rb);
       priv->txp_rb = ring_buf_get_next(priv->txp_rb);
     }
   irqrestore(flags);
 
-  setup_exchange(priv);
+  setup_xfer(priv);
   return 0;
 }
 
@@ -353,7 +422,7 @@ static int wake_isr(int irq, void *context)
   vdbg("Asserted\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
-  setup_exchange(&mods_spi_dl);
+  setup_xfer(&mods_spi_dl);
 
   return OK;
 }
@@ -373,13 +442,10 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
 
   mods_spi_dl.cb = cb;
   mods_spi_dl.spi = spi;
-  mods_spi_dl.txp_rb = ring_buf_alloc_ring(
-      (MODS_DL_PAYLOAD_MAX_SZ / MODS_SPI_MSG_PAYLOAD_SZ) + 1 /* entries */,
-      0 /* headroom */, sizeof(struct mods_spi_msg) /* data len */,
-      0 /* tailroom */, NULL /* alloc_callback */, NULL /* free_callback */,
-      NULL /* arg */);
-  mods_spi_dl.txc_rb = mods_spi_dl.txp_rb;
   atomic_init(&mods_spi_dl.xfer, 0);
+
+  if (set_packet_size(&mods_spi_dl, PKT_SIZE(DEFAULT_PAYLOAD_SZ)) != OK)
+    return NULL;
 
   /* RDY GPIO must be initialized before the WAKE interrupt */
   mods_rfr_init();
