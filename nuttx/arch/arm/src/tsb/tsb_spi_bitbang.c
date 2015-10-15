@@ -128,6 +128,7 @@ static int tsb_spi_hw_init(struct device *dev)
 {
     struct tsb_spi_info *info = NULL;
     int i = 0;
+    int retval;
 
     /* check input parameters */
     if (!dev || !device_get_private(dev)) {
@@ -135,6 +136,12 @@ static int tsb_spi_hw_init(struct device *dev)
     }
 
     info = device_get_private(dev);
+
+    retval = tsb_request_pinshare(TSB_PIN_GPIO10);
+    if (retval) {
+        lowsyslog("SPI: cannot get ownership of GPIO10 pin.\n");
+        return retval;
+    }
 
     /* backup pinshare#5 setting */
     info->pinshare = tsb_get_pinshare();
@@ -202,6 +209,9 @@ static int tsb_spi_hw_deinit(struct device *dev) {
             tsb_clr_pinshare(TSB_PIN_GPIO10);
         }
     }
+
+    tsb_release_pinshare(TSB_PIN_GPIO10);
+
     return 0;
 }
 
