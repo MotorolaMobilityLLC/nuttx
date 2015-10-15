@@ -49,6 +49,14 @@
  */
 static int usb4624_open(struct device *dev)
 {
+    int retval;
+
+    retval = tsb_request_pinshare(TSB_PIN_UART_CTSRTS);
+    if (retval) {
+        lowsyslog("USB4624: cannot get ownership of USB4624 reset pin.\n");
+        return retval;
+    }
+
     tsb_clr_pinshare(TSB_PIN_UART_CTSRTS);
     gpio_activate(HUB_LINE_N_RESET);
     return 0;
@@ -64,6 +72,7 @@ static int usb4624_open(struct device *dev)
 static void usb4624_close(struct device *dev)
 {
     gpio_deactivate(HUB_LINE_N_RESET);
+    tsb_release_pinshare(TSB_PIN_UART_CTSRTS);
 }
 
 /**
