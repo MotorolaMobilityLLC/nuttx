@@ -2044,6 +2044,13 @@ static int tsb_i2s_dev_probe(struct device *dev)
     if (ret != OK)
         goto err_detach_sierr_irq;
 
+    ret = tsb_request_pinshare(TSB_PIN_ETM | TSB_PIN_GPIO16 | TSB_PIN_GPIO18 |
+                               TSB_PIN_GPIO19 | TSB_PIN_GPIO20);
+    if (ret) {
+        lowsyslog("I2S: cannot get ownership of I2S pins.\n");
+        goto err_detach_si_irq;
+    }
+
     tsb_clr_pinshare(TSB_PIN_ETM);
     tsb_clr_pinshare(TSB_PIN_GPIO16);
     tsb_clr_pinshare(TSB_PIN_GPIO18);
@@ -2058,6 +2065,8 @@ static int tsb_i2s_dev_probe(struct device *dev)
 
     return 0;
 
+err_detach_si_irq:
+    irq_detach(info->si_irq);
 err_detach_sierr_irq:
     irq_detach(info->sierr_irq);
 err_detach_so_irq:
@@ -2078,6 +2087,9 @@ static void tsb_i2s_dev_remove(struct device *dev)
 {
     struct tsb_i2s_info *info = device_get_private(dev);
     irqstate_t flags;
+
+    tsb_release_pinshare(TSB_PIN_ETM | TSB_PIN_GPIO16 | TSB_PIN_GPIO18 |
+                         TSB_PIN_GPIO19 | TSB_PIN_GPIO20);
 
     flags = irqsave();
 
