@@ -554,6 +554,7 @@ struct i2c_ops_s dev_i2c_ops;
 struct i2c_dev_s *up_i2cinitialize(int port)
 {
     irqstate_t flags;
+    int retval;
 
     i2cvdbg("Init I2C port %d\n", port);
 
@@ -565,6 +566,12 @@ struct i2c_dev_s *up_i2cinitialize(int port)
 
     if (refcount++)
         goto out;
+
+    retval = tsb_request_pinshare(TSB_PIN_GPIO21 | TSB_PIN_GPIO22);
+    if (retval) {
+        lowsyslog("I2C: cannot get ownership of I2C pins\n");
+        goto err_req_pinshare;
+    }
 
     sem_init(&g_mutex, 0, 1);
     sem_init(&g_wait, 0, 0);
@@ -600,6 +607,11 @@ struct i2c_dev_s *up_i2cinitialize(int port)
 out:
     irqrestore(flags);
     return &g_dev;
+
+err_req_pinshare:
+    refcount--;
+    irqrestore(flags);
+    return NULL;
 }
 
 /**
@@ -618,6 +630,8 @@ int up_i2cuninitialize(struct i2c_dev_s *dev)
 
     if (--refcount)
         goto out;
+
+    tsb_release_pinshare(TSB_PIN_GPIO21 | TSB_PIN_GPIO22);
 
     /* Detach Interrupt Handler */
     irq_detach(TSB_IRQ_I2C);
