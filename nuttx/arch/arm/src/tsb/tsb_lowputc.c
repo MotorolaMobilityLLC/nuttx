@@ -29,6 +29,7 @@
 #include <nuttx/config.h>
 #include <arch/arm/semihosting.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "chip.h"
 #include "up_arch.h"
 
@@ -52,11 +53,20 @@
 
 #define UART_LSR_THRE (0x1 << 5)
 
+static bool own_pinshare;
+
 void tsb_lowsetup(void) {
+    int retval;
     int i;
 
     /* enable UART RX/TX pins */
+    retval = tsb_request_pinshare(TSB_PIN_UART_RXTX);
+    if (retval) {
+        return;
+    }
+
     tsb_set_pinshare(TSB_PIN_UART_RXTX);
+    own_pinshare = true;
 
     /* enable UART clocks */
     tsb_clk_enable(TSB_CLK_UARTP);
@@ -97,6 +107,9 @@ void up_lowputc(int c){
 #elif defined(CONFIG_APB_USB_LOG)
     usb_putc(c);
 #else
+    if (!own_pinshare)
+        return;
+
     while ((getreg32(UART_LSR) & UART_LSR_THRE) != UART_LSR_THRE)
         ;
 
