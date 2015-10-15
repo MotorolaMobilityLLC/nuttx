@@ -38,7 +38,9 @@
 
 #define INFINITE_MAX_INFLIGHT_BUFCOUNT      0
 
-enum unipro_event;
+enum unipro_event {
+    UNIPRO_EVT_MAILBOX,
+};
 
 typedef int (*unipro_send_completion_t)(int status, const void *buf,
                                         void *priv);

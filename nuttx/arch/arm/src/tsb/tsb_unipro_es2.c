@@ -426,6 +426,10 @@ static int irq_unipro(int irq, void *context) {
     uint32_t val;
     DBG_UNIPRO("mailbox interrupt received irq: %d \n", irq);
 
+    if (evt_handler) {
+        evt_handler(UNIPRO_EVT_MAILBOX);
+    }
+
     /*
      * Clear the initial interrupt
      */
