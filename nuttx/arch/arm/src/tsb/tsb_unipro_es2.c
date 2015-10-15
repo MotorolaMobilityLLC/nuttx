@@ -419,24 +419,14 @@ static int tsb_unipro_mbox_ack(uint16_t val);
  * relevant DME parameters as defined in MIPI UniPro 1.6, then pokes the
  * bridge mailbox, telling it that it is safe to send FCTs on a given CPort.
  */
-static int irq_unipro(int irq, void *context) {
+static int mailbox_evt(void)
+{
     uint32_t cportid;
     int rc;
     uint32_t e2efc;
     uint32_t val;
-    DBG_UNIPRO("mailbox interrupt received irq: %d \n", irq);
 
-    if (evt_handler) {
-        evt_handler(UNIPRO_EVT_MAILBOX);
-    }
-
-    /*
-     * Clear the initial interrupt
-     */
-    rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0);
-    if (rc) {
-        goto done;
-    }
+    DBG_UNIPRO("mailbox interrupt received\n");
 
     /*
      * Figure out which CPort to turn on FCT. The desired CPort is always
@@ -444,19 +434,18 @@ static int irq_unipro(int irq, void *context) {
      */
     rc = unipro_attr_local_read(TSB_MAILBOX, &cportid, 0);
     if (rc) {
-        goto done;
+        return rc;
     }
     if (cportid >= cport_count) {
         DBG_UNIPRO("cportid %d in mailbox exceeds count of cports %d\n",
                    cportid, cport_count);
-        rc = -EINVAL;
-        goto done;
+        return -EINVAL;
     }
     cportid--;
 
     rc = unipro_attr_local_read(T_CPORTFLAGS, &val, cportid);
     if (rc) {
-        goto done;
+        return rc;
     }
     if (val & CPORT_FLAGS_E2EFC) {
         DBG_UNIPRO("Enabling E2EFC on cport %u\n", cportid);
@@ -476,12 +465,34 @@ static int irq_unipro(int irq, void *context) {
     /* Acknowledge the mailbox write */
     rc = tsb_unipro_mbox_ack(cportid + 1);
     if (rc) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int irq_unipro(int irq, void *context) {
+    int rc;
+    uint32_t val;
+
+    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
+
+    if (evt_handler) {
+        evt_handler(UNIPRO_EVT_MAILBOX);
+    }
+
+    /*
+     * Clear the initial interrupt
+     */
+    rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0);
+    if (rc) {
         goto done;
     }
 
+    mailbox_evt();
+
 done:
-    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
-    return rc;
+    return 0;
 }
 
 int unipro_unpause_rx(unsigned int cportid)
