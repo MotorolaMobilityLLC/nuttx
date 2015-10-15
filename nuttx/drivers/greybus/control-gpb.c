@@ -137,7 +137,9 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
          */
     }
 
+#ifdef CONFIG_ARCH_CHIP_TSB
     unipro_reset_cport(le16_to_cpu(request->cport_id), NULL, NULL);
+#endif
 
     retval = gb_stop_listening(le16_to_cpu(request->cport_id));
     if (retval) {
