@@ -43,11 +43,15 @@
 #  define CONFIG_GREYBUS_MODS_NUM_CPORTS  (32)
 #endif
 
+struct mods_msg_hdr
+{
+  __le16               cport;
+} __packed;
+
 struct mods_msg
 {
-  __le16  size;
-  __le16  cport;
-  __u8    gb_msg[0];
+  struct mods_msg_hdr  hdr;
+  __u8                 gb_msg[0];
 } __packed;
 
 unsigned int unipro_cport_count(void)
@@ -65,15 +69,8 @@ static int network_recv(const void *buf, size_t len)
 {
   struct mods_msg *m = (struct mods_msg *)buf;
 
-  if (le16_to_cpu(m->size) >= len)
-    {
-      /* Received an invalid message */
-      return -EINVAL;
-    }
-
-  greybus_rx_handler(le16_to_cpu(m->cport), m->gb_msg, le16_to_cpu(m->size));
-
-  return 0;
+  return greybus_rx_handler(le16_to_cpu(m->hdr.cport), m->gb_msg,
+                            (len - sizeof(m->hdr)));
 }
 
 struct mods_dl_cb_s mods_dl_cb =
@@ -90,14 +87,13 @@ static int network_send(unsigned int cport, const void *buf, size_t len)
 {
   struct mods_msg *m = (struct mods_msg *)network_buffer;
 
-  if (len > (MODS_DL_PAYLOAD_MAX_SZ - sizeof(struct mods_msg)))
+  if (len > (MODS_DL_PAYLOAD_MAX_SZ - sizeof(struct mods_msg_hdr)))
       return -ENOMEM;
 
-  m->size = cpu_to_le16(len);
-  m->cport = cpu_to_le16(cport);
+  m->hdr.cport = cpu_to_le16(cport);
   memcpy(m->gb_msg, buf, len);
 
-  return MODS_DL_SEND(dl, m, len + sizeof(struct mods_msg));
+  return MODS_DL_SEND(dl, m, len + sizeof(struct mods_msg_hdr));
 }
 
 static int network_listen(unsigned int cport)
