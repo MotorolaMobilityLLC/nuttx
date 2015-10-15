@@ -548,9 +548,16 @@ int tsb_uart_lowsetup(int baud)
 {
     int i;
     uint32_t divisor;
+    int retval;
 
     if (!baud) {
         return -EINVAL;
+    }
+
+    retval = tsb_request_pinshare(TSB_PIN_UART_RXTX | TSB_PIN_UART_CTSRTS);
+    if (retval) {
+        lowsyslog("UART: cannot get ownership of UART pin.\n");
+        return retval;
     }
 
     /* enable UART RX/TX pins */
@@ -1178,11 +1185,14 @@ static int tsb_uart_dev_probe(struct device *dev)
     int ret;
 
     /* Configure the UART clock and pinshare */
-    tsb_uart_lowsetup(BAUD_115200);
+    ret = tsb_uart_lowsetup(BAUD_115200);
+    if (ret) {
+        return ret;
+    }
 
     uart_info = zalloc(sizeof(*uart_info));
     if (!uart_info)
-        return -ENOMEM;
+        goto err_malloc_info;
 
     lldbg("LL uart info struct: 0x%08p\n", uart_info);
 
@@ -1229,6 +1239,8 @@ err_destroy_tx_sem:
     sem_destroy(&uart_info->tx_sem);
 err_free_info:
     free(uart_info);
+err_malloc_info:
+    tsb_release_pinshare(TSB_PIN_UART_RXTX | TSB_PIN_UART_CTSRTS);
 
     return ret;
 }
@@ -1260,6 +1272,8 @@ static void tsb_uart_dev_remove(struct device *dev)
     device_set_private(dev, NULL);
 
     irqrestore(flags);
+
+    tsb_release_pinshare(TSB_PIN_UART_RXTX | TSB_PIN_UART_CTSRTS);
 
     free(uart_info);
 }
