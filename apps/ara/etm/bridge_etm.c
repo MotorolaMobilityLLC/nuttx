@@ -128,6 +128,9 @@ int main(int argc, FAR char *argv[]) {
     char cmd;
     long drive_ma;
     unsigned short last_drive_ma = etm.drive_ma;
+#ifndef CONFIG_TSB_PINSHARE_ETM
+    int retval;
+#endif
 
     if (argc < 2) {
         print_usage();
@@ -173,6 +176,14 @@ int main(int argc, FAR char *argv[]) {
              * but the present API doesn't expose it
              */
             etm.etm_pinshare_save = tsb_get_pinshare() & TSB_PIN_ETM;
+#ifndef CONFIG_TSB_PINSHARE_ETM
+            retval = tsb_request_pinshare(TSB_PIN_ETM);
+            if (retval) {
+                fprintf(stderr, "ETM pin already held by another driver.\n");
+                return retval;
+            }
+#endif
+
             tsb_set_pinshare(TSB_PIN_ETM);
 
             /* set drive strength for the TRACE signals to the specified value */
@@ -245,6 +256,10 @@ int main(int argc, FAR char *argv[]) {
             /* Clear the ETM pinshare if it wasn't set on entry */
             if (!etm.etm_pinshare_save)
                 tsb_clr_pinshare(TSB_PIN_ETM);
+
+#ifndef CONFIG_TSB_PINSHARE_ETM
+            tsb_release_pinshare(TSB_PIN_ETM);
+#endif
 
             etm.enabled = 0;
             etm.drive_ma = 0;
