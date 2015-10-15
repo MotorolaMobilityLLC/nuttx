@@ -135,8 +135,6 @@ int main(int argc, FAR char *argv[]) {
     unsigned int pwm_id;
     char pwm_num;
     int fd;
-    int must_restore_gpio9_pinshare = 0;
-    int must_restore_ctsrts_pinshare = 0;
     int ret = 0;
     int secs;
 
@@ -169,25 +167,39 @@ int main(int argc, FAR char *argv[]) {
     }
 
     /*
-     * GPIO9 and PWM1 share the same pin on the Bridge ASICs and are
-     * therefore mutually exclusive.
+     * GPIO9 - PWM1 and SDIO - PWM0 share the same pin on the Bridge ASICs
+     * and are therefore mutually exclusive.
      *
      * Setting the TSB_PIN_UART_CTSRTS bit of the PINSHARE register also blocks PWM1 output.
      *
      * Therefore, if we want to see PWM1 output, we need to ensure that the TSB_PIN_GPIO9
-     * and TSB_PIN_UART_CTSRTS bits in the PINSHARE register are clear, and remember to
-     * restore their state on our way out of the app.
+     * and TSB_PIN_UART_CTSRTS bits in the PINSHARE register are clear..
+     * For PWM0 output we need to clear the PWM0/SDIO pin.
      */
-    if (pwm_id == 1) {
-        uint32_t pinshare = tsb_get_pinshare();
-        if (pinshare & TSB_PIN_GPIO9) {
-            tsb_clr_pinshare(TSB_PIN_GPIO9);
-            must_restore_gpio9_pinshare = 1;
+    switch (pwm_id) {
+    case 0:
+        ret = tsb_request_pinshare(TSB_PIN_SDIO);
+        if (ret) {
+            fprintf(stderr, "PWM: pins already held by another driver.\n");
+            return ret;
         }
-        if (pinshare & TSB_PIN_UART_CTSRTS) {
-            tsb_clr_pinshare(TSB_PIN_UART_CTSRTS);
-            must_restore_ctsrts_pinshare = 1;
-        }
+
+        tsb_clr_pinshare(TSB_PIN_SDIO);
+        break;
+
+    case 1:
+        /*
+         * We don't request the pinshare here because the driver is already
+         * requesting it.
+         * The architecture of the driver is not really good right now because
+         * the driver shall be the one requesting the pinshare for all the pins
+         * and we shouldn't have to configure them here.
+         * Until the PWM driver is fixed to correctly handle the pinsharing,
+         * lets just not request it here.
+         */
+
+        tsb_clr_pinshare(TSB_PIN_GPIO9 | TSB_PIN_UART_CTSRTS);
+        break;
     }
 
     fd = pwm_enable(pwm_id);
@@ -202,13 +214,10 @@ int main(int argc, FAR char *argv[]) {
         printf("PWM: test completed\n");
     }
 
-    if (must_restore_gpio9_pinshare) {
-        tsb_set_pinshare(TSB_PIN_GPIO9);
-        must_restore_gpio9_pinshare = 0;
-    }
-    if (must_restore_ctsrts_pinshare) {
-        tsb_set_pinshare(TSB_PIN_UART_CTSRTS);
-        must_restore_ctsrts_pinshare = 0;
+    switch (pwm_id) {
+    case 0:
+        tsb_release_pinshare(TSB_PIN_SDIO);
+        break;
     }
 
     return ret;
