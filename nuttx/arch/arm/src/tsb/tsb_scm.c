@@ -32,14 +32,15 @@
  */
 
 #include <stdint.h>
+#include <errno.h>
 #include <debug.h>
 #include <nuttx/config.h>
 #include <arch/board/board.h>
+#include <arch/irq.h>
 #include <nuttx/util.h>
 
 #include "up_arch.h"
 #include "tsb_scm.h"
-
 
 #define TSB_SCM_SOFTRESET0              0x00000000
 #define TSB_SCM_SOFTRESETRELEASE0       0x00000100
@@ -48,6 +49,8 @@
 #define TSB_SCM_PID                     0x00000704 // named MODULEID1 in ES1
 #define TSB_SCM_PINSHARE                0x00000800
 #define TSB_IO_DRIVE_STRENGTH0          0x00000A00
+
+static uint32_t pinshare_setting;
 
 static uint32_t scm_read(uint32_t offset)
 {
@@ -88,6 +91,59 @@ void tsb_reset(uint32_t rst)
 {
     scm_write(TSB_SCM_SOFTRESET0 + CLK_OFFSET(rst), CLK_MASK(rst));
     scm_write(TSB_SCM_SOFTRESETRELEASE0 + CLK_OFFSET(rst), CLK_MASK(rst));
+}
+
+/**
+ * Request pin(s) ownership
+ *
+ * In order to modify a pinshare orientation, one must obtain ownership of the
+ * pin. Trying to change a pinshare setting without requesting the ownership
+ * will fail.
+ *
+ * Several pin ownership can be requested in the same call, but if at least
+ * one pin is already owned by another driver, the call will fail and the caller
+ * won't be granted access to any of the requested pins.
+ *
+ * @param bits mask of all the pin we are requesting ownership, values are
+ *        the same as the one used to call tsb_{set,clr}_pinshare
+ * @return 0 if successful, -EBUSY if the pin is already owned
+ */
+int tsb_request_pinshare(uint32_t bits)
+{
+    irqstate_t flags;
+
+    if (pinshare_setting & bits) {
+        lowsyslog("scm: trying to request ownership of already owned pins: (%x & %x) != 0\n",
+                  pinshare_setting, bits);
+        return -EBUSY;
+    }
+
+    flags = irqsave();
+    pinshare_setting |= bits;
+    irqrestore(flags);
+
+    return 0;
+}
+
+/**
+ * Release pin(s) ownership
+ *
+ * Must be called after @a tsb_request_pinshare when we are not using some pins
+ * anymore.
+ *
+ * @param bits mask of all the pin we are requesting ownership, values are
+ *        the same as the one used to call tsb_{set,clr}_pinshare
+ * @return 0 if successful, -errno value otherwise.
+ */
+int tsb_release_pinshare(uint32_t bits)
+{
+    irqstate_t flags;
+
+    flags = irqsave();
+    pinshare_setting &= ~bits;
+    irqrestore(flags);
+
+    return 0;
 }
 
 void tsb_set_pinshare(uint32_t bits)

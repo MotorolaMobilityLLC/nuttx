@@ -213,5 +213,7 @@ uint32_t tsb_get_pinshare(void);
 void tsb_set_drivestrength(uint32_t ds_id, enum tsb_drivestrength value);
 enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id);
 enum tsb_product_id tsb_get_product_id(void);
+int tsb_request_pinshare(uint32_t bits);
+int tsb_release_pinshare(uint32_t bits);
 
 #endif /* __ARCH_ARM_SRC_TSB_TSB_SCM_H */
