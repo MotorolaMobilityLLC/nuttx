@@ -146,16 +146,30 @@ int tsb_release_pinshare(uint32_t bits)
     return 0;
 }
 
-void tsb_set_pinshare(uint32_t bits)
+int tsb_set_pinshare(uint32_t bits)
 {
+    if ((pinshare_setting & bits) != bits) {
+        lowsyslog("Trying to set pinshare without requesting pins first.\n");
+        return -EACCES;
+    }
+
     uint32_t r = scm_read(TSB_SCM_PINSHARE);
     scm_write(TSB_SCM_PINSHARE, r | bits);
+
+    return 0;
 }
 
-void tsb_clr_pinshare(uint32_t bits)
+int tsb_clr_pinshare(uint32_t bits)
 {
+    if ((pinshare_setting & bits) != bits) {
+        lowsyslog("Trying to clear pinshare without requesting pins first.\n");
+        return -EACCES;
+    }
+
     uint32_t r = scm_read(TSB_SCM_PINSHARE);
     scm_write(TSB_SCM_PINSHARE, r & ~bits);
+
+    return 0;
 }
 
 uint32_t tsb_get_pinshare(void)
