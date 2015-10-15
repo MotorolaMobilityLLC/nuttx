@@ -32,6 +32,7 @@
 #include "up_arch.h"
 #include "up_internal.h"
 #include "nvic.h"
+#include "syslog.h"
 
 #include "tsb_scm.h"
 #include "tsb_lowputc.h"
@@ -71,6 +72,7 @@ static void copy_data_section_to_ram(void)
 
 void tsb_start(void) {
     uint32_t *dst;
+    __attribute__((unused)) int retval;
 
     /* Zero .bss */
     for (dst = &_sbss; dst < &_ebss;) {
@@ -89,15 +91,21 @@ void tsb_start(void) {
     dbg('A');
 
 #ifdef CONFIG_TSB_PINSHARE_ETM
-    tsb_set_pinshare(TSB_PIN_ETM);
+    retval = tsb_request_pinshare(TSB_PIN_ETM);
+    if (retval) {
+        lowsyslog("ETM: cannot get ownership of ETM pin.\n");
+    } else {
+        tsb_set_pinshare(TSB_PIN_ETM);
 
 #ifdef CONFIG_TSB_TRACE_DRIVESTRENGTH_MIN
-    tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_min);
+        tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_min);
 #elif CONFIG_TSB_TRACE_DRIVESTRENGTH_DEFAULT
-    tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_default);
+        tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_default);
 #elif CONFIG_TSB_TRACE_DRIVESTRENGTH_MAX
-    tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_max);
+        tsb_set_drivestrength(TSB_TRACE_DRIVESTRENGTH, tsb_ds_max);
 #endif
+    }
+
 #endif
 
 #ifdef CONFIG_16550_UART
