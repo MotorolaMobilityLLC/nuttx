@@ -2166,6 +2166,12 @@ static int tsb_sdio_dev_probe(struct device *dev)
     /* Assert the DLL enable */
     sdio_reg_bit_set(SYSCTL_BASE, UHSSD_DLLCTRL, DLL_ENABLE);
 
+    ret = tsb_request_pinshare(TSB_PIN_SDIO);
+    if (ret) {
+        lowsyslog("SDIO: cannot get ownership of SDIO pin\n");
+        goto err_req_pinshare;
+    }
+
     /* Switch the pin share mode for SD Interfaces */
     tsb_set_pinshare(TSB_PIN_SDIO);
 
@@ -2214,6 +2220,7 @@ err_destroy_write_sem:
 err_destroy_cmd_sem:
     sem_destroy(&info->cmd_sem);
 err_free_info:
+err_req_pinshare:
     sdio_reg_bit_clr(SYSCTL_BASE, UHSSD_DLLCTRL, DLL_ENABLE);
     tsb_clk_disable(TSB_CLK_SDIOSYS);
     tsb_clk_disable(TSB_CLK_SDIOSD);
@@ -2260,6 +2267,7 @@ static void tsb_sdio_dev_remove(struct device *dev)
     free(info);
     sdio_dev = NULL;
     device_set_private(dev, NULL);
+    tsb_release_pinshare(TSB_PIN_SDIO);
 }
 
 static struct device_sdio_type_ops tsb_sdio_type_ops = {
