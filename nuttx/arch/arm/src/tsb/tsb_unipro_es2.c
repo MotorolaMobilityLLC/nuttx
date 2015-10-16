@@ -46,9 +46,6 @@
 #include "tsb_unipro_es2.h"
 #include "tsb_es2_mphy_fixups.h"
 
-// See ENG-436
-#define MBOX_RACE_HACK_DELAY    100000
-
 #define TRANSFER_MODE_2_CTRL_0 (0xAAAAAAAA) // Transfer mode 2 for CPorts 0-15
 /*
  * CPorts 16-43 are present on the AP Bridge only.  CPorts 16 and 17 are
