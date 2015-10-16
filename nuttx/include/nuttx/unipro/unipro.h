@@ -40,6 +40,7 @@
 
 enum unipro_event {
     UNIPRO_EVT_MAILBOX,
+    UNIPRO_EVT_LUP_DONE,
 };
 
 typedef int (*unipro_send_completion_t)(int status, const void *buf,

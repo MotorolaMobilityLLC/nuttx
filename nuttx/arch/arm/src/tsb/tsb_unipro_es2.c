@@ -46,6 +46,8 @@
 #include "tsb_unipro_es2.h"
 #include "tsb_es2_mphy_fixups.h"
 
+#define UNIPRO_LUP_DONE     BIT(0)
+
 #define TRANSFER_MODE_2_CTRL_0 (0xAAAAAAAA) // Transfer mode 2 for CPorts 0-15
 /*
  * CPorts 16-43 are present on the AP Bridge only.  CPorts 16 and 17 are
@@ -479,6 +481,9 @@ static void unipro_evt_handler(enum unipro_event evt)
     case UNIPRO_EVT_MAILBOX:
         mailbox_evt();
         break;
+
+    case UNIPRO_EVT_LUP_DONE:
+        break;
     }
 
     if (evt_handler) {
@@ -491,6 +496,11 @@ static int irq_unipro(int irq, void *context) {
     uint32_t val;
 
     tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
+
+    if (unipro_read(LUP_INT_BEF) & UNIPRO_LUP_DONE) {
+        unipro_write(LUP_INT_BEF, UNIPRO_LUP_DONE);
+        unipro_evt_handler(UNIPRO_EVT_LUP_DONE);
+     }
 
     /*
      * Clear the initial interrupt
@@ -795,6 +805,8 @@ void unipro_init(void)
         cport->connected = 0;
         list_init(&cport->tx_fifo);
     }
+
+    unipro_write(LUP_INT_EN, 0x1);
 
     if (es2_fixup_mphy()) {
         lldbg("Failed to apply M-PHY fixups (results in link instability at HS-G1).\n");
