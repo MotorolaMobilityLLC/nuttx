@@ -35,6 +35,7 @@ ASRCS           =
 AOBJS           = $(ASRCS:.S=$(OBJEXT))
 
 CSRCS           = ara_build_info.c
+CSRCS          += greybus_timestamp.c
 COBJS           = $(CSRCS:.c=$(OBJEXT))
 
 SRCS            = $(ASRCS) $(CSRCS)

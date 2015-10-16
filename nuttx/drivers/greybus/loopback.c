@@ -36,6 +36,7 @@
 #include <nuttx/list.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/loopback.h>
+#include <nuttx/greybus/greybus_timestamp.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/time.h>
 #include <arch/byteorder.h>
@@ -47,6 +48,7 @@ struct gb_loopback {
     struct list_head list;
     pthread_mutex_t lock;
     int cport;
+    struct gb_timestamp ts;
     struct gb_loopback_statistics stats;
 };
 
@@ -417,6 +419,39 @@ struct gb_driver loopback_driver = {
     .op_handlers_count = ARRAY_SIZE(gb_loopback_handlers),
 };
 
+#ifdef CONFIG_GREYBUS_FEATURE_HAVE_TIMESTAMPS
+void gb_loopback_log_entry(unsigned int cport)
+{
+    struct gb_loopback *loopback;
+
+    loopback_list_lock();
+    loopback = loopback_from_cport(cport);
+    if (!loopback)
+        goto done;
+
+    gb_timestamp_tag_entry_time(&loopback->ts, cport);
+
+done:
+    loopback_list_unlock();
+}
+
+void gb_loopback_log_exit(unsigned int cport, struct gb_operation *operation, size_t size)
+{
+    struct gb_loopback *loopback;
+
+    loopback_list_lock();
+    loopback = loopback_from_cport(cport);
+    if (!loopback)
+        goto done;
+
+    gb_timestamp_tag_exit_time(&loopback->ts, cport);
+    gb_timestamp_log(&loopback->ts, cport, operation->response_buffer, size,
+                     GREYBUS_FW_TIMESTAMP_GPBRDIGE);
+done:
+    loopback_list_unlock();
+}
+#endif
+
 void gb_loopback_register(int cport)
 {
     struct gb_loopback *loopback = zalloc(sizeof(*loopback));
@@ -424,9 +459,11 @@ void gb_loopback_register(int cport)
         loopback->cport = cport;
         pthread_mutex_init(&loopback->lock, NULL);
         loopback_list_lock();
+        loopback->ts.tag = true;
         list_add(&gb_loopback_list, &loopback->list);
         loopback_list_unlock();
 
     }
+    gb_timestamp_init();
     gb_register_driver(cport, &loopback_driver);
 }

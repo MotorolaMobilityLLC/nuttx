@@ -68,6 +68,7 @@
 #include <arch/board/common_gadget.h>
 #include <arch/board/apbridgea_gadget.h>
 #include <nuttx/wdog.h>
+#include <nuttx/greybus/greybus_timestamp.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -153,10 +154,12 @@
 
 /* Vender specific control requests *******************************************/
 
-#define APBRIDGE_RWREQUEST_LOG          (0x02)
-#define APBRIDGE_RWREQUEST_EP_MAPPING   (0x03)
-#define APBRIDGE_ROREQUEST_CPORT_COUNT  (0x04)
-#define APBRIDGE_WOREQUEST_CPORT_RESET  (0x05)
+#define APBRIDGE_RWREQUEST_LOG                  (0x02)
+#define APBRIDGE_RWREQUEST_EP_MAPPING           (0x03)
+#define APBRIDGE_ROREQUEST_CPORT_COUNT          (0x04)
+#define APBRIDGE_WOREQUEST_CPORT_RESET          (0x05)
+#define APBRIDGE_ROREQUEST_LATENCY_TAG_EN       (0x06)
+#define APBRIDGE_ROREQUEST_LATENCY_TAG_DIS      (0x07)
 
 #define TIMEOUT_IN_MS           300
 #define ONE_SEC_IN_MSEC         1000
@@ -201,6 +204,7 @@ struct apbridge_dev_s {
     struct list_head msg_queue;
 
     int *cport_to_epin_n;
+    struct gb_timestamp *ts;
     int epout_to_cport_n[APBRIDGE_NBULKS];
 
     struct apbridge_usb_driver *driver;
@@ -428,14 +432,21 @@ static struct apbridge_msg_s *apbridge_dequeue(struct apbridge_dev_s *priv)
 static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
                           const void *payload, size_t len)
 {
+    struct apbridge_dev_s *priv;
     int ret;
     unsigned int cportid;
 
+    priv = ep->priv;
     req->len = len;
     req->flags = USBDEV_REQFLAGS_NULLPKT;
-    memcpy(req->buf, payload, len);
 
     cportid = get_cportid(payload);
+
+    memcpy(req->buf, payload, len);
+    gb_timestamp_tag_exit_time(&priv->ts[cportid], cportid);
+    gb_timestamp_log(&priv->ts[cportid], cportid, req->buf, len,
+                          GREYBUS_FW_TIMESTAMP_APBRIDGE);
+
     unipro_unpause_rx(cportid);
 
     /* Then submit the request to the endpoint */
@@ -813,6 +824,11 @@ static void usbclass_ep0incomplete(struct usbdev_ep_s *ep,
     put_request(req);
 }
 
+static void usbdclass_log_rx_time(struct apbridge_dev_s *priv, unsigned int cportid)
+{
+    gb_timestamp_tag_entry_time(&priv->ts[cportid], cportid);
+}
+
 /****************************************************************************
  * Name: usbclass_rdcomplete
  *
@@ -853,6 +869,7 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
         ep_n = BULKEP_TO_N(ep);
         hdr = (struct gb_operation_hdr *)req->buf;
         /* Legacy ep: copy from payload cportid */
+
         if (ep_n != 0) {
             cportid = priv->epout_to_cport_n[ep_n];
             hdr->pad[0] = cportid & 0xff;
@@ -864,6 +881,7 @@ static void usbclass_rdcomplete(struct usbdev_ep_s *ep,
         cportid = hdr->pad[0];
         hdr->pad[0] = 0;
 
+        usbdclass_log_rx_time(priv, cportid);
         drv->usb_to_unipro(priv, cportid, req->buf , req->xfrd);
         break;
 
@@ -1401,6 +1419,28 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                     } else {
                         ret = -EINVAL;
                     }
+                } else if (ctrl->req == APBRIDGE_ROREQUEST_LATENCY_TAG_EN) {
+                    if ((ctrl->type & USB_DIR_IN) != 0) {
+                        ret = -EINVAL;
+                    } else {
+                        ret = -EINVAL;
+                        if (value < unipro_cport_count()) {
+                            priv->ts[value].tag = true;
+                            ret = 0;
+                            lldbg("enable tagging for cportid %d\n", value);
+                        }
+                    }
+                } else if (ctrl->req == APBRIDGE_ROREQUEST_LATENCY_TAG_DIS) {
+                    if ((ctrl->type & USB_DIR_IN) != 0) {
+                        ret = -EINVAL;
+                    } else {
+                        ret = -EINVAL;
+                        if (value < unipro_cport_count()) {
+                            priv->ts[value].tag = false;
+                            ret = 0;
+                            lldbg("disable tagging for cportid %d\n", value);
+                        }
+                    }
                 } else {
                     usbtrace(TRACE_CLSERROR
                              (USBSER_TRACEERR_UNSUPPORTEDCLASSREQ),
@@ -1528,12 +1568,19 @@ int usbdev_apbinitialize(struct device *dev,
         ret = -ENOMEM;
         goto errout_with_alloc;
     }
+    priv->ts = kmm_malloc(sizeof(struct gb_timestamp) * unipro_cport_count());
+    if (!priv->ts) {
+        ret = -ENOMEM;
+        goto errout_with_alloc_ts;
+    }
 
     for (i = 0; i < cport_count; i++) {
         priv->cport_to_epin_n[i] = CONFIG_APBRIDGE_EPBULKIN;
+        priv->ts[i].tag = false;
     }
     sem_init(&priv->config_sem, 0, 0);
     list_init(&priv->msg_queue);
+    gb_timestamp_init();
 
     /* Initialize the USB class driver structure */
 
@@ -1559,6 +1606,8 @@ int usbdev_apbinitialize(struct device *dev,
  errout_with_init:
     device_usbdev_unregister_gadget(dev, &drvr->drvr);
 errout_cport_table:
+    kmm_free(priv->ts);
+errout_with_alloc_ts:
     kmm_free(priv->cport_to_epin_n);
  errout_with_alloc:
     kmm_free(alloc);
