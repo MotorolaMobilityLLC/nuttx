@@ -483,6 +483,9 @@ static void unipro_evt_handler(enum unipro_event evt)
         break;
 
     case UNIPRO_EVT_LUP_DONE:
+        if (es2_fixup_mphy()) {
+            lldbg("Failed to apply M-PHY fixups (results in link instability at HS-G1).\n");
+        }
         break;
     }
 
@@ -807,10 +810,6 @@ void unipro_init(void)
     }
 
     unipro_write(LUP_INT_EN, 0x1);
-
-    if (es2_fixup_mphy()) {
-        lldbg("Failed to apply M-PHY fixups (results in link instability at HS-G1).\n");
-    }
 
     /*
      * Set transfer mode 2 on all cports
