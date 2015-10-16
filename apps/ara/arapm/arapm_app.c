@@ -57,7 +57,7 @@
 #define dbg_verbose(format, ...)
 #endif
 
-static arapm_rail *arapm_rails[DEV_COUNT][DEV_MAX_RAIL_COUNT];
+static pwrmon_rail *arapm_rails[DEV_COUNT][DEV_MAX_RAIL_COUNT];
 static ina230_sample measurements[DEV_COUNT][DEV_MAX_RAIL_COUNT];
 static uint32_t refresh_rate = DEFAULT_REFRESH_RATE;
 static uint32_t loopcount = DEFAULT_LOOPCOUNT;
@@ -145,7 +145,7 @@ static void arapm_main_get_rail_list(uint8_t dev,
 {
     if (user_rail_id == DEV_MAX_RAIL_COUNT) {
         *r_start = 0;
-        *r_end = arapm_dev_rail_count(dev);
+        *r_end = pwrmon_dev_rail_count(dev);
     } else {
         *r_start = user_rail_id;
         *r_end = user_rail_id + 1;
@@ -276,7 +276,7 @@ static int arapm_main_get_user_options(int argc, char **argv)
     while ((c = getopt(argc, argv, "xhcd:r:l:u:i:t:n:")) != 255) {
         switch (c) {
         case 'd':
-            ret = arapm_device_id(optarg, &user_dev_id);
+            ret = pwrmon_device_id(optarg, &user_dev_id);
             if (ret) {
                 fprintf(stderr, "Invalid device! (%s)\n", optarg);
                 return -EINVAL;
@@ -287,7 +287,7 @@ static int arapm_main_get_user_options(int argc, char **argv)
             break;
 
         case 'r':
-            ret = arapm_rail_id(optarg, &user_dev_id, &user_rail_id);
+            ret = pwrmon_rail_id(optarg, &user_dev_id, &user_rail_id);
             if (ret) {
                 fprintf(stderr, "Invalid rail! (%s)\n", optarg);
                 return -EINVAL;
@@ -393,7 +393,7 @@ static uint8_t arapm_main_get_max_rail_count(void)
         max_rcount = DEV_MAX_RAIL_COUNT;
     } else {
         if (user_rail_id == DEV_MAX_RAIL_COUNT) {
-            max_rcount = arapm_dev_rail_count(user_dev_id);
+            max_rcount = pwrmon_dev_rail_count(user_dev_id);
         } else {
             max_rcount = 1;
         }
@@ -417,14 +417,14 @@ static int arapm_main_collect_measurements(void)
     for (d = d_start; d < d_end; d++) {
         arapm_main_get_rail_list(d, &r_start, &r_end);
         for (r = r_start; r < r_end; r++) {
-            ret = arapm_measure_rail(arapm_rails[d][r], &measurements[d][r]);
+            ret = pwrmon_measure_rail(arapm_rails[d][r], &measurements[d][r]);
             if (ret) {
                 fprintf(stderr, "failed to collect %s measurements!!! (%d)\n",
-                    arapm_rail_name(d, r), ret);
+                    pwrmon_rail_name(d, r), ret);
                 return ret;
             } else {
                 dbg_verbose("%s(): %s: %uuV %uuA %uuW\n", __func__,
-                    arapm_rail_name(d, r),
+                    pwrmon_rail_name(d, r),
                     measurements[d][r].uV, measurements[d][r].uA,
                     measurements[d][r].uW);
             }
@@ -469,7 +469,7 @@ static void arapm_main_display_measurements(void)
             for (d = d_start; d < d_end; d++) {
                 arapm_main_get_rail_list(d, &r_start, &r_end);
                 for (r = r_start; r < r_end; r++) {
-                    sprintf(s, "%s (mW)", arapm_rail_name(d, r));
+                    sprintf(s, "%s (mW)", pwrmon_rail_name(d, r));
                     printf(", %23s", s);
                 }
             }
@@ -489,11 +489,11 @@ static void arapm_main_display_measurements(void)
 
         max_rcount = arapm_main_get_max_rail_count();
         for (d = d_start; d < d_end; d++) {
-            printf("| %-11s |", arapm_dev_name(d));
+            printf("| %-11s |", pwrmon_dev_name(d));
             arapm_main_get_rail_list(d, &r_start, &r_end);
             for (r = 0; r < max_rcount; r++) {
                 if ((r_start + r) < r_end) {
-                    printf(" %-18s |", arapm_rail_name(d, r_start + r));
+                    printf(" %-18s |", pwrmon_rail_name(d, r_start + r));
                 } else {
                     printf(" %-18s |", "");
                 }
@@ -543,7 +543,7 @@ static int arapm_main_init(void)
     timestamp = 0;
 
     /* Init library */
-    ret = arapm_init(current_lsb, conversion_time, avg_count);
+    ret = pwrmon_init(current_lsb, conversion_time, avg_count);
     if (ret) {
         fprintf(stderr, "Error during initialization!!! (%d)\n", ret);
         return ret;
@@ -564,10 +564,10 @@ static int arapm_main_init(void)
     for (d = d_start; d < d_end; d++) {
         arapm_main_get_rail_list(d, &r_start, &r_end);
         for (r = r_start; r < r_end; r++) {
-            arapm_rails[d][r] = arapm_init_rail(d, r);
+            arapm_rails[d][r] = pwrmon_init_rail(d, r);
             if (!arapm_rails[d][r]) {
                 fprintf(stderr, "%s(): Failed to init %s rail! (%d)\n",
-                        __func__, arapm_rail_name(d, r), ret);
+                        __func__, pwrmon_rail_name(d, r), ret);
                 return -EIO;
            }
         }
@@ -576,11 +576,11 @@ static int arapm_main_init(void)
     arapm_main_display_init();
 
     /* Check user configured refresh rate >= configured sampling time */
-    if (refresh_rate < arapm_get_sampling_time(arapm_rails[d_start][r_start])) {
+    if (refresh_rate < pwrmon_get_sampling_time(arapm_rails[d_start][r_start])) {
         printf("WARNING: configured refresh rate (%uus) < configured sampling time (%uus).\n",
                refresh_rate,
-               arapm_get_sampling_time(arapm_rails[d_start][r_start]));
-        refresh_rate = arapm_get_sampling_time(arapm_rails[d_start][r_start]);
+               pwrmon_get_sampling_time(arapm_rails[d_start][r_start]));
+        refresh_rate = pwrmon_get_sampling_time(arapm_rails[d_start][r_start]);
         printf("         Changing refresh rate to %uus.\n\n", refresh_rate);
     }
 
@@ -589,7 +589,7 @@ static int arapm_main_init(void)
      * an initial delay is required before starting collecting measurements
      * (or 0 will be read).
      */
-    usleep(arapm_get_sampling_time(arapm_rails[d_start][r_start]));
+    usleep(pwrmon_get_sampling_time(arapm_rails[d_start][r_start]));
 
     printf("Power measurement HW initialized.\n");
     return 0;
@@ -609,11 +609,11 @@ static void arapm_main_deinit(void)
         arapm_main_get_rail_list(d, &r_start, &r_end);
         for (r = r_start; r < r_end; r++) {
             if (arapm_rails[d][r]) {
-                arapm_deinit_rail(arapm_rails[d][r]);
+                pwrmon_deinit_rail(arapm_rails[d][r]);
             }
         }
     }
-    arapm_deinit();
+    pwrmon_deinit();
 
     printf("Power measurement HW and library deinitialized.\n\n");
 }

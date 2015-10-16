@@ -127,21 +127,21 @@ typedef struct {
     uint8_t rail;
     const char *dev_name;
     const char *rail_name;
-} arapm_rail;
+} pwrmon_rail;
 
-int arapm_init(uint32_t current_lsb_uA,
+int pwrmon_init(uint32_t current_lsb_uA,
                ina230_conversion_time ct,
                ina230_avg_count avg_count);
-arapm_rail *arapm_init_rail(uint8_t dev, uint8_t rail);
-uint32_t arapm_get_sampling_time(arapm_rail *arapm_r);
-int arapm_measure_rail(arapm_rail *arapm_dev, ina230_sample *m);
-const char *arapm_dev_name(uint8_t dev);
-const char *arapm_rail_name(uint8_t dev, uint8_t rail);
-int arapm_device_id(const char *name, uint8_t *dev);
-int arapm_rail_id(const char *name, uint8_t *dev, uint8_t *rail);
-int arapm_dev_rail_count(uint8_t dev);
-void arapm_deinit_rail(arapm_rail *arapm_dev);
-void arapm_deinit(void);
+pwrmon_rail *pwrmon_init_rail(uint8_t dev, uint8_t rail);
+uint32_t pwrmon_get_sampling_time(pwrmon_rail *pwrmon_r);
+int pwrmon_measure_rail(pwrmon_rail *pwrmon_dev, ina230_sample *m);
+const char *pwrmon_dev_name(uint8_t dev);
+const char *pwrmon_rail_name(uint8_t dev, uint8_t rail);
+int pwrmon_device_id(const char *name, uint8_t *dev);
+int pwrmon_rail_id(const char *name, uint8_t *dev, uint8_t *rail);
+int pwrmon_dev_rail_count(uint8_t dev);
+void pwrmon_deinit_rail(pwrmon_rail *pwrmon_dev);
+void pwrmon_deinit(void);
 
 int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs);
 void pwrmon_unregister_devs(void);
