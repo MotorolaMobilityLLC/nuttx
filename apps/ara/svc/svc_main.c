@@ -58,6 +58,7 @@ enum {
     ROUTINGTABLE,
     DME_IO,
     TESTFEATURE,
+    QOS,
     MAX_CMD,
 };
 
@@ -77,6 +78,7 @@ static const struct command commands[] = {
     [ROUTINGTABLE] = {'r', "routingtable", "dump Switch routing table"},
     [DME_IO]  = {'d', "dme", "get/set DME attributes"},
     [TESTFEATURE] = {'t', "testfeature", "UniPro test feature"},
+    [QOS] = {'q', "qos", "Quality of Service control"},
 };
 
 static void usage(int exit_status) {
@@ -1039,6 +1041,575 @@ static int test_feature(int argc, char* argv[]) {
     return 0;
 }
 
+static void qos_usage(int exit_status) {
+    printf("    svc %s <sub-command> [-c <class>] [-p <port>]\n", commands[QOS].longc);
+    printf("\n");
+    printf("    Commands:\n");
+    printf("    open -p <port>: open a port\n");
+    printf("    close -p <port>: close a port\n");
+    printf("    closed -p <port>: query if a port is open or closed\n");
+    printf("    bwctrl -p <port> -c <class>: query if a port and traffic class have bandwidth-control enabled\n");
+    printf("    bwctrl_enable -p <port> -c <class>: enable bandwidth-control on a port and class\n");
+    printf("    bwctrl_disable -p <port> -c <class>: enable bandwidth-control on a port and class\n");
+    printf("    signal -p <port> -c <class> -s <signal> -d <direction>: query a property of a tx or rx port\n");
+    printf("    outtc: query which outgoing traffic classes are enabled\n");
+    printf("    connected -p <port>: query if a switch port is connected\n");
+    printf("    onreq -p <port> -c <class>: query if a switch port has requests for a traffic class\n");
+    printf("    bwperiod -p <port> -c <class> [-v <cycles>]: query the bandwidth measurement period in microseconds\n");
+    printf("    decsize -p <port> -c <class> [-v <bytes>]: query the decrement size\n");
+    printf("    limit -p <port> -c <class> [-v <bytes>]: query the traffic limit per bandwidth measurement period\n");
+    printf("    quantity -d <direction> [-p <port> -c <class>]: query the quantity of traffic passing through in bytes\n");
+    printf("    reset -c <class>: reset the routing table for a traffic class\n");
+    printf("    wdt -d <direction> [-v <cycles>]: query the watchdog timer in microseconds\n");
+    printf("    subtc -p <port> [-c <class>]\n");
+    printf("\n");
+    printf("    Flags:\n");
+    printf("    -c <class>: Traffic class (TC0, TC0HIGH, TC0BAND, TC1).  No default\n");
+    printf("    -p <port>: Port on which to manipulate Quality of Service.  Default is 0.\n");
+    printf("    -d <direction>: Transmit (tx) or receive (rx).  No default\n");
+    printf("    -s <signal>: Asserted signal (accept, valid, busy, output, or tc).  No default\n");
+    printf("    -v <value>: an arbitrary integer value.  No default\n");
+    printf("\n");
+    printf("QoS cycles run at a rate of 166 MHz.\n");
+    exit(exit_status);
+}
+
+static int qos(int argc, char *argv[]) {
+    const char *longc = commands[QOS].longc;
+    struct tsb_switch *sw = svc->sw;
+    const char opts[] = "p:c:s:d:v:";
+    int rc, c;
+    int64_t port = -1;
+    int8_t tc = -1;
+    char **args;
+    bool b;
+    int8_t signal = -1;
+    int8_t direction = -1;
+    uint8_t val;
+    int64_t usr_val = -1;
+    uint32_t dwval;
+
+    if (!sw) {
+        return -ENODEV;
+    }
+
+    if (argc < 3) {
+        qos_usage(EXIT_FAILURE);
+    }
+
+    optind = -1;
+    args = argv + 2;
+    while ((c = getopt(argc - 1, args, opts)) != -1) {
+        switch (c) {
+        case 'p':
+            if (!strchr("0123456789", optarg[0])) {
+                printf("Invalid port %s, must be a decimal number in %d..%d.\n",
+                       optarg, 0, SWITCH_PORT_MAX - 1);
+                return -EINVAL;
+            }
+            port = strtol(optarg, NULL, 10);
+            if (port > SWITCH_PORT_MAX) {
+                printf("Invalid port %s, must be between %d and %d.\n", optarg,
+                       0, SWITCH_PORT_MAX - 1);
+                return -EINVAL;
+            }
+            break;
+        case 'c':
+            if (!strcmp(optarg, "TC0BAND")) {
+                tc = SWITCH_TRAFFIC_CLASS_TC0BAND;
+            } else if (!strcmp(optarg, "TC0HIGH")) {
+                tc = SWITCH_TRAFFIC_CLASS_TC0HIGH;
+            } else if (!strcmp(optarg, "TC0")) {
+                tc = SWITCH_TRAFFIC_CLASS_TC0;
+            } else if (!strcmp(optarg, "TC1")) {
+                tc = SWITCH_TRAFFIC_CLASS_TC1;
+            } else {
+                printf("Invalid traffic class %s.\n", optarg);
+                return -EINVAL;
+            }
+            break;
+        case 's':
+            if (!strcmp(optarg, "accept")) {
+                signal = 0;
+            } else if (!strcmp(optarg, "valid")) {
+                signal = 1;
+            } else if (!strcmp(optarg, "busy")) {
+                signal = 2;
+            } else if (!strcmp(optarg, "output")) {
+                signal = 3;
+            } else {
+                printf("Invalid asserted-signal name: %s.\n", optarg);
+                return -EINVAL;
+            }
+            break;
+        case 'd':
+            if (!strcmp(optarg, "tx")) {
+                direction = 0;
+            } else if (!strcmp(optarg, "rx")) {
+                direction = 1;
+            } else {
+                printf("Traffic direction can only be tx or rx.\n");
+                return -EINVAL;
+            }
+            break;
+        case 'v':
+            usr_val = strtol(optarg, NULL, 10);
+            if (usr_val < 0) {
+                printf("Value must be a positive integer.\n");
+                return -EINVAL;
+            }
+            break;
+        }
+    }
+
+    if (!strcmp(argv[2], "open")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        rc = switch_qos_open_port(sw, port);
+        if (rc) {
+            printf("svc %s %s -p %d: %d\n", longc, argv[2], (uint32_t)port, rc);
+            return rc;
+        }
+    } else if (!strcmp(argv[2], "close")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        rc = switch_qos_close_port(sw, port);
+        if (rc) {
+            printf("svc %s %s -p %d: %d\n", longc, argv[2], (uint32_t)port, rc);
+            return rc;
+        }
+    } else if (!strcmp(argv[2], "closed")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        rc = switch_qos_port_closed(sw, port, &b);
+        if (rc) {
+            return rc;
+        }
+
+        printf("svc %s: port %d %s\n", longc, (uint32_t)port,
+               b ? "closed" : "open");
+    } else if (!strcmp(argv[2], "bwctrl")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (tc < 0) {
+            printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        rc = switch_qos_bwctrl_enabled(sw, port, tc, &b);
+        if (rc) {
+            printf("svc %s %s -p %d -c %d: %d\n", longc, argv[2],
+                   (uint32_t)port, tc, rc);
+            return rc;
+        }
+
+        printf("svc %s: bandwidth control for port %d is %s\n", longc,
+               (uint32_t)port, b ? "on" : "off");
+    } else if (!strcmp(argv[2], "bwctrl_enable")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (tc < 0) {
+            printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        switch (tc) {
+        case SWITCH_TRAFFIC_CLASS_TC0HIGH:
+            rc = switch_qos_enable_bwctrl(sw, port, tc);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d: %d\n", longc, argv[2],
+                       (uint32_t)port, tc, rc);
+                return rc;
+            }
+            break;
+        case SWITCH_TRAFFIC_CLASS_TC0BAND:
+            printf("svc %s %s -p %d -c %d: bandwidth control always enabled for TC0BAND\n");
+            break;
+        default:
+            printf("svc %s %s -p %d -c %d: bandwidth control only possible for TC0BAND and TC0HIGH\n");
+            break;
+        }
+    } else if (!strcmp(argv[2], "bwctrl_disable")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (tc < 0) {
+            printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        switch (tc) {
+        case SWITCH_TRAFFIC_CLASS_TC0HIGH:
+            rc = switch_qos_disable_bwctrl(sw, port, tc);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d: %d\n", longc, argv[2],
+                       (uint32_t)port, tc, rc);
+                return rc;
+            }
+            break;
+        case SWITCH_TRAFFIC_CLASS_TC0BAND:
+            printf("svc %s %s -p %d -c %d: bandwidth control always enabled for TC0BAND\n",
+                   longc, argv[2], (uint32_t)port, tc);
+            break;
+        default:
+            printf("svc %s %s -p %d -c %d: bandwidth control only possible for TC0BAND and TC0HIGH\n",
+                   longc, argv[2], (uint32_t)port, tc);
+            break;
+        }
+    } else if (!strcmp(argv[2], "signal")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (signal < 0) {
+            printf("Need a type of asserted signal.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        switch (signal) {
+        case 0:
+            if (direction < 0) {
+                printf("Need a direction: tx or rx.\n");
+                qos_usage(EXIT_FAILURE);
+            }
+            if (!direction) {
+                rc = switch_qos_transmit_accept_signal(sw, port, &b);
+                if (rc) {
+                    printf("svc %s %s -p %d -s %d -d tx: %d\n", longc, argv[2],
+                           port, signal, rc);
+                    return rc;
+                }
+            } else {
+                if (tc < 0) {
+                    printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+                    qos_usage(EXIT_FAILURE);
+                }
+                rc = switch_qos_source_accept_signal(sw, port, tc, &b);
+                if (rc) {
+                    printf("svc %s %s -p %d -s %d -d rx: %d\n", longc, argv[2],
+                           port, signal, rc);
+                    return rc;
+                }
+            }
+            printf("svc %s %s -p %d -c %d: %s accept signal %s\n", longc,
+                   argv[2], (uint32_t)port, tc, direction ? "rx" : "tx",
+                   b ? "asserted" : "not asserted");
+            break;
+        case 1:
+            if (direction < 0) {
+                printf("Need a direction: tx or rx.\n");
+                qos_usage(EXIT_FAILURE);
+            }
+            if (!direction) {
+                rc = switch_qos_transmit_valid_signal(sw, port, &b);
+                if (rc) {
+                    printf("svc %s %s -p %d -s %d -d tx: %d\n", longc, argv[2],
+                           port, signal, rc);
+                    return rc;
+                }
+            } else {
+                if (tc < 0) {
+                    printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+                    qos_usage(EXIT_FAILURE);
+                }
+                rc = switch_qos_source_valid_signal(sw, port, tc, &b);
+                if (rc) {
+                    printf("svc %s %s -p %d -s %d -d rx: %d\n", longc, argv[2],
+                           port, signal, rc);
+                    return rc;
+                }
+            }
+            printf("svc %s %s -p %d -c %d: %s valid signal %s\n", longc,
+                   argv[2], (uint32_t)port, tc, direction ? "rx" : "tx",
+                   b ? "asserted" : "not asserted");
+            break;
+        case 2:
+            rc = switch_qos_gate_arb_busy(sw, &b);
+            if (rc) {
+                printf("svc %s %s -s %d: %d\n", longc, argv[2], signal, rc);
+                return rc;
+            }
+            printf("svc %s %s: gate arbiter busy signal %s\n", longc, argv[2],
+                   b ? "asserted" : "not asserted");
+            break;
+        case 3:
+            rc = switch_qos_gate_arb_output(sw, port, &b);
+            if (rc) {
+                printf("svc %s %s -p %d -s %d: %d\n", longc, argv[2],
+                       (uint32_t)port, signal, rc);
+                return rc;
+            }
+            printf("svc %s %s -p %d: gate arbiter output signal %s\n", longc,
+                   argv[2], (uint32_t)port, b ? "asserted" : "not asserted");
+            break;
+        }
+    } else if (!strcmp(argv[2], "outtc")) {
+        rc = switch_qos_output_traffic_class(sw, &val);
+        if (rc) {
+            printf("svc %s %s: %d\n", longc, argv[2], signal, rc);
+            return rc;
+        }
+        printf("svc %s %s: TC0 (%b), TC0BAND (%b), TC0HIGH (%b), TC1 (%b)\n",
+               longc, argv[2],
+               val & (AR_STATUS_CONNECT_CLASS_TC0 >> 16),
+               val & (AR_STATUS_CONNECT_CLASS_TC0BAND >> 16),
+               val & (AR_STATUS_CONNECT_CLASS_TC0HIGH >> 16),
+               val & (AR_STATUS_CONNECT_CLASS_TC1 >> 16));
+    } else if (!strcmp(argv[2], "connected")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        rc = switch_qos_port_connected(sw, port, &b);
+        if (rc) {
+            printf("svc %s %s -p %d: %d\n", longc, argv[2], (uint32_t)port, rc);
+            return rc;
+        }
+        printf("svc %s %s -p %d: %s\n", longc, argv[2], (uint32_t)port,
+               b ? "connected" : "disconnected");
+    } else if (!strcmp(argv[2], "onreq")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (tc < 0) {
+            printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        rc = switch_qos_request_status(sw, tc, port, &b);
+        if (rc) {
+            printf("svc %s %s -p %d -c %d: %d\n", longc, argv[2],
+                   (uint32_t)port, tc, rc);
+            return rc;
+        }
+        printf("svc %s %s -p %d -c %d: %s\n", longc, argv[2], (uint32_t)port,
+               tc, b ? "on request" : "not on request");
+    } else if (!strcmp(argv[2], "bwperiod")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (tc < 0) {
+            printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        if (usr_val < 0) {
+            rc = switch_qos_get_bwperiod(sw, port, tc, &dwval);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d: %d\n", longc, argv[2],
+                       (uint32_t)port, tc, rc);
+                return rc;
+            }
+            printf("svc %s %s -p %d -c %d: %d cycles = %d usecs\n", longc,
+                   argv[2], (uint32_t)port, tc, dwval,
+                   QOS_CYCLES_TO_USECS(dwval));
+        } else {
+            rc = switch_qos_set_bwperiod(sw, port, tc, usr_val);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d -v %u: %d\n", longc, argv[2],
+                       port, tc, (uint32_t)usr_val, rc);
+                return rc;
+            }
+        }
+    } else if (!strcmp(argv[2], "decsize")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (tc < 0) {
+            printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        if (usr_val < 0) {
+            rc = switch_qos_get_decsize(sw, port, tc, &dwval);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d: %d\n", longc, argv[2],
+                       (uint32_t)port, tc, rc);
+                return rc;
+            }
+            printf("svc %s %s -p %d -c %d: %u bytes\n", longc, argv[2],
+                   (uint32_t)port, tc, dwval);
+        } else {
+            rc = switch_qos_set_decsize(sw, port, tc, (uint32_t)usr_val);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d -v %u: %d\n", longc, argv[2],
+                       port, tc, (uint32_t)usr_val, rc);
+                return rc;
+            }
+        }
+    } else if (!strcmp(argv[2], "limit")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (tc < 0) {
+            printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        if (usr_val < 0) {
+            rc = switch_qos_get_limit(sw, port, tc, &dwval);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d: %d\n", longc, argv[2],
+                       (uint32_t)port, tc, rc);
+                return rc;
+            }
+            printf("svc %s %s -p %d -c %d: 0x%x\n", longc, argv[2],
+                   (uint32_t)port, tc, dwval);
+        } else {
+            rc = switch_qos_set_limit(sw, port, tc, (uint32_t)usr_val);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d -v %u: %d\n", longc, argv[2],
+                       port, tc, (uint32_t)usr_val, rc);
+                return rc;
+            }
+        }
+    } else if (!strcmp(argv[2], "quantity")) {
+        if (direction < 0) {
+            printf("Need a direction: tx or rx.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        if (direction) {
+            if (port < 0) {
+                printf("Need a port number from %d to %d.\n", 0,
+                       SWITCH_UNIPORT_MAX - 1);
+                qos_usage(EXIT_FAILURE);
+            }
+            if (tc < 0) {
+                printf("Need a traffic class from: TC0, TC0BAND, TC0HIGH, TC1.\n");
+                qos_usage(EXIT_FAILURE);
+            }
+            rc = switch_qos_source_quantity(sw, port, tc, &dwval);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d -d rx: %d\n", longc, argv[2],
+                       (uint32_t)port, tc, rc);
+                return rc;
+            }
+            printf("svc %s %s -p %d -c %d -d rx: 0x%x\n", longc, argv[2],
+                   (uint32_t)port, dwval);
+        } else {
+            rc = switch_qos_transmit_quantity(sw, &dwval);
+            if (rc) {
+                printf("svc %s %s -d tx: %d\n", longc, argv[2], rc);
+                return rc;
+            }
+            printf("svc %s %s -d tx: 0x%x\n", longc, argv[2], dwval);
+        }
+    } else if(!strcmp(argv[2], "reset")) {
+        if (tc < 0) {
+            printf("Need a traffic class from: TC0, TC1.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        switch (tc) {
+        case SWITCH_TRAFFIC_CLASS_TC0:
+        case SWITCH_TRAFFIC_CLASS_TC1:
+            rc = switch_qos_reset_routing_table(sw, tc);
+            if (rc) {
+                printf("svc %s %s -c %d: %d\n", longc, argv[2], tc, rc);
+                return rc;
+            }
+            break;
+        default:
+            printf("svc %s %s -c %d: routing tables only exist for TC0 and TC1\n",
+                   longc, argv[2], tc);
+            break;
+        }
+    } else if(!strcmp(argv[2], "wdt")) {
+        if (direction < 0) {
+            printf("Need a direction: tx or rx.\n");
+            qos_usage(EXIT_FAILURE);
+        }
+        if (usr_val < 0 && direction) {
+            rc = switch_qos_get_in_wdt_count(sw, &dwval);
+            if (rc) {
+                printf("svc %s %s -d rx: %d\n", longc, argv[2], rc);
+                return rc;
+            }
+            printf("svc %s %s -d rx: %d cycles = %d usecs\n", longc, argv[2],
+                   dwval, QOS_CYCLES_TO_USECS(dwval));
+        } else if (usr_val > 0 && direction) {
+            rc = switch_qos_set_in_wdt_count(sw, usr_val);
+            if (rc) {
+                printf("svc %s %s -d rx -v 0x%x: %d\n", longc, argv[2], usr_val,
+                       rc);
+                return rc;
+            }
+        } else if (usr_val < 0 && !direction) {
+            rc = switch_qos_get_out_wdt_count(sw, &dwval);
+            if (rc) {
+                printf("svc %s %s -d tx: %d\n", longc, argv[2], rc);
+                return rc;
+            }
+            printf("svc %s %s -d tx: %d cycles = %d usecs\n", longc, argv[2],
+                   dwval, QOS_CYCLES_TO_USECS(dwval));
+        } else if (usr_val > 0 && !direction) {
+            rc = switch_qos_set_out_wdt_count(sw, usr_val);
+            if (rc) {
+                printf("svc %s %s -d tx -v 0x%x: %d\n", longc, argv[2], usr_val,
+                       rc);
+                return rc;
+            }
+        }
+    } else if (!strcmp(argv[2], "subtc")) {
+        if (port < 0) {
+            printf("Need a port number from %d to %d.\n", 0,
+                   SWITCH_UNIPORT_MAX - 1);
+            qos_usage(EXIT_FAILURE);
+        }
+        if (tc < 0) {
+            rc = switch_qos_get_subtc(sw, port, (uint8_t*)&tc);
+            if (rc) {
+                printf("svc %s %s -p %d: %d\n", longc, argv[2], (int32_t)port,
+                       rc);
+                return rc;
+            }
+            switch (tc) {
+            case SWITCH_TRAFFIC_CLASS_TC0HIGH:
+                printf("svc %s %s -p %d: sub-traffic-class TC0HIGH requested\n",
+                       longc, argv[2], (int32_t)port);
+                break;
+            case SWITCH_TRAFFIC_CLASS_TC0BAND:
+                printf("svc %s %s -p %d: sub-traffic-class TC0BAND requested\n",
+                   longc, argv[2], (int32_t)port);
+                break;
+            default:
+                printf("svc %s %s -p %d: no sub-traffic-class requested for TC0\n",
+                   longc, argv[2], (int32_t)port);
+                break;
+            }
+        } else {
+            rc = switch_qos_set_subtc(sw, port, tc);
+            if (rc) {
+                printf("svc %s %s -p %d -c %d: %d\n", longc, argv[2],
+                       (int32_t)port, tc, rc);
+                return rc;
+            }
+        }
+    } else {
+        qos_usage(EXIT_FAILURE);
+    }
+
+    return 0;
+}
+
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
@@ -1095,6 +1666,9 @@ int svc_main(int argc, char *argv[])
         break;
     case TESTFEATURE:
         rc = test_feature(argc, argv);
+        break;
+    case QOS:
+        rc = qos(argc, argv);
         break;
     default:
         usage(EXIT_FAILURE);

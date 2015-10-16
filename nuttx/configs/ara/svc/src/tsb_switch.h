@@ -202,6 +202,11 @@
 #define RT_WDT_WDT_COUNT                    ((1 << 24) - 1)
 
 /*
+ * @brief Switch QoS cycle rate is 166 MHz.  Convert back and forth.
+ */
+#define QOS_CYCLES_TO_USECS(n) (n/166)
+
+/*
  * @brief UniPro connections
  */
 struct unipro_connection {
