@@ -549,6 +549,7 @@ int tsb_uart_lowsetup(int baud)
     /* enable UART CTS/RTS pins */
     tsb_clr_pinshare(TSB_PIN_GPIO9);
     tsb_set_pinshare(TSB_PIN_UART_CTSRTS);
+    tsb_clr_pinshare(TSB_PIN_GPIO9);
 
     /* enable UART clocks */
     tsb_clk_enable(TSB_CLK_UARTP);
@@ -685,13 +686,9 @@ static int tsb_uart_set_configuration(struct device *dev, int baud, int parity,
 
     /* Set auto flow control */
     if (flow) {
-        ua_reg_bit_set(uart_info->reg_base, UA_MCR,
-                       UA_AUTO_FLOW_ENABLE | UA_RTS);
-        ua_reg_bit_clr(uart_info->reg_base, UA_MCR, UA_AUTO_FLOW_CTRL_N);
+        ua_reg_bit_set(uart_info->reg_base, UA_MCR, UA_AUTO_FLOW_ENABLE|UA_RTS);
     } else {
-        ua_reg_bit_clr(uart_info->reg_base, UA_MCR,
-                       UA_AUTO_FLOW_ENABLE | UA_RTS);
-        ua_reg_bit_set(uart_info->reg_base, UA_MCR, UA_AUTO_FLOW_CTRL_N);
+        ua_reg_bit_clr(uart_info->reg_base, UA_MCR, UA_AUTO_FLOW_ENABLE|UA_RTS);
     }
 
     return 0;
