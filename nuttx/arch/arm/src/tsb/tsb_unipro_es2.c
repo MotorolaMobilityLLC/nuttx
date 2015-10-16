@@ -471,15 +471,26 @@ static int mailbox_evt(void)
     return 0;
 }
 
+static void unipro_evt_handler(enum unipro_event evt)
+{
+    DBG_UNIPRO("UniPro: event %d.\n", evt);
+
+    switch (evt) {
+    case UNIPRO_EVT_MAILBOX:
+        mailbox_evt();
+        break;
+    }
+
+    if (evt_handler) {
+        evt_handler(evt);
+    }
+}
+
 static int irq_unipro(int irq, void *context) {
     int rc;
     uint32_t val;
 
     tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
-
-    if (evt_handler) {
-        evt_handler(UNIPRO_EVT_MAILBOX);
-    }
 
     /*
      * Clear the initial interrupt
@@ -489,7 +500,9 @@ static int irq_unipro(int irq, void *context) {
         goto done;
     }
 
-    mailbox_evt();
+    if (val & TSB_INTERRUPTSTATUS_MAILBOX) {
+        unipro_evt_handler(UNIPRO_EVT_MAILBOX);
+    }
 
 done:
     return 0;
