@@ -856,3 +856,26 @@ int arapm_measure_rail(arapm_rail *arapm_r, ina230_sample *m)
 
     return ret;
 }
+
+static struct pwrmon_dev_ctx *arapm_devs = NULL;
+static size_t arapm_num_devs = 0;
+
+int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs)
+{
+    if (arapm_devs != NULL)
+        return -EBUSY;
+
+    if (num_devs == 0 || devs == NULL)
+        return -EINVAL;
+
+    arapm_devs = devs;
+    arapm_num_devs = num_devs;
+
+    return 0;
+}
+
+void pwrmon_unregister_devs(void)
+{
+    arapm_devs = NULL;
+    arapm_num_devs = 0;
+}

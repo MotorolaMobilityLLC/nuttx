@@ -262,7 +262,7 @@ DECLARE_EXPANSION_INTERFACE(sma, NULL, 12, 0, 0, 0, 0, 0);
  *
  * If a bit is set in i2c_sel, then drive the GPIO low.
  */
-static struct pwrmon_dev_ctx __attribute__((unused)) pwr_devs[] = {
+static struct pwrmon_dev_ctx pwr_devs[] = {
     {
         .name = "SWitch",
         .i2c_sel = I2C_SEL1_A | I2C_SEL1_B | I2C_SEL1_INH,
@@ -431,7 +431,8 @@ static struct ara_board_info bdb2a_board_info = {
     .nr_io_expanders = ARRAY_SIZE(bdb2a_io_expanders),
 };
 
-struct ara_board_info *board_init(void) {
+struct ara_board_info *board_init(void)
+{
     int i;
 
     /* Pretty lights */
@@ -489,11 +490,17 @@ struct ara_board_info *board_init(void) {
         }
     }
 
+    pwrmon_register_devs(pwr_devs, ARRAY_SIZE(pwr_devs));
+
     return &bdb2a_board_info;
 }
 
-void board_exit(void) {
+void board_exit(void)
+{
     int i;
+
+    pwrmon_unregister_devs();
+
     /*
      * First unregister the TCA64xx I/O Expanders and associated I2C bus(ses).
      * Done in reverse order from registration to account for IRQ chaining

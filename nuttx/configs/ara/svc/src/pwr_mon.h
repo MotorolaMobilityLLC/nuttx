@@ -36,6 +36,7 @@
 #define __PWR_MON_H__
 
 #include <stdint.h>
+#include <sys/types.h>
 #include <nuttx/sensors/ina230.h>
 
 #define DEV_MAX_RAIL_COUNT          8
@@ -141,5 +142,8 @@ int arapm_rail_id(const char *name, uint8_t *dev, uint8_t *rail);
 int arapm_dev_rail_count(uint8_t dev);
 void arapm_deinit_rail(arapm_rail *arapm_dev);
 void arapm_deinit(void);
+
+int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs);
+void pwrmon_unregister_devs(void);
 
 #endif
