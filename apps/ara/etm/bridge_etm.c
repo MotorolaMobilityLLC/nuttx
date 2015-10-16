@@ -113,7 +113,7 @@ unsigned short get_trace_drive_ma(void) {
     }
 }
 
-void print_usage(void) {
+static void print_usage(void) {
     printf("ETM: Usage:\n");
     printf("ETM:  etm e [2|4|8]    : enable TRACE output lines, with optional drive milliamps\n");
     printf("ETM:  etm d            : return TRACE output lines to their orignal state\n");
