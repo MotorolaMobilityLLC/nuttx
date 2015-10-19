@@ -47,8 +47,12 @@
 #define TSB_SCM_CLOCKGATING0            0x00000200
 #define TSB_SCM_CLOCKENABLE0            0x00000300
 #define TSB_SPI_CLOCK_SELECTOR          0x00000480
+#define TSB_SCM_VID                     0x00000700
 #define TSB_SCM_PID                     0x00000704 // named MODULEID1 in ES1
 #define TSB_SCM_PINSHARE                0x00000800
+#define TSB_SCM_CHIPID0                 0x00000880
+#define TSB_SCM_CHIPID1                 0x00000884
+#define TSB_SCM_CHIPID2                 0x00000888
 #define TSB_IO_DRIVE_STRENGTH0          0x00000A00
 
 static uint32_t pinshare_setting;
@@ -194,6 +198,13 @@ enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id)
           DRIVESTRENGTH_MASK(ds_id)) >> DRIVESTRENGTH_SHIFT(ds_id));
 }
 
+uint32_t tsb_get_vendor_id(void)
+{
+    /* cache the value to avoid repeated efuse reads */
+    static uint32_t vid;
+    return vid ? vid : (vid = scm_read(TSB_SCM_VID));
+}
+
 enum tsb_product_id tsb_get_product_id(void)
 {
     /* cache the value to avoid repeated efuse reads */
@@ -213,6 +224,21 @@ enum tsb_product_id tsb_get_product_id(void)
 #else
     return pid ? pid : (pid = (enum tsb_product_id)scm_read(TSB_SCM_PID));
 #endif
+}
+
+void tsb_get_chip_id(uint32_t *id0, uint32_t *id1, uint32_t *id2)
+{
+    if (id0) {
+        *id0 = scm_read(TSB_SCM_CHIPID0);
+    }
+
+    if (id1) {
+        *id1 = scm_read(TSB_SCM_CHIPID1);
+    }
+
+    if (id2) {
+        *id2 = scm_read(TSB_SCM_CHIPID2);
+    }
 }
 
 /* Debug code for command line tool usage */
