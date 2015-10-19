@@ -118,6 +118,10 @@ CMN_CSRCS += up_copyarmstate.c
 endif
 endif
 
+ifeq ($(CONFIG_ARCH_BOARDID),y)
+CMN_CSRCS += up_getboardid.c
+endif
+
 CHIP_ASRCS  =
 
 CHIP_CSRCS  = stm32_allocateheap.c stm32_start.c stm32_rcc.c stm32_lse.c
@@ -274,4 +278,8 @@ endif
 
 ifeq ($(CONFIG_ARCH_RESET_FLAGS),y)
 CHIP_CSRCS += stm32_resetflags.c
+endif
+
+ifeq ($(CONFIG_ARCH_CHIPID),y)
+CHIP_CSRCS += stm32_getchipid.c
 endif
