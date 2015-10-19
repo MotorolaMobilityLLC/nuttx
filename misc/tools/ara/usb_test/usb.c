@@ -60,6 +60,14 @@ struct loopback_transfer {
     struct libusb_transfer *response;
 };
 
+struct transfer_param
+{
+    unsigned int ep_set;
+    unsigned int size;
+    unsigned int count;
+    unsigned int timeout;
+};
+
 static LIST_DECLARE(transfers);
 int transfer_error = 0;
 
@@ -111,14 +119,14 @@ void send_data_cb(struct libusb_transfer *transfer)
 }
 
 int send_data(libusb_device_handle * dev_handle, unsigned int ep_set,
-              struct loopback_transfer *lb_transfer)
+              struct loopback_transfer *lb_transfer, unsigned int timeout)
 {
     struct libusb_transfer *transfer = lb_transfer->transfer;
 
     libusb_fill_bulk_transfer(transfer, dev_handle,
                               ep_set_to_epout(ep_set),
                               lb_transfer->data, lb_transfer->size,
-                              send_data_cb, lb_transfer, 1000);
+                              send_data_cb, lb_transfer, timeout);
     return libusb_submit_transfer(transfer);
 }
 
@@ -146,7 +154,7 @@ void recv_data_cb(struct libusb_transfer *response)
         goto complete;
     }
 
-    if (!memcmp(transfer->buffer, response->buffer, response->length))
+    if (memcmp(transfer->buffer, response->buffer, response->length))
         transfer_error++;
 
  complete:
@@ -154,7 +162,7 @@ void recv_data_cb(struct libusb_transfer *response)
 }
 
 int recv_data(libusb_device_handle * dev_handle, unsigned int ep_set,
-              struct loopback_transfer *lb_transfer)
+              struct loopback_transfer *lb_transfer, unsigned int timeout)
 {
     int r;
     unsigned int size;
@@ -165,7 +173,7 @@ int recv_data(libusb_device_handle * dev_handle, unsigned int ep_set,
                               ep_set_to_epin(ep_set),
                               lb_transfer->response_buffer,
                               lb_transfer->size,
-                              recv_data_cb, lb_transfer, 1000);
+                              recv_data_cb, lb_transfer, timeout);
     r = libusb_submit_transfer(transfer);
     if (r != 0) {
         free(data);
@@ -175,7 +183,8 @@ int recv_data(libusb_device_handle * dev_handle, unsigned int ep_set,
 }
 
 void transfer_data(libusb_device_handle * dev_handle, unsigned int ep_set,
-                   unsigned char *data, unsigned int size)
+                   unsigned char *data, unsigned int size,
+                   unsigned int timeout)
 {
     int r;
     int actual;
@@ -216,9 +225,9 @@ void transfer_data(libusb_device_handle * dev_handle, unsigned int ep_set,
 
     lb_transfer->size = size;
     lb_transfer->data = data;
-    if (send_data(dev_handle, ep_set, lb_transfer))
+    if (send_data(dev_handle, ep_set, lb_transfer, timeout))
         goto errout_send_data;
-    if (recv_data(dev_handle, ep_set, lb_transfer))
+    if (recv_data(dev_handle, ep_set, lb_transfer, timeout))
         goto errout_send_data;
 
     list_init(&lb_transfer->list);
@@ -245,26 +254,37 @@ void help(void)
     int size = MTU - sizeof(struct gb_operation_hdr);
     printf("usb_test [-s size] [-n count]\n"
            "\t -s size: size of data to send: 0 <= size <= %d\n"
-           "\t -c count: number of packet to send: count > 0\n", size);
+           "\t -c count: number of packet to send: count > 0\n"
+           "\t -t seconds: timeout in seconds: seconds > 0\n", size);
     exit(0);
 }
 
-void getopts(int argc, char *argv[],
-             unsigned int *ep_set, unsigned int *size, unsigned int *count)
+void getopts(int argc, char *argv[], struct transfer_param *param)
 {
     int r;
     int opt;
 
-    while ((opt = getopt(argc, argv, "he:s:c:")) != -1) {
+    param->count = 1;
+    param->size = 0;
+    param->ep_set = 0;
+    param->timeout = 1000;
+
+    while ((opt = getopt(argc, argv, "he:s:c:t:")) != -1) {
         switch (opt) {
         case 'c':
-            r = sscanf(optarg, "%u", count);
-            if (r != 1 || *count <= 0)
+            r = sscanf(optarg, "%u", &param->count);
+            if (r != 1 || param->count <= 0)
                 help();
             break;
         case 's':
-            r = sscanf(optarg, "%u", size);
-            if (r != 1 || *size < 0 || *size > MTU)
+            r = sscanf(optarg, "%u", &param->size);
+            if (r != 1 || param->size < 0 || param->size > MTU)
+                help();
+            break;
+        case 't':
+            r = sscanf(optarg, "%u", &param->timeout);
+            param->timeout *= 1000;
+            if (r != 1 || param->timeout < 1000)
                 help();
             break;
         default:
@@ -278,13 +298,11 @@ int main(int argc, char *argv[])
     int i;
     int r;
     ssize_t cnt;
-
-    unsigned int count = 1;
     unsigned int size = 0;
-    unsigned int ep_set = 0;
 
     unsigned char *data;
     struct gb_operation_hdr *hdr;
+    struct transfer_param param;
 
     struct timeval tv = {.tv_sec = 0,.tv_usec = 0 };
 
@@ -294,8 +312,7 @@ int main(int argc, char *argv[])
     libusb_device_handle *dev_handle;
     libusb_context *ctx = NULL;
 
-    getopts(argc, argv, &ep_set, &size, &count);
-    size += sizeof(*hdr);
+    getopts(argc, argv, &param);
 
     r = libusb_init(&ctx);
     if (r < 0) {
@@ -334,7 +351,9 @@ int main(int argc, char *argv[])
 
     printf("Start transfer\n");
     file = fopen("/dev/urandom", "r");
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < param.count; i++) {
+        size = param.size;
+        size += sizeof(*hdr);
 
         data = malloc(size);
         hdr = (struct gb_operation_hdr *)data;
@@ -342,15 +361,14 @@ int main(int argc, char *argv[])
         hdr->id = htole16(i);
         fread(&hdr[1], 1, size - sizeof(*hdr), file);
 
-        transfer_data(dev_handle, ep_set, data, size);
-        libusb_handle_events_timeout(ctx, &tv);
+        transfer_data(dev_handle, param.ep_set, data, size, param.timeout);
     }
     fclose(file);
 
     tv.tv_sec = 1;
     printf("Waiting for transfer completion\n");
     while (!list_is_empty(&transfers)) {
-        libusb_handle_events_timeout(ctx, &tv);
+        libusb_handle_events(ctx);
     }
 
     r = libusb_release_interface(dev_handle, 0);
@@ -364,6 +382,12 @@ int main(int argc, char *argv[])
     if (dev_handle)
         libusb_close(dev_handle);
     libusb_exit(ctx);
+
+    if (transfer_error) {
+        printf("%d/%d transfers failed\n",
+               transfer_error, param.count);
+        r = -1;
+    }
 
     return r;
 }
