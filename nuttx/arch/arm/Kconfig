@@ -207,6 +207,9 @@ config ARCH_CHIP_TSB
 	select ARCH_HAVE_HIRES_TIMER
 	select MM_BUFRAM_ALLOCATOR
 	select ARCH_HAVE_TICKLESS
+	select ARCH_HAVE_UID
+	select ARCH_HAVE_CHIPID
+	select ARCH_HAVE_BOARDID
 	---help---
 		Toshiba Bridge architectures (ARM Cortex-M3).
 
