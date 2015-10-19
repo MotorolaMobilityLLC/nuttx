@@ -945,11 +945,18 @@ static int tsb_i2s_config_hw(struct tsb_i2s_info *info)
     /* config->spatial_locations ignored since its defined by ll_protocol */
     /* config->ll_data_offset ignored since its defined by ll_protocol */
 
-    if (config->bytes_per_channel > 2)
+    if (config->bytes_per_channel > 2) {
         sc_audioset |= TSB_I2S_REG_AUDIOSET_SCLKTOWS;
+        so_audioset |= TSB_I2S_REG_AUDIOSET_SCLKTOWS;
+        si_audioset |= TSB_I2S_REG_AUDIOSET_SCLKTOWS;
+    }
 
-    if (config->ll_wclk_change_edge == DEVICE_I2S_EDGE_RISING)
+    if (config->ll_wclk_change_edge == DEVICE_I2S_EDGE_RISING) {
         sc_audioset |= TSB_I2S_REG_AUDIOSET_EDGE;
+        si_audioset |= TSB_I2S_REG_AUDIOSET_EDGE;
+    } else {
+        so_audioset |= TSB_I2S_REG_AUDIOSET_EDGE;
+    }
 
     if (config->ll_data_tx_edge == DEVICE_I2S_EDGE_RISING)
         so_audioset |= TSB_I2S_REG_AUDIOSET_SDEDGE;
@@ -987,10 +994,8 @@ static int tsb_i2s_config_hw(struct tsb_i2s_info *info)
     tsb_i2s_mute(info, TSB_I2S_BLOCK_SI);
 
     tsb_i2s_write(info, TSB_I2S_BLOCK_SC, TSB_I2S_REG_AUDIOSET, sc_audioset);
-    tsb_i2s_write(info, TSB_I2S_BLOCK_SO, TSB_I2S_REG_AUDIOSET,
-                  sc_audioset | so_audioset);
-    tsb_i2s_write(info, TSB_I2S_BLOCK_SI, TSB_I2S_REG_AUDIOSET,
-                  sc_audioset | si_audioset);
+    tsb_i2s_write(info, TSB_I2S_BLOCK_SO, TSB_I2S_REG_AUDIOSET, so_audioset);
+    tsb_i2s_write(info, TSB_I2S_BLOCK_SI, TSB_I2S_REG_AUDIOSET, si_audioset);
 
     tsb_i2s_write(info, TSB_I2S_BLOCK_SC, TSB_I2S_REG_MODESET, modeset);
     tsb_i2s_write(info, TSB_I2S_BLOCK_SO, TSB_I2S_REG_MODESET, modeset);
