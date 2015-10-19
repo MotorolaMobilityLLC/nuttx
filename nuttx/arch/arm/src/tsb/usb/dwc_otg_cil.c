@@ -3746,10 +3746,8 @@ void init_ring_dma_desc(dwc_ep_t * ep, dwc_otg_dev_dma_desc_t *dma_desc,
 	dma_desc->status.b.sts = 0;
 	if (i == ep->desc_cnt - 1) {
 		dma_desc->status.b.l = 1;
-		//(dma_desc-1)->status.b.mtrf = 1; //let application reprogramme dma
-	} else {
-	    dma_desc->status.b.mtrf = 1;
 	}
+	dma_desc->status.b.mtrf = 1;
 	dma_desc->status.b.bs = BS_HOST_READY;
 }
 
