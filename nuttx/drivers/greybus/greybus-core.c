@@ -35,6 +35,7 @@
 #include <nuttx/greybus/tape.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/wdog.h>
+#include <loopback-gb.h>
 
 #include <arch/atomic.h>
 #include <arch/byteorder.h>
@@ -359,6 +360,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     struct gb_operation_handler *op_handler;
     size_t hdr_size;
 
+    gb_loopback_log_entry(cport);
     if (cport >= unipro_cport_count() || !data) {
         gb_error("Invalid cport number: %u\n", cport);
         return -EINVAL;
@@ -658,6 +660,7 @@ int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
     resp_hdr->result = result;
 
     gb_dump(operation->response_buffer, resp_hdr->size);
+    gb_loopback_log_exit(operation->cport, operation, resp_hdr->size);
     retval = transport_backend->send(operation->cport,
                                      operation->response_buffer,
                                      le16_to_cpu(resp_hdr->size));

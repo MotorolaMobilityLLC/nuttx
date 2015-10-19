@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2014-2015 Google Inc.
+/**
+ * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,21 +26,25 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LOOPBACK_GB_H__
-#define __LOOPBACK_GB_H__
+#ifndef __CONFIGS_ARA_BRIDGE_INCLUDE_TIMESTAMPS_H
+#define  __CONFIGS_ARA_BRIDGE_INCLUDE_TIMESTAMPS_H
 
-#include <nuttx/list.h>
-#include <nuttx/greybus/types.h>
-#include <nuttx/greybus/greybus.h>
-#include <nuttx/greybus/loopback.h> /* For greybus loopback request types. */
+#include <nuttx/time.h>
 
-#ifdef CONFIG_GREYBUS_FEATURE_HAVE_TIMESTAMPS
-void gb_loopback_log_entry(unsigned int cport);
-void gb_loopback_log_exit(unsigned int cport, struct gb_operation *operation, size_t size);
-#else
-static inline void gb_loopback_log_entry(unsigned int cport){}
-static inline void gb_loopback_log_exit(unsigned int cport, struct gb_operation *operation, size_t size){}
-#endif
+#define GREYBUS_FW_TIMESTAMP_APBRIDGE 0x01
+#define GREYBUS_FW_TIMESTAMP_GPBRDIGE 0x02
 
+struct gb_timestamp {
+    bool tag;
+    struct timeval entry_time;
+    struct timeval exit_time;
+};
 
+void gb_timestamp_tag_entry_time(struct gb_timestamp *ts,
+                                 unsigned int cportid);
+void gb_timestamp_tag_exit_time(struct gb_timestamp *ts,
+                                unsigned int cportid);
+void gb_timestamp_log(struct gb_timestamp *ts, unsigned int cportid,
+                      const void *payload, size_t len, int id);
+void gb_timestamp_init(void);
 #endif

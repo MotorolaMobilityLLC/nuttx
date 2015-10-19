@@ -30,6 +30,7 @@
 #define __LOOPBACK__H__
 
 #include <nuttx/list.h>
+#include <nuttx/greybus/types.h>
 
 /* Greybus loopback request types */
 #define GB_LOOPBACK_TYPE_NONE                           0x00
@@ -37,6 +38,30 @@
 #define GB_LOOPBACK_TYPE_PING                           0x02
 #define GB_LOOPBACK_TYPE_TRANSFER                       0x03
 #define GB_LOOPBACK_TYPE_SINK                           0x04
+
+/* version request has no payload */
+struct gb_loopback_proto_version_response {
+	__u8	major;
+	__u8	minor;
+};
+
+struct gb_loopback_transfer_request {
+	__le32	len;
+	__u8    data[0];
+};
+
+struct gb_loopback_transfer_response {
+	__le32	len;
+	__le32	reserved0;
+	__le32	reserved1;
+	__u8    data[0];
+};
+
+struct gb_loopback_sync_transfer {
+	__le32	len;
+	__le32	chksum;
+	__u8    data[0];
+};
 
 struct gb_loopback_statistics {
     unsigned recv;
