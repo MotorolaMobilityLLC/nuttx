@@ -768,6 +768,46 @@ int up_getuid(uint64_t *uid_high, uint64_t *uid_low);
 #endif
 
 /****************************************************************************
+ * Name: up_getchipid
+ *
+ * Description:
+ *   Get Unique Chip ID. The Chip ID uniquely identifies the vendor and
+ *   product of the CPU running this instance of Nuttx.
+ *
+ * Inputs:
+ *   vid - Pointer to location to store the vendor ID
+ *   pid - Pointer to location to store the product ID
+ *
+ * Return:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARCH_CHIPID
+int up_getchipid(uint32_t *vid, uint32_t *pid);
+#endif
+
+/****************************************************************************
+ * Name: up_getboardid
+ *
+ * Description:
+ *   Get Unique Board ID. The Board ID uniquely identifies the vendor and
+ *   product of the hardware platform hosting the CPU.
+ *
+ * Inputs:
+ *   vid - Pointer to location to store the vendor ID
+ *   pid - Pointer to location to store the product ID
+ *
+ * Return:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARCH_BOARDID
+int up_getboardid(uint32_t *vid, uint32_t *pid);
+#endif
+
+/****************************************************************************
  * Name: up_systemreset
  *
  * Description:

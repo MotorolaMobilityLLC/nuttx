@@ -622,6 +622,76 @@ config ARCH_UID
 		UID could be used for serial numbers, as part of security keys,
 		etc. The UID cannot be altered by the user.
 
+config ARCH_HAVE_CHIPID
+	bool "Chip ID Supported"
+	default n
+
+config ARCH_CHIPID
+	bool "Support Unique Chip ID"
+	default n
+	depends on ARCH_HAVE_CHIPID
+	---help---
+		Adds Unique Chip ID interface for use by drivers.
+
+if ARCH_CHIPID
+config ARCH_USE_PREDEFINED_CHIPID
+	bool "Pre-defined Chip ID"
+	default n
+	---help---
+		Use pre-defined values from the configuration the Chip ID.
+endif
+
+if ARCH_USE_PREDEFINED_CHIPID
+config ARCH_CHIPID_VID
+	hex "Chip VID"
+	default 0x0
+	---help---
+		Chip Vendor ID (VID) to use if the architecture does not
+                support a dynamic VID.
+
+config ARCH_CHIPID_PID
+	hex "Chip PID"
+	default 0x0
+	---help---
+		Chip Product ID (PID) to use if the architecture does not
+                support a dynamic PID.
+endif
+
+config ARCH_HAVE_BOARDID
+	bool "Board ID Supported"
+	default n
+
+config ARCH_BOARDID
+	bool "Support Unique Board ID"
+	default n
+	depends on ARCH_HAVE_BOARDID
+	---help---
+		Adds Unique Board ID interface for use by drivers.
+
+if ARCH_BOARDID
+config ARCH_USE_PREDEFINED_BOARDID
+	bool "Pre-defined Board ID"
+	default n
+	---help---
+		Use pre-defined values from the configuration the Board ID.
+endif
+
+if ARCH_USE_PREDEFINED_BOARDID
+config ARCH_BOARDID_VID
+	hex "Board VID"
+	default 0x0
+	---help---
+		Board Vendor ID (VID) to use if the architecture does not
+                support a dynamic VID.
+
+config ARCH_BOARDID_PID
+	hex "Board PID"
+	default 0x0
+	---help---
+		Board Product ID (PID) to use if the architecture does not
+                support a dynamic PID.
+endif
+
 config ARCH_HAVE_SYSRESET
 	bool
 	default n
