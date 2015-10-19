@@ -256,6 +256,15 @@ DECLARE_EXPANSION_INTERFACE(sma2, sma2_vreg_data, 10, WAKEOUT_SMA2,
 #define I2C_SEL2_B      BIT(4)
 #define I2C_SEL2_INH    BIT(5)
 
+enum {
+    I2C_INA230_SEL1_A               = STM32_GPIO_CHIP_BASE + 104,   // PG8
+    I2C_INA230_SEL1_B,
+    I2C_INA230_SEL1_INH,
+    I2C_INA230_SEL2_A,
+    I2C_INA230_SEL2_B,
+    I2C_INA230_SEL2_INH,
+};
+
 /*
  * Power rail groups definitions.
  *
@@ -358,6 +367,52 @@ static struct pwrmon_dev_ctx pwr_devs[] = {
         .num_rails = 4,
     },
 };
+
+void pwrmon_reset_i2c_sel(void)
+{
+    gpio_set_value(I2C_INA230_SEL1_INH, 1);
+    gpio_set_value(I2C_INA230_SEL2_INH, 1);
+    gpio_set_value(I2C_INA230_SEL1_A, 1);
+    gpio_set_value(I2C_INA230_SEL1_B, 1);
+    gpio_set_value(I2C_INA230_SEL2_A, 1);
+    gpio_set_value(I2C_INA230_SEL2_B, 1);
+}
+
+void pwrmon_init_i2c_sel(void)
+{
+    gpio_direction_out(I2C_INA230_SEL1_A, 1);
+    gpio_direction_out(I2C_INA230_SEL1_B, 1);
+    gpio_direction_out(I2C_INA230_SEL1_INH, 1);
+    gpio_direction_out(I2C_INA230_SEL2_A, 1);
+    gpio_direction_out(I2C_INA230_SEL2_B, 1);
+    gpio_direction_out(I2C_INA230_SEL2_INH, 1);
+}
+
+int pwrmon_do_i2c_sel(uint8_t dev)
+{
+    if (dev >= ARRAY_SIZE(pwr_devs)) {
+        return -EINVAL;
+    }
+
+    /* First inhibit all lines, to make sure there is no short/collision */
+    gpio_set_value(I2C_INA230_SEL1_INH, 1);
+    gpio_set_value(I2C_INA230_SEL2_INH, 1);
+
+    gpio_set_value(I2C_INA230_SEL1_A, pwr_devs[dev].i2c_sel & I2C_SEL1_A ? 0 : 1);
+    gpio_set_value(I2C_INA230_SEL1_B, pwr_devs[dev].i2c_sel & I2C_SEL1_B ? 0 : 1);
+    gpio_set_value(I2C_INA230_SEL2_A, pwr_devs[dev].i2c_sel & I2C_SEL2_A ? 0 : 1);
+    gpio_set_value(I2C_INA230_SEL2_B, pwr_devs[dev].i2c_sel & I2C_SEL2_B ? 0 : 1);
+
+    if (pwr_devs[dev].i2c_sel & I2C_SEL1_INH) {
+        gpio_set_value(I2C_INA230_SEL1_INH, 0);
+    }
+
+    if (pwr_devs[dev].i2c_sel & I2C_SEL2_INH) {
+        gpio_set_value(I2C_INA230_SEL2_INH, 0);
+    }
+
+    return 0;
+}
 
 /*
  * Important note: Always declare the spring interfaces last.

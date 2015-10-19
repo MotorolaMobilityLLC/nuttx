@@ -146,4 +146,16 @@ void pwrmon_deinit(void);
 int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs);
 void pwrmon_unregister_devs(void);
 
+/*
+ * These functions are board-specific and must be implemented
+ * in appropriate board files.
+ */
+
+/* Should set the i2c selection gpios to their default values. */
+extern void pwrmon_reset_i2c_sel(void);
+/* Should set the i2c selection gpios' direction. */
+extern void pwrmon_init_i2c_sel(void);
+/* Should select given i2c line. */
+extern int pwrmon_do_i2c_sel(uint8_t dev);
+
 #endif

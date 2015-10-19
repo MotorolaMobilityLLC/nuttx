@@ -201,6 +201,31 @@ static ina230_conversion_time pwrmon_ct;
 static ina230_avg_count pwrmon_avg_count;
 static int current_dev;
 
+static struct pwrmon_dev_ctx *pwrmon_devs = NULL;
+static size_t pwrmon_num_devs = 0;
+
+int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs)
+{
+    if (pwrmon_devs != NULL) {
+        return -EBUSY;
+    }
+
+    if (num_devs == 0 || devs == NULL) {
+        return -EINVAL;
+    }
+
+    pwrmon_devs = devs;
+    pwrmon_num_devs = num_devs;
+
+    return 0;
+}
+
+void pwrmon_unregister_devs(void)
+{
+    pwrmon_devs = NULL;
+    pwrmon_num_devs = 0;
+}
+
 /**
  * @brief           Return the device name (string) given its ID.
  * @return          device name (string) on success, NULL in case of error.
@@ -208,11 +233,11 @@ static int current_dev;
  */
 const char *pwrmon_dev_name(uint8_t dev)
 {
-    if (dev >= DEV_COUNT) {
+    if (dev >= pwrmon_num_devs) {
         return NULL;
     }
 
-    return pwrmon_dev_names[dev];
+    return pwrmon_devs[dev].name;
 }
 
 /**
@@ -223,37 +248,11 @@ const char *pwrmon_dev_name(uint8_t dev)
  */
 const char *pwrmon_rail_name(uint8_t dev, uint8_t rail)
 {
-    switch (dev) {
-    case DEV_SW:
-        if (rail >= VSW_COUNT) {
-            return NULL;
-        }
-        break;
-    case DEV_APB1:
-    case DEV_APB2:
-    case DEV_APB3:
-        if (rail >= VAPB_COUNT) {
-            return NULL;
-        }
-        break;
-    case DEV_GPB1:
-    case DEV_GPB2:
-        if (rail >= VGPB_COUNT) {
-            return NULL;
-        }
-        break;
-#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
-    case DEV_SVC:
-        if (rail >= SVC_COUNT) {
-            return NULL;
-        }
-        break;
-#endif
-    default:
+    if (dev >= pwrmon_num_devs || rail >= pwrmon_devs[dev].num_rails) {
         return NULL;
     }
 
-    return pwrmon_rail_names[rail][dev];
+    return pwrmon_devs[dev].rails[rail].name;
 }
 
 /**
@@ -265,162 +264,22 @@ const char *pwrmon_rail_name(uint8_t dev, uint8_t rail)
  */
 int pwrmon_rail_id(const char *name, uint8_t *dev, uint8_t *rail)
 {
-    int ret = 0;
+    int i, j;
 
-    if ((!name) || (!dev) || (!rail)) {
-        ret = -ENODEV;
-    } else {
-        *dev = DEV_COUNT;
-        *rail = VAPB_COUNT;
+    for (i = 0; i < pwrmon_num_devs; i++) {
+        for (j = 0; j < pwrmon_devs[i].num_rails; j++) {
+            if (strcmp(pwrmon_devs[i].rails[j].name, name) == 0) {
+                *dev = i;
+                *rail = j;
+                dbg_verbose("%s(): name=%s => device=%u rail=%u\n",
+                            __func__, name, *dev, *rail);
+
+                return 0;
+            }
+        }
     }
 
-    if (strcmp(name, "VSW_1P1_PLL") == 0) {
-        *dev = DEV_SW;
-        *rail = VSW_1P1_PLL;
-    } else if (strcmp(name, "VSW_1P1_CORE") == 0) {
-        *dev = DEV_SW;
-        *rail = VSW_1P1_CORE;
-    } else if (strcmp(name, "VSW_1P8_UNIPRO") == 0) {
-        *dev = DEV_SW;
-        *rail = VSW_1P8_UNIPRO;
-    } else if (strcmp(name, "VSW_1P8_IO") == 0) {
-        *dev = DEV_SW;
-        *rail = VSW_1P8_IO;
-    } else if (strcmp(name, "VAPB1_1P1_CORE") == 0) {
-        *dev = DEV_APB1;
-        *rail = VAPB_1P1_CORE;
-    } else if (strcmp(name, "VAPB1_1P1_PLL1") == 0) {
-        *dev = DEV_APB1;
-        *rail = VAPB_1P1_PLL1;
-    } else if (strcmp(name, "VAPB1_1P2_CDSI_PLL") == 0) {
-        *dev = DEV_APB1;
-        *rail = VAPB_1P2_CDSI_PLL;
-    } else if (strcmp(name, "VAPB1_1P2_CDSI") == 0) {
-        *dev = DEV_APB1;
-        *rail = VAPB_1P2_CDSI;
-    } else if (strcmp(name, "VAPB1_1P2_HSIC") == 0) {
-        *dev = DEV_APB1;
-        *rail = VAPB_1P2_HSIC;
-    } else if (strcmp(name, "VAPB1_1P8_UNIPRO") == 0) {
-        *dev = DEV_APB1;
-        *rail = VAPB_1P8_UNIPRO;
-    } else if (strcmp(name, "VAPB1_1P8_IO") == 0) {
-        *dev = DEV_APB1;
-        *rail = VAPB_1P8_IO;
-    } else if (strcmp(name, "VAPB1_1P1_PLL2") == 0) {
-        *dev = DEV_APB1;
-        *rail = VAPB_1P1_PLL2;
-    } else if (strcmp(name, "VAPB2_1P1_CORE") == 0) {
-        *dev = DEV_APB2;
-        *rail = VAPB_1P1_CORE;
-    } else if (strcmp(name, "VAPB2_1P1_PLL1") == 0) {
-        *dev = DEV_APB2;
-        *rail = VAPB_1P1_PLL1;
-    } else if (strcmp(name, "VAPB2_1P2_CDSI_PLL") == 0) {
-        *dev = DEV_APB2;
-        *rail = VAPB_1P2_CDSI_PLL;
-    } else if (strcmp(name, "VAPB2_1P2_CDSI") == 0) {
-        *dev = DEV_APB2;
-        *rail = VAPB_1P2_CDSI;
-    } else if (strcmp(name, "VAPB2_1P2_HSIC") == 0) {
-        *dev = DEV_APB2;
-        *rail = VAPB_1P2_HSIC;
-    } else if (strcmp(name, "VAPB2_1P8_UNIPRO") == 0) {
-        *dev = DEV_APB2;
-        *rail = VAPB_1P8_UNIPRO;
-    } else if (strcmp(name, "VAPB2_1P8_IO") == 0) {
-        *dev = DEV_APB2;
-        *rail = VAPB_1P8_IO;
-    } else if (strcmp(name, "VAPB2_1P1_PLL2") == 0) {
-        *dev = DEV_APB2;
-        *rail = VAPB_1P1_PLL2;
-    } else if (strcmp(name, "VAPB3_1P1_CORE") == 0) {
-        *dev = DEV_APB3;
-        *rail = VAPB_1P1_CORE;
-    } else if (strcmp(name, "VAPB3_1P1_PLL1") == 0) {
-        *dev = DEV_APB3;
-        *rail = VAPB_1P1_PLL1;
-    } else if (strcmp(name, "VAPB3_1P2_CDSI_PLL") == 0) {
-        *dev = DEV_APB3;
-        *rail = VAPB_1P2_CDSI_PLL;
-    } else if (strcmp(name, "VAPB3_1P2_CDSI") == 0) {
-        *dev = DEV_APB3;
-        *rail = VAPB_1P2_CDSI;
-    } else if (strcmp(name, "VAPB3_1P2_HSIC") == 0) {
-        *dev = DEV_APB3;
-        *rail = VAPB_1P2_HSIC;
-    } else if (strcmp(name, "VAPB3_1P8_UNIPRO") == 0) {
-        *dev = DEV_APB3;
-        *rail = VAPB_1P8_UNIPRO;
-    } else if (strcmp(name, "VAPB3_1P8_IO") == 0) {
-        *dev = DEV_APB3;
-        *rail = VAPB_1P8_IO;
-    } else if (strcmp(name, "VAPB3_1P1_PLL2") == 0) {
-        *dev = DEV_APB3;
-        *rail = VAPB_1P1_PLL2;
-    } else if (strcmp(name, "VGPB1_1P1_CORE") == 0) {
-        *dev = DEV_GPB1;
-        *rail = VGPB_1P1_CORE;
-    } else if (strcmp(name, "VGPB1_1P1_PLL1") == 0) {
-        *dev = DEV_GPB1;
-        *rail = VGPB_1P1_PLL1;
-    } else if (strcmp(name, "VGPB1_SDIO") == 0) {
-        *dev = DEV_GPB1;
-        *rail = VGPB_SDIO;
-    } else if (strcmp(name, "VGPB1_1P2_HSIC") == 0) {
-        *dev = DEV_GPB1;
-        *rail = VGPB_1P2_HSIC;
-    } else if (strcmp(name, "VGPB1_1P8_UNIPRO") == 0) {
-        *dev = DEV_GPB1;
-        *rail = VGPB_1P8_UNIPRO;
-    } else if (strcmp(name, "VGPB1_1P8_IO") == 0) {
-        *dev = DEV_GPB1;
-        *rail = VGPB_1P8_IO;
-    } else if (strcmp(name, "VGPB1_1P1_PLL2") == 0) {
-        *dev = DEV_GPB1;
-        *rail = VGPB_1P1_PLL2;
-    } else if (strcmp(name, "VGPB2_1P1_CORE") == 0) {
-        *dev = DEV_GPB2;
-        *rail = VGPB_1P1_CORE;
-    } else if (strcmp(name, "VGPB2_1P1_PLL1") == 0) {
-        *dev = DEV_GPB2;
-        *rail = VGPB_1P1_PLL1;
-    } else if (strcmp(name, "VGPB2_SDIO") == 0) {
-        *dev = DEV_GPB2;
-        *rail = VGPB_SDIO;
-    } else if (strcmp(name, "VGPB2_1P2_HSIC") == 0) {
-        *dev = DEV_GPB2;
-        *rail = VGPB_1P2_HSIC;
-    } else if (strcmp(name, "VGPB2_1P8_UNIPRO") == 0) {
-        *dev = DEV_GPB2;
-        *rail = VGPB_1P8_UNIPRO;
-    } else if (strcmp(name, "VGPB2_1P8_IO") == 0) {
-        *dev = DEV_GPB2;
-        *rail = VGPB_1P8_IO;
-    } else if (strcmp(name, "VGPB2_1P1_PLL2") == 0) {
-        *dev = DEV_GPB2;
-        *rail = VGPB_1P1_PLL2;
-#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
-    } else if (strcmp(name, "SVC_1P8_VDD") == 0) {
-        *dev = DEV_SVC;
-        *rail = SVC_1P8_VDD;
-    } else if (strcmp(name, "SVC_1P8_VBAT") == 0) {
-        *dev = DEV_SVC;
-        *rail = SVC_1P8_VBAT;
-    } else if (strcmp(name, "SVC_1P8_VDDA") == 0) {
-        *dev = DEV_SVC;
-        *rail = SVC_1P8_VDDA;
-    } else if (strcmp(name, "SVC_1P8_VREF") == 0) {
-        *dev = DEV_SVC;
-        *rail = SVC_1P8_VREF;
-#endif
-    } else {
-        ret = -ENODEV;
-    }
-
-    dbg_verbose("%s(): name=%s => device=%u rail=%u\n",
-                __func__, name, *dev, *rail);
-    return ret;
+    return -ENODEV;
 }
 
 /**
@@ -432,38 +291,18 @@ int pwrmon_rail_id(const char *name, uint8_t *dev, uint8_t *rail)
  */
 int pwrmon_device_id(const char *name, uint8_t *dev)
 {
-    int ret = 0;
+    int i;
 
-    if ((!name) || (!dev)) {
-        ret = -ENODEV;
-    } else {
-        *dev = DEV_COUNT;
+    for (i = 0; i < pwrmon_num_devs; i++) {
+        if (strcmp(pwrmon_devs[i].name, name) == 0) {
+            *dev = i;
+            dbg_verbose("%s(): name=%s => device=%u\n", __func__, name, *dev);
+
+            return 0;
+        }
     }
 
-    if (strcmp(name, "SW") == 0) {
-        *dev = DEV_SW;
-    } else if (strcmp(name, "APB1") == 0) {
-        *dev = DEV_APB1;
-    } else if (strcmp(name, "APB2") == 0) {
-        *dev = DEV_APB2;
-    } else if (strcmp(name, "APB3") == 0) {
-        *dev = DEV_APB3;
-    } else if (strcmp(name, "GPB1") == 0) {
-        *dev = DEV_GPB1;
-    } else if (strcmp(name, "GPB2") == 0) {
-        *dev = DEV_GPB2;
-#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
-    } else if (strcmp(name, "SVC") == 0) {
-        *dev = DEV_SVC;
-#endif
-    } else {
-        *dev = DEV_COUNT;
-        ret = -ENODEV;
-    }
-
-    dbg_verbose("%s(): name=%s => device=%u\n", __func__, name, *dev);
-
-    return ret;
+    return -ENODEV;
 }
 
 /**
@@ -473,70 +312,16 @@ int pwrmon_device_id(const char *name, uint8_t *dev)
  */
 static int pwrmon_ina230_select(uint8_t dev)
 {
+    int status;
+
     if (dev == current_dev) {
         dbg_verbose("%s(): device already selected (%u).\n", __func__, dev);
         return 0;
     }
 
-    /* First inhibit all lines, to make sure there is no short/collision */
-    gpio_set_value(I2C_INA230_SEL1_INH, 1);
-    gpio_set_value(I2C_INA230_SEL2_INH, 1);
-
-    switch (dev) {
-    case DEV_SW:
-        dbg_verbose("%s(): dev=%s select\n",
-                    __func__, pwrmon_dev_name(dev));
-        gpio_set_value(I2C_INA230_SEL1_A, 0);
-        gpio_set_value(I2C_INA230_SEL1_B, 0);
-        gpio_set_value(I2C_INA230_SEL1_INH, 0);
-        break;
-    case DEV_APB1:
-        dbg_verbose("%s(): dev=%s select\n",
-                    __func__, pwrmon_dev_name(dev));
-        gpio_set_value(I2C_INA230_SEL1_A, 1);
-        gpio_set_value(I2C_INA230_SEL1_B, 0);
-        gpio_set_value(I2C_INA230_SEL1_INH, 0);
-        break;
-    case DEV_APB2:
-        dbg_verbose("%s(): dev=%s select\n",
-                    __func__, pwrmon_dev_name(dev));
-        gpio_set_value(I2C_INA230_SEL1_A, 0);
-        gpio_set_value(I2C_INA230_SEL1_B, 1);
-        gpio_set_value(I2C_INA230_SEL1_INH, 0);
-        break;
-    case DEV_APB3:
-        dbg_verbose("%s(): dev=%s select\n",
-                    __func__, pwrmon_dev_name(dev));
-        gpio_set_value(I2C_INA230_SEL1_A, 1);
-        gpio_set_value(I2C_INA230_SEL1_B, 1);
-        gpio_set_value(I2C_INA230_SEL1_INH, 0);
-        break;
-    case DEV_GPB1:
-        dbg_verbose("%s(): dev=%s select\n",
-                    __func__, pwrmon_dev_name(dev));
-        gpio_set_value(I2C_INA230_SEL2_A, 0);
-        gpio_set_value(I2C_INA230_SEL2_B, 0);
-        gpio_set_value(I2C_INA230_SEL2_INH, 0);
-        break;
-    case DEV_GPB2:
-        dbg_verbose("%s(): dev=%s select\n",
-                    __func__, pwrmon_dev_name(dev));
-        gpio_set_value(I2C_INA230_SEL2_A, 1);
-        gpio_set_value(I2C_INA230_SEL2_B, 0);
-        gpio_set_value(I2C_INA230_SEL2_INH, 0);
-        break;
-#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
-    case DEV_SVC:
-        dbg_verbose("%s(): dev=%s select\n",
-                    __func__, pwrmon_dev_name(dev));
-        gpio_set_value(I2C_INA230_SEL2_A, 0);
-        gpio_set_value(I2C_INA230_SEL2_B, 1);
-        gpio_set_value(I2C_INA230_SEL2_INH, 0);
-        break;
-#endif
-    default:
-        dbg_error("%s(): invalid device! (%u)\n", __func__, dev);
-        return -EINVAL;
+    status = pwrmon_do_i2c_sel(dev);
+    if (status < 0) {
+        return status;
     }
 
     /* Save current selected device */
@@ -553,37 +338,11 @@ static int pwrmon_ina230_select(uint8_t dev)
  */
 static uint8_t pwrmon_i2c_addr_get(uint8_t dev, uint8_t rail)
 {
-    switch (dev) {
-    case DEV_SW:
-        if (rail >= VSW_COUNT) {
-            return INVALID_I2C_ADDR;
-        }
-        break;
-    case DEV_APB1:
-    case DEV_APB2:
-    case DEV_APB3:
-        if (rail >= VAPB_COUNT) {
-            return INVALID_I2C_ADDR;
-        }
-        break;
-    case DEV_GPB1:
-    case DEV_GPB2:
-        if (rail >= VGPB_COUNT) {
-            return INVALID_I2C_ADDR;
-        }
-        break;
-#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
-    case DEV_SVC:
-        if (rail >= SVC_COUNT) {
-            return INVALID_I2C_ADDR;
-        }
-        break;
-#endif
-    default:
-        return INVALID_I2C_ADDR;
+    if (dev >= pwrmon_num_devs || rail >= pwrmon_devs[dev].num_rails) {
+        return -EINVAL;
     }
 
-    return pwrmon_i2c_addr[rail][dev];
+    return pwrmon_devs[dev].rails[rail].i2c_addr;
 }
 
 /**
@@ -593,31 +352,11 @@ static uint8_t pwrmon_i2c_addr_get(uint8_t dev, uint8_t rail)
  */
 int pwrmon_dev_rail_count(uint8_t dev)
 {
-    int rcount;
-
-    switch (dev) {
-    case DEV_SW:
-        rcount = VSW_COUNT;
-        break;
-    case DEV_APB1:
-    case DEV_APB2:
-    case DEV_APB3:
-        rcount = VAPB_COUNT;
-        break;
-    case DEV_GPB1:
-    case DEV_GPB2:
-        rcount = VGPB_COUNT;
-        break;
-#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
-    case DEV_SVC:
-        rcount = SVC_COUNT;
-        break;
-#endif
-    default:
-        rcount = -EINVAL;
+    if (dev >= pwrmon_num_devs) {
+        return -ENODEV;
     }
 
-    return rcount;
+    return pwrmon_devs[dev].num_rails;
 }
 
 /**
@@ -657,17 +396,7 @@ int pwrmon_init(uint32_t current_lsb_uA,
 
     current_dev = -1;
 
-    /*
-     * Setup I/O selection pins on U135
-     *
-     * Note: U135 is registered to gpio_chip from the board code
-     */
-    gpio_direction_out(I2C_INA230_SEL1_A, 1);
-    gpio_direction_out(I2C_INA230_SEL1_B, 1);
-    gpio_direction_out(I2C_INA230_SEL1_INH, 1);
-    gpio_direction_out(I2C_INA230_SEL2_A, 1);
-    gpio_direction_out(I2C_INA230_SEL2_B, 1);
-    gpio_direction_out(I2C_INA230_SEL2_INH, 1);
+    pwrmon_init_i2c_sel();
 
     dbg_verbose("%s(): done.\n", __func__);
 
@@ -680,12 +409,7 @@ int pwrmon_init(uint32_t current_lsb_uA,
  */
 void pwrmon_deinit(void)
 {
-    gpio_set_value(I2C_INA230_SEL1_A, 1);
-    gpio_set_value(I2C_INA230_SEL1_B, 1);
-    gpio_set_value(I2C_INA230_SEL1_INH, 1);
-    gpio_set_value(I2C_INA230_SEL2_A, 1);
-    gpio_set_value(I2C_INA230_SEL2_B, 1);
-    gpio_set_value(I2C_INA230_SEL2_INH, 1);
+    pwrmon_reset_i2c_sel();
 
     /* Release I2C resource */
     up_i2cuninitialize(i2c_dev);
@@ -719,7 +443,7 @@ pwrmon_rail *pwrmon_init_rail(uint8_t dev, uint8_t rail)
     uint8_t addr;
     int ret;
 
-    if (dev > DEV_COUNT) {
+    if (dev >= pwrmon_num_devs) {
         dbg_error("%s(): invalid dev! (%hhu)\n", __func__, dev);
         goto pwrmon_init_device_end;
     }
@@ -855,27 +579,4 @@ int pwrmon_measure_rail(pwrmon_rail *pwrmon_r, ina230_sample *m)
     }
 
     return ret;
-}
-
-static struct pwrmon_dev_ctx *pwrmon_devs = NULL;
-static size_t pwrmon_num_devs = 0;
-
-int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs)
-{
-    if (pwrmon_devs != NULL)
-        return -EBUSY;
-
-    if (num_devs == 0 || devs == NULL)
-        return -EINVAL;
-
-    pwrmon_devs = devs;
-    pwrmon_num_devs = num_devs;
-
-    return 0;
-}
-
-void pwrmon_unregister_devs(void)
-{
-    pwrmon_devs = NULL;
-    pwrmon_num_devs = 0;
 }
