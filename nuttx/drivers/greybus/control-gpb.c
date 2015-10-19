@@ -211,16 +211,20 @@ static uint8_t gb_control_get_ids(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->unipro_mfg_id = CONFIG_UNIPRO_MFG_ID;
-    response->unipro_prod_id = CONFIG_UNIPRO_PROD_ID;
-    response->ara_vend_id = CONFIG_ARA_VEND_ID;
-    response->ara_prod_id = CONFIG_ARA_PROD_ID;
     response->fw_version =
             cpu_to_le32(CONFIG_VERSION_MAJOR << 16 | CONFIG_VERSION_MINOR);
 
 #ifdef CONFIG_ARCH_UID
     /* Populate the UID from the microprocessor */
     up_getuid(&response->uid_high, &response->uid_low);
+#endif
+
+#ifdef CONFIG_ARCH_CHIPID
+    up_getchipid(&response->unipro_mfg_id, &response->unipro_prod_id);
+#endif
+
+#ifdef CONFIG_ARCH_BOARDID
+    up_getboardid(&response->ara_vend_id, &response->ara_prod_id);
 #endif
 
     return GB_OP_SUCCESS;
