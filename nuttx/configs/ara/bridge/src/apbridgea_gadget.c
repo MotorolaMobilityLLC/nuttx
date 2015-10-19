@@ -1227,6 +1227,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
     uint16_t index;
     uint16_t len;
     int ret = -EOPNOTSUPP;
+    bool do_not_send_response = false;
 
 #ifdef CONFIG_DEBUG
     if (!driver || !dev || !dev->ep0 || !ctrl) {
@@ -1416,6 +1417,8 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                 } else if (ctrl->req == APBRIDGE_WOREQUEST_CPORT_RESET) {
                     if (!(ctrl->type & USB_DIR_IN)) {
                         ret = reset_cport(index, req, dev->ep0);
+                        if (!ret)
+                            do_not_send_response = true;
                     } else {
                         ret = -EINVAL;
                     }
@@ -1459,7 +1462,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
      * value (ret < 0), the USB driver will stall.
      */
 
-    if (ret >= 0) {
+    if (ret >= 0 && !do_not_send_response) {
         req->len = min(len, ret);
         req->flags = USBDEV_REQFLAGS_NULLPKT;
         ret = EP_SUBMIT(dev->ep0, req);
