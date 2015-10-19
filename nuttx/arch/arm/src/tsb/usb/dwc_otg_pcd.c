@@ -2480,7 +2480,7 @@ static void dwc_otg_pcd_ep_resume(dwc_otg_pcd_ep_t *ep)
 	dwc_ep_t *dwc_ep = &ep->dwc_ep;
 	depctl.b.epena = 1;
 	depctl.b.cnak = 1;
-	DWC_MODIFY_REG32(&GET_CORE_IF(pcd)->dev_if->in_ep_regs[dwc_ep->num]->diepctl, 0, depctl.d32);
+	DWC_MODIFY_REG32(&GET_CORE_IF(pcd)->dev_if->out_ep_regs[dwc_ep->num]->doepctl, 0, depctl.d32);
 
 }
 
