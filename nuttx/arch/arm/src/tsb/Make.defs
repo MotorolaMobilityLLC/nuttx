@@ -150,3 +150,14 @@ ifeq ($(CONFIG_ARCH_CHIP_DEVICE_HID), y)
 CHIP_CSRCS += tsb_hid_dummy_touch.c
 endif
 
+ifeq ($(CONFIG_ARCH_UID),y)
+CHIP_CSRCS += tsb_getuid.c
+endif
+
+ifeq ($(CONFIG_ARCH_CHIPID),y)
+CHIP_CSRCS += tsb_getchipid.c
+endif
+
+ifeq ($(CONFIG_ARCH_BOARDID),y)
+CHIP_CSRCS += tsb_getboardid.c
+endif
