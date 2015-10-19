@@ -49,15 +49,15 @@ int power_main(int argc, char *argv[])
     struct interface *iface;
 
     if (argc < 2) {
-        printk("Power: Usage:\n");
-        printk("  power p [interface_nr 0/1]  : get/set interface power\n");
-        printk("  power v                     : validate Wake&Detect inputs\n");
-        printk("  power w interface_nr 0/1    : pulse/assert WAKEOUT\n");
-        printk("\n interface_nr is defined as:\n");
-        printk("  index\tname\n");
+        printf("Power: Usage:\n");
+        printf("  power p [interface_nr 0/1]  : get/set interface power\n");
+        printf("  power v                     : validate Wake&Detect inputs\n");
+        printf("  power w interface_nr 0/1    : pulse/assert WAKEOUT\n");
+        printf("\n interface_nr is defined as:\n");
+        printf("  index\tname\n");
 
         interface_foreach(iface, i) {
-            printk("  %02d\t%s\n", i, iface->name);
+            printf("  %02d\t%s\n", i, iface->name);
         }
         return ERROR;
     } else {
@@ -69,7 +69,7 @@ int power_main(int argc, char *argv[])
         if (argc == 2) {
             /* Get the power states */
             interface_foreach(iface, i) {
-                printk("Power: Interface(%02d) %s state = %d\n",
+                printf("Power: Interface(%02d) %s state = %d\n",
                        i,
                        iface->name,
                        interface_get_pwr_state(iface));
@@ -85,14 +85,14 @@ int power_main(int argc, char *argv[])
             if (!iface)
                 break;
 
-            printk("Power: set interface(%02d) %s state to %d\n",
+            printf("Power: set interface(%02d) %s state to %d\n",
                    int_nr, iface->name, state);
 
             return state ? interface_pwr_enable(iface) :
                            interface_pwr_disable(iface);
         }
 
-        printk("Power: wrong command\n");
+        printf("Power: wrong command\n");
         return ERROR;
 
     case 'v':
@@ -101,7 +101,7 @@ int power_main(int argc, char *argv[])
 
     case 'w':
         if (argc == 2) {
-            printk("Power: please provide an interface_nr and assert values\n");
+            printf("Power: please provide an interface_nr and assert values\n");
             return ERROR;
         }
         if (argc >= 4) {
@@ -113,17 +113,17 @@ int power_main(int argc, char *argv[])
             if (!iface)
                 break;
 
-            printk("Power: %s WAKEOUT on interface(%02d) %s\n",
+            printf("Power: %s WAKEOUT on interface(%02d) %s\n",
                    state ? "assert" : "pulse", int_nr, iface->name);
 
             return interface_generate_wakeout(iface, state);
         }
 
-        printk("Power: wrong command\n");
+        printf("Power: wrong command\n");
         return ERROR;
 
     default:
-        printk("Power: wrong command\n");
+        printf("Power: wrong command\n");
         return ERROR;
     }
 

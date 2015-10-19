@@ -81,36 +81,36 @@ static const struct command commands[] = {
 
 static void usage(int exit_status) {
     int i;
-    printk("svc: usage:\n");
+    printf("svc: usage:\n");
     for (i = 0; i < MAX_CMD; i++) {
-        printk("    svc [%c|%s] : %s\n",
+        printf("    svc [%c|%s] : %s\n",
                commands[i].shortc, commands[i].longc, commands[i].help);
     }
     exit(exit_status);
 }
 
 static void link_test_usage(int exit_status) {
-    printk("svc %s: usage:\n", commands[LINKTEST].longc);
-    printk("    -h: print this message and exit\n");
-    printk("\n");
-    printk("Options for testing a single port:\n");
-    printk("    -p <port>   : Port to test, starting from 0.\n");
-    printk("    -i <interface>: Interface to read attribute on (e.g. \"apb1\", etc.)\n");
-    printk("                    If set, overrides -p.\n");
-    printk("    -m <mode>   : UniPro power mode to set <port> to.\n"
+    printf("svc %s: usage:\n", commands[LINKTEST].longc);
+    printf("    -h: print this message and exit\n");
+    printf("\n");
+    printf("Options for testing a single port:\n");
+    printf("    -p <port>   : Port to test, starting from 0.\n");
+    printf("    -i <interface>: Interface to read attribute on (e.g. \"apb1\", etc.)\n");
+    printf("                    If set, overrides -p.\n");
+    printf("    -m <mode>   : UniPro power mode to set <port> to.\n"
            "                  One of \"hs\" or \"pwm\"; defaults to \"hs\".\n");
-    printk("    -g <gear>   : pwm or hs gear. For pwm, <gear> is from 1-7.\n"
+    printf("    -g <gear>   : pwm or hs gear. For pwm, <gear> is from 1-7.\n"
            "                  For hs, <gear> is from 1-3. Default is 1.\n");
-    printk("    -l <lanes>  : Number of lanes for TX/RX. Default is 2.\n");
-    printk("    -a          : Use \"auto\" <mode> variant. This alternates\n"
+    printf("    -l <lanes>  : Number of lanes for TX/RX. Default is 2.\n");
+    printf("    -a          : Use \"auto\" <mode> variant. This alternates\n"
            "                  the link between BURST and SLEEP M-PHY states.\n"
            "                  If not given, the default is non-auto.\n");
-    printk("    -s <series> : M-PHY high speed RATE series (\"A\" or \"B\")\n"
+    printf("    -s <series> : M-PHY high speed RATE series (\"A\" or \"B\")\n"
            "                  to use. If not given, the default is to\n"
            "                  leave this unchanged.\n");
-    printk("\n");
-    printk("Options for testing all builtin ports:\n");
-    printk("    -t       : \"Torture test\": test all builtin ports, with\n"
+    printf("\n");
+    printf("Options for testing all builtin ports:\n");
+    printf("    -t       : \"Torture test\": test all builtin ports, with\n"
            "               various mode, gear, and \"auto\" mode settings.\n"
            "               The output details the test parameters.\n"
            "               If set, other options are ignored.\n");
@@ -210,20 +210,20 @@ static int link_test_torture(unsigned int nlanes) {
     memset(fail_pwm, 0, sizeof(fail_pwm));
     memset(ok_pwm, 0, sizeof(ok_pwm));
 
-    printk("========================================\n");
-    printk("Starting link power mode test. Test parameters:\n");
-    printk("\t%d trials per power mode.\n", trials_per_test);
-    printk("\t%d lanes used for each trial.\n", nlanes);
+    printf("========================================\n");
+    printf("Starting link power mode test. Test parameters:\n");
+    printf("\t%d trials per power mode.\n", trials_per_test);
+    printf("\t%d lanes used for each trial.\n", nlanes);
     if (pwm_maxgear >= 1) {
-        printk("\tPWM gears 1-%d tested.\n", pwm_maxgear);
+        printf("\tPWM gears 1-%d tested.\n", pwm_maxgear);
     } else {
-        printk("\tPWM gears not tested.\n");
+        printf("\tPWM gears not tested.\n");
     }
     if (hs_maxgear >= 1) {
-        printk("\tHS gears 1-%d tested.\n", hs_maxgear);
-        printk("\tHS series A and B tested.\n");
+        printf("\tHS gears 1-%d tested.\n", hs_maxgear);
+        printf("\tHS series A and B tested.\n");
     } else {
-        printk("\tHS gears not tested.\n");
+        printf("\tHS gears not tested.\n");
     }
     interface_foreach(iface, i) {
         int a, g, t, rc2 = 0;
@@ -233,14 +233,14 @@ static int link_test_torture(unsigned int nlanes) {
             continue;
         }
 
-        printk("Testing interface %s, port %u\n", iface->name, port);
+        printf("Testing interface %s, port %u\n", iface->name, port);
         if (pwm_maxgear > 1) {
-            printk("\tTesting PWM gears:");
+            printf("\tTesting PWM gears:");
         }
         for (g = 1; g <= pwm_maxgear; g++) {
             for (a = 0; a <= 1; a++) {
                 unsigned int flags = a ? UNIPRO_LINK_CFGF_AUTO : 0;
-                printk(" %sPWM-G%u...", a ? "Auto-" : "", g);
+                printf(" %sPWM-G%u...", a ? "Auto-" : "", g);
                 for (t = 0; t < trials_per_test; t++) {
                     rc2 = link_test_port(port, 0, g, nlanes, flags,
                                          UNIPRO_HS_SERIES_UNCHANGED);
@@ -251,21 +251,21 @@ static int link_test_torture(unsigned int nlanes) {
                         ok_pwm[port][g-1][a]++;
                     }
                 }
-                printk("fail=%d/OK=%d",
+                printf("fail=%d/OK=%d",
                        fail_pwm[port][g-1][a], ok_pwm[port][g-1][a]);
             }
         }
         if (pwm_maxgear > 1) {
-            printk("\n");
+            printf("\n");
         }
 
         if (hs_maxgear > 1) {
-            printk("\tTesting HS gears:");
+            printf("\tTesting HS gears:");
         }
         for (g = 1; g <= hs_maxgear; g++) {
             for (a = 0; a <= 1; a++) {
                 unsigned int flags = a ? UNIPRO_LINK_CFGF_AUTO : 0;
-                printk(" %sHS-G%u-A...", a ? "Auto-" : "", g);
+                printf(" %sHS-G%u-A...", a ? "Auto-" : "", g);
                 for (t = 0; t < trials_per_test; t++) {
                     rc2 = link_test_port(port, 1, g, nlanes, flags,
                                          UNIPRO_HS_SERIES_A);
@@ -276,10 +276,10 @@ static int link_test_torture(unsigned int nlanes) {
                         ok_hs[port][g-1][a][0]++;
                     }
                 }
-                printk("fail=%d/OK=%d",
+                printf("fail=%d/OK=%d",
                        fail_hs[port][g-1][a][0], ok_hs[port][g-1][a][0]);
 
-                printk(" %sHS-G%u-B...", a ? "Auto-" : "", g);
+                printf(" %sHS-G%u-B...", a ? "Auto-" : "", g);
                 for (t = 0; t < trials_per_test; t++) {
                     rc2 = link_test_port(port, 1, g, nlanes, flags,
                                          UNIPRO_HS_SERIES_B);
@@ -290,17 +290,17 @@ static int link_test_torture(unsigned int nlanes) {
                         ok_hs[port][g-1][a][1]++;
                     }
                 }
-                printk("fail=%d/OK=%d",
+                printf("fail=%d/OK=%d",
                        fail_hs[port][g-1][a][1], ok_hs[port][g-1][a][1]);
 
             }
         }
         if (hs_maxgear > 1) {
-            printk("\n");
+            printf("\n");
         }
     }
 
-    printk("Finished power mode test. Results:\n");
+    printf("Finished power mode test. Results:\n");
     interface_foreach(iface, i) {
         unsigned int port = iface->switch_portid;
 
@@ -308,11 +308,11 @@ static int link_test_torture(unsigned int nlanes) {
             continue;
         }
 
-        printk("-----------------------------------------------------------\n");
-        printk("Interface %s, port %u\n", iface->name, port);
-        printk("            Gear:        1       2       3       4       5       6       7\n");
-        printk("                   ------- ------- ------- ------- ------- ------- -------\n");
-        printk("      PWM fail/OK: %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d\n",
+        printf("-----------------------------------------------------------\n");
+        printf("Interface %s, port %u\n", iface->name, port);
+        printf("            Gear:        1       2       3       4       5       6       7\n");
+        printf("                   ------- ------- ------- ------- ------- ------- -------\n");
+        printf("      PWM fail/OK: %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d\n",
                fail_pwm[port][0][0], ok_pwm[port][0][0],
                fail_pwm[port][1][0], ok_pwm[port][1][0],
                fail_pwm[port][2][0], ok_pwm[port][2][0],
@@ -320,7 +320,7 @@ static int link_test_torture(unsigned int nlanes) {
                fail_pwm[port][4][0], ok_pwm[port][4][0],
                fail_pwm[port][5][0], ok_pwm[port][5][0],
                fail_pwm[port][6][0], ok_pwm[port][6][0]);
-        printk(" Auto PWM fail/OK: %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d\n",
+        printf(" Auto PWM fail/OK: %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d %03d/%03d\n",
                fail_pwm[port][0][1], ok_pwm[port][0][1],
                fail_pwm[port][1][1], ok_pwm[port][1][1],
                fail_pwm[port][2][1], ok_pwm[port][2][1],
@@ -328,19 +328,19 @@ static int link_test_torture(unsigned int nlanes) {
                fail_pwm[port][4][1], ok_pwm[port][4][1],
                fail_pwm[port][5][1], ok_pwm[port][5][1],
                fail_pwm[port][6][1], ok_pwm[port][6][1]);
-        printk("     HS-A fail/OK: %03d/%03d %03d/%03d %03d/%03d\n",
+        printf("     HS-A fail/OK: %03d/%03d %03d/%03d %03d/%03d\n",
                fail_hs[port][0][0][0], ok_hs[port][0][0][0],
                fail_hs[port][1][0][0], ok_hs[port][1][0][0],
                fail_hs[port][2][0][0], ok_hs[port][2][0][0]);
-        printk("Auto HS-A fail/OK: %03d/%03d %03d/%03d %03d/%03d\n",
+        printf("Auto HS-A fail/OK: %03d/%03d %03d/%03d %03d/%03d\n",
                fail_hs[port][0][1][0], ok_hs[port][0][1][0],
                fail_hs[port][1][1][0], ok_hs[port][1][1][0],
                fail_hs[port][2][1][0], ok_hs[port][2][1][0]);
-        printk("     HS-B fail/OK: %03d/%03d %03d/%03d %03d/%03d\n",
+        printf("     HS-B fail/OK: %03d/%03d %03d/%03d %03d/%03d\n",
                fail_hs[port][0][0][1], ok_hs[port][0][0][1],
                fail_hs[port][1][0][1], ok_hs[port][1][0][1],
                fail_hs[port][2][0][1], ok_hs[port][2][0][1]);
-        printk("Auto HS-B fail/OK: %03d/%03d %03d/%03d %03d/%03d\n",
+        printf("Auto HS-B fail/OK: %03d/%03d %03d/%03d %03d/%03d\n",
                fail_hs[port][0][1][1], ok_hs[port][0][1][1],
                fail_hs[port][1][1][1], ok_hs[port][1][1][1],
                fail_hs[port][2][1][1], ok_hs[port][2][1][1]);
@@ -386,7 +386,7 @@ static int link_test(int argc, char *argv[]) {
             } else if (!strcmp(optarg, "PWM") || !strcmp(optarg, "pwm")) {
                 hs = 0;
             } else {
-                printk("Unknown mode %s, must be \"hs\" or \"pwm\"\n.",
+                printf("Unknown mode %s, must be \"hs\" or \"pwm\"\n.",
                        optarg);
                 link_test_usage(EXIT_FAILURE);
             }
@@ -409,7 +409,7 @@ static int link_test(int argc, char *argv[]) {
             } else if (!strcmp(optarg, "B") || !strcmp(optarg, "b")) {
                 series = UNIPRO_HS_SERIES_B;
             } else {
-                printk("Unknown rate series %s, must be \"A\" or \"B\".\n",
+                printf("Unknown rate series %s, must be \"A\" or \"B\".\n",
                        optarg);
                 link_test_usage(EXIT_FAILURE);
             }
@@ -426,17 +426,17 @@ static int link_test(int argc, char *argv[]) {
         if (iface) {
             port = iface->switch_portid;
         } else {
-            printk("Invalid interface %s\n", iface_name);
+            printf("Invalid interface %s\n", iface_name);
             link_test_usage(EXIT_FAILURE);
         }
     }
 
     if (port == -1 && !torture) {
-        printk("Must specify one of -p or -t.\n");
+        printf("Must specify one of -p or -t.\n");
         link_test_usage(EXIT_FAILURE);
     }
     if (nlanes <= 0) {
-        printk("Number of lanes %d must be positive.\n", nlanes);
+        printf("Number of lanes %d must be positive.\n", nlanes);
         link_test_usage(EXIT_FAILURE);
     }
 
@@ -444,17 +444,17 @@ static int link_test(int argc, char *argv[]) {
         rc = link_test_torture((unsigned int)nlanes);
     } else {
         if (port < 0 || port > SWITCH_PORT_MAX) {
-            printk("Invalid port %d, must be between %d and %d.\n",
+            printf("Invalid port %d, must be between %d and %d.\n",
                    port, 0, SWITCH_PORT_MAX - 1);
             link_test_usage(EXIT_FAILURE);
         }
         if (gear < 0 || (hs && gear > HS_GEAR_MAX) || gear > PWM_GEAR_MAX) {
-            printk("Invalid gear %d.\n", gear);
+            printf("Invalid gear %d.\n", gear);
             link_test_usage(EXIT_FAILURE);
         }
         if (nlanes < 0 || nlanes > PA_CONN_RX_DATA_LANES_NR ||
             nlanes > PA_CONN_RX_DATA_LANES_NR) {
-            printk("Invalid number of lanes %d.\n", nlanes);
+            printf("Invalid number of lanes %d.\n", nlanes);
             link_test_usage(EXIT_FAILURE);
         }
         rc = link_test_port_v((uint8_t)port, hs, (unsigned int)gear,
@@ -475,14 +475,14 @@ static int link_status(int argc, char *argv[]) {
     }
 
     if (argc != 2) {
-        printk("Ignoring unexpected arguments.\n");
+        printf("Ignoring unexpected arguments.\n");
     }
 
     rc = switch_internal_getattr(sw, SWSTA, &link_status);
     if (rc) {
-        printk("Error: could not read link status: %d.\n", rc);
+        printf("Error: could not read link status: %d.\n", rc);
     } else {
-        printk("Link status: 0x%x\n", link_status);
+        printf("Link status: 0x%x\n", link_status);
     }
     return rc;
 }
@@ -498,46 +498,46 @@ static int dump_routing_table(int argc, char *argv[])
 
     rc = switch_dump_routing_table(sw);
     if (rc) {
-        printk("Error: could not dump Switch routing table: %d.\n", rc);
+        printf("Error: could not dump Switch routing table: %d.\n", rc);
     }
 
     return rc;
 }
 
 static void dme_io_usage(void) {
-    printk("svc %s <r|w> [options]: usage:\n", commands[DME_IO].longc);
-    printk("    Common options:\n");
-    printk("        -h: print this message and exit\n");
-    printk("\n");
-    printk("    Options for reading an attribute or group of attributes:\n");
-    printk("    svc %s r [-a <attrs>] [-s <sel>] [-i <interface>] [-p <port>] [-P]:\n",
+    printf("svc %s <r|w> [options]: usage:\n", commands[DME_IO].longc);
+    printf("    Common options:\n");
+    printf("        -h: print this message and exit\n");
+    printf("\n");
+    printf("    Options for reading an attribute or group of attributes:\n");
+    printf("    svc %s r [-a <attrs>] [-s <sel>] [-i <interface>] [-p <port>] [-P]:\n",
            commands[DME_IO].longc);
-    printk("\n");
-    printk("        -a <attrs>: attribute (in hexadecimal) to read, or one of:\n");
-    printk("                      \"L1\" (PHY layer),\n");
-    printk("                      \"L1.5\" (PHY adapter layer),\n");
-    printk("                      \"L2\" (link layer),\n");
-    printk("                      \"L3\" (network layer),\n");
-    printk("                      \"L4\" (transport layer),\n");
-    printk("                      \"DME\" (DME),\n");
-    printk("                      \"TSB\" (Toshiba-specific attributes),\n");
-    printk("                      \"all\" (all of the above).\n");
-    printk("                    If missing, default is \"all\".\n");
-    printk("                    If <attrs> is \"L4\", -P is implied.\n");
-    printk("        -s <sel>: attribute selector index (default is 0)\n");
-    printk("        -i <interface>: Interface to read attribute on (e.g. \"apb1\", etc.)\n");
-    printk("                        If set, overrides -p.\n");
-    printk("        -p <port>: port to read attribute on (default is 0)\n");
-    printk("        -P: if present, do a peer (instead of switch local) read\n");
-    printk("\n");
-    printk("    Options for writing an attribute:\n");
-    printk("    svc %s w -a <attr> [-s <sel>] [-p <port>] [-P] <value>:\n",
+    printf("\n");
+    printf("        -a <attrs>: attribute (in hexadecimal) to read, or one of:\n");
+    printf("                      \"L1\" (PHY layer),\n");
+    printf("                      \"L1.5\" (PHY adapter layer),\n");
+    printf("                      \"L2\" (link layer),\n");
+    printf("                      \"L3\" (network layer),\n");
+    printf("                      \"L4\" (transport layer),\n");
+    printf("                      \"DME\" (DME),\n");
+    printf("                      \"TSB\" (Toshiba-specific attributes),\n");
+    printf("                      \"all\" (all of the above).\n");
+    printf("                    If missing, default is \"all\".\n");
+    printf("                    If <attrs> is \"L4\", -P is implied.\n");
+    printf("        -s <sel>: attribute selector index (default is 0)\n");
+    printf("        -i <interface>: Interface to read attribute on (e.g. \"apb1\", etc.)\n");
+    printf("                        If set, overrides -p.\n");
+    printf("        -p <port>: port to read attribute on (default is 0)\n");
+    printf("        -P: if present, do a peer (instead of switch local) read\n");
+    printf("\n");
+    printf("    Options for writing an attribute:\n");
+    printf("    svc %s w -a <attr> [-s <sel>] [-p <port>] [-P] <value>:\n",
            commands[DME_IO].longc);
-    printk("\n");
-    printk("        -a <attr>: attribute (in hexadecimal) to write.\n");
-    printk("        -s <sel>: attribute selector index (default is 0)\n");
-    printk("        -p <port>: port to read attribute on (default is 0)\n");
-    printk("        -P: if present, do a peer (instead of switch local) write\n");
+    printf("\n");
+    printf("        -a <attr>: attribute (in hexadecimal) to write.\n");
+    printf("        -s <sel>: attribute selector index (default is 0)\n");
+    printf("        -p <port>: port to read attribute on (default is 0)\n");
+    printf("        -P: if present, do a peer (instead of switch local) write\n");
 }
 
 static int dme_io_dump(struct tsb_switch *sw, uint8_t port,
@@ -554,15 +554,15 @@ static int dme_io_dump(struct tsb_switch *sw, uint8_t port,
 
     if (rc) {
         if (attr_str) {
-            printk("Error: can't read attribute %s (0x%x): %d\n",
+            printf("Error: can't read attribute %s (0x%x): %d\n",
                    attr_str, attr, rc);
         } else {
-            printk("Error: can't read attribute 0x%x: rc=%d\n", attr, rc);
+            printf("Error: can't read attribute 0x%x: rc=%d\n", attr, rc);
         }
         return -EIO;
     }
     if (attr_str) {
-        printk("Port=%d, peer=%s, sel=%d, %s (0x%x) = 0x%x (%u)\n",
+        printf("Port=%d, peer=%s, sel=%d, %s (0x%x) = 0x%x (%u)\n",
                port,
                peer ? "yes" : "no",
                selector,
@@ -571,7 +571,7 @@ static int dme_io_dump(struct tsb_switch *sw, uint8_t port,
                val,
                val);
     } else {
-        printk("Port=%d, peer=%s, sel=%d, 0x%x = 0x%x (%u)\n",
+        printf("Port=%d, peer=%s, sel=%d, 0x%x = 0x%x (%u)\n",
                port,
                peer ? "yes" : "no",
                selector,
@@ -595,16 +595,16 @@ static int dme_io_set(struct tsb_switch *sw, uint8_t port,
 
     if (rc) {
         if (attr_str) {
-            printk("Error: can't set attribute %s (0x%x): rc=%d\n",
+            printf("Error: can't set attribute %s (0x%x): rc=%d\n",
                    attr_str, attr, rc);
         } else {
-            printk("Error: can't set attribute 0x%x: rc=%d\n",
+            printf("Error: can't set attribute 0x%x: rc=%d\n",
                    attr, rc);
         }
         return -EIO;
     }
     if (attr_str) {
-        printk("Port=%d, peer=%s, sel=%d, set %s (0x%x) = 0x%x (%u)\n",
+        printf("Port=%d, peer=%s, sel=%d, set %s (0x%x) = 0x%x (%u)\n",
                port,
                peer ? "yes" : "no",
                selector,
@@ -613,7 +613,7 @@ static int dme_io_set(struct tsb_switch *sw, uint8_t port,
                val,
                val);
     } else {
-        printk("Port=%d, peer=%s, sel=%d, set 0x%x = 0x%x (%u)\n",
+        printf("Port=%d, peer=%s, sel=%d, set 0x%x = 0x%x (%u)\n",
                port,
                peer ? "yes" : "no",
                selector,
@@ -649,7 +649,7 @@ static int dme_io(int argc, char *argv[]) {
     }
 
     if (argc <= 2) {
-        printk("BUG: invalid argument specification.\n");
+        printf("BUG: invalid argument specification.\n");
         return -EINVAL;
     }
 
@@ -664,7 +664,7 @@ static int dme_io(int argc, char *argv[]) {
         dme_io_usage();
         return EXIT_SUCCESS;
     } else {
-        printk("Must specify \"r\" or \"w\".\n\n");
+        printf("Must specify \"r\" or \"w\".\n\n");
         dme_io_usage();
         return EXIT_FAILURE;
     }
@@ -699,7 +699,7 @@ static int dme_io(int argc, char *argv[]) {
                 end = NULL;
                 attr = strtoul(optarg, &end, 16);
                 if (*end) {
-                    printk("-a %s invalid: must be one of: \"all\", \"L1\", "
+                    printf("-a %s invalid: must be one of: \"all\", \"L1\", "
                            "\"L2\", \"L3\", \"L4\", \"DME\", or a hexadecimal "
                            "attribute\n\n", optarg);
                     dme_io_usage();
@@ -713,7 +713,7 @@ static int dme_io(int argc, char *argv[]) {
             end = NULL;
             selector = strtoul(optarg, &end, 10);
             if (*end) {
-                printk("-s %s invalid: must specify a decimal selector "
+                printf("-s %s invalid: must specify a decimal selector "
                        "index\n\n", optarg);
                 dme_io_usage();
                 return EXIT_FAILURE;
@@ -726,7 +726,7 @@ static int dme_io(int argc, char *argv[]) {
             end = NULL;
             port = strtoul(optarg, &end, 10);
             if (*end) {
-                printk("-p %s invalid: must specify a decimal port", optarg);
+                printf("-p %s invalid: must specify a decimal port", optarg);
                 dme_io_usage();
                 return EXIT_FAILURE;
             }
@@ -739,7 +739,7 @@ static int dme_io(int argc, char *argv[]) {
             return EXIT_SUCCESS;
         default:
         case '?':
-            printk("Unrecognized argument.\n");
+            printf("Unrecognized argument.\n");
             dme_io_usage();
             return EXIT_FAILURE;
         }
@@ -752,35 +752,35 @@ static int dme_io(int argc, char *argv[]) {
         if (read) {
             which_attrs = ALL;
         } else if (which_attrs != ONE) {
-            printk("Must specify -a with attribute when writing.\n");
+            printf("Must specify -a with attribute when writing.\n");
             return EXIT_FAILURE;
         }
     }
     if (which_attrs != ONE && !read) {
-        printk("Only one attribute can be written at a time.\n\n");
+        printf("Only one attribute can be written at a time.\n\n");
         dme_io_usage();
         return EXIT_FAILURE;
     }
     if (which_attrs == L4 && !peer) {
-        printk("No L4 attributes on switch ports (missing -P?).\n\n");
+        printf("No L4 attributes on switch ports (missing -P?).\n\n");
         dme_io_usage();
         return EXIT_FAILURE;
     }
     if (!read) {
         if (!attr_set) {
-            printk("Must specify -a when writing.\n\n");
+            printf("Must specify -a when writing.\n\n");
             dme_io_usage();
             return EXIT_FAILURE;
         }
         if (optind >= argc) {
-            printk("Must specify value to write.\n\n");
+            printf("Must specify value to write.\n\n");
             dme_io_usage();
             return EXIT_FAILURE;
         } else {
             end = NULL;
             val = strtoul(args[optind], &end, 10);
             if (*end) {
-                printk("Invalid value to write: %s.\n\n", args[optind]);
+                printf("Invalid value to write: %s.\n\n", args[optind]);
                 dme_io_usage();
                 return EXIT_FAILURE;
             }
@@ -791,7 +791,7 @@ static int dme_io(int argc, char *argv[]) {
     if (iface_name) {
         struct interface *iface = interface_get_by_name(iface_name);
         if (!iface) {
-            printk("Invalid interface: %s\n", iface_name);
+            printf("Invalid interface: %s\n", iface_name);
             return EXIT_FAILURE;
         }
         port = iface->switch_portid;
@@ -856,7 +856,7 @@ static int dme_io(int argc, char *argv[]) {
             break;
         default:
         case NONE:
-            printk("BUG: %s: can't happen.\n", __func__);
+            printf("BUG: %s: can't happen.\n", __func__);
             return EXIT_FAILURE;
         }
         for (i = 0; i < n_attr_name_groups; i++) {
@@ -879,16 +879,16 @@ static int dme_io(int argc, char *argv[]) {
 }
 
 static void test_feature_usage(int exit_status) {
-    printk("    svc %s <i|e> [-s <src_iface>] [-f <from_cport>] [-d <dst_iface>] [-t <to_cport>] [-m <size>]\n",
+    printf("    svc %s <i|e> [-s <src_iface>] [-f <from_cport>] [-d <dst_iface>] [-t <to_cport>] [-m <size>]\n",
            commands[TESTFEATURE].longc);
-    printk("\n");
-    printk("    <i|e>: Initialize (start) or Exit (stop) the UniPro test-traffic feature\n");
-    printk("    -h: print this message and exit\n");
-    printk("    -s <src_iface>: Source UniPro interface for test traffic. Default is \"apb1\"\n");
-    printk("    -f <from_cport>: Source CPort for test traffic on src_iface. Default is 0.\n");
-    printk("    -d <dst_iface>: Dest UniPro interface for test traffic. Default is \"apb2\"\n");
-    printk("    -t <to_cport>: Dest CPort for test traffic on dst_iface. Default is 0.\n");
-    printk("    -m <size>: message size. Default is 272.\n");
+    printf("\n");
+    printf("    <i|e>: Initialize (start) or Exit (stop) the UniPro test-traffic feature\n");
+    printf("    -h: print this message and exit\n");
+    printf("    -s <src_iface>: Source UniPro interface for test traffic. Default is \"apb1\"\n");
+    printf("    -f <from_cport>: Source CPort for test traffic on src_iface. Default is 0.\n");
+    printf("    -d <dst_iface>: Dest UniPro interface for test traffic. Default is \"apb2\"\n");
+    printf("    -t <to_cport>: Dest CPort for test traffic on dst_iface. Default is 0.\n");
+    printf("    -m <size>: message size. Default is 272.\n");
     exit(exit_status);
 }
 
@@ -912,7 +912,7 @@ static int test_feature(int argc, char* argv[]) {
     }
 
     if (argc < 3 || strlen(argv[2]) > 1) {
-        printk("svc %s: First argument must be 'i' or 'e'.\n", longc);
+        printf("svc %s: First argument must be 'i' or 'e'.\n", longc);
         test_feature_usage(EXIT_FAILURE);
     }
 
@@ -924,7 +924,7 @@ static int test_feature(int argc, char* argv[]) {
         init = false;
         break;
     default:
-        printk("svc %s: first argument must be 'i' or 'e'.\n", longc);
+        printf("svc %s: first argument must be 'i' or 'e'.\n", longc);
         test_feature_usage(EXIT_FAILURE);
     }
 
@@ -960,14 +960,14 @@ static int test_feature(int argc, char* argv[]) {
 
     src_iface = interface_get_by_name(src_iface_name);
     if (!src_iface) {
-        printk("svc %s: nonexistent source interface %s.\n",
+        printf("svc %s: nonexistent source interface %s.\n",
                longc, src_iface_name);
         test_feature_usage(EXIT_FAILURE);
     }
 
     dst_iface = interface_get_by_name(dst_iface_name);
     if (!dst_iface) {
-        printk("svc %s: nonexistent destination interface %s.\n",
+        printf("svc %s: nonexistent destination interface %s.\n",
                longc, dst_iface_name);
         test_feature_usage(EXIT_FAILURE);
     }
@@ -979,7 +979,7 @@ static int test_feature(int argc, char* argv[]) {
     src_devid = src_iface->switch_portid + 1;
     rc = switch_if_dev_id_set(sw, src_iface->switch_portid, src_devid);
     if (rc) {
-        printk("svc testfeature: Failed to assign device id: %u to interface %s: %d\n",
+        printf("svc testfeature: Failed to assign device id: %u to interface %s: %d\n",
                src_devid, src_iface_name, rc);
         test_feature_usage(EXIT_FAILURE);
     }
@@ -987,7 +987,7 @@ static int test_feature(int argc, char* argv[]) {
     dst_devid = dst_iface->switch_portid + 1;
     rc = switch_if_dev_id_set(sw, dst_iface->switch_portid, dst_devid);
     if (rc) {
-        printk("svc testfeature: Failed to assign device id: %u to interface %s: %d\n",
+        printf("svc testfeature: Failed to assign device id: %u to interface %s: %d\n",
                dst_devid, dst_iface_name, rc);
         test_feature_usage(EXIT_FAILURE);
     }
@@ -1010,7 +1010,7 @@ static int test_feature(int argc, char* argv[]) {
                                     CPORT_TC0,
                                     CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N);
         if (rc) {
-            printk("%s(): couldn't connect [n=%s,c=%u]<->[n=%s,c=%u]: %i\n",
+            printf("%s(): couldn't connect [n=%s,c=%u]<->[n=%s,c=%u]: %i\n",
                    __func__, src_iface_name, src_cport, dst_iface_name,
                    dst_cport, rc);
             return rc;
@@ -1021,7 +1021,7 @@ static int test_feature(int argc, char* argv[]) {
                                         dst_iface->switch_portid,
                                         &cfg);
         if (rc) {
-            printk("%s(): couldn't enable test traffic: %d\n", __func__, rc);
+            printf("%s(): couldn't enable test traffic: %d\n", __func__, rc);
             return rc;
         }
     } else {
@@ -1030,7 +1030,7 @@ static int test_feature(int argc, char* argv[]) {
                                          dst_iface->switch_portid,
                                          &cfg);
         if (rc) {
-            printk("%s(): couldn't disable test traffic: %d\n",
+            printf("%s(): couldn't disable test traffic: %d\n",
                    __func__, rc);
             return rc;
         }

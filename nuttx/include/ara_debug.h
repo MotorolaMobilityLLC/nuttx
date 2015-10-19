@@ -43,8 +43,6 @@
 #define DBG_COMP ARADBG_DBG
 #endif
 
-#define printk(format, ...)     syslog(format, ##__VA_ARGS__)
-
 #define DBG_RESCUE_SIZE 64
 
 /* Debug helper macros */
@@ -67,7 +65,7 @@
     do {                                                         \
         if ((dbg_ctrl.comp & DBG_COMP) &&                        \
             (level >= dbg_ctrl.lvl)) {                           \
-            printk("[" xstr(DBG_COMP) "]: " fmt, ##__VA_ARGS__); \
+            printf("[" xstr(DBG_COMP) "]: " fmt, ##__VA_ARGS__); \
         }                                                        \
    } while (0)
 
