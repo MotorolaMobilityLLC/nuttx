@@ -46,6 +46,10 @@
 
 #define TRANSFER_MODE          (2)
 
+#define CPORT_RX_BUF_BASE         (0x20000000U)
+#define CPORT_RX_BUF_SIZE         (CPORT_BUF_SIZE)
+#define CPORT_RX_BUF(cport)       (void*)(CPORT_RX_BUF_BASE + \
+                                      (CPORT_RX_BUF_SIZE * cport))
 struct cport {
     struct unipro_driver *driver;
     uint8_t *tx_buf;                // TX region for this CPort

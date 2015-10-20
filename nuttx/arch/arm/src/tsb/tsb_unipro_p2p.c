@@ -97,7 +97,6 @@ static void unipro_dump_register_index_array(const struct dbg_entry *registers, 
 
 void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination) {
     uint32_t result_code;
-    uint32_t attr_val;
 
     unipro_attr_write(PA_TXGEAR, txgear, 0 /* selector */, 0 /* peer */, &result_code);
     unipro_attr_write(PA_TXTERMINATION, termination, 0 /* selector */, 0 /* peer */, &result_code);
@@ -125,76 +124,120 @@ void unipro_restart(void) {
     unipro_write(LUP_LINKSUP_RESTART, 0x1);
 }
 
+/**
+ * @brief Reset the UniPro hardware block
+ */
 void unipro_reset(void) {
     tsb_reset(TSB_RST_UNIPROSYS);
 }
 
-void unipro_p2p_setup_cport(unsigned int cport, int peer) {
-    const uint32_t cport_flags = 2; /* CPORT_FLAGS_CSD_N | CPORT_FLAGS_CSV_N */
-    const uint32_t traffic_class = 0; /* tc0 */
-    const uint32_t token_value = 0x20;
-    const uint32_t max_segment = 0x118;
-
-    uint32_t rc;
-
-    /* Disable CPORT before making changes */
-    unipro_attr_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport, peer, &rc);
-
-    unipro_attr_write(T_PEERDEVICEID, CONFIG_UNIPRO_REMOTE_DEVICEID, cport, peer, &rc);
-    unipro_attr_write(T_PEERCPORTID, cport, cport, peer, &rc);
-
-    unipro_attr_write(T_TRAFFICCLASS, traffic_class, cport, peer, &rc);
-    unipro_attr_write(T_TXTOKENVALUE, token_value, cport, peer, &rc);
-    unipro_attr_write(T_RXTOKENVALUE, token_value, cport, peer, &rc);
-    unipro_attr_write(T_CPORTFLAGS, cport_flags, cport, peer, &rc);
-
-    unipro_attr_write(T_CPORTMODE, CPORT_MODE_APPLICATION, cport, peer, &rc);
-    unipro_attr_write(T_CREDITSTOSEND, 0, cport, peer, &rc);
-
-    uint32_t val = 0;
-    unipro_attr_read(T_LOCALBUFFERSPACE, &val, cport, 1 /* peer */, &rc);
-    if (val) {
-        unipro_attr_write(T_PEERBUFFERSPACE, val, cport, peer, &rc);
+static int unipro_mbox_enable_cport(uint32_t cport) {
+    int rc = unipro_attr_peer_write(MBOX_ACK_ATTR, TSB_MAIL_RESET, 0 /* selector */, NULL);
+    if (rc) {
+        lldbg("MBOX_ACK_ATTR write failed: %d\n", rc);
+        return rc;
     }
 
-    unipro_attr_write(TSB_MAXSEGMENTCONFIG, max_segment, cport, peer, &rc);
+    rc = unipro_attr_peer_write(TSB_MAILBOX, (cport + 1), 0 /* selector */, NULL);
+    if (rc) {
+        lldbg("TSB_MAILBOX write failed: %d\n", rc);
+        return rc;
+    }
 
-    /* Enable CPORT */
-    unipro_attr_write(T_CONNECTIONSTATE, 1 /* connected */, cport, peer, &rc);
-}
+    uint32_t retries = 2048;
+    uint32_t val;
+    do {
+        rc = unipro_attr_peer_read(MBOX_ACK_ATTR, &val, 0 /* selector */, NULL);
+        if (rc) {
+            lldbg("%s(): MBOX_ACK_ATTR poll failed: %d\n", __func__, rc);
+            return rc;
+        }
+    } while (val != (cport + 1) && --retries > 0);
 
-void unipro_p2p_disconnect_cport(unsigned int cport, int peer) {
-    uint32_t rc;
+    if (!retries) {
+        return -ETIMEDOUT;
+    }
 
-    uint32_t val = 0x3;
-    unipro_write(TX_SW_RESET_00 + cport * sizeof(val), val);
-    unipro_write(RX_SW_RESET_00 + cport * sizeof(val), val);
-
-    unipro_attr_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport, peer, &rc);
-    unipro_attr_write(T_CREDITSTOSEND, 0, cport, peer, &rc);
-
-    unipro_attr_read(T_LOCALBUFFERSPACE, &val, cport, peer, &rc);
-    unipro_attr_write(T_PEERBUFFERSPACE, val, cport, peer, &rc);
-
-    val = 0x0;
-    unipro_write(TX_SW_RESET_00 + cport * sizeof(val), val);
-    unipro_write(RX_SW_RESET_00 + cport * sizeof(val), val);
+    return rc;
 }
 
 void unipro_p2p_setup_connection(unsigned int cport) {
     /* Set-up the L4 attributes */
-    unipro_p2p_setup_cport(cport, 0 /* local */ );
-    unipro_p2p_setup_cport(cport, 1 /* peer */ );
+    const uint32_t cport_flags = CPORT_FLAGS_E2EFC|CPORT_FLAGS_CSD_N|CPORT_FLAGS_CSV_N;
+    const uint32_t traffic_class = CPORT_TC0;
+    const uint32_t token_value = 0x20;
+    const uint32_t max_segment = 0x118;
+    const uint32_t default_buffer_space = 0x240;
 
-    /* Signal to the remote that the cport is ready. */
-    uint32_t rc = tsb_unipro_mbox_set(cport + 1, 1 /* peer */);
-    lldbg("set: rc=%d\n", rc);
+    /* Disable CPORTs before making changes. */
+    unipro_attr_local_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport, NULL);
+    unipro_attr_peer_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport, NULL);
+
+    unipro_attr_local_write(T_PEERDEVICEID, CONFIG_UNIPRO_REMOTE_DEVICEID, cport, NULL);
+    unipro_attr_peer_write(T_PEERDEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, cport, NULL);
+
+    unipro_attr_local_write(T_PEERCPORTID, cport, cport, NULL);
+    unipro_attr_peer_write(T_PEERCPORTID, cport, cport, NULL);
+
+    unipro_attr_local_write(T_TRAFFICCLASS, traffic_class, cport, NULL);
+    unipro_attr_peer_write(T_TRAFFICCLASS, traffic_class, cport, NULL);
+
+    unipro_attr_local_write(T_TXTOKENVALUE, token_value, cport, NULL);
+    unipro_attr_peer_write(T_TXTOKENVALUE, token_value, cport, NULL);
+
+    unipro_attr_local_write(T_RXTOKENVALUE, token_value, cport, NULL);
+    unipro_attr_peer_write(T_RXTOKENVALUE, token_value, cport, NULL);
+
+    unipro_attr_local_write(T_CPORTFLAGS, cport_flags, cport, NULL);
+    unipro_attr_peer_write(T_CPORTFLAGS, cport_flags, cport, NULL);
+
+    unipro_attr_local_write(T_CPORTMODE, CPORT_MODE_APPLICATION, cport, NULL);
+    unipro_attr_peer_write(T_CPORTMODE, CPORT_MODE_APPLICATION, cport, NULL);
+
+    unipro_attr_local_write(T_CREDITSTOSEND, 0, cport, NULL);
+    unipro_attr_peer_write(T_CREDITSTOSEND, 0, cport, NULL);
+
+    /* The local buffer space has to match peer buffer space if E2EFC or CSD is enabled. */
+    uint32_t local = 0;
+    unipro_attr_local_read(T_LOCALBUFFERSPACE, &local, cport, NULL);
+    if (!local) {
+        local = default_buffer_space;
+    }
+
+    uint32_t peer = 0;
+    unipro_attr_peer_read(T_LOCALBUFFERSPACE, &peer, cport, NULL);
+    if (!peer) {
+        peer = default_buffer_space;
+    }
+
+    unipro_attr_local_write(T_PEERBUFFERSPACE, peer, cport, NULL);
+    //unipro_attr_peer_write(T_PEERBUFFERSPACE, local, cport, NULL);
+
+    unipro_attr_local_write(TSB_MAXSEGMENTCONFIG, max_segment, cport, NULL);
+    unipro_attr_peer_write(TSB_MAXSEGMENTCONFIG, max_segment, cport, NULL);
+
+    /* Enable CPORTs. */
+    unipro_attr_local_write(T_CONNECTIONSTATE, 1 /* connected */, cport, NULL);
+    unipro_attr_peer_write(T_CONNECTIONSTATE, 1 /* connected */, cport, NULL);
+
+    /* Configure the local cport's registers. */
+    unipro_enable_cport(cport);
+
+    /* Notify the remote to configure it's cport registers. */
+    unipro_mbox_enable_cport(cport);
 }
 
-void unipro_p2p_setup(void) {
-    uint32_t i;
-    uint32_t rc;
+#if defined(CONFIG_ICE_APBA)
+void unipro_p2p_peer_detected(void) {
+    /* Enable the control cport. */
+    svc_send_event(SVC_EVENT_MOD_DETECTED,
+        (void *)(unsigned int)0,
+        (void *)(unsigned int)0,
+        (void *)(unsigned int)0);
+}
+#endif
 
+void unipro_p2p_setup(void) {
     unipro_write(UNIPRO_INT_EN, 0x0);
     unipro_write(LUP_INT_EN, 0x0);
     unipro_write(A2D_ATTRACS_INT_EN, 0x0);
@@ -207,21 +250,13 @@ void unipro_p2p_setup(void) {
     lldbg("%s", "link up\n");
     unipro_write(LUP_INT_EN, 0x0);
 
-    unipro_attr_write(PA_TXTERMINATION, 1, 0 /* selector */, 1 /* peer */, &rc);
-    unipro_attr_write(PA_RXTERMINATION, 1, 0 /* selector */, 1 /* peer */, &rc);
+    /* Layer 1.5 attributes */
+    unipro_attr_local_write(PA_TXTERMINATION, 1, 0 /* selector */, NULL);
+    unipro_attr_local_write(PA_RXTERMINATION, 1, 0 /* selector */, NULL);
 
-    /* Configure the L4 attributes. */
-    for (i=0; i < unipro_cport_count(); i++) {
-        unipro_p2p_setup_cport(i, 0 /* local */);
-#if defined(CONFIG_ICE_APBA)
-        unipro_p2p_setup_cport(i, 1 /* peer */);
-#endif
-    }
-
-#if defined(CONFIG_ICE_APBA)
-    /* Initiate a powermode change. */
-    unipro_powermode_change(1 /* txgear */, 1 /* rxgear */, PA_PWRMODE_PWM, UNIPRO_HS_SERIES_A, 1 /* termination */);
-#endif
+    /* Layer 3 attributes */
+    unipro_attr_local_write(N_DEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, 0 /* selector */, NULL);
+    unipro_attr_local_write(N_DEVICEID_VALID, 1, 0 /* selector */, NULL);
 }
 
 const static struct dbg_entry LAYER_ATTRIBUTES[] = {

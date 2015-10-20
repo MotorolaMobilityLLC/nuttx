@@ -150,7 +150,6 @@ int tsb_unipro_mbox_send(uint32_t val);
 #define INIT_STATUS_STATUS_MASK                              (0x7f000000)
 #define INIT_STATUS_ERROR_CODE_MASK                          (0x00ffffff)
 
-int tsb_unipro_mbox_get(uint32_t *val, int peer);
 int tsb_unipro_set_init_status(uint32_t val);
 
 #endif
