@@ -49,6 +49,10 @@ ifeq ($(CONFIG_GREYBUS_MODS_I2C),y)
 CSRCS += datalink-i2c.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY),y)
+CSRCS += battery-ptp.c
+endif
+
 # Include Mods build support
 
 DEPPATH += --dep-path greybus$(DELIM)mods

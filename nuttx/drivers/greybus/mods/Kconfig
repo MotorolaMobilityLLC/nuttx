@@ -45,3 +45,35 @@ config GREYBUS_MODS_DESIRED_PKT_SIZE
 		and less than or equal to the maximum supported Greybus packet size.
 		Set to zero to report nothing and remain at the default size.
 endif
+
+config GREYBUS_MODS_PTP_DEVICE_BATTERY
+	bool "PTP device with a battery and optional wireless charging"
+	select BATTERY_STATE
+	default n
+	depends on GREYBUS_PTP && !GREYBUS_PTP_INT_RCV_NEVER && !GREYBUS_PTP_INT_SND_NEVER
+
+if GREYBUS_MODS_PTP_DEVICE_BATTERY
+config GREYBUS_MODS_FULL_CHG_CURRENT
+	int "Full charging current limit in mA"
+	default 1500
+
+config GREYBUS_MODS_FULL_CHG_VOLTAGE
+	int "Full charging voltage limit in mV"
+	default 4200
+
+config GREYBUS_MODS_REDUCED_CHG_CURRENT
+	int "Restricted charging current limit in mA"
+	default 1000
+
+config GREYBUS_MODS_REDUCED_CHG_VOLTAGE
+	int "Restricted charging voltage limit in mV"
+	default 4000
+
+config GREYBUS_MODS_INPUT_CURRENT
+	int "Input current limit in mA"
+	default 1500
+
+config GREYBUS_MODS_INPUT_VOLTAGE
+	int "Input voltage limit in mV"
+	default 4500
+endif
