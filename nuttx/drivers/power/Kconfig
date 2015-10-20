@@ -77,3 +77,8 @@ config BATTERY_STATE_SIMULATOR
 	bool "Simulated battery temp and level"
         depends on BATTERY_STATE
 	default n
+
+config PAD_DETECT_DEVICE_GPIO
+	bool "Wireless pad detection through GPIO state"
+	default n
+	select GPIO
