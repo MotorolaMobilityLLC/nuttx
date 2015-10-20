@@ -33,6 +33,7 @@
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/power/bq24292.h>
+#include <nuttx/util.h>
 #include <nuttx/wqueue.h>
 
 #include "bq24292_config.h"
@@ -154,6 +155,91 @@ int bq24292_set_chg(enum chg config)
     default:
         return -EINVAL;
     }
+}
+
+// Supported input current limits in mA. Index corresonds to bit value.
+static const int current_limits[] = {
+    100, 150, 500, 900, 1200, 1500, 2000, 3000
+};
+
+int bq24292_set_input_current_limit(int limit)
+{
+    int i;
+
+    /* Program max possible setting that is less or equal to the limit */
+    for (i = ARRAY_SIZE(current_limits) -1; i >=0; i--) {
+        if (limit >= current_limits[i]) {
+            return bq24292_reg_modify(0x00, 0x07, i);
+        }
+    }
+
+    return -EINVAL;
+}
+
+#define MIN_INPUT_VOLTAGE   3880
+#define INPUT_VOLTAGE_STEP  80
+int bq24292_set_input_voltage_limit(int limit)
+{
+    int val;
+    int delta;
+
+    /* Program min possible setting that is greater or equal to the limit */
+    if (limit <= MIN_INPUT_VOLTAGE) {
+        val = 0;
+    } else {
+        delta = limit - MIN_INPUT_VOLTAGE;
+        val = delta / INPUT_VOLTAGE_STEP;
+        if (delta % INPUT_VOLTAGE_STEP) {
+            val +=1;
+        }
+        if (val > 15) {
+            return -EINVAL;
+        }
+    }
+
+    return bq24292_reg_modify(0x00, 0x78, val << 3);
+}
+
+#define MIN_CHARGE_CURRENT  512
+#define CHARGE_CURRENT_STEP 64
+int bq24292_set_charge_current_limit(int limit)
+{
+    int val;
+    int delta;
+
+    /* Program max possible setting that is less or equal to the limit */
+    if (limit < MIN_CHARGE_CURRENT) {
+        return -EINVAL;
+    }
+
+    delta = limit - MIN_CHARGE_CURRENT;
+    val = delta / CHARGE_CURRENT_STEP;
+    if (val > 63) {
+        val = 63;
+    }
+
+    return bq24292_reg_modify(0x02, 0xFC, val << 2);
+}
+
+#define MIN_CHARGE_VOLTAGE  3504
+#define CHARGE_VOLTAGE_STEP 16
+int bq24292_set_charge_voltage_limit(int limit)
+{
+    int val;
+    int delta;
+
+    /* Program max possible setting that is less or equal to the limit */
+    if (limit < MIN_CHARGE_VOLTAGE) {
+        return -EINVAL;
+    }
+
+    delta = limit - MIN_CHARGE_VOLTAGE;
+    val = delta / CHARGE_VOLTAGE_STEP;
+    if (val > 63) {
+        val = 63;
+    }
+
+    return bq24292_reg_modify(0x04, 0xFC, val << 2);
 }
 
 int bq24292_configure(void)

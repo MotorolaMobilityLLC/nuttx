@@ -48,5 +48,9 @@ enum chg {
     BQ24292_OTG_1300MA
 };
 int bq24292_set_chg(enum chg config);
+int bq24292_set_input_current_limit(int limit); // in mA
+int bq24292_set_input_voltage_limit(int limit); // in mV
+int bq24292_set_charge_current_limit(int limit); // in mA
+int bq24292_set_charge_voltage_limit(int limit); // in mV
 
 #endif // __INCLUDE_NUTTX_POWER_BQ24292_H
