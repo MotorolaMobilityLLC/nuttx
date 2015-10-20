@@ -31,11 +31,15 @@
 
 #include <stdint.h>
 
+// PG IRQ callback
+typedef void (*bq24292_power_good_callback)(void *arg);
+
 int bq24292_reg_read(uint8_t reg);
 int bq24292_reg_write(uint8_t reg, uint8_t val);
 int bq24292_reg_modify(uint8_t reg, uint8_t mask, uint8_t set);
 int bq24292_driver_init(int16_t pg_n);
 int bq24292_configure(void);
+int bq24292_power_good_register(bq24292_power_good_callback, void *arg);
 
 enum chg {
     BQ24292_CHG_OFF,
