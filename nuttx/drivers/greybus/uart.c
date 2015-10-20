@@ -67,6 +67,8 @@ struct op_node {
     struct gb_operation *operation;
     /** pointer to size of request in operation */
     uint16_t            *data_size;
+    /** pointer to flags of request in operation */
+    uint8_t             *data_flags;
     /** pointer to buffer of request in operation */
     uint8_t             *buffer;
 };
@@ -234,6 +236,7 @@ static int uart_alloc_op(int max_nodes, int buf_size, sq_queue_t *queue)
 
         request = gb_operation_get_request_payload(operation);
         node->data_size = &request->size;
+        node->data_flags = &request->flags;
         node->buffer = request->data;
         put_node_back(queue, node);
     }
@@ -298,8 +301,24 @@ static void uart_rx_callback(uint8_t *buffer, int length, int error)
 {
     struct op_node *node;
     int ret;
+    uint8_t flags = 0;
 
     *info->rx_node->data_size = cpu_to_le16(length);
+
+    if (error & LSR_OE) {
+        flags |= GB_UART_RECV_FLAG_OVERRUN;
+    }
+    if (error & LSR_PE) {
+        flags |= GB_UART_RECV_FLAG_PARITY;
+    }
+    if (error & LSR_FE) {
+        flags |= GB_UART_RECV_FLAG_FRAMING;
+    }
+    if (error & LSR_BI) {
+        flags |= GB_UART_RECV_FLAG_BREAK;
+    }
+    *info->rx_node->data_flags = flags;
+
     put_node_back(&info->data_queue, info->rx_node);
     /* notify rx thread to process this data*/
     sem_post(&info->rx_sem);
@@ -716,7 +735,7 @@ static uint8_t gb_uart_set_line_coding(struct gb_operation *operation)
     databits = request->data;
 
     ret = device_uart_set_configuration(info->dev, baud, parity, databits,
-                                        stopbit, 0); /* flow is 0 */
+                     stopbit, 1); /* 1 for auto flow control enable */
     if (ret) {
         return GB_OP_UNKNOWN_ERROR;
     }

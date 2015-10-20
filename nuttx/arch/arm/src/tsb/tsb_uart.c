@@ -132,6 +132,7 @@
 #define UA_OUT2                     BIT(3)
 #define UA_LOOP_BACK                BIT(4)
 #define UA_AUTO_FLOW_ENABLE         BIT(5)
+#define UA_AUTO_FLOW_CTRL_N         BIT(6)
 
 /*
  * UA_LSR
@@ -415,9 +416,14 @@ static void ua_recvchars(struct tsb_uart_info *uart_info, uint8_t int_id)
     }
 
     while (!ua_is_rx_fifo_empty(uart_info->reg_base)) {
-        uart_info->recv.buffer[uart_info->recv.head] =
-                        ua_getreg(uart_info->reg_base, UA_RBR_THR_DLL);
-        uart_info->recv.head++;
+        if (int_id == UA_INTERRUPT_ID_TO) {
+            /* time out with blank character in FIFO */
+            ua_getreg(uart_info->reg_base, UA_RBR_THR_DLL);
+        } else {
+            uart_info->recv.buffer[uart_info->recv.head] =
+                            ua_getreg(uart_info->reg_base, UA_RBR_THR_DLL);
+            uart_info->recv.head++;
+        }
         /*
          * Three conditions will pause receiving and return to caller.
          * 1. When given buffer is full, caller should prepare another buffer.
@@ -551,6 +557,7 @@ int tsb_uart_lowsetup(int baud)
     tsb_set_pinshare(TSB_PIN_UART_RXTX);
 
     /* enable UART CTS/RTS pins */
+    tsb_clr_pinshare(TSB_PIN_GPIO9);
     tsb_set_pinshare(TSB_PIN_UART_CTSRTS);
 
     /* enable UART clocks */
@@ -688,9 +695,13 @@ static int tsb_uart_set_configuration(struct device *dev, int baud, int parity,
 
     /* Set auto flow control */
     if (flow) {
-        ua_reg_bit_set(uart_info->reg_base, UA_MCR, UA_AUTO_FLOW_ENABLE);
+        ua_reg_bit_set(uart_info->reg_base, UA_MCR,
+                       UA_AUTO_FLOW_ENABLE | UA_RTS);
+        ua_reg_bit_clr(uart_info->reg_base, UA_MCR, UA_AUTO_FLOW_CTRL_N);
     } else {
-        ua_reg_bit_clr(uart_info->reg_base, UA_MCR, UA_AUTO_FLOW_ENABLE);
+        ua_reg_bit_clr(uart_info->reg_base, UA_MCR,
+                       UA_AUTO_FLOW_ENABLE | UA_RTS);
+        ua_reg_bit_set(uart_info->reg_base, UA_MCR, UA_AUTO_FLOW_CTRL_N);
     }
 
     return 0;

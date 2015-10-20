@@ -41,6 +41,12 @@
 #define GB_UART_PROTOCOL_SEND_BREAK             0x06
 #define GB_UART_PROTOCOL_SERIAL_STATE           0x07
 
+/* recv-data-request flags */
+#define GB_UART_RECV_FLAG_FRAMING       0x01    /* Framing error */
+#define GB_UART_RECV_FLAG_PARITY        0x02    /* Parity error */
+#define GB_UART_RECV_FLAG_OVERRUN       0x04    /* Overrun error */
+#define GB_UART_RECV_FLAG_BREAK         0x08    /* Break */
+
 /* stop bits */
 #define GB_SERIAL_1_STOP_BITS       0
 #define GB_SERIAL_1_5_STOP_BITS     1
@@ -71,37 +77,38 @@
 struct gb_uart_proto_version_response {
     __u8    major;
     __u8    minor;
-};
+} __packed;
 
 struct gb_uart_send_data_request {
     __le16  size;
     __u8    data[0];
-};
+} __packed;
 
 struct gb_uart_receive_data_request {
     __le16  size;
+    __u8    flags;
     __u8    data[0];
-};
+} __packed;
 
 struct gb_serial_line_coding_request {
     __le32  rate __packed;
     __u8    format;     /* stop bits */
     __u8    parity;
     __u8    data;       /* data bits */
-};
+} __packed;
 
 struct gb_uart_set_control_line_state_request {
     __le16  control;
-};
+} __packed;
 
 struct gb_uart_set_break_request {
     __u8    state;
-};
+} __packed;
 
 struct gb_uart_serial_state_request {
     __le16  control;
     __le16  data;
-};
+} __packed;
 
 #endif /* _GREYBUS_UART_H_ */
 
