@@ -77,6 +77,10 @@ endif
 
 endif
 
+ifeq ($(CONFIG_BATTERY_STATE),y)
+CSRCS += battery_state.c
+endif
+
 # Include battery suport in the build
 
 POWER_DEPPATH := --dep-path power

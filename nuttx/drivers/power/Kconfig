@@ -68,3 +68,12 @@ config CHARGER_BQ24292_SAMPLE_CFG
 	bool "Sample configuration"
 endchoice
 endif
+
+config BATTERY_STATE
+	bool "Battery level and temp notifier"
+	default n
+
+config BATTERY_STATE_SIMULATOR
+	bool "Simulated battery temp and level"
+        depends on BATTERY_STATE
+	default n
