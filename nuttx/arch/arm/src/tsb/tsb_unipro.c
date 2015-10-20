@@ -29,7 +29,6 @@
  */
 
 #include <string.h>
-#include <stdio.h>
 
 #include <nuttx/util.h>
 #include <nuttx/irq.h>
@@ -56,14 +55,6 @@
 // See ENG-436
 #define MBOX_RACE_HACK_DELAY    100000
 
-#ifdef UNIPRO_DEBUG
-#define DBG_UNIPRO(fmt, ...) lldbg(fmt, __VA_ARGS__)
-#else
-#define DBG_UNIPRO(fmt, ...) ((void)0)
-#endif
-
-#define TRANSFER_MODE          (2)
-
 /*
  * CPorts 16-43 are present on the AP Bridge only.  CPorts 16 and 17 are
  * reserved for camera and display use, and we leave their transfer mode
@@ -82,16 +73,11 @@
 #define TRANSFER_MODE_2_CTRL_1 (0xAAAAAAA5) // Transfer mode 2 for CPorts 18-31
 #define TRANSFER_MODE_2_CTRL_2 (0x00AAAAAA) // Transfer mode 2 for CPorts 32-43
 
-#define CPORT_SW_RESET_BITS 3
-
 #define TRANSFER_MODE_3_CTRL_0 (0xFFFFFFFF) // Transfer mode 3 for CPorts 0-15
 #define TRANSFER_MODE_3_CTRL_1 (0xFFFFFFF5) // Transfer mode 3 for CPorts 18-31
 #define TRANSFER_MODE_3_CTRL_2 (0x00FFFFFF) // Transfer mode 3 for CPorts 32-43
 
-#define CPORT_RX_BUF_BASE         (0x20000000U)
-#define CPORT_RX_BUF_SIZE         (CPORT_BUF_SIZE)
-#define CPORT_RX_BUF(cport)       (void*)(CPORT_RX_BUF_BASE + \
-                                      (CPORT_RX_BUF_SIZE * cport))
+#define CPORT_SW_RESET_BITS 3
 
 #define CPORT_TX_BUF_BASE         (0x50000000U)
 #define CPORT_TX_BUF(cport)       (uint8_t*)(CPORT_TX_BUF_BASE + \
@@ -151,9 +137,7 @@ static void dump_regs(void);
 
 /* irq handlers */
 static int irq_rx_eom(int, void*);
-#if !defined(CONFIG_ICE_APBA)
 static int irq_unipro(int, void*);
-#endif
 
 static uint32_t unipro_read(uint32_t offset) {
     return getreg32((volatile unsigned int*)(AIO_UNIPRO_BASE + offset));
@@ -268,6 +252,24 @@ static int configure_connected_cport(unsigned int cportid) {
         ret = -EIO;
     }
     return ret;
+}
+
+/**
+ * @brief Enable E2EFC on cport
+ */
+static void enable_e2efc(unsigned int cportid) {
+    uint32_t e2efc;
+
+    DBG_UNIPRO("Enabling E2EFC on cport %u\n", cportid);
+    if (cportid < 32) {
+        e2efc = unipro_read(CPB_RX_E2EFC_EN_0);
+        e2efc |= (1 << cportid);
+        unipro_write(CPB_RX_E2EFC_EN_0, e2efc);
+    } else if (cportid < APBRIDGE_CPORT_MAX) {
+        e2efc = unipro_read(CPB_RX_E2EFC_EN_1);
+        e2efc |= (1 << (cportid - 32));
+        unipro_write(CPB_RX_E2EFC_EN_1, e2efc);
+    }
 }
 
 /**
@@ -411,7 +413,6 @@ static int irq_rx_eom(int irq, void *context) {
     if (!cport->driver) {
         lldbg("dropping message on cport %hu where no driver is registered\n",
               cport->cportid);
-        clear_rx_interrupt(cport);
         return -ENODEV;
     }
 
@@ -443,8 +444,6 @@ static int irq_rx_eom(int irq, void *context) {
 
     return 0;
 }
-
-static int tsb_unipro_mbox_ack(uint16_t val);
 
 #if defined(CONFIG_ICE_APBA)
 int irq_unipro(int irq, void *context) {
@@ -478,33 +477,8 @@ int irq_unipro(int irq, void *context) {
                 goto done;
             }
 
-            /*
-             * Clear the mailbox. This triggers another a local interrupt which we have
-             * to clear.
-             */
-            rc = unipro_attr_local_write(TSB_MAILBOX, 0, 0, NULL);
-            if (rc) {
-                goto done;
-            }
-
-            uint32_t tmp;
-            rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &tmp, 0, NULL);
-            if (rc) {
-                goto done;
-            }
-
-            rc = unipro_attr_local_read(TSB_MAILBOX, &tmp, 0, NULL);
-            if (rc) {
-                goto done;
-            }
-
             if (mbox_val == TSB_MAIL_READY_OTHER) {
-                tsb_unipro_mbox_set(TSB_MAIL_RESET, 0 /* peer */);
-
-                /* Enable the control cport. */
-                const unsigned int cport = 0;
-                unipro_p2p_setup_cport(cport, 1 /* peer */);
-                rc = tsb_unipro_mbox_set(cport + 1, 1 /* peer */);
+                unipro_p2p_peer_detected();
             } else {
                 // TODO: Handle error case
             }
@@ -527,6 +501,8 @@ done:
     return rc;
 }
 #else
+static int tsb_unipro_mbox_ack(uint16_t val);
+
 /**
  * @brief See ENG-376.
  *
@@ -877,9 +853,7 @@ static int unipro_init_cport(unsigned int cportid)
     if (cport->connected)
         return 0;
 
-#if !defined(CONFIG_UNIPRO_P2P)
     _unipro_reset_cport(cportid);
-#endif
 
     atomic_init(&cport->inflight_buf_count, 0);
 #if defined(CONFIG_APBRIDGEA)
@@ -966,14 +940,9 @@ void unipro_init(void)
     unipro_write(UNIPRO_INT_EN, 0x0);
     for (i = 0; i < cport_count; i++) {
         unipro_init_cport(i);
-#if defined(CONFIG_ICE_APBA)
-        configure_connected_cport(i);
-#endif
     }
     unipro_write(UNIPRO_INT_EN, 0x1);
 
-
-#if !defined(CONFIG_ICE_APBA)
     /*
      * Disable FCT transmission. See ENG-376.
      */
@@ -981,7 +950,6 @@ void unipro_init(void)
     if (tsb_get_product_id() == tsb_pid_apbridge) {
         unipro_write(CPB_RX_E2EFC_EN_1, 0x0);
     }
-#endif
 
     /*
      * Enable the mailbox interrupt
@@ -1113,6 +1081,20 @@ int unipro_reset_cport(unsigned int cportid, cport_reset_completion_cb_t cb,
 }
 
 /**
+ * @brief Enable the cport registers
+ * @param cportid cport number to associate this driver to
+ * @return 0 on success, <0 on error
+ */
+int unipro_enable_cport(unsigned int cportid) {
+    int rc;
+
+    enable_e2efc(cportid);
+
+    rc = configure_connected_cport(cportid);
+    return rc;
+}
+
+/**
  * @brief Register a driver with the unipro core
  * @param drv unipro driver to register
  * @param cportid cport number to associate this driver to
@@ -1146,10 +1128,6 @@ int unipro_driver_unregister(unsigned int cportid)
         return -ENODEV;
     }
 
-#if defined(CONFIG_UNIPRO_P2P)
-    unipro_p2p_disconnect_cport(cport->cportid, 0 /* peer */);
-#endif
-
     lldbg("Unregistered driver %s on %sconnected CP%u\n",
           cport->driver->name, cport->connected ? "" : "un",
           cport->cportid);
@@ -1157,75 +1135,6 @@ int unipro_driver_unregister(unsigned int cportid)
     cport->driver = NULL;
 
     return 0;
-}
-
-/**
- * @brief Synchronously get the mailxbox value.
- * Automatically re-try if the value is TSB_MAIL_RESET (0).
- * @return 0 on success, <0 on error
- */
-int tsb_unipro_mbox_get(uint32_t *val, int peer) {
-    uint32_t rc = -1;
-    uint32_t tempval = TSB_MAIL_RESET;
-
-    if (!val) {
-        return -EINVAL;
-    }
-
-    do {
-        rc = unipro_attr_read(TSB_MAILBOX, &tempval, 0, peer, &rc);
-    } while (!rc && tempval == TSB_MAIL_RESET);
-    if (rc) {
-        return rc;
-    }
-
-    if (!rc) {
-        *val = tempval;
-    }
-
-    return rc;
-}
-
-/**
- * @brief Set the mailbox value and wait for it to be cleared.
- */
-int tsb_unipro_mbox_set(uint32_t val, int peer) {
-    int rc;
-    uint32_t irq_status, retries = 2048;
-
-    rc = unipro_attr_write(TSB_MAILBOX, val, 0, peer, NULL);
-    if (rc) {
-        lldbg("TSB_MAILBOX write failed: %d\n", rc);
-        return rc;
-    }
-
-    do {
-        rc = unipro_attr_read(TSB_INTERRUPTSTATUS, &irq_status, 0, peer, NULL);
-        if (rc) {
-            lldbg("%s(): TSB_INTERRUPTSTATUS poll failed: %d\n", __func__, rc);
-            return rc;
-        }
-    } while ((irq_status & TSB_INTERRUPTSTATUS_MAILBOX) && --retries > 0);
-
-    if (!retries) {
-        return -ETIMEDOUT;
-    } else {
-        retries = 2048;
-    }
-
-    do {
-        rc = unipro_attr_read(TSB_MAILBOX, &val, 0, peer, NULL);
-        if (rc) {
-            lldbg("%s(): TSB_MAILBOX poll failed: %d\n", __func__, rc);
-            return rc;
-        }
-    } while (val != TSB_MAIL_RESET && --retries > 0);
-
-    if (!retries) {
-        return -ETIMEDOUT;
-    }
-
-    return rc;
 }
 
 /**
@@ -1262,6 +1171,7 @@ int tsb_unipro_mbox_send(uint32_t val) {
     return rc;
 }
 
+#if !defined(CONFIG_ICE_APBA)
 /**
  * Since the switch has no 32-bit MBOX_ACK_ATTR attribute, we need to repurpose
  * a 16-bit attribute, which means that received mbox values must fit inside a
@@ -1278,5 +1188,6 @@ static int tsb_unipro_mbox_ack(uint16_t val) {
 
     return 0;
 }
+#endif
 
 
