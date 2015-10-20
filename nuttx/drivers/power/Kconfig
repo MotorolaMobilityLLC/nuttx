@@ -78,6 +78,11 @@ config BATTERY_STATE_SIMULATOR
         depends on BATTERY_STATE
 	default n
 
+config GREYBUS_PTP_CHG_DEVICE_BQ24292
+	bool "BQ24292 PTP charger device driver"
+	default n
+	depends on GREYBUS_MODS_PTP_DEVICE_BATTERY && CHARGER_BQ24292 && GPIO
+
 config PAD_DETECT_DEVICE_GPIO
 	bool "Wireless pad detection through GPIO state"
 	default n

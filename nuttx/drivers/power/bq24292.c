@@ -29,14 +29,26 @@
 #include <debug.h>
 #include <errno.h>
 #include <semaphore.h>
+#include <stddef.h>
+#include <stdlib.h>
 
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
+#include <nuttx/list.h>
 #include <nuttx/power/bq24292.h>
 #include <nuttx/util.h>
 #include <nuttx/wqueue.h>
 
 #include "bq24292_config.h"
+
+struct notify_node
+{
+  bq24292_power_good_callback callback;
+  void *arg;
+  struct list_head list;
+};
+
+static LIST_DECLARE(notify_list);
 
 static sem_t sem = SEM_INITIALIZER(1);
 static struct work_s pg_work;
@@ -45,10 +57,35 @@ static FAR struct i2c_dev_s *i2c;
 
 #define BQ24292_I2C_ADDR    0x6B
 
+int bq24292_power_good_register(bq24292_power_good_callback cb, void *arg)
+{
+    struct notify_node *node;
+
+    node = malloc(sizeof(*node));
+    if (!node) {
+        return -ENOMEM;
+    }
+
+    node->callback = cb;
+    node->arg = arg;
+
+    list_add(&notify_list, &node->list);
+
+    return 0;
+}
+
 static void pg_worker(FAR void *arg)
 {
+    struct notify_node *node;
+    struct list_head *iter;
+
     // Configure registers every time power is attached
     bq24292_configure();
+
+    list_foreach(&notify_list, iter) {
+        node = list_entry(iter, struct notify_node, list);
+        node->callback(node->arg);
+    }
 }
 
 static int pg_isr(int irq, void *context)
