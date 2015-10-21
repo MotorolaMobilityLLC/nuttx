@@ -49,13 +49,16 @@
 #include "svc.h"
 #include "tsb_switch.h"
 
-#define POWER_OFF_TIME_IN_US            (500000)
-#define WAKEOUT_PULSE_DURATION_IN_US    (100000)
+#define POWER_OFF_TIME_IN_US                        (500000)
+#define WAKEOUT_PULSE_DURATION_IN_US                (100000)
+#define MODULE_PORT_WAKEOUT_PULSE_DURATION_IN_US    (5000)
 
 static struct interface **interfaces;
 static unsigned int nr_interfaces;
 static unsigned int nr_spring_interfaces;
 
+static void interface_uninstall_wd_handler(struct wd_data *wd);
+static int interface_install_wd_handler(struct wd_data *wd);
 
 /**
  * @brief Configure all the voltage regulators associated with an interface
@@ -72,16 +75,29 @@ static int interface_config(struct interface *iface)
     /* Configure default state for the regulator pins */
     rc = vreg_config(iface->vreg);
 
-    /*
-     * Configure WAKEOUT as input, floating so that it does not interfere
-     * with the wake and detect input pin
-     */
-    if (iface->wake_out) {
-        if (stm32_configgpio(iface->wake_out | GPIO_INPUT) < 0) {
-            dbg_error("%s: Failed to configure WAKEOUT pin for interface %s\n",
-                      __func__, iface->name ? iface->name : "unknown");
-            rc = -1;
+    /* Configure the WAKEOUT pin according to the interface type */
+    switch (iface->if_type) {
+    case ARA_IFACE_TYPE_MODULE_PORT:
+        /*
+         * DB3 module port:
+         * The pin is configured as interrupt input at handler
+         * installation time
+         */
+        break;
+    default:
+        /*
+         * Pre-DB3 Interface block, spring or expansion interface:
+         * Configure WAKEOUT as input, floating so that it does not interfere
+         * with the wake and detect input pin
+         */
+        if (iface->wake_out) {
+            if (stm32_configgpio(iface->wake_out | GPIO_INPUT) < 0) {
+                dbg_error("Failed to configure WAKEOUT pin for interface %s\n",
+                          iface->name ? iface->name : "unknown");
+                rc = -1;
+            }
         }
+        break;
     }
 
     iface->power_state = false;
@@ -146,35 +162,76 @@ int interface_generate_wakeout(struct interface *iface, bool assert)
         return -ENODEV;
     }
 
-   /*
-    * Assert the WAKEOUT line on the interfaces in order to power up the
-    * modules.
-    * When the WAKEOUT signal is de-asserted the bridges have to assert
-    * the PS_HOLD signal asap in order to stay powered up.
-    */
-    dbg_verbose("Generating WAKEOUT on interface %s.\n",
+    dbg_verbose("Generating WAKEOUT on interface %s\n",
                 iface->name ? iface->name : "unknown");
 
-    if (iface->wake_out) {
-        rc = stm32_configgpio(iface->wake_out | GPIO_OUTPUT | GPIO_OUTPUT_SET);
-        if (rc < 0) {
-            dbg_error("%s: Failed to assert WAKEOUT pin for interface %s\n",
-                      __func__, iface->name ? iface->name : "unknown");
-            return rc;
-        }
-
-        if (!assert) {
-            /* Wait for the bridges to react */
-            usleep(WAKEOUT_PULSE_DURATION_IN_US);
-
-            /* De-assert the lines */
-            rc = stm32_configgpio(iface->wake_out | GPIO_INPUT);
+    /* Generate a WAKEOUT pulse according to the interface type */
+    switch (iface->if_type) {
+    case ARA_IFACE_TYPE_MODULE_PORT:
+        /*
+         * DB3 module port:
+         * Generate a pulse on the WD line. The polarity is reversed
+         * from the DETECT_IN polarity.
+         */
+        if (iface->detect_in.gpio) {
+            bool polarity =
+                (iface->flags & ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH) ?
+                true : false;
+            uint32_t pulse_cfg =
+                (iface->detect_in.gpio & ~GPIO_MODE_MASK) |
+                GPIO_OUTPUT |
+                (polarity ? GPIO_OUTPUT_CLEAR : GPIO_OUTPUT_SET);
+            /* First uninstall the interrupt handler on the pin */
+            interface_uninstall_wd_handler(&iface->detect_in);
+            /* Then configure the pin as output and assert it */
+            rc = stm32_configgpio(pulse_cfg);
             if (rc < 0) {
-                dbg_error("%s: Failed to de-assert WAKEOUT pin for interface %s\n",
-                          __func__, iface->name ? iface->name : "unknown");
+                dbg_error("Failed to assert WAKEOUT pin for interface %s\n",
+                          iface->name ? iface->name : "unknown");
+                return rc;
+            }
+
+            /* Keep the line asserted for the given duration */
+            up_udelay(MODULE_PORT_WAKEOUT_PULSE_DURATION_IN_US);
+
+            /* Finally re-install the interrupt handler on the pin */
+            rc = interface_install_wd_handler(&iface->detect_in);
+            if (rc) {
                 return rc;
             }
         }
+        break;
+    default:
+        /*
+         * Pre-DB3 Interface block, spring or expansion interface:
+         * Assert the WAKEOUT line on the interfaces in order to power up
+         * the modules.
+         * When the WAKEOUT signal is de-asserted the bridges have to assert
+         * the PS_HOLD signal asap in order to stay powered up.
+         */
+        if (iface->wake_out) {
+            rc = stm32_configgpio(iface->wake_out |
+                                  GPIO_OUTPUT | GPIO_OUTPUT_SET);
+            if (rc < 0) {
+                dbg_error("Failed to assert WAKEOUT pin for interface %s\n",
+                          iface->name ? iface->name : "unknown");
+                return rc;
+            }
+
+            if (!assert) {
+                /* Wait for the bridges to react */
+                usleep(WAKEOUT_PULSE_DURATION_IN_US);
+
+                /* De-assert the lines */
+                rc = stm32_configgpio(iface->wake_out | GPIO_INPUT);
+                if (rc < 0) {
+                    dbg_error("Failed to de-assert WAKEOUT pin for interface %s\n",
+                              iface->name ? iface->name : "unknown");
+                    return rc;
+                }
+            }
+        }
+        break;
     }
 
     return 0;
