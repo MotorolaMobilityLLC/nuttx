@@ -77,6 +77,12 @@ static struct cport *cporttable;
 #define APBRIDGE_CPORT_MAX 44 // number of CPorts available on the APBridges
 #define GPBRIDGE_CPORT_MAX 16 // number of CPorts available on the GPBridges
 
+/*
+ * During unipro_unit(), we'll compute and cache the number of CPorts that this
+ * bridge has, for use by the functions in this source file.
+ */
+static unsigned int cport_count = 0;
+
 unsigned int unipro_cport_count(void) {
     /*
      * Reduce the run-time CPort count to what's available on the
@@ -88,7 +94,7 @@ unsigned int unipro_cport_count(void) {
 }
 
 struct cport *cport_handle(unsigned int cportid) {
-    if (cportid >= unipro_cport_count() || cportid == CPORTID_CDSI0 ||
+    if (cportid >= cport_count || cportid == CPORTID_CDSI0 ||
         cportid == CPORTID_CDSI1) {
         return NULL;
     } else {
@@ -431,9 +437,9 @@ static int irq_unipro(int irq, void *context) {
     if (rc) {
         goto done;
     }
-    if (cportid >= unipro_cport_count()) {
+    if (cportid >= cport_count) {
         DBG_UNIPRO("cportid %d in mailbox exceeds count of cports %d\n",
-                   cportid, unipro_cport_count());
+                   cportid, cport_count);
         rc = -EINVAL;
         goto done;
     }
@@ -526,7 +532,7 @@ uint16_t unipro_get_tx_free_buffer_space(struct cport *cport)
  */
 static void dump_regs(void) {
     uint32_t val;
-    unsigned int i, cport_count;
+    unsigned int i;
 
 #define DBG_ATTR(attr) do {                  \
     (void)unipro_attr_local_read(attr, &val, 0); \
@@ -618,7 +624,6 @@ static void dump_regs(void) {
 
     lldbg("Connected CPorts:\n");
     lldbg("========================================\n");
-    cport_count = unipro_cport_count();
     for (i = 0; i < cport_count; i++) {
         struct cport *cport = cport_handle(i);
         if (!cport) {
@@ -705,11 +710,17 @@ static int unipro_init_cport(unsigned int cportid)
  */
 void unipro_init(void)
 {
-    unsigned int i, cport_count;
+    unsigned int i;
     int retval;
     struct cport *cport;
 
-    cport_count = unipro_cport_count();
+    /*
+     * Compute and cache the number of CPorts that this bridge has, for use
+     * by the functions in this source file.  The value does not change.
+     */
+    if (cport_count == 0)
+        cport_count = unipro_cport_count();
+
     cporttable = zalloc(sizeof(struct cport) * cport_count);
     if (!cporttable) {
         return;
@@ -821,7 +832,7 @@ int _unipro_reset_cport(unsigned int cportid)
     uint32_t tx_queue_empty_offset;
     unsigned tx_queue_empty_bit;
 
-    if (cportid >= unipro_cport_count()) {
+    if (cportid >= cport_count) {
         return -EINVAL;
     }
 
