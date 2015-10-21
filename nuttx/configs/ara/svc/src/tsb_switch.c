@@ -2537,6 +2537,19 @@ struct tsb_switch *switch_init(struct tsb_switch_data *pdata) {
         goto error;
     }
 
+    /*
+     * Now that the switch is on, let's give it some time to initialize
+     * the Unipro busses before the bridges connect to it
+     */
+    switch (sw->pdata->rev) {
+    case SWITCH_REV_ES2:
+        /* Wait 360ms as per Toshiba recomandation */
+        usleep(360 * 1000);
+        break;
+    default:
+        break;
+    };
+
     // Init port <-> deviceID mapping table
     dev_ids_destroy(sw);
     dev_ids_update(sw, SWITCH_PORT_ID, SWITCH_DEVICE_ID);
