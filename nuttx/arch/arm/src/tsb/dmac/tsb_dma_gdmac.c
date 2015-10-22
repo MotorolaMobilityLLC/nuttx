@@ -50,6 +50,8 @@
 #define GDMAC_NUMBER_OF_CHANNELS    8
 #define GDMAC_NUMBER_OF_EVENTS      32
 
+#define GDMAC_CHANNEL_REGISTER_GAP  0x2C0
+
 #define GDMAC_INVALID_EVENT         0xFFFFFFFF
 #define GDMAC_INVALID_CHANNEL       NULL
 
@@ -94,6 +96,22 @@
 #define GDMAC_EVENT_TO_IRQN(event_id)        \
     (event_id + TSB_IRQ_GDMAC00)
 
+#define CCR_FIXED_VALUE                 0x01c00700
+#define DMA_LOADANDSTORE                (DMALD | (DMAST << 8))
+#define DMA_NO_LOADANDSTORE             (DMANOP | (DMANOP << 8))
+
+#define CCR_INC_VALE(inc)               ((inc == DEVICE_DMA_INC_AUTO) ? 1 : 0)
+
+#define CCR_ENDIAN_SWAP(params)         \
+    (gsmac_bit_to_pos(params->swap) << 28)
+
+#define CCR_SRC_CONFIG(burst_len, burst_size)   \
+    ((burst_len - 1) << 4 | (burst_size - 1) << 1)
+
+#define CCR_DST_CONFIG(burst_len, burst_size)   \
+    ((burst_len - 1) << 18 | (burst_size - 1) << 15)
+
+
 /* Structures for PL330 GDMAC registers */
 typedef struct {
     uint32_t dsr;
@@ -126,6 +144,7 @@ typedef struct {
 typedef struct {
     tsb_dma_gdmac_channel_status_regs
         channel_status_regs[GDMAC_NUMBER_OF_CHANNELS];
+    uint8_t pad[GDMAC_CHANNEL_REGISTER_GAP];
     tsb_dma_gdmac_channel_control_regs
         channel_control_regs[GDMAC_NUMBER_OF_CHANNELS];
 } tsb_dma_gdmac_channel_regs;
@@ -162,18 +181,32 @@ typedef struct {
     /* Channel program. */
     struct __attribute__((__packed__)) {
         uint8_t gdmac_program[0];
-        GDMAC_INSTR_DMAMOV(chan_ctrl_reg);
         GDMAC_INSTR_DMAMOV(source_addr);
         GDMAC_INSTR_DMAMOV(dest_addr);
-        GDMAC_INSTR_DMALP(block_count);
-        GDMAC_INSTR_DMALP(block_length);
-        uint16_t block_load_and_store;
-        uint8_t pad0[DMA_LPEND_SIZE + DMA_LPEND_SIZE];
-        GDMAC_INSTR_DMALP(data_length);
-        uint8_t pad1[DMA_LD_SIZE + DMA_ST_SIZE + DMA_LPEND_SIZE +
-                     DMA_WMB_SIZE];
+        GDMAC_INSTR_DMAMOV(chan_ctrl_reg);
+        GDMAC_INSTR_DMALP(init_dst_align_count);
+        uint16_t init_dst_align_load_and_store;
+        uint8_t pad0[DMA_LPEND_SIZE];
+        GDMAC_INSTR_DMAMOV(preburst_load_chan_ctrl_reg);
+        uint8_t preburst_load;
+        GDMAC_INSTR_DMAMOV(burst_block_chan_ctrl_reg);
+        GDMAC_INSTR_DMALP(burst_block_count);
+        uint16_t burst_block_load_and_store;
+        uint8_t pad1[DMA_LPEND_SIZE];
+        GDMAC_INSTR_DMAMOV(postburst_block_chan_ctrl_reg);
+        uint16_t postburst_block_load_and_store;
+        GDMAC_INSTR_DMAMOV(postburst_chan_ctrl_reg);
+        GDMAC_INSTR_DMALP(postburst_load_count);
+        uint8_t postburst_load;
+        uint8_t pad2[DMA_LPEND_SIZE];
+        uint8_t postburst_store;
+        GDMAC_INSTR_DMAMOV(final_store_chan_ctrl_reg);
+        GDMAC_INSTR_DMALP(final_store_count);
+        uint8_t final_store;
+        uint8_t pad3[DMA_LPEND_SIZE];
+        uint8_t pad10[DMA_WMB_SIZE];
         GDMAC_INSTR_DMASEV(end_of_tx_event);
-        uint8_t pad2[DMA_END_SIZE];
+        uint8_t pad20[DMA_END_SIZE];
     };
 } mem_to_mem_chan;
 
@@ -189,6 +222,13 @@ struct gdmac_chan {
     gdmac_transfer do_dma_transfer;
     gdmac_release_channel release_channel;
 
+    uint32_t burst_size;
+    uint32_t burst_len;
+    uint32_t ccr_transfer_size;
+    uint32_t burst_block_size;
+    uint32_t align_mask;
+    uint32_t ccr_base_value;
+
     union {
         mem_to_mem_chan mem2mem_chan;
     /* other GDMAC channels will be added as more GDMAC channels are supported
@@ -198,22 +238,35 @@ struct gdmac_chan {
 
 /* template for memory to memory GDMAC binary code. */
 static const uint8_t gdmac_mem2mem_program[] = {
-        DMAMOV(ccr, 0x01C04701),
         DMAMOV(sar, 0),
         DMAMOV(dar, 0),
-        DMALP(lc0, 0),
-        DMALP(lc1, 0),
-        DMALD,
-        DMAST,
-        DMALPEND(lc1, DMA_LD_SIZE + DMA_ST_SIZE),
-        DMALPEND(lc0,
-                DMA_LP_SIZE + DMA_LD_SIZE + DMA_ST_SIZE + DMA_LPEND_SIZE),
+        DMAMOV(ccr, 0x01C04701),
         DMALP(lc0, 0),
         DMALD,
         DMAST,
         DMALPEND(lc0, DMA_LD_SIZE + DMA_ST_SIZE),
+        DMAMOV(ccr, 0),
+        DMALD,
+        DMAMOV(ccr, 0),
+        DMALP(lc0, 0),
+        DMALD,
+        DMAST,
+        DMALPEND(lc0, DMA_LD_SIZE + DMA_ST_SIZE),
+        DMAMOV(ccr, 0),
+        DMALD,
+        DMAST,
+        DMAMOV(ccr, 0),
+        DMALP(lc0, 0),
+        DMALD,
+        DMALPEND(lc0, DMA_LD_SIZE),
+        DMAST,
+        DMAMOV(ccr, 0),
+        DMALP(lc0, 0),
+        DMAST,
+        DMALPEND(lc0, DMA_LD_SIZE),
         DMAWMB,
         DMASEV(0),
+        DMAEND
     };
 
 struct gdmac_event {
@@ -225,6 +278,22 @@ static struct gdmac_event gdmac_event_to_chan_map[GDMAC_NUMBER_OF_EVENTS];
 
 static const uint16_t skip_mem_load_and_store = (DMANOP | (DMANOP << 8));
 static const uint16_t do_mem_load_and_store = (DMALD | (DMAST << 8));
+
+static inline uint32_t gsmac_bit_to_pos(uint32_t value)
+{
+    uint32_t index = 0;
+
+    if (value == 0) {
+        lldbg("Error: value shouldn't be %x\n", value);
+        return 0;
+    }
+
+    for (index = 0; (value & 0x0001) == 0; index++){
+        value >>= 1;
+    }
+
+    return index;
+}
 
 static inline int gdmac_allocate_event(struct gdmac_chan *chan, int event,
         unsigned int *event_id)
@@ -326,7 +395,15 @@ static int gdmac_mem2mem_transfer(struct device *dev,
     struct device_dma_sg *sg = &op->sg[0];
     int retval = OK;
     size_t data_len = sg->len;
-    uint32_t numb_of_blocks = (data_len + 255) / 256;
+    uint32_t load_len;
+    uint32_t store_len;
+    uint32_t align_mask = gdmac_chan->align_mask;
+
+    uint32_t total_load_len;
+    uint32_t total_store_len;
+    uint32_t count;
+    uint32_t src_addr = (uint32_t) sg->src_addr;
+    uint32_t dst_addr = (uint32_t) sg->dst_addr;
 
     if (op->sg_count != 1) {
         lldbg("Error: sg_count != 1.");
@@ -336,24 +413,121 @@ static int gdmac_mem2mem_transfer(struct device *dev,
     /* Set the source and destination addresses, as well as the data count. */
     mem2mem_chan->source_addr.value = (uint32_t) sg->src_addr;
     mem2mem_chan->dest_addr.value = (uint32_t) sg->dst_addr;
-    if (numb_of_blocks-- > 1) {
-        if (numb_of_blocks > 256) {
-            lldbg("Error: Data len too large!");
-            return -EINVAL;
-        }
+    /* We need to copy the first few bytes to make ensure the destination
+     * address is aligned before we do multi-bytes store, otherwise the
+     * memory location before destination address might end up with some
+     * undefine values. It appears unaligned store only works on the bus
+     * width of the device.
+     */
+    store_len = (uint32_t)sg->dst_addr & align_mask;
+    if (store_len != 0) {
+        store_len = align_mask - store_len + 1;
+        store_len = MIN(store_len, data_len);
 
-        mem2mem_chan->block_count.value = (uint8_t) (numb_of_blocks - 1);
-        mem2mem_chan->block_length.value = 255;
-        mem2mem_chan->block_load_and_store = do_mem_load_and_store;
-        data_len -= numb_of_blocks * 256;
+        mem2mem_chan->init_dst_align_count.value = (uint8_t)(store_len - 1);
+        mem2mem_chan->init_dst_align_load_and_store = DMA_LOADANDSTORE;
+
+        src_addr += store_len;
+        dst_addr += store_len;
+        data_len -= store_len;
+
+        store_len = 0;
     } else {
-        mem2mem_chan->block_count.value = 0;
-        mem2mem_chan->block_length.value = 0;
-        mem2mem_chan->block_load_and_store = skip_mem_load_and_store;
+        mem2mem_chan->init_dst_align_count.value = 0;
+        mem2mem_chan->init_dst_align_load_and_store = DMA_NO_LOADANDSTORE;
     }
 
-    if (data_len <= 256) {
-        mem2mem_chan->data_length.value = (uint8_t) data_len - 1;
+    load_len = (uint32_t)src_addr & align_mask;
+
+    /* Now, we are ready to use multi-bytes and burst load and store. We need
+     * to check if we need to do a preload before we get into bursting blocks
+     * of memory.
+     */
+    total_load_len = data_len;
+    total_store_len = data_len;
+
+    /* Adjust the length of source by taking the unalignement data count
+     * so we don't need to have messy calculation later on.
+     */
+    if (((src_addr + data_len) & align_mask) < data_len) {
+        total_load_len += (src_addr & align_mask);
+        if (load_len > store_len) {
+            mem2mem_chan->preburst_load = DMALD;
+            total_load_len -= gdmac_chan->burst_size;
+        } else {
+            mem2mem_chan->preburst_load = DMANOP;
+        }
+    }
+
+    /* Adjust the length of destination by taking the unalignement data
+     * data so we don't need to have messy calculation later on.
+     */
+    if (((dst_addr + data_len) & align_mask) < data_len) {
+        total_store_len += (dst_addr & align_mask);
+    }
+
+    /* Do blocks of complete burst of data load and store */
+    count = total_load_len / gdmac_chan->burst_block_size;
+    if (count > 0) {
+        mem2mem_chan->burst_block_count.value = count - 1;
+        mem2mem_chan->burst_block_load_and_store = DMA_LOADANDSTORE;
+        load_len = gdmac_chan->burst_block_size * count;
+        total_load_len -= load_len;
+        total_store_len -= load_len;
+    } else {
+        mem2mem_chan->burst_block_count.value = 0;
+        mem2mem_chan->burst_block_load_and_store = DMA_NO_LOADANDSTORE;
+    }
+
+    /* Do the last burst of data load and store with the burst length less
+     * than the channel's burst length.
+     */
+    count = total_load_len / gdmac_chan->burst_size;
+    if (count > 0) {
+        mem2mem_chan->postburst_block_chan_ctrl_reg.value =
+                gdmac_chan->ccr_base_value |
+                CCR_DST_CONFIG(count, gdmac_chan->ccr_transfer_size) |
+                CCR_SRC_CONFIG(count, gdmac_chan->ccr_transfer_size);
+        mem2mem_chan->postburst_block_load_and_store = DMA_LOADANDSTORE;
+        load_len = gdmac_chan->burst_size * count;
+        total_load_len -= load_len;
+        total_store_len -= load_len;
+    } else {
+        mem2mem_chan->postburst_block_chan_ctrl_reg.value =
+                gdmac_chan->ccr_base_value |
+                CCR_DST_CONFIG(1, gdmac_chan->ccr_transfer_size) |
+                CCR_SRC_CONFIG(1, gdmac_chan->ccr_transfer_size);
+        mem2mem_chan->postburst_block_load_and_store = DMA_NO_LOADANDSTORE;
+    }
+
+    /* If we still have some data left unread, finish loading them */
+    if (total_load_len > 0) {
+        mem2mem_chan->postburst_load_count.value = (uint8_t)(total_load_len - 1);
+        mem2mem_chan->postburst_load = DMALD;
+        total_load_len = 0;
+    } else {
+        mem2mem_chan->postburst_load_count.value = 0;
+        mem2mem_chan->postburst_load = DMANOP;
+    }
+
+    /* If the there is enouph data to do a multi-bytes transfer, perform a
+     * multi-byte transfer.
+     */
+    if (total_store_len >= gdmac_chan->burst_size) {
+        mem2mem_chan->postburst_store = DMAST;
+        total_store_len -= gdmac_chan->burst_size;
+    } else {
+        mem2mem_chan->postburst_store = DMANOP;
+    }
+
+    /* If we still have some data left in the MFIFO, flush them out */
+    if (total_store_len > 0) {
+        mem2mem_chan->final_store_count.value = (uint8_t)(total_store_len - 1);
+        mem2mem_chan->final_store = DMAST;
+        total_store_len -= total_store_len;
+    } else {
+        mem2mem_chan->final_store_count.value = 0;
+        mem2mem_chan->final_store = DMANOP;
     }
 
     /* Start the transfer and wait for end of transfer interrupt. */
@@ -375,6 +549,10 @@ int tsb_gdmac_allocal_mem2Mem_chan(struct device *dev,
     tsb_dma_gdmac_control_regs *control_regs =
             (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
 
+    uint32_t burst_size;
+    uint32_t burst_len;
+    uint32_t ccr_transfer_size;
+
     gdmac_chan = zalloc(sizeof(struct gdmac_chan));
     if (gdmac_chan == NULL) {
         return -ENOMEM;
@@ -394,6 +572,37 @@ int tsb_gdmac_allocal_mem2Mem_chan(struct device *dev,
     /* make a copy of the UniPro TX binary code. */
     memcpy(&mem2mem_chan->gdmac_program[0], &gdmac_mem2mem_program[0],
             sizeof(gdmac_mem2mem_program));
+
+    burst_size = gdmac_chan->burst_size = params->transfer_size;
+    burst_len = gdmac_chan->burst_len =
+            gsmac_bit_to_pos(params->burst_len) + 1;
+    ccr_transfer_size =
+            gdmac_chan->ccr_transfer_size = gsmac_bit_to_pos(burst_len);
+    gdmac_chan->burst_block_size =burst_size * burst_len;
+    gdmac_chan->align_mask = burst_size - 1;
+    gdmac_chan->ccr_base_value =
+            CCR_FIXED_VALUE | CCR_ENDIAN_SWAP(params) |
+            CCR_INC_VALE(params->dst_inc_options) << 14 |
+            CCR_INC_VALE(params->src_inc_options);
+
+    /* set Channel Control registers */
+    mem2mem_chan->preburst_load_chan_ctrl_reg.value =
+            gdmac_chan->ccr_base_value |
+            CCR_DST_CONFIG(1, ccr_transfer_size) |
+            CCR_SRC_CONFIG(1, ccr_transfer_size);
+
+    mem2mem_chan->burst_block_chan_ctrl_reg.value =
+            gdmac_chan->ccr_base_value |
+            CCR_DST_CONFIG(burst_len, ccr_transfer_size) |
+            CCR_SRC_CONFIG(burst_len, ccr_transfer_size);
+
+    mem2mem_chan->postburst_chan_ctrl_reg.value =
+            gdmac_chan->ccr_base_value |
+            CCR_DST_CONFIG(1, ccr_transfer_size) | CCR_SRC_CONFIG(1, 1);
+
+    mem2mem_chan->final_store_chan_ctrl_reg.value =
+            gdmac_chan->ccr_base_value |
+            CCR_DST_CONFIG(1, 1) | CCR_SRC_CONFIG(1, 1);
 
     /* Set end of transfer event. */
     mem2mem_chan->end_of_tx_event.value |= (gdmac_chan->end_of_tx_event << 3);
