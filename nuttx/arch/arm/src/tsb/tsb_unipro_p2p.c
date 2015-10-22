@@ -238,18 +238,6 @@ void unipro_p2p_peer_detected(void) {
 #endif
 
 void unipro_p2p_setup(void) {
-    unipro_write(UNIPRO_INT_EN, 0x0);
-    unipro_write(LUP_INT_EN, 0x0);
-    unipro_write(A2D_ATTRACS_INT_EN, 0x0);
-    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
-
-    lldbg("%s", "wait for link\n");
-    unipro_write(LUP_INT_EN, 0x1);
-    while (!(unipro_read(LUP_INT_AFT) & 0x1)) {
-    }
-    lldbg("%s", "link up\n");
-    unipro_write(LUP_INT_EN, 0x0);
-
     /* Layer 1.5 attributes */
     unipro_attr_local_write(PA_TXTERMINATION, 1, 0 /* selector */, NULL);
     unipro_attr_local_write(PA_RXTERMINATION, 1, 0 /* selector */, NULL);
