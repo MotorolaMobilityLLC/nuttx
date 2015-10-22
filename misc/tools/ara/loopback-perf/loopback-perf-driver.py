@@ -93,8 +93,8 @@ lsmod | grep gb_ | cut -f 1 -d ' '"
 
 
 # Toshiba APbridge USB ids
-USB_VID = 'ffff'
-USB_DID = '0002'
+USB_VID = '18d1'
+USB_DID = '1eaf'
 
 
 DRIVERS = set(('gb_loopback', 'gb_raw', 'gb_es2', 'greybus'))
