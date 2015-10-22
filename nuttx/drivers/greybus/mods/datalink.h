@@ -54,14 +54,17 @@
 #define MODS_DL_SEND(d,b,l) ((d)->ops->send(d,b,l))
 
 struct mods_dl_s;
+
+typedef int (*buf_t)(FAR struct mods_dl_s *dev, FAR const void *buf, size_t len);
+
 struct mods_dl_ops_s
 {
-  int  (*send)(FAR struct mods_dl_s *dev, FAR const void *buf, size_t len);
+  buf_t send;
 };
 
 struct mods_dl_cb_s
 {
-  int  (*recv)(FAR const void *buf, size_t len);
+  buf_t recv;
 };
 
 /*

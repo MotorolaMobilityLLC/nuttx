@@ -36,6 +36,7 @@
 
 #include <arch/atomic.h>
 #include <arch/board/mods.h>
+#include <arch/byteorder.h>
 
 #include <nuttx/gpio.h>
 #include <nuttx/greybus/mods.h>
@@ -52,8 +53,12 @@
 
 /* SPI packet header bit definitions */
 #define HDR_BIT_VALID  (0x01 << 7)  /* 1 = valid packet, 0 = dummy packet */
-#define HDR_BIT_RSVD   (0x03 << 5)  /* Reserved */
+#define HDR_BIT_TYPE   (0x01 << 6)  /* SPI message type */
+#define HDR_BIT_RSVD   (0x01 << 5)  /* Reserved */
 #define HDR_BIT_PKTS   (0x1F << 0)  /* How many additional packets to expect */
+
+#define MSG_TYPE_DL    (0 << 6)     /* Packet for/from data link layer */
+#define MSG_TYPE_NW    (1 << 6)     /* Packet for/from network layer */
 
 /* SPI packet CRC size (in bytes) */
 #define CRC_SIZE       (2)
@@ -67,9 +72,23 @@
 /* Macro to determine the packet size from the payload size */
 #define PKT_SIZE(pl_size)  (pl_size + sizeof(struct spi_msg_hdr) + CRC_SIZE)
 
+/* Macro for checking if the provided number is a power of two. */
+#define IS_PWR_OF_TWO(x) (!(x & (x - 1)) && x)
+
+/*
+ * Possible data link layer messages. Responses IDs should be the request ID
+ * with the MSB set.
+ */
+enum dl_msg_id
+{
+  DL_MSG_ID_BUS_CFG_REQ         = 0x00,
+  DL_MSG_ID_BUS_CFG_RESP        = 0x80,
+};
+
 struct spi_msg_hdr
 {
   __u8 bits;
+  __u8 rsvd;
 } __packed;
 
 struct mods_spi_dl_s
@@ -81,6 +100,7 @@ struct mods_spi_dl_s
   enum base_attached_e bstate;   /* Base state (attached/detached) */
   atomic_t xfer;                 /* Flag to indicate transfer in progress */
   size_t pkt_size;               /* Size of packet (hdr + pl + CRC) in bytes */
+  size_t new_pkt_size;           /* Packet size to use next time TX queue empty */
 
   struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
   struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
@@ -95,14 +115,38 @@ struct mods_spi_dl_s
   int rcvd_payload_idx;
 };
 
+struct spi_dl_msg_bus_config_req
+{
+  __le16 max_pl_size;            /* Maximum payload size supported by base */
+} __packed;
+
+struct spi_dl_msg_bus_config_resp
+{
+  __le32 max_speed;              /* Maximum bus speed supported by the mod */
+  __le16 pl_size;                /* Payload size that mod has selected to use */
+} __packed;
+
+struct spi_dl_msg
+{
+  __u8 id;                       /* enum dl_msg_id */
+  union
+    {
+      struct spi_dl_msg_bus_config_req     bus_req;
+      struct spi_dl_msg_bus_config_resp    bus_resp;
+    };
+} __packed;
+
+static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
+                      const void *buf, size_t len);
+
 static int set_packet_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
 {
   struct ring_buf *tx_rb_new;
   __u8 *rx_buf_new;
 
-  /* Only change packet size if TX buffer is empty */
-  if (priv->txp_rb != priv->txc_rb)
-      return -EBUSY;
+  /* Immediately return if packet size is not changing */
+  if (pkt_size == priv->pkt_size)
+      return OK;
 
   /* Allocate RX buffer */
   rx_buf_new = malloc(pkt_size);
@@ -141,6 +185,56 @@ static int set_packet_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
   dbg("%d bytes\n", priv->pkt_size);
 
   return OK;
+}
+
+static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
+{
+  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)dl;
+  struct spi_dl_msg *req = (struct spi_dl_msg *)buf;
+  struct spi_dl_msg resp;
+  uint16_t pl_size;
+
+  if (sizeof(*req) > len)
+    {
+      dbg("Dropping short message\n");
+      return -EINVAL;
+    }
+
+  /* Only BUS_CFG_REQ is supported */
+  if (req->id != DL_MSG_ID_BUS_CFG_REQ)
+    {
+      dbg("Unknown ID (%d)!\n", req->id);
+      return -EINVAL;
+    }
+
+  resp.id = DL_MSG_ID_BUS_CFG_RESP;
+  resp.bus_resp.max_speed = cpu_to_le32(CONFIG_GREYBUS_MODS_MAX_BUS_SPEED);
+
+  pl_size = MIN(CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE,
+                le16_to_cpu(req->bus_req.max_pl_size));
+  /*
+   * Verify new packet size is valid. The payload must be no smaller than
+   * the default packet size and must be a power of two.
+   */
+  if (IS_PWR_OF_TWO(pl_size) && (pl_size >= DEFAULT_PAYLOAD_SZ))
+    {
+      /*
+       * The new packet size cannot be used immediately since the reply
+       * must use the current packet size. Save off for now to be set later.
+       */
+      priv->new_pkt_size = PKT_SIZE(pl_size);
+    }
+  else
+    {
+      /*
+       * The new payload size is invalid so set returned payload size to
+       * zero so the base does not change the payload size.
+       */
+      pl_size = 0;
+    }
+  resp.bus_resp.pl_size = cpu_to_le16(pl_size);
+
+  return queue_data(priv, MSG_TYPE_DL, &resp, sizeof(resp));
 }
 
 static void setup_xfer(FAR struct mods_spi_dl_s *priv)
@@ -210,9 +304,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)arg;
 
-  priv->bstate = state;
-
-  if (state == BASE_DETACHED)
+  if ((priv->bstate != state) && (state == BASE_DETACHED))
     {
       vdbg("Cleaning up datalink\n");
 
@@ -220,15 +312,26 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       mods_host_int_set(false);
       mods_rfr_set(0);
 
-      /* Cancel SPI transaction */
-      SPI_SLAVE_DMA_CANCEL(priv->spi);
+      if (atomic_get(&priv->xfer))
+        {
+          /* Cancel SPI transaction */
+          SPI_SLAVE_DMA_CANCEL(priv->spi);
+
+          /* Clear transfer setup flag */
+          atomic_dec(&priv->xfer);
+        }
 
       /* Cleanup any unsent messages */
       while (ring_buf_is_consumers(priv->txc_rb))
         {
           cleanup_txc_rb_entry(priv);
         }
+
+      /* Return packet size back to default */
+      (void)set_packet_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
     }
+
+  priv->bstate = state;
 }
 
 /*
@@ -249,6 +352,7 @@ static void txn_finished_cb(void *v)
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
   struct spi_msg_hdr *hdr = (struct spi_msg_hdr *)priv->rx_buf;
   size_t pl_size = PL_SIZE(priv->pkt_size);
+  buf_t recv = priv->cb->recv;
 
   vdbg("hdr.bits=0x%02X\n", hdr->bits);
 
@@ -260,9 +364,21 @@ static void txn_finished_cb(void *v)
 
   if (!(hdr->bits & HDR_BIT_VALID))
     {
-      /* Received a dummy packet - nothing to do! */
+      /* Received a dummy packet - no processing to do! */
+
+      /* Only change packet size if TX buffer is empty */
+      if ((priv->new_pkt_size > 0) && (priv->txp_rb == priv->txc_rb))
+        {
+          /* If this fails, communication with the base will be lost. */
+          (void)set_packet_size(priv, priv->new_pkt_size);
+          priv->new_pkt_size = 0;
+        }
+
       goto done;
     }
+
+  if ((hdr->bits & HDR_BIT_TYPE) == MSG_TYPE_DL)
+      recv = dl_recv;
 
   /* Check if un-packetizing is required */
   if (MODS_DL_PAYLOAD_MAX_SZ != pl_size)
@@ -270,6 +386,7 @@ static void txn_finished_cb(void *v)
       if (priv->rcvd_payload_idx >= MODS_DL_PAYLOAD_MAX_SZ)
         {
           /* Too many packets received! */
+          priv->rcvd_payload_idx = 0;
           goto done;
         }
 
@@ -283,13 +400,13 @@ static void txn_finished_cb(void *v)
           goto done;
         }
 
-      priv->cb->recv(priv->rcvd_payload, priv->rcvd_payload_idx);
+      recv(&priv->dl, priv->rcvd_payload, priv->rcvd_payload_idx);
       priv->rcvd_payload_idx = 0;
     }
   else
     {
       /* Un-packetizing not required */
-      priv->cb->recv(&priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
+      recv(&priv->dl, &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
     }
 
 done:
@@ -327,11 +444,9 @@ static const struct spi_cb_ops_s cb_ops =
   .txn_err = txn_error_cb,
 };
 
-/* Called by network layer when there is data to be sent to base */
-static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
-                      size_t len)
+static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
+                      const void *buf, size_t len)
 {
-  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)dl;
   int remaining = len;
   irqstate_t flags;
   __u8 *dbuf = (__u8 *)buf;
@@ -371,6 +486,7 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
 
       /* Populate the SPI message */
       hdr->bits  = HDR_BIT_VALID;
+      hdr->bits |= (msg_type & HDR_BIT_TYPE);
       hdr->bits |= (--packets & HDR_BIT_PKTS);
       memcpy(payload, dbuf, this_pl);
 
@@ -383,13 +499,27 @@ static int queue_data(FAR struct mods_dl_s *dl, const void *buf,
     }
   irqrestore(flags);
 
+  return OK;
+}
+
+/* Called by network layer when there is data to be sent to base */
+static int queue_data_nw(FAR struct mods_dl_s *dl, const void *buf, size_t len)
+{
+  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)dl;
+  int ret;
+
+  ret = queue_data(priv, MSG_TYPE_NW, buf, len);
+  if (ret)
+      return ret;
+
   setup_xfer(priv);
-  return 0;
+
+  return OK;
 }
 
 static struct mods_dl_ops_s mods_dl_ops =
 {
-  .send = queue_data,
+  .send = queue_data_nw,
 };
 
 static struct mods_spi_dl_s mods_spi_dl =

@@ -26,3 +26,22 @@ config GREYBUS_MODS_I2C_ADDR
 	default 0x55
 
 endif
+
+if GREYBUS_MODS_SPI
+config GREYBUS_MODS_MAX_BUS_SPEED
+	int "Mods Maximum Bus Speed"
+	default 0
+	---help---
+		The maximum bus speed that will be reported to the AP. Set to zero to
+		report nothing and remain at the default speed.
+
+config GREYBUS_MODS_DESIRED_PKT_SIZE
+	int "Mods Desired Packet Size"
+	default 0
+	---help---
+		The desired packet size that will be reported to the AP. If the AP is
+		unable to handle packets that large, the AP's maximum size will be used
+		instead. Value must be greater than or equal to the default packet size
+		and less than or equal to the maximum supported Greybus packet size.
+		Set to zero to report nothing and remain at the default size.
+endif

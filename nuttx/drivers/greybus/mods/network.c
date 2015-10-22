@@ -65,7 +65,7 @@ static struct mods_dl_s *dl;
 /* Preallocated buffer for network messages */
 static __u8 network_buffer[MODS_DL_PAYLOAD_MAX_SZ];
 
-static int network_recv(const void *buf, size_t len)
+static int network_recv(FAR struct mods_dl_s *dev, const void *buf, size_t len)
 {
   struct mods_msg *m = (struct mods_msg *)buf;
 
