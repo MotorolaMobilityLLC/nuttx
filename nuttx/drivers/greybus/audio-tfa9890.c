@@ -47,7 +47,7 @@
 #include "audio-gb.h"
 #include "i2s-gb.h"
 
-#define NUM_INSTANCES_TFA9890    4
+#define NUM_INSTANCES_TFA9890    2
 #define TFA9890_SUPPORTED_USE_CASES (GB_AUDIO_MUSIC_USE_CASE | \
                            GB_AUDIO_VOICE_CALL_SPKR_USE_CASE | \
                            GB_AUDIO_LOW_LATENCY_USE_CASE)
@@ -65,7 +65,7 @@ struct gb_audio_s {
 };
 
 static struct gb_audio_s gb_aud;
-static const int tfa9890_i2c_addr[NUM_INSTANCES_TFA9890]= {0x34, 0x35, 0x36, 0x37};
+static const int tfa9890_i2c_addr[NUM_INSTANCES_TFA9890]= {0x34, 0x35};
 
 static const struct device_i2s_configuration tfa9890_i2s_config_table[] = {
     /* default I2S configuration for tfa9890, IC will operate in this config for all
