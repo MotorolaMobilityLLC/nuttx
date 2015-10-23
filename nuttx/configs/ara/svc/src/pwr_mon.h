@@ -145,6 +145,7 @@ void pwrmon_deinit(void);
 
 int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs);
 void pwrmon_unregister_devs(void);
+size_t pwrmon_get_num_devs(void);
 
 /*
  * These functions are board-specific and must be implemented

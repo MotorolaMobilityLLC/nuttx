@@ -57,14 +57,14 @@
 #define dbg_verbose(format, ...)
 #endif
 
-static pwrmon_rail *arapm_rails[DEV_COUNT][DEV_MAX_RAIL_COUNT];
-static ina230_sample measurements[DEV_COUNT][DEV_MAX_RAIL_COUNT];
+static pwrmon_rail ***arapm_rails;
+static ina230_sample **measurements;
 static uint32_t refresh_rate = DEFAULT_REFRESH_RATE;
 static uint32_t loopcount = DEFAULT_LOOPCOUNT;
 static uint8_t continuous = DEFAULT_CONTINUOUS;
 static bool csv_export = false;
-static uint8_t user_dev_id = DEV_COUNT;
-static uint8_t user_rail_id = DEV_MAX_RAIL_COUNT;
+static uint8_t user_dev_id;
+static uint8_t user_rail_id = INA230_MAX_DEVS;
 static uint32_t current_lsb;
 static ina230_conversion_time conversion_time;
 static ina230_avg_count avg_count;
@@ -122,9 +122,9 @@ static void usage(void)
  */
 static void arapm_main_get_device_list(uint8_t *d_start, uint8_t *d_end)
 {
-    if (user_dev_id == DEV_COUNT) {
+    if (user_dev_id == pwrmon_get_num_devs()) {
         *d_start = 0;
-        *d_end = DEV_COUNT;
+        *d_end = pwrmon_get_num_devs();
     } else {
         *d_start = user_dev_id;
         *d_end = user_dev_id + 1;
@@ -143,7 +143,7 @@ static void arapm_main_get_device_list(uint8_t *d_start, uint8_t *d_end)
 static void arapm_main_get_rail_list(uint8_t dev,
                                     uint8_t *r_start, uint8_t *r_end)
 {
-    if (user_rail_id == DEV_MAX_RAIL_COUNT) {
+    if (user_rail_id == INA230_MAX_DEVS) {
         *r_start = 0;
         *r_end = pwrmon_dev_rail_count(dev);
     } else {
@@ -264,8 +264,8 @@ static int arapm_main_get_user_options(int argc, char **argv)
     refresh_rate = DEFAULT_REFRESH_RATE;
     loopcount = DEFAULT_LOOPCOUNT;
     continuous = DEFAULT_CONTINUOUS;
-    user_dev_id = DEV_COUNT;
-    user_rail_id = DEV_MAX_RAIL_COUNT;
+    user_dev_id = pwrmon_get_num_devs();
+    user_rail_id = INA230_MAX_DEVS;
     current_lsb = DEFAULT_CURRENT_LSB;
     conversion_time = DEFAULT_CONVERSION_TIME;
     avg_count = DEFAULT_AVG_SAMPLE_COUNT;
@@ -389,10 +389,10 @@ static uint8_t arapm_main_get_max_rail_count(void)
 {
     uint8_t max_rcount;
 
-    if (user_dev_id == DEV_COUNT) {
-        max_rcount = DEV_MAX_RAIL_COUNT;
+    if (user_dev_id == pwrmon_get_num_devs()) {
+        max_rcount = INA230_MAX_DEVS;
     } else {
-        if (user_rail_id == DEV_MAX_RAIL_COUNT) {
+        if (user_rail_id == INA230_MAX_DEVS) {
             max_rcount = pwrmon_dev_rail_count(user_dev_id);
         } else {
             max_rcount = 1;
@@ -529,6 +529,34 @@ static void arapm_main_display_measurements(void)
     }
 }
 
+static void free_rails(void)
+{
+    int i;
+
+    if (arapm_rails) {
+        for (i = 0; i < pwrmon_get_num_devs(); i++) {
+            if (arapm_rails[i])
+                free(arapm_rails[i]);
+        }
+
+        free(arapm_rails);
+    }
+}
+
+static void free_measurements(void)
+{
+    int i;
+
+    if (measurements) {
+        for (i = 0; i < pwrmon_get_num_devs(); i++) {
+            if (measurements[i])
+                free(measurements[i]);
+        }
+
+        free(measurements);
+    }
+}
+
 /**
  * @brief           Do all the necessary initializations.
  * @return          0 on success, standard error codes otherwise.
@@ -538,9 +566,39 @@ static int arapm_main_init(void)
     uint8_t d, r;
     uint8_t d_start, d_end;
     uint8_t r_start, r_end;
-    int ret;
+    int ret, i;
 
     timestamp = 0;
+
+    arapm_rails = zalloc(sizeof(pwrmon_rail **) * pwrmon_get_num_devs());
+    if (arapm_rails == NULL)
+        return -ENOMEM;
+
+    measurements = zalloc(sizeof(ina230_sample *) * pwrmon_get_num_devs());
+    if (measurements == NULL) {
+        free(arapm_rails);
+        return -ENOMEM;
+    }
+
+    for (i = 0; i < pwrmon_get_num_devs(); i++) {
+        arapm_rails[i] = malloc(sizeof(pwrmon_rail *) * INA230_MAX_DEVS);
+        if (arapm_rails[i] == NULL) {
+            free_rails();
+            free(measurements);
+            return -ENOMEM;
+        }
+    }
+
+    for (i = 0; i < pwrmon_get_num_devs(); i++) {
+        measurements[i] = malloc(sizeof(ina230_sample) * INA230_MAX_DEVS);
+        if (measurements[i] == NULL) {
+            free_rails();
+            free_measurements();
+            return -ENOMEM;
+        }
+    }
+
+    measurements[i] = malloc(sizeof(ina230_sample) * INA230_MAX_DEVS);
 
     /* Init library */
     ret = pwrmon_init(current_lsb, conversion_time, avg_count);
@@ -550,8 +608,8 @@ static int arapm_main_init(void)
     }
 
     /* Clear pointers and measurements*/
-    for (d = 0; d < DEV_COUNT; d++) {
-        for (r = 0; r < DEV_MAX_RAIL_COUNT; r++) {
+    for (d = 0; d < pwrmon_get_num_devs(); d++) {
+        for (r = 0; r < INA230_MAX_DEVS; r++) {
             arapm_rails[d][r] = NULL;
             measurements[d][r].uV = 0;
             measurements[d][r].uA = 0;
@@ -614,6 +672,9 @@ static void arapm_main_deinit(void)
         }
     }
     pwrmon_deinit();
+
+    free_rails();
+    free_measurements();
 
     printf("Power measurement HW and library deinitialized.\n\n");
 }

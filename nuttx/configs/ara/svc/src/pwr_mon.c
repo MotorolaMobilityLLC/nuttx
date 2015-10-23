@@ -226,6 +226,11 @@ void pwrmon_unregister_devs(void)
     pwrmon_num_devs = 0;
 }
 
+size_t pwrmon_get_num_devs(void)
+{
+    return pwrmon_num_devs;
+}
+
 /**
  * @brief           Return the device name (string) given its ID.
  * @return          device name (string) on success, NULL in case of error.
