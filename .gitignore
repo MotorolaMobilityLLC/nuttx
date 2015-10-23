@@ -19,3 +19,4 @@ build
 nuttx/configs/ara/common/src/ara_build_info_priv.h
 doc
 oot
+.DS_Store
