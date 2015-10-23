@@ -165,10 +165,10 @@
 
 /* offsets */
 #define TFA9890_RESET_OFFSET        BIT(0)
-#define TFA9890_VOLUME_CTRL_OFFSET  BIT(0)
+#define TFA9890_VOLUME_CTRL_OFFSET  BIT(3)
 #define TFA9890_PWDN_OFFSET         (0)
-#define TFA9890_AMP_OFFSET          BIT(3)
-#define TFA9890_SBSL_OFFSET         BIT(5)
+#define TFA9890_AMP_OFFSET          BIT(0) & BIT(1)
+#define TFA9890_SBSL_OFFSET         BIT(0) & BIT(2)
 
 /* DSP Firmware Size in bytes*/
 #define TFA9890_SPK_FW_SIZE         424
