@@ -57,36 +57,6 @@ static ina230_conversion_time pwrmon_ct;
 static ina230_avg_count pwrmon_avg_count;
 static int current_dev;
 
-static struct pwrmon_dev_ctx *pwrmon_devs = NULL;
-static size_t pwrmon_num_devs = 0;
-
-int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs)
-{
-    if (pwrmon_devs != NULL) {
-        return -EBUSY;
-    }
-
-    if (num_devs == 0 || devs == NULL) {
-        return -EINVAL;
-    }
-
-    pwrmon_devs = devs;
-    pwrmon_num_devs = num_devs;
-
-    return 0;
-}
-
-void pwrmon_unregister_devs(void)
-{
-    pwrmon_devs = NULL;
-    pwrmon_num_devs = 0;
-}
-
-size_t pwrmon_get_num_devs(void)
-{
-    return pwrmon_num_devs;
-}
-
 /**
  * @brief           Return the device name (string) given its ID.
  * @return          device name (string) on success, NULL in case of error.

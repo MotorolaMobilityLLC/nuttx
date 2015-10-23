@@ -270,7 +270,7 @@ enum {
  *
  * If a bit is set in i2c_sel, then drive the GPIO low.
  */
-static struct pwrmon_dev_ctx pwr_devs[] = {
+const struct pwrmon_dev_ctx pwrmon_devs[] = {
     {
         .name = "SWitch",
         .i2c_sel = I2C_SEL1_A | I2C_SEL1_B | I2C_SEL1_INH,
@@ -368,6 +368,8 @@ static struct pwrmon_dev_ctx pwr_devs[] = {
     },
 };
 
+const size_t pwrmon_num_devs = ARRAY_SIZE(pwrmon_devs);
+
 void pwrmon_reset_i2c_sel(void)
 {
     gpio_set_value(I2C_INA230_SEL1_INH, 1);
@@ -390,7 +392,7 @@ void pwrmon_init_i2c_sel(void)
 
 int pwrmon_do_i2c_sel(uint8_t dev)
 {
-    if (dev >= ARRAY_SIZE(pwr_devs)) {
+    if (dev >= ARRAY_SIZE(pwrmon_devs)) {
         return -EINVAL;
     }
 
@@ -398,16 +400,16 @@ int pwrmon_do_i2c_sel(uint8_t dev)
     gpio_set_value(I2C_INA230_SEL1_INH, 1);
     gpio_set_value(I2C_INA230_SEL2_INH, 1);
 
-    gpio_set_value(I2C_INA230_SEL1_A, pwr_devs[dev].i2c_sel & I2C_SEL1_A ? 0 : 1);
-    gpio_set_value(I2C_INA230_SEL1_B, pwr_devs[dev].i2c_sel & I2C_SEL1_B ? 0 : 1);
-    gpio_set_value(I2C_INA230_SEL2_A, pwr_devs[dev].i2c_sel & I2C_SEL2_A ? 0 : 1);
-    gpio_set_value(I2C_INA230_SEL2_B, pwr_devs[dev].i2c_sel & I2C_SEL2_B ? 0 : 1);
+    gpio_set_value(I2C_INA230_SEL1_A, pwrmon_devs[dev].i2c_sel & I2C_SEL1_A ? 0 : 1);
+    gpio_set_value(I2C_INA230_SEL1_B, pwrmon_devs[dev].i2c_sel & I2C_SEL1_B ? 0 : 1);
+    gpio_set_value(I2C_INA230_SEL2_A, pwrmon_devs[dev].i2c_sel & I2C_SEL2_A ? 0 : 1);
+    gpio_set_value(I2C_INA230_SEL2_B, pwrmon_devs[dev].i2c_sel & I2C_SEL2_B ? 0 : 1);
 
-    if (pwr_devs[dev].i2c_sel & I2C_SEL1_INH) {
+    if (pwrmon_devs[dev].i2c_sel & I2C_SEL1_INH) {
         gpio_set_value(I2C_INA230_SEL1_INH, 0);
     }
 
-    if (pwr_devs[dev].i2c_sel & I2C_SEL2_INH) {
+    if (pwrmon_devs[dev].i2c_sel & I2C_SEL2_INH) {
         gpio_set_value(I2C_INA230_SEL2_INH, 0);
     }
 
@@ -548,16 +550,12 @@ struct ara_board_info *board_init(void)
     /* Hold USB_HUB_RESET high */
     gpio_direction_out(USB_HUB_RESET, 1);
 
-    pwrmon_register_devs(pwr_devs, ARRAY_SIZE(pwr_devs));
-
     return &sdb_board_info;
 }
 
 void board_exit(void)
 {
     int i;
-
-    pwrmon_unregister_devs();
 
     /*
      * First unregister the TCA64xx I/O Expanders and associated I2C bus(ses).

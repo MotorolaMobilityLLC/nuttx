@@ -70,6 +70,9 @@ typedef struct {
     const char *rail_name;
 } pwrmon_rail;
 
+extern const struct pwrmon_dev_ctx pwrmon_devs[];
+extern const size_t pwrmon_num_devs;
+
 int pwrmon_init(uint32_t current_lsb_uA,
                ina230_conversion_time ct,
                ina230_avg_count avg_count);
@@ -83,10 +86,6 @@ int pwrmon_rail_id(const char *name, uint8_t *dev, uint8_t *rail);
 int pwrmon_dev_rail_count(uint8_t dev);
 void pwrmon_deinit_rail(pwrmon_rail *pwrmon_dev);
 void pwrmon_deinit(void);
-
-int pwrmon_register_devs(struct pwrmon_dev_ctx *devs, size_t num_devs);
-void pwrmon_unregister_devs(void);
-size_t pwrmon_get_num_devs(void);
 
 /*
  * These functions are board-specific and must be implemented
