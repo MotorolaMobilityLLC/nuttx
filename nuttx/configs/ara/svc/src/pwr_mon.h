@@ -39,11 +39,6 @@
 #include <sys/types.h>
 #include <nuttx/sensors/ina230.h>
 
-#define DEV_MAX_RAIL_COUNT          8
-
-#define DEV_NAME_MAX_LENGTH         8
-#define RAIL_NAME_MAX_LENGTH        20
-
 struct pwrmon_rail_ctx {
     const char *name;
     uint8_t i2c_addr;
@@ -57,7 +52,7 @@ struct pwrmon_dev_ctx {
      * and is interpreted by the board files.
      */
     uint32_t i2c_sel;
-    struct pwrmon_rail_ctx rails[DEV_MAX_RAIL_COUNT];
+    struct pwrmon_rail_ctx rails[INA230_MAX_DEVS];
     size_t num_rails;
 };
 
@@ -66,60 +61,6 @@ struct pwrmon_dev_ctx {
         .name = _name,                                                  \
         .i2c_addr = _i2c_addr,                                          \
     }
-
-typedef enum {
-    DEV_SW,
-    DEV_APB1,
-    DEV_APB2,
-    DEV_APB3,
-    DEV_GPB1,
-    DEV_GPB2,
-#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
-    DEV_SVC,
-#endif
-    DEV_COUNT,
-} device;
-
-typedef enum {
-    VSW_1P1_PLL,
-    VSW_1P1_CORE,
-    VSW_1P8_UNIPRO,
-    VSW_1P8_IO,
-    VSW_COUNT
-} sw_pwr_rail;
-
-typedef enum {
-    VAPB_1P1_CORE,
-    VAPB_1P1_PLL1,
-    VAPB_1P2_CDSI_PLL,
-    VAPB_1P2_CDSI,
-    VAPB_1P2_HSIC,
-    VAPB_1P8_UNIPRO,
-    VAPB_1P8_IO,
-    VAPB_1P1_PLL2,
-    VAPB_COUNT
-} apb_pwr_rail;
-
-typedef enum {
-    VGPB_1P1_CORE,
-    VGPB_1P1_PLL1,
-    VGPB_SDIO,
-    VGPB_1P2_HSIC,
-    VGPB_1P8_UNIPRO,
-    VGPB_1P8_IO,
-    VGPB_1P1_PLL2,
-    VGPB_COUNT
-} gpb_pwr_rail;
-
-#ifdef CONFIG_ARCH_BOARD_ARA_SDB_SVC
-typedef enum {
-    SVC_1P8_VDD,
-    SVC_1P8_VBAT,
-    SVC_1P8_VDDA,
-    SVC_1P8_VREF,
-    SVC_COUNT
-} svc_pwr_rail;
-#endif
 
 typedef struct {
     ina230_device *ina230_dev;
