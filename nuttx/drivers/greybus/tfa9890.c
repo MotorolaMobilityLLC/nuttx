@@ -460,8 +460,8 @@ int tfa9890_load_config(FAR struct tfa9890_dev_s *priv)
 {
     int ret = -EIO;
 
-    ret = tfa9887_load_dsp_patch(priv, tfa9890_n1b12_patch,
-                     tfa9890_n1b12_patch_len);
+    ret = tfa9887_load_dsp_patch(priv, tfa9890_n1c2_patch,
+                     tfa9890_n1c2_patch_len);
     if (ret)
     {
         lldbg("tfa9890: Failed to load dsp patch!!\n");
