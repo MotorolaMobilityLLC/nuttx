@@ -31,19 +31,14 @@
 #include "bq24292_config.h"
 
 // Charging Configurations
-#ifdef CONFIG_CHARGER_BQ24292_SAMPLE_CFG
 const struct bq24292_config bq24292_cfg[] = {
     // reg  mask  set
-    { 0x00, 0xFF, 0x3D },   // EN_HIZ = 0, VINDMP = 4.44V, IINLIM = 1.5A
-    { 0x01, 0x0F, 0x0B },   // SYS_MIN = 3.5V, BOOST_LIM = 1.3A
-    { 0x02, 0xFF, 0x5C },   // ICHG = 1472mA, FORCE_20PCT = 0
-    { 0x03, 0xFF, 0x11 },   // IPRECHG = 256mA, ITERM = 256mA
-    { 0x04, 0xFF, 0xAC },   // VREG = 4192 mV, BATLOWV = 2.8V, VRECHG = 100 mV
-    { 0x05, 0xFF, 0x80 },   // EN_TERM = 1, TERM_STAT = 0, WATCHDOG = DISABLE, CHG_TIMER = 8hrs
-    { 0x07, 0x4F, 0x4B },   // TMR2X_EN = 1, CHGRG_FAULT_INT = 1, BAT_FAULT_INT = 1
-};
+#if defined (CONFIG_CHARGER_BQ24292_SAMPLE_CFG)
+    { 0x04, 0x02, 0x00 },   // BATLOWV = 2.8V
+    { 0x05, 0x30, 0x00 },   // WATCHDOG = DISABLE
 #else
 // Place charging configurations for actual batteries here
 #endif
+};
 
 const int bq24292_cfg_size = sizeof(bq24292_cfg) / sizeof(struct bq24292_config);
