@@ -29,6 +29,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/greybus/mods.h>
+#include <nuttx/greybus/mods-ctrl.h>
 
 #include <stdio.h>
 
@@ -68,6 +69,8 @@ int mods_main(int argc, char *argv[])
     mods_attach_init(); /* Must be after network init */
     srvmgr_start(services);
     enable_cports();
+
+    mb_control_register(MODS_VENDOR_CTRL_CPORT);
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");
