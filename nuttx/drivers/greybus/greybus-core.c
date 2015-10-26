@@ -71,7 +71,15 @@ struct gb_tape_record_header {
 
 static unsigned int cport_count;
 static atomic_t request_id;
-static struct gb_cport_driver *g_cport;
+
+static struct gb_cport_driver *__g_cport;
+static struct gb_cport_driver *_g_cport(unsigned int cport)
+{
+    return &__g_cport[cport];
+
+}
+#define g_cport(c) (*(_g_cport(c)))
+
 static struct gb_transport_backend *transport_backend;
 static struct gb_tape_mechanism *gb_tape;
 static int gb_tape_fd = -EBADFD;
@@ -161,7 +169,7 @@ static int gb_compare_handlers(const void *data1, const void *data2)
 static struct gb_operation_handler *find_operation_handler(uint8_t type,
                                                            unsigned int cport)
 {
-    struct gb_driver *driver = g_cport[cport].driver;
+    struct gb_driver *driver = g_cport(cport).driver;
     int l,r;
 
     if (type == GB_INVALID_TYPE || !driver->op_handlers) {
@@ -247,10 +255,10 @@ static void gb_watchdog_update(unsigned int cport)
 
     flags = irqsave();
 
-    if (list_is_empty(&g_cport[cport].tx_fifo)) {
-        wd_cancel(&g_cport[cport].timeout_wd);
+    if (list_is_empty(&g_cport(cport).tx_fifo)) {
+        wd_cancel(&g_cport(cport).timeout_wd);
     } else {
-        wd_start(&g_cport[cport].timeout_wd, TIMEOUT_WD_DELAY,
+        wd_start(&g_cport(cport).timeout_wd, TIMEOUT_WD_DELAY,
                  gb_operation_timeout, 1, cport);
     }
 
@@ -263,7 +271,7 @@ static void gb_clean_timedout_operation(unsigned int cport)
     struct list_head *iter, *iter_next;
     struct gb_operation *op;
 
-    list_foreach_safe(&g_cport[cport].tx_fifo, iter, iter_next) {
+    list_foreach_safe(&g_cport(cport).tx_fifo, iter, iter_next) {
         op = list_entry(iter, struct gb_operation, list);
 
         if (!gb_operation_has_timedout(op)) {
@@ -291,7 +299,7 @@ static void gb_process_response(struct gb_operation_hdr *hdr,
     struct gb_operation *op;
     struct gb_operation_hdr *op_hdr;
 
-    list_foreach_safe(&g_cport[operation->cport].tx_fifo, iter, iter_next) {
+    list_foreach_safe(&g_cport(operation->cport).tx_fifo, iter, iter_next) {
         op = list_entry(iter, struct gb_operation, list);
         op_hdr = op->request_buffer;
 
@@ -327,7 +335,7 @@ static void *gb_pending_message_worker(void *data)
     int retval;
 
     while (1) {
-        retval = sem_wait(&g_cport[cportid].rx_fifo_lock);
+        retval = sem_wait(&g_cport(cportid).rx_fifo_lock);
         if (retval < 0)
             continue;
 
@@ -337,8 +345,8 @@ static void *gb_pending_message_worker(void *data)
         }
 
         flags = irqsave();
-        head = g_cport[cportid].rx_fifo.next;
-        list_del(g_cport[cportid].rx_fifo.next);
+        head = g_cport(cportid).rx_fifo.next;
+        list_del(g_cport(cportid).rx_fifo.next);
         irqrestore(flags);
 
         operation = list_entry(head, struct gb_operation, list);
@@ -404,7 +412,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
         return -EINVAL;
     }
 
-    if (!g_cport[cport].driver || !g_cport[cport].driver->op_handlers) {
+    if (!g_cport(cport).driver || !g_cport(cport).driver->op_handlers) {
         gb_error("Cport %u does not have a valid driver registered\n", cport);
         return 0;
     }
@@ -447,8 +455,8 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     op_mark_recv_time(op);
 
     flags = irqsave();
-    list_add(&g_cport[cport].rx_fifo, &op->list);
-    sem_post(&g_cport[cport].rx_fifo_lock);
+    list_add(&g_cport(cport).rx_fifo, &op->list);
+    sem_post(&g_cport(cport).rx_fifo_lock);
     irqrestore(flags);
 
     return 0;
@@ -507,9 +515,9 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
         return -EINVAL;
     }
 
-    if (g_cport[cport].driver) {
+    if (g_cport(cport).driver) {
         gb_error("%s is already registered for CP%u\n",
-                 gb_driver_name(g_cport[cport].driver), cport);
+                 gb_driver_name(g_cport(cport).driver), cport);
         return -EEXIST;
     }
 
@@ -544,7 +552,7 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
     if (retval)
         goto pthread_attr_setstacksize_error;
 
-    retval = pthread_create(&g_cport[cport].thread, &thread_attr,
+    retval = pthread_create(&g_cport(cport).thread, &thread_attr,
                             gb_pending_message_worker, (unsigned*) cport);
     if (retval)
         goto pthread_create_error;
@@ -552,7 +560,7 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
     pthread_attr_destroy(&thread_attr);
     thread_attr_ptr = NULL;
 
-    g_cport[cport].driver = driver;
+    g_cport(cport).driver = driver;
 
     return 0;
 
@@ -577,7 +585,7 @@ int gb_listen(unsigned int cport)
         return -EINVAL;
     }
 
-    if (!g_cport[cport].driver) {
+    if (!g_cport(cport).driver) {
         gb_error("No driver registered! Can not connect CP%u.\n", cport);
         return -EINVAL;
     }
@@ -595,7 +603,7 @@ int gb_stop_listening(unsigned int cport)
         return -EINVAL;
     }
 
-    if (!g_cport[cport].driver) {
+    if (!g_cport(cport).driver) {
         gb_error("No driver registered! Can not disconnect CP%u.\n",
                  cport);
         return -EINVAL;
@@ -611,13 +619,13 @@ static void gb_operation_timeout(int argc, uint32_t cport, ...)
     flags = irqsave();
 
     /* timedout operation could potentially already been queued */
-    if (!list_is_empty(&g_cport[cport].timedout_operation.list)) {
+    if (!list_is_empty(&g_cport(cport).timedout_operation.list)) {
         irqrestore(flags);
         return;
     }
 
-    list_add(&g_cport[cport].rx_fifo, &g_cport[cport].timedout_operation.list);
-    sem_post(&g_cport[cport].rx_fifo_lock);
+    list_add(&g_cport(cport).rx_fifo, &g_cport(cport).timedout_operation.list);
+    sem_post(&g_cport(cport).rx_fifo_lock);
     irqrestore(flags);
 }
 
@@ -647,9 +655,9 @@ int gb_operation_send_request(struct gb_operation *operation,
         clock_gettime(CLOCK_MONOTONIC, &operation->time);
         operation->callback = callback;
         gb_operation_ref(operation);
-        list_add(&g_cport[operation->cport].tx_fifo, &operation->list);
-        if (!WDOG_ISACTIVE(&g_cport[operation->cport].timeout_wd)) {
-            wd_start(&g_cport[operation->cport].timeout_wd, TIMEOUT_WD_DELAY,
+        list_add(&g_cport(operation->cport).tx_fifo, &operation->list);
+        if (!WDOG_ISACTIVE(&g_cport(operation->cport).timeout_wd)) {
+            wd_start(&g_cport(operation->cport).timeout_wd, TIMEOUT_WD_DELAY,
                      gb_operation_timeout, 1, operation->cport);
         }
     }
@@ -916,14 +924,14 @@ int gb_init(struct gb_transport_backend *transport)
         return -EINVAL;
 
     cport_count = unipro_cport_count();
-    g_cport = zalloc(sizeof(struct gb_cport_driver) * cport_count);
+    __g_cport = zalloc(sizeof(struct gb_cport_driver) * cport_count);
     for (i = 0; i < cport_count; i++) {
-        sem_init(&g_cport[i].rx_fifo_lock, 0, 0);
-        list_init(&g_cport[i].rx_fifo);
-        list_init(&g_cport[i].tx_fifo);
-        wd_static(&g_cport[i].timeout_wd);
-        g_cport[i].timedout_operation.request_buffer = &timedout_hdr;
-        list_init(&g_cport[i].timedout_operation.list);
+        sem_init(&g_cport(i).rx_fifo_lock, 0, 0);
+        list_init(&g_cport(i).rx_fifo);
+        list_init(&g_cport(i).tx_fifo);
+        wd_static(&g_cport(i).timeout_wd);
+        g_cport(i).timedout_operation.request_buffer = &timedout_hdr;
+        list_init(&g_cport(i).timedout_operation.list);
     }
 
     atomic_init(&request_id, (uint32_t) 0);
