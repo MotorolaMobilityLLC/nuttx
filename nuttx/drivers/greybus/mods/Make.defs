@@ -36,6 +36,7 @@ ifeq ($(CONFIG_GREYBUS_MODS),y)
 
 CSRCS += attach.c
 CSRCS += network.c
+CSRCS += mods-control.c
 
 ifeq ($(CONFIG_PROGMEM),y)
 CSRCS += bootmode.c

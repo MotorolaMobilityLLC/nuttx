@@ -1,0 +1,190 @@
+/*
+ * Copyright (c) 2015 Google Inc.
+ * Copyright (c) 2015 Motorola LLC.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its
+ * contributors may be used to endorse or promote products derived from this
+ * software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+#include <string.h>
+#include <arch/byteorder.h>
+#include <nuttx/arch.h>
+#include <nuttx/bootmode.h>
+#include <nuttx/version.h>
+#include <nuttx/greybus/debug.h>
+#include <nuttx/greybus/greybus.h>
+#include <nuttx/greybus/mods-ctrl.h>
+#include <nuttx/greybus/types.h>
+
+/* Version of the Greybus control protocol we support */
+#define MB_CONTROL_VERSION_MAJOR              0x00
+#define MB_CONTROL_VERSION_MINOR              0x01
+
+/* Greybus control request types */
+#define MB_CONTROL_TYPE_INVALID               0x00
+#define MB_CONTROL_TYPE_PROTOCOL_VERSION      0x01
+#define MB_CONTROL_TYPE_GET_IDS               0x02
+#define MB_CONTROL_TYPE_REBOOT                0x03
+
+/* Valid modes for the reboot request */
+#define MB_CONTROL_REBOOT_MODE_RESET          0x01
+#define MB_CONTROL_REBOOT_MODE_BOOTLOADER     0x02
+
+/* version request has no payload */
+struct gb_control_proto_version_response {
+    __u8      major;
+    __u8      minor;
+} __packed;
+
+/* Control protocol reboot request */
+struct gb_control_reboot_request {
+    __u8      mode;
+} __packed;
+/* Control protocol reboot has no response */
+
+/* Control protocol get_ids request has no payload */
+struct gb_control_get_ids_response {
+    __le32    unipro_mfg_id;
+    __le32    unipro_prod_id;
+    __le32    ara_vend_id;
+    __le32    ara_prod_id;
+    __le64    uid_low;
+    __le64    uid_high;
+    __le32    fw_version;
+} __packed;
+
+static uint8_t gb_control_protocol_version(struct gb_operation *operation)
+{
+    struct gb_control_proto_version_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    response->major = MB_CONTROL_VERSION_MAJOR;
+    response->minor = MB_CONTROL_VERSION_MINOR;
+    return GB_OP_SUCCESS;
+}
+
+/**
+ * @brief sets the flag to tell the bootloader to stay in flash mode
+ */
+static uint8_t gb_control_reboot_flash(struct gb_operation *operation)
+{
+    if (gb_bootmode_set(BOOTMODE_REQUEST_FLASH))
+        gb_error("error setting boot state to flash\n");
+
+#ifdef CONFIG_ARCH_HAVE_SYSRESET
+    up_systemreset(); /* will not return */
+#endif
+
+    return GB_OP_SUCCESS;
+}
+
+/**
+ * @brief performs a simple reset of the system
+ */
+static uint8_t gb_control_reboot_reset(struct gb_operation *operation)
+{
+#ifdef CONFIG_ARCH_HAVE_SYSRESET
+    up_systemreset(); /* will not return */
+#endif
+
+    return GB_OP_INVALID;
+}
+
+/**
+ * @brief performs the desired reboot type specified in the mode field
+ * of the request.
+ */
+static uint8_t gb_control_reboot(struct gb_operation *operation)
+{
+    struct gb_control_reboot_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    switch (request->mode) {
+    case MB_CONTROL_REBOOT_MODE_BOOTLOADER:
+        return gb_control_reboot_flash(operation);
+    case MB_CONTROL_REBOOT_MODE_RESET:
+        return gb_control_reboot_reset(operation);
+    }
+
+    gb_error("unsupported reboot mode\n");
+
+    return GB_OP_INVALID;
+}
+
+static uint8_t gb_control_get_ids(struct gb_operation *operation)
+{
+    struct gb_control_get_ids_response *response;
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    response->fw_version =
+            cpu_to_le32(CONFIG_VERSION_MAJOR << 16 | CONFIG_VERSION_MINOR);
+
+#ifdef CONFIG_ARCH_UID
+    /* Populate the UID from the microprocessor */
+    up_getuid(&response->uid_high, &response->uid_low);
+#endif
+
+#ifdef CONFIG_ARCH_CHIPID
+    up_getchipid(&response->unipro_mfg_id, &response->unipro_prod_id);
+#endif
+
+#ifdef CONFIG_ARCH_BOARDID
+    up_getboardid(&response->ara_vend_id, &response->ara_prod_id);
+#endif
+
+    return GB_OP_SUCCESS;
+}
+
+static struct gb_operation_handler mb_control_handlers[] = {
+    GB_HANDLER(MB_CONTROL_TYPE_PROTOCOL_VERSION, gb_control_protocol_version),
+    GB_HANDLER(MB_CONTROL_TYPE_REBOOT, gb_control_reboot),
+    GB_HANDLER(MB_CONTROL_TYPE_GET_IDS, gb_control_get_ids),
+};
+
+struct gb_driver mb_control_driver = {
+    .op_handlers = (struct gb_operation_handler*) mb_control_handlers,
+    .op_handlers_count = ARRAY_SIZE(mb_control_handlers),
+};
+
+int mods_cport_valid(int c)
+{
+    return (c == MODS_VENDOR_CTRL_CPORT);
+}
+
+void mb_control_register(int cport)
+{
+    gb_register_driver(cport, &mb_control_driver);
+    gb_listen(cport);
+}
