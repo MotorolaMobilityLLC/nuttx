@@ -44,6 +44,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_i2s.h>
 #include <nuttx/ring_buf.h>
+#include "gen_pcm.h"
 
 #ifndef SIGKILL
 #define SIGKILL     9
@@ -52,6 +53,14 @@
 #ifndef SIGTERM
 #define SIGTERM     15
 #endif
+
+#define DEFAULT_SAMPLE_RATE         48000
+#define DEFAULT_AUDIO_FREQUENCY     120
+#define MIN_AUDIO_FREQUENCY         1
+#define MAX_AUDIO_FREQUENCY         100000
+#define DEFAULT_AUDIO_VOLUME        8
+#define MIN_AUDIO_VOLUME            0
+#define MAX_AUDIO_VOLUME            19
 
 struct i2s_test_stats {
     unsigned int    tx_cnt;
@@ -67,6 +76,9 @@ struct i2s_test_info {
     uint8_t                 is_transmitter;
     uint8_t                 is_receiver;
     uint8_t                 is_i2s;
+    uint8_t                 is_gen_audio;
+    uint32_t                aud_frequency;
+    uint32_t                aud_volume;
     uint8_t                 check_rx_data;
     unsigned long           rb_entries;
     unsigned long           samples_per_rb_entry;
@@ -84,7 +96,7 @@ struct i2s_test_sample {
 
 static void i2s_test_print_usage(char *argv[])
 {
-    printf("Usage: %s <-M|-m> <-B|-b> <-t|-r> <-i|-l> [-c] "
+    printf("Usage: %s <-M|-m> <-B|-b> <-t|-r> <-i|-l> [-f frequency] [-v volume] [-c] "
            "<rb entries> <sample per rb entry>\n", argv[0]);
     printf("\t-M    be MCLK master\n");
     printf("\t-m    be MCLK slave\n");
@@ -94,6 +106,12 @@ static void i2s_test_print_usage(char *argv[])
     printf("\t-r    receive audio data\n");
     printf("\t-i    use I2S protocol\n");
     printf("\t-l    use LR Stereo protocol\n");
+    printf("\t-f    generate output sine wave with \n");
+    printf("\t\t frequency    decimal number between %d-%d (Hz)\n",MIN_AUDIO_FREQUENCY,MAX_AUDIO_FREQUENCY);
+    printf("\t-v    generate output sine wave with \n");
+    printf("\t\t volume    decimal number between %d-%d\n",MIN_AUDIO_VOLUME,MAX_AUDIO_VOLUME);
+    printf("\t\t                  %d - mute\n",MIN_AUDIO_VOLUME);
+    printf("\t\t                  %d - max volume\n",MAX_AUDIO_VOLUME);
     printf("\t-c    check receive data (only valid with -r)\n");
 }
 
@@ -102,14 +120,20 @@ static int i2s_test_parse_cmdline(int argc, char *argv[],
 {
     int Mcnt, mcnt, Bcnt, bcnt, tcnt, rcnt, icnt, lcnt, ccnt, errcnt;
     int option;
+    int ret = 0;
 
     Mcnt = mcnt = Bcnt = bcnt = tcnt = rcnt = icnt = lcnt = ccnt = errcnt = 0;
 
-    if ((argc != 7) && (argc != 8))
+    if (argc > 11) {
+        fprintf(stderr, "Too many arguments: %d\n",argc);
         return -EINVAL;
+    }
+
+    info->aud_frequency = DEFAULT_AUDIO_FREQUENCY;
+    info->aud_volume = DEFAULT_AUDIO_VOLUME;
 
     optind = -1;
-    while ((option = getopt(argc, argv, "MmBbtrilc")) != ERROR) {
+    while ((option = getopt(argc, argv, "MmBbtrilf:v:c")) != ERROR) {
         switch(option) {
         case 'M':
             info->is_mclk_master = 1;
@@ -140,6 +164,51 @@ static int i2s_test_parse_cmdline(int argc, char *argv[],
         case 'l':
             lcnt++;
             break;
+        case 'f':
+            info->is_gen_audio = 1;
+            ret = sscanf(optarg, "%u", &info->aud_frequency);
+            if (ret != 1) {
+                info->aud_frequency = DEFAULT_AUDIO_FREQUENCY;
+                fprintf(stderr,
+                        "Invalid frequency (%s)! Using default %uHz (%u-%u).\n",
+                        optarg,
+                        info->aud_frequency,
+                        MIN_AUDIO_FREQUENCY,
+                        MAX_AUDIO_FREQUENCY);
+            } else if((info->aud_frequency < MIN_AUDIO_FREQUENCY) ||
+                      (info->aud_frequency > MAX_AUDIO_FREQUENCY) ) {
+                info->aud_frequency = DEFAULT_AUDIO_FREQUENCY;
+                fprintf(stderr,
+                        "Out of bounds frequency (%s)! Using default %uHz (%u-%u).\n",
+                        optarg,
+                        info->aud_frequency,
+                        MIN_AUDIO_FREQUENCY,
+                        MAX_AUDIO_FREQUENCY);
+            }
+            break;
+
+        case 'v':
+            info->is_gen_audio = 1;
+            ret = sscanf(optarg, "%u", &info->aud_volume);
+            if (ret != 1) {
+                info->aud_volume = DEFAULT_AUDIO_VOLUME;
+                fprintf(stderr,
+                        "Invalid volume (%s)! Using default %u (%u-%u).\n",
+                        optarg,
+                        info->aud_volume,
+                        MIN_AUDIO_VOLUME,
+                        MAX_AUDIO_VOLUME);
+            } else if((info->aud_volume < MIN_AUDIO_VOLUME) ||
+                      (info->aud_volume > MAX_AUDIO_VOLUME)) {
+                info->aud_volume = DEFAULT_AUDIO_VOLUME;
+                fprintf(stderr,
+                        "Out of bounds volume (%s)! Using default %u (%u-%u).\n",
+                        optarg,
+                        info->aud_volume,
+                        MIN_AUDIO_VOLUME,
+                        MAX_AUDIO_VOLUME);
+            }
+            break;
         case 'c':
             info->check_rx_data = 1;
             ccnt++;
@@ -147,6 +216,11 @@ static int i2s_test_parse_cmdline(int argc, char *argv[],
         default:
             errcnt++;
         }
+    }
+
+    if (info->is_gen_audio && !info->is_transmitter) {
+        fprintf(stderr, "Must enable transmitter mode to generate audio\n");
+        return -EINVAL;
     }
 
     if (((Mcnt + mcnt) != 1) || ((Bcnt + bcnt) != 1) || (tcnt > 1) ||
@@ -172,6 +246,11 @@ static void i2s_test_print_cmdline_summary(struct i2s_test_info *info)
             info->is_bclk_master ? "Master" : "Slave");
     printf("   %lu ring buffer entries of %lu audio samples each\n",
             info->rb_entries, info->samples_per_rb_entry);
+    if (info->is_gen_audio) {
+        printf("Generate Audio Frequency: %lu Hz, Volume %lu\n",
+                info->aud_frequency,
+                info->aud_volume);
+    }
 }
 
 static int i2s_test_rb_fill_and_pass(struct ring_buf *rb, void *arg)
@@ -197,6 +276,27 @@ static int i2s_test_rb_fill_and_pass(struct ring_buf *rb, void *arg)
     return 0;
 }
 
+static int i2s_test_rb_fill_sinewave_and_pass(struct ring_buf *rb)
+{
+    int ret_value = 0;
+    uint32_t buff_size;
+
+    ring_buf_reset(rb);
+    buff_size = ring_buf_space(rb);
+
+
+    ret_value = fill_output_buff((int16_t *)ring_buf_get_tail(rb),
+                                 &buff_size,
+                                 (sizeof(struct i2s_test_sample) / sizeof(((struct i2s_test_sample*)0)->left)));
+    if (ret_value >= 0) {
+        ring_buf_put(rb, ret_value);
+        ring_buf_pass(rb);
+        ret_value = 0;
+    }
+
+    return ret_value;
+}
+
 static void i2s_test_tx_callback(struct ring_buf *rb,
                                  enum device_i2s_event event, void *arg)
 {
@@ -210,8 +310,13 @@ static void i2s_test_tx_callback(struct ring_buf *rb,
     case DEVICE_I2S_EVENT_TX_COMPLETE:
         info->stats.tx_cnt++;
 
-        if (ring_buf_is_producers(rb))
-            i2s_test_rb_fill_and_pass(rb, arg);
+        if (ring_buf_is_producers(rb)) {
+            if (info->is_gen_audio) {
+                i2s_test_rb_fill_sinewave_and_pass(rb);
+            } else {
+                i2s_test_rb_fill_and_pass(rb, arg);
+            }
+        }
 
         return;
     case DEVICE_I2S_EVENT_UNDERRUN:
@@ -245,7 +350,7 @@ static int i2s_test_start_transmitter(struct i2s_test_info *info,
     /* 16-bit stereo */
     rb = ring_buf_alloc_ring(info->rb_entries, 0,
                              info->samples_per_rb_entry *
-                                 sizeof(struct i2s_test_sample),
+                             sizeof(struct i2s_test_sample),
                              0, i2s_test_rb_fill_and_pass, NULL, info);
     if (!rb) {
         fprintf(stderr, "ring_buf_alloc_ring failed\n");
@@ -440,7 +545,7 @@ static int i2s_test_start_streaming(struct i2s_test_info *info)
 
     /* Pick 48KHz 16-bits/channel */
     for (i = 0, cfg = configs; i < config_count; i++, cfg++) {
-        if ((cfg->sample_frequency == 48000) &&
+        if ((cfg->sample_frequency == DEFAULT_SAMPLE_RATE) &&
             (cfg->num_channels == 2) &&
             (cfg->bytes_per_channel == 2) &&
             (cfg->byte_order & DEVICE_I2S_BYTE_ORDER_LE) &&
@@ -598,6 +703,10 @@ int i2s_test_main(int argc, char *argv[])
                 strerror(errno));
         ret = EXIT_FAILURE;
         goto err_sem_destroy;
+    }
+
+    if (info->is_gen_audio) {
+        gen_audio_init(info->aud_frequency, DEFAULT_SAMPLE_RATE, info->aud_volume);
     }
 
     ret = i2s_test_start_streaming(info);
