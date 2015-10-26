@@ -32,6 +32,7 @@
 #include <pthread.h>
 
 #include <nuttx/gpio.h>
+#include <nuttx/wqueue.h>
 #include <arch/tsb/cdsi.h>
 #include <arch/tsb/gpio.h>
 #include <arch/board/cdsi0_offs_def.h>
@@ -101,7 +102,8 @@
 #define CDSI0_CDSIRX_LPRX_STATE_INT_STAT_VAL            0x00000001
 #define CDSI0_CDSIRX_ADDRESS_CONFIG_VAL                 0x00000000
 
-static pthread_t g_camera_thread;
+#define CSI_RX_PRIORITY      (60)
+#define CSI_RX_STACK_SIZE    (2048)
 
 /**
  * @brief cdsi_sensor_init callback function of ov5645 camera_sensor
@@ -251,17 +253,14 @@ struct camera_sensor ov5645_sensor = {
 /**
  * @brief thread routine of camera initialization function
  * @param p_data pointer of data that pass to thread routine
- * @return void function with NULL returned
  */
-static void *camera_fn(void *p_data)
+static void camera_fn(void *p_data)
 {
 #if defined(CONFIG_CAMERA_RX_CDSI0)
     csi_initialize(&ov5645_sensor, TSB_CDSI0, TSB_CDSI_RX);
 #else
     csi_initialize(&ov5645_sensor, TSB_CDSI1, TSB_CDSI_RX);
 #endif
-
-    return NULL;
 }
 
 /**
@@ -270,5 +269,13 @@ static void *camera_fn(void *p_data)
  */
 int camera_init(void)
 {
-    return pthread_create(&g_camera_thread, NULL, camera_fn, NULL);
+    int taskid;
+
+    taskid = task_create("csi_rx_worker", CSI_RX_PRIORITY, CSI_RX_STACK_SIZE,
+                         (main_t)camera_fn, NULL);
+    if (taskid == ERROR) {
+        return ERROR;
+    }
+
+    return 0;
 }

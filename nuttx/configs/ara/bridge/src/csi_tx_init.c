@@ -32,6 +32,7 @@
 #include <pthread.h>
 
 #include <nuttx/gpio.h>
+#include <nuttx/wqueue.h>
 #include <arch/tsb/cdsi.h>
 #include <arch/tsb/gpio.h>
 #include <arch/board/cdsi0_offs_def.h>
@@ -145,11 +146,15 @@
 
 #define CDSI0_AL_TX_BRG_VPARAM_UPDATE_VAL               0X00000003
 #define CDSI0_AL_TX_BRG_PIC_COM_START_VAL               0X00000001
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+#define CDSI0_AL_TX_BRG_ENABLE_VAL                      0x00000001
+#endif
 
 #define CDSI0_AL_RX_BRG_CSI_INFO_VAL                    0X00000003
 #define CDSI0_AL_RX_BRG_CSI_DT0_VAL                     0X002A0001
 
-static pthread_t g_camera_thread;
+#define CSI_TX_PRIORITY      (60)
+#define CSI_TX_STACK_SIZE    (2048)
 
 /**
  * @brief cdsi_sensor_init callback function of ov5645 camera_sensor
@@ -165,6 +170,17 @@ void ov5645_csi_init(struct cdsi_dev *dev)
     /* Set to Tx mode for CDSI */
     cdsi_write(dev, CDSI0_AL_TX_BRG_CDSITX_MODE_OFFS,
                AL_TX_BRG_CDSITX_MODE_VAL);
+
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    cdsi_write(dev, CDSI0_AL_TX_BRG_SOFT_RESET_OFFS,
+               CDSI0_AL_TX_BRG_ENABLE_VAL);
+
+    cdsi_write(dev, CDSI0_AL_TX_BRG_SYSCLK_ENABLE_OFFS,
+               CDSI0_AL_TX_BRG_ENABLE_VAL);
+
+    cdsi_write(dev, CDSI0_AL_TX_BRG_ENABLE_OFFS, CDSI0_AL_TX_BRG_ENABLE_VAL);
+#endif
+
     /* Tx bridge setting */
     cdsi_write(dev, CDSI0_AL_TX_BRG_MODE_OFFS, AL_TX_BRG_MODE_VAL);
 
@@ -416,13 +432,10 @@ struct camera_sensor ov5645_sensor = {
 /**
  * @brief thread routine of camera initialization function
  * @param p_data pointer of data that pass to thread routine
- * @return void function with NULL returned
  */
-static void *camera_fn(void *p_data)
+static void camera_fn(void *p_data)
 {
     csi_initialize(&ov5645_sensor, TSB_CDSI1, TSB_CDSI_TX);
-
-    return NULL;
 }
 
 /**
@@ -431,5 +444,13 @@ static void *camera_fn(void *p_data)
  */
 int camera_init(void)
 {
-    return pthread_create(&g_camera_thread, NULL, camera_fn, NULL);
+    int taskid;
+
+    taskid = task_create("csi_tx_worker", CSI_TX_PRIORITY, CSI_TX_STACK_SIZE,
+                         (main_t)camera_fn, NULL);
+    if (taskid == ERROR) {
+        return ERROR;
+    }
+
+    return 0;
 }
