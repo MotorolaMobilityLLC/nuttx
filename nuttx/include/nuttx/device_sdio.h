@@ -111,6 +111,10 @@ struct sdio_cmd {
     uint8_t  cmd_type;
     /** SDIO command arguments, as specified by SD Association */
     uint32_t cmd_arg;
+    /** SDIO number of blocks of data to transfer */
+    uint16_t data_blocks;
+    /** SDIO size of the blocks of data to transfer */
+    uint16_t data_blksz;
     /** SDIO command response */
     uint32_t *resp;
 };
