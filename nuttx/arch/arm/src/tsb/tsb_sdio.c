@@ -400,6 +400,10 @@
 #define SWITCH_BLOCK_LENGTH 64
 #define SINGLE_BLOCK_COUNT  1
 
+/* SDIO clock definition */
+#define MIN_FREQ_SUPPORT 400000   /* 400KHz */
+#define MAX_FREQ_SUPPORT 50000000 /* 50MHz */
+
 /* MHZ definition */
 #define MHZ_DEFINE 1000 * 1000 /* Used for transferring Hz to MHz */
 
@@ -1476,8 +1480,10 @@ static void *sdio_read_data_thread(void *data)
  * 20. HS400 mode at 1.2V support
  * 21. HS400 mode at 1.8V support
  * 22. SD VDD voltage range
- * 23. Maximum number of blocks per data command transfer
- * 24. Maximum size of each block to transfer
+ * 23. Minimum frequency support
+ * 24. Maximum frequency support
+ * 25. Maximum number of blocks per data command transfer
+ * 26. Maximum size of each block to transfer
  *
  * @param dev Pointer to structure of device.
  * @param cap Pointer to structure of capabilities.
@@ -1498,6 +1504,8 @@ static int tsb_sdio_get_capability(struct device *dev, struct sdio_cap *cap)
                 HC_SDIO_CAP_DRIVER_TYPE_A | HC_SDIO_CAP_DRIVER_TYPE_C |
                 HC_SDIO_CAP_DRIVER_TYPE_D;
     cap->ocr = HC_SDIO_VDD_33_34;
+    cap->f_min = MIN_FREQ_SUPPORT;
+    cap->f_max = MAX_FREQ_SUPPORT;
     cap->max_blk_count = MAX_BLK_COUNT;
     cap->max_blk_size = MAX_BLK_SIZE;
 
