@@ -48,7 +48,6 @@
 #include "ara_board.h"
 
 #define INVALID_I2C_ADDR            0xFF
-#define PWRM_I2C_BUS                2
 #define INA230_SHUNT_VALUE          2 /* mohm */
 
 static struct i2c_dev_s *i2c_dev;
@@ -205,9 +204,9 @@ int pwrmon_init(uint32_t current_lsb_uA,
     dbg_verbose("%s(): Initializing with options lsb=%uuA, ct=%u, avg_count=%u...\n",
                 __func__, current_lsb_uA, ct, avg_count);
     /* Initialize I2C internal structs */
-    i2c_dev = up_i2cinitialize(PWRM_I2C_BUS);
+    i2c_dev = up_i2cinitialize(pwrmon_i2c_bus);
     if (!i2c_dev) {
-        dbg_error("%s(): Failed to get I2C bus %u\n", __func__, PWRM_I2C_BUS);
+        dbg_error("%s(): Failed to get I2C bus %u\n", __func__, pwrmon_i2c_bus);
         return -ENXIO;
     }
 

@@ -361,6 +361,8 @@ const struct pwrmon_dev_ctx pwrmon_devs[] = {
 
 const size_t pwrmon_num_devs = ARRAY_SIZE(pwrmon_devs);
 
+const int pwrmon_i2c_bus = 2;
+
 void pwrmon_reset_i2c_sel(void)
 {
     gpio_set_value(I2C_INA230_SEL1_INH, 1);

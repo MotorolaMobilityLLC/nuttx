@@ -72,6 +72,7 @@ typedef struct {
 
 extern const struct pwrmon_dev_ctx pwrmon_devs[];
 extern const size_t pwrmon_num_devs;
+extern const int pwrmon_i2c_bus;
 
 int pwrmon_init(uint32_t current_lsb_uA,
                ina230_conversion_time ct,
