@@ -170,7 +170,6 @@ static uint8_t gb_sdio_protocol_get_capabilities(struct gb_operation *operation)
     if (cap.max_blk_count * cap.max_blk_size > max_data_size ) {
         if (cap.max_blk_size > max_data_size) {
             cap.max_blk_size = max_data_size;
-            cap.max_blk_count = 1;
         } else {
             cap.max_blk_count = max_data_size / cap.max_blk_size;
         }
