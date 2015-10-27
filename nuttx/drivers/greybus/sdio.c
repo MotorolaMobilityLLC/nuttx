@@ -250,6 +250,8 @@ static uint8_t gb_sdio_protocol_command(struct gb_operation *operation)
     cmd.cmd_flags = request->cmd_flags;
     cmd.cmd_type = request->cmd_type;
     cmd.cmd_arg = le32_to_cpu(request->cmd_arg);
+    cmd.data_blocks = le16_to_cpu(request->data_blocks);
+    cmd.data_blksz = le16_to_cpu(request->data_blksz);
     cmd.resp = resp;
     ret = device_sdio_send_cmd(info->dev, &cmd);
     if (ret && ret != -ETIMEDOUT) {

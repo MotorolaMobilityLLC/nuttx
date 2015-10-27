@@ -106,6 +106,10 @@ struct gb_sdio_command_request {
     __u8   cmd_type;
     /** SDIO command arguments, as specified by SD Association */
     __le32 cmd_arg;
+    /** SDIO number of blocks of data to transfer */
+    __le16 data_blocks;
+    /** SDIO size of the blocks of data to transfer */
+    __le16 data_blksz;
 } __packed;
 
 /**
