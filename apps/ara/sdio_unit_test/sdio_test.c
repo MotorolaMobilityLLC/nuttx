@@ -353,6 +353,8 @@ static void sdio_dump_capabilities(struct sdio_cap *cap)
     printf("sdio_test: HC_SDIO_CAP_HS400_1_8V:     %s\n",
            (cap->caps & HC_SDIO_CAP_HS400_1_8V) ? "YES" : "NO");
     printf("sdio_test: ocr:                        0x%x\n", cap->ocr);
+    printf("sdio_test: minimum frequency:          %d\n", cap->f_min);
+    printf("sdio_test: maximum frequency:          %d\n", cap->f_max);
     printf("sdio_test: maximum block count:        %d\n", cap->max_blk_count);
     printf("sdio_test: maximum block size:         %d\n", cap->max_blk_size);
 }
