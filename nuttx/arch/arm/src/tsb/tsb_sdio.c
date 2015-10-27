@@ -990,50 +990,33 @@ static void sdio_prepare_command(struct device *dev, struct sdio_cmd *cmd)
 {
     struct tsb_sdio_info *info = device_get_private(dev);
 
-    if (!info->app_cmd && (cmd->cmd == HC_MMC_SWITCH)) { /* CMD6 */
+    if (cmd->data_blocks && cmd->data_blksz) {
         info->data_cmd = true;
-        info->blksz = SWITCH_BLOCK_LENGTH;
-        info->blocks = SINGLE_BLOCK_COUNT;
-        info->data_flags = HC_GB_SDIO_DATA_READ;
-    } else if (cmd->cmd == HC_MMC_SET_BLOCKLEN) { /* CMD16 */
-        info->blksz = (uint16_t)cmd->cmd_arg;
-    } else if (cmd->cmd == HC_MMC_READ_SINGLE_BLOCK) { /* CMD17 */
-        info->data_cmd = true;
-        info->blksz = BLOCK_LENGTH;
-        info->blocks = SINGLE_BLOCK_COUNT;
-        info->data_flags = HC_GB_SDIO_DATA_READ;
-    } else if (cmd->cmd == HC_MMC_READ_MULTIPLE_BLOCK) { /* CMD18 */
-        info->data_cmd = true;
-        info->data_flags = HC_GB_SDIO_DATA_READ;
-    } else if (cmd->cmd == HC_MMC_SET_BLOCK_COUNT) { /* CMD23 */
-        info->blocks = (uint16_t)cmd->cmd_arg;
-    } else if (cmd->cmd == HC_MMC_WRITE_BLOCK) { /* CMD24 */
-        info->data_cmd = true;
-        info->blksz = BLOCK_LENGTH;
-        info->blocks = SINGLE_BLOCK_COUNT;
-        info->data_flags = HC_GB_SDIO_DATA_WRITE;
-    } else if (cmd->cmd == HC_MMC_WRITE_MULTIPLE_BLOCK) { /* CMD25 */
-        info->data_cmd = true;
-        info->data_flags = HC_GB_SDIO_DATA_WRITE;
-    } else if (info->app_cmd && (cmd->cmd == HC_SD_APP_SEND_SCR)) { /* CMD51 */
-        info->data_cmd = true;
-        info->blksz = SCR_BLOCK_LENGTH;
-        info->blocks = SINGLE_BLOCK_COUNT;
-        info->data_flags = HC_GB_SDIO_DATA_READ;
-    } else if (info->app_cmd && (cmd->cmd == HC_SD_APP_SD_STATUS)) {
-        /* ACMD13 */
-        info->data_cmd = true;
-        info->blksz = STATUS_BLOCK_LENGTH;
-        info->blocks = SINGLE_BLOCK_COUNT;
-        info->data_flags = HC_GB_SDIO_DATA_READ;
+        info->blksz = cmd->data_blksz;
+        info->blocks = cmd->data_blocks;
+        if (cmd->cmd == HC_MMC_SWITCH) { /* CMD6 */
+            info->data_flags = HC_GB_SDIO_DATA_READ;
+        } else if (cmd->cmd == 8) { /* CMD8 */
+            info->data_flags = HC_GB_SDIO_DATA_READ;
+        } else if (cmd->cmd == HC_MMC_READ_SINGLE_BLOCK) { /* CMD17 */
+            info->data_flags = HC_GB_SDIO_DATA_READ;
+        } else if (cmd->cmd == HC_MMC_READ_MULTIPLE_BLOCK) { /* CMD18 */
+            info->data_flags = HC_GB_SDIO_DATA_READ;
+        } else if (cmd->cmd == HC_MMC_WRITE_BLOCK) { /* CMD24 */
+            info->data_flags = HC_GB_SDIO_DATA_WRITE;
+        } else if (cmd->cmd == HC_MMC_WRITE_MULTIPLE_BLOCK) { /* CMD25 */
+            info->data_flags = HC_GB_SDIO_DATA_WRITE;
+        } else if (cmd->cmd == HC_SD_APP_SEND_SCR) { /* CMD51 */
+            info->data_flags = HC_GB_SDIO_DATA_READ;
+        } else if (cmd->cmd == HC_SD_APP_SD_STATUS) { /* ACMD13 */
+            info->data_flags = HC_GB_SDIO_DATA_READ;
+        }
     } else {
         info->data_cmd = false;
         info->blksz = 0;
         info->blocks = 0;
         info->data_flags = 0;
     }
-
-    info->app_cmd = (cmd->cmd == HC_MMC_APP_CMD) ? 1 : 0;
 }
 
 /**
