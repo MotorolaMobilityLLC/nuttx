@@ -99,13 +99,77 @@ struct gb_firmware_ready_to_boot_request {
 } __packed;
 /* Firmware protocol Ready to boot response has no payload */
 
+#define TFTF_NUM_SECTIONS                     (20)
+#define TFTF_SECTION_TYPE_RAW_CODE        (0x0001)
+#define TFTF_SECTION_TYPE_RAW_DATA        (0x0002)
+#define TFTF_SECTION_TYPE_COMPRESSED_CODE (0x0003)
+#define TFTF_SECTION_TYPE_COMPRESSED_DATA (0x0004)
+#define TFTF_SECTION_TYPE_MANIFEST        (0x0005)
+#define TFTF_SECTION_TYPE_SIGNATURE       (0x0006)
+#define TFTF_SECTION_TYPE_CERTIFICATE     (0x0007)
+#define TFTF_SECTION_TYPE_END             (0x00fe)
+
+struct section_descriptor {
+    uint8_t section_type;
+    uint8_t section_class[3];
+    uint32_t section_id;
+    uint32_t section_length;
+    uint32_t section_load_address;
+    uint32_t section_expanded_length;
+} __packed;
+
 /* There is some useful information in the tftf header that we may want to */
 /* save off for the future.  This is just a stand in for that information  */
 /* since header_size is probably the least useful field (it is a fixed     */
 /* value)                                                                  */
 struct gb_firmware_tftf_header {
+    char sentinel_value[4];
     uint32_t header_size;
-};
+    uint8_t build_timestamp[16];
+    char firmware_package_name[48];
+    uint32_t package_type;
+    uint32_t start_location;
+    uint32_t unipro_vid;
+    uint32_t unipro_pid;
+    uint32_t ara_vid;
+    uint32_t ara_pid;
+    uint8_t reserved[16];
+    struct section_descriptor desc[TFTF_NUM_SECTIONS];
+} __packed;
+
+#ifdef CONFIG_GREYBUS_DEBUG
+static inline void dump_header(struct gb_firmware_tftf_header *hdr)
+{
+    int d;
+
+    gb_debug("sentinel_value           = %s\n", hdr->sentinel_value);
+    gb_debug("header_size              = %u\n", hdr->header_size);
+    gb_debug("build_timestamp          = %c%c\n", hdr->build_timestamp[0], hdr->build_timestamp[1]);
+    gb_debug("firmware_package_name    = %s\n", hdr->firmware_package_name);
+    gb_debug("package_type             = 0x%08x\n", hdr->package_type);
+    gb_debug("start_location           = 0x%08x\n", hdr->start_location);
+    gb_debug("unipro_vid               = 0x%08x\n", hdr->unipro_vid);
+    gb_debug("unipro_pid               = 0x%08x\n", hdr->unipro_pid);
+    gb_debug("ara_vid                  = 0x%08x\n", hdr->ara_vid);
+    gb_debug("ara_pid                  = 0x%08x\n", hdr->ara_pid);
+    for (d = 0; d < TFTF_NUM_SECTIONS; d++) {
+        if (hdr->desc[d].section_type == TFTF_SECTION_TYPE_END)
+            break;
+
+        gb_debug("  section_type           = 0x%02x\n", hdr->desc[d].section_type);
+        gb_debug("  section_class          = 0x%02x%02x%02x\n",
+                                                hdr->desc[d].section_class[0],
+                                                hdr->desc[d].section_class[1],
+                                                hdr->desc[d].section_class[2]);
+        gb_debug("  section_id             = 0x%08x\n", hdr->desc[d].section_id);
+        gb_debug("  section_length         = 0x%08x\n", hdr->desc[d].section_length);
+        gb_debug("  section_load_address   = 0x%08x\n", hdr->desc[d].section_load_address);
+        gb_debug("  section_expaned_length = 0x%08x\n", hdr->desc[d].section_expanded_length);
+    };
+}
+#else
+# define dump_header(hdr)
+#endif
 
 #define GB_FIRMWARE_FLASH_DELAY_MS 1000
 
@@ -148,7 +212,6 @@ static int gb_firmware_size(uint8_t stage, size_t *size)
 
     *size = 0;
 
-    gb_info("gb_firmware_size enter\n");
     operation = gb_operation_create(g_firmware_info->cport,
             GB_FIRMWARE_TYPE_FIRMWARE_SIZE, sizeof(*request));
     if (!operation) {
@@ -192,7 +255,7 @@ out:
     return ret;
 }
 
-static int gb_firmware_setup_flash(size_t size)
+static int gb_firmware_setup_flash(size_t load_address, size_t size)
 {
     ssize_t page_start;
     ssize_t page_end;
@@ -204,17 +267,17 @@ static int gb_firmware_setup_flash(size_t size)
     /* determine the address range we will be flashing and
      * make sure that is valid.
      */
-    page_start = up_progmem_getpage(g_firmware_info->base_address);
+    page_start = up_progmem_getpage(load_address);
     if (page_start < 0) {
       gb_error("attempt to flash invalid address 0x%08x\n",
           g_firmware_info->base_address);
       return page_start;
     }
 
-    page_end = up_progmem_getpage(g_firmware_info->base_address + size);
+    page_end = up_progmem_getpage(load_address + size);
     if (page_end < 0) {
       gb_error("attempt to flash invalid address 0x%08x\n",
-            g_firmware_info->base_address + size);
+            load_address + size);
       return page_end;
     }
 
@@ -234,9 +297,8 @@ static int gb_firmware_setup_flash(size_t size)
 }
 
 /* write a single chunk to flash */
-static int gb_firmware_flash_chunk(uint32_t offset, uint8_t *data, size_t size)
+static int gb_firmware_flash_chunk(size_t flash_address, uint8_t *data, size_t size)
 {
-    size_t flash_address = g_firmware_info->base_address + offset;
     ssize_t err = 0;
 
     gb_debug("flash to 0x%08x %u bytes\n", flash_address, size);
@@ -298,10 +360,11 @@ static int gb_firmware_get_header(
     response = gb_operation_get_request_payload(operation->response);
 
     if (!memcmp(response->data, "TFTF", 4)) {
-        uint32_t *hdr_size_ptr = (uint32_t *)&response->data[4];
-        hdr->header_size =  *hdr_size_ptr;
+        memcpy(hdr, response->data, sizeof(*hdr));
+        dump_header(hdr);
         ret = 0;
-    }
+    } else
+        ret = -ENOENT;
 
 cleanup:
     gb_operation_destroy(operation);
@@ -314,29 +377,65 @@ static int gb_firmware_get_firmware(size_t size)
     struct gb_operation *operation;
     struct gb_firmware_get_firmware_request *request;
     struct gb_firmware_get_firmware_response *response;
-    ssize_t remaining = size;
-    uint32_t fetch_offset = 0;
-    uint32_t write_offset = 0;
-    struct gb_firmware_tftf_header hdr = { .header_size = 0 };
+    ssize_t remaining;
+    uint32_t fetch_offset;
+    uint32_t write_offset;
+    struct gb_firmware_tftf_header *hdr;
     int ret;
 
-    ret = gb_firmware_get_header(size, &hdr);
-    if (!ret) {                                             /* Header found */
-        fetch_offset = hdr.header_size;
+    hdr = zalloc(sizeof(*hdr));
+    if (!hdr) {
+        gb_error("Failed to allocate memory for header\n");
+        return -ENOMEM;
+    }
+
+    ret = gb_firmware_get_header(size, hdr);
+    if (!ret) {
+        /* Header found */
+        int section;
+        bool found_code_section = false;
+
+        fetch_offset = hdr->header_size;
         remaining = size - fetch_offset;
-    } else if (ret != -ENOENT)       /* Error other than not finding header */
-        return ret;
+
+        /* Use the load address from the header if it is available          */
+        for (section = 0; section < TFTF_NUM_SECTIONS; section++) {
+            uint8_t section_type = hdr->desc[section].section_type;
+
+            if (section_type == TFTF_SECTION_TYPE_END) {
+                break;
+            } else if (section_type == TFTF_SECTION_TYPE_RAW_CODE) {
+                write_offset = hdr->desc[section].section_load_address;
+                remaining = hdr->desc[section].section_length;
+                found_code_section = true;
+                break;
+            } else {
+                fetch_offset += hdr->desc[section].section_length;
+            }
+        }
+
+        if (!found_code_section) {
+            ret = -EINVAL;
+            goto out;
+        }
+    } else if (ret == -ENOENT) {
+        /* No Header found, currently this is okay */
+        fetch_offset = 0;
+        remaining = size;
+        write_offset = g_firmware_info->base_address;
+    } else
+        goto out;
 
     ret = gb_bootmode_set(BOOTMODE_FLASHING);
     if (ret) {
         gb_error("failed to write FLASHING barker\n");
-        return ret;
+        goto out;
     }
 
     /* erase program memory */
-    ret = gb_firmware_setup_flash(remaining);
+    ret = gb_firmware_setup_flash(write_offset, remaining);
     if (ret)
-        return ret;
+        goto out;
 
     while (remaining > 0) {
         operation = gb_operation_create(g_firmware_info->cport,
@@ -393,6 +492,8 @@ static int gb_firmware_get_firmware(size_t size)
         ret = gb_bootmode_set(BOOTMODE_NORMAL);
     }
 
+out:
+    free(hdr);
     return ret;
 }
 
@@ -449,30 +550,36 @@ static void gb_firmware_worker(FAR void *arg)
     int err;
     size_t firmware_size = 0;  /* initialize to prevent spurious warning */
     uint8_t status = GB_FIRMWARE_BOOT_STATUS_SECURE;
+    uint8_t stage;
+    uint8_t last_stage_attempted = GB_FIRMWARE_BOOT_STAGE_ONE;
 
-    err = gb_firmware_size(GB_FIRMWARE_BOOT_STAGE_ONE, &firmware_size);
-    if (err) {
-        gb_error("failed to get firmware size %d\n", err);
-        status = GB_FIRMWARE_BOOT_STATUS_INVALID;
-        goto ready_to_boot;
+    for (stage = GB_FIRMWARE_BOOT_STAGE_ONE;
+         stage <= GB_FIRMWARE_BOOT_STAGE_THREE; stage++) {
+
+        last_stage_attempted = stage;
+        err = gb_firmware_size(stage, &firmware_size);
+        if (err) {
+            gb_error("failed to get firmware size %d\n", err);
+            continue;
+        }
+
+        if (firmware_size == 0) {
+            gb_error("Refusing to flash firmware size of 0\n")
+            continue;
+        }
+
+        err = gb_firmware_get_firmware(firmware_size);
+        if (err) {
+            gb_error("failed to get firmware\n");
+            status = GB_FIRMWARE_BOOT_STATUS_INVALID;
+            break;
+        }
     }
 
-    if (firmware_size == 0) {
-        gb_error("Refusing to flash firmware size of 0\n")
-        goto ready_to_boot;
-    }
-
-    err = gb_firmware_get_firmware(firmware_size);
-    if (err) {
-        gb_error("failed to get firmware\n");
-        status = GB_FIRMWARE_BOOT_STATUS_INVALID;
-    }
-
-ready_to_boot:
     /* in all cases, send up the ready to boot.  At least then
      * we can try again.
      */
-    err = gb_firmware_ready_to_boot(GB_FIRMWARE_BOOT_STAGE_ONE, status);
+    err = gb_firmware_ready_to_boot(last_stage_attempted, status);
     if (err) {
         gb_error("failed to send ready to boot\n");
     }
