@@ -832,6 +832,8 @@ static int sdio_mmc_read_single_block_cmd17(struct device *dev,
     cmd->cmd_flags = HC_SDIO_RSP_R1_R5_R6_R7;
     cmd->cmd_type = HC_SDIO_CMD_ADTC;
     cmd->cmd_arg = DATA_START_ADDRESS; /* start addr */
+    cmd->data_blocks = SINGLE_BLOCK_COUNT;
+    cmd->data_blksz = BLOCK_LENGTH;
     ret = device_sdio_send_cmd(dev, cmd);
 
     if (ret) {
@@ -846,6 +848,10 @@ static int sdio_mmc_read_single_block_cmd17(struct device *dev,
             sdio_dump_card_status(cmd->resp[0]);
         }
     }
+
+    /* Clean data_blocks and data_blksz of cmd */
+    cmd->data_blocks = 0;
+    cmd->data_blksz = 0;
 
     transfer->blocks = SINGLE_BLOCK_COUNT;
     transfer->blksz = BLOCK_LENGTH;
@@ -898,6 +904,8 @@ static int sdio_mmc_read_multiple_blocks_cmd18(struct device *dev,
     cmd->cmd_flags = HC_SDIO_RSP_R1_R5_R6_R7;
     cmd->cmd_type = HC_SDIO_CMD_ADTC;
     cmd->cmd_arg = DATA_START_ADDRESS; /* start addr */
+    cmd->data_blocks = BLOCK_COUNT;
+    cmd->data_blksz = BLOCK_LENGTH;
     ret = device_sdio_send_cmd(dev, cmd);
 
     if (ret) {
@@ -912,6 +920,10 @@ static int sdio_mmc_read_multiple_blocks_cmd18(struct device *dev,
             sdio_dump_card_status(cmd->resp[0]);
         }
     }
+
+    /* Clean data_blocks and data_blksz of cmd */
+    cmd->data_blocks = 0;
+    cmd->data_blksz = 0;
 
     transfer->blocks = BLOCK_COUNT;
     transfer->blksz = BLOCK_LENGTH;
@@ -1001,6 +1013,8 @@ static int sdio_mmc_write_block_cmd24(struct device *dev,
     cmd->cmd_flags = HC_SDIO_RSP_R1_R5_R6_R7;
     cmd->cmd_type = HC_SDIO_CMD_ADTC;
     cmd->cmd_arg = DATA_START_ADDRESS; /* start addr */
+    cmd->data_blocks = SINGLE_BLOCK_COUNT;
+    cmd->data_blksz = BLOCK_LENGTH;
     ret = device_sdio_send_cmd(dev, cmd);
 
     if (ret) {
@@ -1024,6 +1038,10 @@ static int sdio_mmc_write_block_cmd24(struct device *dev,
             data[i] = i - (BLOCK_LENGTH / 2);
         }
     }
+
+    /* Clean data_blocks and data_blksz of cmd */
+    cmd->data_blocks = 0;
+    cmd->data_blksz = 0;
 
     transfer->blocks = SINGLE_BLOCK_COUNT;
     transfer->blksz = BLOCK_LENGTH;
@@ -1066,6 +1084,8 @@ static int sdio_mmc_write_multiple_blocks_cmd25(struct device *dev,
     cmd->cmd_flags = HC_SDIO_RSP_R1_R5_R6_R7;
     cmd->cmd_type = HC_SDIO_CMD_ADTC;
     cmd->cmd_arg = DATA_START_ADDRESS; /* start addr */
+    cmd->data_blocks = BLOCK_COUNT;
+    cmd->data_blksz = BLOCK_LENGTH;
     ret = device_sdio_send_cmd(dev, cmd);
 
     if (ret) {
@@ -1091,6 +1111,10 @@ static int sdio_mmc_write_multiple_blocks_cmd25(struct device *dev,
             }
         }
     }
+
+    /* Clean data_blocks and data_blksz of cmd */
+    cmd->data_blocks = 0;
+    cmd->data_blksz = 0;
 
     transfer->blocks = BLOCK_COUNT;
     transfer->blksz = BLOCK_LENGTH;
@@ -1439,6 +1463,8 @@ static int sdio_sd_app_send_scr_acmd51(struct device *dev,
     cmd->cmd_flags = HC_SDIO_RSP_R1_R5_R6_R7;
     cmd->cmd_type = HC_SDIO_CMD_ADTC;
     cmd->cmd_arg = 0;
+    cmd->data_blocks = SCR_BLOCK_COUNT;
+    cmd->data_blksz = SCR_BLOCK_LENGTH;
     ret = device_sdio_send_cmd(dev, cmd);
 
     if (ret) {
@@ -1453,6 +1479,10 @@ static int sdio_sd_app_send_scr_acmd51(struct device *dev,
             sdio_dump_card_status(cmd->resp[0]);
         }
     }
+
+    /* Clean data_blocks and data_blksz of cmd */
+    cmd->data_blocks = 0;
+    cmd->data_blksz = 0;
 
     transfer->blocks = SCR_BLOCK_COUNT;
     transfer->blksz = SCR_BLOCK_LENGTH;
