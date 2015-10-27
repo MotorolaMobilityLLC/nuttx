@@ -67,6 +67,10 @@ struct sdio_cap {
     uint32_t caps;
     /** Voltage Range Bit Mask */
     uint32_t ocr;
+    /** Minimum frequency supported by the controller */
+    uint32_t f_min;
+    /** Maximum frequency supported by the controller */
+    uint32_t f_max;
     /** Maximum Number of blocks per data command transfer */
     uint16_t max_blk_count;
     /** Maximum size of each block to transfer */
