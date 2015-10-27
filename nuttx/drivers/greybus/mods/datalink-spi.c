@@ -249,14 +249,18 @@ static void setup_xfer(FAR struct mods_spi_dl_s *priv)
   if (atomic_get(&priv->xfer))
     {
       vdbg("Already setup to tranceive packet. Do nothing.\n");
-      goto already_setup;
+      goto done;
     }
 
   /* Only setup exchange if base has asserted wake */
   if (gpio_get_value(GPIO_MODS_WAKE_N))
     {
       vdbg("WAKE not asserted\n");
-      goto no_wake;
+
+      /* Set the base interrupt line if data is available to be sent. */
+      mods_host_int_set(ring_buf_is_consumers(rb));
+
+      goto done;
     }
 
   /* Set flag to indicate a transfer is setup */
@@ -277,18 +281,10 @@ static void setup_xfer(FAR struct mods_spi_dl_s *priv)
 
   SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb), priv->rx_buf, priv->pkt_size);
 
-  /* Deassert interrupt line (if appropriate) before asserting RDY */
-  rb = ring_buf_get_next(rb);
-  mods_host_int_set(ring_buf_is_consumers(rb));
-
   /* Signal to base that we're ready to tranceive */
   mods_rfr_set(1);
 
-no_wake:
-  /* Set the base interrupt line if data is available to be sent. */
-  mods_host_int_set(ring_buf_is_consumers(rb));
-
-already_setup:
+done:
   irqrestore(flags);
 }
 
@@ -339,8 +335,15 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
  */
 static void txn_start_cb(void *v)
 {
+  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
+  struct ring_buf *rb;
+
   /* Deassert ready line to base */
   mods_rfr_set(0);
+
+  /* Deassert interrupt line if no more packets to be sent */
+  rb = ring_buf_get_next(priv->txc_rb);
+  mods_host_int_set(ring_buf_is_consumers(rb));
 }
 
 /*
