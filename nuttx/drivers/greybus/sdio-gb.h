@@ -62,6 +62,10 @@ struct gb_sdio_get_capabilities_response {
     __le32 caps;
     /** SDIO voltage range bit masks */
     __le32 ocr;
+    /** SDIO Minimum frequency supported by the controller */
+    __le32 f_min;
+    /** SDIO Maximum frequency supported by the controller */
+    __le32 f_max;
     /** SDIO maximum number of blocks per data command transfer */
     __le16 max_blk_count;
     /** SDIO maximum size of each block to transfer */

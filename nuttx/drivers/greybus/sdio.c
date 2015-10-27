@@ -178,6 +178,8 @@ static uint8_t gb_sdio_protocol_get_capabilities(struct gb_operation *operation)
 
     response->caps = cpu_to_le32(cap.caps);
     response->ocr = cpu_to_le32(cap.ocr);
+    response->f_min = cpu_to_le32(cap.f_min);
+    response->f_max = cpu_to_le32(cap.f_max);
     response->max_blk_count = cpu_to_le16(cap.max_blk_count);
     response->max_blk_size = cpu_to_le16(cap.max_blk_size);
 
