@@ -45,13 +45,6 @@ config MODS_RAW
 	---help---
 		Enable Generic Raw support
 
-+config PTP_DEVICE
-	bool "Power transfer protocol device"
-	default n
-	depends on GREYBUS_PTP && CHARGER_BQ24292 && GREYBUS_MODS
-	---help---
-		Enable power transfer protocol
-
 config MAX17050_DEVICE
 	bool "MAX17050 battery device"
 	default n

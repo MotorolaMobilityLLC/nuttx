@@ -78,10 +78,6 @@ ifeq ($(CONFIG_MODS_DIET),y)
 CSRCS += stm32_mods.c
 endif
 
-ifeq ($(CONFIG_PTP_DEVICE),y)
-CSRCS += stm32_ptp.c
-endif
-
 ifeq ($(CONFIG_MAX17050_DEVICE),y)
 CSRCS += stm32_battery.c
 endif

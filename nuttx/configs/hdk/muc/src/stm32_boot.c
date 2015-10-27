@@ -42,8 +42,10 @@
 #include <nuttx/device_battery.h>
 #include <nuttx/device_hid.h>
 #include <nuttx/device_ptp.h>
+#include <nuttx/device_ptp_chg.h>
 #include <nuttx/device_raw.h>
 #include <nuttx/device_table.h>
+#include <nuttx/power/battery_state.h>
 #include <nuttx/util.h>
 
 #include <arch/board/board.h>
@@ -84,11 +86,19 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
-#ifdef CONFIG_PTP_DEVICE
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY
     {
         .type = DEVICE_TYPE_PTP_HW,
-        .name = "ptp_device",
-        .desc = "Power transfer protocol",
+        .name = "battery_ptp",
+        .desc = "Power transfer protocol for devices with a battery",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_GREYBUS_PTP_CHG_DEVICE_BQ24292
+    {
+        .type = DEVICE_TYPE_PTP_CHG_HW,
+        .name = "bq2429_ptp_chg",
+        .desc = "BQ24292 based charger driver for power transfer protocol",
         .id   = 0,
     },
 #endif
@@ -195,6 +205,10 @@ void board_initialize(void)
   stm32_gpio_init();
 #endif
 
+#if defined(CONFIG_BATTERY_STATE)
+  battery_state_init();
+#endif
+
 #ifdef CONFIG_DEVICE_CORE
   device_table_register(&muc_device_table);
 
@@ -206,9 +220,13 @@ void board_initialize(void)
   extern struct device_driver mods_raw_driver;
   device_register_driver(&mods_raw_driver);
 #endif
-#ifdef CONFIG_PTP_DEVICE
-  extern struct device_driver ptp_driver;
-  device_register_driver(&ptp_driver);
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY
+  extern struct device_driver batt_ptp_driver;
+  device_register_driver(&batt_ptp_driver);
+#endif
+#ifdef CONFIG_GREYBUS_PTP_CHG_DEVICE_BQ24292
+  extern struct device_driver bq24292_ptp_chg_driver;
+  device_register_driver(&bq24292_ptp_chg_driver);
 #endif
 #ifdef CONFIG_MAX17050_DEVICE
   extern struct device_driver batt_driver;
