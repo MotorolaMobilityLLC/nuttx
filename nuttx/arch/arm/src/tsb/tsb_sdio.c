@@ -112,6 +112,7 @@
 #define COMMAND_CRC_CHECK_EN_DEF   0x08
 #define COMMAND_INDEX_CHECK_EN_DEF 0x10
 #define DATA_PRESENT_DEF           0x20
+#define COMMAND_TYPE_DEF           0xC0
 #define SDIO_MAKE_CMD(c, f)        (((c & 0xFF) << 8) | (f & 0xFF))
 
 /* CMD_TRANSFERMODE RESPONSE_TYPE definition */
@@ -361,6 +362,7 @@
  * [07:03] Always 0
  * [02:00] Command Set
  */
+#define HC_MMC_STOP_TRANSMISSION    12 /* ac                         R1b      */
 /* class 2 */
 #define HC_MMC_SET_BLOCKLEN         16 /* ac   [31:0] block len      R1       */
 #define HC_MMC_READ_SINGLE_BLOCK    17 /* adtc [31:0] data addr      R1       */
@@ -1122,6 +1124,51 @@ static int sdio_error_interrupt_recovery(struct tsb_sdio_info *info)
 }
 
 /**
+ * @brief Software reset.
+ *
+ * This function sets software reset register for SDIO CMD line and DAT line.
+ *
+ * @param info The SDIO driver information.
+ * @return 0 on success, negative errno on error.
+ */
+static int sdio_software_reset(struct tsb_sdio_info *info)
+{
+    uint8_t retry = 0;
+
+    /* Set Software Reset For CMD line (CR) */
+    sdio_reg_bit_set(info->sdio_reg_base, CLOCK_SWRST_TIMEOUT_CONTROL,
+                     SW_RESET_CMD_LINE);
+
+    /* Check CR */
+    while ((sdio_getreg(info->sdio_reg_base, CLOCK_SWRST_TIMEOUT_CONTROL) &
+             SW_RESET_CMD_LINE) && (retry < REGISTER_MAX_RETRY)) {
+        usleep(REGISTER_INTERVAL);
+        retry++;
+    }
+
+    if (retry == REGISTER_MAX_RETRY) { /* Detect timeout */
+        return -ETIMEDOUT;
+    }
+
+    /* Set Software Reset For DAT line (DR) */
+    sdio_reg_bit_set(info->sdio_reg_base, CLOCK_SWRST_TIMEOUT_CONTROL,
+                     SW_RESET_DAT_LINE);
+
+    /* Check DR */
+    while ((sdio_getreg(info->sdio_reg_base, CLOCK_SWRST_TIMEOUT_CONTROL) &
+             SW_RESET_DAT_LINE) && (retry < REGISTER_MAX_RETRY)) {
+        usleep(REGISTER_INTERVAL);
+        retry++;
+    }
+
+    if (retry == REGISTER_MAX_RETRY) { /* Detect timeout */
+        return -ETIMEDOUT;
+    }
+
+    return 0;
+}
+
+/**
  * @brief SDIO device interrupt routing
  *
  * Set SD host controller configuration for card insert and remove. The
@@ -1600,6 +1647,7 @@ static int tsb_sdio_set_ios(struct device *dev, struct sdio_ios *ios)
                          DRIVER_TYPED_SUPPORT);
         break;
     case HC_SDIO_SET_DRIVER_TYPE_B:
+        break;
     default:
         return -EINVAL;
     }
@@ -1735,6 +1783,10 @@ static int tsb_sdio_send_cmd(struct device *dev, struct sdio_cmd *cmd)
         cmd_flags |= DATA_PRESENT_DEF;
     }
 
+    if (cmd->cmd == HC_MMC_STOP_TRANSMISSION) {
+        cmd_flags |= COMMAND_TYPE_DEF;
+    }
+
     sdio_putreg16(info->sdio_reg_base, CMD_TRANSFERMODE + REG_OFFSET,
                   SDIO_MAKE_CMD(cmd->cmd, cmd_flags));
 
@@ -1745,6 +1797,11 @@ static int tsb_sdio_send_cmd(struct device *dev, struct sdio_cmd *cmd)
     cmd->resp[1] = info->resp[1];
     cmd->resp[2] = info->resp[2];
     cmd->resp[3] = info->resp[3];
+
+    usleep(COMMAND_INTERVAL);
+    if (cmd->cmd == HC_MMC_STOP_TRANSMISSION) {
+        info->sdio_int_err_status = sdio_software_reset(info);
+    }
 
     return info->sdio_int_err_status;
 }
