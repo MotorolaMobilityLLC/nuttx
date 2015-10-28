@@ -144,15 +144,29 @@ static void *tsb_dma_process_completed_op(void *arg)
             list_del(node);
             dma_op = list_entry(node, struct tsb_dma_op, list_node);
 
-            if ((dma_op->op.callback_events & DEVICE_DMA_CALLBACK_EVENT_COMPLETE)
-                    && (dma_op->op.callback != NULL)) {
-                dma_op->state = TSB_DMA_OP_STATE_COMPLETED;
-                dma_op->op.callback(dev, &dma_info->chans[dma_op->chan_id],
-                        (void *) &dma_op->op,
-                        DEVICE_DMA_CALLBACK_EVENT_COMPLETE,
-                        dma_op->op.callback_arg);
-                tsb_dma_restart_chan(dev, dma_info->chans[dma_op->chan_id]);
+            if (dma_op->op.callback == NULL) {
+                lldbg("Invalid callback\n");
+            } else {
+                uint32_t callback_events = dma_op->op.callback_events;
+
+                if ((callback_events & DEVICE_DMA_CALLBACK_EVENT_COMPLETE) &&
+                    (dma_op->state = TSB_DMA_OP_STATE_COMPLETED)) {
+                    dma_op->op.callback(dev, &dma_info->chans[dma_op->chan_id],
+                            (void *) &dma_op->op,
+                            DEVICE_DMA_CALLBACK_EVENT_COMPLETE,
+                            dma_op->op.callback_arg);
+                }
+
+                if ((callback_events & DEVICE_DMA_CALLBACK_EVENT_ERROR) &&
+                    (dma_op->state = TSB_DMA_OP_STATE_ERROR)) {
+                    dma_op->op.callback(dev, &dma_info->chans[dma_op->chan_id],
+                            (void *) &dma_op->op,
+                            DEVICE_DMA_CALLBACK_EVENT_ERROR,
+                            dma_op->op.callback_arg);
+                }
             }
+
+            tsb_dma_restart_chan(dev, dma_info->chans[dma_op->chan_id]);
         }
     }
 

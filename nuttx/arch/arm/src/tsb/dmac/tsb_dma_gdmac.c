@@ -724,19 +724,78 @@ int gdmac_start_op(struct device *dev, struct tsb_dma_chan *tsb_chan,
     return retval;
 }
 
+int gdmac_irq_abort_handler(int irq, void *context)
+{
+    tsb_dma_gdmac_control_regs *control_regs =
+            (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
+    tsb_dma_gdmac_dbg_regs *dbg_regs =
+            (tsb_dma_gdmac_dbg_regs*) GDMAC_DBG_REGS_ADDRESS;
+    uint32_t fsrc = getreg32(&control_regs->fsrc);
+    uint32_t chan, index;
+    uint32_t value;
+
+    if (fsrc == 0) {
+        lldbg("Unexpected FSRC value %x\n", fsrc);
+        return OK;
+    }
+
+    chan = gsmac_bit_to_pos(fsrc) & 0x07;
+
+    value = (DMAKILL << 16) | chan << 7 | 0x01;
+    putreg32(value, &dbg_regs->dbg_inst_0);
+
+    /* Get going */
+    putreg32(0, &dbg_regs->dbg_cmd);
+
+    for (index = 0; index < GDMAC_NUMBER_OF_EVENTS; index++) {
+        struct gdmac_chan *gdmac_chan;
+
+        gdmac_chan = gdmac_event_to_chan_map[index].dma_chan;
+        if ((gdmac_chan != NULL) &&
+            (gdmac_chan->tsb_chan.chan_id == chan)) {
+            tsb_dma_callback(gdmac_chan->gdmac_dev, &gdmac_chan->tsb_chan,
+                    DEVICE_DMA_ERROR_DMA_FAILED);
+
+            break;
+        }
+    }
+
+    return OK;
+}
+
 void gdmac_init_controller(struct device *dev)
 {
+    int retval = OK;
+
     /* initialize all events are available. */
     memset(&gdmac_event_to_chan_map[0], 0, sizeof(gdmac_event_to_chan_map));
 
     /* enable clock to GDMAC and reset GDMAC. */
     tsb_clk_enable(TSB_CLK_GDMA);
     tsb_reset(TSB_RST_GDMA);
+
+
+    retval = irq_attach(TSB_IRQ_GDMACABORT, gdmac_irq_abort_handler);
+    if (retval != OK) {
+        lldbg("Failed to attach GDMAC Abort interrupt.\n");
+        return;
+    } else {
+        up_enable_irq(TSB_IRQ_GDMACABORT);
+    }
 }
 
 void gdmac_deinit_controller(struct device *dev)
 {
+    int retval = OK;
+
     tsb_clk_disable(TSB_CLK_GDMA);
+
+    up_disable_irq(TSB_IRQ_GDMACABORT);
+
+    retval = irq_attach(TSB_IRQ_GDMACABORT, NULL);
+    if (retval != OK) {
+        lldbg("Failed to detach GDMAC Abort interrupt.\n");
+    }
 
     return;
 }
