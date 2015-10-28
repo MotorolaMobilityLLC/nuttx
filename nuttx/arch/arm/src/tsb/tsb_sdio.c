@@ -483,6 +483,8 @@ struct tsb_sdio_info {
     bool app_cmd;
     /** Data command flag */
     bool data_cmd;
+    /** Data timeout flag */
+    bool data_timeout;
     /** Write data thread handle */
     pthread_t write_data_thread;
     /** Read data thread handle */
@@ -1190,9 +1192,12 @@ int sdio_irq_event(int irq, void *context)
     if (value) { /* Card remove */
         /* Disable command interrupts */
         sdio_reg_bit_clr(info->sdio_reg_base, INT_ERR_STATUS_EN,
-                         CARD_INTERRUPT_STAT_EN);
+                         CMD_TIMEOUT_ERR_STAT_EN | CMD_COMPLETE_STAT_EN);
         sdio_reg_bit_clr(info->sdio_reg_base, INT_ERR_SIGNAL_EN,
-                         CARD_INTERRUPT_EN);
+                         CMD_TIMEOUT_ERR_EN | CMD_COMPLETE_EN);
+        /* Disable data error interrupt */
+        sdio_reg_bit_clr(info->sdio_reg_base, INT_ERR_STATUS_EN,
+                         DATA_TIMEOUT_ERR_STAT_EN);
         sdio_disable_bus_power(info);
         sdio_reg_bit_clr(info->sdio_reg_base, CLOCK_SWRST_TIMEOUT_CONTROL,
                          SD_CLOCK_ENABLE);
@@ -1207,6 +1212,9 @@ int sdio_irq_event(int irq, void *context)
                          CMD_TIMEOUT_ERR_STAT_EN | CMD_COMPLETE_STAT_EN);
         sdio_reg_bit_set(info->sdio_reg_base, INT_ERR_SIGNAL_EN,
                          CMD_TIMEOUT_ERR_EN | CMD_COMPLETE_EN);
+        /* Enable data error interrupt */
+        sdio_reg_bit_set(info->sdio_reg_base, INT_ERR_STATUS_EN,
+                         DATA_TIMEOUT_ERR_STAT_EN);
         sdio_enable_bus_power(info);
         sdio_reg_bit_set(info->sdio_reg_base, CLOCK_SWRST_TIMEOUT_CONTROL,
                          SD_CLOCK_ENABLE);
@@ -1264,9 +1272,13 @@ static int sdio_irq_handler(int irq, void *context)
             info->resp[2] = 0;
             info->resp[3] = 0;
             sem_post(&info->cmd_sem);
+            /* Recover error interrupt */
+            sdio_error_interrupt_recovery(info);
         }
-        /* Recover error interrupt */
-        sdio_error_interrupt_recovery(info);
+
+        if (int_err_status & DATA_TIMEOUT_ERROR) {
+            info->data_timeout = true;
+        }
     }
 
     if (int_err_status & CARD_INTERRUPT) {
@@ -1329,6 +1341,20 @@ static void sdio_write_fifo_data(struct tsb_sdio_info *info)
 
     presentstate = sdio_getreg(info->sdio_reg_base, PRESENTSTATE);
     while (presentstate & data_mask) {
+        /* Check data timeout */
+        if (info->data_timeout == true) {
+            /* Recover error interrupt */
+            sdio_error_interrupt_recovery(info);
+            info->data_timeout = false;
+            break;
+        }
+
+        /* Check data error */
+        if (!(presentstate & BUFFER_WRITE_ENABLE) &&
+            (presentstate & WRITE_TRANSFER_ACTIVE)) {
+            break;
+        }
+
         if (presentstate & BUFFER_WRITE_ENABLE) {
             sdio_reg_bit_set(info->sdio_reg_base, INT_ERR_STATUS,
                              BUFFER_WRITE_RDY);
@@ -1392,6 +1418,20 @@ static void sdio_read_fifo_data(struct tsb_sdio_info *info)
 
     presentstate = sdio_getreg(info->sdio_reg_base, PRESENTSTATE);
     while (presentstate & data_mask) {
+        /* Check data timeout */
+        if (info->data_timeout == true) {
+            /* Recover error interrupt */
+            sdio_error_interrupt_recovery(info);
+            info->data_timeout = false;
+            break;
+        }
+
+        /* Check data error */
+        if (!(presentstate & BUFFER_READ_ENABLE) &&
+            (presentstate & READ_TRANSFER_ACTIVE)) {
+            break;
+        }
+
         if (presentstate & BUFFER_READ_ENABLE) {
             sdio_reg_bit_set(info->sdio_reg_base, INT_ERR_STATUS,
                              BUFFER_READ_RDY);
@@ -1825,6 +1865,10 @@ static int tsb_sdio_write(struct device *dev, struct sdio_transfer *transfer)
     }
     info->flags |= SDIO_FLAG_WRITE;
 
+    /* Enable data error interrupt */
+    sdio_reg_bit_set(info->sdio_reg_base, INT_ERR_STATUS_EN,
+                     DATA_TIMEOUT_ERR_STAT_EN);
+
     info->write_buf.buffer = transfer->data;
     info->write_buf.head = 0;
     info->write_buf.tail = (uint16_t)(transfer->blocks * transfer->blksz);
@@ -1860,6 +1904,10 @@ static int tsb_sdio_read(struct device *dev, struct sdio_transfer *transfer)
         return -EBUSY;
     }
     info->flags |= SDIO_FLAG_READ;
+
+    /* Enable data error interrupt */
+    sdio_reg_bit_set(info->sdio_reg_base, INT_ERR_STATUS_EN,
+                     DATA_TIMEOUT_ERR_STAT_EN);
 
     info->read_buf.buffer = transfer->data;
     info->read_buf.head = 0;
@@ -1935,6 +1983,7 @@ static int tsb_sdio_dev_open(struct device *dev)
     info->flags |= SDIO_FLAG_OPEN;
     info->card_event = HC_SDIO_CARD_REMOVED;
     info->pre_card_event = HC_SDIO_CARD_REMOVED;
+    info->data_timeout = false;
 
     sdio_board_dev = device_open(DEVICE_TYPE_SDIO_BOARD_HW, 0);
     if (!sdio_board_dev) {
@@ -1986,6 +2035,9 @@ static int tsb_sdio_dev_open(struct device *dev)
                          CMD_TIMEOUT_ERR_STAT_EN | CMD_COMPLETE_STAT_EN);
         sdio_reg_bit_set(info->sdio_reg_base, INT_ERR_SIGNAL_EN,
                          CMD_TIMEOUT_ERR_EN | CMD_COMPLETE_EN);
+        /* Enable data error interrupt */
+        sdio_reg_bit_set(info->sdio_reg_base, INT_ERR_STATUS_EN,
+                         DATA_TIMEOUT_ERR_STAT_EN);
         sdio_enable_bus_power(info);
         sdio_reg_bit_set(info->sdio_reg_base, CLOCK_SWRST_TIMEOUT_CONTROL,
                          SD_CLOCK_ENABLE);
@@ -2049,9 +2101,12 @@ static void tsb_sdio_dev_close(struct device *dev)
 
     /* Disable command interrupts */
     sdio_reg_bit_clr(info->sdio_reg_base, INT_ERR_STATUS_EN,
-                     CARD_INTERRUPT_STAT_EN);
+                     CMD_TIMEOUT_ERR_STAT_EN | CMD_COMPLETE_STAT_EN);
     sdio_reg_bit_clr(info->sdio_reg_base, INT_ERR_SIGNAL_EN,
-                     CARD_INTERRUPT_EN);
+                     CMD_TIMEOUT_ERR_EN | CMD_COMPLETE_EN);
+    /* Disable data error interrupt */
+    sdio_reg_bit_clr(info->sdio_reg_base, INT_ERR_STATUS_EN,
+                     DATA_TIMEOUT_ERR_STAT_EN);
     sdio_disable_bus_power(info);
     sdio_reg_bit_clr(info->sdio_reg_base, CLOCK_SWRST_TIMEOUT_CONTROL,
                      SD_CLOCK_ENABLE);
