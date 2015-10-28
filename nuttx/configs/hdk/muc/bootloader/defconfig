@@ -447,7 +447,8 @@ CONFIG_ARCH_HAVE_PROGMEM=y
 #
 # Board Selection
 #
-# CONFIG_ARCH_BOARD_BLIZZARD is not set
+# CONFIG_ARCH_BOARD_CONCERT is not set
+# CONFIG_ARCH_BOARD_ESPRESSO is not set
 CONFIG_ARCH_BOARD_HDK_MUC=y
 # CONFIG_ARCH_BOARD_SMELT is not set
 # CONFIG_ARCH_BOARD_YERTLE_MUC is not set
@@ -520,6 +521,10 @@ CONFIG_NPTHREAD_KEYS=0
 #
 # CONFIG_SCHED_CPULOAD is not set
 # CONFIG_SCHED_INSTRUMENTATION is not set
+
+#
+# Performance Tracking
+#
 
 #
 # Files and I/O
