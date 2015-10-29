@@ -30,7 +30,6 @@
 #include <errno.h>
 
 #include <arch/byteorder.h>
-#include <arch/board/mods.h>
 #include <nuttx/audio/audio.h>
 #include <nuttx/config.h>
 #include <nuttx/device.h>
@@ -38,7 +37,6 @@
 #include <nuttx/device_i2s.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/greybus/greybus.h>
-#include <nuttx/greybus/mods.h>
 #include <apps/greybus-utils/utils.h>
 #include <nuttx/i2c.h>
 #include <nuttx/kmalloc.h>
@@ -103,8 +101,6 @@ int muc_i2s_tfa9890_direct_dev_open(struct device *dev)
        gb_debug("%s() failed to init i2c \n", __func__);
        return -ENODEV;
    }
-
-   gpio_direction_out(GPIO_MODS_SYS_RST, 0);
 
    for (i = 0; i < NUM_INSTANCES_TFA9890; i++)
    {
