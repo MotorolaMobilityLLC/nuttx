@@ -39,6 +39,9 @@
 #define GB_AUDIO_SET_USE_CASE       0x04
 #define GB_AUDIO_SET_VOLUME     0x05
 #define GB_AUDIO_SET_SYSTEM_VOLUME      0x06
+#define GB_AUDIO_GET_SUPPORTED_DEVICES      0x07
+#define GB_AUDIO_DEVICES_REPORT_EVENT   0x08
+#define GB_AUDIO_ENABLE_DEVICES   0x09
 
 /* use cases bit mask*/
 
@@ -48,6 +51,23 @@
 #define GB_AUDIO_VOICE_CALL_SPKR_USE_CASE   BIT(0x2)
 /* Low latency stream use cases (ringer, alarm, system sounds ..) which demand min processing delay*/
 #define GB_AUDIO_LOW_LATENCY_USE_CASE   BIT(0x3)
+
+/* audio output devices bit mask */
+#define GB_AUDIO_DEVICE_OUT_LOUDSPEAKER BIT(0)
+#define GB_AUDIO_DEVICE_OUT_HEADSET     BIT(1)
+#define GB_AUDIO_DEVICE_OUT_LINE        BIT(2)
+#define GB_AUDIO_DEVICE_OUT_HDMI        BIT(3)
+#define GB_AUDIO_DEVICE_OUT_EARPIECE    BIT(4)
+
+/* audio input devices bit mask */
+#define GB_AUDIO_DEVICE_IN_MIC                   BIT(0)
+#define GB_AUDIO_DEVICE_IN_HEADSET_MIC           BIT(1)
+#define GB_AUDIO_DEVICE_IN_CAMCORDER_MIC         BIT(2)
+#define GB_AUDIO_DEVICE_IN_EC_REF                BIT(3)
+#define GB_AUDIO_DEVICE_IN_FM_TUNER              BIT(4)
+#define GB_AUDIO_DEVICE_IN_MIC_EC                BIT(5)
+#define GB_AUDIO_DEVICE_IN_MIC_ECNS              BIT(6)
+#define GB_AUDIO_DEVICE_IN_MIC_NS                BIT(7)
 
 /* version request has no payload */
 struct gb_audio_proto_version_response {
@@ -76,6 +96,11 @@ struct gb_aud_vol_range {
     __le32 step;
 };
 
+struct gb_aud_devices {
+    __le32 in_devices;
+    __le32 out_devices;
+};
+
 /* get volume range min, max and volume step in DB */
 struct gb_audio_get_volume_db_range_response {
       struct gb_aud_vol_range vol_range;
@@ -99,5 +124,20 @@ struct gb_audio_set_volume_db_request {
 /* set system volume peak db */
 struct gb_audio_set_system_volume_db_request {
     __le32                  vol_db;
+};
+
+/* get available audio output devices */
+struct gb_audio_get_devices_response {
+    struct gb_aud_devices    devices;
+};
+
+/* enable audio devices */
+struct gb_audio_enable_devices_request {
+    struct gb_aud_devices    devices;
+};
+
+/* report available audio devices */
+struct gb_audio_report_devices_request {
+    struct gb_aud_devices    devices;
 };
 #endif /* __AUDIO_GB_H__ */

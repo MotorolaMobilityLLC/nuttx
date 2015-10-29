@@ -49,6 +49,8 @@
 #define TFA9890_SUPPORTED_USE_CASES (GB_AUDIO_MUSIC_USE_CASE | \
                            GB_AUDIO_VOICE_CALL_SPKR_USE_CASE | \
                            GB_AUDIO_LOW_LATENCY_USE_CASE)
+#define TFA9890_SUPPORTED_OUT_DEVICES    GB_AUDIO_DEVICE_OUT_LOUDSPEAKER
+#define TFA9890_SUPPORTED_IN_DEVICES    GB_AUDIO_DEVICE_IN_EC_REF
 
 extern struct audio_lowerhalf_s * tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
                                                    uint32_t i2c_addr,
@@ -60,6 +62,7 @@ struct gb_audio_s {
     uint8_t use_case;
     uint32_t vol_step;
     uint32_t sys_vol_db;
+    uint32_t out_enabled_devices;
 };
 
 static struct gb_audio_s gb_aud;
@@ -108,7 +111,7 @@ int muc_i2s_tfa9890_direct_dev_open(struct device *dev)
                                             tfa9890_i2c_addr[i], 400000);
        if(!gb_aud.aud_dev_s[i])
        {
-           gb_debug("%s() failed init\n", __func__);
+           gb_error("%s() failed init\n", __func__);
            return 0;
        }
     }
@@ -232,6 +235,28 @@ static int muc_aud_dev_set_sys_volume(struct device *dev, int vol_db)
     return 0;
 }
 
+static int muc_aud_dev_get_supp_devices(struct device *dev,
+                           struct device_aud_devices *devices)
+{
+    gb_debug("%s()\n", __func__);
+
+    devices->in_devices = TFA9890_SUPPORTED_IN_DEVICES;
+    devices->out_devices = TFA9890_SUPPORTED_OUT_DEVICES;
+
+    return 0;
+}
+
+static int muc_aud_dev_enable_devices(struct device *dev,
+                           struct device_aud_devices *devices)
+{
+    gb_debug("%s() in_devices: 0x%x out_devices 0x%x\n", __func__,
+                         devices->in_devices, devices->out_devices);
+
+    gb_aud.out_enabled_devices = devices->out_devices;
+
+    return 0;
+}
+
 static int muc_i2s_tfa9890_direct_op_get_supported_configurations(struct device *dev,
                            uint16_t *configuration_count,
                            const struct device_i2s_configuration
@@ -302,6 +327,14 @@ static int muc_i2s_tfa9890_direct_op_start_receiver(struct device *dev)
     int i;
 
     gb_debug("%s()\n", __func__);
+    /* 9890 supports only loud speaker device if its disabled
+     * on I2S start return error
+     */
+    if (!(gb_aud.out_enabled_devices & GB_AUDIO_DEVICE_OUT_LOUDSPEAKER))
+    {
+        gb_debug("%s()loud speaker dev not enabled\n", __func__);
+        return -EINVAL;
+    }
 
     if(!gb_aud.i2s_port_active)
     {
@@ -350,6 +383,8 @@ static struct device_aud_dev_type_ops muc_aud_dev_type_ops = {
     .set_current_use_case        = muc_aud_dev_set_current_use_case,
     .set_volume                  = muc_aud_dev_set_volume,
     .set_sys_volume              = muc_aud_dev_set_sys_volume,
+    .get_supp_devices            = muc_aud_dev_get_supp_devices,
+    .enable_devices              = muc_aud_dev_enable_devices,
 };
 
 static struct device_driver_ops muc_aud_dev_driver_ops = {

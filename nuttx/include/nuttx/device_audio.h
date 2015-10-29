@@ -41,6 +41,15 @@ struct device_aud_vol_range {
     int step;
 };
 
+struct device_aud_devices {
+    uint32_t in_devices;
+    uint32_t out_devices;
+};
+
+struct device_aud_data {
+    void (*report_devices)(struct device *dev, struct device_aud_devices *devices);
+};
+
 struct device_aud_dev_type_ops {
     int (*get_volume_db_range)(struct device *dev,
                       struct device_aud_vol_range *vol_range);
@@ -48,6 +57,8 @@ struct device_aud_dev_type_ops {
     int (*set_current_use_case)(struct device *dev, uint32_t use_case);
     int (*set_volume)(struct device *dev, uint32_t vol_step);
     int (*set_sys_volume)(struct device *dev, int vol_db);
+    int (*get_supp_devices)(struct device *dev, struct device_aud_devices  *devices);
+    int (*enable_devices)(struct device *dev, struct device_aud_devices  *devices);
 };
 
 static inline int device_audio_get_volume_db_range(struct device *dev,
@@ -104,11 +115,10 @@ static inline int device_audio_set_volume(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-     if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_volume)
-         return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_volume(dev, vol_step);
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_volume)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_volume(dev, vol_step);
 
     return -ENOSYS;
-
 }
 
 static inline int device_audio_set_sys_volume(struct device *dev,
@@ -119,11 +129,37 @@ static inline int device_audio_set_sys_volume(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-     if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_sys_volume)
-         return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_sys_volume(dev, vol_db);
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_sys_volume)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_sys_volume(dev, vol_db);
 
     return -ENOSYS;
-
 }
 
+static inline int device_audio_get_supp_devices(struct device *dev,
+                                           struct device_aud_devices *devices)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supp_devices)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supp_devices(dev, devices);
+
+    return -ENOSYS;
+}
+
+static inline int device_audio_enable_devices(struct device *dev,
+                                            struct device_aud_devices *devices)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->enable_devices)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->enable_devices(dev, devices);
+
+    return -ENOSYS;
+}
 #endif

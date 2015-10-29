@@ -31,6 +31,7 @@
 #include <nuttx/audio/audio.h>
 #include <nuttx/device_audio.h>
 #include <apps/greybus-utils/utils.h>
+#include <arch/byteorder.h>
 
 #include "i2s-gb.h"
 #include "audio-gb.h"
@@ -46,6 +47,7 @@ struct gb_aud_info {
     char                *dev_type;
     unsigned int        dev_id;
     struct device       *dev;
+    unsigned int        cport;
 };
 
 static struct gb_aud_info dev_info = {
@@ -53,6 +55,8 @@ static struct gb_aud_info dev_info = {
         .dev_type   = DEVICE_TYPE_MUC_AUD_HW,
         .dev_id     = GB_AUD_BUNDLE_0_DEV_ID,
 };
+
+static struct device_aud_data init_aud_data;
 
 static uint8_t gb_aud_protocol_version(struct gb_operation *operation)
 {
@@ -156,13 +160,75 @@ static uint8_t gb_aud_protocol_set_sys_volume(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_aud_protocol_get_devices(struct gb_operation *operation)
+{
+    struct gb_audio_get_devices_response *response;
+    int ret;
+    struct device_aud_devices gb_devices;
+
+    gb_debug("%s()\n", __func__);
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    ret = device_audio_get_supp_devices(dev_info.dev, &gb_devices);
+    if (ret)
+        return GB_OP_SUCCESS;
+
+    response->devices.in_devices = cpu_to_le32(gb_devices.in_devices);
+    response->devices.out_devices = cpu_to_le32(gb_devices.out_devices);
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_aud_protocol_enable_devices(struct gb_operation *operation)
+{
+    struct gb_audio_enable_devices_request *request =
+                            gb_operation_get_request_payload(operation);
+    int ret;
+    struct device_aud_devices gb_devices;
+
+    gb_debug("%s()\n", __func__);
+    gb_devices.in_devices = le32_to_cpu(request->devices.in_devices);
+    gb_devices.out_devices = le32_to_cpu(request->devices.out_devices);
+    ret =  device_audio_enable_devices(dev_info.dev, &gb_devices);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+}
+
+static void gb_audio_report_devices_request(struct device *dev,
+                                     struct device_aud_devices *devices)
+{
+    struct gb_operation *operation;
+    struct gb_operation_hdr *hdr;
+    struct gb_audio_report_devices_request *request;
+
+    operation = gb_operation_create(dev_info.cport,
+                                    GB_AUDIO_DEVICES_REPORT_EVENT,
+                                    sizeof(*hdr) + sizeof(*request));
+    if (!operation)
+        return;
+
+    request = gb_operation_get_request_payload(operation);
+    request->devices.in_devices = cpu_to_le32(devices->in_devices);
+    request->devices.out_devices = cpu_to_le32(devices->out_devices);
+
+    gb_operation_send_request(operation, NULL, false);
+    gb_operation_destroy(operation);
+}
+
 static int gb_aud_init(unsigned int cport)
 {
-
     gb_debug("%s()\n", __func__);
     dev_info.dev = device_open(dev_info.dev_type, dev_info.dev_id);
     if (!dev_info.dev)
         return -EIO;
+
+    dev_info.cport = cport;
+    init_aud_data.report_devices = gb_audio_report_devices_request;
+    device_set_init_data(dev_info.dev, &init_aud_data);
 
     return 0;
 }
@@ -174,6 +240,8 @@ static struct gb_operation_handler gb_aud_handlers[] = {
     GB_HANDLER(GB_AUDIO_SET_USE_CASE, gb_aud_protocol_set_use_case),
     GB_HANDLER(GB_AUDIO_SET_VOLUME, gb_aud_protocol_set_volume),
     GB_HANDLER(GB_AUDIO_SET_SYSTEM_VOLUME, gb_aud_protocol_set_sys_volume),
+    GB_HANDLER(GB_AUDIO_GET_SUPPORTED_DEVICES, gb_aud_protocol_get_devices),
+    GB_HANDLER(GB_AUDIO_ENABLE_DEVICES, gb_aud_protocol_enable_devices),
 };
 
 static struct gb_driver gb_aud_driver = {
