@@ -36,72 +36,9 @@
 #ifndef __CONFIGS_HDK_MUC_SRC_HDK_H
 #define __CONFIGS_HDK_MUC_SRC_HDK_H
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
-
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
 #include <stdint.h>
-
-/****************************************************************************
- * Pre-processor Definitions
- ****************************************************************************/
-/* Configuration *************************************************************/
-/* How many SPI modules does this chip support? */
-
-#if STM32_NSPI < 1
-#  undef CONFIG_STM32_SPI1
-#  undef CONFIG_STM32_SPI2
-#  undef CONFIG_STM32_SPI3
-#elif STM32_NSPI < 2
-#  undef CONFIG_STM32_SPI2
-#  undef CONFIG_STM32_SPI3
-#elif STM32_NSPI < 3
-#  undef CONFIG_STM32_SPI3
-#endif
-
-/* Assume that we have everything */
-
-#define HAVE_USBDEV     1
-#define HAVE_USBHOST    1
-#define HAVE_USBMONITOR 1
-#define HAVE_SDIO       1
-
-/* Can't support USB host or device features if USB OTG FS is not enabled */
-
-#ifndef CONFIG_STM32_OTGFS
-#  undef HAVE_USBDEV
-#  undef HAVE_USBHOST
-#  undef HAVE_USBMONITOR
-#endif
-
-/* Can't support USB device monitor if USB device is not enabled */
-
-#ifndef CONFIG_USBDEV
-#  undef HAVE_USBDEV
-#  undef HAVE_USBMONITOR
-#endif
-
-/* Can't support USB host is USB host is not enabled */
-
-#ifndef CONFIG_USBHOST
-#  undef HAVE_USBHOST
-#endif
-
-/* Check if we should enable the USB monitor before starting NSH */
-
-#if !defined(CONFIG_USBDEV_TRACE) || !defined(CONFIG_SYSTEM_USBMONITOR)
-#  undef HAVE_USBMONITOR
-#endif
-
-/* Can't support MMC/SD features if mountpoints are disabled or if SDIO support
- * is not enabled.
- */
-
-#if defined(CONFIG_DISABLE_MOUNTPOINT) || !defined(CONFIG_STM32_SDIO)
-#  undef HAVE_SDIO
-#endif
 
 /* BUTTONS -- NOTE that all have EXTI interrupts configured */
 
@@ -110,36 +47,6 @@
 #define NUM_IRQBUTTONS  1
 
 #define GPIO_BTN_POWER  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTC|GPIO_PIN7)
-
-/****************************************************************************
- * Public Types
- ****************************************************************************/
-
-/****************************************************************************
- * Public data
- ****************************************************************************/
-
-#ifndef __ASSEMBLY__
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: stm32_bringup
- *
- * Description:
- *   Perform architecture-specific initialization
- *
- *   CONFIG_BOARD_INITIALIZE=y :
- *     Called from board_initialize().
- *
- *   CONFIG_BOARD_INITIALIZE=y && CONFIG_NSH_ARCHINIT=y :
- *     Called from the NSH library
- *
- ****************************************************************************/
-
-int stm32_bringup(void);
 
 /****************************************************************************
  * Name: stm32_pm_buttons
@@ -164,5 +71,4 @@ void stm32_pm_buttons(void);
 
 void mods_init(void);
 
-#endif /* __ASSEMBLY__ */
 #endif /* __CONFIGS_HDK_MUC_SRC_HDK_H */

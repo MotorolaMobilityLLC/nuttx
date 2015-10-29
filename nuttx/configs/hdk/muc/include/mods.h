@@ -37,12 +37,14 @@
 #include <stdbool.h>
 #include <nuttx/gpio.h>
 
+#define BOARD_REVISION           (CONFIG_ARCH_BOARDID_PID & 0x0000FFFF)
+
 #define CALC_GPIO_NUM(port, pin)  ((16 * (port - 'A')) + pin)
 
+#define GPIO_MODS_INT            CALC_GPIO_NUM('A', 11)
 #define GPIO_MODS_SL_BPLUS_EN    CALC_GPIO_NUM('A', 12)
 #define GPIO_MODS_RFR            CALC_GPIO_NUM('B',  0)
 #define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  1)
-#define GPIO_MODS_SL_FORCEFLASH  CALC_GPIO_NUM('B',  9)
 #define GPIO_MODS_CHG_PG_N       CALC_GPIO_NUM('C',  2)
 
 static inline void mods_rfr_init(void)

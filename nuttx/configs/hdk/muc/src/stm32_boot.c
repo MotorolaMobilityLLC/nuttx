@@ -64,7 +64,11 @@ struct board_gpio_cfg_s
 
 static const struct board_gpio_cfg_s board_gpio_cfgs[] =
 {
-  { GPIO_MODS_SL_BPLUS_EN,   (GPIO_INPUT|GPIO_FLOAT) },
+#if (BOARD_REVISION >= 1)
+  { GPIO_MODS_SL_BPLUS_EN,   (GPIO_PULLUP)           },
+#else
+  { GPIO_MODS_SL_BPLUS_EN,   (GPIO_FLOAT)            },
+#endif
   { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT) },
 };
 
@@ -171,10 +175,6 @@ void stm32_boardinitialize(void)
   putreg32(regval, STM32_DMA1_CSELR);
 #endif
 
-#ifdef CONFIG_MODS_DIET
-  mods_init();
-#endif
-
   stm32_configgpio(GPIO_APBE_SPIBOOT_N);
   stm32_configgpio(GPIO_APBE_BOOTRET);
   stm32_configgpio(GPIO_APBE_PWR_EN);
@@ -197,12 +197,12 @@ void stm32_boardinitialize(void)
 #ifdef CONFIG_BOARD_INITIALIZE
 void board_initialize(void)
 {
-  /* Perform board-specific initialization */
-
-  (void)stm32_bringup();
-
 #if defined(CONFIG_GPIO_CHIP_STM32)
   stm32_gpio_init();
+#endif
+
+#ifdef CONFIG_MODS_DIET
+  mods_init();
 #endif
 
 #if defined(CONFIG_BATTERY_STATE)

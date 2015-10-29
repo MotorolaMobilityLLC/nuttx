@@ -169,9 +169,6 @@
 #define stm32_spi2status NULL
 
 /* Mods ****************************************************************************/
-#define GPIO_MODS_CORE_INT        (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTA|GPIO_PIN11)
-
 #define GPIO_APBE_SPIBOOT_N       (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
                                    GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN15)
 

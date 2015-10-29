@@ -40,7 +40,7 @@ CFLAGS += -I$(TOPDIR)/sched
 ASRCS =
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 
-CSRCS = stm32_boot.c stm32_bringup.c stm32_sysclk.c
+CSRCS = stm32_boot.c stm32_sysclk.c
 
 ifeq ($(CONFIG_ARCH_BUTTONS),y)
 CSRCS += stm32_buttons.c
@@ -48,10 +48,6 @@ endif
 
 ifeq ($(CONFIG_WATCHDOG),y)
 CSRCS += stm32_watchdog.c
-endif
-
-ifeq ($(CONFIG_NSH_LIBRARY),y)
-CSRCS += stm32_nsh.c
 endif
 
 ifeq ($(CONFIG_ARCH_CUSTOM_PMINIT),y)
