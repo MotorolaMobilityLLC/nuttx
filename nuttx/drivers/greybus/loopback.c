@@ -104,16 +104,12 @@ static struct gb_loopback *loopback_from_cport(int cport)
     struct gb_loopback *loopback;
     struct list_head *iter;
 
-    loopback_list_lock();
     list_foreach(&gb_loopback_list, iter) {
         loopback = list_entry(iter, struct gb_loopback, list);
         if (loopback->cport == cport) {
-            loopback_list_unlock();
             return loopback;
         }
     }
-    loopback_list_unlock();
-
     return NULL;
 }
 
@@ -424,45 +420,39 @@ void gb_loopback_log_entry(unsigned int cport)
 {
     struct gb_loopback *loopback;
 
-    loopback_list_lock();
     loopback = loopback_from_cport(cport);
     if (!loopback)
-        goto done;
+        return;
 
     gb_timestamp_tag_entry_time(&loopback->ts, cport);
-
-done:
-    loopback_list_unlock();
 }
 
 void gb_loopback_log_exit(unsigned int cport, struct gb_operation *operation, size_t size)
 {
     struct gb_loopback *loopback;
 
-    loopback_list_lock();
     loopback = loopback_from_cport(cport);
     if (!loopback)
-        goto done;
+        return;
 
     gb_timestamp_tag_exit_time(&loopback->ts, cport);
     gb_timestamp_log(&loopback->ts, cport, operation->response_buffer, size,
                      GREYBUS_FW_TIMESTAMP_GPBRDIGE);
-done:
-    loopback_list_unlock();
 }
 #endif
 
 void gb_loopback_register(int cport)
 {
     struct gb_loopback *loopback = zalloc(sizeof(*loopback));
+    irqstate_t flags;
+
     if (loopback) {
         loopback->cport = cport;
         pthread_mutex_init(&loopback->lock, NULL);
-        loopback_list_lock();
         loopback->ts.tag = true;
+        flags = irqsave();
         list_add(&gb_loopback_list, &loopback->list);
-        loopback_list_unlock();
-
+        irqrestore(flags);
     }
     gb_timestamp_init();
     gb_register_driver(cport, &loopback_driver);
