@@ -228,26 +228,26 @@ static struct vreg_data sma2_vreg_data[] = {
  */
 DECLARE_INTERFACE(apb1, apb1_vreg_data, 4, WAKEOUT_APB1,
                   U701_GPIO_PIN(1), ARA_IFACE_WD_ACTIVE_HIGH,
-                  U701_GPIO_PIN(0), ARA_IFACE_WD_ACTIVE_LOW);
+                  U701_GPIO_PIN(0), ARA_IFACE_WD_ACTIVE_HIGH);
 DECLARE_INTERFACE(apb2, apb2_vreg_data, 12, WAKEOUT_APB2,
                   U701_GPIO_PIN(3), ARA_IFACE_WD_ACTIVE_HIGH,
-                  U701_GPIO_PIN(2), ARA_IFACE_WD_ACTIVE_LOW);
+                  U701_GPIO_PIN(2), ARA_IFACE_WD_ACTIVE_HIGH);
 DECLARE_INTERFACE(apb3, apb3_vreg_data, 7, WAKEOUT_APB3,
                   U701_GPIO_PIN(5), ARA_IFACE_WD_ACTIVE_HIGH,
-                  U701_GPIO_PIN(4), ARA_IFACE_WD_ACTIVE_LOW);
+                  U701_GPIO_PIN(4), ARA_IFACE_WD_ACTIVE_HIGH);
 DECLARE_INTERFACE(gpb1, gpb1_vreg_data, 0, WAKEOUT_GPB1,
                   U701_GPIO_PIN(7), ARA_IFACE_WD_ACTIVE_HIGH,
-                  U701_GPIO_PIN(6), ARA_IFACE_WD_ACTIVE_LOW);
+                  U701_GPIO_PIN(6), ARA_IFACE_WD_ACTIVE_HIGH);
 DECLARE_INTERFACE(gpb2, gpb2_vreg_data, 2, WAKEOUT_GPB2,
                   U701_GPIO_PIN(9), ARA_IFACE_WD_ACTIVE_HIGH,
-                  U701_GPIO_PIN(8), ARA_IFACE_WD_ACTIVE_LOW);
+                  U701_GPIO_PIN(8), ARA_IFACE_WD_ACTIVE_HIGH);
 
 DECLARE_EXPANSION_INTERFACE(sma1, sma1_vreg_data, 9, WAKEOUT_SMA1,
                             U701_GPIO_PIN(11), ARA_IFACE_WD_ACTIVE_HIGH,
-                            U701_GPIO_PIN(13), ARA_IFACE_WD_ACTIVE_LOW);
+                            U701_GPIO_PIN(13), ARA_IFACE_WD_ACTIVE_HIGH);
 DECLARE_EXPANSION_INTERFACE(sma2, sma2_vreg_data, 10, WAKEOUT_SMA2,
                             U701_GPIO_PIN(12), ARA_IFACE_WD_ACTIVE_HIGH,
-                            U701_GPIO_PIN(15), ARA_IFACE_WD_ACTIVE_LOW);
+                            U701_GPIO_PIN(15), ARA_IFACE_WD_ACTIVE_HIGH);
 
 #define I2C_SEL1_A      BIT(0)
 #define I2C_SEL1_B      BIT(1)
