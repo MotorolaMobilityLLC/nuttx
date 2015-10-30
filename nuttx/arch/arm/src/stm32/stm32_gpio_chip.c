@@ -219,6 +219,36 @@ static int stm32_gpio_irqattach(void *driver_data, uint8_t pin, xcpt_t isr,
     return ret;
 }
 
+static int stm32_gpio_irqattach_old(void *driver_data, uint8_t pin, xcpt_t isr,
+                                    uint8_t base, xcpt_t *old)
+{
+    uint32_t cfgset;
+    int ret = 0;
+
+    lldbg("%s: pin=%hhu, handler=%p\n", __func__, pin, isr);
+
+    ret = map_pin_nr_to_cfgset(pin, &cfgset);
+    if (ret) {
+        lldbg("%s: Invalid pin %hhu\n", pin);
+        return ret;
+    }
+
+    /*
+     * Install the handler for the pin.
+     *
+     * The IRQ line config is done in stm32_gpiosetevent.
+     * By default cfgset is set as input, floating.
+     */
+    stm32_gpio[pin].isr = isr;
+    *old = stm32_gpiosetevent(cfgset,
+                              stm32_gpio[pin].flags & STM32_GPIO_FLAG_RISING,
+                              stm32_gpio[pin].flags & STM32_GPIO_FLAG_FALLING,
+                              true,
+                              stm32_gpio[pin].isr);
+
+    return ret;
+}
+
 static int stm32_gpio_set_triggering(void *driver_data, uint8_t pin,
                                      int trigger)
 {
@@ -333,6 +363,7 @@ static struct gpio_ops_s stm32_gpio_ops = {
     .line_count =       stm32_gpio_line_count,
     .irqattach =        stm32_gpio_irqattach,
     .set_triggering =   stm32_gpio_set_triggering,
+    .irqattach_old =    stm32_gpio_irqattach_old,
     .mask_irq =         stm32_gpio_mask_irq,
     .unmask_irq =       stm32_gpio_unmask_irq,
     .clear_interrupt =  stm32_gpio_clear_interrupt,
