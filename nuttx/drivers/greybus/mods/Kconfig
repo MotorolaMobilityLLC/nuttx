@@ -69,9 +69,10 @@ config GREYBUS_MODS_REDUCED_CHG_VOLTAGE
 	int "Restricted charging voltage limit in mV"
 	default 4000
 
-config GREYBUS_MODS_INPUT_CURRENT
-	int "Input current limit in mA"
-	default 1500
+config GREYBUS_MODS_WIRELESS_INPUT_CURRENT
+	int "Input current limit from wireless in mA"
+	depends on GREYBUS_PTP_EXT_SUPPORTED
+	default 1000
 
 config GREYBUS_MODS_INPUT_VOLTAGE
 	int "Input voltage limit in mV"

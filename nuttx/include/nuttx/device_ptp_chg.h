@@ -35,6 +35,7 @@
 
 #define DEVICE_TYPE_PTP_CHG_HW  "ptp_chg"
 
+/* Limits are in mA and mV */
 struct ptp_chg {
     int input_current_limit;
     int input_voltage_limit;

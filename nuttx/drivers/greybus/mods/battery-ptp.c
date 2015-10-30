@@ -39,11 +39,16 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#define DEFAULT_BASE_INPUT_CURRENT  500 /* mA */
+
 /* Charging/discharging settings */
 struct batt_ptp {
-   bool chg_allowed; /* flag */
-   bool dischg_allowed; /* flag */
-   struct ptp_chg cfg; /* charging limits */
+    bool chg_allowed; /* flag */
+    bool dischg_allowed; /* flag */
+    /* Limits are in mA and mV */
+    int input_current; /* as per command from base */
+    int charge_current; /* as per battery temp */
+    int charge_voltage; /* as per battery temp */
 };
 
 /* Internal state */
@@ -62,9 +67,10 @@ struct ptp_info {
     struct device *batt_dev; /*battery temp and level notifications */
     struct device *chg_dev; /* current control */
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    ptp_ext_power_changed_cb ext_power_changed_cb; /* callback to client*/
+    ptp_ext_power_cb ext_power_changed_cb; /* callback to client*/
     struct device *pad_dev; /* docked notifications */
 #endif
+    ptp_power_required_cb power_required_changed_cb; /* callback to client */
 };
 
 /*
@@ -95,10 +101,16 @@ static int do_charge_battery_if_docked(struct device *chg,
 #ifndef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     return device_ptp_chg_off(chg);
 #else
+    struct ptp_chg cfg;
+
     if (!state->battery.chg_allowed) {
         return device_ptp_chg_off(chg);
     } else if (state->docked) {
-        return device_ptp_chg_receive_wireless_pwr(chg, &state->battery.cfg);
+        cfg.input_current_limit = CONFIG_GREYBUS_MODS_WIRELESS_INPUT_CURRENT;
+        cfg.input_voltage_limit = CONFIG_GREYBUS_MODS_INPUT_VOLTAGE;
+        cfg.charge_current_limit = state->battery.charge_current;
+        cfg.charge_voltage_limit = state->battery.charge_voltage;
+        return device_ptp_chg_receive_wireless_pwr(chg, &cfg);
     } else {
         return device_ptp_chg_off(chg);
     }
@@ -111,10 +123,16 @@ static int do_charge_battery_if_docked(struct device *chg,
 static int do_charge_battery_with_base_power(struct device *chg,
                                                 const struct ptp_state *state)
 {
+    struct ptp_chg cfg;
+
     if (!state->battery.chg_allowed) {
         return device_ptp_chg_off(chg);
     } else {
-        return device_ptp_chg_receive_base_pwr(chg, &state->battery.cfg);
+        cfg.input_current_limit = state->battery.input_current;
+        cfg.input_voltage_limit = CONFIG_GREYBUS_MODS_INPUT_VOLTAGE;
+        cfg.charge_current_limit = state->battery.charge_current;
+        cfg.charge_voltage_limit = state->battery.charge_voltage;
+        return device_ptp_chg_receive_base_pwr(chg, &cfg);
     }
 }
 
@@ -164,9 +182,10 @@ static void batt_ptp_attach_changed(FAR void *arg, enum base_attached_e state)
     if (info->state.attached == state)
         goto attach_done;
 
-    /* Once attached, set current direction to default */
+    /* Once attached, set current direction and maximum input current to defaults */
     if (state == BASE_ATTACHED) {
         info->state.direction = PTP_CURRENT_OFF;
+        info->state.battery.input_current = DEFAULT_BASE_INPUT_CURRENT;
     }
 
     info->state.attached = state;
@@ -210,6 +229,41 @@ current_flow_done:
     return retval;
 }
 
+static int batt_ptp_set_max_input_current(struct device *dev, uint32_t current)
+{
+    struct ptp_info *info = device_get_private(dev);
+    int retval = 0;
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    /* Handset cannot send any requests unless it is attached */
+    if (info->state.attached != BASE_ATTACHED) {
+        dbg("received input current request while not attached\n");
+        retval = -EPERM;
+        goto input_current_done;
+    }
+
+    current /= 1000; /* uA to mA */
+    if (info->state.battery.input_current == current)
+        goto input_current_done;
+
+    info->state.battery.input_current = current;
+    /*
+     * Always report success to the base. If the limit cannot be set
+     * now due to the conditions such as for example, battery level and/or temp,
+     * the limit will be set once the conditions allow it.
+     */
+    (void) batt_ptp_process(info->chg_dev, &info->state);
+
+input_current_done:
+    sem_post(&info->sem);
+    return retval;
+}
+
 static void batt_ptp_set_battery_state(const struct batt_state_s *batt,
                                        struct batt_ptp *state)
 {
@@ -221,21 +275,13 @@ static void batt_ptp_set_battery_state(const struct batt_state_s *batt,
 
     if (state->chg_allowed) {
         if (batt->temp == BATTERY_TEMP_NORMAL) {
-            state->cfg.charge_current_limit =
-                CONFIG_GREYBUS_MODS_FULL_CHG_CURRENT;
-            state->cfg.charge_voltage_limit =
-                CONFIG_GREYBUS_MODS_FULL_CHG_VOLTAGE;
+            state->charge_current = CONFIG_GREYBUS_MODS_FULL_CHG_CURRENT;
+            state->charge_voltage = CONFIG_GREYBUS_MODS_FULL_CHG_VOLTAGE;
         } else {
-            state->cfg.charge_current_limit =
-                CONFIG_GREYBUS_MODS_REDUCED_CHG_CURRENT;
-            state->cfg.charge_voltage_limit =
-                CONFIG_GREYBUS_MODS_REDUCED_CHG_VOLTAGE;
+            state->charge_current = CONFIG_GREYBUS_MODS_REDUCED_CHG_CURRENT;
+            state->charge_voltage = CONFIG_GREYBUS_MODS_REDUCED_CHG_VOLTAGE;
         }
-
-        /*TODO: Set input current limit based on Handset request */
-        state->cfg.input_current_limit = CONFIG_GREYBUS_MODS_INPUT_CURRENT;
-        state->cfg.input_voltage_limit = CONFIG_GREYBUS_MODS_INPUT_VOLTAGE;
-   }
+    }
 }
 
 static void batt_ptp_battery_changed(void *arg,
@@ -244,6 +290,7 @@ static void batt_ptp_battery_changed(void *arg,
     static bool init = true; /* first callback is to initialize */
     static struct batt_state_s current;
     struct ptp_info *info = arg;
+    bool chg_allowed;
 
     if (init) {
         init = false;
@@ -262,9 +309,13 @@ static void batt_ptp_battery_changed(void *arg,
         goto battery_done;
 
     current = *batt;
+    chg_allowed = info->state.battery.chg_allowed;
     batt_ptp_set_battery_state(batt, &info->state.battery);
+    if (chg_allowed != info->state.battery.chg_allowed &&
+        info->power_required_changed_cb) {
+        info->power_required_changed_cb();
+    }
     batt_ptp_process(info->chg_dev, &info->state);
-
 battery_done:
     sem_post(&info->sem);
 }
@@ -302,7 +353,7 @@ docked_done:
 }
 
 static int batt_ptp_register_ext_power_changed(struct device *dev,
-                                               ptp_ext_power_changed_cb cb)
+                                               ptp_ext_power_cb cb)
 {
     struct ptp_info *info = device_get_private(dev);
     int retval;
@@ -318,29 +369,6 @@ static int batt_ptp_register_ext_power_changed(struct device *dev,
         retval = 0;
     } else {
         retval = -EEXIST;
-    }
-
-    sem_post(&info->sem);
-
-    return retval;
-}
-
-static int batt_ptp_unregister_ext_power_changed(struct device *dev)
-{
-    struct ptp_info *info = device_get_private(dev);
-    int retval;
-
-    while (sem_wait(&info->sem) != OK) {
-        if (errno == EINVAL) {
-            return -EINVAL;
-        }
-    }
-
-    if (info->ext_power_changed_cb) {
-        info->ext_power_changed_cb = NULL;
-        retval = 0;
-    } else {
-        retval = -ENODEV;
     }
 
     sem_post(&info->sem);
@@ -365,6 +393,46 @@ static int batt_ptp_ext_power_present(struct device *dev, uint8_t *present)
     return 0;
 }
 #endif
+
+static int batt_ptp_register_power_required_changed(struct device *dev,
+                                                    ptp_power_required_cb cb)
+{
+    struct ptp_info *info = device_get_private(dev);
+    int retval;
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    if (!info->power_required_changed_cb) {
+        info->power_required_changed_cb = cb;
+        retval = 0;
+    } else {
+        retval = -EEXIST;
+    }
+
+    sem_post(&info->sem);
+
+    return retval;
+}
+
+static int batt_ptp_power_required(struct device *dev, uint8_t *required)
+{
+    struct ptp_info *info = device_get_private(dev);
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    *required = info->state.battery.chg_allowed ? PTP_POWER_REQUIRED :
+                                                  PTP_POWER_NOT_REQUIRED;
+    sem_post(&info->sem);
+    return 0;
+}
 
 static int batt_ptp_probe(struct device *dev)
 {
@@ -392,8 +460,11 @@ static int batt_ptp_open(struct device *dev)
         return retval;
     }
 
-    /* Current dirction is off until Handset sends direction request */
+    /* Current direction is off until base sends direction request */
     info->state.direction = PTP_CURRENT_OFF;
+
+    /* Input current is default until base changes it */
+    info->state.battery.input_current = DEFAULT_BASE_INPUT_CURRENT;
 
     info->chg_dev = device_open(DEVICE_TYPE_PTP_CHG_HW, 0);
     if (!info->chg_dev) {
@@ -449,11 +520,13 @@ chg_err:
 
 static struct device_ptp_type_ops batt_ptp_type_ops = {
     .set_current_flow = batt_ptp_set_current_flow,
+    .set_max_input_current = batt_ptp_set_max_input_current,
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     .ext_power_present = batt_ptp_ext_power_present,
-    .register_ext_power_changed_cb = batt_ptp_register_ext_power_changed,
-    .unregister_ext_power_changed_cb = batt_ptp_unregister_ext_power_changed,
+    .register_ext_power_cb = batt_ptp_register_ext_power_changed,
 #endif
+    .power_required = batt_ptp_power_required,
+    .register_power_required_cb = batt_ptp_register_power_required_changed,
 };
 
 static struct device_driver_ops batt_ptp_driver_ops = {
