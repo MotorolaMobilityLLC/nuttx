@@ -60,6 +60,7 @@ struct tfa9890_dev_s {
     int current_eq;
     int vol_step;
     int speaker_imp;
+    int type;
 };
 
 static int tfa9890_reg_read(FAR struct tfa9890_dev_s *priv, uint8_t reg);
@@ -708,9 +709,51 @@ static void tfa9890_init_registers(FAR struct tfa9890_dev_s *priv)
     tfa9890_reg_write(priv, TFA9890_DEM_CTL_REG, 0x00);
 }
 
+static int tfa9890_driver_stereo_setup(FAR struct tfa9890_dev_s *priv, int type)
+{
+     /* set up right/left channel and Gain sharing channels
+      * for stereo config.
+      */
+    if (type == TFA9890_LEFT)
+    {
+         tfa9890_modify(priv, TFA9890_REG_I2S_CTRL,
+                                  0x3, TFA9890_I2S_LEFT_IN,
+                                  TFA9890_I2S_IN_OFFSET);
+
+         /* set datao right channel to send gain info */
+         tfa9890_modify(priv, TFA9890_REG_SYSTEM_CTRL_2,
+                                  0x7, TFA9890_DORS_GAIN,
+                                  TFA9890_DORS_GAIN_OFFSET);
+         priv->type = TFA9890_LEFT;
+    }
+    else if (type == TFA9890_RIGHT)
+    {
+         tfa9890_modify(priv, TFA9890_REG_I2S_CTRL,
+                                  0x3, TFA9890_I2S_RIGHT_IN,
+                                  TFA9890_I2S_IN_OFFSET);
+         tfa9890_modify(priv, TFA9890_REG_I2S_CTRL,
+                                  0x1, TFA9890_GAIN_IN,
+                                  TFA9890_GAIN_IN_OFFSET);
+
+         /* set datao right channel to send gain info */
+         tfa9890_modify(priv, TFA9890_REG_SYSTEM_CTRL_2,
+                                  0x7, TFA9890_DOLS_GAIN,
+                                  TFA9890_DOLS_GAIN_OFFSET);
+         priv->type = TFA9890_RIGHT;
+    }
+    else if (type == TFA9890_MONO)
+         /* default set up is mono, nothing to do */
+         priv->type = TFA9890_MONO;
+    else
+         return -EINVAL;
+
+    return 0;
+}
+
 FAR struct audio_lowerhalf_s *tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
                                                    uint32_t i2c_addr,
-                                                   uint32_t frequency)
+                                                   uint32_t frequency,
+                                                   int type)
 {
     int ret;
     FAR struct tfa9890_dev_s *priv;
@@ -739,6 +782,7 @@ FAR struct audio_lowerhalf_s *tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
     tfa9890_modify(priv, TFA9890_REG_SYSTEM_CTRL_1, 1, 1, TFA9890_RESET_OFFSET);
 
     tfa9890_init_registers(priv);
+    tfa9890_driver_stereo_setup(priv, type);
 
 #ifdef DEBUG
        tfa9890_dump_regs(priv);

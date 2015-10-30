@@ -44,6 +44,7 @@
 
 #include "audio-gb.h"
 #include "i2s-gb.h"
+#include "tfa9890.h"
 
 #define NUM_INSTANCES_TFA9890    2
 #define TFA9890_SUPPORTED_USE_CASES (GB_AUDIO_MUSIC_USE_CASE | \
@@ -51,11 +52,13 @@
                            GB_AUDIO_LOW_LATENCY_USE_CASE)
 #define TFA9890_SUPPORTED_OUT_DEVICES    GB_AUDIO_DEVICE_OUT_LOUDSPEAKER
 #define TFA9890_SUPPORTED_IN_DEVICES    GB_AUDIO_DEVICE_IN_EC_REF
+#define TFA9890_LEFT_I2C_ADDR    0x34
+#define TFA9890_RIGHT_I2C_ADDR   0x35
 
 extern struct audio_lowerhalf_s * tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
                                                    uint32_t i2c_addr,
-                                                   uint32_t frequency);
-
+                                                   uint32_t frequency,
+                                                   int type);
 struct gb_audio_s {
     struct audio_lowerhalf_s *aud_dev_s[NUM_INSTANCES_TFA9890];
     bool i2s_port_active;
@@ -66,7 +69,23 @@ struct gb_audio_s {
 };
 
 static struct gb_audio_s gb_aud;
-static const int tfa9890_i2c_addr[NUM_INSTANCES_TFA9890]= {0x34, 0x35};
+
+struct audio_tfa9890_devices {
+     int i2c_addr;
+     int type;
+ };
+
+static const struct audio_tfa9890_devices tfa9890_devices[NUM_INSTANCES_TFA9890] =
+{
+     {
+         .i2c_addr = TFA9890_LEFT_I2C_ADDR,
+         .type = TFA9890_LEFT,
+     },
+     {
+         .i2c_addr = TFA9890_RIGHT_I2C_ADDR,
+         .type = TFA9890_RIGHT,
+     }
+};
 
 static const struct device_i2s_configuration tfa9890_i2s_config_table[] = {
     /* default I2S configuration for tfa9890, IC will operate in this config for all
@@ -108,7 +127,8 @@ int muc_i2s_tfa9890_direct_dev_open(struct device *dev)
    for (i = 0; i < NUM_INSTANCES_TFA9890; i++)
    {
        gb_aud.aud_dev_s[i] = tfa9890_driver_init(i2c_dev,
-                                            tfa9890_i2c_addr[i], 400000);
+                                            tfa9890_devices[i].i2c_addr, 400000,
+                                            tfa9890_devices[i].type);
        if(!gb_aud.aud_dev_s[i])
        {
            gb_error("%s() failed init\n", __func__);

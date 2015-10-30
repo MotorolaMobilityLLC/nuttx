@@ -81,6 +81,17 @@
 #define TFA9890_CHSA_COOLFLUX_2          3
 
 
+/* enable I2S left channel input */
+#define TFA9890_I2S_LEFT_IN              (0x1)
+/* enable I2S right channel input */
+#define TFA9890_I2S_RIGHT_IN             (0x2)
+/* route gain info on datao pin on left channel */
+#define TFA9890_DOLS_GAIN                (0x1)
+/* route gain info on datao pin on right channel */
+#define TFA9890_DORS_GAIN                (0x1)
+/* select gain input channel for stereo config */
+#define TFA9890_GAIN_IN                  (0x1)
+
 /* Gets the speaker calibration impedance (@25 degrees celsius) */
 #define TFA9890_PARAM_GET_RE0          0x85
 /* Gets current LoudSpeaker Model. */
@@ -167,8 +178,13 @@
 #define TFA9890_RESET_OFFSET        BIT(0)
 #define TFA9890_VOLUME_CTRL_OFFSET  BIT(3)
 #define TFA9890_PWDN_OFFSET         (0)
-#define TFA9890_AMP_OFFSET          BIT(0) & BIT(1)
-#define TFA9890_SBSL_OFFSET         BIT(0) & BIT(2)
+#define TFA9890_AMP_OFFSET          BIT(0) | BIT(1)
+#define TFA9890_SBSL_OFFSET         BIT(0) | BIT(2)
+#define TFA9890_I2DOE_OFFSET        BIT(11)
+#define TFA9890_I2S_IN_OFFSET       BIT(0) | BIT(1)
+#define TFA9890_GAIN_IN_OFFSET      BIT(0) | BIT(2)
+#define TFA9890_DORS_GAIN_OFFSET    BIT(0) | BIT(1)
+#define TFA9890_DOLS_GAIN_OFFSET    0
 
 /* DSP Firmware Size in bytes*/
 #define TFA9890_SPK_FW_SIZE         424
@@ -182,5 +198,12 @@
 #define TFA9890_EQ_MUSIC                        BIT(0)
 #define TFA9890_EQ_VOICE                        BIT(1)
 #define TFA9890_EQ_LOW_LATENCY_SYSTEM_SOUNDS    BIT((2)
+
+enum
+{
+    TFA9890_LEFT,
+    TFA9890_RIGHT,
+    TFA9890_MONO,
+};
 
 #endif /* __INCLUDE_TFA9890_H */
