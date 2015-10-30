@@ -191,6 +191,17 @@ int gpio_irqattach(uint8_t which, xcpt_t isr)
     return -EINVAL;
 }
 
+int gpio_irqattach_old(uint8_t which, xcpt_t isr, xcpt_t *old)
+{
+    struct gpio_chip_s *chip = get_gpio_chip(&which);
+
+    DEBUGASSERT(chip);
+    if (chip->ops->irqattach_old)
+        return chip->ops->irqattach_old(chip->driver_data, which, isr,
+                                        chip->base, old);
+    return -EINVAL;
+}
+
 int set_gpio_triggering(uint8_t which, int trigger)
 {
     struct gpio_chip_s *chip = get_gpio_chip(&which);
@@ -230,4 +241,3 @@ int gpio_clear_interrupt(uint8_t which)
         return chip->ops->clear_interrupt(chip->driver_data, which);
     return -EINVAL;
 }
-

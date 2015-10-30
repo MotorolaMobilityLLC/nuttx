@@ -51,6 +51,8 @@ struct gpio_ops_s
     uint8_t (*line_count)(void *driver_data);
     int (*irqattach)(void *driver_data, uint8_t which, xcpt_t isr,
                      uint8_t base);
+    int (*irqattach_old)(void *driver_data, uint8_t which, xcpt_t isr,
+                         uint8_t base, xcpt_t *old);
     int (*set_triggering)(void *driver_data, uint8_t which, int trigger);
     int (*mask_irq)(void *driver_data, uint8_t which);
     int (*unmask_irq)(void *driver_data, uint8_t which);
@@ -76,6 +78,7 @@ int gpio_set_debounce(uint8_t which, uint16_t delay);
 void gpio_deactivate(uint8_t which);
 uint8_t gpio_line_count(void);
 int gpio_irqattach(uint8_t which, xcpt_t isr);
+int gpio_irqattach_old(uint8_t which, xcpt_t isr, xcpt_t *old);
 int set_gpio_triggering(uint8_t which, int trigger);
 int gpio_mask_irq(uint8_t which);
 int gpio_unmask_irq(uint8_t which);
@@ -85,4 +88,3 @@ int register_gpio_chip(struct gpio_ops_s *ops, int base, void *driver_data);
 int unregister_gpio_chip(void *driver_data);
 
 #endif
-
