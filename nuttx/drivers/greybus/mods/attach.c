@@ -34,6 +34,7 @@
 #include <arch/board/mods.h>
 #include <arch/irq.h>
 
+#include <nuttx/clock.h>
 #include <nuttx/gpio.h>
 #include <nuttx/greybus/mods.h>
 #include <nuttx/list.h>
@@ -46,6 +47,12 @@
  */
 #define PM_MODS_ACTIVITY 10
 
+/*
+ * The chip select line must be asserted for 1 second before we can declare mod
+ * is attached to a dead/off phone.
+ */
+#define CS_ASSERT_TICKS  MSEC2TICK(1000)
+
 struct notify_node_s
 {
   mods_attach_t callback;
@@ -53,22 +60,23 @@ struct notify_node_s
   struct list_head list;
 };
 
-struct mods_attach_data_s
-{
-  struct list_head notify_list;
-  struct work_s attach_work;
-  enum base_attached_e base_state;
-};
+static LIST_DECLARE(g_notify_list);
+static enum base_attached_e g_base_state = BASE_INVALID;
+static struct work_s g_attach_work;
 
-static struct mods_attach_data_s *mods_attach_data;
+#ifdef GPIO_MODS_SPI_CS_N
+static xcpt_t g_cs_isr;
+#endif
 
 static enum base_attached_e read_base_state(void)
 {
   enum base_attached_e base_state;
 
-  base_state  = (gpio_get_value(GPIO_MODS_SL_BPLUS_EN)   & 0x01) << 0;
-#ifdef GPIO_MODS_SL_FORCEFLASH
-  base_state |= (gpio_get_value(GPIO_MODS_SL_FORCEFLASH) & 0x01) << 1;
+  base_state = !!gpio_get_value(GPIO_MODS_SL_BPLUS_EN);
+
+#ifdef GPIO_MODS_SPI_CS_N
+  if (!base_state)
+      base_state = (!gpio_get_value(GPIO_MODS_SPI_CS_N) & 0x01) << 1;
 #endif
 
   return base_state;
@@ -76,19 +84,18 @@ static enum base_attached_e read_base_state(void)
 
 static void base_attach_worker(FAR void *arg)
 {
-  struct mods_attach_data_s *ad = (struct mods_attach_data_s *)arg;
   enum base_attached_e base_state;
   struct list_head *iter;
   struct list_head *iter_next;
   struct notify_node_s *node;
 
   base_state = read_base_state();
-  if (ad->base_state != base_state)
+  if (g_base_state != base_state)
     {
       dbg("base_state=%d\n", base_state);
-      ad->base_state = base_state;
+      g_base_state = base_state;
 
-      list_foreach_safe(&ad->notify_list, iter, iter_next)
+      list_foreach_safe(&g_notify_list, iter, iter_next)
         {
           node = list_entry(iter, struct notify_node_s, list);
           node->callback(node->arg, base_state);
@@ -96,18 +103,44 @@ static void base_attach_worker(FAR void *arg)
     }
 }
 
-static int base_attach_isr(int irq, void *context)
+static int bplus_isr(int irq, void *context)
 {
   pm_activity(PM_MODS_ACTIVITY);
 
-  if (work_available(&mods_attach_data->attach_work))
-    {
-      work_queue(HPWORK, &mods_attach_data->attach_work,
-                 base_attach_worker, mods_attach_data, 0);
-    }
+  if (!work_available(&g_attach_work))
+      work_cancel(HPWORK, &g_attach_work);
 
-  return OK;
+  return work_queue(HPWORK, &g_attach_work, base_attach_worker, NULL, 0);
 }
+
+#ifdef GPIO_MODS_SPI_CS_N
+static int cs_isr(int irq, void *context)
+{
+  uint8_t cs_val;
+
+  /* Call into SPI chip select ISR (if available) */
+  if (g_cs_isr)
+      g_cs_isr(irq, context);
+
+  /* If the base is attached, ignore the chip select line */
+  if (g_base_state == BASE_ATTACHED)
+      return OK;
+
+  pm_activity(PM_MODS_ACTIVITY);
+  cs_val = gpio_get_value(GPIO_MODS_SPI_CS_N);
+
+  if (!work_available(&g_attach_work))
+      work_cancel(HPWORK, &g_attach_work);
+
+  /*
+   * If chip select is asserted (active low), then wait for CS_ASSERT_TICKS
+   * before running the worker. Else, run worker immediately to update the
+   * state.
+   */
+  return work_queue(HPWORK, &g_attach_work, base_attach_worker, NULL,
+                    cs_val ? 0 : CS_ASSERT_TICKS);
+}
+#endif
 
 int mods_attach_register(mods_attach_t callback, void *arg)
 {
@@ -117,9 +150,6 @@ int mods_attach_register(mods_attach_t callback, void *arg)
   if (!callback)
       return -EINVAL;
 
-  if (!mods_attach_data)
-      return -EAGAIN;
-
   node = malloc(sizeof(struct notify_node_s));
   if (!node)
       return -ENOMEM;
@@ -128,33 +158,32 @@ int mods_attach_register(mods_attach_t callback, void *arg)
   node->arg = arg;
 
   flags = irqsave();
-  list_add(&mods_attach_data->notify_list, &node->list);
+  list_add(&g_notify_list, &node->list);
   irqrestore(flags);
 
   /* Immediately call back with current state */
-  callback(arg, mods_attach_data->base_state);
+  callback(arg, g_base_state);
 
   return 0;
 }
 
 int mods_attach_init(void)
 {
-  mods_attach_data = zalloc(sizeof(struct mods_attach_data_s));
-  if (!mods_attach_data)
-      return -ENOMEM;
-
-  list_init(&mods_attach_data->notify_list);
-
-  gpio_irqattach(GPIO_MODS_SL_BPLUS_EN, base_attach_isr);
+  gpio_irqattach(GPIO_MODS_SL_BPLUS_EN, bplus_isr);
   set_gpio_triggering(GPIO_MODS_SL_BPLUS_EN, IRQ_TYPE_EDGE_BOTH);
 
-#ifdef GPIO_MODS_SL_FORCEFLASH
-  gpio_irqattach(GPIO_MODS_SL_FORCEFLASH, base_attach_isr);
-  set_gpio_triggering(GPIO_MODS_SL_FORCEFLASH, IRQ_TYPE_EDGE_BOTH);
+#ifdef GPIO_MODS_SPI_CS_N
+  /*
+   * The chip select is already used by the SPI driver, so the previously
+   * registered ISR must be saved to be called from within this driver's
+   * chip select ISR.
+   */
+  gpio_irqattach_old(GPIO_MODS_SPI_CS_N, cs_isr, &g_cs_isr);
+  set_gpio_triggering(GPIO_MODS_SPI_CS_N, IRQ_TYPE_EDGE_BOTH);
 #endif
 
   /* Get the initial state of base */
-  mods_attach_data->base_state = read_base_state();
+  base_attach_worker(NULL);
 
-  return 0;
+  return OK;
 }
