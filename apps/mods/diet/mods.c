@@ -64,8 +64,8 @@ int mods_main(int argc, char *argv[])
 #endif
 
     enable_manifest("IID-1", NULL, MANIFEST_DEVICE_ID);
-    mods_attach_init();
     mods_network_init();
+    mods_attach_init(); /* Must be after network init */
     srvmgr_start(services);
     enable_cports();
 
