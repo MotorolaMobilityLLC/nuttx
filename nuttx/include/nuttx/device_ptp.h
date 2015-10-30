@@ -65,15 +65,26 @@ enum ptp_ext_power {
     PTP_EXT_POWER_PRESENT       = 0x01
 };
 
-typedef int (*ptp_ext_power_changed_cb)(void);
+enum ptp_power_requied {
+    PTP_POWER_NOT_REQUIRED      = 0x00,
+    PTP_POWER_REQUIRED          = 0x01
+};
+
+/* Callback functions */
+typedef int (*ptp_ext_power_cb)(void);
+typedef int (*ptp_power_required_cb)(void);
 
 struct device_ptp_type_ops {
     int (*set_current_flow)(struct device *dev, uint8_t direction);
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     int (*ext_power_present)(struct device *dev, uint8_t *present);
-    int (*register_ext_power_changed_cb)(struct device *dev,
-                                       ptp_ext_power_changed_cb cb);
-    int (*unregister_ext_power_changed_cb)(struct device *dev);
+    int (*register_ext_power_cb)(struct device *dev, ptp_ext_power_cb cb);
+#endif
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    int (*set_max_input_current)(struct device *dev, uint32_t current);
+    int (*power_required)(struct device *dev, uint8_t *required);
+    int (*register_power_required_cb)(struct device *dev,
+                                      ptp_power_required_cb cb);
 #endif
 };
 
@@ -108,8 +119,8 @@ static int device_ptp_ext_power_present(struct device *dev, uint8_t *present)
     return DEVICE_DRIVER_GET_OPS(dev, ptp)->ext_power_present(dev, present);
 }
 
-static int device_ptp_register_ext_power_changed_cb(struct device *dev,
-                                                  ptp_ext_power_changed_cb cb)
+static int device_ptp_register_ext_power_cb(struct device *dev,
+                                            ptp_ext_power_cb cb)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -117,14 +128,17 @@ static int device_ptp_register_ext_power_changed_cb(struct device *dev,
         return -ENODEV;
     }
 
-    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->register_ext_power_changed_cb) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->register_ext_power_cb) {
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, ptp)->register_ext_power_changed_cb(dev, cb);
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->register_ext_power_cb(dev, cb);
 }
+#endif
 
-static int device_ptp_unregister_ext_power_changed_cb(struct device *dev)
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+static int device_ptp_set_max_input_current(struct device *dev,
+                                            uint32_t current)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -132,12 +146,42 @@ static int device_ptp_unregister_ext_power_changed_cb(struct device *dev)
         return -ENODEV;
     }
 
-    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->unregister_ext_power_changed_cb) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->set_max_input_current) {
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, ptp)->unregister_ext_power_changed_cb(dev);
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->set_max_input_current(dev, current);
+}
+
+static int device_ptp_power_required(struct device *dev, uint8_t *required)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->power_required) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->power_required(dev, required);
+}
+
+static int device_ptp_register_power_required_cb(struct device *dev,
+                                                 ptp_ext_power_cb cb)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->register_power_required_cb) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->register_power_required_cb(dev, cb);
 }
 #endif
-
-#endif
+#endif /* __INCLUDE_NUTTX_DEVICE_PTP_H */

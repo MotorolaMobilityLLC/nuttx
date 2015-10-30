@@ -26,14 +26,14 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <arch/byteorder.h>
+
 #include <nuttx/device.h>
 #include <nuttx/device_ptp.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/util.h>
 
-#include <pthread.h>
-#include <semaphore.h>
 #include <stdlib.h>
 
 #include "ptp-gb.h"
@@ -41,15 +41,9 @@
 #define GB_PTP_VERSION_MAJOR 0
 #define GB_PTP_VERSION_MINOR 1
 
-
 struct gb_ptp_info {
     unsigned int cport;
     struct device *dev;
-#if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
-    sem_t sem;
-    pthread_t thread;
-    int thread_stop;
-#endif
 };
 
 static struct gb_ptp_info *ptp_info = NULL;
@@ -99,6 +93,12 @@ static uint8_t gp_ptp_get_functionality(struct gb_operation *operation)
     #error "define receive power capabilities"
 #endif
 
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    response->int_rcv_max_v = cpu_to_le32(CONFIG_GREYBUS_PTP_INT_RCV_MAX_V);
+#else
+    response->int_rcv_max_v = 0;
+#endif
+
 #if defined (CONFIG_GREYBUS_PTP_EXT_NONE)
     response->ext = PTP_EXT_NONE;
 #elif defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
@@ -128,6 +128,30 @@ static uint8_t gb_ptp_set_current_flow(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_ptp_set_max_input_current(struct gb_operation *operation)
+{
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    struct gb_ptp_set_max_input_current_request *request;
+    uint32_t current;
+    int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("%s(): dropping short message\n", __func__);
+        return GB_OP_INVALID;
+    }
+
+    request = gb_operation_get_request_payload(operation);
+    current = le32_to_cpu(request->current);
+    ret = device_ptp_set_max_input_current(ptp_info->dev, current);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+#else
+    return GB_OP_INVALID;
+#endif
+}
+
 static uint8_t gb_ptp_ext_power_present(struct gb_operation *operation)
 {
     struct gb_ptp_ext_power_present_response *response;
@@ -147,44 +171,66 @@ static uint8_t gb_ptp_ext_power_present(struct gb_operation *operation)
 }
 
 #if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
-static void *gb_ptp_ext_power_changed(void *v)
+static int gb_ptp_ext_power_changed(void)
 {
     struct gb_operation *operation;
     int ret;
 
-    while(1) {
-
-        while(sem_wait(&ptp_info->sem)) {
-            if (errno == EINVAL) {
-                gb_error("%s(): failed to get a semaphore\n", __func__);
-                break;
-            }
-        }
-
-        if (ptp_info->thread_stop) {
-            break;
-        }
-
-        operation = gb_operation_create(ptp_info->cport,
-                                        GB_PTP_TYPE_EXT_POWER_CHANGED, 0);
-        if (!operation) {
-            gb_error("%s(): failed to create operation\n", __func__);
-            continue;
-        }
-
-        ret = gb_operation_send_request(operation, NULL, false);
-        if (ret)
-            gb_error("%s(): failed to send request\n", __func__);
-
-        gb_operation_destroy(operation);
+    operation = gb_operation_create(ptp_info->cport,
+                                    GB_PTP_TYPE_EXT_POWER_CHANGED, 0);
+    if (!operation) {
+        gb_error("%s(): failed to create operation\n", __func__);
+        return -ENOMEM;
     }
 
-    return NULL;
+    ret = gb_operation_send_request(operation, NULL, false);
+    if (ret)
+        gb_error("%s(): failed to send request\n", __func__);
+
+    gb_operation_destroy(operation);
+
+    return ret;
+}
+#endif
+
+static uint8_t gb_ptp_power_required(struct gb_operation *operation)
+{
+    struct gb_ptp_power_required_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    if (device_ptp_power_required(ptp_info->dev, &response->required))
+        return GB_OP_UNKNOWN_ERROR;
+#else
+        response->required = PTP_POWER_NOT_REQUIRED;
+#endif
+
+    return GB_OP_SUCCESS;
 }
 
-static int gb_ptp_ext_power_changed_cb(void)
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+static int gb_ptp_power_required_changed(void)
 {
-    return sem_post(&ptp_info->sem);
+    struct gb_operation *operation;
+    int ret;
+
+    operation = gb_operation_create(ptp_info->cport,
+                                    GB_PTP_TYPE_POWER_REQUIRED_CHANGED, 0);
+    if (!operation) {
+        gb_error("%s(): failed to create operation\n", __func__);
+        return -ENOMEM;
+    }
+
+    ret = gb_operation_send_request(operation, NULL, false);
+    if (ret)
+        gb_error("%s(): failed to send request\n", __func__);
+
+    gb_operation_destroy(operation);
+
+    return ret;
 }
 #endif
 
@@ -199,6 +245,8 @@ static int gb_ptp_init(unsigned int cport)
         goto done;
     }
 
+    ptp_info->cport = cport;
+
     ptp_info->dev = device_open(DEVICE_TYPE_PTP_HW, 0);
     if (!ptp_info->dev) {
         gb_info("%s(): failed to open device\n", __func__);
@@ -207,38 +255,27 @@ static int gb_ptp_init(unsigned int cport)
     }
 
 #if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
-    ret = sem_init(&ptp_info->sem, 0, 0);
+    ret = device_ptp_register_ext_power_cb(ptp_info->dev,
+                                           gb_ptp_ext_power_changed);
     if (ret) {
-        gb_info("%s(): failed to initialize semaphore\n", __func__);
-        goto sem_err;
+        gb_info("%s(): failed to register external power callback\n", __func__);
+        goto cb_err;
     }
+#endif
 
-    ret = pthread_create(&ptp_info->thread, NULL, gb_ptp_ext_power_changed, NULL);
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    ret = device_ptp_register_power_required_cb(ptp_info->dev,
+                                                gb_ptp_power_required_changed);
     if (ret) {
-        gb_info("%s(): failed to create thread\n", __func__);
-        goto thread_err;
-    }
-
-    ret = device_ptp_register_ext_power_changed_cb(ptp_info->dev,
-                                                   gb_ptp_ext_power_changed_cb);
-    if (ret) {
-        gb_info("%s(): failed to register callback\n", __func__);
+        gb_info("%s(): failed to register power required callback\n", __func__);
         goto cb_err;
     }
 #endif
 
     return 0;
 
-#if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
 cb_err:
-    ptp_info->thread_stop = 1;
-    sem_post(&ptp_info->sem);
-    pthread_join(ptp_info->thread, NULL);
-thread_err:
-    sem_destroy(&ptp_info->sem);
-sem_err:
     device_close(ptp_info->dev);
-#endif
 dev_err:
     free(ptp_info);
 done:
@@ -247,23 +284,17 @@ done:
 
 static void gb_ptp_exit(unsigned int cport)
 {
-#if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
-    device_ptp_unregister_ext_power_changed_cb(ptp_info->dev);
-    ptp_info->thread_stop = 1;
-    sem_post(&ptp_info->sem);
-    pthread_join(ptp_info->thread, NULL);
-    sem_destroy(&ptp_info->sem);
-#endif
     device_close(ptp_info->dev);
     free(ptp_info);
 }
-
 
 static struct gb_operation_handler gb_ptp_handlers[] = {
     GB_HANDLER(GB_PTP_TYPE_PROTOCOL_VERSION, gb_ptp_protocol_version),
     GB_HANDLER(GB_PTP_TYPE_GET_FUNCTIONALITY, gp_ptp_get_functionality),
     GB_HANDLER(GB_PTP_TYPE_SET_CURRENT_FLOW, gb_ptp_set_current_flow),
+    GB_HANDLER(GB_PTP_TYPE_SET_MAX_INPUT_CURRENT, gb_ptp_set_max_input_current),
     GB_HANDLER(GB_PTP_TYPE_EXT_POWER_PRESENT, gb_ptp_ext_power_present),
+    GB_HANDLER(GB_PTP_TYPE_POWER_REQUIRED, gb_ptp_power_required),
 };
 
 static struct gb_driver gb_ptp_driver = {

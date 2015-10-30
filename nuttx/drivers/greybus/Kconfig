@@ -193,6 +193,11 @@ config GREYBUS_PTP_EXT_SUPPORTED
 endchoice
 endif
 
+config GREYBUS_PTP_INT_RCV_MAX_V
+    int "Maximum possible input voltage in uV"
+    default 5000000
+    depends on !GREYBUS_PTP_INT_RCV_NEVER
+
 menuconfig GREYBUS_MODS
 	bool "Mods Protocol"
 	default n

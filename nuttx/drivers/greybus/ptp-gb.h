@@ -34,8 +34,11 @@
 #define GB_PTP_TYPE_PROTOCOL_VERSION        0x01
 #define GB_PTP_TYPE_GET_FUNCTIONALITY       0x02
 #define GB_PTP_TYPE_SET_CURRENT_FLOW        0x03
-#define GB_PTP_TYPE_EXT_POWER_CHANGED       0x04
-#define GB_PTP_TYPE_EXT_POWER_PRESENT       0x05
+#define GB_PTP_TYPE_SET_MAX_INPUT_CURRENT   0x04
+#define GB_PTP_TYPE_EXT_POWER_CHANGED       0x05
+#define GB_PTP_TYPE_EXT_POWER_PRESENT       0x06
+#define GB_PTP_TYPE_POWER_REQUIRED_CHANGED  0x07
+#define GB_PTP_TYPE_POWER_REQUIRED          0x08
 
 struct gb_ptp_proto_version_response {
     __u8 major;
@@ -45,6 +48,7 @@ struct gb_ptp_proto_version_response {
 struct gb_ptp_get_functionality_response {
     __u8 int_snd;
     __u8 int_rcv;
+    __le32 int_rcv_max_v;
     __u8 ext;
 } __packed;
 
@@ -52,8 +56,16 @@ struct gb_ptp_set_current_flow_request {
     __u8 direction;
 } __packed;
 
+struct gb_ptp_set_max_input_current_request {
+    __le32 current;
+} __packed;
+
 struct gb_ptp_ext_power_present_response {
     __u8 present;
+} __packed;
+
+struct gb_ptp_power_required_response {
+    __u8 required;
 } __packed;
 
 #endif /* __PTP_GB_H__ */
