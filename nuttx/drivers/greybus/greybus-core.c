@@ -44,6 +44,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include "rtr.h"
+
 #define DEFAULT_STACK_SIZE      CONFIG_PTHREAD_STACK_DEFAULT
 #define TIMEOUT_IN_MS           1000
 #define GB_INVALID_TYPE         0
@@ -72,11 +74,11 @@ struct gb_tape_record_header {
 static unsigned int cport_count;
 static atomic_t request_id;
 
-static struct gb_cport_driver *__g_cport;
+static void **cport_tbl;
+
 static struct gb_cport_driver *_g_cport(unsigned int cport)
 {
-    return &__g_cport[cport];
-
+    return rtr_get_value(cport_tbl, (uint16_t) (cport & 0xFFFF));
 }
 #define g_cport(c) (*(_g_cport(c)))
 
@@ -93,6 +95,23 @@ static struct gb_operation_hdr oom_hdr = {
     .result = GB_OP_NO_MEMORY,
     .type = GB_TYPE_RESPONSE_FLAG,
 };
+
+static void g_cport_add_entry(uint16_t cport, struct gb_driver *driver)
+{
+    struct gb_cport_driver *entry = zalloc(sizeof(struct gb_cport_driver));
+
+    if (entry) {
+        sem_init(&entry->rx_fifo_lock, 0, 0);
+        list_init(&entry->rx_fifo);
+        list_init(&entry->tx_fifo);
+        wd_static(&entry->timeout_wd);
+        entry->timedout_operation.request_buffer = &timedout_hdr;
+        list_init(&entry->timedout_operation.list);
+        entry->driver = driver;
+
+        rtr_add_value(cport_tbl, cport, (void *)entry);
+    }
+}
 
 static void gb_operation_timeout(int argc, uint32_t cport, ...);
 static struct gb_operation *_gb_operation_create(unsigned int cport);
@@ -501,6 +520,7 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
 {
     pthread_attr_t thread_attr;
     pthread_attr_t *thread_attr_ptr = &thread_attr;
+    struct gb_cport_driver *cport_entry;
     int retval;
 
     gb_debug("Registering Greybus driver on CP%u\n", cport);
@@ -515,10 +535,13 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
         return -EINVAL;
     }
 
-    if (g_cport(cport).driver) {
-        gb_error("%s is already registered for CP%u\n",
-                 gb_driver_name(g_cport(cport).driver), cport);
-        return -EEXIST;
+    /* check if we have already registered this cport */
+    cport_entry = _g_cport(cport);
+    if (cport_entry != NULL) {
+        if (cport_entry->driver != NULL) {
+            gb_error("driver is already registered for CP%u\n", cport);
+            return -EEXIST;
+        }
     }
 
     if (!driver->op_handlers && driver->op_handlers_count > 0) {
@@ -552,6 +575,9 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
     if (retval)
         goto pthread_attr_setstacksize_error;
 
+    gb_debug("add cport %d\n", cport);
+    g_cport_add_entry(cport, NULL);
+
     retval = pthread_create(&g_cport(cport).thread, &thread_attr,
                             gb_pending_message_worker, (unsigned*) cport);
     if (retval)
@@ -560,7 +586,7 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
     pthread_attr_destroy(&thread_attr);
     thread_attr_ptr = NULL;
 
-    g_cport(cport).driver = driver;
+    _g_cport(cport)->driver = driver;
 
     return 0;
 
@@ -918,21 +944,10 @@ uint8_t gb_operation_get_request_result(struct gb_operation *operation)
 
 int gb_init(struct gb_transport_backend *transport)
 {
-    int i;
-
     if (!transport)
         return -EINVAL;
 
-    cport_count = unipro_cport_count();
-    __g_cport = zalloc(sizeof(struct gb_cport_driver) * cport_count);
-    for (i = 0; i < cport_count; i++) {
-        sem_init(&g_cport(i).rx_fifo_lock, 0, 0);
-        list_init(&g_cport(i).rx_fifo);
-        list_init(&g_cport(i).tx_fifo);
-        wd_static(&g_cport(i).timeout_wd);
-        g_cport(i).timedout_operation.request_buffer = &timedout_hdr;
-        list_init(&g_cport(i).timedout_operation.list);
-    }
+    cport_tbl = rtr_alloc_table();
 
     atomic_init(&request_id, (uint32_t) 0);
 
