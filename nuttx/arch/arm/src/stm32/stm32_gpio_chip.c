@@ -87,8 +87,8 @@ static void stm32_gpio_set_direction_in(void *driver_data, uint8_t pin)
         return;
     }
 
-    // Configure pin as input, floating, weak PU
-    cfgset |= GPIO_INPUT | GPIO_FLOAT | GPIO_PULLUP;
+    // Configure pin as input, floating
+    cfgset |= GPIO_INPUT | GPIO_FLOAT;
     lldbg("cfgset=0x%x\n", cfgset);
 
     ret = stm32_configgpio(cfgset);
