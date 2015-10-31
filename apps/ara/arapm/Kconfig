@@ -34,6 +34,7 @@ config ARA_SVC_ARAPM
 	default n if !DEBUG
 	default y if DEBUG
 	depends on ARCH_BOARD_ARA_SVC
+	select INA230
 	---help---
 		Enable the Ara SVC Power Measurement Application
 
