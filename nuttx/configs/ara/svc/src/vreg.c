@@ -165,7 +165,7 @@ int vreg_put(struct vreg *vreg) {
                 rc = -EINVAL;
                 break;
             }
-            dbg_insane("%s: %s vreg, gpio %08x to %d\n", __func__,
+            dbg_insane("%s: %s vreg, gpio %d to %d\n", __func__,
                        vreg->name ? vreg->name : "unknown",
                        vreg->vregs[i].gpio, !vreg->vregs[i].active_high);
             gpio_set_value(vreg->vregs[i].gpio, !vreg->vregs[i].active_high);
