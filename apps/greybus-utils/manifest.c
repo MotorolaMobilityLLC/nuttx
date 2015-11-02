@@ -241,7 +241,7 @@ void enable_cports(void)
         }
 #endif
 
-#ifdef CONFIG_GREYBUS_MOTO_CAMERA_PHY
+#ifdef CONFIG_GREYBUS_MOTO_CAMERA
         if (protocol == GREYBUS_PROTOCOL_MOTO_CAMERA) {
              gb_info("Registering Moto Camera greybus driver.\n");
              gb_moto_camera_register(id);
