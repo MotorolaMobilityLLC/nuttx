@@ -47,6 +47,10 @@
 #define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  1)
 #define GPIO_MODS_CHG_PG_N       CALC_GPIO_NUM('C',  2)
 
+#if (BOARD_REVISION >= 1)
+#  define GPIO_MODS_SPI_CS_N     CALC_GPIO_NUM('B', 12)
+#endif
+
 static inline void mods_rfr_init(void)
 {
     /* On this board, RFR is active high */

@@ -70,6 +70,9 @@ static const struct board_gpio_cfg_s board_gpio_cfgs[] =
   { GPIO_MODS_SL_BPLUS_EN,   (GPIO_FLOAT)            },
 #endif
   { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT) },
+#ifdef GPIO_MODS_SPI_CS_N
+  { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)         },
+#endif
 };
 
 #ifdef CONFIG_DEVICE_CORE
