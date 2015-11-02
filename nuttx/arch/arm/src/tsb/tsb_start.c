@@ -83,9 +83,6 @@ void tsb_start(void) {
     /* Relocate vector table (eg from bootrom) */
     extern uint32_t _vectors;
     putreg32((uint32_t)&_vectors, NVIC_VECTAB);
-#ifdef CONFIG_ARCH_RAMVECTORS
-    up_ramvec_initialize();
-#endif
 
     /* Configure clocks */
     tsb_clk_init();
