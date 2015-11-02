@@ -34,6 +34,7 @@
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/tape.h>
 #include <nuttx/greybus/debug.h>
+#include <nuttx/greybus/mods-ctrl.h>
 #include <nuttx/wdog.h>
 #include <loopback-gb.h>
 
@@ -71,16 +72,25 @@ struct gb_tape_record_header {
     uint16_t cport;
 };
 
-static unsigned int cport_count;
 static atomic_t request_id;
 
 static void **cport_tbl;
 
 static struct gb_cport_driver *_g_cport(unsigned int cport)
 {
-    return rtr_get_value(cport_tbl, (uint16_t) (cport & 0xFFFF));
+    return rtr_get_value(cport_tbl, (uint16_t) (cport & 0xffff));
 }
 #define g_cport(c) (*(_g_cport(c)))
+
+bool gb_is_valid_cport(unsigned int cport)
+{
+    static unsigned int _cport_count = -1;
+
+    if (_cport_count < 0)
+       _cport_count =  unipro_cport_count();
+
+    return (mods_cport_valid(cport) || (cport < _cport_count));
+}
 
 static struct gb_transport_backend *transport_backend;
 static struct gb_tape_mechanism *gb_tape;
@@ -426,7 +436,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     size_t hdr_size;
 
     gb_loopback_log_entry(cport);
-    if (cport >= cport_count || !data) {
+    if ((!gb_is_valid_cport(cport) || !data)) {
         gb_error("Invalid cport number: %u\n", cport);
         return -EINVAL;
     }
@@ -525,7 +535,7 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
 
     gb_debug("Registering Greybus driver on CP%u\n", cport);
 
-    if (cport >= cport_count) {
+    if (!gb_is_valid_cport(cport)) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -606,7 +616,7 @@ int gb_listen(unsigned int cport)
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->listen);
 
-    if (cport >= cport_count) {
+    if (!gb_is_valid_cport(cport)) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -624,7 +634,7 @@ int gb_stop_listening(unsigned int cport)
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->stop_listening);
 
-    if (cport >= cport_count) {
+    if (!gb_is_valid_cport(cport)) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -860,7 +870,7 @@ static struct gb_operation *_gb_operation_create(unsigned int cport)
 {
     struct gb_operation *operation;
 
-    if (cport >= cport_count)
+    if (!gb_is_valid_cport(cport))
         return NULL;
 
     operation = malloc(sizeof(*operation));
@@ -882,7 +892,7 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
     struct gb_operation *operation;
     struct gb_operation_hdr *hdr;
 
-    if (cport >= cport_count)
+    if (!gb_is_valid_cport(cport))
         return NULL;
 
     operation = _gb_operation_create(cport);

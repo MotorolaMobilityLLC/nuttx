@@ -251,4 +251,6 @@ struct  i2c_dev_s *gb_i2c_get_dev(void);
 
 uint8_t gb_errno_to_op_result(int err);
 
+bool gb_is_valid_cport(unsigned int cport);
+
 #endif /* _GREYBUS_H_ */
