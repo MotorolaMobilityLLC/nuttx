@@ -130,6 +130,10 @@ ifeq ($(CONFIG_GREYBUS_PTP),y)
 CSRCS += ptp.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_MOTO_CAMERA_PHY),y)
+CSRCS += csi_camera-gb.c csi_camera.c csi_camera-imx179.c
+endif
+
 DEPPATH += --dep-path greybus
 VPATH += :greybus
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)greybus}

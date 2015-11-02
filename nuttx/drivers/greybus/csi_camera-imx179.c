@@ -1,0 +1,275 @@
+#include "csi_camera.h"
+
+#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+typedef uint32_t __u32;
+
+#define v4l2_fourcc(a, b, c, d)\
+    ((__u32)(a) | ((__u32)(b) << 8) | ((__u32)(c) << 16) | ((__u32)(d) << 24))
+
+static struct cam_i2c_reg_array init_reg_array[] = {
+  {0x0103, 0x01},
+};
+
+static struct cam_i2c_reg_array start_reg_array[] = {
+  { 0x0100, 0x01 },
+};
+
+static struct cam_i2c_reg_array stop_reg_array[] = {
+  { 0x0100, 0x00 },
+};
+
+static struct cam_i2c_reg_array full_norm_30fps_none_array[] = {
+  {0x0101, 0x03},
+  {0x0202, 0x09},
+  {0x0203, 0xCA},
+  {0x0301, 0x05},
+  {0x0303, 0x01},
+  {0x0305, 0x06},
+  {0x0309, 0x05},
+  {0x030B, 0x01},
+  {0x030C, 0x00},
+  {0x030D, 0xA2},
+  {0x0340, 0x09},
+  {0x0341, 0xCE},
+  {0x0342, 0x10},
+  {0x0343, 0x68},
+  {0x0344, 0x00},
+  {0x0345, 0x08},
+  {0x0346, 0x00},
+  {0x0347, 0x08},
+  {0x0348, 0x0C},
+  {0x0349, 0xC7},
+  {0x034A, 0x09},
+  {0x034B, 0x97},
+  {0x034C, 0x0C},
+  {0x034D, 0xC0},
+  {0x034E, 0x09},
+  {0x034F, 0x90},
+  {0x0383, 0x01},
+  {0x0387, 0x01},
+  {0x0390, 0x00},
+  {0x0401, 0x00},
+  {0x0405, 0x10},
+  {0x3020, 0x10},
+  {0x3041, 0x15},
+  {0x3042, 0x87},
+  {0x3089, 0x4F},
+  {0x3309, 0x9A},
+  {0x3344, 0x57},
+  {0x3345, 0x1F},
+  {0x3362, 0x0A},
+  {0x3363, 0x0A},
+  {0x3364, 0x00},
+  {0x3368, 0x18},
+  {0x3369, 0x00},
+  {0x3370, 0x77},
+  {0x3371, 0x2F},
+  {0x3372, 0x4F},
+  {0x3373, 0x2F},
+  {0x3374, 0x2F},
+  {0x3375, 0x37},
+  {0x3376, 0x9F},
+  {0x3377, 0x37},
+  {0x33C8, 0x00},
+  {0x33D4, 0x0C},
+  {0x33D5, 0xD0},
+  {0x33D6, 0x09},
+  {0x33D7, 0xA0},
+  {0x4100, 0x0E},
+  {0x4108, 0x01},
+  {0x4109, 0x7C},
+};
+
+static struct cam_i2c_reg_array half_wide_60fps_bin_array[] = {
+  {0x0101, 0x03},
+  {0x0202, 0x04},
+  {0x0203, 0xE3},
+  {0x0301, 0x05},
+  {0x0303, 0x01},
+  {0x0305, 0x06},
+  {0x0309, 0x05},
+  {0x030B, 0x01},
+  {0x030C, 0x00},
+  {0x030D, 0xA2},
+  {0x0340, 0x04},
+  {0x0341, 0xE7},
+  {0x0342, 0x10},
+  {0x0343, 0x68},
+  {0x0344, 0x00},
+  {0x0345, 0x00},
+  {0x0346, 0x01},
+  {0x0347, 0x34},
+  {0x0348, 0x0C},
+  {0x0349, 0xCF},
+  {0x034A, 0x08},
+  {0x034B, 0x6B},
+  {0x034C, 0x06},
+  {0x034D, 0x68},
+  {0x034E, 0x03},
+  {0x034F, 0x9C},
+  {0x0383, 0x01},
+  {0x0387, 0x01},
+  {0x0390, 0x01},
+  {0x0401, 0x00},
+  {0x0405, 0x10},
+  {0x3020, 0x10},
+  {0x3041, 0x15},
+  {0x3042, 0x87},
+  {0x3089, 0x4F},
+  {0x3309, 0x9A},
+  {0x3344, 0x57},
+  {0x3345, 0x1F},
+  {0x3362, 0x0A},
+  {0x3363, 0x0A},
+  {0x3364, 0x00},
+  {0x3368, 0x18},
+  {0x3369, 0x00},
+  {0x3370, 0x77},
+  {0x3371, 0x2F},
+  {0x3372, 0x4F},
+  {0x3373, 0x2F},
+  {0x3374, 0x2F},
+  {0x3375, 0x37},
+  {0x3376, 0x9F},
+  {0x3377, 0x37},
+  {0x33C8, 0x00},
+  {0x33D4, 0x06},
+  {0x33D5, 0x68},
+  {0x33D6, 0x03},
+  {0x33D7, 0x9C},
+  {0x4100, 0x0E},
+  {0x4108, 0x01},
+  {0x4109, 0x7C},
+};
+
+#ifdef TEST_PATTERN
+static struct cam_i2c_reg_array test_pattern_disable[] = {
+  {0x600, 0x00},
+  {0x601, 0x00},
+};
+
+/* raw data pattern
+ *   55 44 00 55 44 00 ...
+ *   33 22 00 33 22 00 ...
+ *   ...
+ */
+static struct cam_i2c_reg_array test_pattern_solid_color[] = {
+  {0x600, 0x00},
+  {0x601, 0x01},
+  {0x602, 0x00},
+  {0x603, 0x88},
+  {0x604, 0x00},
+  {0x605, 0xcc},
+  {0x606, 0x01},
+  {0x607, 0x54},
+  {0x608, 0x01},
+  {0x609, 0x10},
+};
+
+static struct cam_i2c_reg_array test_pattern_color_bar[] = {
+  {0x600, 0x00},
+  {0x601, 0x02},
+};
+
+static struct cam_i2c_reg_array test_pattern_fade[] = {
+  {0x600, 0x00},
+  {0x601, 0x03},
+};
+
+static struct cam_i2c_reg_array test_pattern_pn9[] = {
+  {0x600, 0x00},
+  {0x601, 0x04},
+};
+
+static struct cam_i2c_reg_setting test_settings[] = {
+  {
+    .size = ARRAY_SIZE(test_pattern_disable),
+    .regs = test_pattern_disable,
+  },
+  {
+    .size = ARRAY_SIZE(test_pattern_solid_color),
+    .regs = test_pattern_solid_color,
+  },
+  {
+    .size = ARRAY_SIZE(test_pattern_color_bar),
+    .regs = test_pattern_color_bar,
+  },
+  {
+    .size = ARRAY_SIZE(test_pattern_fade),
+    .regs = test_pattern_fade,
+  },
+  {
+    .size = ARRAY_SIZE(test_pattern_pn9),
+    .regs = test_pattern_pn9,
+  },
+};
+
+#endif
+
+static struct cam_i2c_reg_setting res_settings[] = {
+  {
+    .size = ARRAY_SIZE(full_norm_30fps_none_array),
+    .regs = full_norm_30fps_none_array,
+  },
+  {
+    .size = ARRAY_SIZE(half_wide_60fps_bin_array),
+    .regs = half_wide_60fps_bin_array,
+  },
+};
+
+static struct sensor_info imx179 = {
+    .i2c_addr = 0x10,
+    .cam_info = {
+        .lane_cnt = 4,
+        .settle_cnt = 0x1b,
+        .format_fourcc = v4l2_fourcc('B', 'G', '1', '0'),
+        .res_size = 2,
+        .res = {
+            {
+                .x_output = 3264, //0x034c, 0x034d
+                .y_output = 2448, //0x034e, 0x034f
+                .line_length = 0x1068, //0x0342, 0x0343
+                .frame_length = 0x09ce, //0x0340, 0x0341
+                .op_pixel_clk = 256000000,
+            },
+
+            {
+                .x_output = 1640,
+                .y_output = 924,
+                .line_length = 0x1068,
+                .frame_length = 0x04e7,
+                .op_pixel_clk = 256000000,
+            },
+        },
+    },
+
+    .init = {
+        .size = ARRAY_SIZE(init_reg_array),
+        .regs = init_reg_array,
+    },
+
+    .start = {
+        .size = ARRAY_SIZE(start_reg_array),
+        .regs = start_reg_array,
+    },
+
+    .stop = {
+        .size = ARRAY_SIZE(stop_reg_array),
+        .regs = stop_reg_array,
+    },
+
+    .resolutions = {
+        .size = ARRAY_SIZE(res_settings),
+        .settings = res_settings,
+    },
+#ifdef TEST_PATTERN
+    .test = {
+        .size = ARRAY_SIZE(test_settings),
+        .settings = test_settings,
+    },
+#endif
+};
+
+struct sensor_info * get_board_sensor_info(void) {
+    return &imx179;
+}
