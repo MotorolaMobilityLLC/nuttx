@@ -94,7 +94,6 @@ config ARCH_UNIPROTX_DMA_NUM_CHANNELS
 choice
 	prompt "Toshiba PinShare1 conflict"
 	default ARCH_CHIP_PINSHARE1_NONE
-	depends on ARCH_CHIP_GPBRIDGE
 	---help---
 		The Toshiba GPBridge PWM, SPI Bitbang, and UART drivers
 		conflict at PinShare1 so only one can be enabled at a time.
@@ -145,7 +144,6 @@ config TSB_PINSHARE_ETM
 
 config ARCH_CHIP_TSB_I2S
 	bool "I2S Support"
-	depends on ARCH_CHIP_GPBRIDGE
 	select DEVICE_CORE
 	select LIB_RING_BUF
 	select ARCH_CHIP_TSB_PLL
@@ -209,7 +207,6 @@ config ARCH_CHIP_DEVICE_PLL
 
 config ARCH_CHIP_TSB_PLL
 	bool "PLL Support"
-	depends on ARCH_CHIP_GPBRIDGE
 	select DEVICE_CORE
 	select ARCH_CHIP_DEVICE_PLL
 	default n
@@ -222,7 +219,6 @@ config ARCH_CHIP_DEVICE_I2S
 
 config ARCH_CHIP_DEVICE_SPI
 	bool "SPI Master Support"
-	depends on ARCH_CHIP_GPBRIDGE
 	select DEVICE_CORE
 	default n
 	---help---
@@ -272,3 +268,24 @@ config TSB_TRACE_DRIVESTRENGTH_MAX
 		Selects the highest possible drive strength for the TRACE signals
 
 endchoice
+
+config UNIPRO_P2P
+        bool "Peer-to-peer UniPro connection"
+        default y
+        depends on ARCH_CHIP_TSB
+        ---help---
+                Enable a peer-to-peer UniPro connection
+
+config UNIPRO_LOCAL_DEVICEID
+        hex "Unipro Local Device ID"
+        default 0x01
+	depends on UNIPRO_P2P
+        ---help---
+                For UniPro P2P, the local device ID
+
+config UNIPRO_REMOTE_DEVICEID
+        hex "Unipro Remote Device ID"
+        default 0x02
+	depends on UNIPRO_P2P
+        ---help---
+                For UniPro P2P, the remote device ID
