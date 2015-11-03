@@ -483,6 +483,14 @@ int irq_unipro(int irq, void *context) {
                 // TODO: Handle error case
             }
         }
+
+        if (isr_val & TSB_INTERRUPTSTATUS_LINKLOSTIND) {
+            uint32_t lost_ind = 0;
+            rc = unipro_attr_local_read(TSB_DME_LINKLOSTIND, &lost_ind, 0, NULL);
+            if (lost_ind) {
+                unipro_p2p_peer_lost();
+            }
+        }
 done:
         unipro_write(UNIPRO_INT_BEF, val);
     }

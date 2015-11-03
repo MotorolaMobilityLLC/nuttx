@@ -235,6 +235,14 @@ void unipro_p2p_peer_detected(void) {
         (void *)(unsigned int)0,
         (void *)(unsigned int)0);
 }
+
+void unipro_p2p_peer_lost(void) {
+    /* Enable the control cport. */
+    svc_send_event(SVC_EVENT_UNIPRO_LINK_DOWN,
+        (void *)(unsigned int)0,
+        (void *)(unsigned int)0,
+        (void *)(unsigned int)0);
+}
 #endif
 
 void unipro_p2p_setup(void) {
@@ -245,6 +253,17 @@ void unipro_p2p_setup(void) {
     /* Layer 3 attributes */
     unipro_attr_local_write(N_DEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, 0 /* selector */, NULL);
     unipro_attr_local_write(N_DEVICEID_VALID, 1, 0 /* selector */, NULL);
+}
+
+void unipro_p2p_detect_linkloss(void) {
+    int retval;
+
+    retval = unipro_attr_local_write(TSB_INTERRUPTENABLE,
+                                     TSB_INTERRUPTSTATUS_LINKLOSTIND |
+                                     TSB_INTERRUPTSTATUS_MAILBOX, 0, NULL);
+    if (retval) {
+        lldbg("Failed to enable tsb interrupts\n");
+    }
 }
 
 const static struct dbg_entry LAYER_ATTRIBUTES[] = {
