@@ -359,6 +359,13 @@ static void txn_finished_cb(void *v)
 
   vdbg("hdr.bits=0x%02X\n", hdr->bits);
 
+  /* Handle race condition where txn_start_cb does not get invoked
+   * before this txn_finished_cb, thereby leaving RFR and INT in
+   * active states.
+   */
+  if (mods_rfr_get())
+      txn_start_cb(v);
+
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
 
