@@ -1364,7 +1364,7 @@ static int es2_sys_ctrl_get(struct tsb_switch *sw,
     }
 
     if (cnf.rc == 0) {
-        *val = be32_to_cpu(cnf.rc);
+        *val = be32_to_cpu(cnf.val);
     }
     dbg_verbose("%s(): fid=0x%02x, rc=%u", __func__, cnf.function_id, cnf.rc);
 
