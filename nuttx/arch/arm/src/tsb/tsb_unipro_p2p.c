@@ -50,6 +50,16 @@
 #include "tsb_unipro_es2.h"
 #include "tsb_es2_mphy_fixups.h"
 
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    #define TSB_READ_STATUS(boot_status) (boot_status << 24)
+#elif defined(CONFIG_TSB_CHIP_REV_ES3)
+    #define TSB_READ_STATUS(boot_status) (boot_status)
+#endif
+
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+    #define DME_DDBL2_INIT_STATUS   T_TSTSRCINCREMENT
+#endif
+
 //#define CONFIG_UNIPRO_P2P_DBG_VERBOSE
 #if defined(CONFIG_UNIPRO_P2P_DBG_VERBOSE)
 #define DBG_ENTRY(x) { x, #x }
@@ -160,11 +170,25 @@ static int unipro_mbox_enable_cport(uint32_t cport) {
 
 void unipro_p2p_setup_connection(unsigned int cport) {
     /* Set-up the L4 attributes */
-    const uint32_t cport_flags = CPORT_FLAGS_E2EFC|CPORT_FLAGS_CSD_N|CPORT_FLAGS_CSV_N;
+    uint32_t cport_flags = CPORT_FLAGS_CSV_N;
     const uint32_t traffic_class = CPORT_TC0;
     const uint32_t token_value = 0x20;
     const uint32_t max_segment = 0x118;
     const uint32_t default_buffer_space = 0x240;
+
+    uint32_t boot_mode = 0;
+    int rc = unipro_attr_peer_read(DME_DDBL2_INIT_STATUS, &boot_mode, 0 /* selector */);
+    if (rc) {
+        lldbg("Failed to read boot mode\n");
+    } else {
+        boot_mode = TSB_READ_STATUS(boot_mode);
+        if (boot_mode == INIT_STATUS_UNIPRO_BOOT_STARTED ||
+            boot_mode == INIT_STATUS_FALLLBACK_UNIPRO_BOOT_STARTED) {
+            cport_flags |= CPORT_FLAGS_CSD_N;
+        } else {
+            cport_flags |= CPORT_FLAGS_E2EFC;
+        }
+    }
 
     /* Disable CPORTs before making changes. */
     unipro_attr_local_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport);
@@ -250,6 +274,9 @@ void unipro_p2p_setup(void) {
     /* Layer 3 attributes */
     unipro_attr_local_write(N_DEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, 0 /* selector */);
     unipro_attr_local_write(N_DEVICEID_VALID, 1, 0 /* selector */);
+
+    unipro_attr_peer_write(N_DEVICEID, CONFIG_UNIPRO_REMOTE_DEVICEID, 0 /* selector */);
+    unipro_attr_peer_write(N_DEVICEID_VALID, 1, 0 /* selector */);
 }
 
 void unipro_p2p_detect_linkloss(void) {
