@@ -69,10 +69,6 @@ ifeq ($(CONFIG_GREYBUS_PWM_PHY),y)
 CSRCS += pwm-protocol.c
 endif
 
-ifeq ($(CONFIG_GREYBUS_I2S_PHY),y)
-CSRCS += i2s.c
-endif
-
 ifeq ($(CONFIG_GREYBUS_SPI_PHY),y)
 CSRCS += spi.c
 endif

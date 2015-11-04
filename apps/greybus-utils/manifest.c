@@ -47,9 +47,6 @@ extern void gb_loopback_register(int cport);
 extern void gb_vibrator_register(int cport);
 extern void gb_usb_register(int cport);
 extern void gb_pwm_register(int cport);
-extern void gb_i2s_mgmt_register(int cport);
-extern void gb_i2s_receiver_register(int cport);
-extern void gb_i2s_transmitter_register(int cport);
 extern void gb_spi_register(int cport);
 extern void gb_uart_register(int cport);
 extern void gb_hid_register(int cport);
@@ -165,19 +162,6 @@ void enable_cports(void)
         if (protocol == GREYBUS_PROTOCOL_PWM) {
             gb_info("Registering PWM greybus driver.\n");
             gb_pwm_register(id);
-        }
-#endif
-
-#ifdef CONFIG_GREYBUS_I2S_PHY
-        if (protocol == GREYBUS_PROTOCOL_I2S_MGMT) {
-            gb_info("Registering I2S MGMT greybus driver.\n");
-            gb_i2s_mgmt_register(id);
-        } else if (protocol == GREYBUS_PROTOCOL_I2S_RECEIVER) {
-            gb_info("Registering I2S RECEIVER greybus driver.\n");
-            gb_i2s_receiver_register(id);
-        } else if (protocol == GREYBUS_PROTOCOL_I2S_TRANSMITTER) {
-            gb_info("Registering I2S TRANSMITTER greybus driver.\n");
-            gb_i2s_transmitter_register(id);
         }
 #endif
 
