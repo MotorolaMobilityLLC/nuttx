@@ -137,7 +137,7 @@ static inline useconds_t msec_to_usec(unsigned ms)
  *    Convert struct timespec to microseconds.
  *
  ****************************************************************************/
-static inline useconds_t timespec_to_usec(struct timespec *ts)
+static inline useconds_t timespec_to_usec(const struct timespec *ts)
 {
     return (ts->tv_sec * USEC_PER_SEC) + (ts->tv_nsec / NSEC_PER_USEC);
 }
@@ -149,7 +149,7 @@ static inline useconds_t timespec_to_usec(struct timespec *ts)
  *    Convert struct timespec to nanoseconds.
  *
  ****************************************************************************/
-static inline uint64_t timespec_to_nsec(struct timespec *ts)
+static inline uint64_t timespec_to_nsec(const struct timespec *ts)
 {
 	return ts->tv_sec * NSEC_PER_SEC + ts->tv_nsec;
 }
@@ -161,7 +161,7 @@ static inline uint64_t timespec_to_nsec(struct timespec *ts)
  *    Convert struct timeval to microseconds.
  *
  ****************************************************************************/
-static inline useconds_t timeval_to_usec(struct timeval *tv)
+static inline useconds_t timeval_to_usec(const struct timeval *tv)
 {
     return (tv->tv_sec * USEC_PER_SEC) + tv->tv_usec;
 }
