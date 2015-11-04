@@ -143,6 +143,18 @@ static inline useconds_t timespec_to_usec(struct timespec *ts)
 }
 
 /****************************************************************************
+ * Function:  timespec_to_nsec
+ *
+ * Description:
+ *    Convert struct timespec to nanoseconds.
+ *
+ ****************************************************************************/
+static inline uint64_t timespec_to_nsec(struct timespec *ts)
+{
+	return ts->tv_sec * NSEC_PER_SEC + ts->tv_nsec;
+}
+
+/****************************************************************************
  * Function:  timeval_to_usec
  *
  * Description:
