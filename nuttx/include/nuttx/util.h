@@ -103,4 +103,18 @@
 
 #endif
 
-
+/*
+ * Use this macro to divide x by d (d must be positive) and round it to
+ * closest integer instead of rounding down as usual when performing
+ * integer division.
+ */
+#define DIV_ROUND_CLOSEST(x, d) ({                                      \
+    typeof(x) __x = x;                                                  \
+    typeof(d) __d = d;                                                  \
+    typeof(x) __result;                                                 \
+    if (((typeof(x))-1) > 0 || ((typeof(d))-1) > 0 || (__x) > 0)        \
+        __result = (((__x) + ((__d) / 2)) / (__d));                     \
+    else                                                                \
+        __result = (((__x) - ((__d) / 2)) / (__d));                     \
+    (__result);                                                         \
+})
