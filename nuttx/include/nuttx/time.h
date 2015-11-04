@@ -166,4 +166,17 @@ static inline useconds_t timeval_to_usec(struct timeval *tv)
     return (tv->tv_sec * USEC_PER_SEC) + tv->tv_usec;
 }
 
+/****************************************************************************
+ * Function:  nsec_to_timespec
+ *
+ * Description:
+ *    Convert nanoseconds to struct timespec.
+ *
+ ****************************************************************************/
+static inline void nsec_to_timespec(uint64_t ns, struct timespec *ts)
+{
+    ts->tv_sec = ns / NSEC_PER_SEC;
+    ts->tv_nsec = ns % NSEC_PER_SEC;
+}
+
 #endif /* __INCLUDE_NUTTX_TIME_H */
