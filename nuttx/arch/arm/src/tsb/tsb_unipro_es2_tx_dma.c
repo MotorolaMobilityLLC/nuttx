@@ -58,7 +58,6 @@ struct unipro_xfer_descriptor {
     unipro_send_completion_t callback;
 
     size_t data_offset;
-    //device_dma_transfer_arg dma_arg;
     void *channel;
 
     struct list_head list;
@@ -89,18 +88,73 @@ static void *pick_dma_channel(struct cport *cport)
     return chan;
 }
 
-static struct unipro_xfer_descriptor *pick_tx_descriptor(unsigned int cport_count)
+static void unipro_dequeue_tx_desc(struct unipro_xfer_descriptor *desc, int status)
+{
+    irqstate_t flags;
+
+    DEBUGASSERT(desc);
+
+    flags = irqsave();
+    list_del(&desc->list);
+    irqrestore(flags);
+
+    if (desc->callback) {
+        desc->callback(status, desc->data, desc->priv);
+    }
+
+    free(desc);
+}
+
+static void unipro_flush_cport(struct cport *cport)
 {
     struct unipro_xfer_descriptor *desc;
+
+    if (list_is_empty(&cport->tx_fifo)) {
+        goto reset;
+    }
+
+    desc = containerof(cport->tx_fifo.next, struct unipro_xfer_descriptor, list);
+
+    while (!list_is_empty(&cport->tx_fifo)) {
+        desc = containerof(cport->tx_fifo.next, struct unipro_xfer_descriptor, list);
+        unipro_dequeue_tx_desc(desc, -ECONNRESET);
+    }
+
+reset:
+    _unipro_reset_cport(cport->cportid);
+    cport->pending_reset = false;
+    if (cport->reset_completion_cb) {
+        cport->reset_completion_cb(cport->cportid,
+                                   cport->reset_completion_cb_priv);
+    }
+    cport->reset_completion_cb = cport->reset_completion_cb_priv = NULL;
+}
+
+static struct unipro_xfer_descriptor *pick_tx_descriptor(unsigned int cportid)
+{
+    struct unipro_xfer_descriptor *desc;
+    unsigned int cport_count = unipro_cport_count();
     int i;
 
-    for (i = 0; i < cport_count; i++) {
-        struct cport *cport = cport_handle(i);
+    for (i = 0; i < cport_count; i++, cportid++) {
+        struct cport *cport;
+
+        cportid = cportid % cport_count;
+        cport = cport_handle(cportid);
         if (!cport)
             continue;
 
-        if (list_is_empty(&cport->tx_fifo))
+        if (list_is_empty(&cport->tx_fifo)) {
+            if (cport->pending_reset) {
+                unipro_flush_cport(cport);
+            }
+
             continue;
+        }
+
+        if (cport->pending_reset) {
+            unipro_flush_cport(cport);
+        }
 
         desc = containerof(cport->tx_fifo.next, struct unipro_xfer_descriptor,
                 list);
@@ -216,20 +270,19 @@ static void *unipro_tx_worker(void *data)
 {
     struct dma_channel *channel;
     struct unipro_xfer_descriptor *desc;
-    unsigned int cport_count = unipro_cport_count();
+    unsigned int next_cport;
 
     while (1) {
         /* Block until a buffer is pending on any CPort */
         sem_wait(&worker.tx_fifo_lock);
 
-        // channel = pick_free_dma_channel();
-        do {
-            desc = pick_tx_descriptor(cport_count);
-        } while (!desc);
+        next_cport = 0;
+        while ((desc = pick_tx_descriptor(next_cport)) != NULL) {
+            next_cport = desc->cport->cportid + 1;
+            channel = pick_dma_channel(desc->cport);
 
-        channel = pick_dma_channel(desc->cport);
-
-        unipro_dma_xfer(desc, channel);
+            unipro_dma_xfer(desc, channel);
+        }
     }
 
     return NULL;
@@ -237,6 +290,11 @@ static void *unipro_tx_worker(void *data)
 
 void unipro_reset_notify(unsigned int cportid)
 {
+    /*
+     * if the tx worker is blocked on the semaphore, post something on it
+     * in order to unlock it and have the reset happen right away.
+     */
+    sem_post(&worker.tx_fifo_lock);
 }
 
 int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
