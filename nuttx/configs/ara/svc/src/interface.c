@@ -51,7 +51,7 @@
 
 #define POWER_OFF_TIME_IN_US                        (500000)
 #define WAKEOUT_PULSE_DURATION_IN_US                (100000)
-#define MODULE_PORT_WAKEOUT_PULSE_DURATION_IN_US    (5000)
+#define MODULE_PORT_WAKEOUT_PULSE_DURATION_IN_US    (500000)
 
 static struct interface **interfaces;
 static unsigned int nr_interfaces;
