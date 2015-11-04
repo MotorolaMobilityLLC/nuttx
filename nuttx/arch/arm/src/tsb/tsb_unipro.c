@@ -1095,9 +1095,18 @@ int unipro_reset_cport(unsigned int cportid, cport_reset_completion_cb_t cb,
  */
 int unipro_enable_cport(unsigned int cportid) {
     int rc;
+    uint32_t val = 0;
 
-    enable_e2efc(cportid);
+    rc = unipro_attr_local_read(T_CPORTFLAGS, &val, cportid, NULL);
+    if (rc) {
+        goto done;
+    }
 
+    if (val & CPORT_FLAGS_E2EFC) {
+        enable_e2efc(cportid);
+    }
+
+done:
     rc = configure_connected_cport(cportid);
     return rc;
 }
