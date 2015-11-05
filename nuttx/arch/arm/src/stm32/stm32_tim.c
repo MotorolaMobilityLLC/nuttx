@@ -821,6 +821,22 @@ static int stm32_tim_getcapture(FAR struct stm32_tim_dev_s *dev, uint8_t channel
   return ERROR;
 }
 
+static unsigned int stm32_tim_getcounter(FAR struct stm32_tim_dev_s *dev)
+{
+  ASSERT(dev);
+
+  /*
+   * The counter register has the same offset for all timers: 0x24, but
+   * only TIM2 & TIM5 are 32-bit timers.
+   */
+  if (((struct stm32_tim_priv_s *)dev)->base == STM32_TIM2_BASE ||
+     ((struct stm32_tim_priv_s *)dev)->base == STM32_TIM5_BASE) {
+      return stm32_getreg32(dev, STM32_GTIM_CNT_OFFSET);
+  } else {
+      return stm32_getreg16(dev, STM32_GTIM_CNT_OFFSET);
+  }
+}
+
 /************************************************************************************
  * Advanced Functions
  ************************************************************************************/
@@ -836,6 +852,7 @@ struct stm32_tim_ops_s stm32_tim_ops =
   .setmode        = &stm32_tim_setmode,
   .setclock       = &stm32_tim_setclock,
   .setperiod      = &stm32_tim_setperiod,
+  .getcounter     = &stm32_tim_getcounter,
   .setchannel     = &stm32_tim_setchannel,
   .setcompare     = &stm32_tim_setcompare,
   .getcapture     = &stm32_tim_getcapture,
