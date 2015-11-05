@@ -264,6 +264,11 @@ void unipro_p2p_peer_lost(void) {
         (void *)(unsigned int)0,
         (void *)(unsigned int)0);
 }
+
+bool unipro_p2p_is_link_up(void) {
+    return unipro_read(LUP_INT_BEF) & 0x1;
+}
+
 #endif
 
 void unipro_p2p_setup(void) {

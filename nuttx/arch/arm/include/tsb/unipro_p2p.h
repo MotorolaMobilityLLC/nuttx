@@ -36,6 +36,7 @@ void unipro_p2p_peer_detected(void);
 void unipro_p2p_peer_lost(void);
 void unipro_p2p_setup(void);
 void unipro_p2p_detect_linkloss(void);
+bool unipro_p2p_is_link_up(void);
 
 void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination);
 
