@@ -56,7 +56,12 @@ enum greybus_protocol {
     GREYBUS_PROTOCOL_LIGHTS = 0x0f,
     GREYBUS_PROTOCOL_VIBRATOR = 0x10,
     GREYBUS_PROTOCOL_LOOPBACK = 0x11,
-	/* ... */
+    /* 0x12 is unused */
+    /* 0x13 is unused */
+    GREYBUS_PROTOCOL_SVC = 0x14,
+    GREYBUS_PROTOCOL_FIRMWARE = 0x15,
+    /* ... */
+    GREYBUS_PROTOCOL_RAW = 0xfe,
     GREYBUS_PROTOCOL_VENDOR = 0xff,
 };
 
@@ -76,6 +81,15 @@ enum greybus_class_type {
     GREYBUS_CLASS_DISPLAY = 0x0c,
     GREYBUS_CLASS_CAMERA = 0x0d,
     GREYBUS_CLASS_SENSOR = 0x0e,
+    GREYBUS_CLASS_LIGHTS = 0x0f,
+    GREYBUS_CLASS_VIBRATOR = 0x10,
+    GREYBUS_CLASS_LOOPBACK = 0x11,
+    /* 0x12 is unused */
+    /* 0x13 is unused */
+    GREYBUS_CLASS_SVC = 0x14,
+    GREYBUS_CLASS_FIRMWARE = 0x15,
+    /* ... */
+    GREYBUS_CLASS_RAW = 0xfe,
     GREYBUS_CLASS_VENDOR = 0xff,
 };
 
