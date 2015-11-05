@@ -56,6 +56,7 @@
 #include <arch/board/board.h>
 #include <nuttx/arch.h>
 #include <nuttx/analog/adc.h>
+#include <nuttx/power/pm.h>
 
 #include "up_internal.h"
 #include "up_arch.h"
@@ -95,6 +96,8 @@
 #  define ADC_MAX_SAMPLES 1
 #endif
 
+#define container_of(x, s, f) ((void*) ((char*)(x) - offsetof(s, f)))
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -110,6 +113,9 @@ struct stm32_dev_s
   xcpt_t   isr;       /* Interrupt handler for this ADC block */
   uint32_t base;      /* Base address of registers unique to this ADC block */
   uint8_t  chanlist[ADC_MAX_SAMPLES];
+#ifdef CONFIG_PM
+  struct pm_callback_s pm_callback;
+#endif
 };
 
 /****************************************************************************
@@ -142,6 +148,10 @@ static int  adc_ioctl(FAR struct adc_dev_s *dev, int cmd, unsigned long arg);
 static void adc_enable(FAR struct stm32_dev_s *priv);
 static void adc_startconv(FAR struct stm32_dev_s *priv, bool enable);
 
+#ifdef CONFIG_PM
+static int  pm_prepare(struct pm_callback_s *cb, enum pm_state_e state);
+#endif
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -166,6 +176,12 @@ static struct stm32_dev_s g_adcpriv1 =
   .isr         = adc12_interrupt,
   .intf        = 1,
   .base        = STM32_ADC1_BASE,
+#ifdef CONFIG_PM
+  .pm_callback =
+    {
+      .prepare = pm_prepare,
+    }
+#endif
 };
 
 static struct adc_dev_s g_adcdev1 =
@@ -184,6 +200,12 @@ static struct stm32_dev_s g_adcpriv2 =
   .isr         = adc12_interrupt,
   .intf        = 2,
   .base        = STM32_ADC2_BASE,
+#ifdef CONFIG_PM
+  .pm_callback =
+    {
+      .prepare = pm_prepare,
+    }
+#endif
 };
 
 static struct adc_dev_s g_adcdev2 =
@@ -202,6 +224,12 @@ static struct stm32_dev_s g_adcpriv3 =
   .isr         = adc3_interrupt,
   .intf        = 3,
   .base        = STM32_ADC3_BASE,
+#ifdef CONFIG_PM
+  .pm_callback =
+    {
+      .prepare = pm_prepare,
+    }
+#endif
 };
 
 static struct adc_dev_s g_adcdev3 =
@@ -252,6 +280,30 @@ static void adc_putreg(struct stm32_dev_s *priv, int offset, uint32_t value)
 {
   putreg32(value, priv->base + offset);
 }
+
+#if CONFIG_PM
+/****************************************************************************
+ * Name: pm_prepare
+ *
+ * Description:
+ *   Called by power management framework when it wants to enter low power
+ *   states. Check if ADC is in progress and if so prevent from entering STOP.
+ *
+ ****************************************************************************/
+
+static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
+{
+  FAR struct stm32_dev_s *priv =
+      container_of(cb, struct stm32_dev_s, pm_callback);
+  uint32_t regval;
+
+  regval = adc_getreg(priv, STM32_ADC_CR_OFFSET);
+  if ((state >= PM_IDLE) && (regval & ADC_CR_ADSTART))
+      return -EBUSY;
+
+  return OK;
+}
+#endif
 
 /****************************************************************************
  * Name: adc_wdog_enable
@@ -469,6 +521,8 @@ static int adc_setup(FAR struct adc_dev_s *dev)
 
   /* Configuration of the channel conversions */
 
+  DEBUGASSERT(priv->nchannels <= ADC_MAX_SAMPLES);
+
   regval = adc_getreg(priv, STM32_ADC_SQR4_OFFSET);
   for (i = 14, offset = 0; i < priv->nchannels && i < 16; i++, offset += 6)
     {
@@ -497,8 +551,6 @@ static int adc_setup(FAR struct adc_dev_s *dev)
     }
 
   /* Set the number of conversions */
-
-  DEBUGASSERT(priv->nchannels <= ADC_MAX_SAMPLES);
 
   regval |= (((uint32_t)priv->nchannels-1) << ADC_SQR1_L_SHIFT);
   adc_putreg(priv, STM32_ADC_SQR1_OFFSET, regval);
@@ -554,7 +606,7 @@ static void adc_shutdown(FAR struct adc_dev_s *dev)
 
   /* Disable and reset the ADC module */
 
-  adc_rccreset(priv, true);
+  adc_reset(dev);
 }
 
 /****************************************************************************
@@ -897,6 +949,15 @@ struct adc_dev_s *stm32_adcinitialize(int intf, const uint8_t *chanlist,
   priv->nchannels = nchannels;
 
   memcpy(priv->chanlist, chanlist, nchannels);
+
+#ifdef CONFIG_PM
+  if (pm_register(&priv->pm_callback) != OK)
+    {
+      adbg("Power management registration failed\n");
+      return NULL;
+    }
+#endif
+
   return dev;
 }
 
