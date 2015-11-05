@@ -74,8 +74,7 @@ static void unipro_dump_attribute_array(const struct dbg_entry *attributes, int 
     while (attributes && attributes->val) {
 
         uint32_t val;
-        uint32_t rc;
-        unipro_attr_read(attributes->val, &val, cportid, peer, &rc);
+        unipro_attr_read(attributes->val, &val, cportid, peer);
         lldbg("%04x %s: %08x\n", attributes->val, (attributes->str ? attributes->str : ""), val);
         attributes++;
     }
@@ -96,18 +95,16 @@ static void unipro_dump_register_index_array(const struct dbg_entry *registers, 
 }
 
 void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination) {
-    uint32_t result_code;
+    unipro_attr_write(PA_TXGEAR, txgear, 0 /* selector */, 0 /* peer */);
+    unipro_attr_write(PA_TXTERMINATION, termination, 0 /* selector */, 0 /* peer */);
+    unipro_attr_write(PA_HSSERIES, series, 0 /* selector */, 0 /* peer */);
+    unipro_attr_write(PA_ACTIVETXDATALANES, 1, 0 /* selector */, 0 /* peer */);
 
-    unipro_attr_write(PA_TXGEAR, txgear, 0 /* selector */, 0 /* peer */, &result_code);
-    unipro_attr_write(PA_TXTERMINATION, termination, 0 /* selector */, 0 /* peer */, &result_code);
-    unipro_attr_write(PA_HSSERIES, series, 0 /* selector */, 0 /* peer */, &result_code);
-    unipro_attr_write(PA_ACTIVETXDATALANES, 1, 0 /* selector */, 0 /* peer */, &result_code);
+    unipro_attr_write(PA_RXGEAR, rxgear, 0 /* selector */, 0 /* peer */);
+    unipro_attr_write(PA_RXTERMINATION, termination, 0 /* selector */, 0 /* peer */);
+    unipro_attr_write(PA_ACTIVERXDATALANES, 1, 0 /* selector */, 0 /* peer */);
 
-    unipro_attr_write(PA_RXGEAR, rxgear, 0 /* selector */, 0 /* peer */, &result_code);
-    unipro_attr_write(PA_RXTERMINATION, termination, 0 /* selector */, 0 /* peer */, &result_code);
-    unipro_attr_write(PA_ACTIVERXDATALANES, 1, 0 /* selector */, 0 /* peer */, &result_code);
-
-    unipro_attr_write(PA_PWRMODE, pwrmode, 0 /* selector */, 0 /* peer */, &result_code);
+    unipro_attr_write(PA_PWRMODE, pwrmode, 0 /* selector */, 0 /* peer */);
 }
 
 /**
@@ -132,13 +129,13 @@ void unipro_reset(void) {
 }
 
 static int unipro_mbox_enable_cport(uint32_t cport) {
-    int rc = unipro_attr_peer_write(MBOX_ACK_ATTR, TSB_MAIL_RESET, 0 /* selector */, NULL);
+    int rc = unipro_attr_peer_write(MBOX_ACK_ATTR, TSB_MAIL_RESET, 0 /* selector */);
     if (rc) {
         lldbg("MBOX_ACK_ATTR write failed: %d\n", rc);
         return rc;
     }
 
-    rc = unipro_attr_peer_write(TSB_MAILBOX, (cport + 1), 0 /* selector */, NULL);
+    rc = unipro_attr_peer_write(TSB_MAILBOX, (cport + 1), 0 /* selector */);
     if (rc) {
         lldbg("TSB_MAILBOX write failed: %d\n", rc);
         return rc;
@@ -147,7 +144,7 @@ static int unipro_mbox_enable_cport(uint32_t cport) {
     uint32_t retries = 2048;
     uint32_t val;
     do {
-        rc = unipro_attr_peer_read(MBOX_ACK_ATTR, &val, 0 /* selector */, NULL);
+        rc = unipro_attr_peer_read(MBOX_ACK_ATTR, &val, 0 /* selector */);
         if (rc) {
             lldbg("%s(): MBOX_ACK_ATTR poll failed: %d\n", __func__, rc);
             return rc;
@@ -170,55 +167,55 @@ void unipro_p2p_setup_connection(unsigned int cport) {
     const uint32_t default_buffer_space = 0x240;
 
     /* Disable CPORTs before making changes. */
-    unipro_attr_local_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport, NULL);
-    unipro_attr_peer_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport, NULL);
+    unipro_attr_local_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport);
+    unipro_attr_peer_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport);
 
-    unipro_attr_local_write(T_PEERDEVICEID, CONFIG_UNIPRO_REMOTE_DEVICEID, cport, NULL);
-    unipro_attr_peer_write(T_PEERDEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, cport, NULL);
+    unipro_attr_local_write(T_PEERDEVICEID, CONFIG_UNIPRO_REMOTE_DEVICEID, cport);
+    unipro_attr_peer_write(T_PEERDEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, cport);
 
-    unipro_attr_local_write(T_PEERCPORTID, cport, cport, NULL);
-    unipro_attr_peer_write(T_PEERCPORTID, cport, cport, NULL);
+    unipro_attr_local_write(T_PEERCPORTID, cport, cport);
+    unipro_attr_peer_write(T_PEERCPORTID, cport, cport);
 
-    unipro_attr_local_write(T_TRAFFICCLASS, traffic_class, cport, NULL);
-    unipro_attr_peer_write(T_TRAFFICCLASS, traffic_class, cport, NULL);
+    unipro_attr_local_write(T_TRAFFICCLASS, traffic_class, cport);
+    unipro_attr_peer_write(T_TRAFFICCLASS, traffic_class, cport);
 
-    unipro_attr_local_write(T_TXTOKENVALUE, token_value, cport, NULL);
-    unipro_attr_peer_write(T_TXTOKENVALUE, token_value, cport, NULL);
+    unipro_attr_local_write(T_TXTOKENVALUE, token_value, cport);
+    unipro_attr_peer_write(T_TXTOKENVALUE, token_value, cport);
 
-    unipro_attr_local_write(T_RXTOKENVALUE, token_value, cport, NULL);
-    unipro_attr_peer_write(T_RXTOKENVALUE, token_value, cport, NULL);
+    unipro_attr_local_write(T_RXTOKENVALUE, token_value, cport);
+    unipro_attr_peer_write(T_RXTOKENVALUE, token_value, cport);
 
-    unipro_attr_local_write(T_CPORTFLAGS, cport_flags, cport, NULL);
-    unipro_attr_peer_write(T_CPORTFLAGS, cport_flags, cport, NULL);
+    unipro_attr_local_write(T_CPORTFLAGS, cport_flags, cport);
+    unipro_attr_peer_write(T_CPORTFLAGS, cport_flags, cport);
 
-    unipro_attr_local_write(T_CPORTMODE, CPORT_MODE_APPLICATION, cport, NULL);
-    unipro_attr_peer_write(T_CPORTMODE, CPORT_MODE_APPLICATION, cport, NULL);
+    unipro_attr_local_write(T_CPORTMODE, CPORT_MODE_APPLICATION, cport);
+    unipro_attr_peer_write(T_CPORTMODE, CPORT_MODE_APPLICATION, cport);
 
-    unipro_attr_local_write(T_CREDITSTOSEND, 0, cport, NULL);
-    unipro_attr_peer_write(T_CREDITSTOSEND, 0, cport, NULL);
+    unipro_attr_local_write(T_CREDITSTOSEND, 0, cport);
+    unipro_attr_peer_write(T_CREDITSTOSEND, 0, cport);
 
     /* The local buffer space has to match peer buffer space if E2EFC or CSD is enabled. */
     uint32_t local = 0;
-    unipro_attr_local_read(T_LOCALBUFFERSPACE, &local, cport, NULL);
+    unipro_attr_local_read(T_LOCALBUFFERSPACE, &local, cport);
     if (!local) {
         local = default_buffer_space;
     }
 
     uint32_t peer = 0;
-    unipro_attr_peer_read(T_LOCALBUFFERSPACE, &peer, cport, NULL);
+    unipro_attr_peer_read(T_LOCALBUFFERSPACE, &peer, cport);
     if (!peer) {
         peer = default_buffer_space;
     }
 
-    unipro_attr_local_write(T_PEERBUFFERSPACE, peer, cport, NULL);
+    unipro_attr_local_write(T_PEERBUFFERSPACE, peer, cport);
     //unipro_attr_peer_write(T_PEERBUFFERSPACE, local, cport, NULL);
 
-    unipro_attr_local_write(TSB_MAXSEGMENTCONFIG, max_segment, cport, NULL);
-    unipro_attr_peer_write(TSB_MAXSEGMENTCONFIG, max_segment, cport, NULL);
+    unipro_attr_local_write(TSB_MAXSEGMENTCONFIG, max_segment, cport);
+    unipro_attr_peer_write(TSB_MAXSEGMENTCONFIG, max_segment, cport);
 
     /* Enable CPORTs. */
-    unipro_attr_local_write(T_CONNECTIONSTATE, 1 /* connected */, cport, NULL);
-    unipro_attr_peer_write(T_CONNECTIONSTATE, 1 /* connected */, cport, NULL);
+    unipro_attr_local_write(T_CONNECTIONSTATE, 1 /* connected */, cport);
+    unipro_attr_peer_write(T_CONNECTIONSTATE, 1 /* connected */, cport);
 
     /* Configure the local cport's registers. */
     unipro_enable_cport(cport);
@@ -247,12 +244,12 @@ void unipro_p2p_peer_lost(void) {
 
 void unipro_p2p_setup(void) {
     /* Layer 1.5 attributes */
-    unipro_attr_local_write(PA_TXTERMINATION, 1, 0 /* selector */, NULL);
-    unipro_attr_local_write(PA_RXTERMINATION, 1, 0 /* selector */, NULL);
+    unipro_attr_local_write(PA_TXTERMINATION, 1, 0 /* selector */);
+    unipro_attr_local_write(PA_RXTERMINATION, 1, 0 /* selector */);
 
     /* Layer 3 attributes */
-    unipro_attr_local_write(N_DEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, 0 /* selector */, NULL);
-    unipro_attr_local_write(N_DEVICEID_VALID, 1, 0 /* selector */, NULL);
+    unipro_attr_local_write(N_DEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, 0 /* selector */);
+    unipro_attr_local_write(N_DEVICEID_VALID, 1, 0 /* selector */);
 }
 
 void unipro_p2p_detect_linkloss(void) {
@@ -260,7 +257,7 @@ void unipro_p2p_detect_linkloss(void) {
 
     retval = unipro_attr_local_write(TSB_INTERRUPTENABLE,
                                      TSB_INTERRUPTSTATUS_LINKLOSTIND |
-                                     TSB_INTERRUPTSTATUS_MAILBOX, 0, NULL);
+                                     TSB_INTERRUPTSTATUS_MAILBOX, 0);
     if (retval) {
         lldbg("Failed to enable tsb interrupts\n");
     }
@@ -784,7 +781,7 @@ void unipro_dump_status(void) {
         uint32_t rc;
         size_t j;
 
-        unipro_attr_read(TSB_INTERRUPTSTATUS, &attr_val, 0, 0, &rc);
+        rc = unipro_attr_read(TSB_INTERRUPTSTATUS, &attr_val, 0, 0);
         if (!attr_val) {
             break;
         }
@@ -792,7 +789,7 @@ void unipro_dump_status(void) {
         lldbg("TSB_INTERRUPTSTATUS, val=0x%x, rc=%d\n", attr_val, rc);
         for (j = 0; j < sizeof(unipro_irq_attr)/sizeof(unipro_irq_attr[0]); j++) {
             if ((attr_val & (1 << j)) && unipro_irq_attr[j]) {
-                unipro_attr_read(unipro_irq_attr[j], &attr_val, 0, 0, &rc);
+                rc = unipro_attr_read(unipro_irq_attr[j], &attr_val, 0, 0);
                 lldbg("j=%d, attr=0x%x, val=0x%x, rc=%d\n", j, unipro_irq_attr[j], attr_val, rc);
             }
         }
