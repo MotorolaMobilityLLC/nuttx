@@ -454,14 +454,14 @@ int irq_unipro(int irq, void *context) {
     val = unipro_read(UNIPRO_INT_AFT);
     if (val) {
         uint32_t isr_val = 0;
-        unipro_attr_read(TSB_INTERRUPTSTATUS, &isr_val, 0, 0, &rc);
+        unipro_attr_read(TSB_INTERRUPTSTATUS, &isr_val, 0, 0);
 
         if (isr_val & TSB_INTERRUPTSTATUS_POWERMODIND) {
             uint32_t pmi_val0 = 0;
-            unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val0, 0, 0, &rc);
+            unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val0, 0, 0);
 
             uint32_t pmi_val1 = 0;
-            unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val1, 0, 1, &rc);
+            unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val1, 0, 1);
 
             if (pmi_val0 == 2 && pmi_val1 == 4) {
                 DBG_UNIPRO("Powermode change successful\n");
@@ -472,7 +472,7 @@ int irq_unipro(int irq, void *context) {
 
         if (isr_val & TSB_INTERRUPTSTATUS_MAILBOX) {
             uint32_t mbox_val = TSB_MAIL_RESET;
-            rc = unipro_attr_local_read(TSB_MAILBOX, &mbox_val, 0, NULL);
+            rc = unipro_attr_local_read(TSB_MAILBOX, &mbox_val, 0);
             if (rc) {
                 goto done;
             }
@@ -486,7 +486,7 @@ int irq_unipro(int irq, void *context) {
 
         if (isr_val & TSB_INTERRUPTSTATUS_LINKLOSTIND) {
             uint32_t lost_ind = 0;
-            rc = unipro_attr_local_read(TSB_DME_LINKLOSTIND, &lost_ind, 0, NULL);
+            rc = unipro_attr_local_read(TSB_DME_LINKLOSTIND, &lost_ind, 0);
             if (lost_ind) {
                 unipro_p2p_peer_lost();
             }
@@ -701,7 +701,7 @@ static void dump_regs(void) {
     unsigned int i;
 
 #define DBG_ATTR(attr) do {                  \
-    (void)unipro_attr_local_read(attr, &val, 0); \
+    unipro_attr_local_read(attr, &val, 0); \
     lldbg("    [%s]: 0x%x\n", #attr, val);   \
 } while (0);
 
