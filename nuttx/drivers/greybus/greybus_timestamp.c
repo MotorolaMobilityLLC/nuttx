@@ -37,7 +37,6 @@
 #define USEC_PER_DAY 86400000000ULL
 #define TAG_SIZE (sizeof(struct gb_operation_hdr) + \
     sizeof(struct gb_loopback_transfer_response))
-static unsigned int cport_max_idx;
 
 static useconds_t __calc_latency(useconds_t t1, useconds_t t2)
 {
@@ -58,7 +57,7 @@ static __le32 calc_latency(struct timeval *ts, struct timeval *te)
 
 static inline int tag_active(struct gb_timestamp *ts, unsigned int cportid)
 {
-    return (cportid < cport_max_idx && ts->tag);
+    return (gb_is_valid_cport(cportid) && ts->tag);
 }
 
 void gb_timestamp_tag_entry_time(struct gb_timestamp *ts,
@@ -97,6 +96,4 @@ void gb_timestamp_log(struct gb_timestamp *ts, unsigned int cportid,
 
 void gb_timestamp_init(void)
 {
-    if (cport_max_idx == 0)
-        cport_max_idx = unipro_cport_count();
 }
