@@ -52,6 +52,10 @@
 
 #define UNIPRO_LUP_DONE     BIT(0)
 
+#if defined(CONFIG_UNIPRO_P2P)
+#include <arch/chip/unipro_p2p.h>
+#endif
+
 // See ENG-436
 #define MBOX_RACE_HACK_DELAY    100000
 
@@ -907,25 +911,27 @@ void unipro_init(void)
     int retval;
     struct cport *cport;
 
-    cport_count = unipro_cport_count();
-    cporttable = zalloc(sizeof(struct cport) * cport_count);
     if (!cporttable) {
-        return;
-    }
+        cport_count = unipro_cport_count();
+        cporttable = zalloc(sizeof(struct cport) * cport_count);
+        if (!cporttable) {
+            return;
+        }
 
-    retval = unipro_tx_init();
-    if (retval) {
-        free(cporttable);
-        cporttable = NULL;
-        return;
-    }
+        retval = unipro_tx_init();
+        if (retval) {
+            free(cporttable);
+            cporttable = NULL;
+            return;
+        }
 
-    for (i = 0; i < cport_count; i++) {
-        cport = &cporttable[i];
-        cport->tx_buf = CPORT_TX_BUF(i);
-        cport->cportid = i;
-        cport->connected = 0;
-        list_init(&cport->tx_fifo);
+        for (i = 0; i < cport_count; i++) {
+            cport = &cporttable[i];
+            cport->tx_buf = CPORT_TX_BUF(i);
+            cport->cportid = i;
+            cport->connected = 0;
+            list_init(&cport->tx_fifo);
+        }
     }
 
     unipro_write(LUP_INT_EN, 0x1);
