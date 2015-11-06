@@ -118,6 +118,10 @@ ifeq ($(CONFIG_GREYBUS_RAW),y)
 CSRCS += raw.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_MODS_DISPLAY),y)
+CSRCS += display.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_VENDOR_MOTO),y)
 CSRCS += vendor-moto.c
 endif
