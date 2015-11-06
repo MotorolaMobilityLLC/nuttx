@@ -7,6 +7,12 @@ config GREYBUS_MODS_I2C
 	bool "I2C"
 endchoice
 
+config GREYBUS_MODS_ATTACH
+	bool "Mod Attach"
+	default n
+	---help---
+		Include mod attach logic.
+
 config GREYBUS_MODS_PORT
 	int "Mods Port Number"
 	default 1
