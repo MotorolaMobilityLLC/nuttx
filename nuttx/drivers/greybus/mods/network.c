@@ -54,9 +54,6 @@ struct mods_msg
 /* Handle to Mods data link layer */
 static struct mods_dl_s *dl;
 
-/* Preallocated buffer for network messages */
-static __u8 network_buffer[MODS_DL_PAYLOAD_MAX_SZ];
-
 static int network_recv(FAR struct mods_dl_s *dev, const void *buf, size_t len)
 {
   struct mods_msg *m = (struct mods_msg *)buf;
@@ -77,13 +74,10 @@ static void network_init(void)
 
 static int network_send(unsigned int cport, const void *buf, size_t len)
 {
-  struct mods_msg *m = (struct mods_msg *)network_buffer;
-
-  if (len > (MODS_DL_PAYLOAD_MAX_SZ - sizeof(struct mods_msg_hdr)))
-      return -ENOMEM;
+  struct mods_msg *m =
+    (struct mods_msg *)((char *)buf - sizeof(struct mods_msg_hdr));
 
   m->hdr.cport = cpu_to_le16(cport);
-  memcpy(m->gb_msg, buf, len);
 
   return MODS_DL_SEND(dl, m, len + sizeof(struct mods_msg_hdr));
 }
@@ -100,8 +94,9 @@ static int network_stop_listening(unsigned int cport)
   return 0;
 }
 
-struct gb_transport_backend mods_network =
+const static struct gb_transport_backend mods_network =
 {
+  .headroom = (sizeof(struct mods_msg_hdr) + 3) & ~0x0003,
   .init = network_init,
   .send = network_send,
   .listen = network_listen,
@@ -110,5 +105,5 @@ struct gb_transport_backend mods_network =
 
 int mods_network_init(void)
 {
-  return gb_init(&mods_network);
+  return gb_init((struct gb_transport_backend *)&mods_network);
 }
