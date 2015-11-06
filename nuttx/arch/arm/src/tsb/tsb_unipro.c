@@ -447,7 +447,7 @@ static int irq_rx_eom(int irq, void *context) {
 
 #if defined(CONFIG_ICE_APBA)
 int irq_unipro(int irq, void *context) {
-    uint32_t rc;
+    uint32_t rc = 0;
     uint32_t val;
 
     /* UniPro interrupt */
@@ -1097,7 +1097,7 @@ int unipro_enable_cport(unsigned int cportid) {
     int rc;
     uint32_t val = 0;
 
-    rc = unipro_attr_local_read(T_CPORTFLAGS, &val, cportid, NULL);
+    rc = unipro_attr_local_read(T_CPORTFLAGS, &val, cportid);
     if (rc) {
         goto done;
     }

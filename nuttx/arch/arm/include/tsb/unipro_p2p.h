@@ -33,6 +33,7 @@
 
 void unipro_p2p_setup_connection(unsigned int cport);
 void unipro_p2p_peer_detected(void);
+void unipro_p2p_peer_lost(void);
 void unipro_p2p_setup(void);
 void unipro_p2p_detect_linkloss(void);
 
