@@ -49,6 +49,7 @@ extern void gb_pwm_register(int cport);
 extern void gb_spi_register(int cport);
 extern void gb_uart_register(int cport);
 extern void gb_hid_register(int cport);
+extern void gb_mods_display_register(int cport);
 extern void gb_raw_register(int cport);
 extern void gb_vendor_register(int cport);
 extern void gb_lights_register(int cport);
@@ -165,6 +166,13 @@ void enable_cports(void)
         if (protocol == GREYBUS_PROTOCOL_PWM) {
             gb_info("Registering PWM greybus driver.\n");
             gb_pwm_register(id);
+        }
+#endif
+
+#ifdef CONFIG_GREYBUS_MODS_DISPLAY
+        if (protocol == GREYBUS_PROTOCOL_MODS_DISPLAY) {
+            gb_info("Registering Display greybus driver.\n");
+            gb_mods_display_register(id);
         }
 #endif
 
