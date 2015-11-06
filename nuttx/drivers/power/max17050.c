@@ -27,14 +27,19 @@
  */
 
 #include <nuttx/config.h>
+#include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/power/battery.h>
+#include <nuttx/power/pm.h>
+#include <nuttx/util.h>
+#include <nuttx/wqueue.h>
 
 #include <sys/types.h>
 
 #include <debug.h>
 #include <errno.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -44,6 +49,7 @@
 #define MAX17050_I2C_ADDR               0x36
 
 #define MAX17050_REG_STATUS             0x00
+#define MAX17050_REG_VALRT              0x01
 #define MAX17050_REG_REP_CAP            0x05
 #define MAX17050_REG_REP_SOC            0x06
 #define MAX17050_REG_TEMP               0x08
@@ -84,8 +90,11 @@
 
 #define MAX17050_IC_VERSION             0x00AC
 
-#define MAX17050_STATUS_POR             (1 << 1)  /* Power-On Reset */
-#define MAX17050_STATUS_BST             (1 << 3)  /* Battery Status */
+#define MAX17050_STATUS_POR             BIT(1)  /* Power-On Reset */
+#define MAX17050_STATUS_BST             BIT(3)  /* Battery Status */
+#define MAX17050_STATUS_VMN             BIT(8)  /* Min Valrt */
+
+#define MAX17050_CONFIG_AEN             BIT(2)  /* Alert enable */
 
 #define MAX17050_MODEL_UNLOCK_1         0x59
 #define MAX17050_MODEL_UNLOCK_2         0xC4
@@ -97,6 +106,12 @@
 #define MAX17050_REM_CAP_DIV            25600
 #define MAX17050_DQ_ACC_DIV             16
 #define MAX17050_DP_ACC                 0x0C80
+
+/* Priority to report to PM framework when reporting activity */
+#define PM_ACTIVITY                     10
+
+/* Min battery voltage for fuel gauge to be functional */
+#define MAX17050_MIN_BATTERY_VOLTAGE    2500    /* in mV */
 
 extern const struct max17050_config max17050_cfg;
 
@@ -111,7 +126,16 @@ struct max17050_dev_s
 
     FAR struct i2c_dev_s *i2c;
     bool initialized;
+    struct work_s i2c_available_work;
+    struct work_s alrt_work;
 };
+
+
+/*
+ * Global pointer is needed because Nuttx IRQs do not provide a pointer to
+ * driver private data
+ */
+static struct max17050_dev_s* g_max17050_dev;
 
 static int max17050_reg_read(FAR struct max17050_dev_s *priv, uint8_t reg)
 {
@@ -357,7 +381,6 @@ static const struct battery_operations_s max17050_ops =
     .full_capacity = max17050_full_capacity,
 };
 
-
 #define WRITE(priv, reg, val)                                   \
     do {                                                        \
         int ret = max17050_reg_write(priv, reg, val);           \
@@ -544,7 +567,6 @@ static int max17050_por_load_new_capacity_params(FAR struct max17050_dev_s *priv
     return 0;
 }
 
-
 static int max17050_por_init(FAR struct max17050_dev_s *priv)
 {
     // Wait for signal debouncing and initial SOC reporting to complete
@@ -588,7 +610,15 @@ static int max17050_por_init(FAR struct max17050_dev_s *priv)
 
 static void *max17050_por(void *v)
 {
-    FAR struct max17050_dev_s *priv = (struct max17050_dev_s *)v;
+    FAR struct max17050_dev_s *priv = v;
+    static sem_t sem = SEM_INITIALIZER(1);
+
+    /* Theoretically, another por maybe scheduled before another one finished */
+    while (sem_wait(&sem) != OK) {
+        if (errno == EINVAL) {
+            return NULL;
+        }
+    }
 
     if (!max17050_por_init(priv)) {
         // Ready to report battery status
@@ -602,7 +632,45 @@ static void *max17050_por(void *v)
         dbg("Power-On Reset failed\n");
     }
 
+    sem_post(&sem);
     return NULL;
+}
+
+static int max17050_set_voltage_alert(FAR struct max17050_dev_s *priv, int min,
+                                      int max)
+{
+    uint8_t valrt_min = (min == INT_MIN ? 0x00 : min / 20);
+    uint8_t valrt_max = (max == INT_MAX ? 0xff : max / 20);
+    uint16_t valrt = valrt_min | valrt_max << 8;
+
+    return max17050_reg_write(priv, MAX17050_REG_VALRT, valrt);
+}
+
+static void max17050_alrt_worker(FAR void *arg)
+{
+    FAR struct max17050_dev_s *priv = arg;
+    pthread_t por_thread;
+    int status;
+
+    status = max17050_reg_read(priv, MAX17050_REG_STATUS);
+    if (status >= 0) {
+        if (status & MAX17050_STATUS_VMN) {
+            max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
+            pthread_create(&por_thread, NULL, max17050_por, priv);
+            pthread_detach(por_thread);
+        }
+    }
+}
+
+static int max17050_alrt_isr(int irq, void *context)
+{
+    if (work_available(&g_max17050_dev->alrt_work)) {
+        work_queue(HPWORK, &g_max17050_dev->alrt_work,
+                    max17050_alrt_worker, g_max17050_dev, 0);
+        pm_activity(PM_ACTIVITY);
+    };
+
+    return OK;
 }
 
 static bool max17050_new_config(FAR struct max17050_dev_s *priv)
@@ -616,13 +684,64 @@ static bool max17050_new_config(FAR struct max17050_dev_s *priv)
     return (max17050_cfg.version != ret);
 }
 
+static void max17050_check_por(FAR struct max17050_dev_s *priv,
+                               bool use_voltage_alert)
+{
+    pthread_t por_thread;
+    int ret;
+
+    ret = max17050_reg_read(priv, MAX17050_REG_DEV_NAME);
+    if (ret < 0)
+        return;
+
+    if (ret != MAX17050_IC_VERSION)
+        return;
+
+    ret = max17050_reg_read(priv, MAX17050_REG_STATUS);
+    if (ret < 0)
+        return;
+
+    // Configure device after Power-On Reset or with the new configuration
+    if (ret & MAX17050_STATUS_POR || max17050_new_config(priv)) {
+        max17050_set_voltage_alert(priv, INT_MIN, MAX17050_MIN_BATTERY_VOLTAGE);
+        if (use_voltage_alert)
+            max17050_reg_modify(priv, MAX17050_REG_CONFIG,
+                                MAX17050_CONFIG_AEN, MAX17050_CONFIG_AEN);
+        else {
+            pthread_create(&por_thread, NULL, max17050_por, priv);
+            pthread_detach(por_thread);
+        }
+    } else
+        priv->initialized = true;
+
+}
+
+static void max17050_i2c_available_worker(FAR void *arg)
+{
+    FAR struct max17050_dev_s *priv = arg;
+
+    priv->initialized = false;
+    max17050_check_por(priv, true);
+}
+
+static int max17050_i2c_available_isr(int irq, void *context)
+{
+    if (work_available(&g_max17050_dev->i2c_available_work)) {
+        work_queue(HPWORK, &g_max17050_dev->i2c_available_work,
+                   max17050_i2c_available_worker, g_max17050_dev, 0);
+        pm_activity(PM_ACTIVITY);
+    };
+
+    return OK;
+}
+
 FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
-                                              uint32_t frequency)
+                                              uint32_t frequency,
+                                              int alrt_gpio,
+                                              int reg_gpio)
 {
     FAR struct max17050_dev_s *priv;
     int ret;
-    pthread_t por_thread;
-
     /*
      * Sanity check configuration and bomb out if supplied invalid values.
      * SNS resistor value must be non-zero to avoid dividing by zero when
@@ -643,23 +762,32 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
 
         I2C_SETFREQUENCY(i2c, frequency);
 
-        ret = max17050_reg_read(priv, MAX17050_REG_DEV_NAME);
-        if (ret < 0)
-            goto err;
+        g_max17050_dev = priv;
 
-        if (ret != MAX17050_IC_VERSION)
-            goto err;
+       /*
+        * When reg line is asserted, fuel gauge can communicate over I2C, but
+        * it is not necessarily fully functional. It becomes fully functional
+        * when battery voltage raises above some min threshold.  Use reg_gpio
+        * irq to set up fuel gauge Valrt min irq and perform por init after
+        * Valrt irq goes off. If the gpios are not utilized, schedule por init
+        * right away if the chip requires initialization.
+        */
+        if (alrt_gpio >= 0) {
+            gpio_irqattach(alrt_gpio, max17050_alrt_isr);
+            set_gpio_triggering(alrt_gpio, IRQ_TYPE_EDGE_FALLING);
 
-        ret = max17050_reg_read(priv, MAX17050_REG_STATUS);
-        if (ret < 0)
-            goto err;
-
-        // Configure device after Power-On Reset or with the new configuration
-        if (ret & MAX17050_STATUS_POR || max17050_new_config(priv)) {
-            pthread_create(&por_thread, NULL, max17050_por, priv);
-            pthread_detach(por_thread);
-        } else
-            priv->initialized = true;
+            if (reg_gpio >= 0) {
+                gpio_irqattach(reg_gpio, max17050_i2c_available_isr);
+                set_gpio_triggering(reg_gpio, IRQ_TYPE_EDGE_RISING);
+                if (gpio_get_value(reg_gpio) && work_available(&priv->i2c_available_work))
+                    work_queue(HPWORK, &priv->i2c_available_work,
+                            max17050_i2c_available_worker, priv, 0);
+            } else {
+                max17050_check_por(priv, false);
+            }
+        } else {
+            max17050_check_por(priv, false);
+        }
     }
 
     return (FAR struct battery_dev_s *)priv;

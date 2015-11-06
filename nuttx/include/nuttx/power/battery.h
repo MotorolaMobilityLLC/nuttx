@@ -238,6 +238,8 @@ EXTERN FAR struct battery_dev_s *
  * Input Parameters:
  *   i2c - An instance of the I2C interface to use to communicate with the MAX17050
  *   frequency - The desired I2C frequency
+ *   alrt_gpio - The ALRT pin (set to negative value if not used)
+ *   reg_gpio - The REG pin (set to negative value if not used)
  *
  * Returned Value:
  *   A pointer to the initialized battery driver instance.  A NULL pointer
@@ -249,7 +251,8 @@ EXTERN FAR struct battery_dev_s *
 struct i2c_dev_s; /* Forward reference */
 
 EXTERN FAR struct battery_dev_s *
-  max17050_initialize(FAR struct i2c_dev_s *i2c, uint32_t frequency);
+  max17050_initialize(FAR struct i2c_dev_s *i2c, uint32_t frequency,
+                      int alrt_gpio, int reg_gpio);
 #endif
 
 #undef EXTERN
