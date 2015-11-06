@@ -128,6 +128,10 @@ ifeq ($(CONFIG_TIMER),y)
 endif
 endif
 
+ifeq ($(CONFIG_NULL_DISPLAY),y)
+  CSRCS += null_display.c
+endif
+
 ifeq ($(CONFIG_DEVICE_CORE),y)
   CSRCS += device.c device_resource.c device_table.c
 endif

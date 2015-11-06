@@ -48,6 +48,10 @@ config DEV_ZERO
 config ARCH_HAVE_RNG
 	bool
 
+config NULL_DISPLAY
+    bool "Empty implementation of device_display.h"
+    default n
+
 config DEV_RANDOM
 	bool "Enable /dev/random"
 	default n
