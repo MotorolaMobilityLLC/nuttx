@@ -602,7 +602,11 @@ static int i2s_test_start_streaming(struct i2s_test_info *info)
         config.ll_wclk_role = DEVICE_I2S_ROLE_SLAVE;
     }
 
-    config.ll_wclk_change_edge = DEVICE_I2S_EDGE_FALLING;
+    if (info->is_transmitter)
+        config.ll_wclk_change_edge = DEVICE_I2S_EDGE_FALLING;
+    else
+        config.ll_wclk_change_edge = DEVICE_I2S_EDGE_RISING;
+
     config.ll_wclk_polarity = DEVICE_I2S_POLARITY_NORMAL;
     config.ll_data_tx_edge = DEVICE_I2S_EDGE_FALLING;
     config.ll_data_rx_edge = DEVICE_I2S_EDGE_RISING;
