@@ -257,7 +257,7 @@ static int batt_dev_open(struct device *dev)
 
     info = device_get_private(dev);
     if (!info->bdev)
-        info->bdev = max17050_initialize(info->i2c, MAX17050_I2C_FREQ);
+        info->bdev = max17050_initialize(info->i2c, MAX17050_I2C_FREQ, -1, -1);
 
     return info->bdev ? OK : -ENODEV;
 }
