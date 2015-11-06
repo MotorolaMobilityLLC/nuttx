@@ -40,7 +40,8 @@
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/util.h>
 
-#include <arch/tsb/irq.h>
+#include <arch/chip/irq.h>
+#include <arch/chip/unipro_p2p.h>
 
 #include <apps/ice/svc.h>
 
@@ -257,10 +258,10 @@ void unipro_p2p_peer_detected(void) {
         (void *)(unsigned int)0);
 }
 
-void unipro_p2p_peer_lost(void) {
+void unipro_p2p_peer_lost(struct p2p_link_err_reason *reason) {
     /* Enable the control cport. */
     svc_send_event(SVC_EVENT_UNIPRO_LINK_DOWN,
-        (void *)(unsigned int)0,
+        reason,
         (void *)(unsigned int)0,
         (void *)(unsigned int)0);
 }
@@ -289,6 +290,7 @@ void unipro_p2p_detect_linkloss(void) {
 
     retval = unipro_attr_local_write(TSB_INTERRUPTENABLE,
                                      TSB_INTERRUPTSTATUS_LINKLOSTIND |
+                                     TSB_INTERRUPTSTATUS_PAINITERR |
                                      TSB_INTERRUPTSTATUS_MAILBOX, 0);
     if (retval) {
         lldbg("Failed to enable tsb interrupts\n");

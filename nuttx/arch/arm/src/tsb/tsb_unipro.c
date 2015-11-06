@@ -54,6 +54,8 @@
 
 #if defined(CONFIG_UNIPRO_P2P)
 #include <arch/chip/unipro_p2p.h>
+
+static struct p2p_link_err_reason last_link_err_reason;
 #endif
 
 // See ENG-436
@@ -490,9 +492,38 @@ int irq_unipro(int irq, void *context) {
 
         if (isr_val & TSB_INTERRUPTSTATUS_LINKLOSTIND) {
             uint32_t lost_ind = 0;
+
+            memset(&last_link_err_reason, 0, sizeof(last_link_err_reason));
             rc = unipro_attr_local_read(TSB_DME_LINKLOSTIND, &lost_ind, 0);
-            if (lost_ind) {
-                unipro_p2p_peer_lost();
+            if (lost_ind & 0x1) {
+                last_link_err_reason.link_lost_ind = lost_ind & 0x1;
+                unipro_p2p_peer_lost(&last_link_err_reason);
+            }
+        }
+
+        if (isr_val & TSB_INTERRUPTSTATUS_PAINITERR) {
+            uint32_t err_status;
+            bool lost = false;
+
+            memset(&last_link_err_reason, 0, sizeof(last_link_err_reason));
+            /* clean any pending errors*/
+            rc = unipro_attr_local_read(TSB_DME_ERRORPHYIND, &err_status, 0);
+            if (err_status & 0xF) {
+                last_link_err_reason.phy_ind = err_status & 0xF;
+                lost = true;
+            }
+            rc = unipro_attr_local_read(TSB_DME_ERRORPAIND, &err_status, 0);
+            if (err_status & 0x3) {
+                last_link_err_reason.pa_ind = err_status & 0x3;
+                lost = true;
+            }
+            rc = unipro_attr_local_read(TSB_DME_ERRORDIND, &err_status, 0);
+            if (err_status & 0x3FFF) {
+                last_link_err_reason.d_ind = err_status & 0x3FFF;
+                lost = true;
+            }
+            if (lost) {
+                unipro_p2p_peer_lost(&last_link_err_reason);
             }
         }
 done:
