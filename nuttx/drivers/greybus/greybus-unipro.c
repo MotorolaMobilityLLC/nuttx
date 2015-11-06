@@ -58,7 +58,7 @@ static int gb_unipro_stop_listening(unsigned int cport)
     return unipro_driver_unregister(cport);
 }
 
-struct gb_transport_backend gb_unipro_backend = {
+const static struct gb_transport_backend gb_unipro_backend = {
     .init = unipro_init,
     .send = unipro_send,
     .listen = gb_unipro_listen,
@@ -70,5 +70,5 @@ struct gb_transport_backend gb_unipro_backend = {
 int gb_unipro_init(void)
 {
     gb_debug("Greybus: register unipro backend\n");
-    return gb_init(&gb_unipro_backend);
+    return gb_init((struct gb_transport_backend *)&gb_unipro_backend);
 }
