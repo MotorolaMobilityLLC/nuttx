@@ -561,7 +561,7 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
 #if CONFIG_MM_REGIONS > 1
 void up_addregion(void)
 {
-#ifndef CONFIG_STM32_CCMEXCLUDE
+#if defined(CONFIG_STM32_HAVE_CCM) && !defined(CONFIG_STM32_CCMEXCLUDE)
 #if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
 
   /* Allow user-mode access to the STM32F20xxx/STM32F40xxx CCM SRAM heap */
