@@ -91,6 +91,8 @@ struct gb_operation_handler {
 };
 
 struct gb_transport_backend {
+    int headroom;
+
     void (*init)(void);
     void (*exit)(void);
     int (*listen)(unsigned int cport);
@@ -105,6 +107,9 @@ struct gb_operation {
     bool has_responded;
     atomic_t ref_count;
     struct timespec time;
+
+    void *request_headroom;
+    void *response_headroom;
 
     void *request_buffer;
     void *response_buffer;

@@ -95,16 +95,8 @@ bool gb_is_valid_cport(unsigned int cport)
 static struct gb_transport_backend *transport_backend;
 static struct gb_tape_mechanism *gb_tape;
 static int gb_tape_fd = -EBADFD;
-static struct gb_operation_hdr timedout_hdr = {
-    .size = sizeof(timedout_hdr),
-    .result = GB_OP_TIMEOUT,
-    .type = GB_TYPE_RESPONSE_FLAG,
-};
-static struct gb_operation_hdr oom_hdr = {
-    .size = sizeof(timedout_hdr),
-    .result = GB_OP_NO_MEMORY,
-    .type = GB_TYPE_RESPONSE_FLAG,
-};
+static struct gb_operation_hdr *timedout_hdr;
+static struct gb_operation_hdr *oom_hdr;
 
 static void g_cport_add_entry(uint16_t cport, struct gb_driver *driver)
 {
@@ -115,7 +107,7 @@ static void g_cport_add_entry(uint16_t cport, struct gb_driver *driver)
         list_init(&entry->rx_fifo);
         list_init(&entry->tx_fifo);
         wd_static(&entry->timeout_wd);
-        entry->timedout_operation.request_buffer = &timedout_hdr;
+        entry->timedout_operation.request_buffer = timedout_hdr;
         list_init(&entry->timedout_operation.list);
         entry->driver = driver;
 
@@ -381,7 +373,7 @@ static void *gb_pending_message_worker(void *data)
         operation = list_entry(head, struct gb_operation, list);
         hdr = operation->request_buffer;
 
-        if (hdr == &timedout_hdr) {
+        if (hdr == timedout_hdr) {
             gb_clean_timedout_operation(cportid);
             continue;
         }
@@ -748,11 +740,11 @@ static int gb_operation_send_oom_response(struct gb_operation *operation)
 
     flags = irqsave();
 
-    oom_hdr.id = req_hdr->id;
-    oom_hdr.type = GB_TYPE_RESPONSE_FLAG | req_hdr->type;
+    oom_hdr->id = req_hdr->id;
+    oom_hdr->type = GB_TYPE_RESPONSE_FLAG | req_hdr->type;
 
-    retval = transport_backend->send(operation->cport, &oom_hdr,
-                                     sizeof(oom_hdr));
+    retval = transport_backend->send(operation->cport, oom_hdr,
+                                     sizeof(*oom_hdr));
 
     irqrestore(flags);
 
@@ -795,7 +787,8 @@ int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
         gb_error("Greybus backend failed to send: error %d\n", retval);
         if (has_allocated_response) {
             gb_debug("Free the response buffer\n");
-            transport_backend->free_buf(operation->response_buffer);
+            transport_backend->free_buf(operation->response_headroom);
+            operation->response_headroom = NULL;
             operation->response_buffer = NULL;
         }
         return retval;
@@ -812,14 +805,16 @@ void *gb_operation_alloc_response(struct gb_operation *operation, size_t size)
 
     DEBUGASSERT(operation);
 
-    operation->response_buffer =
-        transport_backend->alloc_buf(size + sizeof(*resp_hdr));
-    if (!operation->response_buffer) {
+    operation->response_headroom =
+        transport_backend->alloc_buf(
+                size + sizeof(*resp_hdr) + transport_backend->headroom);
+    if (!operation->response_headroom) {
         gb_error("Can not allocate a response_buffer\n");
         return NULL;
     }
 
-    memset(operation->response_buffer, 0, size + sizeof(*resp_hdr));
+    operation->response_buffer =
+        (char *)operation->response_headroom + transport_backend->headroom;
 
     req_hdr = operation->request_buffer;
     resp_hdr = operation->response_buffer;
@@ -854,12 +849,12 @@ void gb_operation_unref(struct gb_operation *operation)
     }
 
     if (operation->is_unipro_rx_buf) {
-        unipro_rxbuf_free(operation->cport, operation->request_buffer);
+        unipro_rxbuf_free(operation->cport, operation->request_headroom);
     } else {
-        transport_backend->free_buf(operation->request_buffer);
+        transport_backend->free_buf(operation->request_headroom);
     }
 
-    transport_backend->free_buf(operation->response_buffer);
+    transport_backend->free_buf(operation->response_headroom);
     if (operation->response) {
         gb_operation_unref(operation->response);
     }
@@ -900,12 +895,14 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
         return NULL;
     }
 
-    operation->request_buffer =
-        transport_backend->alloc_buf(req_size + sizeof(*hdr));
-    if (!operation->request_buffer)
+    operation->request_headroom =
+        transport_backend->alloc_buf(
+                req_size + sizeof(*hdr) + transport_backend->headroom);
+    if (!operation->request_headroom)
         goto malloc_error;
 
-    memset(operation->request_buffer, 0, req_size + sizeof(*hdr));
+    operation->request_buffer =
+        (char *)operation->request_headroom + transport_backend->headroom;
     hdr = operation->request_buffer;
     hdr->size = cpu_to_le16(req_size + sizeof(*hdr));
     hdr->type = type;
@@ -956,6 +953,33 @@ int gb_init(struct gb_transport_backend *transport)
 {
     if (!transport)
         return -EINVAL;
+
+    if (transport->headroom & 0x0003) {
+        dbg("Headroom (%d) not aligned\n", transport->headroom);
+        return -EINVAL;
+    }
+
+    timedout_hdr = zalloc(sizeof(struct gb_operation_hdr) + transport->headroom);
+    if (!timedout_hdr)
+        return -ENOMEM;
+
+    oom_hdr = zalloc(sizeof(struct gb_operation_hdr) + transport->headroom);
+    if (!oom_hdr) {
+        free(timedout_hdr);
+        return -ENOMEM;
+    }
+
+    timedout_hdr =
+        (struct gb_operation_hdr *)((char *)timedout_hdr + transport->headroom);
+    timedout_hdr->size = sizeof(struct gb_operation_hdr);
+    timedout_hdr->result = GB_OP_TIMEOUT;
+    timedout_hdr->type = GB_TYPE_RESPONSE_FLAG;
+
+    oom_hdr =
+        (struct gb_operation_hdr *)((char *)oom_hdr + transport->headroom);
+    oom_hdr->size = sizeof(struct gb_operation_hdr),
+    oom_hdr->result = GB_OP_NO_MEMORY;
+    oom_hdr->type = GB_TYPE_RESPONSE_FLAG;
 
     cport_tbl = rtr_alloc_table();
 
