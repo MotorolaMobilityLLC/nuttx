@@ -31,9 +31,18 @@
 
 #include <stdlib.h>
 
+struct p2p_link_err_reason {
+    uint32_t link_lost_ind;
+    uint32_t phy_ind;
+    uint32_t pa_ind;
+    uint32_t d_ind;
+    uint32_t n_ind;
+    uint32_t t_ind;
+};
+
 void unipro_p2p_setup_connection(unsigned int cport);
 void unipro_p2p_peer_detected(void);
-void unipro_p2p_peer_lost(void);
+void unipro_p2p_peer_lost(struct p2p_link_err_reason *reason);
 void unipro_p2p_setup(void);
 void unipro_p2p_detect_linkloss(void);
 bool unipro_p2p_is_link_up(void);
