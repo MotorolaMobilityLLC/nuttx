@@ -33,7 +33,7 @@
  * Maximum total size (in bytes) of Mods message that can be sent to data
  * link layer.
  */
-#define MODS_DL_PAYLOAD_MAX_SZ (1024)
+#define MODS_DL_PAYLOAD_MAX_SZ (2048)
 
 /****************************************************************************
  * Name: MODS_DL_SEND
