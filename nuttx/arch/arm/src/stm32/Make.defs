@@ -283,3 +283,7 @@ endif
 ifeq ($(CONFIG_ARCH_CHIPID),y)
 CHIP_CSRCS += stm32_getchipid.c
 endif
+
+ifeq ($(CONFIG_GREYBUS),y)
+CHIP_CSRCS += stm32_unipro.c
+endif

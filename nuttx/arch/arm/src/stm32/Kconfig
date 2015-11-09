@@ -3710,6 +3710,14 @@ endmenu
 
 endif # STM32_LTDC
 
+if GREYBUS
+config GREYBUS_MODS_NUM_CPORTS
+	int "Maximum number of CPorts"
+	default 10
+	---help---
+		CPort numbers in the manifest must remain below this number (default 10).
+endif
+
 config GPIO_CHIP_STM32
 	bool "STM32 GPIO Chip support"
 	default n
