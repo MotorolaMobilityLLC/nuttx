@@ -436,7 +436,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     size_t hdr_size;
 
     gb_loopback_log_entry(cport);
-    if ((!gb_is_valid_cport(cport) || !data)) {
+    if ((!gb_is_valid_cport(cport) || (!_g_cport(cport)) || !data)) {
         gb_error("Invalid cport number: %u\n", cport);
         return -EINVAL;
     }
