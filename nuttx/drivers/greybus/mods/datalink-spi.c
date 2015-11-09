@@ -54,8 +54,7 @@
 /* SPI packet header bit definitions */
 #define HDR_BIT_VALID  (0x01 << 7)  /* 1 = valid packet, 0 = dummy packet */
 #define HDR_BIT_TYPE   (0x01 << 6)  /* SPI message type */
-#define HDR_BIT_RSVD   (0x01 << 5)  /* Reserved */
-#define HDR_BIT_PKTS   (0x1F << 0)  /* How many additional packets to expect */
+#define HDR_BIT_PKTS   (0x3F << 0)  /* How many additional packets to expect */
 
 #define MSG_TYPE_DL    (0 << 6)     /* Packet for/from data link layer */
 #define MSG_TYPE_NW    (1 << 6)     /* Packet for/from network layer */
