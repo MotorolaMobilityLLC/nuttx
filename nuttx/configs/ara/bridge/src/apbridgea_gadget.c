@@ -1419,7 +1419,7 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
                     }
                 } else if (ctrl->req == APBRIDGE_WOREQUEST_CPORT_RESET) {
                     if (!(ctrl->type & USB_DIR_IN)) {
-                        ret = reset_cport(index, req, dev->ep0);
+                        ret = reset_cport(value, req, dev->ep0);
                         if (!ret)
                             do_not_send_response = true;
                     } else {
