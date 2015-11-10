@@ -560,6 +560,10 @@ static int wake_isr(int irq, void *context)
 {
   vdbg("Asserted\n");
 
+  /* Any wake interrupts when not attached are spurious */
+  if (mods_spi_dl.bstate != BASE_ATTACHED)
+      return OK;
+
   pm_activity(PM_ACTIVITY_WAKE);
   setup_xfer(&mods_spi_dl);
 
