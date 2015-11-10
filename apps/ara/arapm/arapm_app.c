@@ -48,6 +48,9 @@
 #define DEFAULT_LOOPCOUNT           1
 #define DEFAULT_CONTINUOUS          0
 
+#define LINE_PER_DEVICE             5
+#define HDR_LINE_COUNT              2
+
 /* #define DEBUG_ARAPM */
 
 #undef dbg_verbose
@@ -727,8 +730,10 @@ int arapm_main(int argc, char *argv[])
         if (loopcount != 0) {
             usleep(refresh_rate);
             if (!csv_export) {
-                /* Clear terminal */
-                printf("\033[2J\033[1;1H");
+                /* Rewind */
+                printf("\r\033[%dA", (user_dev_id == pwrmon_num_devs ?
+                                        pwrmon_num_devs * LINE_PER_DEVICE :
+                                        LINE_PER_DEVICE) + HDR_LINE_COUNT);
             }
         }
     } while (loopcount != 0);
