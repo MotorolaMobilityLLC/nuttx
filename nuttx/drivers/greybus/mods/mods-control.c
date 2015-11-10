@@ -39,6 +39,11 @@
 #include <nuttx/greybus/mods-ctrl.h>
 #include <nuttx/greybus/types.h>
 
+#ifdef CONFIG_UNIPRO_P2P
+#include <nuttx/unipro/unipro.h>
+#include <arch/chip/unipro_p2p.h>
+#endif
+
 /* Version of the Greybus control protocol we support */
 #define MB_CONTROL_VERSION_MAJOR              0x00
 #define MB_CONTROL_VERSION_MINOR              0x01
@@ -48,6 +53,8 @@
 #define MB_CONTROL_TYPE_PROTOCOL_VERSION      0x01
 #define MB_CONTROL_TYPE_GET_IDS               0x02
 #define MB_CONTROL_TYPE_REBOOT                0x03
+#define MB_CONTROL_TYPE_PORT_CONNECTED        0x04
+#define MB_CONTROL_TYPE_PORT_DISCONNECTED     0x05
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
@@ -76,6 +83,12 @@ struct gb_control_get_ids_response {
     __le64    uid_high;
     __le32    fw_version;
 } __packed;
+
+/* Control protocol [dis]connected request */
+struct gb_control_connected_request {
+    __le16    cport_id;
+};
+/* Control protocol [dis]connected response has no payload */
 
 static uint8_t gb_control_protocol_version(struct gb_operation *operation)
 {
@@ -211,10 +224,46 @@ static uint8_t gb_control_get_ids(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_control_connected(struct gb_operation *operation)
+{
+    struct gb_control_connected_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+#ifdef CONFIG_UNIPRO_P2P
+    unipro_p2p_setup_connection(le16_to_cpu(request->cport_id));
+#endif
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_control_disconnected(struct gb_operation *operation)
+{
+    struct gb_control_connected_request *request =
+        gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+#ifdef CONFIG_UNIPRO_P2P
+    unipro_reset_cport(le16_to_cpu(request->cport_id), NULL, NULL);
+#endif
+
+    return GB_OP_SUCCESS;
+}
+
 static struct gb_operation_handler mb_control_handlers[] = {
     GB_HANDLER(MB_CONTROL_TYPE_PROTOCOL_VERSION, gb_control_protocol_version),
     GB_HANDLER(MB_CONTROL_TYPE_REBOOT, gb_control_reboot),
     GB_HANDLER(MB_CONTROL_TYPE_GET_IDS, gb_control_get_ids),
+    GB_HANDLER(MB_CONTROL_TYPE_PORT_CONNECTED, gb_control_connected),
+    GB_HANDLER(MB_CONTROL_TYPE_PORT_DISCONNECTED, gb_control_disconnected),
 };
 
 struct gb_driver mb_control_driver = {
