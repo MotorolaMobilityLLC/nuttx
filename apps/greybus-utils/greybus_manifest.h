@@ -64,8 +64,8 @@ enum greybus_protocol {
     /* 0x13 is unused */
     GREYBUS_PROTOCOL_SVC = 0x14,
     GREYBUS_PROTOCOL_FIRMWARE = 0x15,
-    /* ... */
-    GREYBUS_PROTOCOL_MOTO_CAMERA = 0x33,
+	/* ... */
+    GREYBUS_PROTOCOL_CAMERA_EXT = 0xed,
     GREYBUS_PROTOCOL_MODS_DISPLAY = 0xee,
     GREYBUS_PROTOCOL_PTP = 0xef,
     GREYBUS_PROTOCOL_MODS_AUDIO = 0xf0,

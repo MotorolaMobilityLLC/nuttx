@@ -54,7 +54,7 @@ extern void gb_raw_register(int cport);
 extern void gb_vendor_register(int cport);
 extern void gb_lights_register(int cport);
 extern void gb_sdio_register(int cport);
-extern void gb_moto_camera_register(int cport);
+extern void gb_camera_ext_register(int cport);
 extern void gb_firmware_register(int cport);
 extern void gb_aud_register(int cport);
 extern void gb_i2s_direct_tx_register(int cport);
@@ -241,10 +241,10 @@ void enable_cports(void)
         }
 #endif
 
-#ifdef CONFIG_GREYBUS_MOTO_CAMERA
-        if (protocol == GREYBUS_PROTOCOL_MOTO_CAMERA) {
-             gb_info("Registering Moto Camera greybus driver.\n");
-             gb_moto_camera_register(id);
+#ifdef CONFIG_GREYBUS_CAMERA_EXT
+        if (protocol == GREYBUS_PROTOCOL_CAMERA_EXT) {
+             gb_info("Registering CameraExt greybus driver.\n");
+             gb_camera_ext_register(id);
         }
 #endif
 
