@@ -86,6 +86,37 @@ config GREYBUS_TFA9890_I2C_BUS
     ---help---
        I2C bus to use to communicate with device (default 1).
 
+if GREYBUS_MODS_AUDIO_TFA9890
+choice
+  prompt "Select a tfa9890 config mono or stereo"
+config GREYBUS_MODS_AUDIO_TFA9890_STEREO
+  bool "STEREO"
+config GREYBUS_MODS_AUDIO_TFA9890_MONO
+  bool "MONO"
+endchoice
+endif
+
+config GREYBUS_TFA9890_LEFT_I2C_ADDR
+ int "TFA9890 LEFT I2C ADDR"
+    default 52
+    depends on GREYBUS_MODS_AUDIO_TFA9890_STEREO
+    ---help---
+       I2C addr to use to communicate with device (default 52).
+
+config GREYBUS_TFA9890_RIGHT_I2C_ADDR
+ int "TFA9890 RIGHT I2C ADDR"
+    default 53
+    depends on GREYBUS_MODS_AUDIO_TFA9890_STEREO
+    ---help---
+       I2C addr to use to communicate with device (default 53).
+
+config GREYBUS_TFA9890_MONO_I2C_ADDR
+ int "TFA9890 MONO I2C ADDR"
+    default 52
+    depends on GREYBUS_MODS_AUDIO_TFA9890_MONO
+    ---help---
+       I2C addr to use to communicate with device (default 53).
+
 config GREYBUS_LOOPBACK
 	bool "Loopback support"
 	default n

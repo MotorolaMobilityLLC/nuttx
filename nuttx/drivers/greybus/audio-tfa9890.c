@@ -46,21 +46,44 @@
 #include "i2s-gb.h"
 #include "tfa9890.h"
 
-#define NUM_INSTANCES_TFA9890    2
 #define TFA9890_SUPPORTED_USE_CASES (GB_AUDIO_MUSIC_USE_CASE | \
                            GB_AUDIO_VOICE_CALL_SPKR_USE_CASE | \
                            GB_AUDIO_LOW_LATENCY_USE_CASE)
 #define TFA9890_SUPPORTED_OUT_DEVICES    GB_AUDIO_DEVICE_OUT_LOUDSPEAKER
 #define TFA9890_SUPPORTED_IN_DEVICES    GB_AUDIO_DEVICE_IN_EC_REF
-#define TFA9890_LEFT_I2C_ADDR    0x34
-#define TFA9890_RIGHT_I2C_ADDR   0x35
 
 extern struct audio_lowerhalf_s * tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
                                                    uint32_t i2c_addr,
                                                    uint32_t frequency,
                                                    int type);
+
+struct audio_tfa9890_devices {
+     int i2c_addr;
+     int type;
+};
+
+static const struct audio_tfa9890_devices tfa9890_devices[] =
+{
+#if defined (CONFIG_GREYBUS_MODS_AUDIO_TFA9890_STEREO)
+     {
+         .i2c_addr = CONFIG_GREYBUS_TFA9890_LEFT_I2C_ADDR,
+         .type = TFA9890_LEFT,
+     },
+     {
+         .i2c_addr = CONFIG_GREYBUS_TFA9890_RIGHT_I2C_ADDR,
+         .type = TFA9890_RIGHT,
+     }
+#endif
+#if defined (CONFIG_GREYBUS_MODS_AUDIO_TFA9890_MONO)
+     {
+         .i2c_addr = CONFIG_GREYBUS_TFA9890_MONO_I2C_ADDR,
+         .type = TFA9890_MONO,
+     },
+#endif
+};
+
 struct gb_audio_s {
-    struct audio_lowerhalf_s *aud_dev_s[NUM_INSTANCES_TFA9890];
+    struct audio_lowerhalf_s *aud_dev_s[ARRAY_SIZE(tfa9890_devices)];
     bool i2s_port_active;
     uint8_t use_case;
     uint32_t vol_step;
@@ -69,23 +92,6 @@ struct gb_audio_s {
 };
 
 static struct gb_audio_s gb_aud;
-
-struct audio_tfa9890_devices {
-     int i2c_addr;
-     int type;
- };
-
-static const struct audio_tfa9890_devices tfa9890_devices[NUM_INSTANCES_TFA9890] =
-{
-     {
-         .i2c_addr = TFA9890_LEFT_I2C_ADDR,
-         .type = TFA9890_LEFT,
-     },
-     {
-         .i2c_addr = TFA9890_RIGHT_I2C_ADDR,
-         .type = TFA9890_RIGHT,
-     }
-};
 
 static const struct device_i2s_configuration tfa9890_i2s_config_table[] = {
     /* default I2S configuration for tfa9890, IC will operate in this config for all
@@ -124,7 +130,7 @@ int muc_i2s_tfa9890_direct_dev_open(struct device *dev)
        return -ENODEV;
    }
 
-   for (i = 0; i < NUM_INSTANCES_TFA9890; i++)
+   for (i = 0; i < ARRAY_SIZE(tfa9890_devices); i++)
    {
        gb_aud.aud_dev_s[i] = tfa9890_driver_init(i2c_dev,
                                             tfa9890_devices[i].i2c_addr, 400000,
@@ -185,7 +191,7 @@ static int muc_aud_dev_set_current_use_case(struct device *dev, uint32_t use_cas
     caps.ac_format.hw = AUDIO_FU_EQUALIZER;
     caps.ac_controls.hw[0] = use_case;
 
-    for (i = 0; i < NUM_INSTANCES_TFA9890; i++)
+    for (i = 0; i < ARRAY_SIZE(tfa9890_devices); i++)
     {
         aud_dev = gb_aud.aud_dev_s[i];
         if (aud_dev && aud_dev->ops->configure)
@@ -213,7 +219,7 @@ static int muc_aud_dev_set_volume(struct device *dev, uint32_t vol_step)
     caps.ac_format.hw = AUDIO_FU_VOLUME;
     caps.ac_controls.hw[0] = vol_step;
 
-    for (i = 0; i < NUM_INSTANCES_TFA9890; i++)
+    for (i = 0; i < ARRAY_SIZE(tfa9890_devices); i++)
     {
         aud_dev = gb_aud.aud_dev_s[i];
         if (aud_dev && aud_dev->ops->configure)
@@ -241,7 +247,7 @@ static int muc_aud_dev_set_sys_volume(struct device *dev, int vol_db)
     caps.ac_format.hw = AUDIO_FU_LOUDNESS;
     caps.ac_controls.hw[0] = vol_db;
 
-    for (i = 0; i < NUM_INSTANCES_TFA9890; i++)
+    for (i = 0; i < ARRAY_SIZE(tfa9890_devices); i++)
     {
         aud_dev = gb_aud.aud_dev_s[i];
         if (aud_dev && aud_dev->ops->configure)
@@ -358,7 +364,7 @@ static int muc_i2s_tfa9890_direct_op_start_receiver(struct device *dev)
 
     if(!gb_aud.i2s_port_active)
     {
-        for (i = 0; i < NUM_INSTANCES_TFA9890; i++)
+        for (i = 0; i < ARRAY_SIZE(tfa9890_devices); i++)
         {
            aud_dev = gb_aud.aud_dev_s[i];
            if (aud_dev && aud_dev->ops->start)
@@ -383,7 +389,7 @@ static int muc_i2s_tfa9890_direct_op_stop_receiver(struct device *dev)
 
     if(gb_aud.i2s_port_active)
     {
-        for (i = 0; i < NUM_INSTANCES_TFA9890; i++)
+        for (i = 0; i < ARRAY_SIZE(tfa9890_devices); i++)
         {
            aud_dev = gb_aud.aud_dev_s[i];
            if (aud_dev && aud_dev->ops->stop)
