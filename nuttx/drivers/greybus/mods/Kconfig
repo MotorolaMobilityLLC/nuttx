@@ -72,3 +72,19 @@ config GREYBUS_MODS_INPUT_VOLTAGE
 	int "Input voltage limit in mV"
 	default 4500
 endif
+
+if DEBUG
+config GREYBUS_SELF_DESTRUCT
+    bool "Support self blanking code - WARNING Debug release only"
+    default n
+
+if GREYBUS_SELF_DESTRUCT
+    config GREYBUS_SELF_DESTRUCT_START
+      hex  "Start address to erase"
+      default 0x08000000
+
+    config GREYBUS_SELF_DESTRUCT_END
+      hex  "End address to erase"
+      default 0x08007fff
+endif
+endif

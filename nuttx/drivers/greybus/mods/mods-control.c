@@ -32,6 +32,7 @@
 #include <arch/byteorder.h>
 #include <nuttx/arch.h>
 #include <nuttx/bootmode.h>
+#include <nuttx/progmem.h>
 #include <nuttx/version.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
@@ -51,6 +52,7 @@
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
 #define MB_CONTROL_REBOOT_MODE_BOOTLOADER     0x02
+#define MB_CONTROL_REBOOT_MODE_SELF_DESTRUCT  0x03
 
 /* version request has no payload */
 struct gb_control_proto_version_response {
@@ -115,6 +117,44 @@ static uint8_t gb_control_reboot_reset(struct gb_operation *operation)
     return GB_OP_INVALID;
 }
 
+#ifdef GREYBUS_SELF_DESTRUCT
+/**
+ * @brief Self destruct so we go into blank flash
+ */
+static uint8_t mb_control_self_destruct(void)
+{
+    ssize_t page_start;
+    ssize_t page_end;
+    size_t page;
+    size_t page_size;
+    ssize_t size_erased;
+
+    page_start = up_progmem_getpage(GREYBUS_SELF_DESTRUCT_START);
+    if (page_start < 0)
+        return GB_OP_INVALID;
+
+    page_end = up_progmem_getpage(GREYBUS_SELF_DESTRUCT_END);
+    if (page_end < 0)
+        return GB_OP_INVALID;
+
+    /* now lets erase the pages we need */
+    for (page = page_start; page <= page_end; page++) {
+        page_size = up_progmem_pagesize(page);
+
+        size_erased = up_progmem_erasepage(page);
+        if (size_erased != page_size) {
+            break;
+        }
+    }
+
+#ifdef CONFIG_ARCH_HAVE_SYSRESET
+    up_systemreset(); /* will not return */
+#endif
+
+    return GB_OP_SUCCESS;
+}
+#endif
+
 /**
  * @brief performs the desired reboot type specified in the mode field
  * of the request.
@@ -134,6 +174,10 @@ static uint8_t gb_control_reboot(struct gb_operation *operation)
         return gb_control_reboot_flash(operation);
     case MB_CONTROL_REBOOT_MODE_RESET:
         return gb_control_reboot_reset(operation);
+#ifdef GREYBUS_SELF_DESTRUCT
+    case MB_CONTROL_REBOOT_MODE_SELF_DESTRUCT:
+        return mb_control_self_destruct();
+#endif
     }
 
     gb_error("unsupported reboot mode\n");
