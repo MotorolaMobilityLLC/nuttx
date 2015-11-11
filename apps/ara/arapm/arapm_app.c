@@ -275,7 +275,7 @@ static int arapm_main_get_user_options(int argc, char **argv)
     csv_export = false;
 
     dbg_verbose("%s(): retrieving user options...\n", __func__);
-    optind = 1;
+    optind = -1;
     while ((c = getopt(argc, argv, "xhcd:r:l:u:i:t:n:")) != 255) {
         switch (c) {
         case 'd':
