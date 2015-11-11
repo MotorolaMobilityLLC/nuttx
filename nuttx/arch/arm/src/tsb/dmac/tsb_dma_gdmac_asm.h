@@ -70,8 +70,8 @@
 #define DMALD                       (0x04)
 #define DMALDS                      (0x05)
 #define DMALDB                      (0x07)
-#define DMALDPS                     (0x25), (peripheral << 3)
-#define DMALDPB                     (0x27), (peripheral << 3)
+#define DMALDPS(peripheral)         (0x25), (peripheral << 3)
+#define DMALDPB(peripheral)         (0x27), (peripheral << 3)
 #define DMALP(lc, iter)             (0x20 | DMALP_##lc), iter
 #define DMALPEND(lc, value)         (0x28 | DMALPEND_##lc), value
 #define DMALPENDS(lc, value)        (0x39 | DMALPENDT_##lc), value
