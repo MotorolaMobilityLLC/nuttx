@@ -49,7 +49,7 @@ int up_getchipid(uint32_t *vid, uint32_t *pid)
   if (pid) {
     uint32_t v = 0;
 #ifdef STM32_DBGMCU_IDCODE
-    v = getreg32(STM32_DBGMCU_IDCODE);
+    v = getreg32(STM32_DBGMCU_IDCODE) & 0x0000ffff;
 #endif
     *pid = v;
   }
