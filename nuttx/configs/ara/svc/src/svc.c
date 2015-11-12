@@ -721,6 +721,7 @@ int svcd_start(void) {
     rc = task_create("svcd", SVCD_PRIORITY, SVCD_STACK_SIZE, svcd_main, NULL);
     if (rc == ERROR) {
         dbg_error("failed to start svcd\n");
+        pthread_mutex_unlock(&svc->lock);
         return rc;
     }
     svc->svcd_pid = rc;
