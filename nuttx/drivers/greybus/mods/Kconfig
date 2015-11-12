@@ -5,6 +5,9 @@ config GREYBUS_MODS_SPI
 
 config GREYBUS_MODS_I2C
 	bool "I2C"
+
+config GREYBUS_MODS_UART
+	bool "UART"
 endchoice
 
 config GREYBUS_MODS_ATTACH
