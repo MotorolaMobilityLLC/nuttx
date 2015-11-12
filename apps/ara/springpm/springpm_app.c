@@ -152,7 +152,7 @@ static int pwrm_main_get_user_options(int argc, char **argv)
     csv_export = false;
 
     dbg_verbose("%s(): retrieving user options...\n", __func__);
-    optind = 1;
+    optind = -1;
     while ((c = getopt(argc, argv, "xhcs:n:u:l:")) != 255) {
         switch (c) {
         case 's':
