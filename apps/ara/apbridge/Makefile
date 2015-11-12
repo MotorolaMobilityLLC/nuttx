@@ -70,9 +70,6 @@ MAINSRC = apbridge.c
 ifeq ($(CONFIG_APBRIDGEA_UNIPRO),y)
 MAINSRC += unipro.c
 endif
-ifeq ($(CONFIG_APBRIDGEA_GBSIM),y)
-MAINSRC += gbsim.c
-endif
 ifeq ($(CONFIG_APBRIDGEA_DUMMY),y)
 MAINSRC += dummy.c
 endif

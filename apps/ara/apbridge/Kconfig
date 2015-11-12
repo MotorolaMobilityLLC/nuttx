@@ -48,14 +48,6 @@ config APBRIDGEA_UNIPRO
 	depends on APBRIDGEA
 	---help---
 		The firmware will act as bridge between UniPro and USB.
-config APBRIDGEA_GBSIM
-	bool "Enable GBSIM mode on APBridgeA"
-	depends on APBRIDGEA
-	select GREYBUS
-	---help---
-		Enable GBSIM on APBridgeA.  This provides GBSIM-like
-		functionality on APBridgeA.  APBridgeA is the APBridge
-		on the AP module.
 config APBRIDGEA_DUMMY
 	bool "Enable dummy mode on APBridgeA"
 	depends on APBRIDGEA
