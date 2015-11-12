@@ -95,7 +95,12 @@ config GREYBUS_PTP_CHG_DEVICE_BQ24292
 	default n
 	depends on GREYBUS_MODS_PTP_DEVICE_BATTERY && CHARGER_BQ24292 && GPIO
 
+config PAD_DETECT
+	bool "Wireless charger pad state notifier"
+	default n
+
 config PAD_DETECT_DEVICE_GPIO
 	bool "Wireless pad detection through GPIO state"
+	depends on PAD_DETECT
 	default n
 	select GPIO
