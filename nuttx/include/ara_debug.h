@@ -61,12 +61,12 @@
  * Debug dump function, to be used by components code.
  * Every caller has to define its own DBG_COMP macro.
  */
-#define dbg_pr(level, fmt, ...)                                  \
-    do {                                                         \
-        if ((dbg_ctrl.comp & DBG_COMP) &&                        \
-            (level >= dbg_ctrl.lvl)) {                           \
-            printf("[" xstr(DBG_COMP) "]: " fmt, ##__VA_ARGS__); \
-        }                                                        \
+#define dbg_pr(level, fmt, ...)                                     \
+    do {                                                            \
+        if ((dbg_ctrl.comp & DBG_COMP) &&                           \
+            (level >= dbg_ctrl.lvl)) {                              \
+            lowsyslog("[" xstr(DBG_COMP) "]: " fmt, ##__VA_ARGS__); \
+        }                                                           \
    } while (0)
 
 /*
