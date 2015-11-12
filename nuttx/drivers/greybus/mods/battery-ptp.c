@@ -27,11 +27,11 @@
  */
 
 #include <nuttx/device.h>
-#include <nuttx/device_pad_det.h>
 #include <nuttx/device_ptp.h>
 #include <nuttx/device_ptp_chg.h>
 #include <nuttx/greybus/mods.h>
 #include <nuttx/power/battery_state.h>
+#include <nuttx/power/pad_det.h>
 
 #include <debug.h>
 #include <errno.h>
@@ -68,7 +68,6 @@ struct ptp_info {
     struct device *chg_dev; /* current control */
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     ptp_ext_power_cb ext_power_changed_cb; /* callback to client*/
-    struct device *pad_dev; /* docked notifications */
 #endif
     ptp_power_required_cb power_required_changed_cb; /* callback to client */
 };
@@ -474,31 +473,23 @@ static int batt_ptp_open(struct device *dev)
     }
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    info->pad_dev = device_open(DEVICE_TYPE_PAD_DET_HW, 0);
-    if (!info->pad_dev) {
-        dbg("failed to open pad detect device\n");
-        retval = -EIO;
-        goto pad_dev_err;
-    }
-
-    retval = device_pad_det_register_callback(info->pad_dev,
-                                              batt_ptp_docked_changed, info);
+    retval = pad_det_register_callback(batt_ptp_docked_changed, info);
     if (retval) {
         dbg("failed to register pad callback\n");
-        goto pad_cb_err;
+        goto pad_err;
     }
 #endif
 
     retval = battery_state_register(batt_ptp_battery_changed, info);
     if (retval) {
         dbg("failed to register mods_battery callback\n");
-        goto att_err;
+        goto batt_err;
     }
 
     retval = mods_attach_register(batt_ptp_attach_changed, info);
     if (retval) {
         dbg("failed to register mods_attach callback\n");
-        goto att_err;
+        goto atch_err;
     }
 
     batt_ptp_process(info->chg_dev, &info->state);
@@ -506,13 +497,12 @@ static int batt_ptp_open(struct device *dev)
 
     return 0;
 
-att_err:
+atch_err:
+batt_err:
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-pad_cb_err:
-    device_close(info->pad_dev);
-pad_dev_err:
-    device_close(info->chg_dev);
+pad_err:
 #endif
+    device_close(info->chg_dev);
 chg_err:
     sem_destroy(&info->sem);
     return retval;
