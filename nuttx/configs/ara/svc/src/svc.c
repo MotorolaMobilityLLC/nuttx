@@ -578,16 +578,25 @@ static int svc_consume_hotplug_events(void)
  * The actual hotplug event will be sent to the AP after the
  * handshake mechanism with the bridge succeeds.
  */
- int svc_hot_plug(uint8_t portid)
- {
-    pthread_mutex_lock(&svc->lock);
+int svc_hot_plug(uint8_t portid)
+{
+    bool release_mutex;
+    int retval;
+
+    retval = pthread_mutex_lock(&svc->lock);
+    release_mutex = !retval;
+    if (retval != 0 && retval != EDEADLK) {
+        return retval;
+    }
 
     if (!svc->ap_initialized) {
         /* If AP is not ready yet, store the state for later retrieval */
         interface_store_hotplug_state(portid, HOTPLUG_ST_PLUGGED);
     }
 
-    pthread_mutex_unlock(&svc->lock);
+    if (release_mutex) {
+        pthread_mutex_unlock(&svc->lock);
+    }
 
     return 0;
 }
@@ -597,10 +606,15 @@ static int svc_consume_hotplug_events(void)
  */
 int svc_hot_unplug(uint8_t portid)
 {
+    bool release_mutex;
     struct svc_event *svc_ev;
     int rc = 0;
 
-    pthread_mutex_lock(&svc->lock);
+    rc = pthread_mutex_lock(&svc->lock);
+    release_mutex = !rc;
+    if (rc != 0 && rc != EDEADLK) {
+        return rc;
+    }
 
     if (svc->ap_initialized) {
         /*
@@ -626,7 +640,9 @@ int svc_hot_unplug(uint8_t portid)
     }
 
 out:
-    pthread_mutex_unlock(&svc->lock);
+    if (release_mutex) {
+        pthread_mutex_unlock(&svc->lock);
+    }
 
     return rc;
 }
@@ -660,7 +676,7 @@ static int svc_handle_events(void) {
 /* state helpers */
 #define svcd_state_running() (svc->state == SVC_STATE_RUNNING)
 #define svcd_state_stopped() (svc->state == SVC_STATE_STOPPED)
-static inline void svcd_set_state(enum svc_state state){
+static inline void svcd_set_state(enum svc_state state) {
     svc->state = state;
 }
 
