@@ -36,6 +36,8 @@
 
 #define CPORT_BUF_SIZE              (2048)
 
+#define INFINITE_MAX_INFLIGHT_BUFCOUNT      0
+
 typedef int (*unipro_send_completion_t)(int status, const void *buf,
                                         void *priv);
 typedef void (*cport_reset_completion_cb_t)(unsigned int cportid, void *data);
@@ -57,6 +59,10 @@ int unipro_unpause_rx(unsigned int cportid);
 int unipro_reset_cport(unsigned int cportid, cport_reset_completion_cb_t cb,
                        void *priv);
 
+int unipro_set_max_inflight_rxbuf_count(unsigned int cportid,
+                                        size_t max_inflight_buf);
+void *unipro_rxbuf_alloc(unsigned int cportid);
+void unipro_rxbuf_free(unsigned int cportid, void *ptr);
 
 /*
  * UniPro attributes

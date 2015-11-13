@@ -29,7 +29,11 @@
 #ifndef __TSB_UNIPRO_H__
 #define __TSB_UNIPRO_H__
 
+#include <stdbool.h>
+
+#include <arch/atomic.h>
 #include <nuttx/unipro/unipro.h>
+#include <nuttx/list.h>
 
 #ifdef UNIPRO_DEBUG
 #define DBG_UNIPRO(fmt, ...) lldbg(fmt, __VA_ARGS__)
@@ -52,6 +56,10 @@ struct cport {
     volatile bool pending_reset;
     cport_reset_completion_cb_t reset_completion_cb;
     void *reset_completion_cb_priv;
+
+    atomic_t inflight_buf_count;
+    size_t max_inflight_buf_count;
+    bool switch_buf_on_free;
 
     struct list_head tx_fifo;
 };
