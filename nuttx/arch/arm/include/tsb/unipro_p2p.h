@@ -40,6 +40,7 @@ struct p2p_link_err_reason {
     uint32_t t_ind;
 };
 
+uint32_t unipro_p2p_get_boot_status(void);
 void unipro_p2p_setup_connection(unsigned int cport);
 void unipro_p2p_peer_detected(void);
 void unipro_p2p_peer_lost(struct p2p_link_err_reason *reason);

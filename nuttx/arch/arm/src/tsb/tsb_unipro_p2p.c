@@ -169,6 +169,18 @@ static int unipro_mbox_enable_cport(uint32_t cport) {
     return rc;
 }
 
+uint32_t unipro_p2p_get_boot_status(void) {
+    uint32_t boot_status = INIT_STATUS_UNINITIALIZED;
+    int rc = unipro_attr_peer_read(DME_DDBL2_INIT_STATUS, &boot_status, 0 /* selector */);
+    if (rc) {
+        lldbg("Failed to read boot mode\n");
+    } else {
+        boot_status = TSB_READ_STATUS(boot_status);
+    }
+
+    return boot_status;
+}
+
 void unipro_p2p_setup_connection(unsigned int cport) {
     /* Set-up the L4 attributes */
     uint32_t cport_flags = CPORT_FLAGS_CSV_N;
@@ -177,18 +189,12 @@ void unipro_p2p_setup_connection(unsigned int cport) {
     const uint32_t max_segment = 0x118;
     const uint32_t default_buffer_space = 0x240;
 
-    uint32_t boot_mode = 0;
-    int rc = unipro_attr_peer_read(DME_DDBL2_INIT_STATUS, &boot_mode, 0 /* selector */);
-    if (rc) {
-        lldbg("Failed to read boot mode\n");
+    uint32_t boot_mode = unipro_p2p_get_boot_status();
+    if (boot_mode == INIT_STATUS_UNIPRO_BOOT_STARTED ||
+        boot_mode == INIT_STATUS_FALLLBACK_UNIPRO_BOOT_STARTED) {
+        cport_flags |= CPORT_FLAGS_CSD_N;
     } else {
-        boot_mode = TSB_READ_STATUS(boot_mode);
-        if (boot_mode == INIT_STATUS_UNIPRO_BOOT_STARTED ||
-            boot_mode == INIT_STATUS_FALLLBACK_UNIPRO_BOOT_STARTED) {
-            cport_flags |= CPORT_FLAGS_CSD_N;
-        } else {
-            cport_flags |= CPORT_FLAGS_E2EFC;
-        }
+        cport_flags |= CPORT_FLAGS_E2EFC;
     }
 
     /* Disable CPORTs before making changes. */
