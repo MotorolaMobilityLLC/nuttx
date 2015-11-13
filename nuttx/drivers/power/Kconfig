@@ -104,3 +104,23 @@ config PAD_DETECT_DEVICE_GPIO
 	depends on PAD_DETECT
 	default n
 	select GPIO
+
+config WRLS_COIL_ADC
+	bool "Wireless coil temperature monitoring via ADC"
+	depends on ADC && !DISABLE_POLL
+	default n
+
+config WRLS_COIL_ADC_DEVPATH
+	string "ADC device path"
+	depends on WRLS_COIL_ADC
+	default "/dev/adc0"
+
+config WRLS_COIL_ADC_HOT
+	int "Hot temp ADC value"
+	depends on WRLS_COIL_ADC
+	default 1000
+
+config WRLS_COIL_ADC_NORMAL
+	int "Normal temp ADC value"
+	depends on WRLS_COIL_ADC
+	default 1100
