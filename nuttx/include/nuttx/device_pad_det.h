@@ -43,7 +43,7 @@ struct device_pad_det_type_ops {
     int (*register_callback)(struct device *dev, pad_detect cb, void *arg);
 };
 
-static int device_pad_det_register_callback(struct device *dev, pad_detect cb,
+static inline int device_pad_det_register_callback(struct device *dev, pad_detect cb,
                                             void* arg)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
