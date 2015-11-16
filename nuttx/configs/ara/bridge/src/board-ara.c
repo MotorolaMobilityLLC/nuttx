@@ -31,6 +31,7 @@
 #include <stdlib.h>
 
 #include <nuttx/config.h>
+#include <nuttx/bufram.h>
 
 #include <arch/board/board.h>
 #include <arch/chip/gpio.h>
@@ -40,6 +41,16 @@
 void board_initialize(void)
 {
     ara_module_early_init();
+
+    bufram_init();
+
+    /*
+     * Region's size must be power of 2, but the size of the full bufram is not
+     * a power of 2, so split it into two regions: one of 64k and the other
+     * one of 128k.
+     */
+    bufram_register_region(BUFRAM_BASE, 16);
+    bufram_register_region(BUFRAM_BASE + (1 << 16), 17);
 
     tsb_gpio_register(NULL);
 
