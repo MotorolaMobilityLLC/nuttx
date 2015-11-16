@@ -299,7 +299,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)arg;
 
-  if ((priv->bstate != state) && (state == BASE_DETACHED))
+  if ((priv->bstate != state) && (state != BASE_ATTACHED))
     {
       vdbg("Cleaning up datalink\n");
 
