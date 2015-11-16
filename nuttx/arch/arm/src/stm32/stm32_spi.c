@@ -882,6 +882,16 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
           spi_putreg(priv, STM32_SPI_SR_OFFSET, status);
           spivdbg("CRC error on read\n");
 
+          /*
+           * If the master sent too many bytes (as indicated by the RX buffer
+           * being not empty), reset the SPI block to clear the FIFO.
+           */
+          if (status & SPI_SR_RXNE)
+            {
+              spi_portreset(priv);
+              spi_portinitialize(priv);
+            }
+
           CALL_CB_IF_SET(priv, txn_err);
         }
       else
