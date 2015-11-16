@@ -125,7 +125,7 @@ static struct usbdev_req_s *alloc_request(struct usbdev_ep_s *ep,
 
     /* Only allocate request buffer for OUT requests */
     if (len && ep->eplog % 2 == 0) {
-        req->buf = EP_ALLOCBUFFER(ep, len);
+        req->buf = bufram_page_alloc(bufram_size_to_page_count(len));
         if (!req->buf) {
             EP_FREEREQ(ep, req);
             return NULL;
@@ -143,7 +143,7 @@ static void free_request(struct usbdev_ep_s *ep, struct usbdev_req_s *req)
 
     if (req->buf != NULL) {
         if (ep->eplog % 2 == 0) /* free only OUT requests */
-            EP_FREEBUFFER(ep, req->buf);
+            bufram_page_free(req->buf, bufram_size_to_page_count(req->len));
         req->buf = NULL;
         req->len = 0;
     }
