@@ -1068,7 +1068,7 @@ static inline void spi_dmatxstart(FAR struct stm32_spidev_s *priv)
  *
  ************************************************************************************/
 
-#ifdef CONFIG_STM32_SPI_DMA
+#if defined(CONFIG_STM32_SPI_DMA) && defined(CONFIG_SPI_SLAVE)
 static void spi_rxtxdmastop_slave(FAR struct spi_dev_s *dev)
 {
   FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
@@ -1076,6 +1076,8 @@ static void spi_rxtxdmastop_slave(FAR struct spi_dev_s *dev)
   spi_modifycr1(priv, SPI_CR1_SSM, 0);
   stm32_dmastop(priv->txdma);
   stm32_dmastop(priv->rxdma);
+
+  priv->xfering = false;
 
   spi_portreset(priv);
   spi_portinitialize(priv);
