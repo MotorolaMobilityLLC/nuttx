@@ -109,9 +109,15 @@ static int apbridge_init(struct apbridge_dev_s *priv)
     return ret;
 }
 
+static void unipro_cport_mapping(unsigned int cportid, enum ep_mapping mapping)
+{
+    apbridge_backend.unipro_cport_mapping(cportid, mapping);
+}
+
 static struct apbridge_usb_driver usb_driver = {
     .usb_to_unipro = usb_to_unipro,
     .init = apbridge_init,
+    .unipro_cport_mapping = unipro_cport_mapping,
 };
 
 static struct srvmgr_service services[] = {

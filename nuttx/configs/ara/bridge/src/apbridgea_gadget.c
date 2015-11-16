@@ -522,9 +522,16 @@ void map_cport_to_ep(struct apbridge_dev_s *priv,
 {
     unsigned int cportid = le16_to_cpu(cport_to_ep->cport_id);
     uint8_t ep_out = cport_to_ep->endpoint_out - CONFIG_APBRIDGE_EPBULKOUT;
+    bool is_multiplexed = cport_to_ep->endpoint_in == CONFIG_APBRIDGE_EPBULKIN;
 
     priv->cport_to_epin_n[cportid] = cport_to_ep->endpoint_in;
     priv->epout_to_cport_n[ep_out >> 1] = cportid;
+
+    if (priv->driver->unipro_cport_mapping) {
+        priv->driver->unipro_cport_mapping(cportid,
+                                           is_multiplexed ? MULTIPLEXED_EP
+                                                          : DIRECT_EP);
+    }
 }
 
 /****************************************************************************

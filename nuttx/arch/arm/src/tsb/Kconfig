@@ -218,6 +218,17 @@ config UNIPRO_ZERO_COPY
 	bool
 	default y
 
+config TSB_UNIPRO_MAX_INFLIGHT_BUFCOUNT
+	int "UniPro max inflight RX buffers per CPort"
+	default 0
+	---help---
+		Maximum number of inflight UniPro RX buffers per CPort. A value
+		of 0 means that there can be an infinite number of inflight
+		buffers.
+		On APBridgeA the default inflight bufcount is 1 because by
+		default CPorts are muxed on one EP. TSB_UNIPRO_MAX_INFLIGHT_BUFCOUNT
+		will be used for direct mapped-endpoint.
+
 choice
 	prompt "Drive Strength for the TRACE Signals"
 	default TSB_TRACE_DRIVESTRENGTH_MAX

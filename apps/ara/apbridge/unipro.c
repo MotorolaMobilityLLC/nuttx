@@ -79,8 +79,23 @@ static void unipro_backend_init(void)
     tsb_unipro_mbox_send(TSB_MAIL_READY_AP);
 }
 
+static void unipro_cport_mapping(unsigned int cportid, enum ep_mapping mapping)
+{
+    switch (mapping) {
+    case MULTIPLEXED_EP:
+        unipro_set_max_inflight_rxbuf_count(cportid, 1);
+        break;
+
+    case DIRECT_EP:
+        unipro_set_max_inflight_rxbuf_count(cportid,
+                                    CONFIG_TSB_UNIPRO_MAX_INFLIGHT_BUFCOUNT);
+        break;
+    }
+}
+
 void apbridge_backend_register(struct apbridge_backend *apbridge_backend)
 {
     apbridge_backend->usb_to_unipro = unipro_usb_to_unipro;
     apbridge_backend->init = unipro_backend_init;
+    apbridge_backend->unipro_cport_mapping = unipro_cport_mapping;
 }

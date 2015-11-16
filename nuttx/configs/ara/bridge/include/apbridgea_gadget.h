@@ -33,11 +33,18 @@
 
 struct apbridge_dev_s;
 
+enum ep_mapping {
+    MULTIPLEXED_EP,
+    DIRECT_EP,
+};
+
 struct apbridge_usb_driver
 {
-  int (*usb_to_unipro)(struct apbridge_dev_s *dev, unsigned int cportid,
-                       void *payload, size_t size);
-  int (*init)(struct apbridge_dev_s *dev);
+    int (*usb_to_unipro)(struct apbridge_dev_s *dev, unsigned int cportid,
+                         void *payload, size_t size);
+    int (*init)(struct apbridge_dev_s *dev);
+
+    void (*unipro_cport_mapping)(unsigned int cportid, enum ep_mapping mapping);
 };
 
 int unipro_to_usb(struct apbridge_dev_s *dev, unsigned cportid,
