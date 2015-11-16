@@ -57,11 +57,6 @@
 
 #define CPORT_SW_RESET_BITS 3
 
-#define CPORT_RX_BUF_BASE         (0x20000000U)
-#define CPORT_RX_BUF_SIZE         (CPORT_BUF_SIZE)
-#define CPORT_RX_BUF(cport)       (void*)(CPORT_RX_BUF_BASE + \
-                                      (CPORT_RX_BUF_SIZE * cport))
-
 #define CPORT_TX_BUF_BASE         (0x50000000U)
 #define CPORT_TX_BUF(cport)       (uint8_t*)(CPORT_TX_BUF_BASE + \
                                       (CPORT_TX_BUF_SIZE * cport))
@@ -691,12 +686,7 @@ static int unipro_init_cport(unsigned int cportid)
     else
         ahm_address = AHM_ADDRESS_00 + ((cportid - 2) * sizeof(uint32_t));
 
-    /*
-     * FIXME: We presently specify a fixed receive buffer address
-     *        for each CPort.  That approach won't work for a
-     *        pipelined zero-copy system.
-     */
-    unipro_write(ahm_address, (uint32_t)CPORT_RX_BUF(cportid));
+    unipro_write(ahm_address, (uint32_t) cport->rx_buf);
 
 #ifdef UNIPRO_DEBUG
     unipro_info();
@@ -736,7 +726,8 @@ void unipro_init(void)
     for (i = 0; i < cport_count; i++) {
         cport = &cporttable[i];
         cport->tx_buf = CPORT_TX_BUF(i);
-        cport->rx_buf = CPORT_RX_BUF(i);
+        cport->rx_buf =
+            bufram_page_alloc(bufram_size_to_page_count(CPORT_BUF_SIZE));
         cport->cportid = i;
         cport->connected = 0;
         list_init(&cport->tx_fifo);
