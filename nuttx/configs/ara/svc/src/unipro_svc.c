@@ -110,3 +110,7 @@ void unipro_if_rx(unsigned int cportid, void *data, size_t len) {
     drv->rx_handler(cportid, data, len);
     irqrestore(flags);
 }
+
+void unipro_rxbuf_free(unsigned int cportid, void *ptr)
+{
+}

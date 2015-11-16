@@ -38,7 +38,6 @@ static int gb_unipro_rx_handler(unsigned int cport, void *data, size_t size)
     int retval;
 
     retval = greybus_rx_handler(cport, data, size);
-    unipro_rxbuf_free(cport, data);
 
     return retval;
 }

@@ -85,6 +85,7 @@ static struct gb_operation_hdr oom_hdr = {
 };
 
 static void gb_operation_timeout(int argc, uint32_t cport, ...);
+static struct gb_operation *_gb_operation_create(unsigned int cport);
 
 uint8_t gb_errno_to_op_result(int err)
 {
@@ -351,6 +352,37 @@ static void *gb_pending_message_worker(void *data)
     return NULL;
 }
 
+#if defined(CONFIG_UNIPRO_ZERO_COPY)
+static struct gb_operation *gb_rx_create_operation(unsigned cport, void *data,
+                                                   size_t size)
+{
+    struct gb_operation *op;
+
+    op = _gb_operation_create(cport);
+    if (!op)
+        return NULL;
+
+    op->is_unipro_rx_buf = true;
+    op->request_buffer = data;
+
+    return op;
+}
+#else
+static struct gb_operation *gb_rx_create_operation(unsigned cport, void *data,
+                                                   size_t size)
+{
+    struct gb_operation *op;
+
+    op = gb_operation_create(cport, 0, size - sizeof(struct gb_operation_hdr));
+    if (!op)
+        return NULL;
+
+    memcpy(op->request_buffer, data, size);
+
+    return op;
+}
+#endif
+
 int greybus_rx_handler(unsigned int cport, void *data, size_t size)
 {
     irqstate_t flags;
@@ -401,11 +433,10 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
         return 0;
     }
 
-    op = gb_operation_create(cport, 0, hdr_size - sizeof(*hdr));
+    op = gb_rx_create_operation(cport, data, hdr_size);
     if (!op)
         return -ENOMEM;
 
-    memcpy(op->request_buffer, data, hdr_size);
     op_mark_recv_time(op);
 
     flags = irqsave();
@@ -724,7 +755,12 @@ void gb_operation_unref(struct gb_operation *operation)
         return;
     }
 
-    free(operation->request_buffer);
+    if (operation->is_unipro_rx_buf) {
+        unipro_rxbuf_free(operation->cport, operation->request_buffer);
+    } else {
+        free(operation->request_buffer);
+    }
+
     free(operation->response_buffer);
     if (operation->response) {
         gb_operation_unref(operation->response);
@@ -732,12 +768,9 @@ void gb_operation_unref(struct gb_operation *operation)
     free(operation);
 }
 
-
-struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
-                                         uint32_t req_size)
+static struct gb_operation *_gb_operation_create(unsigned int cport)
 {
     struct gb_operation *operation;
-    struct gb_operation_hdr *hdr;
 
     if (cport >= unipro_cport_count())
         return NULL;
@@ -749,6 +782,26 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
     memset(operation, 0, sizeof(*operation));
     operation->cport = cport;
 
+    list_init(&operation->list);
+    atomic_init(&operation->ref_count, 1);
+
+    return operation;
+}
+
+struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
+                                         uint32_t req_size)
+{
+    struct gb_operation *operation;
+    struct gb_operation_hdr *hdr;
+
+    if (cport >= unipro_cport_count())
+        return NULL;
+
+    operation = _gb_operation_create(cport);
+    if (!operation) {
+        return NULL;
+    }
+
     operation->request_buffer = malloc(req_size + sizeof(*hdr));
     if (!operation->request_buffer)
         goto malloc_error;
@@ -757,9 +810,6 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
     hdr = operation->request_buffer;
     hdr->size = cpu_to_le16(req_size + sizeof(*hdr));
     hdr->type = type;
-
-    list_init(&operation->list);
-    atomic_init(&operation->ref_count, 1);
 
     return operation;
 malloc_error:

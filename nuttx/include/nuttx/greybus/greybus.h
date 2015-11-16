@@ -100,6 +100,7 @@ struct gb_operation {
 
     void *request_buffer;
     void *response_buffer;
+    bool is_unipro_rx_buf;
 
     gb_operation_callback callback;
     sem_t sync_sem;
