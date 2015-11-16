@@ -698,7 +698,7 @@ int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
         gb_error("Greybus backend failed to send: error %d\n", retval);
         if (has_allocated_response) {
             gb_debug("Free the response buffer\n");
-            free(operation->response_buffer);
+            transport_backend->free_buf(operation->response_buffer);
             operation->response_buffer = NULL;
         }
         return retval;
@@ -715,7 +715,8 @@ void *gb_operation_alloc_response(struct gb_operation *operation, size_t size)
 
     DEBUGASSERT(operation);
 
-    operation->response_buffer = malloc(size + sizeof(*resp_hdr));
+    operation->response_buffer =
+        transport_backend->alloc_buf(size + sizeof(*resp_hdr));
     if (!operation->response_buffer) {
         gb_error("Can not allocate a response_buffer\n");
         return NULL;
@@ -758,10 +759,10 @@ void gb_operation_unref(struct gb_operation *operation)
     if (operation->is_unipro_rx_buf) {
         unipro_rxbuf_free(operation->cport, operation->request_buffer);
     } else {
-        free(operation->request_buffer);
+        transport_backend->free_buf(operation->request_buffer);
     }
 
-    free(operation->response_buffer);
+    transport_backend->free_buf(operation->response_buffer);
     if (operation->response) {
         gb_operation_unref(operation->response);
     }
@@ -802,7 +803,8 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
         return NULL;
     }
 
-    operation->request_buffer = malloc(req_size + sizeof(*hdr));
+    operation->request_buffer =
+        transport_backend->alloc_buf(req_size + sizeof(*hdr));
     if (!operation->request_buffer)
         goto malloc_error;
 

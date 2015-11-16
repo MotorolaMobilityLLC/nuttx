@@ -29,6 +29,7 @@
  */
 
 #include <errno.h>
+#include <nuttx/bufram.h>
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
@@ -62,6 +63,8 @@ struct gb_transport_backend gb_unipro_backend = {
     .send = unipro_send,
     .listen = gb_unipro_listen,
     .stop_listening = gb_unipro_stop_listening,
+    .alloc_buf = bufram_alloc,
+    .free_buf = bufram_free,
 };
 
 int gb_unipro_init(void)

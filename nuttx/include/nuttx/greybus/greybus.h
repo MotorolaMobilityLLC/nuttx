@@ -90,6 +90,8 @@ struct gb_transport_backend {
     int (*listen)(unsigned int cport);
     int (*stop_listening)(unsigned int cport);
     int (*send)(unsigned int cport, const void *buf, size_t len);
+    void *(*alloc_buf)(size_t size);
+    void (*free_buf)(void *ptr);
 };
 
 struct gb_operation {

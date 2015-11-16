@@ -172,6 +172,8 @@ static struct gb_transport_backend svc_backend = {
     .init   = unipro_init,
     .send   = unipro_send,
     .listen = svc_listen,
+    .alloc_buf = malloc,
+    .free_buf = free,
 };
 
 static int svc_gb_init(void) {
