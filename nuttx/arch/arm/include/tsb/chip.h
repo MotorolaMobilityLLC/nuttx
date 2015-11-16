@@ -32,4 +32,17 @@
 /* No peripheral interrupts enabled at the moment */
 #define ARMV7M_PERIPHERAL_INTERRUPTS 126
 
+/* Buffer RAM */
+
+#define BUFRAM_BANK_SIZE 0xC000
+
+#define BUFRAM0_BASE    0x20000000
+#define BUFRAM1_BASE    (BUFRAM0_BASE + BUFRAM_BANK_SIZE)
+#define BUFRAM2_BASE    (BUFRAM1_BASE + BUFRAM_BANK_SIZE)
+#define BUFRAM3_BASE    (BUFRAM2_BASE + BUFRAM_BANK_SIZE)
+
+#define BUFRAM_BASE         BUFRAM0_BASE
+#define BUFRAM_BANK_COUNT   4
+#define BUFRAM_SIZE         (BUFRAM_BANK_SIZE * BUFRAM_BANK_COUNT)
+
 #endif  /* __ARCH_ARM_INCLUDE_TSB_CHIP_H */

@@ -32,16 +32,6 @@
 #include <nuttx/config.h>
 #include <arch/tsb/chip.h>
 
-
-/* Buffer RAM */
-
-#define BUFRAM_BANK_SIZE 0xC000
-
-#define BUFRAM0_BASE    0x20000000
-#define BUFRAM1_BASE    (BUFRAM0_BASE + BUFRAM_BANK_SIZE)
-#define BUFRAM2_BASE    (BUFRAM1_BASE + BUFRAM_BANK_SIZE)
-#define BUFRAM3_BASE    (BUFRAM2_BASE + BUFRAM_BANK_SIZE)
-
 /* AP/GP Bridge peripherals memory map */
 
 #define SYSCTL_BASE     0x40000000
