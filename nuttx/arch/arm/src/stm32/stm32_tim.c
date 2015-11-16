@@ -426,7 +426,7 @@ static int stm32_tim_setisr(FAR struct stm32_tim_dev_s *dev,
   up_prioritize_irq(vectorno, NVIC_SYSH_PRIORITY_DEFAULT);
 #endif
 
-  return OK;
+  return vectorno;
 }
 
 static void stm32_tim_enableint(FAR struct stm32_tim_dev_s *dev, int source)

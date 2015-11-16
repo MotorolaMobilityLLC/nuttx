@@ -196,7 +196,13 @@ struct stm32_tim_ops_s
 
   /* Timer interupts */
 
-  int  (*setisr)(FAR struct stm32_tim_dev_s *dev, int (*handler)(int irq, void *context), int source);
+  /*
+   * setisr() returns the number of the interrupt line reserved for given
+   * timer, ERROR (-1) on error or OK (0) if handler is NULL and the
+   * interrupt callback was successfully removed.
+   */
+  int  (*setisr)(FAR struct stm32_tim_dev_s *dev,
+                 int (*handler)(int irq, void *context), int source);
   void (*enableint)(FAR struct stm32_tim_dev_s *dev, int source);
   void (*disableint)(FAR struct stm32_tim_dev_s *dev, int source);
   void (*ackint)(FAR struct stm32_tim_dev_s *dev, int source);
