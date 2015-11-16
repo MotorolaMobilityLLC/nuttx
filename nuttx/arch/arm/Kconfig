@@ -204,6 +204,7 @@ config ARCH_CHIP_TSB
 	select ARCH_CORTEXM3
 	select ARCH_HAVE_CMNVECTOR
 	select ARCH_HAVE_HIRES_TIMER
+	select MM_BUFRAM_ALLOCATOR
 	---help---
 		Toshiba Bridge architectures (ARM Cortex-M3).
 
