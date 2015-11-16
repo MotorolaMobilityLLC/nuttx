@@ -86,7 +86,6 @@ struct dwc_usbdev_s {
     struct dwc_usbdev_ep_s eplist[DWC_NENDPOINTS];
 };
 static struct dwc_usbdev_s g_usbdev;
-struct mm_heap_s    g_usb_dma_heap;
 #ifdef CONFIG_USBDEV
 static struct device *g_device_usbdev;
 #endif
@@ -826,19 +825,6 @@ static int tsb_usb_pcd_open(struct device *dev)
     device_set_private(dev, &g_usbdev);
     SET_DEBUG_LEVEL(DBG_ANY);
 
-    /*
-     * Create a separate heap for use by USB DMA.  The idea is to avoid having
-     * the USB core contend with the CM3 for access to Bridge WORKRAM, and lose.
-     * We must initialize the heap before continuing, since DMA-able memory may
-     * be allocated during up_usbinitialize_device().
-     *
-     * We add BUFRAM banks 2 and 3 to the USB DMA heap as separate regions, to
-     * avoid potentially allocating a buffer that spans two banks.  This seems
-     * to be the conservative approach until we better-understand how BUFRAM
-     * banks behave and interact.
-     */
-    mm_initialize(&g_usb_dma_heap, (void *)BUFRAM2_BASE, BUFRAM_BANK_SIZE);
-    mm_addregion(&g_usb_dma_heap, (void *)BUFRAM3_BASE, BUFRAM_BANK_SIZE);
     if (up_usbinitialize_core(priv))
         goto fail;
     if (up_usbinitialize_device(priv))

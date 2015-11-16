@@ -635,8 +635,6 @@ typedef bus_addr_t dwc_dma_t;
 #ifdef DWC_NUTTX
 /* Assume 32bit on arm */
 typedef uint32_t dwc_dma_t;
-extern struct mm_heap_s g_usb_dma_heap;
-#define USB_DMA_HEAP &g_usb_dma_heap
 #endif
 
 #ifdef DWC_FREEBSD
@@ -745,9 +743,9 @@ void *phys_to_virt(unsigned long address);
  * We allocate DMA-able memory from a different heap, allocated from Bridge BUFRAM, to avoid
  * the USB core contending with the CM3 for access to WORKRAM, and losing.
  */
-#define DWC_DMA_ALLOC(_size_,_dma_) __DWC_DMA_ALLOC(USB_DMA_HEAP, _size_, _dma_)
-#define DWC_DMA_ALLOC_ATOMIC(_size_,_dma_) __DWC_DMA_ALLOC(USB_DMA_HEAP, _size_, _dma_)
-#define DWC_DMA_FREE(_size_,_virt_,_dma_) __DWC_DMA_FREE(USB_DMA_HEAP, _size_, _virt_, _dma_)
+#define DWC_DMA_ALLOC(_size_,_dma_) __DWC_DMA_ALLOC(NULL, _size_, _dma_)
+#define DWC_DMA_ALLOC_ATOMIC(_size_,_dma_) __DWC_DMA_ALLOC(NULL, _size_, _dma_)
+#define DWC_DMA_FREE(_size_,_virt_,_dma_) __DWC_DMA_FREE(NULL, _size_, _virt_, _dma_)
 # endif
 
 # if defined(DWC_FREEBSD) || defined(DWC_NETBSD)

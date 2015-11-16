@@ -36,6 +36,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include <nuttx/bufram.h>
 #include <nuttx/arch.h>
 #include <nuttx/mm/mm.h>
 #include <nuttx/wqueue.h>
@@ -237,7 +238,8 @@ void __DWC_DEBUG(char *format, ...)
 
 void *__DWC_DMA_ALLOC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
 {
-    void *buf = mm_zalloc((struct mm_heap_s *)dma_ctx, size);
+    void *buf = bufram_alloc(size);
+    memset(buf, 0, size); /* TODO check if it is necessary */
     *dma_addr = (dwc_dma_t) buf;
     return buf;
 }
@@ -245,7 +247,7 @@ void *__DWC_DMA_ALLOC(void *dma_ctx, uint32_t size, dwc_dma_t *dma_addr)
 void __DWC_DMA_FREE(void *dma_ctx, uint32_t size, void *virt_addr,
                     dwc_dma_t dma_addr)
 {
-    mm_free((struct mm_heap_s *)dma_ctx, virt_addr);
+    bufram_free(virt_addr);
 }
 
 void *__DWC_ALLOC(void *mem_ctx, uint32_t size)

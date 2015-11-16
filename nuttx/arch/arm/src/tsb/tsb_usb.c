@@ -49,7 +49,6 @@
 #define TSB_HSIC_DMPULLDOWN             (1 << 1)
 
 static dwc_otg_device_t *g_dev;
-struct mm_heap_s g_usb_dma_heap;
 
 static int _hub_info(dwc_otg_hcd_t *hcd, void *urb_handle, uint32_t *hub_addr,
                      uint32_t *port_addr)
@@ -254,9 +253,6 @@ static int tsb_usb_hcd_open(struct device *dev)
     if (retval) {
         goto error_hsic_hold_reset;
     }
-
-    mm_initialize(&g_usb_dma_heap, (void *)BUFRAM2_BASE, BUFRAM_BANK_SIZE);
-    mm_addregion(&g_usb_dma_heap, (void *)BUFRAM3_BASE, BUFRAM_BANK_SIZE);
 
     putreg32(TSB_HSIC_DPPULLDOWN | TSB_HSIC_DMPULLDOWN,
              TSB_SYSCTL_USBOTG_HSIC_CONTROL);
