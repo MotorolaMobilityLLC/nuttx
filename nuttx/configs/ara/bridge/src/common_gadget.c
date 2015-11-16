@@ -33,7 +33,7 @@
 #include <nuttx/bufram.h>
 #include <arch/board/common_gadget.h>
 
-#define REQ_SIZE_MUL (128)
+#define REQ_SIZE_MUL (BUFRAM_PAGE_SIZE)
 
 struct request_list {
     struct list_head list;
