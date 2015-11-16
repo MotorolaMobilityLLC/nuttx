@@ -1160,6 +1160,7 @@ struct cport_reset_priv {
     struct usbdev_req_s *req;
     struct usbdev_ep_s *ep0;
     struct wdog_s timeout_wd;
+    atomic_t refcount;
 };
 
 static void cport_reset_cb(unsigned int cportid, void *data)
@@ -1167,12 +1168,17 @@ static void cport_reset_cb(unsigned int cportid, void *data)
     struct cport_reset_priv *priv = data;
     int ret;
 
-    priv->req->len = 0;
-    priv->req->flags = USBDEV_REQFLAGS_NULLPKT;
+    if (atomic_dec(&priv->refcount)) {
+        priv->req->len = 0;
+        priv->req->flags = USBDEV_REQFLAGS_NULLPKT;
 
-    ret = EP_SUBMIT(priv->ep0, priv->req);
-    if (ret < 0) {
-        usbclass_ep0incomplete(priv->ep0, priv->req);
+        ret = EP_SUBMIT(priv->ep0, priv->req);
+        if (ret < 0) {
+            usbclass_ep0incomplete(priv->ep0, priv->req);
+        }
+    } else {
+        wd_delete(&priv->timeout_wd);
+        free(priv);
     }
 }
 
@@ -1183,10 +1189,12 @@ static void cport_reset_timeout(int argc, uint32_t data, ...)
     if (argc != 1)
         return;
 
-    wd_delete(&priv->timeout_wd);
-    usbclass_ep0incomplete(priv->ep0, priv->req);
-
-    free(priv);
+    if (atomic_dec(&priv->refcount)) {
+        usbclass_ep0incomplete(priv->ep0, priv->req);
+    } else {
+        wd_delete(&priv->timeout_wd);
+        free(priv);
+    }
 }
 
 static int reset_cport(unsigned int cportid, struct usbdev_req_s *req,
@@ -1202,6 +1210,9 @@ static int reset_cport(unsigned int cportid, struct usbdev_req_s *req,
     wd_static(&priv->timeout_wd);
     priv->req = req;
     priv->ep0 = ep0;
+
+    /* a ref for the watchdog and one for the unipro stack */
+    atomic_init(&priv->refcount, 2);
 
     wd_start(&priv->timeout_wd, RESET_TIMEOUT_DELAY, cport_reset_timeout, 1,
              priv);
