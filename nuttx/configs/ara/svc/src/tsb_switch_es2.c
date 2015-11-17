@@ -826,6 +826,27 @@ int es2_switch_irq_handler(struct tsb_switch *sw)
 
         // Handle Unipro interrupts: read the Unipro ports interrupt status
         for (i = 0; i < SWITCH_PORT_MAX; i++) {
+            /*
+             * We got interrupted, but something inside the switch
+             * disabled the interrupt source. This happens if e.g. a port
+             * re-links up.
+             *
+             * Check the interrupt enable attribute, if interrupts are
+             * disabled for the port, re-enable them. Since the interrupt is
+             * latched in the switch it will fire again after enablement.
+             */
+            if (switch_dme_get(sw, i, TSB_INTERRUPTENABLE, 0x0,
+                               &attr_value)) {
+                dbg_error("IRQ: Port %d TSB_INTERRUPTENABLE read failed\n",
+                          i);
+            } else {
+                if (!attr_value) {
+                    dbg_insane("IRQ: port %d TSB_INTERRUPTENABLE=%d\n",
+                               i, attr_value);
+                    switch_port_irq_enable(sw, i, true);
+                }
+            }
+
             // If Unipro interrupt pending, read the interrupt status attribute
             if (swint & (1 << i)) {
                 if (switch_dme_get(sw, i, TSB_INTERRUPTSTATUS, 0x0,
