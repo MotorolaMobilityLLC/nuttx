@@ -39,6 +39,7 @@
 #include <nuttx/greybus/greybus_timestamp.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/time.h>
+#include <nuttx/util.h>
 #include <arch/byteorder.h>
 
 #define GB_LOOPBACK_VERSION_MAJOR 0
@@ -207,20 +208,16 @@ static void update_loopback_stats(struct gb_operation *operation, int xfer)
 
     request = gb_operation_get_request_payload(operation);
     tpr = request->len * (xfer ? 2 : 1);
-    tps = tpr * (USEC_PER_SEC / total);
-    rps = USEC_PER_SEC / total;
+    tps = tpr * DIV_ROUND_CLOSEST(USEC_PER_SEC, total);
+    rps = DIV_ROUND_CLOSEST(USEC_PER_SEC, total);
     stats = &loopback->stats;
 
-    /*
-     * TODO Would be good to have a linux kernel-like DIV_ROUND_CLOSEST()
-     * macro, but with BSD license.
-     */
 #define UPDATE_AVG(avg, new)                                            \
     do {                                                                \
         if ((avg) == 0)                                                 \
             (avg) = (new);                                              \
         else                                                            \
-            (avg) = ((avg) + (new)) / 2;                                \
+            (avg) = DIV_ROUND_CLOSEST((avg) + (new), 2);                \
     } while (0)
 
 #define UPDATE_MIN(min, avg)                                            \
