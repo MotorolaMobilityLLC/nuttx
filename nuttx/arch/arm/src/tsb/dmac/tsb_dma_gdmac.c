@@ -124,7 +124,7 @@
 
 
 /* Structures for PL330 GDMAC registers */
-typedef struct {
+struct tsb_dma_gdmac_control_regs {
     uint32_t dsr;
     uint32_t dpc;
     uint32_t pad0[6];
@@ -137,46 +137,46 @@ typedef struct {
     uint32_t ftrd;
     uint32_t pad1;
     uint32_t ftr[GDMAC_NUMBER_OF_CHANNELS];
-} tsb_dma_gdmac_control_regs;
+};
 
-typedef struct {
+struct tsb_dma_gdmac_channel_status_regs {
     uint32_t csr;
     uint32_t cpc;
-} tsb_dma_gdmac_channel_status_regs;
+};
 
-typedef struct {
+struct tsb_dma_gdmac_channel_control_regs {
     uint32_t sar;
     uint32_t dar;
     uint32_t ccr;
     uint32_t lc0;
     uint32_t lc1;
-} tsb_dma_gdmac_channel_control_regs;
+};
 
-typedef struct {
-    tsb_dma_gdmac_channel_status_regs
+struct tsb_dma_gdmac_channel_regs {
+    struct tsb_dma_gdmac_channel_status_regs
         channel_status_regs[GDMAC_NUMBER_OF_CHANNELS];
     uint8_t pad[GDMAC_CHANNEL_REGISTER_GAP];
-    tsb_dma_gdmac_channel_control_regs
+    struct tsb_dma_gdmac_channel_control_regs
         channel_control_regs[GDMAC_NUMBER_OF_CHANNELS];
-} tsb_dma_gdmac_channel_regs;
+};
 
-typedef struct {
+struct tsb_dma_gdmac_dbg_regs {
     uint32_t dbg_status;
     uint32_t dbg_cmd;
     uint32_t dbg_inst_0;
     uint32_t dbg_inst_1;
-} tsb_dma_gdmac_dbg_regs;
+};
 
-typedef struct {
+struct tsb_dma_gdmac_config_regs {
     uint32_t cr0;
     uint32_t cr1;
     uint32_t cr2;
     uint32_t cr3;
     uint32_t cr4;
     uint32_t crd;
-} tsb_dma_gdmac_config_regs;
+};
 
-typedef struct {
+struct tsb_dma_gdmac_id_regs {
     uint32_t periph_id_0;
     uint32_t periph_id_1;
     uint32_t periph_id_2;
@@ -185,18 +185,18 @@ typedef struct {
     uint32_t pcell_id_1;
     uint32_t pcell_id_2;
     uint32_t pcell_id_3;
-} tsb_dma_gdmac_id_regs;
+};
 
-typedef union {
+union peripheral_instr {
     struct __attribute__((__packed__)) {
         uint8_t op_code;
         uint8_t peripheral_id;
     } instr;
     uint16_t value;
-} peripheral_instr;
+};
 
 /* structure for memory to memory transfer channel information. */
-typedef struct __attribute__((__packed__)) {
+struct __attribute__ ((__packed__)) mem2mem_pl330_code {
     GDMAC_INSTR_DMAMOV(source_addr);
     GDMAC_INSTR_DMAMOV(dest_addr);
     GDMAC_INSTR_DMAMOV(chan_ctrl_reg);
@@ -220,10 +220,10 @@ typedef struct __attribute__((__packed__)) {
     GDMAC_INSTR_DMALP(final_store_count);
     uint8_t final_store;
     uint8_t pad3[DMA_LPEND_SIZE];
-} mem2mem_pl330_code;
+};
 
 /* structure for memory to IO transfer channel information. */
-typedef struct __attribute__((__packed__)) {
+struct __attribute__((__packed__)) mem2io_pl330_code {
         GDMAC_INSTR_DMAMOV(source_addr);
         GDMAC_INSTR_DMAMOV(dest_addr);
         GDMAC_INSTR_DMAMOV(preburst_load_chan_ctrl_reg);
@@ -255,10 +255,10 @@ typedef struct __attribute__((__packed__)) {
         uint16_t final_store_wait;
         uint16_t final_store;
         uint8_t pad30[DMA_LPEND_SIZE];
-} mem2io_pl330_code;
+};
 
 /* structure for IO to memory transfer channel information. */
-typedef struct __attribute__((__packed__)) {
+struct __attribute__((__packed__)) io2mem_pl330_code {
         GDMAC_INSTR_DMAMOV(source_addr);
         GDMAC_INSTR_DMAMOV(dest_addr);
         GDMAC_INSTR_DMAMOV(burst_block_chan_ctrl_reg);
@@ -287,15 +287,15 @@ typedef struct __attribute__((__packed__)) {
         GDMAC_INSTR_DMALP(final_store_count);
         uint8_t final_store;
         uint8_t pad30[DMA_LPEND_SIZE];
-} io2mem_pl330_code;
+};
 
-typedef struct __attribute__((__packed__)) {
+struct __attribute__((__packed__)) pl330_end_code {
     uint8_t pad0[DMA_WMB_SIZE];
     GDMAC_INSTR_DMASEV(end_of_tx_event);
     uint8_t pad1[DMA_END_SIZE];
-} pl330_end_code;
+};
 
-typedef struct {
+struct mem_to_mem_chan {
     uint32_t burst_size;
     uint32_t burst_len;
     uint32_t ccr_transfer_size;
@@ -303,22 +303,10 @@ typedef struct {
     uint32_t align_mask;
     uint32_t ccr_base_value;
     /* Channel program. */
-    mem2mem_pl330_code pl330_code[0];
-} mem_to_mem_chan;
+    struct mem2mem_pl330_code pl330_code[0];
+};
 
-typedef struct {
-    uint32_t burst_size;
-    uint32_t burst_len;
-    uint32_t ccr_transfer_size;
-    uint32_t burst_block_size;
-    uint32_t align_mask;
-    uint32_t ccr_base_value;
-    uint32_t perihperal_id;
-    /* Channel program. */
-    mem2io_pl330_code pl330_code[0];
-} mem_to_io_chan;
-
-typedef struct {
+struct mem_to_io_chan {
     uint32_t burst_size;
     uint32_t burst_len;
     uint32_t ccr_transfer_size;
@@ -327,8 +315,20 @@ typedef struct {
     uint32_t ccr_base_value;
     uint32_t perihperal_id;
     /* Channel program. */
-    io2mem_pl330_code pl330_code[0];
-} io_to_mem_chan;
+    struct mem2io_pl330_code pl330_code[0];
+};
+
+struct io_to_mem_chan {
+    uint32_t burst_size;
+    uint32_t burst_len;
+    uint32_t ccr_transfer_size;
+    uint32_t burst_block_size;
+    uint32_t align_mask;
+    uint32_t ccr_base_value;
+    uint32_t perihperal_id;
+    /* Channel program. */
+    struct io2mem_pl330_code pl330_code[0];
+};
 
 typedef int (*gdmac_transfer)(struct device *dev, struct tsb_dma_chan *chan,
         struct device_dma_op *op, enum device_dma_error *error);
@@ -350,9 +350,9 @@ struct gdmac_chan {
     uint32_t ccr_base_value;
 
     union {
-        mem_to_mem_chan mem2mem_chan;
-        mem_to_io_chan mem2io_chan;
-        io_to_mem_chan io2mem_chan;
+        struct mem_to_mem_chan mem2mem_chan;
+        struct mem_to_io_chan mem2io_chan;
+        struct io_to_mem_chan io2mem_chan;
     };
 };
 
@@ -517,8 +517,8 @@ static inline void gdmac_release_event(unsigned int event_id)
 
 static inline void dma_execute_instruction(uint8_t* insn)
 {
-    tsb_dma_gdmac_dbg_regs *dbg_regs =
-            (tsb_dma_gdmac_dbg_regs*) GDMAC_DBG_REGS_ADDRESS;
+    struct tsb_dma_gdmac_dbg_regs *dbg_regs =
+            (struct tsb_dma_gdmac_dbg_regs*) GDMAC_DBG_REGS_ADDRESS;
     uint32_t value;
 
     value = (insn[0] << 16) | (insn[1] << 24);
@@ -542,8 +542,8 @@ static bool inline dma_start_thread(uint8_t thread_id, uint8_t* program_addr)
 
 int gdmac_irq_handler(int irq, void *context)
 {
-    tsb_dma_gdmac_control_regs *control_regs =
-            (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
+    struct tsb_dma_gdmac_control_regs *control_regs =
+            (struct tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
     unsigned int event_id = IRQN_TO_DMA_EVENT(irq);
     struct gdmac_event *event_entry;
     (void) context;
@@ -585,9 +585,9 @@ static int gdmac_mem2mem_transfer(struct device *dev,
     struct gdmac_chan
     *gdmac_chan = containerof(tsb_chan, struct gdmac_chan, tsb_chan);
 
-    mem_to_mem_chan *mem2mem_chan = &gdmac_chan->mem2mem_chan;
+    struct mem_to_mem_chan *mem2mem_chan = &gdmac_chan->mem2mem_chan;
     uint32_t desc_index;
-    mem2mem_pl330_code *pl330_code;
+    struct mem2mem_pl330_code *pl330_code;
 
     int retval = OK;
 
@@ -751,19 +751,19 @@ int tsb_gdmac_allocal_mem2Mem_chan(struct device *dev,
         struct device_dma_params *params, struct tsb_dma_chan **tsb_chan)
 {
     int retval = OK;
-    mem_to_mem_chan *mem2mem_chan;
+    struct mem_to_mem_chan *mem2mem_chan;
     struct gdmac_chan *gdmac_chan;
-    tsb_dma_gdmac_control_regs *control_regs =
-            (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
+    struct tsb_dma_gdmac_control_regs *control_regs =
+            (struct tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
     uint32_t desc_index;
-    mem2mem_pl330_code *pl330_code;
+    struct mem2mem_pl330_code *pl330_code;
     uint32_t burst_size;
     uint32_t burst_len;
     uint32_t ccr_transfer_size;
 
     gdmac_chan = zalloc(sizeof(struct gdmac_chan) +
-            GDMAC_MAX_DESC * sizeof(mem2mem_pl330_code) +
-            sizeof(pl330_end_code));
+            GDMAC_MAX_DESC * sizeof(struct mem2mem_pl330_code) +
+            sizeof(struct pl330_end_code));
     if (gdmac_chan == NULL) {
         return -ENOMEM;
     }
@@ -824,7 +824,7 @@ int tsb_gdmac_allocal_mem2Mem_chan(struct device *dev,
         pl330_code++;
     }
     /* Set end of transfer event. */
-    ((pl330_end_code *)pl330_code)->end_of_tx_event.value |=
+    ((struct pl330_end_code *)pl330_code)->end_of_tx_event.value |=
         (gdmac_chan->end_of_tx_event << 3);
 
     /* Set interrupt handler for this GDMAC UniPro TX channel. */
@@ -869,13 +869,13 @@ static int gdmac_mem2io_transfer(struct device *dev,
     struct gdmac_chan
      *gdmac_chan = containerof(tsb_chan, struct gdmac_chan, tsb_chan);
 
-     mem_to_io_chan *mem2io_chan = &gdmac_chan->mem2io_chan;
+    struct mem_to_io_chan *mem2io_chan = &gdmac_chan->mem2io_chan;
      int retval = OK;
      uint32_t desc_index;
-     mem2io_pl330_code *pl330_code;
+     struct mem2io_pl330_code *pl330_code;
      uint32_t interface_id = mem2io_chan->perihperal_id;
-     peripheral_instr store_instr = { .instr = {DMASTPB(interface_id)} };
-     peripheral_instr wait_for_peripheral_instr =
+     union peripheral_instr store_instr = { .instr = {DMASTPB(interface_id)} };
+     union peripheral_instr wait_for_peripheral_instr =
                           { .instr = {DMAWFP(interface_id, B)} };
 
      if (op->sg_count != 1) {
@@ -1074,19 +1074,19 @@ int tsb_gdmac_allocal_mem2io_chan(struct device *dev,
         struct device_dma_params *params, struct tsb_dma_chan **tsb_chan)
 {
     int retval = OK;
-    mem_to_io_chan *mem2io_chan;
+    struct mem_to_io_chan *mem2io_chan;
     struct gdmac_chan *gdmac_chan;
-    tsb_dma_gdmac_control_regs *control_regs =
-            (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
+    struct tsb_dma_gdmac_control_regs *control_regs =
+            (struct tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
     uint32_t desc_index;
-    mem2io_pl330_code *pl330_code;
+    struct mem2io_pl330_code *pl330_code;
     uint32_t burst_size;
     uint32_t burst_len;
     uint32_t ccr_transfer_size;
 
     gdmac_chan = zalloc(sizeof(struct gdmac_chan) +
-            GDMAC_MAX_DESC * sizeof(mem2io_pl330_code) +
-            sizeof(pl330_end_code));
+            GDMAC_MAX_DESC * sizeof(struct mem2io_pl330_code) +
+            sizeof(struct pl330_end_code));
     if (gdmac_chan == NULL) {
         return -ENOMEM;
     }
@@ -1151,7 +1151,7 @@ int tsb_gdmac_allocal_mem2io_chan(struct device *dev,
         pl330_code++;
     }
     /* Set end of transfer event. */
-    ((pl330_end_code *)pl330_code)->end_of_tx_event.value |=
+    ((struct pl330_end_code *)pl330_code)->end_of_tx_event.value |=
         (gdmac_chan->end_of_tx_event << 3);
 
     /* Set interrupt handler for this GDMAC UniPro TX channel. */
@@ -1196,13 +1196,13 @@ static int gdmac_io2mem_transfer(struct device *dev,
     struct gdmac_chan
      *gdmac_chan = containerof(tsb_chan, struct gdmac_chan, tsb_chan);
 
-     io_to_mem_chan *io2mem_chan = &gdmac_chan->io2mem_chan;
+     struct io_to_mem_chan *io2mem_chan = &gdmac_chan->io2mem_chan;
      int retval = OK;
-     io2mem_pl330_code *pl330_code;
+     struct io2mem_pl330_code *pl330_code;
      uint32_t desc_index;
      uint32_t interface_id = io2mem_chan->perihperal_id;
-     peripheral_instr load_instr = { .instr = {DMALDPB(interface_id)} };
-     peripheral_instr wait_for_peripheral_instr =
+     union peripheral_instr load_instr = { .instr = {DMALDPB(interface_id)} };
+     union peripheral_instr wait_for_peripheral_instr =
                           { .instr = {DMAWFP(interface_id, P)} };
 
      /* Set the source and destination addresses, as well as the data count. */
@@ -1380,19 +1380,19 @@ int tsb_gdmac_allocal_io2mem_chan(struct device *dev,
         struct device_dma_params *params, struct tsb_dma_chan **tsb_chan)
 {
     int retval = OK;
-    io_to_mem_chan *io2mem_chan;
+    struct io_to_mem_chan *io2mem_chan;
     struct gdmac_chan *gdmac_chan;
-    tsb_dma_gdmac_control_regs *control_regs =
-            (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
-    io2mem_pl330_code *pl330_code;
+    struct tsb_dma_gdmac_control_regs *control_regs =
+            (struct tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
+    struct io2mem_pl330_code *pl330_code;
     uint32_t desc_index;
     uint32_t burst_size;
     uint32_t burst_len;
     uint32_t ccr_transfer_size;
 
     gdmac_chan = zalloc(sizeof(struct gdmac_chan) +
-            GDMAC_MAX_DESC * sizeof(io2mem_pl330_code) +
-            sizeof(pl330_end_code));
+            GDMAC_MAX_DESC * sizeof(struct io2mem_pl330_code) +
+            sizeof(struct pl330_end_code));
     if (gdmac_chan == NULL) {
         return -ENOMEM;
     }
@@ -1453,7 +1453,7 @@ int tsb_gdmac_allocal_io2mem_chan(struct device *dev,
         pl330_code++;
     }
     /* Set end of transfer event. */
-    ((pl330_end_code *)pl330_code)->end_of_tx_event.value |=
+    ((struct pl330_end_code *)pl330_code)->end_of_tx_event.value |=
         (gdmac_chan->end_of_tx_event << 3);
 
     /* Set interrupt handler for this GDMAC UniPro TX channel. */
@@ -1561,10 +1561,10 @@ int gdmac_start_op(struct device *dev, struct tsb_dma_chan *tsb_chan,
 
 int gdmac_irq_abort_handler(int irq, void *context)
 {
-    tsb_dma_gdmac_control_regs *control_regs =
-            (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
-    tsb_dma_gdmac_dbg_regs *dbg_regs =
-            (tsb_dma_gdmac_dbg_regs*) GDMAC_DBG_REGS_ADDRESS;
+    struct tsb_dma_gdmac_control_regs *control_regs =
+            (struct tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
+    struct tsb_dma_gdmac_dbg_regs *dbg_regs =
+            (struct tsb_dma_gdmac_dbg_regs*) GDMAC_DBG_REGS_ADDRESS;
     uint32_t fsrc = getreg32(&control_regs->fsrc);
     uint32_t chan, index;
     uint32_t value;
@@ -1638,8 +1638,8 @@ void gdmac_deinit_controller(struct device *dev)
 int gdmac_max_number_of_channels(void)
 {
     int numb_of_chan = 0;
-    tsb_dma_gdmac_config_regs *config_regs =
-            (tsb_dma_gdmac_config_regs*) GDMAC_CONFIG_REGS_ADDRESS;
+    struct tsb_dma_gdmac_config_regs *config_regs =
+            (struct tsb_dma_gdmac_config_regs*) GDMAC_CONFIG_REGS_ADDRESS;
 
     numb_of_chan = (getreg32(&config_regs->cr0) & 0x70) >> 4;
     numb_of_chan++;
@@ -1695,8 +1695,8 @@ int gdmac_chan_check_op_params(struct device *dev,
 
 int gdmac_chan_free(struct device *dev, struct tsb_dma_chan *tsb_chan)
 {
-    tsb_dma_gdmac_control_regs *control_regs =
-            (tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
+    struct tsb_dma_gdmac_control_regs *control_regs =
+            (struct tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
     struct gdmac_chan *gdmac_chan =
             containerof(tsb_chan, struct gdmac_chan, tsb_chan);
     uint32_t enable_flags = getreg32(&control_regs->inten);
