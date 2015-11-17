@@ -290,13 +290,16 @@ static int interface_power_on(struct interface *iface)
         return -EINVAL;
     }
 
-    /* Power ON and generate WAKE_OUT */
-    rc = interface_pwr_enable(iface);
-    if (rc < 0) {
-        dbg_error("Failed to enable interface %s\n", iface->name);
-        return rc;
+    /* If powered OFF, power it ON now */
+    if (!interface_get_pwr_state(iface)) {
+        rc = interface_pwr_enable(iface);
+        if (rc < 0) {
+            dbg_error("Failed to enable interface %s\n", iface->name);
+            return rc;
+        }
     }
 
+    /* Generate WAKE_OUT */
     rc = interface_generate_wakeout(iface, false);
     if (rc) {
         dbg_error("Failed to generate wakeout on interface %s\n", iface->name);
