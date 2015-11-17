@@ -30,8 +30,10 @@
 
 #include <errno.h>
 #include <debug.h>
+#include <semaphore.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/kmalloc.h>
 #include <nuttx/wdog.h>
 #include <nuttx/i2c.h>
 
@@ -53,7 +55,16 @@
 #  define i2cvdbg(x...)
 #endif
 
-static struct i2c_dev_s g_dev;        /* Generic Nuttx I2C device */
+struct tsb_i2c_inst_s
+{
+    const struct i2c_ops_s  *ops;  /* Standard I2C operations */
+
+    uint32_t    frequency;   /* Frequency used in this instantiation */
+    int         address;     /* Address used in this instantiation */
+    int         nbits;
+    uint16_t    flags;       /* Flags used in this instantiation */
+};
+
 static struct i2c_msg_s *g_msgs;      /* Generic messages array */
 static sem_t            g_mutex;      /* Only one thread can access at a time */
 static sem_t            g_wait;       /* Wait for state machine completion */
@@ -562,6 +573,7 @@ struct i2c_ops_s dev_i2c_ops;
  */
 struct i2c_dev_s *up_i2cinitialize(int port)
 {
+    struct tsb_i2c_inst_s *inst;
     irqstate_t flags;
     int retval;
 
@@ -571,7 +583,16 @@ struct i2c_dev_s *up_i2cinitialize(int port)
     if (port > 0)
         return NULL;
 
+    if (!(inst = kmm_malloc(sizeof(*inst))))
+        return NULL;
+
     flags = irqsave();
+
+    inst->ops       = &dev_i2c_ops;
+    inst->frequency = 400000;
+    inst->address   = 0;
+    inst->nbits     = 7;
+    inst->flags     = 0;
 
     if (refcount++)
         goto out;
@@ -610,12 +631,9 @@ struct i2c_dev_s *up_i2cinitialize(int port)
     /* Enable Interrupt Handler */
     up_enable_irq(TSB_IRQ_I2C);
 
-    /* Install our operations */
-    g_dev.ops = &dev_i2c_ops;
-
 out:
     irqrestore(flags);
-    return &g_dev;
+    return (struct i2c_dev_s *)inst;
 
 err_req_pinshare:
     refcount--;
@@ -649,6 +667,7 @@ int up_i2cuninitialize(struct i2c_dev_s *dev)
 
 out:
     irqrestore(flags);
+    kmm_free(dev);
     return 0;
 }
 
@@ -657,9 +676,12 @@ out:
  */
 static uint32_t up_i2c_setfrequency(struct i2c_dev_s *dev, uint32_t frequency)
 {
+    struct tsb_i2c_inst_s     *inst = (struct tsb_i2c_inst_s *)dev;
     i2cvdbg("%d\n", frequency);
 
-    return frequency;
+    inst->frequency = frequency;
+
+    return OK;
 }
 
 /**
@@ -667,8 +689,49 @@ static uint32_t up_i2c_setfrequency(struct i2c_dev_s *dev, uint32_t frequency)
  */
 static int up_i2c_setaddress(struct i2c_dev_s *dev, int addr, int nbits)
 {
-    return -ENOSYS;
+    struct tsb_i2c_inst_s     *inst = (struct tsb_i2c_inst_s *)dev;
+    lldbg("%d\n", addr);
+
+    inst->address = addr;
+    inst->nbits   = nbits;
+
+    return OK;
 }
+
+#ifdef CONFIG_I2C_WRITEREAD
+static int up_i2c_writeread(FAR struct i2c_dev_s *dev, const uint8_t *wbuffer,
+                            int wbuflen, uint8_t *rbuffer, int rbuflen)
+{
+    struct tsb_i2c_inst_s     *inst = (struct tsb_i2c_inst_s *)dev;
+    int ret;
+
+    if (!wbuffer || !rbuffer || !wbuflen || !rbuflen) {
+        ret = -EIO;
+        goto done;
+    }
+
+    struct i2c_msg_s msgv[] =
+    {
+        {
+            .addr   = inst->address,
+            .flags  = inst->flags,
+            .buffer = (uint8_t *)wbuffer,
+            .length = wbuflen
+        },
+        {
+            .addr   = inst->address,
+            .flags  = inst->flags | I2C_M_READ,
+            .buffer = rbuffer,
+            .length = rbuflen
+        }
+    };
+
+    ret = up_i2c_transfer(dev, msgv, ARRAY_SIZE(msgv));
+
+done:
+    return ret;
+}
+#endif
 
 /**
  * Send a block of data on I2C using the previously selected I2C
@@ -676,7 +739,17 @@ static int up_i2c_setaddress(struct i2c_dev_s *dev, int addr, int nbits)
  */
 static int up_i2c_write(struct i2c_dev_s *dev, const uint8_t *buffer, int buflen)
 {
-    return -ENOSYS;
+    struct tsb_i2c_inst_s     *inst = (struct tsb_i2c_inst_s *)dev;
+
+    struct i2c_msg_s msgv =
+    {
+        .addr   = inst->address,
+        .flags  = inst->flags,
+        .buffer = (uint8_t *)buffer,
+        .length = buflen
+    };
+
+    return up_i2c_transfer(dev, &msgv, 1);
 }
 
 /**
@@ -685,7 +758,17 @@ static int up_i2c_write(struct i2c_dev_s *dev, const uint8_t *buffer, int buflen
  */
 static int up_i2c_read(struct i2c_dev_s *dev, uint8_t *buffer, int buflen)
 {
-    return -ENOSYS;
+    struct tsb_i2c_inst_s     *inst = (struct tsb_i2c_inst_s *)dev;
+
+    struct i2c_msg_s msgv =
+    {
+        .addr   = inst->address,
+        .flags  = inst->flags | I2C_M_READ,
+        .buffer = (uint8_t *)buffer,
+        .length = buflen
+    };
+
+    return up_i2c_transfer(dev, &msgv, 1);
 }
 
 /**
@@ -696,6 +779,9 @@ struct i2c_ops_s dev_i2c_ops = {
     .setaddress   = up_i2c_setaddress,
     .write        = up_i2c_write,
     .read         = up_i2c_read,
+#ifdef CONFIG_I2C_WRITEREAD
+    .writeread    = up_i2c_writeread,
+#endif
 #ifdef CONFIG_I2C_TRANSFER
     .transfer     = up_i2c_transfer
 #endif
