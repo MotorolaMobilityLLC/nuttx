@@ -3770,6 +3770,25 @@ void init_ring_dma_desc(dwc_ep_t * ep, dwc_otg_dev_dma_desc_t *dma_desc,
 	dma_desc->status.b.bs = BS_HOST_READY;
 }
 
+void init_fifo_dma_desc(dwc_ep_t * ep, dwc_otg_dev_dma_desc_t *dma_desc,
+			uint32_t buf, uint32_t length)
+{
+	int i = dma_desc - ep->desc_addr;
+
+	dma_desc->status.b.bs = BS_HOST_BUSY;
+	dma_desc->status.b.l = 0;
+	dma_desc->status.b.ioc = 1;
+	dma_desc->status.b.sp = 1;
+	dma_desc->status.b.bytes = length;
+	dma_desc->buf = buf;
+	dma_desc->status.b.sts = 0;
+	if (i == ep->desc_cnt - 1) {
+		dma_desc->status.b.l = 1;
+	}
+	dma_desc->status.b.bs = BS_HOST_READY;
+}
+
+
 /**
  * This function is called when to write ISOC data into appropriate dedicated 
  * periodic FIFO.
