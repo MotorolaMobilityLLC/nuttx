@@ -145,9 +145,6 @@ install:
 context:
 	@true
 
-manifest.o: manifest.inc manifest.c
-	$(call COMPILE, manifest.c, manifest.o)
-
 .depend: Makefile $(SRCS) manifest.inc
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
