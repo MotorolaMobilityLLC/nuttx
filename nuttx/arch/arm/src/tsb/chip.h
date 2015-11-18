@@ -35,11 +35,7 @@
 
 /* Buffer RAM */
 
-#ifdef CONFIG_TSB_CHIP_REV_ES1
-#define BUFRAM_BANK_SIZE 0x8000
-#else
 #define BUFRAM_BANK_SIZE 0xC000
-#endif
 
 #define BUFRAM0_BASE    0x20000000
 #define BUFRAM1_BASE    (BUFRAM0_BASE + BUFRAM_BANK_SIZE)
