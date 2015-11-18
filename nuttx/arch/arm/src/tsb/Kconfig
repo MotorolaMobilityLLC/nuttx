@@ -214,6 +214,10 @@ config ARCH_CHIP_DEVICE_SDIO
 	---help---
 		TSB SDIO Driver
 
+config UNIPRO_ZERO_COPY
+	bool
+	default y
+
 choice
 	prompt "Drive Strength for the TRACE Signals"
 	default TSB_TRACE_DRIVESTRENGTH_MAX
