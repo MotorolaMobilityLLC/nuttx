@@ -38,9 +38,12 @@
 
 #define INFINITE_MAX_INFLIGHT_BUFCOUNT      0
 
+enum unipro_event;
+
 typedef int (*unipro_send_completion_t)(int status, const void *buf,
                                         void *priv);
 typedef void (*cport_reset_completion_cb_t)(unsigned int cportid, void *data);
+typedef void (*unipro_event_handler_t)(enum unipro_event evt);
 
 struct unipro_driver {
     const char name[32];
@@ -51,6 +54,7 @@ struct unipro_driver {
 
 unsigned int unipro_cport_count(void);
 void unipro_init(void);
+void unipro_init_with_event_handler(unipro_event_handler_t evt_handler);
 void unipro_info(void);
 int unipro_send(unsigned int cportid, const void *buf, size_t len);
 int unipro_send_async(unsigned int cportid, const void *buf, size_t len,

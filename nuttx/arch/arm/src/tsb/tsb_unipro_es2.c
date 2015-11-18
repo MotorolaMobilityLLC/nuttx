@@ -68,6 +68,7 @@
 #define CPB_TX_BUFFER_SPACE_OFFSET_MASK CPB_TX_BUFFER_SPACE_MASK
 
 static struct cport *cporttable;
+static unipro_event_handler_t evt_handler;
 
 #define APBRIDGE_CPORT_MAX 44 // number of CPorts available on the APBridges
 #define GPBRIDGE_CPORT_MAX 16 // number of CPorts available on the GPBridges
@@ -723,6 +724,12 @@ static int unipro_init_cport(unsigned int cportid)
 #endif
 
     return 0;
+}
+
+void unipro_init_with_event_handler(unipro_event_handler_t handler)
+{
+    evt_handler = handler;
+    unipro_init();
 }
 
 /**
