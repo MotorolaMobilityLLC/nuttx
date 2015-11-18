@@ -85,11 +85,15 @@ ifeq ($(CONFIG_ARCH_CHIP_DEVICE_SDIO),y)
 CSRCS += sdio_board.c
 endif
 
+ifeq ($(CONFIG_ARA_BRIDGE_BOARD_OOT),y)
+CSRCS += $(OOT_BOARD)
+endif
+
+
 COBJS		= $(CSRCS:.c=$(OBJEXT))
-OOT_OBJS	?= # injected when doing out of tree development
 
 SRCS		= $(ASRCS) $(CSRCS)
-OBJS		= $(AOBJS) $(COBJS) $(OOT_OBJS)
+OBJS		= $(AOBJS) $(COBJS)
 
 ARCH_SRCDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src
 CFLAGS          += -I$(ARCH_SRCDIR)/chip -I$(ARCH_SRCDIR)/common -I$(ARCH_SRCDIR)/armv7-m
