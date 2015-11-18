@@ -162,8 +162,8 @@ int interface_generate_wakeout(struct interface *iface, bool assert)
         return -ENODEV;
     }
 
-    dbg_verbose("Generating WAKEOUT on interface %s\n",
-                iface->name ? iface->name : "unknown");
+    dbg_info("Generating WAKEOUT on interface %s\n",
+             iface->name ? iface->name : "unknown");
 
     /* Generate a WAKEOUT pulse according to the interface type */
     switch (iface->if_type) {
