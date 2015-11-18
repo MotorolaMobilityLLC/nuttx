@@ -53,6 +53,11 @@
  */
 #define CS_ASSERT_TICKS  MSEC2TICK(1000)
 
+/* If base attach GPIO has not been selected by the board, use SL_BPLUS_EN */
+#ifndef GPIO_MODS_BASE_ATTACH
+#  define GPIO_MODS_BASE_ATTACH  GPIO_MODS_SL_BPLUS_EN
+#endif
+
 struct notify_node_s
 {
   mods_attach_t callback;
@@ -72,7 +77,7 @@ static enum base_attached_e read_base_state(void)
 {
   enum base_attached_e base_state;
 
-  base_state = !!gpio_get_value(GPIO_MODS_SL_BPLUS_EN);
+  base_state = !!gpio_get_value(GPIO_MODS_BASE_ATTACH);
 
 #ifdef GPIO_MODS_SPI_CS_N
   if (!base_state)
@@ -169,8 +174,8 @@ int mods_attach_register(mods_attach_t callback, void *arg)
 
 int mods_attach_init(void)
 {
-  gpio_irqattach(GPIO_MODS_SL_BPLUS_EN, bplus_isr);
-  set_gpio_triggering(GPIO_MODS_SL_BPLUS_EN, IRQ_TYPE_EDGE_BOTH);
+  gpio_irqattach(GPIO_MODS_BASE_ATTACH, bplus_isr);
+  set_gpio_triggering(GPIO_MODS_BASE_ATTACH, IRQ_TYPE_EDGE_BOTH);
 
 #ifdef GPIO_MODS_SPI_CS_N
   /*
