@@ -2606,6 +2606,37 @@ static void dwc_otg_pcd_ep_resume(dwc_otg_pcd_ep_t *ep)
 
 }
 
+void init_fifo_dma_desc_chain(dwc_otg_core_if_t * core_if,
+			      dwc_otg_pcd_ep_t *ep)
+{
+	int i = 0;
+	unsigned int desc_cnt;
+	dwc_otg_pcd_request_t *req;
+	dwc_otg_pcd_request_t *next_req;
+	dwc_otg_dev_dma_desc_t *dma_desc;
+
+	desc_cnt = 0;
+	/* count request available in queue */
+	DWC_CIRCLEQ_FOREACH(req, &ep->sg_dma_queue, sg_dma_queue_entry) {
+		desc_cnt++;
+	}
+
+	if (desc_cnt > MAX_DMA_DESC_CNT)
+		desc_cnt = MAX_DMA_DESC_CNT;
+
+	ep->dwc_ep.desc_cnt = desc_cnt;
+	DWC_CIRCLEQ_FOREACH_SAFE(req, next_req, &ep->sg_dma_queue, sg_dma_queue_entry) {
+		DWC_CIRCLEQ_REMOVE(&ep->sg_dma_queue, req, sg_dma_queue_entry);
+
+		/** DMA Descriptor Setup */
+		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
+		init_fifo_dma_desc(&ep->dwc_ep, dma_desc, req->dma, req->length);
+		req->dma_desc = dma_desc;
+		i++;
+	}
+}
+
+
 int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 			 uint8_t * buf, dwc_dma_t dma_buf, uint32_t buflen,
 			 int zero, void *req_handle, int atomic_alloc)
