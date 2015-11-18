@@ -69,6 +69,7 @@ uint16_t unipro_get_tx_free_buffer_space(struct cport *cport);
 int unipro_tx_init(void);
 int _unipro_reset_cport(unsigned int cportid);
 void unipro_reset_notify(unsigned int cportid);
+void unipro_switch_rxbuf(unsigned int cportid, void *buffer);
 
 #endif /* __TSB_UNIPRO_H__ */
 

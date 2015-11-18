@@ -659,12 +659,28 @@ void unipro_info(void)
     dump_regs();
 }
 
+void unipro_switch_rxbuf(unsigned int cportid, void *buffer)
+{
+    uint32_t ahm_address = AHM_ADDRESS_00;
+    struct cport *cport = cport_handle(cportid);
+
+    if (!cport)
+        return;
+
+    if (cportid < CPORTID_CDSI0)
+        ahm_address += (cportid * sizeof(uint32_t));
+    else
+        ahm_address += ((cportid - 2) * sizeof(uint32_t));
+
+    cport->rx_buf = buffer;
+    unipro_write(ahm_address, (uint32_t) buffer);
+}
+
 /**
  * @brief Initialize one UniPro cport
  */
 static int unipro_init_cport(unsigned int cportid)
 {
-    uint32_t ahm_address;
     struct cport *cport = cport_handle(cportid);
 
     if (!cport) {
@@ -676,17 +692,7 @@ static int unipro_init_cport(unsigned int cportid)
 
     _unipro_reset_cport(cportid);
 
-    /*
-     * AHM_ADDRESS_16 and AHM_ADDRESS_17 don't exist,
-     * and there is no offset AHM_ADDRESS_18 and AHM_ADDRESS_15,
-     * then we need to apply an offset for cport above 16.
-     */
-    if (cportid < CPORTID_CDSI0)
-        ahm_address = AHM_ADDRESS_00 + (cportid * sizeof(uint32_t));
-    else
-        ahm_address = AHM_ADDRESS_00 + ((cportid - 2) * sizeof(uint32_t));
-
-    unipro_write(ahm_address, (uint32_t) cport->rx_buf);
+    unipro_switch_rxbuf(cportid, cport->rx_buf);
 
 #ifdef UNIPRO_DEBUG
     unipro_info();
