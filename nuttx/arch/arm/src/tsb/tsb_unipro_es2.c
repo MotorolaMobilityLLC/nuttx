@@ -692,6 +692,10 @@ static int unipro_init_cport(unsigned int cportid)
 
     _unipro_reset_cport(cportid);
 
+    atomic_init(&cport->inflight_buf_count, 0);
+    cport->max_inflight_buf_count = INFINITE_MAX_INFLIGHT_BUFCOUNT;
+    cport->switch_buf_on_free = false;
+
     unipro_switch_rxbuf(cportid, cport->rx_buf);
 
 #ifdef UNIPRO_DEBUG
