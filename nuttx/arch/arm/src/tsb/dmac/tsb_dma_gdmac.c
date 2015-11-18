@@ -88,21 +88,26 @@
 #define GDMAC_CONFIG_REGS_OFFSET    0x0E00
 #define GDMAC_ID_REGS_OFFSET        0x0FE0
 
-#define GDMAC_CONTROL_REGS_ADDRESS  (GDMAC_BASE + GDMAC_CONTROL_REGS_OFFSET)
-#define GDMAC_CHANNEL_REGS_ADDRESS  (GDMAC_BASE + GDMAC_CHANNEL_REGS_OFFSET)
-#define GDMAC_DBG_REGS_ADDRESS      (GDMAC_BASE + GDMAC_DBG_REGS_OFFSET)
-#define GDMAC_CONFIG_REGS_ADDRESS   (GDMAC_BASE + GDMAC_CONFIG_REGS_OFFSET)
-#define GDMAC_ID_REGS_ADDRESS       (GDMAC_BASE + GDMAC_ID_REGS_OFFSET)
+#define GDMAC_CONTROL_REGS_ADDRESS  \
+    (gdmac_resource_info.reg_base + GDMAC_CONTROL_REGS_OFFSET)
+#define GDMAC_CHANNEL_REGS_ADDRESS  \
+    (gdmac_resource_info.reg_base + GDMAC_CHANNEL_REGS_OFFSET)
+#define GDMAC_DBG_REGS_ADDRESS      \
+    (gdmac_resource_info.reg_base + GDMAC_DBG_REGS_OFFSET)
+#define GDMAC_CONFIG_REGS_ADDRESS   \
+    (gdmac_resource_info.reg_base + GDMAC_CONFIG_REGS_OFFSET)
+#define GDMAC_ID_REGS_ADDRESS       \
+    (gdmac_resource_info.reg_base + GDMAC_ID_REGS_OFFSET)
 
 /* Define PL330 events associated with each channel. */
 #define GDMAC_EVENT_MASK(event)              (1 << event)
 #define IRQN_TO_DMA_EVENT(irqn)              \
-	((irqn - TSB_IRQ_GDMAC00 >= GDMAC_NUMBER_OF_EVENTS) ?\
-     GDMAC_INVALID_EVENT : (irqn - TSB_IRQ_GDMAC00))
+	((irqn - gdmac_resource_info.irq_base >= GDMAC_NUMBER_OF_EVENTS) ?\
+     GDMAC_INVALID_EVENT : (irqn - gdmac_resource_info.irq_base))
 #define GDMAC_EVENT_TO_DMA_CHANNEL(event_id) \
     &gdmac_event_to_chan_map[event_id]
 #define GDMAC_EVENT_TO_IRQN(event_id)        \
-    (event_id + TSB_IRQ_GDMAC00)
+    (event_id + gdmac_resource_info.irq_base)
 
 #define CCR_FIXED_VALUE                 0x01c00700
 #define DMA_LOADANDSTORE                (DMALD | (DMAST << 8))
@@ -467,6 +472,11 @@ struct gdmac_event {
     struct gdmac_chan *dma_chan;
     int event;
 };
+
+static struct tsb_gdmac_drv_info {
+    uint32_t    reg_base;
+    uint32_t    irq_base;
+} gdmac_resource_info;
 
 static struct gdmac_event gdmac_event_to_chan_map[GDMAC_NUMBER_OF_EVENTS];
 
@@ -1598,25 +1608,52 @@ int gdmac_irq_abort_handler(int irq, void *context)
     return OK;
 }
 
-void gdmac_init_controller(struct device *dev)
+static int tsb_gdmac_extract_resources(struct device *dev,
+                                       struct tsb_gdmac_drv_info * info)
+{
+    struct device_resource *r;
+
+    r = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_REGS, "reg_base");
+    if (!r) {
+        return -EINVAL;
+    }
+    info->reg_base = r->start;
+
+    r = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_IRQ, "irq_gdmac");
+    if (!r) {
+        return -EINVAL;
+    }
+    info->irq_base = r->start;
+
+    return OK;
+}
+
+int gdmac_init_controller(struct device *dev)
 {
     int retval = OK;
 
     /* initialize all events are available. */
     memset(&gdmac_event_to_chan_map[0], 0, sizeof(gdmac_event_to_chan_map));
 
+    retval = tsb_gdmac_extract_resources(dev, &gdmac_resource_info);
+    if (retval != OK) {
+        lldbg("Failed to retrieve GDMAC resource.\n");
+        return retval;
+    }
+
     /* enable clock to GDMAC and reset GDMAC. */
     tsb_clk_enable(TSB_CLK_GDMA);
     tsb_reset(TSB_RST_GDMA);
 
-
     retval = irq_attach(TSB_IRQ_GDMACABORT, gdmac_irq_abort_handler);
     if (retval != OK) {
         lldbg("Failed to attach GDMAC Abort interrupt.\n");
-        return;
+        return retval;
     } else {
         up_enable_irq(TSB_IRQ_GDMACABORT);
     }
+
+    return OK;
 }
 
 void gdmac_deinit_controller(struct device *dev)

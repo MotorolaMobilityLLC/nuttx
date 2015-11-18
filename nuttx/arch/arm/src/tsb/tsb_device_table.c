@@ -172,6 +172,23 @@ static struct device_resource tsb_uart_resources[] = {
 };
 #endif
 
+#ifdef CONFIG_ARCH_CHIP_DEVICE_GDMAC
+static struct device_resource tsb_gdmac_resources[] = {
+    {
+        .name   = "reg_base",
+        .type   = DEVICE_RESOURCE_TYPE_REGS,
+        .start  = GDMAC_BASE,
+        .count  = GDMAC_SIZE,
+    },
+    {
+        .name   = "irq_gdmac",
+        .type   = DEVICE_RESOURCE_TYPE_IRQ,
+        .start  = TSB_IRQ_GDMAC00,
+        .count  = 32,
+    },
+};
+#endif
+
 #ifdef CONFIG_ARCH_CHIP_DEVICE_SDIO
 static struct device_resource tsb_sdio_resources[] = {
     {
@@ -266,6 +283,8 @@ static struct device tsb_devices[] = {
         .name           = "tsb_dma",
         .desc           = "TSB DMA Controller",
         .id             = 0,
+        .resources      = tsb_gdmac_resources,
+        .resource_count = ARRAY_SIZE(tsb_gdmac_resources),
     },
 #endif
 

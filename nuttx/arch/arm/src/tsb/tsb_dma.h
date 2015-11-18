@@ -49,7 +49,7 @@ struct tsb_dma_chan {
 };
 
 extern int gdmac_max_number_of_channels(void);
-extern void gdmac_init_controller(struct device *);
+extern int gdmac_init_controller(struct device *);
 extern void gdmac_deinit_controller(struct device *);
 extern int gdmac_get_caps(struct device *dev, struct device_dma_caps *caps);
 extern int gdmac_chan_alloc(struct device *dev,

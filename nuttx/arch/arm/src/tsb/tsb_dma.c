@@ -179,7 +179,10 @@ static int tsb_dma_open(struct device *dev)
     unsigned int chan;
     int retval = 0;
 
-    gdmac_init_controller(dev);
+    retval = gdmac_init_controller(dev);
+    if (retval != OK) {
+        return retval;
+    }
 
     chan = gdmac_max_number_of_channels();
 
