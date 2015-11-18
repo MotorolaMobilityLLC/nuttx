@@ -46,7 +46,7 @@ int up_getchipid(uint32_t *vid, uint32_t *pid)
     if (vid) {
         uint32_t result_code = 0;
         uint32_t val = 0;
-        result_code = unipro_attr_local_read(DME_DDBL1_MANUFACTURERID, &val, 0 /* local */);
+        result_code = unipro_attr_peer_read(DME_DDBL1_MANUFACTURERID, &val, 0 /* selector */);
         if (!result_code) {
             *vid = val;
         }
@@ -55,7 +55,7 @@ int up_getchipid(uint32_t *vid, uint32_t *pid)
     if (pid) {
         uint32_t result_code = 0;
         uint32_t val = 0;
-        result_code = unipro_attr_local_read(DME_DDBL1_PRODUCTID, &val, 0 /* local */);
+        result_code = unipro_attr_peer_read(DME_DDBL1_PRODUCTID, &val, 0 /* selector */);
         if (!result_code) {
             *pid = val;
         }
