@@ -39,7 +39,7 @@
 #include "camera_ext_dbg.h"
 
 #define CAMERA_UNIPRO_CPORT 16
-#define IPC_TIMEOUT 1000
+#define IPC_TIMEOUT 500
 
 #define BW_MEGA_BIT(w, h, depth, fps) \
     ((((uint32_t)w*(uint32_t)h*(uint32_t)depth*(uint32_t)fps)>>20) + 1)
