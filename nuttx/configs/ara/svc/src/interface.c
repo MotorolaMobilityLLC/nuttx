@@ -100,7 +100,7 @@ static int interface_config(struct interface *iface)
         break;
     }
 
-    iface->power_state = false;
+    iface->power_state = rc ? ARA_IFACE_PWR_ERROR : ARA_IFACE_PWR_DOWN;
 
     return rc;
 }
@@ -108,41 +108,68 @@ static int interface_config(struct interface *iface)
 
 /**
  * @brief Turn on the power to this interface
+ *
+ * This function attempts to apply power, clock, etc. to the
+ * interface, and updates the interface's power state accordingly.
+ * This affects the value returned by interface_get_pwr_state(iface).
+ *
+ * @param iface Interface whose power to enable
  * @returns: 0 on success, <0 on error
  */
 int interface_pwr_enable(struct interface *iface)
 {
+    int rc;
+
     if (!iface) {
+        dbg_error("%s: called with null interface\n", __func__);
         return -ENODEV;
     }
 
-    dbg_verbose("Enabling interface %s.\n",
-                iface->name ? iface->name : "unknown");
-    vreg_get(iface->vreg);
+    rc = vreg_get(iface->vreg);
+    if (rc) {
+        dbg_error("Can't enable interface %s: %d\n",
+                  iface->name ? iface->name : "unknown",
+                  rc);
+        iface->power_state = ARA_IFACE_PWR_ERROR;
+    } else {
+        dbg_info("Enabled interface %s.\n",
+                 iface->name ? iface->name : "unknown");
+        iface->power_state = ARA_IFACE_PWR_UP;
+    }
 
-    /* Update state */
-    iface->power_state = true;
-
-    return 0;
+    return rc;
 }
 
 
 /**
  * @brief Turn off the power to this interface
+ *
+ * This function attempts to remove power, clock, etc. from the
+ * interface, and updates the interface's power state accordingly.
+ * This affects the value returned by interface_get_pwr_state(iface).
+ *
  * @returns: 0 on success, <0 on error
  */
 int interface_pwr_disable(struct interface *iface)
 {
+    int rc;
+
     if (!iface) {
+        dbg_error("%s: called with null interface\n", __func__);
         return -ENODEV;
     }
 
-    dbg_verbose("Disabling interface %s.\n",
-                iface->name ? iface->name : "unknown");
-    vreg_put(iface->vreg);
-
-    /* Update state */
-    iface->power_state = false;
+    rc = vreg_put(iface->vreg);
+    if (rc) {
+        dbg_error("Can't disable interface %s: %d\n",
+                  iface->name ? iface->name : "unknown",
+                  rc);
+        iface->power_state = ARA_IFACE_PWR_ERROR;
+    } else {
+        dbg_info("Disabled interface %s.\n",
+                 iface->name ? iface->name : "unknown");
+        iface->power_state = ARA_IFACE_PWR_DOWN;
+    }
 
     return 0;
 }
@@ -159,6 +186,7 @@ int interface_generate_wakeout(struct interface *iface, bool assert)
     int rc;
 
     if (!iface) {
+        dbg_error("%s: called with null interface\n", __func__);
         return -ENODEV;
     }
 
@@ -238,13 +266,15 @@ int interface_generate_wakeout(struct interface *iface, bool assert)
 }
 
 
-/*
- * @brief Get interface power supply state, or false if no interface is supplied
+/**
+ * @brief Get interface power supply state
+ * @param iface Interface whose power state to retrieve
+ * @return iface's power state, or ARA_IFACE_PWR_ERROR if iface == NULL.
  */
-bool interface_get_pwr_state(struct interface *iface)
+enum ara_iface_pwr_state interface_get_pwr_state(struct interface *iface)
 {
     if (!iface) {
-        return false;
+        return ARA_IFACE_PWR_ERROR;
     }
 
     return iface->power_state;

@@ -104,6 +104,13 @@ enum ara_iface_type {
 #define ARA_IFACE_FLAG_DETECT_IN_ACTIVE_LOW     (0U << 1)
 #define ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH    (1U << 1)
 
+/* Interface power states */
+enum ara_iface_pwr_state {
+    ARA_IFACE_PWR_ERROR = -1,
+    ARA_IFACE_PWR_DOWN = 0,
+    ARA_IFACE_PWR_UP = 1,
+};
+
 struct interface {
     const char *name;
     unsigned int switch_portid;
@@ -111,7 +118,7 @@ struct interface {
     enum ara_iface_type if_type;
     unsigned int flags;
     struct vreg *vreg;
-    bool power_state;
+    enum ara_iface_pwr_state power_state;
     struct pm_data *pm;
     unsigned int wake_out;
     struct wd_data wake_in;
@@ -142,7 +149,7 @@ uint8_t interface_get_spring_count(void);
 const char *interface_get_name(struct interface *iface);
 int interface_pwr_enable(struct interface*);
 int interface_pwr_disable(struct interface*);
-bool interface_get_pwr_state(struct interface *iface);
+enum ara_iface_pwr_state interface_get_pwr_state(struct interface *iface);
 int interface_generate_wakeout(struct interface *, bool assert);
 int interface_store_hotplug_state(uint8_t port_id, enum hotplug_state hotplug);
 enum hotplug_state interface_consume_hotplug_state(uint8_t port_id);
