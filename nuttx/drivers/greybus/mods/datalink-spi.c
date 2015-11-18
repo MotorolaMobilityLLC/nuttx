@@ -299,13 +299,16 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)arg;
 
-  if ((priv->bstate != state) && (state != BASE_ATTACHED))
+  if (state != BASE_ATTACHED)
     {
       vdbg("Cleaning up datalink\n");
 
       /* Reset GPIOs to initial state */
       mods_host_int_set(false);
       mods_rfr_set(0);
+#ifdef GPIO_MODS_CC_EN
+      gpio_set_value(GPIO_MODS_CC_EN, 0);
+#endif
 
       if (atomic_get(&priv->xfer))
         {
@@ -325,6 +328,13 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       /* Return packet size back to default */
       (void)set_packet_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
     }
+#ifdef GPIO_MODS_CC_EN
+  else
+    {
+      /* Required to communicate with the base */
+      gpio_set_value(GPIO_MODS_CC_EN, 1);
+    }
+#endif
 
   priv->bstate = state;
 }
@@ -596,6 +606,10 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
   gpio_direction_in(GPIO_MODS_WAKE_N);
   gpio_irqattach(GPIO_MODS_WAKE_N, wake_isr);
   set_gpio_triggering(GPIO_MODS_WAKE_N, IRQ_TYPE_EDGE_FALLING);
+
+#ifdef GPIO_MODS_CC_EN
+  gpio_direction_out(GPIO_MODS_CC_EN, 0);
+#endif
 
   mods_attach_register(attach_cb, &mods_spi_dl);
 
