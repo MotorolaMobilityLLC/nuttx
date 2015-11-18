@@ -76,16 +76,33 @@ int bq24292_power_good_register(bq24292_power_good_callback cb, void *arg)
 
 static void pg_worker(FAR void *arg)
 {
+    static int prev_pg;
     struct notify_node *node;
     struct list_head *iter;
+    int regval;
 
-    // Configure registers every time power is attached
-    bq24292_configure();
-
-    list_foreach(&notify_list, iter) {
-        node = list_entry(iter, struct notify_node, list);
-        node->callback(node->arg);
+    /* Read the system status register (REG08) */
+    regval = bq24292_reg_read(0x08);
+    if (regval < 0) {
+        /* If unable to communicate with the IC, assume power is not good */
+        regval = 0;
     }
+
+    /* Only interested in the power good bit (bit 2) */
+    regval &= 0x04;
+
+    /* Configure registers every time power is attached */
+    if (regval && !prev_pg) {
+        dbg("Reconfiguring BQ24292\n");
+        bq24292_configure();
+
+        list_foreach(&notify_list, iter) {
+            node = list_entry(iter, struct notify_node, list);
+            node->callback(node->arg);
+        }
+    }
+
+    prev_pg = regval;
 }
 
 static int pg_isr(int irq, void *context)
@@ -329,7 +346,7 @@ int bq24292_driver_init(int16_t pg_n)
         goto init_done;
     }
 
-    ret = set_gpio_triggering(pg_n, IRQ_TYPE_EDGE_FALLING);
+    ret = set_gpio_triggering(pg_n, IRQ_TYPE_EDGE_BOTH);
     if (ret) {
         dbg("failed to set irq edge\n");
         goto init_done;
