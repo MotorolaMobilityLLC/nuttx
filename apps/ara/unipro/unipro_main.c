@@ -60,7 +60,7 @@ static struct unipro_driver greybus_driver = {
 static int greybus_rx_handler(unsigned int cportid, void *data, size_t len) {
     /* pass it off to greybus core? */
     // gb_message_handler()
-    unipro_unpause_rx(cportid);
+    unipro_rxbuf_free(cportid, data);
     return 0;
 }
 

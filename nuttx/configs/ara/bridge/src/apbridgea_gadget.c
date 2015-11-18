@@ -189,6 +189,7 @@ struct apbridge_msg_s {
     struct usbdev_ep_s *ep;
     const void *buf;
     size_t len;
+    void *priv;
 };
 
 /* This structure describes the internal state of the driver */
@@ -394,7 +395,7 @@ static unsigned int get_cportid(const struct gb_operation_hdr *hdr)
 }
 
 static int apbridge_queue(struct apbridge_dev_s *priv, struct usbdev_ep_s *ep,
-                          const void *payload, size_t len)
+                          const void *payload, size_t len, void *data)
 {
     irqstate_t flags;
     struct apbridge_msg_s *info;
@@ -407,6 +408,7 @@ static int apbridge_queue(struct apbridge_dev_s *priv, struct usbdev_ep_s *ep,
     info->ep = ep;
     info->buf = payload;
     info->len = len;
+    info->priv = data;
 
     flags = irqsave();
     list_add(&priv->msg_queue, &info->list);
@@ -445,12 +447,10 @@ static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
 
     cportid = get_cportid(payload);
 
-    memcpy(req->buf, payload, len);
+    req->buf = (void*) payload;
     gb_timestamp_tag_exit_time(&priv->ts[cportid], cportid);
     gb_timestamp_log(&priv->ts[cportid], cportid, req->buf, len,
                           GREYBUS_FW_TIMESTAMP_APBRIDGE);
-
-    unipro_unpause_rx(cportid);
 
     /* Then submit the request to the endpoint */
 
@@ -487,9 +487,10 @@ int unipro_to_usb(struct apbridge_dev_s *priv, unsigned int cportid,
 
     epno = priv->cport_to_epin_n[cportid];
     ep = priv->ep[epno & USB_EPNO_MASK];
-    req = get_request(ep, usbclass_wrcomplete, APBRIDGE_REQ_SIZE, NULL);
+    req = get_request(ep, usbclass_wrcomplete, APBRIDGE_REQ_SIZE,
+                      (void*) cportid);
     if (!req) {
-        return apbridge_queue(priv, ep, payload, len);
+        return apbridge_queue(priv, ep, payload, len, (void*) cportid);
     }
 
     return _to_usb_submit(ep, req, payload, len);
@@ -913,9 +914,12 @@ static void usbclass_wrcomplete(struct usbdev_ep_s *ep,
     }
 #endif
 
+    unipro_rxbuf_free((unsigned int) request_get_priv(req), req->buf);
+
     priv = ep_to_apbridge(ep);
     info = apbridge_dequeue(priv);
     if (info) {
+        request_set_priv(req, info->priv);
         _to_usb_submit(info->ep, req, info->buf, info->len);
         free(info);
     } else {

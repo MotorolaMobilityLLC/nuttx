@@ -375,6 +375,7 @@ static int irq_rx_eom(int irq, void *context) {
     void *data = cport->rx_buf;
     uint32_t transferred_size;
     (void)context;
+    void *newbuf;
 
     clear_rx_interrupt(cport);
 
@@ -392,6 +393,14 @@ static int irq_rx_eom(int irq, void *context) {
                 data);
 
     if (cport->driver->rx_handler) {
+        newbuf = unipro_rxbuf_alloc(cport->cportid);
+        if (newbuf) {
+            unipro_switch_rxbuf(cport->cportid, newbuf);
+            unipro_unpause_rx(cport->cportid);
+        } else {
+            cport->switch_buf_on_free = true;
+        }
+
         cport->driver->rx_handler(cport->cportid, data,
                                   (size_t)transferred_size);
     }
@@ -696,6 +705,13 @@ static int unipro_init_cport(unsigned int cportid)
     cport->max_inflight_buf_count = INFINITE_MAX_INFLIGHT_BUFCOUNT;
     cport->switch_buf_on_free = false;
 
+    cport->rx_buf = unipro_rxbuf_alloc(cportid);
+    if (!cport->rx_buf) {
+        lowsyslog("unipro: couldn't allocate initial buffer for CP%u\n",
+                  cportid);
+        return -ENOMEM;
+    }
+
     unipro_switch_rxbuf(cportid, cport->rx_buf);
 
 #ifdef UNIPRO_DEBUG
@@ -736,8 +752,6 @@ void unipro_init(void)
     for (i = 0; i < cport_count; i++) {
         cport = &cporttable[i];
         cport->tx_buf = CPORT_TX_BUF(i);
-        cport->rx_buf =
-            bufram_page_alloc(bufram_size_to_page_count(CPORT_BUF_SIZE));
         cport->cportid = i;
         cport->connected = 0;
         list_init(&cport->tx_fifo);

@@ -30,6 +30,7 @@
 
 #include <string.h>
 #include <nuttx/util.h>
+#include <nuttx/bufram.h>
 #include <arch/board/common_gadget.h>
 
 #define REQ_SIZE_MUL (128)
@@ -120,9 +121,10 @@ static struct usbdev_req_s *alloc_request(struct usbdev_ep_s *ep,
         return NULL;
     }
 
-    if (!len) {
-        req->buf = NULL;
-    } else {
+    req->buf = NULL;
+
+    /* Only allocate request buffer for OUT requests */
+    if (len && ep->eplog % 2 == 0) {
         req->buf = EP_ALLOCBUFFER(ep, len);
         if (!req->buf) {
             EP_FREEREQ(ep, req);
@@ -140,7 +142,8 @@ static void free_request(struct usbdev_ep_s *ep, struct usbdev_req_s *req)
         return;
 
     if (req->buf != NULL) {
-        EP_FREEBUFFER(ep, req->buf);
+        if (ep->eplog % 2 == 0) /* free only OUT requests */
+            EP_FREEBUFFER(ep, req->buf);
         req->buf = NULL;
         req->len = 0;
     }
