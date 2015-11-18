@@ -76,9 +76,9 @@ void gb_timestamp_tag_exit_time(struct gb_timestamp *ts,
 }
 
 void gb_timestamp_log(struct gb_timestamp *ts, unsigned int cportid,
-                      const void *payload, size_t len, int id)
+                      void *payload, size_t len, int id)
 {
-    struct gb_loopback_transfer_response *resp = (void*)payload +
+    struct gb_loopback_transfer_response *resp = payload +
                                                  sizeof(struct gb_operation_hdr);
     __le32 latency;
 

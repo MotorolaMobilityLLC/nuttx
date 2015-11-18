@@ -45,6 +45,6 @@ void gb_timestamp_tag_entry_time(struct gb_timestamp *ts,
 void gb_timestamp_tag_exit_time(struct gb_timestamp *ts,
                                 unsigned int cportid);
 void gb_timestamp_log(struct gb_timestamp *ts, unsigned int cportid,
-                      const void *payload, size_t len, int id);
+                      void *payload, size_t len, int id);
 void gb_timestamp_init(void);
 #endif
