@@ -50,12 +50,14 @@
 int vreg_config(struct vreg *vreg) {
     unsigned int i;
     int rc = 0;
+    const char *name;
 
     if (!vreg) {
         return -ENODEV;
     }
 
-    dbg_verbose("%s %s\n", __func__,  vreg->name ? vreg->name : "unknown");
+    name = vreg->name ? vreg->name : "unknown";
+    dbg_verbose("%s %s\n", __func__, name);
 
     /*
      * If there is no vreg control, do nothing.
@@ -69,6 +71,7 @@ int vreg_config(struct vreg *vreg) {
     /* Configure the regulator control pins */
     for (i = 0; i < vreg->nr_vregs; i++) {
         if (!&vreg->vregs[i]) {
+            dbg_error("%s: invalid vreg_data for %s\n", __func__, name);
             rc = -EINVAL;
             break;
         }
@@ -82,7 +85,7 @@ int vreg_config(struct vreg *vreg) {
 
 out:
     atomic_init(&vreg->use_count, 0);
-    vreg->power_state = false;
+    vreg->power_state = rc ? VREG_PWR_ERROR : VREG_PWR_DOWN;
 
     return rc;
 }
@@ -92,7 +95,8 @@ out:
  * @returns: 0 on success, <0 on error
  */
 int vreg_get(struct vreg *vreg) {
-    unsigned int i, rc = 0;
+    unsigned int i;
+    int rc = 0;
 
     if (!vreg) {
         return -ENODEV;
@@ -126,7 +130,7 @@ int vreg_get(struct vreg *vreg) {
     }
 
     /* Update state */
-    vreg->power_state = true;
+    vreg->power_state = rc ? VREG_PWR_ERROR : VREG_PWR_UP;
 
     return rc;
 }
@@ -137,7 +141,8 @@ int vreg_get(struct vreg *vreg) {
  * @returns: 0 on success, <0 on error
  */
 int vreg_put(struct vreg *vreg) {
-    unsigned int i, rc = 0;
+    unsigned int i;
+    int rc = 0;
 
     if (!vreg) {
         return -ENODEV;
@@ -172,18 +177,20 @@ int vreg_put(struct vreg *vreg) {
         }
 
         /* Update state */
-        vreg->power_state = false;
+        vreg->power_state = rc ? VREG_PWR_ERROR : VREG_PWR_DOWN;
     }
 
     return rc;
 }
 
-/*
- * @brief Get interface power supply state, or false if no interface is supplied
+/**
+ * @brief Get vreg power supply state
+ * @param vreg Regulator whose power state to retrieve
+ * @return vreg's power state, or VREG_PWR_ERROR if vreg == NULL.
  */
-bool vreg_get_pwr_state(struct vreg *vreg) {
+enum vreg_pwr_state vreg_get_pwr_state(struct vreg *vreg) {
     if (!vreg) {
-        return false;
+        return VREG_PWR_ERROR;
     }
 
     return vreg->power_state;
