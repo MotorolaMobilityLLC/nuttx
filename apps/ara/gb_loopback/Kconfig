@@ -35,6 +35,7 @@ config ARA_GB_LOOPBACK
 	default y if DEBUG
 	depends on GREYBUS_LOOPBACK
 	select GREYBUS_FEATURE_HAVE_TIMESTAMPS
+	select SERVICE_MANAGER
 	---help---
 		Enable the Ara gb_loopback test program
 
