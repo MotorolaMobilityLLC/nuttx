@@ -29,6 +29,10 @@
 #ifndef __GREYBUS_MANIFEST_H
 #define __GREYBUS_MANIFEST_H
 
+/* Greybus version with which this header complies */
+#define GREYBUS_VERSION_MAJOR	0x00
+#define GREYBUS_VERSION_MINOR	0x01
+
 enum greybus_descriptor_type {
     GREYBUS_TYPE_INVALID = 0x00,
     GREYBUS_TYPE_INTERFACE = 0x01,

@@ -36,7 +36,6 @@
 #include <apps/greybus-utils/utils.h>
 #include <nuttx/util.h>
 
-#include "svc_msg.h"
 #include "greybus_manifest.h"
 
 extern void gb_control_register(int cport);
