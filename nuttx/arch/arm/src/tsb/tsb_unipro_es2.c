@@ -777,9 +777,14 @@ static int unipro_init_cport(unsigned int cportid)
     return 0;
 }
 
-void unipro_init_with_event_handler(unipro_event_handler_t handler)
+void unipro_set_event_handler(unipro_event_handler_t handler)
 {
     evt_handler = handler;
+}
+
+void unipro_init_with_event_handler(unipro_event_handler_t handler)
+{
+    unipro_set_event_handler(handler);
     unipro_init();
 }
 

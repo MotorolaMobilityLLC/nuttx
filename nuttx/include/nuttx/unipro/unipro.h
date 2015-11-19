@@ -59,6 +59,7 @@ unsigned int unipro_cport_count(void);
 void unipro_init(void);
 void unipro_init_with_event_handler(unipro_event_handler_t evt_handler);
 void unipro_deinit(void);
+void unipro_set_event_handler(unipro_event_handler_t evt_handler);
 void unipro_info(void);
 int unipro_send(unsigned int cportid, const void *buf, size_t len);
 int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
