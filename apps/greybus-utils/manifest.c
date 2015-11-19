@@ -220,7 +220,7 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
         return -EINVAL;         /* Must at least have header */
     }
 
-    desc_size = (int)le16toh(desc_header->size);
+    desc_size = (int)le16_to_cpu(desc_header->size);
     if ((size_t) desc_size > size) {
         gb_error("descriptor too big\n");
         return -EINVAL;
@@ -292,7 +292,7 @@ bool _manifest_parse(void *data, size_t size, int release)
         }
 
         /* Make sure the size is right */
-        manifest_size = le16toh(header->size);
+        manifest_size = le16_to_cpu(header->size);
         if (manifest_size != size) {
             gb_error("manifest size mismatch %zu != %hu\n", size,
                      manifest_size);
@@ -372,14 +372,14 @@ void parse_manifest_blob(void *manifest)
 {
     struct greybus_manifest_header *mh = manifest;
 
-    manifest_parse(mh, le16toh(mh->size));
+    manifest_parse(mh, le16_to_cpu(mh->size));
 }
 
 void release_manifest_blob(void *manifest)
 {
     struct greybus_manifest_header *mh = manifest;
 
-    manifest_release(mh, le16toh(mh->size));
+    manifest_release(mh, le16_to_cpu(mh->size));
 }
 
 void enable_manifest(char *name, void *manifest, int device_id)
