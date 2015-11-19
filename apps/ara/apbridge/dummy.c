@@ -41,11 +41,6 @@ static int dummy_usb_to_unipro(unsigned int cportid, void *buf, size_t len,
     return 0;
 }
 
-static int dummy_usb_to_svc(void *buf, size_t len)
-{
-    return 0;
-}
-
 static void dummy_backend_init(void)
 {
 
@@ -54,6 +49,5 @@ static void dummy_backend_init(void)
 void apbridge_backend_register(struct apbridge_backend *apbridge_backend)
 {
     apbridge_backend->usb_to_unipro = dummy_usb_to_unipro;
-    apbridge_backend->usb_to_svc = dummy_usb_to_svc;
     apbridge_backend->init = dummy_backend_init;
 }

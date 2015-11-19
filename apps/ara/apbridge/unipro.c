@@ -52,11 +52,6 @@ static int unipro_usb_to_unipro(unsigned int cportid, void *buf, size_t len,
     return unipro_send_async(cportid, buf, len, callback, priv);
 }
 
-static int unipro_usb_to_svc(void *buf, size_t len)
-{
-    return svc_handle(buf, len);
-}
-
 static struct unipro_driver unipro_driver = {
     .name = "APBridge",
     .rx_handler = recv_from_unipro,
@@ -87,6 +82,5 @@ static void unipro_backend_init(void)
 void apbridge_backend_register(struct apbridge_backend *apbridge_backend)
 {
     apbridge_backend->usb_to_unipro = unipro_usb_to_unipro;
-    apbridge_backend->usb_to_svc = unipro_usb_to_svc;
     apbridge_backend->init = unipro_backend_init;
 }
