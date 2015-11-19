@@ -55,10 +55,6 @@ config GREYBUS_SPI_PHY
 	select DEVICE_CORE
 	default n
 
-config GREYBUS_BATTERY
-	bool "Battery support"
-	default n
-
 config GREYBUS_LOOPBACK
 	bool "Loopback support"
 	default n
