@@ -46,8 +46,6 @@
 #include "tsb_scm.h"
 #include "up_arch.h"
 
-#include <arch/chip/gpio.h>
-
 #include <arch/tsb/gpio.h>
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
 #include <arch/board/dsi.h>
@@ -270,7 +268,6 @@ static void sdb_fixups(void)
 
 void ara_module_early_init(void)
 {
-    tsb_gpio_register(NULL);
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
 #ifndef CONFIG_APBRIDGEA
     /* IO expander init is required by ps_hold */
