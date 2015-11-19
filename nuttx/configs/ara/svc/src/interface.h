@@ -144,10 +144,6 @@ int interface_pwr_enable(struct interface*);
 int interface_pwr_disable(struct interface*);
 bool interface_get_pwr_state(struct interface *iface);
 int interface_generate_wakeout(struct interface *, bool assert);
-static inline int interface_read_wake_detect(void)
-{
-    return -EOPNOTSUPP;
-}
 int interface_store_hotplug_state(uint8_t port_id, enum hotplug_state hotplug);
 enum hotplug_state interface_consume_hotplug_state(uint8_t port_id);
 enum hotplug_state interface_get_hotplug_state(struct interface *iface);

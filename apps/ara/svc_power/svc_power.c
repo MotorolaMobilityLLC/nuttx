@@ -51,7 +51,6 @@ int power_main(int argc, char *argv[])
     if (argc < 2) {
         printf("Power: Usage:\n");
         printf("  power p [interface_nr 0/1]  : get/set interface power\n");
-        printf("  power v                     : validate Wake&Detect inputs\n");
         printf("  power w interface_nr 0/1    : pulse/assert WAKEOUT\n");
         printf("\n interface_nr is defined as:\n");
         printf("  index\tname\n");
@@ -94,10 +93,6 @@ int power_main(int argc, char *argv[])
 
         printf("Power: wrong command\n");
         return ERROR;
-
-    case 'v':
-        interface_read_wake_detect();
-        break;
 
     case 'w':
         if (argc == 2) {
