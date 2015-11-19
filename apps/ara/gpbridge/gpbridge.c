@@ -51,15 +51,33 @@ static struct srvmgr_service services[] = {
     { NULL, NULL }
 };
 
+static sem_t linkup_sem;
+
+static void xpb_unipro_evt_handler(enum unipro_event evt)
+{
+    switch (evt) {
+    case UNIPRO_EVT_LUP_DONE:
+        sem_post(&linkup_sem);
+        break;
+
+    default:
+        break;
+    }
+}
+
 int bridge_main(int argc, char *argv[])
 {
+    sem_init(&linkup_sem, 0, 0);
+
     enable_manifest("IID-1", NULL, 0);
+    unipro_set_event_handler(xpb_unipro_evt_handler);
     gb_unipro_init();
     srvmgr_start(services);
-
     enable_cports();
+    sem_wait(&linkup_sem);
     tsb_unipro_set_init_status(INIT_STATUS_OPERATING);
     tsb_unipro_mbox_send(TSB_MAIL_READY_OTHER);
+    sem_destroy(&linkup_sem);
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");

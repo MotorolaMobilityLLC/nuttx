@@ -32,10 +32,21 @@
 
 #include <apps/nsh.h>
 
+static void bringup_unipro_evt_handler(enum unipro_event evt)
+{
+    switch (evt) {
+    case UNIPRO_EVT_LUP_DONE:
+        tsb_unipro_mbox_send(TSB_MAIL_READY_OTHER);
+        break;
+
+    default:
+        break;
+    }
+}
+
 int bringup_entry(int argc, char *argv[])
 {
-    unipro_init();
-    tsb_unipro_mbox_send(TSB_MAIL_READY_OTHER);
+    unipro_init_with_event_handler(bringup_unipro_evt_handler);
     return nsh_main(argc, argv);
 }
 

@@ -57,13 +57,28 @@ static struct unipro_driver unipro_driver = {
     .rx_handler = recv_from_unipro,
 };
 
+static void apbridge_unipro_evt_handler(enum unipro_event evt)
+{
+    switch (evt) {
+    case UNIPRO_EVT_LUP_DONE:
+        /*
+         * Tell the SVC that the AP Module is ready
+         */
+        tsb_unipro_mbox_send(TSB_MAIL_READY_AP);
+        break;
+
+    default:
+        break;
+    }
+}
+
 static void unipro_backend_init(void)
 {
     int i;
     unsigned int cport_count = unipro_cport_count();
 
-    /* unipro_init() will initialize any non-display, non-camera CPorts */
-    unipro_init();
+    /* unipro_init{_*}() will initialize any non-display, non-camera CPorts */
+    unipro_init_with_event_handler(apbridge_unipro_evt_handler);
 
     /* Now register a driver for those CPorts */
     for (i = 0; i < cport_count; i++) {
@@ -72,11 +87,6 @@ static void unipro_backend_init(void)
             continue;
         unipro_driver_register(&unipro_driver, i);
     }
-
-    /*
-     * Tell the SVC that the AP Module is ready
-     */
-    tsb_unipro_mbox_send(TSB_MAIL_READY_AP);
 }
 
 static void unipro_cport_mapping(unsigned int cportid, enum ep_mapping mapping)
