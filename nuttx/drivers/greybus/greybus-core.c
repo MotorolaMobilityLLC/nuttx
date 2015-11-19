@@ -45,7 +45,6 @@
 #include <errno.h>
 
 #define DEFAULT_STACK_SIZE      2048
-#define TYPE_RESPONSE_FLAG      0x80
 #define TIMEOUT_IN_MS           1000
 #define GB_INVALID_TYPE         0
 
@@ -77,12 +76,12 @@ static int gb_tape_fd = -EBADFD;
 static struct gb_operation_hdr timedout_hdr = {
     .size = sizeof(timedout_hdr),
     .result = GB_OP_TIMEOUT,
-    .type = TYPE_RESPONSE_FLAG,
+    .type = GB_TYPE_RESPONSE_FLAG,
 };
 static struct gb_operation_hdr oom_hdr = {
     .size = sizeof(timedout_hdr),
     .result = GB_OP_NO_MEMORY,
-    .type = TYPE_RESPONSE_FLAG,
+    .type = GB_TYPE_RESPONSE_FLAG,
 };
 
 static void gb_operation_timeout(int argc, uint32_t cport, ...);
@@ -342,7 +341,7 @@ static void *gb_pending_message_worker(void *data)
             continue;
         }
 
-        if (hdr->type & TYPE_RESPONSE_FLAG)
+        if (hdr->type & GB_TYPE_RESPONSE_FLAG)
             gb_process_response(hdr, operation);
         else
             gb_process_request(hdr, operation);
@@ -625,7 +624,7 @@ static int gb_operation_send_oom_response(struct gb_operation *operation)
     flags = irqsave();
 
     oom_hdr.id = req_hdr->id;
-    oom_hdr.type = TYPE_RESPONSE_FLAG | req_hdr->type;
+    oom_hdr.type = GB_TYPE_RESPONSE_FLAG | req_hdr->type;
 
     retval = transport_backend->send(operation->cport, &oom_hdr,
                                      sizeof(oom_hdr));
@@ -698,7 +697,7 @@ void *gb_operation_alloc_response(struct gb_operation *operation, size_t size)
 
     resp_hdr->size = cpu_to_le16(size + sizeof(*resp_hdr));
     resp_hdr->id = req_hdr->id;
-    resp_hdr->type = TYPE_RESPONSE_FLAG | req_hdr->type;
+    resp_hdr->type = GB_TYPE_RESPONSE_FLAG | req_hdr->type;
     return gb_operation_get_response_payload(operation);
 }
 
