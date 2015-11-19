@@ -62,16 +62,8 @@
 -include $(TOPDIR)/Make.defs
 include $(APPDIR)/Make.defs
 
-# NSH Library
-
 ifeq ($(CONFIG_GREYBUS_UTILS),y)
-
-ifeq ($(CONFIG_SVC_MSG),y)
-CSRCS += svc_msg.c
-endif
-
 CSRCS += manifest.c
-
 endif
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))

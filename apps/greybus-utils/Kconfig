@@ -73,6 +73,3 @@ config MANIFEST
 	string "manifest name"
 	depends on CUSTOM_MANIFEST
 
-config SVC_MSG
-	bool "Enable Greybus SVC Protocol"
-
