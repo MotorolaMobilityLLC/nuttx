@@ -77,6 +77,10 @@ CSRCS += common_gadget.c
 CSRCS += apbridgea_gadget.c
 endif
 
+ifeq ($(CONFIG_ARA_BRIDGE_HAVE_POWER_SUPPLY),y)
+CSRCS += power_supply_dummy.c
+endif
+
 ifeq ($(CONFIG_ARCH_CHIP_DEVICE_SDIO),y)
 CSRCS += sdio_board.c
 endif
