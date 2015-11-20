@@ -79,6 +79,9 @@ ROOTDEPPATH = --dep-path .
 # Add the exported functions from the SVC code
 CFLAGS += -I$(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/src
 
+# Tell the app its own name
+CFLAGS += -DPROGNAME=\"$(PROGNAME)\"
+
 # Common build
 
 VPATH =
