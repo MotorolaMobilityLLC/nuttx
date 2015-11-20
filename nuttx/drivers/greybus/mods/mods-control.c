@@ -28,10 +28,13 @@
  *
  */
 
+#include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <arch/byteorder.h>
 #include <nuttx/arch.h>
 #include <nuttx/bootmode.h>
+#include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/progmem.h>
 #include <nuttx/version.h>
 #include <nuttx/greybus/debug.h>
@@ -55,11 +58,17 @@
 #define MB_CONTROL_TYPE_REBOOT                0x03
 #define MB_CONTROL_TYPE_PORT_CONNECTED        0x04
 #define MB_CONTROL_TYPE_PORT_DISCONNECTED     0x05
+#define MB_CONTROL_TYPE_SLAVE_POWER           0x06
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
 #define MB_CONTROL_REBOOT_MODE_BOOTLOADER     0x02
 #define MB_CONTROL_REBOOT_MODE_SELF_DESTRUCT  0x03
+
+/* Valid modes for the slave power request */
+#define MB_CONTROL_SLAVE_POWER_ON             0x01
+#define MB_CONTROL_SLAVE_POWER_OFF            0x02
+#define MB_CONTROL_SLAVE_POWER_FLASH_MODE     0x03
 
 /* version request has no payload */
 struct gb_control_proto_version_response {
@@ -82,6 +91,7 @@ struct gb_control_get_ids_response {
     __le64    uid_low;
     __le64    uid_high;
     __le32    fw_version;
+    __le32    slave_mask;
 } __packed;
 
 /* Control protocol [dis]connected request */
@@ -89,6 +99,20 @@ struct gb_control_connected_request {
     __le16    cport_id;
 };
 /* Control protocol [dis]connected response has no payload */
+
+/* Control protocol slave power request */
+struct mb_control_power_ctrl_request {
+    __le32    slave_id;
+    __u8      mode;
+} __packed;
+/* Control protocol slave power response has no payload */
+
+struct mb_control_info {
+    uint16_t cport;
+    struct device *dev;
+};
+
+static struct mb_control_info *ctrl_info;
 
 static uint8_t gb_control_protocol_version(struct gb_operation *operation)
 {
@@ -221,6 +245,14 @@ static uint8_t gb_control_get_ids(struct gb_operation *operation)
     up_getboardid(&response->ara_vend_id, &response->ara_prod_id);
 #endif
 
+    response->slave_mask = 0;
+    if (ctrl_info->dev) {
+        int ret = device_slave_pwrctrl_get_mask(ctrl_info->dev,
+                &response->slave_mask);
+        if (ret)
+            gb_error("Failed to get pwrctrl mask\n");
+    }
+
     return GB_OP_SUCCESS;
 }
 
@@ -258,15 +290,68 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t mb_control_power_ctrl(struct gb_operation *operation)
+{
+    struct mb_control_power_ctrl_request *request =
+        gb_operation_get_request_payload(operation);
+    int ret = 0;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    if (ctrl_info->dev) {
+        ret = device_slave_pwrctrl_set_mode(ctrl_info->dev, request->mode);
+    }
+
+    return ret ? GB_OP_UNKNOWN_ERROR : GB_OP_SUCCESS;
+}
+
+static int mb_control_init(unsigned int cport)
+{
+    ctrl_info = zalloc(sizeof(*ctrl_info));
+    if (!ctrl_info) {
+        return -ENOMEM;
+    }
+
+    ctrl_info->cport = cport;
+
+    /* see if this device functions as the power control for additional */
+    /* devices.  Not having one is not an error.                        */
+    ctrl_info->dev = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, 0);
+    if (!ctrl_info->dev) {
+        gb_info("Failed to open SLAVE Power Control\n");
+    }
+
+    return 0;
+}
+
+static void mb_control_exit(unsigned int cport)
+{
+    if (!ctrl_info)
+        return;
+
+    if (ctrl_info->dev) {
+        device_close(ctrl_info->dev);
+    }
+
+    free(ctrl_info);
+    ctrl_info = NULL;
+}
+
 static struct gb_operation_handler mb_control_handlers[] = {
     GB_HANDLER(MB_CONTROL_TYPE_PROTOCOL_VERSION, gb_control_protocol_version),
     GB_HANDLER(MB_CONTROL_TYPE_REBOOT, gb_control_reboot),
     GB_HANDLER(MB_CONTROL_TYPE_GET_IDS, gb_control_get_ids),
     GB_HANDLER(MB_CONTROL_TYPE_PORT_CONNECTED, gb_control_connected),
     GB_HANDLER(MB_CONTROL_TYPE_PORT_DISCONNECTED, gb_control_disconnected),
+    GB_HANDLER(MB_CONTROL_TYPE_SLAVE_POWER, mb_control_power_ctrl),
 };
 
 struct gb_driver mb_control_driver = {
+    .init = mb_control_init,
+    .exit = mb_control_exit,
     .op_handlers = (struct gb_operation_handler*) mb_control_handlers,
     .op_handlers_count = ARRAY_SIZE(mb_control_handlers),
 };
