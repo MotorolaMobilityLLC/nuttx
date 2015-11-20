@@ -48,6 +48,7 @@ enum {
     HELP,
     SET_POWER,
     WAKEOUT,
+    DUMPSTATE,
 
     MAX_CMD,
 };
@@ -62,11 +63,13 @@ struct command {
 static int cmd_usage(int argc, char *argv[]);
 static int cmd_set_power(int argc, char *argv[]);
 static int cmd_wakeout(int argc, char *argv[]);
+static int cmd_dumpstate(int argc, char *argv[]);
 
 static const struct command commands[] = {
     [HELP] = {'h', "help", "print this usage and exit", cmd_usage},
     [SET_POWER] = {'p', "power", "get/set interface power", cmd_set_power},
     [WAKEOUT] = {'w', "wakeout", "pulse WAKEOUT", cmd_wakeout},
+    [DUMPSTATE] = {'d', "dumpstate", "dump system power state", cmd_dumpstate},
 };
 
 static void print_interface_usage(void)
@@ -216,6 +219,98 @@ static int cmd_wakeout(int argc, char *argv[])
     }
     return do_to_iface(argv[2], wakeout_func, NULL);
 }
+
+/*
+ * Dump system state
+ */
+
+static void dumpstate_usage(int exit_status)
+{
+    printf("%s %s <interface>: dump power system state\n",
+           progname, commands[DUMPSTATE].longc);
+    print_interface_usage();
+    exit(exit_status);
+}
+
+static int dumpstate_func(struct interface *iface, void *context)
+{
+    struct vreg *vreg;
+    int i;
+
+    (void)context;
+
+    printf("Interface %s:\n", iface->name);
+
+    if (iface->switch_portid == INVALID_PORT) {
+        printf("\tswitch_portid=<none>\n");
+    } else {
+        printf("\tswitch_portid=%u\n", iface->switch_portid);
+    }
+
+    vreg = iface->vreg;
+
+    printf("\tvreg: %s\n", vreg->name);
+    if (!vreg->vregs) {
+        printf("\t\t(no vregs)\n");
+        return 0;
+    }
+
+    printf("\t\tnr_vregs=%u\n", vreg->nr_vregs);
+    printf("\t\tpower_state=%d\n", vreg->power_state);
+    printf("\t\tuse_count=%u\n", atomic_get(&vreg->use_count));
+    for (i = 0; i < vreg->nr_vregs; i++) {
+        printf("\t\tvregs[%d]: gpio %u, hold_time %u, active_high %u, def_val %u\n",
+               i, vreg->vregs[i].gpio, vreg->vregs[i].hold_time,
+               vreg->vregs[i].active_high, vreg->vregs[i].def_val);
+    }
+
+    /*
+     * Do a little extra for the module ports, which are the currently
+     * used type (e.g. DB3).
+     */
+    if (interface_is_module_port(iface)) {
+        enum wd_debounce_state db_state = iface->detect_in.db_state;
+        enum wd_debounce_state last_state = iface->detect_in.last_state;
+        unsigned int detect_in_pol =
+            iface->flags & ARA_IFACE_FLAG_DETECT_IN_ACTIVE_HIGH;
+
+        printf("\tdetect in polarity: %s\n", detect_in_pol ? "high" : "low");
+
+        printf("\twake/detect:\n");
+        printf("\t\tgpio: %u\n", iface->detect_in.gpio);
+        printf("\t\tdb_state: %s\n",
+               db_state == WD_ST_INVALID ? "invalid" :
+               db_state == WD_ST_INACTIVE_DEBOUNCE ? "inactive debounce" :
+               db_state == WD_ST_ACTIVE_DEBOUNCE ? "active debounce" :
+               db_state == WD_ST_INACTIVE_STABLE ? "inactive stable" :
+               db_state == WD_ST_ACTIVE_STABLE ? "active stable" :
+               "<internal error>");
+        printf("\t\tlast_state: %s\n",
+               last_state == WD_ST_INVALID ? "invalid" :
+               last_state == WD_ST_INACTIVE_DEBOUNCE ? "inactive debounce" :
+               last_state == WD_ST_ACTIVE_DEBOUNCE ? "active debounce" :
+               last_state == WD_ST_INACTIVE_STABLE ? "inactive stable" :
+               last_state == WD_ST_ACTIVE_STABLE ? "active stable" :
+               "<internal error>");
+
+        printf("\thotplug state: %s\n",
+               iface->hp_state == HOTPLUG_ST_UNKNOWN ? "unknown" :
+               iface->hp_state == HOTPLUG_ST_PLUGGED ? "plugged" :
+               iface->hp_state == HOTPLUG_ST_UNPLUGGED ? "unplugged" :
+               "<internal error>");
+    }
+
+    return 0;
+}
+
+static int cmd_dumpstate(int argc, char *argv[])
+{
+    if (argc != 3) {
+        dumpstate_usage(EXIT_FAILURE);
+    }
+    return do_to_iface(argv[2], dumpstate_func, NULL);
+}
+
 
 /*
  * main()
