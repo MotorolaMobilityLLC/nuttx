@@ -49,6 +49,10 @@ ifeq ($(CONFIG_GREYBUS_I2C_PHY),y)
 CSRCS += i2c.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_POWER_SUPPLY),y)
+CSRCS += power_supply.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_LOOPBACK),y)
 CSRCS += loopback.c
 endif
