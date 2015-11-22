@@ -113,6 +113,10 @@ static uint8_t gb_operation_errno_map(int code)
 static int gb_camera_ext_init(void)
 {
     CAM_DBG("init camera device\n");
+    if (dev_info.dev != NULL) {
+        CAM_DBG("device not closed in last session\n");
+        device_close(dev_info.dev);
+    }
     dev_info.dev = device_open(dev_info.dev_type, CAMERA_EXT_DEVICE_ID);
     if (!dev_info.dev) {
         CAM_ERR("failed to open camera device\n");
