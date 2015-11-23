@@ -59,6 +59,7 @@ struct gb_cport_driver {
     struct list_head rx_fifo;
     sem_t rx_fifo_lock;
     pthread_t thread;
+    volatile bool exit_worker;
     struct wdog_s timeout_wd;
     struct gb_operation timedout_operation;
 };
@@ -330,6 +331,11 @@ static void *gb_pending_message_worker(void *data)
         if (retval < 0)
             continue;
 
+        if (g_cport[cportid].exit_worker &&
+            list_is_empty(&g_cport[cportid].rx_fifo)) {
+            break;
+        }
+
         flags = irqsave();
         head = g_cport[cportid].rx_fifo.next;
         list_del(g_cport[cportid].rx_fifo.next);
@@ -448,6 +454,41 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     return 0;
 }
 
+static void gb_flush_tx_fifo(unsigned int cport)
+{
+    struct list_head *iter, *iter_next;
+
+    list_foreach_safe(&g_cport[cport].tx_fifo, iter, iter_next) {
+        struct gb_operation *op = list_entry(iter, struct gb_operation, list);
+
+        list_del(iter);
+        gb_operation_unref(op);
+    }
+}
+
+int gb_unregister_driver(unsigned int cport)
+{
+    if (cport >= cport_count || !g_cport[cport].driver || !transport_backend)
+        return -EINVAL;
+
+    if (transport_backend->stop_listening)
+        transport_backend->stop_listening(cport);
+
+    wd_cancel(&g_cport[cport].timeout_wd);
+
+    g_cport[cport].exit_worker = true;
+    sem_post(&g_cport[cport].rx_fifo_lock);
+    pthread_join(g_cport[cport].thread, NULL);
+
+    gb_flush_tx_fifo(cport);
+
+    if (g_cport[cport].driver->exit)
+        g_cport[cport].driver->exit(cport);
+    g_cport[cport].driver = NULL;
+
+    return 0;
+}
+
 int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
 {
     pthread_attr_t thread_attr;
@@ -489,6 +530,8 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
         qsort(driver->op_handlers, driver->op_handlers_count,
               sizeof(*driver->op_handlers), gb_compare_handlers);
     }
+
+    g_cport[cport].exit_worker = false;
 
     if (!driver->stack_size)
         driver->stack_size = DEFAULT_STACK_SIZE;
@@ -590,6 +633,9 @@ int gb_operation_send_request(struct gb_operation *operation,
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->send);
 
+    if (g_cport[operation->cport].exit_worker)
+        return -ENETDOWN;
+
     hdr->id = 0;
 
     flags = irqsave();
@@ -653,6 +699,9 @@ static int gb_operation_send_oom_response(struct gb_operation *operation)
     irqstate_t flags;
     struct gb_operation_hdr *req_hdr = operation->request_buffer;
 
+    if (g_cport[operation->cport].exit_worker)
+        return -ENETDOWN;
+
     flags = irqsave();
 
     oom_hdr.id = req_hdr->id;
@@ -675,6 +724,9 @@ int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
     DEBUGASSERT(operation);
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->send);
+
+    if (g_cport[operation->cport].exit_worker)
+        return -ENETDOWN;
 
     if (operation->has_responded)
         return -EINVAL;
