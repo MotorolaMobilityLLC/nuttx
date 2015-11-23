@@ -749,7 +749,7 @@ static int svcd_startup(void) {
      */
     rc = switch_irq_enable(sw, true);
     if (rc && (rc != -EOPNOTSUPP)) {
-        goto error3;
+        goto error4;
     }
 
     /* Enable interrupts for all Unipro ports */
@@ -758,6 +758,8 @@ static int svcd_startup(void) {
 
     return 0;
 
+error4:
+    gb_deinit();
 error3:
     interface_exit();
 error2:
@@ -770,6 +772,8 @@ error0:
 }
 
 static int svcd_cleanup(void) {
+    gb_deinit();
+
     interface_exit();
 
     switch_exit(svc->sw);
