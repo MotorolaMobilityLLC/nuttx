@@ -41,7 +41,7 @@
 extern void gb_control_register(int cport);
 extern void gb_gpio_register(int cport);
 extern void gb_i2c_register(int cport);
-extern void gb_battery_register(int cport);
+extern void gb_power_supply_register(int cport);
 extern void gb_loopback_register(int cport);
 extern void gb_vibrator_register(int cport);
 extern void gb_usb_register(int cport);
@@ -123,10 +123,10 @@ void enable_cports(void)
         }
 #endif
 
-#ifdef CONFIG_GREYBUS_BATTERY
-        if (protocol == GREYBUS_PROTOCOL_BATTERY) {
-            gb_info("Registering BATTERY greybus driver.\n");
-            gb_battery_register(id);
+#ifdef CONFIG_GREYBUS_POWER_SUPPLY
+        if (protocol == GREYBUS_PROTOCOL_POWER_SUPPLY) {
+            gb_info("Registering POWER_SUPPLY greybus driver.\n");
+            gb_power_supply_register(id);
         }
 #endif
 
