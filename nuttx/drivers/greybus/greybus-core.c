@@ -1044,3 +1044,19 @@ error_buffer_alloc:
 
     return retval;
 }
+
+int gb_notify(unsigned cport, enum gb_event event)
+{
+    if (cport >= cport_count)
+        return -EINVAL;
+
+    if (!g_cport[cport].driver)
+        return -ENOTCONN;
+
+    switch (event) {
+    default:
+        return -EINVAL;
+    }
+
+    return 0;
+}

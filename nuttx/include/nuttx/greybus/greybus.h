@@ -42,6 +42,10 @@
 #define GB_MTU                  2048
 #define GB_MAX_PAYLOAD_SIZE     (GB_MTU - sizeof(struct gb_operation_hdr))
 
+enum gb_event {
+    GB_EVT_NULL, /* temporary until we get at least one event */
+};
+
 struct gb_operation;
 
 typedef void (*gb_operation_callback)(struct gb_operation *operation);
@@ -202,6 +206,7 @@ static inline int gb_register_named_driver(unsigned int cport,
     gb_register_named_driver(cport, driver, __FILE__)
 int gb_listen(unsigned int cport);
 int gb_stop_listening(unsigned int cport);
+int gb_notify(unsigned cport, enum gb_event event);
 
 void gb_operation_destroy(struct gb_operation *operation);
 void *gb_operation_alloc_response(struct gb_operation *operation, size_t size);
