@@ -1054,6 +1054,16 @@ int gb_notify(unsigned cport, enum gb_event event)
         return -ENOTCONN;
 
     switch (event) {
+    case GB_EVT_CONNECTED:
+        if (g_cport[cport].driver->connected)
+            g_cport[cport].driver->connected(cport);
+        break;
+
+    case GB_EVT_DISCONNECTED:
+        if (g_cport[cport].driver->disconnected)
+            g_cport[cport].driver->disconnected(cport);
+        break;
+
     default:
         return -EINVAL;
     }

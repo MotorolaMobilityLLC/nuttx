@@ -43,7 +43,8 @@
 #define GB_MAX_PAYLOAD_SIZE     (GB_MTU - sizeof(struct gb_operation_hdr))
 
 enum gb_event {
-    GB_EVT_NULL, /* temporary until we get at least one event */
+    GB_EVT_CONNECTED,
+    GB_EVT_DISCONNECTED,
 };
 
 struct gb_operation;
@@ -125,6 +126,9 @@ struct gb_operation {
 struct gb_driver {
     int (*init)(unsigned int cport);
     void (*exit)(unsigned int cport);
+    void (*connected)(unsigned int cport);
+    void (*disconnected)(unsigned int cport);
+
     struct gb_operation_handler *op_handlers;
 
     size_t stack_size;
