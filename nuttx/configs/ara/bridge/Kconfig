@@ -65,12 +65,12 @@ config BOARD_HAVE_DISPLAY
 	default n
 	select GPIO
 
-config ARA_BRIDGE_HAVE_BATTERY
-	bool "BATTERY Support"
+config ARA_BRIDGE_HAVE_POWER_SUPPLY
+	bool "Power Supply Support"
 	select DEVICE_CORE
 	default n
 	---help---
-		BATTERY Driver
+		Power Supply Driver
 
 choice
 	prompt "Select a bridge firmware configuration"
