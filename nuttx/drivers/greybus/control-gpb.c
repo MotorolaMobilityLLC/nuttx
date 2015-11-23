@@ -108,7 +108,16 @@ static uint8_t gb_control_connected(struct gb_operation *operation)
         return GB_OP_INVALID;
     }
 
+    retval = gb_notify(le16_to_cpu(request->cport_id), GB_EVT_CONNECTED);
+    if (retval)
+        goto error_notify;
+
     return GB_OP_SUCCESS;
+
+error_notify:
+    gb_stop_listening(le16_to_cpu(request->cport_id));
+
+    return gb_errno_to_op_result(retval);
 }
 
 static uint8_t gb_control_disconnected(struct gb_operation *operation)
@@ -120,6 +129,15 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
     if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
         gb_error("dropping short message\n");
         return GB_OP_INVALID;
+    }
+
+    retval = gb_notify(le16_to_cpu(request->cport_id), GB_EVT_DISCONNECTED);
+    if (retval) {
+        gb_error("Cannot notify GB driver of disconnect event.\n");
+        /*
+         * don't return, we still want to reset the cport and stop listening
+         * on the CPort.
+         */
     }
 
     unipro_reset_cport(le16_to_cpu(request->cport_id), NULL, NULL);
