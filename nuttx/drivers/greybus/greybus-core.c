@@ -68,6 +68,7 @@ struct gb_tape_record_header {
     uint16_t cport;
 };
 
+static unsigned int cport_count;
 static atomic_t request_id;
 static struct gb_cport_driver *g_cport;
 static struct gb_transport_backend *transport_backend;
@@ -392,7 +393,7 @@ int greybus_rx_handler(unsigned int cport, void *data, size_t size)
     size_t hdr_size;
 
     gb_loopback_log_entry(cport);
-    if (cport >= unipro_cport_count() || !data) {
+    if (cport >= cport_count || !data) {
         gb_error("Invalid cport number: %u\n", cport);
         return -EINVAL;
     }
@@ -455,7 +456,7 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
 
     gb_debug("Registering Greybus driver on CP%u\n", cport);
 
-    if (cport >= unipro_cport_count()) {
+    if (cport >= cport_count) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -528,7 +529,7 @@ int gb_listen(unsigned int cport)
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->listen);
 
-    if (cport >= unipro_cport_count()) {
+    if (cport >= cport_count) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -546,7 +547,7 @@ int gb_stop_listening(unsigned int cport)
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->stop_listening);
 
-    if (cport >= unipro_cport_count()) {
+    if (cport >= cport_count) {
         gb_error("Invalid cport number %u\n", cport);
         return -EINVAL;
     }
@@ -773,7 +774,7 @@ static struct gb_operation *_gb_operation_create(unsigned int cport)
 {
     struct gb_operation *operation;
 
-    if (cport >= unipro_cport_count())
+    if (cport >= cport_count)
         return NULL;
 
     operation = malloc(sizeof(*operation));
@@ -795,7 +796,7 @@ struct gb_operation *gb_operation_create(unsigned int cport, uint8_t type,
     struct gb_operation *operation;
     struct gb_operation_hdr *hdr;
 
-    if (cport >= unipro_cport_count())
+    if (cport >= cport_count)
         return NULL;
 
     operation = _gb_operation_create(cport);
@@ -858,7 +859,6 @@ uint8_t gb_operation_get_request_result(struct gb_operation *operation)
 int gb_init(struct gb_transport_backend *transport)
 {
     int i;
-    unsigned int cport_count;
 
     if (!transport)
         return -EINVAL;
