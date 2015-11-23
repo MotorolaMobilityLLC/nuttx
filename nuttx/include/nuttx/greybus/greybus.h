@@ -185,6 +185,7 @@ static inline const char *gb_handler_name(struct gb_operation_handler *handler)
 }
 
 int gb_init(struct gb_transport_backend *transport);
+void gb_deinit(void);
 int gb_unipro_init(void);
 int _gb_register_driver(unsigned int cport, struct gb_driver *driver);
 int gb_unregister_driver(unsigned int cport);

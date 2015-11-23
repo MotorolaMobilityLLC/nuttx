@@ -934,6 +934,25 @@ int gb_init(struct gb_transport_backend *transport)
     return 0;
 }
 
+void gb_deinit(void)
+{
+    int i;
+
+    if (!transport_backend)
+        return; /* gb not initialized */
+
+    for (i = 0; i < cport_count; i++) {
+        gb_unregister_driver(i);
+
+        wd_delete(&g_cport[i].timeout_wd);
+        sem_destroy(&g_cport[i].rx_fifo_lock);
+    }
+
+    free(g_cport);
+
+    transport_backend = NULL;
+}
+
 int gb_tape_register_mechanism(struct gb_tape_mechanism *mechanism)
 {
     if (!mechanism || !mechanism->open || !mechanism->close ||
