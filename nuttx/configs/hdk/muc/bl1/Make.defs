@@ -55,14 +55,18 @@ else
   ARCHSCRIPT = -T$(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/scripts/$(LDSCRIPT)
 endif
 
-# if we are build from a jenkins build, use the build number as VERSION_MINOR
-ifeq (${BUILD_NUMBER},)
+ifeq (${INCREMENTAL_RELEASE_NUMBER},)
   OVERRIDE_VERSION = 0.1
 else
-  OVERRIDE_VERSION = 0.${BUILD_NUMBER}
+  OVERRIDE_VERSION = 0.${INCREMENTAL_RELEASE_NUMBER}
 endif
 
-OVERRIDE_BUILD_NUM = ${shell git describe --always --dirty --match nothing 2>/dev/null}
+#f we are build from a jenkins build, use the build number as OVERRIDE_BUILD_NUM
+ifeq (${BUILD_NUMBER},)
+  OVERRIDE_BUILD_NUM = ${shell git describe --always --dirty --match nothing 2>/dev/null}
+else
+  OVERRIDE_BUILD_NUM = ${BUILD_NUMBER}
+endif
 
 CC = $(CROSSDEV)gcc
 CXX = $(CROSSDEV)g++
