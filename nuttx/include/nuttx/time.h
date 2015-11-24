@@ -42,6 +42,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/clock.h>
+#include <nuttx/util.h>
 
 #include <stdbool.h>
 #include <time.h>
@@ -139,7 +140,7 @@ static inline useconds_t msec_to_usec(unsigned ms)
  ****************************************************************************/
 static inline useconds_t timespec_to_usec(const struct timespec *ts)
 {
-    return (ts->tv_sec * USEC_PER_SEC) + (ts->tv_nsec / NSEC_PER_USEC);
+    return (ts->tv_sec * USEC_PER_SEC) + DIV_ROUND_CLOSEST(ts->tv_nsec, NSEC_PER_USEC);
 }
 
 /****************************************************************************
@@ -175,7 +176,7 @@ static inline useconds_t timeval_to_usec(const struct timeval *tv)
  ****************************************************************************/
 static inline void usec_to_timespec(uint32_t usec, struct timespec *ts)
 {
-    ts->tv_sec = usec / USEC_PER_SEC;
+    ts->tv_sec = DIV_ROUND_CLOSEST(usec, USEC_PER_SEC);
     ts->tv_nsec = (usec % USEC_PER_SEC) * NSEC_PER_USEC;
 }
 
@@ -188,7 +189,7 @@ static inline void usec_to_timespec(uint32_t usec, struct timespec *ts)
  ****************************************************************************/
 static inline void nsec_to_timespec(uint64_t ns, struct timespec *ts)
 {
-    ts->tv_sec = ns / NSEC_PER_SEC;
+    ts->tv_sec = DIV_ROUND_CLOSEST(ns, NSEC_PER_SEC);
     ts->tv_nsec = ns % NSEC_PER_SEC;
 }
 
