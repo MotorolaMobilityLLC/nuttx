@@ -61,7 +61,7 @@ endif
 
 CHIP_ASRCS  = tsb_vectors.S
 
-CHIP_CSRCS  = tsb_start.c up_allocateheap.c tsb_idle.c tsb_irq.c tsb_timerisr.c
+CHIP_CSRCS  = tsb_start.c up_allocateheap.c tsb_idle.c tsb_irq.c
 CHIP_CSRCS += tsb_main.c tsb_lowputc.c tsb_serial.c
 CHIP_CSRCS += tsb_scm.c
 CHIP_CSRCS += tsb_gpio.c
@@ -70,6 +70,12 @@ CHIP_CSRCS += tsb_i2c.c
 CHIP_CSRCS += tsb_cdsi.c
 CHIP_CSRCS += tsb_unipro_allocator.c
 CHIP_CSRCS += tsb_tmr.c
+
+ifeq ($(CONFIG_SCHED_TICKLESS),y)
+CHIP_CSRCS += tsb_tickless.c
+else
+CHIP_CSRCS += tsb_timerisr.c
+endif
 
 ifeq ($(CONFIG_ARCH_CHIP_DEVICE_PWM),y)
 CHIP_CSRCS += tsb_pwm_drv.c
