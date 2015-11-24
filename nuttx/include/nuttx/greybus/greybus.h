@@ -92,6 +92,7 @@ struct gb_operation_handler {
 
 struct gb_transport_backend {
     void (*init)(void);
+    void (*exit)(void);
     int (*listen)(unsigned int cport);
     int (*stop_listening)(unsigned int cport);
     int (*send)(unsigned int cport, const void *buf, size_t len);

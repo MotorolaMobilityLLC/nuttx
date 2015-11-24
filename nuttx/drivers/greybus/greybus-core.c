@@ -950,6 +950,8 @@ void gb_deinit(void)
 
     free(g_cport);
 
+    if (transport_backend->exit)
+        transport_backend->exit();
     transport_backend = NULL;
 }
 
