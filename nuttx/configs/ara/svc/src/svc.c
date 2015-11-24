@@ -772,6 +772,8 @@ error0:
 }
 
 static int svcd_cleanup(void) {
+    struct list_head *node, *next;
+
     gb_deinit();
 
     interface_exit();
@@ -781,6 +783,10 @@ static int svcd_cleanup(void) {
 
     board_exit();
     svc->board_info = NULL;
+
+    list_foreach_safe(&svc_events, node, next) {
+        svc_event_destroy(list_entry(node, struct svc_event, events));
+    }
 
     return 0;
 }
