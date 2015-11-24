@@ -111,7 +111,7 @@
 #define DIV_ROUND_CLOSEST(x, d) ({                                      \
     typeof(x) __x = x;                                                  \
     typeof(d) __d = d;                                                  \
-    typeof(x) __result;                                                 \
+    typeof(x + 0) __result;                                             \
     if (((typeof(x))-1) > 0 || ((typeof(d))-1) > 0 || (__x) > 0)        \
         __result = (((__x) + ((__d) / 2)) / (__d));                     \
     else                                                                \
