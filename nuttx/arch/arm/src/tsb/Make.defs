@@ -69,6 +69,7 @@ CHIP_CSRCS += $(USB_CSRCS)
 CHIP_CSRCS += tsb_i2c.c
 CHIP_CSRCS += tsb_cdsi.c
 CHIP_CSRCS += tsb_unipro_allocator.c
+CHIP_CSRCS += tsb_tmr.c
 
 ifeq ($(CONFIG_ARCH_CHIP_DEVICE_PWM),y)
 CHIP_CSRCS += tsb_pwm_drv.c
