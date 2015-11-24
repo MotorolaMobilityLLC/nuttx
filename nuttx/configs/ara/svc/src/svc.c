@@ -170,6 +170,7 @@ static int svc_listen(unsigned int cport) {
 
 static struct gb_transport_backend svc_backend = {
     .init   = unipro_init,
+    .exit   = unipro_deinit,
     .send   = unipro_send,
     .listen = svc_listen,
     .alloc_buf = malloc,
