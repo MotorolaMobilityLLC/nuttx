@@ -93,6 +93,17 @@ int unipro_driver_register(struct unipro_driver *drv, unsigned int cportid) {
     return 0;
 }
 
+int unipro_driver_unregister(unsigned int cportid)
+{
+    if (cportid >= unipro_cport_count() || !g_drvs[cportid]) {
+        return -EINVAL;
+    }
+
+    g_drvs[cportid] = NULL;
+
+    return 0;
+}
+
 /*
  * Packet entry point into SVC unipro stack. This is usually called
  * by the switch driver when a packet is received.
