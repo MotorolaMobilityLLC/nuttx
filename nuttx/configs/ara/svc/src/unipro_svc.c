@@ -57,6 +57,18 @@ void unipro_init(void) {
     }
 }
 
+void unipro_deinit(void)
+{
+    int i;
+
+    for (i = 0; i < unipro_cport_count(); i++) {
+        unipro_driver_unregister(i);
+    }
+
+    free(g_drvs);
+    g_drvs = NULL;
+}
+
 int unipro_send(unsigned int cportid, const void *buf, size_t len) {
     struct tsb_switch *sw = svc->sw;
 
