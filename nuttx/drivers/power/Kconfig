@@ -124,3 +124,8 @@ config WRLS_COIL_ADC_NORMAL
 	int "Normal temp ADC value"
 	depends on WRLS_COIL_ADC
 	default 1100
+
+config WRLS_TX_DEVICE_GPIO
+	bool "GPIO wireless TX control device driver"
+	default n
+	select GPIO

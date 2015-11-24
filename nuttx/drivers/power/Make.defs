@@ -107,6 +107,10 @@ ifeq ($(CONFIG_WRLS_COIL_ADC),y)
 CSRCS += wrls_coil_adc.c
 endif
 
+ifeq ($(CONFIG_WRLS_TX_DEVICE_GPIO),y)
+CSRCS += gpio_wrls_tx.c
+endif
+
 # Include battery suport in the build
 
 POWER_DEPPATH := --dep-path power
