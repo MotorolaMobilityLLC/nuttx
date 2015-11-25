@@ -37,6 +37,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/device.h>
 #include <nuttx/device_dma.h>
+#include <nuttx/bufram.h>
 
 #include "debug.h"
 #include "up_arch.h"
@@ -771,7 +772,7 @@ int tsb_gdmac_allocal_mem2Mem_chan(struct device *dev,
     uint32_t burst_len;
     uint32_t ccr_transfer_size;
 
-    gdmac_chan = zalloc(sizeof(struct gdmac_chan) +
+    gdmac_chan = bufram_alloc(sizeof(struct gdmac_chan) +
             GDMAC_MAX_DESC * sizeof(struct mem2mem_pl330_code) +
             sizeof(struct pl330_end_code));
     if (gdmac_chan == NULL) {
@@ -782,12 +783,18 @@ int tsb_gdmac_allocal_mem2Mem_chan(struct device *dev,
     retval = gdmac_allocate_event(gdmac_chan,
             DEVICE_DMA_CALLBACK_EVENT_COMPLETE, &gdmac_chan->end_of_tx_event);
     if (retval != OK) {
-        free(gdmac_chan);
+        bufram_free(gdmac_chan);
         lldbg("Unable to allocate GDMAC event(s).\n");
         return retval;
     }
 
     mem2mem_chan = &gdmac_chan->mem2mem_chan;
+    mem2mem_chan->burst_size = 0;
+    mem2mem_chan->burst_len = 0;
+    mem2mem_chan->ccr_transfer_size = 0;
+    mem2mem_chan->burst_block_size = 0;
+    mem2mem_chan->align_mask = 0;
+    mem2mem_chan->ccr_base_value = 0;
 
     pl330_code = &mem2mem_chan->pl330_code[0];
     /* make a copy of the UniPro TX binary code. */
@@ -1094,7 +1101,7 @@ int tsb_gdmac_allocal_mem2io_chan(struct device *dev,
     uint32_t burst_len;
     uint32_t ccr_transfer_size;
 
-    gdmac_chan = zalloc(sizeof(struct gdmac_chan) +
+    gdmac_chan = bufram_alloc(sizeof(struct gdmac_chan) +
             GDMAC_MAX_DESC * sizeof(struct mem2io_pl330_code) +
             sizeof(struct pl330_end_code));
     if (gdmac_chan == NULL) {
@@ -1105,12 +1112,18 @@ int tsb_gdmac_allocal_mem2io_chan(struct device *dev,
     retval = gdmac_allocate_event(gdmac_chan,
             DEVICE_DMA_CALLBACK_EVENT_COMPLETE, &gdmac_chan->end_of_tx_event);
     if (retval != OK) {
-        free(gdmac_chan);
+        bufram_free(gdmac_chan);
         lldbg("Unable to allocate GDMAC event(s).\n");
         return retval;
     }
 
     mem2io_chan = &gdmac_chan->mem2io_chan;
+    mem2io_chan->burst_size = 0;
+    mem2io_chan->burst_len = 0;
+    mem2io_chan->ccr_transfer_size = 0;
+    mem2io_chan->burst_block_size = 0;
+    mem2io_chan->align_mask = 0;
+    mem2io_chan->ccr_base_value = 0;
 
     pl330_code = &mem2io_chan->pl330_code[0];
 
@@ -1400,7 +1413,7 @@ int tsb_gdmac_allocal_io2mem_chan(struct device *dev,
     uint32_t burst_len;
     uint32_t ccr_transfer_size;
 
-    gdmac_chan = zalloc(sizeof(struct gdmac_chan) +
+    gdmac_chan = bufram_alloc(sizeof(struct gdmac_chan) +
             GDMAC_MAX_DESC * sizeof(struct io2mem_pl330_code) +
             sizeof(struct pl330_end_code));
     if (gdmac_chan == NULL) {
@@ -1411,14 +1424,18 @@ int tsb_gdmac_allocal_io2mem_chan(struct device *dev,
     retval = gdmac_allocate_event(gdmac_chan,
             DEVICE_DMA_CALLBACK_EVENT_COMPLETE, &gdmac_chan->end_of_tx_event);
     if (retval != OK) {
-        free(gdmac_chan);
+        bufram_free(gdmac_chan);
         lldbg("Unable to allocate GDMAC event(s).\n");
         return retval;
     }
 
     io2mem_chan = &gdmac_chan->io2mem_chan;
-
-    io2mem_chan = &gdmac_chan->io2mem_chan;
+    io2mem_chan->burst_size = 0;
+    io2mem_chan->burst_len = 0;
+    io2mem_chan->ccr_transfer_size = 0;
+    io2mem_chan->burst_block_size = 0;
+    io2mem_chan->align_mask = 0;
+    io2mem_chan->ccr_base_value = 0;
 
     pl330_code = &io2mem_chan->pl330_code[0];
 
@@ -1742,7 +1759,7 @@ int gdmac_chan_free(struct device *dev, struct tsb_dma_chan *tsb_chan)
             &control_regs->inten);
     up_disable_irq(GDMAC_EVENT_TO_IRQN(gdmac_chan->end_of_tx_event));
 
-    free(tsb_chan);
+    bufram_free(tsb_chan);
 
     return OK;
 }
