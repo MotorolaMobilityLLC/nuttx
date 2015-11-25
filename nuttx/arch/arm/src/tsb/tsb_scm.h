@@ -131,23 +131,18 @@
 /* PINSHARE bits */
 #define TSB_PIN_UART_RXTX       BIT(0)
 #define TSB_PIN_UART_CTSRTS     BIT(1)
+#define TSB_PIN_SDIO            BIT(2)
 #define TSB_PIN_GPIO9           BIT(3)
 #define TSB_PIN_ETM             BIT(4)
 #define TSB_PIN_GPIO10          BIT(5)
 #define TSB_PIN_GPIO13          BIT(6)
 #define TSB_PIN_GPIO15          BIT(7)
-
-#if defined(CONFIG_TSB_CHIP_REV_ES2)
-#define TSB_PIN_SDIO            BIT(2)
 #define TSB_PIN_GPIO16          BIT(10)
 #define TSB_PIN_GPIO18          BIT(11)
 #define TSB_PIN_GPIO19          BIT(12)
 #define TSB_PIN_GPIO20          BIT(13)
 #define TSB_PIN_GPIO21          BIT(14)
 #define TSB_PIN_GPIO22          BIT(15)
-#else
-#error "unsupported hardware version"
-#endif
 
 
 /* IO_DRIVE_STRENGTH: 2 Bits per Output */
