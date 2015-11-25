@@ -78,16 +78,12 @@ void gb_timestamp_tag_exit_time(struct gb_timestamp *ts,
 void gb_timestamp_log(struct gb_timestamp *ts, unsigned int cportid,
                       void *payload, size_t len, int id)
 {
-    struct gb_operation_hdr *hdr = payload;
     struct gb_loopback_transfer_response *resp = payload +
                                                  sizeof(struct gb_operation_hdr);
     __le32 latency;
 
     if (len < TAG_SIZE)
         return;
-
-    if (hdr->type & GB_TYPE_RESPONSE_FLAG)
-        return; /* Bail-out if GPBridge is responding to the AP. */
 
     if (tag_active(ts, cportid)) {
         latency = calc_latency(&ts->entry_time,

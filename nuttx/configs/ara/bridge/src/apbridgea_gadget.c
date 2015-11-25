@@ -437,6 +437,7 @@ static struct apbridge_msg_s *apbridge_dequeue(struct apbridge_dev_s *priv)
 static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
                           const void *payload, size_t len)
 {
+    struct gb_operation_hdr *gbhdr;
     struct apbridge_dev_s *priv;
     int ret;
     unsigned int cportid;
@@ -448,9 +449,15 @@ static int _to_usb_submit(struct usbdev_ep_s *ep, struct usbdev_req_s *req,
     cportid = get_cportid(payload);
 
     req->buf = (void*) payload;
+
+    gbhdr = (struct gb_operation_hdr *)req->buf;
     gb_timestamp_tag_exit_time(&priv->ts[cportid], cportid);
-    gb_timestamp_log(&priv->ts[cportid], cportid, req->buf, len,
-                          GREYBUS_FW_TIMESTAMP_APBRIDGE);
+
+    /* Skip the timestamping if it's not a response from GPB to AP. */
+    if (gbhdr->type & GB_TYPE_RESPONSE_FLAG) {
+        gb_timestamp_log(&priv->ts[cportid], cportid,
+                         req->buf, len, GREYBUS_FW_TIMESTAMP_APBRIDGE);
+    }
 
     /* Then submit the request to the endpoint */
 
