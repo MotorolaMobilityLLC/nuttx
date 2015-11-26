@@ -46,6 +46,9 @@
 #if defined(CONFIG_TSB_CHIP_REV_ES2)
 #define APBRIDGE_LINE_COUNT     23
 #define GPBRIDGE_LINE_COUNT     27
+#elif defined(CONFIG_TSB_CHIP_REV_ES3)
+#define APBRIDGE_LINE_COUNT     24
+#define GPBRIDGE_LINE_COUNT     32
 #endif
 
 #define GPIO_BASE           0x40003000
