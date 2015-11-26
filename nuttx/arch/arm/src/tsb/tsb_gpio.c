@@ -36,6 +36,7 @@
 #include <string.h>
 #include <debug.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "tsb_scm.h"
 #include "up_arch.h"
@@ -61,8 +62,8 @@
 #define GPIO_INTCTRL3       (GPIO_BASE + 0x3c)
 
 /* A table of handlers for each GPIO interrupt */
-static xcpt_t tsb_gpio_irq_vector[NR_GPIO_IRQS];
-static uint8_t tsb_gpio_irq_gpio_base[NR_GPIO_IRQS];
+static xcpt_t *tsb_gpio_irq_vector;
+static uint8_t *tsb_gpio_irq_gpio_base;
 static volatile uint32_t refcount;
 
 int tsb_gpio_get_direction(void *driver_data, uint8_t which)
@@ -293,5 +294,31 @@ struct gpio_ops_s tsb_gpio_ops = {
 
 int tsb_gpio_register(void *driver_data)
 {
-    return register_gpio_chip(&tsb_gpio_ops, TSB_GPIO_CHIP_BASE, driver_data);
+    int retval;
+
+    tsb_gpio_irq_vector = calloc(sizeof(*tsb_gpio_irq_vector), NR_GPIO_IRQS);
+    if (!tsb_gpio_irq_vector)
+        return -ENOMEM;
+
+    tsb_gpio_irq_gpio_base =
+        calloc(sizeof(*tsb_gpio_irq_gpio_base), NR_GPIO_IRQS);
+    if (!tsb_gpio_irq_gpio_base) {
+        retval = -ENOMEM;
+        goto err_irq_gpio_base_alloc;
+    }
+
+    retval = register_gpio_chip(&tsb_gpio_ops, TSB_GPIO_CHIP_BASE, driver_data);
+    if (retval)
+        goto err_register_gpio_chip;
+
+    return 0;
+
+err_register_gpio_chip:
+    free(tsb_gpio_irq_gpio_base);
+    tsb_gpio_irq_gpio_base = NULL;
+err_irq_gpio_base_alloc:
+    free(tsb_gpio_irq_vector);
+    tsb_gpio_irq_vector = NULL;
+
+    return retval;
 }
