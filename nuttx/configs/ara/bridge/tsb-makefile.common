@@ -59,9 +59,7 @@
 ##
 ############################################################################
 
-quotefixed_chip_rev := $(shell echo $(CONFIG_TSB_CHIP_REV))
-
-LDSCRIPT = $(quotefixed_chip_rev).ld
+LDSCRIPT = tsb.ld
 
 LDDIR := $(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/scripts
 

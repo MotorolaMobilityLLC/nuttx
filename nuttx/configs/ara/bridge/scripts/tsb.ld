@@ -26,6 +26,13 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+MEMORY
+{
+    rom  (rx)  : ORIGIN = 0x01000000, LENGTH = 192K
+    sram (rwx) : ORIGIN = 0x10000000, LENGTH = 192K
+}
+
+
 OUTPUT_ARCH(arm)
 EXTERN(_vectors)
 ENTRY(_spi_stext)
