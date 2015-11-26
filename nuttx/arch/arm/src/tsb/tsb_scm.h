@@ -164,7 +164,11 @@ enum tsb_drivestrength {
 #define TSB_PWM_DRIVESTRENGTH     (TSB_SCM_REG1 | 20)
 #define TSB_I2S_DRIVESTRENGTH     (TSB_SCM_REG1 | 18)
 #else
-#error "unsupported hardware"
+#define TSB_TRACE_DRIVESTRENGTH   (TSB_SCM_REG2 | 10)
+#define TSB_SPI_DRIVESTRENGTH     (TSB_SCM_REG2 | 8)
+#define TSB_PWM1_DRIVESTRENGTH    (TSB_SCM_REG2 | 6)
+#define TSB_PWM0_DRIVESTRENGTH    (TSB_SCM_REG2 | 4)
+#define TSB_I2S_DRIVESTRENGTH     (TSB_SCM_REG2 | 0)
 #endif
 
 /*
