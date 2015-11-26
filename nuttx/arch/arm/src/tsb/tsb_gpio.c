@@ -44,7 +44,8 @@
 #include "irq/irq.h"
 
 #if defined(CONFIG_TSB_CHIP_REV_ES2)
-#define GPIO_LINE_COUNT 27
+#define APBRIDGE_LINE_COUNT     23
+#define GPBRIDGE_LINE_COUNT     27
 #endif
 
 #define GPIO_BASE           0x40003000
@@ -109,7 +110,13 @@ void tsb_gpio_deactivate(void *driver_data, uint8_t which)
 
 uint8_t tsb_gpio_line_count(void *driver_data)
 {
-    return GPIO_LINE_COUNT;
+    static uint8_t line_count;
+    if (!line_count) {
+        line_count = tsb_get_product_id() == tsb_pid_apbridge ?
+                        APBRIDGE_LINE_COUNT : GPBRIDGE_LINE_COUNT;
+    }
+
+    return line_count;
 }
 
 int tsb_gpio_mask_irq(void *driver_data, uint8_t which)
