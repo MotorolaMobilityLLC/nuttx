@@ -43,6 +43,10 @@
 #include "nuttx/arch.h"
 #include "irq/irq.h"
 
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
+#define GPIO_LINE_COUNT 27
+#endif
+
 #define GPIO_BASE           0x40003000
 #define GPIO_DATA           (GPIO_BASE)
 #define GPIO_ODATA          (GPIO_BASE + 0x4)
@@ -105,7 +109,7 @@ void tsb_gpio_deactivate(void *driver_data, uint8_t which)
 
 uint8_t tsb_gpio_line_count(void *driver_data)
 {
-    return NR_GPIO_IRQS;
+    return GPIO_LINE_COUNT;
 }
 
 int tsb_gpio_mask_irq(void *driver_data, uint8_t which)
@@ -178,6 +182,7 @@ static int tsb_gpio_irq_handler(int irq, void *context)
     uint32_t irqstat;
     uint8_t base;
     int pin;
+    size_t nr_gpio = tsb_nr_gpio();
 
     /*
      * Clear all GPIO interrupts that we are going to process. "The GPIO_RAWINTSTAT
@@ -189,7 +194,7 @@ static int tsb_gpio_irq_handler(int irq, void *context)
     putreg32(irqstat, GPIO_RAWINTSTAT);
 
     /* Now process each IRQ pending in the GPIO */
-    for (pin = 0; pin < NR_GPIO_IRQS && irqstat != 0; pin++, irqstat >>= 1) {
+    for (pin = 0; pin < nr_gpio && irqstat != 0; pin++, irqstat >>= 1) {
         if ((irqstat & 1) != 0) {
             base = tsb_gpio_irq_gpio_base[pin];
             tsb_gpio_irq_vector[pin](base + pin, context);
@@ -203,7 +208,7 @@ int tsb_gpio_irqattach(void *driver_data, uint8_t irq, xcpt_t isr, uint8_t base)
 {
     irqstate_t flags;
 
-    if (irq >= NR_GPIO_IRQS)
+    if (irq >= tsb_nr_gpio())
         return -EINVAL;
 
     flags = irqsave();
@@ -230,7 +235,7 @@ static void tsb_gpio_irqinitialize(void)
     int i;
 
     /* Point all interrupt vectors to the unexpected interrupt */
-    for (i = 0; i < NR_GPIO_IRQS; i++) {
+    for (i = 0; i < tsb_nr_gpio(); i++) {
         tsb_gpio_irq_vector[i] = irq_unexpected_isr;
     }
 }
@@ -296,12 +301,12 @@ int tsb_gpio_register(void *driver_data)
 {
     int retval;
 
-    tsb_gpio_irq_vector = calloc(sizeof(*tsb_gpio_irq_vector), NR_GPIO_IRQS);
+    tsb_gpio_irq_vector = calloc(sizeof(*tsb_gpio_irq_vector), tsb_nr_gpio());
     if (!tsb_gpio_irq_vector)
         return -ENOMEM;
 
     tsb_gpio_irq_gpio_base =
-        calloc(sizeof(*tsb_gpio_irq_gpio_base), NR_GPIO_IRQS);
+        calloc(sizeof(*tsb_gpio_irq_gpio_base), tsb_nr_gpio());
     if (!tsb_gpio_irq_gpio_base) {
         retval = -ENOMEM;
         goto err_irq_gpio_base_alloc;

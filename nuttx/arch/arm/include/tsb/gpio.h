@@ -33,6 +33,7 @@
 #define _TSB_GPIO_H_
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <arch/irq.h>
 
 int tsb_gpio_get_direction(void *driver_data, uint8_t which);
@@ -56,9 +57,10 @@ uint32_t tsb_gpio_get_interrupt(void);
 
 int tsb_gpio_register(void *driver_data);
 
-#if defined(CONFIG_TSB_CHIP_REV_ES2)
-#define NR_GPIO_IRQS 27
-#endif
+static inline size_t tsb_nr_gpio(void)
+{
+    return tsb_gpio_line_count(NULL);
+}
 
 #define TSB_GPIO_CHIP_BASE          0
 
