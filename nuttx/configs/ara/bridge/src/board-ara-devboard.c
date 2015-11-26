@@ -71,6 +71,9 @@
 #endif
 
 #ifdef CONFIG_BOARD_HAVE_DISPLAY
+/* GPIO Chip base of the TCA6408 I/O Expander. Follows the TSB GPIOs */
+#define TCA6408_GPIO_BASE           (TSB_GPIO_CHIP_BASE + NR_GPIO_IRQS)
+
 #define TCA6408_U72             0x20
 #define TCA6408_U72_INT_GPIO    0x03
 #define TCA6408_U72_RST_GPIO    0x04

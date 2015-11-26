@@ -61,8 +61,6 @@ int tsb_gpio_register(void *driver_data);
 #endif
 
 #define TSB_GPIO_CHIP_BASE          0
-/* GPIO Chip base of the TCA6408 I/O Expander. Follows the TSB GPIOs */
-#define TCA6408_GPIO_BASE           (TSB_GPIO_CHIP_BASE + NR_GPIO_IRQS)
 
 #define TSB_IRQ_TYPE_LEVEL_LOW      0x0
 #define TSB_IRQ_TYPE_LEVEL_HIGH     0x1
