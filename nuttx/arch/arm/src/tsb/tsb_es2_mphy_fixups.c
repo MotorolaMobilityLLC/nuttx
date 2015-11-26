@@ -26,7 +26,24 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdint.h>
+#include <errno.h>
+
 #include "tsb_es2_mphy_fixups.h"
+#include "tsb_scm.h"
+#include "debug.h"
+
+#include <nuttx/unipro/unipro.h>
+
+#define MPHY_FIXUP_RETRIES  3
+
+/*
+ * "Map" constants for M-PHY fixups.
+ */
+#define TSB_MPHY_MAP (0x7F)
+    #define TSB_MPHY_MAP_TSB_REGISTER_1 (0x01)
+    #define TSB_MPHY_MAP_NORMAL         (0x00)
+    #define TSB_MPHY_MAP_TSB_REGISTER_2 (0x81)
 
 #define __TSB_MPHY_FIXUP(a, s, v, f)                                    \
     { .attrid = (a), .select_index = (s), .value = (v), .flags = (f) }
@@ -106,3 +123,88 @@ const struct tsb_mphy_fixup tsb_register_2_map_mphy_fixups[] = {
     TSB_MPHY_FIXUP(0x8098, 5, 0x08),
     TSB_MPHY_LAST_FIXUP(0x8099, 5, 0x50),
 };
+
+static int es2_fixup_mphy(void)
+{
+    uint32_t debug_0720 = tsb_get_debug_reg(0x0720);
+    int rc;
+    const struct tsb_mphy_fixup *fu;
+
+    /*
+     * Apply the "register 2" map fixups.
+     */
+    rc = unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_TSB_REGISTER_2, 0);
+    if (rc) {
+        lldbg("%s: failed to switch to register 2 map: %d\n", __func__, rc);
+        return rc;
+    }
+    fu = tsb_register_2_map_mphy_fixups;
+    do {
+        rc = unipro_attr_local_write(fu->attrid, fu->value, fu->select_index);
+        if (rc) {
+            lldbg("%s: failed to apply register 1 map fixup: %d\n", __func__,
+                  rc);
+            return rc;
+        }
+    } while (!tsb_mphy_fixup_is_last(fu++));
+
+    /*
+     * Switch to "normal" map.
+     */
+    rc = unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_NORMAL, 0);
+    if (rc) {
+        lldbg("%s: failed to switch to normal map: %d\n", __func__, rc);
+        return rc;
+    }
+
+    /*
+     * Apply the "register 1" map fixups.
+     */
+    rc = unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_TSB_REGISTER_1, 0);
+    if (rc) {
+        lldbg("%s: failed to switch to register 1 map: %d\n", __func__, rc);
+        return rc;
+    }
+    fu = tsb_register_1_map_mphy_fixups;
+    do {
+        if (tsb_mphy_r1_fixup_is_magic(fu)) {
+            /* The magic R1 fixups come from the mysterious and solemn
+             * debug register 0x0720. */
+            rc = unipro_attr_local_write(0x8002, (debug_0720 >> 1) & 0x1f, 0);
+        } else {
+            rc = unipro_attr_local_write(fu->attrid, fu->value,
+                                         fu->select_index);
+        }
+        if (rc) {
+            lldbg("%s: failed to apply register 1 map fixup: %d\n", __func__,
+                  rc);
+            return rc;
+        }
+    } while (!tsb_mphy_fixup_is_last(fu++));
+
+    /*
+     * Switch to "normal" map.
+     */
+    rc = unipro_attr_local_write(TSB_MPHY_MAP, TSB_MPHY_MAP_NORMAL, 0);
+    if (rc) {
+        lldbg("%s: failed to switch to normal map: %d\n", __func__, rc);
+        return rc;
+    }
+
+    return rc;
+}
+
+void es2_apply_mphy_fixup(void)
+{
+    int i;
+    int retval;
+
+    lowsyslog("UniPro: applying TSB ES2 M-PHY fixups: ");
+
+    retval = -EIO;
+    for (i = 0; i < MPHY_FIXUP_RETRIES && retval; i++) {
+        retval = es2_fixup_mphy();
+    }
+
+    lowsyslog(retval ? "FAILED\n" : "DONE\n");
+}

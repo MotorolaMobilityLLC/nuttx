@@ -65,4 +65,6 @@ static inline int tsb_mphy_r1_fixup_is_magic(const struct tsb_mphy_fixup *fu) {
     return !!(fu->flags & TSB_MPHY_FIXUP_MAGIC_R1);
 }
 
+void es2_apply_mphy_fixup(void);
+
 #endif
