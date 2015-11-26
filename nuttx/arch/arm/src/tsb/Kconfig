@@ -61,11 +61,17 @@ config TSB_CHIP_REV_ES2
 	bool "ES2"
 	---help---
 		Silicon Revision 2
+
+config TSB_CHIP_REV_ES3
+	bool "ES3"
+	---help---
+		Silicon Revision 3
 endchoice
 
 config TSB_CHIP_REV
 	string
 	default "es2" if TSB_CHIP_REV_ES2
+	default "es3" if TSB_CHIP_REV_ES3
 
 config ARCH_CHIP_DEVICE_GDMAC
 	bool "GDMAC support"
