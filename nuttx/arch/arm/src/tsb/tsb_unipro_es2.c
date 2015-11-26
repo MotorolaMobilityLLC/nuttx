@@ -475,11 +475,23 @@ static int mailbox_evt(void)
     return 0;
 }
 
-static void unipro_evt_handler(enum unipro_event evt)
+static void es2_apply_mphy_fixup(void)
 {
     int i;
     int retval;
 
+    lowsyslog("UniPro: applying TSB ES2 M-PHY fixups: ");
+
+    retval = -EIO;
+    for (i = 0; i < MPHY_FIXUP_RETRIES && retval; i++) {
+        retval = es2_fixup_mphy();
+    }
+
+    lowsyslog(retval ? "FAILED\n" : "DONE\n");
+}
+
+static void unipro_evt_handler(enum unipro_event evt)
+{
     DBG_UNIPRO("UniPro: event %d.\n", evt);
 
     switch (evt) {
@@ -488,14 +500,7 @@ static void unipro_evt_handler(enum unipro_event evt)
         break;
 
     case UNIPRO_EVT_LUP_DONE:
-        lowsyslog("UniPro: applying TSB ES2 M-PHY fixups: ");
-
-        retval = -EIO;
-        for (i = 0; i < MPHY_FIXUP_RETRIES && retval; i++) {
-            retval = es2_fixup_mphy();
-        }
-
-        lowsyslog(retval ? "FAILED\n" : "DONE\n");
+        es2_apply_mphy_fixup();
         break;
     }
 
