@@ -72,8 +72,13 @@
 static struct cport *cporttable;
 static unipro_event_handler_t evt_handler;
 
+#if defined(CONFIG_TSB_CHIP_REV_ES2)
 #define APBRIDGE_CPORT_MAX 44 // number of CPorts available on the APBridges
 #define GPBRIDGE_CPORT_MAX 16 // number of CPorts available on the GPBridges
+#else
+#define APBRIDGE_CPORT_MAX 40 // number of CPorts available on the APBridges
+#define GPBRIDGE_CPORT_MAX 16 // number of CPorts available on the GPBridges
+#endif
 
 /*
  * During unipro_unit(), we'll compute and cache the number of CPorts that this
