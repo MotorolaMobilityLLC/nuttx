@@ -986,17 +986,4 @@ static int tsb_unipro_mbox_ack(uint16_t val) {
     return 0;
 }
 
-#define ES2_INIT_STATUS(x) (x >> 24)
 
-int tsb_unipro_set_init_status(uint32_t val) {
-    int rc;
-
-    rc = unipro_attr_local_write(T_TSTSRCINCREMENT, ES2_INIT_STATUS(val),
-                                 UNIPRO_SELINDEX_NULL);
-    if (rc) {
-        lldbg("init-status write failed: rc=%d\n", rc);
-        return rc;
-    }
-
-    return 0;
-}
