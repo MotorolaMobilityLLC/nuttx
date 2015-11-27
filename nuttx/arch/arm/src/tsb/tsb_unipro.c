@@ -882,6 +882,11 @@ int unipro_reset_cport(unsigned int cportid, cport_reset_completion_cb_t cb,
     if (!cport)
         return -EINVAL;
 
+    if (cport->pending_reset || cport->reset_completion_cb ||
+        cport->reset_completion_cb_priv) {
+        return -EINPROGRESS;
+    }
+
     cport->reset_completion_cb_priv = priv;
     cport->reset_completion_cb = cb;
     cport->pending_reset = true;
