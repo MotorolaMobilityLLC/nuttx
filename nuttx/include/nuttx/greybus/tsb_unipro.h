@@ -41,6 +41,7 @@
 #define TSB_T_REGACCCTRL_TESTONLY  0x007f
 #define TSB_DME_DDBL2_A            0x6000
 #define TSB_DME_DDBL2_B            0x6001
+#define TSB_DME_ES3_INIT_STATUS    0x6101
 #define TSB_MAILBOX                0xa000
     #define TSB_MAIL_RESET         (0x00)
     #define TSB_MAIL_READY_AP      (0x01)
