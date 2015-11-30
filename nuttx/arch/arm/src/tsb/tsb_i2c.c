@@ -45,8 +45,13 @@
 
 
 /* disable the verbose debug output */
-#undef lldbg
-#define lldbg(x...)
+#ifdef CONFIG_DEBUG_I2C
+#  define i2cdbg lldbg
+#  define i2cvdbg llvdbg
+#else
+#  define i2cdbg(x...)
+#  define i2cvdbg(x...)
+#endif
 
 static struct i2c_dev_s g_dev;        /* Generic Nuttx I2C device */
 static struct i2c_msg_s *g_msgs;      /* Generic messages array */
@@ -127,7 +132,7 @@ static void i2c_set_enable(int enable)
         usleep(25);
     }
 
-    lldbg("timeout!");
+    i2cdbg("timeout!");
 }
 
 /* Enable the controller */
@@ -174,7 +179,7 @@ static int tsb_i2c_wait_bus_ready(void)
 
     while (i2c_read(TSB_I2C_STATUS) & TSB_I2C_STATUS_ACTIVITY) {
         if (timeout <= 0) {
-            lldbg("timeout\n");
+            i2cdbg("timeout\n");
             return -ETIMEDOUT;
         }
         timeout--;
@@ -186,7 +191,7 @@ static int tsb_i2c_wait_bus_ready(void)
 
 static void tsb_i2c_start_transfer(void)
 {
-    lldbg("\n");
+    i2cvdbg("\n");
 
     /* Disable the adapter */
     tsb_i2c_disable();
@@ -223,19 +228,19 @@ static void tsb_i2c_transfer_msg(void)
     int tx_avail;
     int rx_avail;
 
-    lldbg("tx_index %d\n", g_tx_index);
+    i2cvdbg("tx_index %d\n", g_tx_index);
 
     /* loop over the i2c message array */
     for (; g_tx_index < g_msgs_count; g_tx_index++) {
 
         if (g_msgs[g_tx_index].addr != addr) {
-            lldbg("invalid target address\n");
+            i2cdbg("invalid target address\n");
             g_msg_err = -EINVAL;
             break;
         }
 
         if (g_msgs[g_tx_index].length == 0) {
-            lldbg("invalid message length\n");
+            i2cdbg("invalid message length\n");
             g_msg_err = -EINVAL;
             break;
         }
@@ -261,13 +266,13 @@ static void tsb_i2c_transfer_msg(void)
             if (g_tx_index == g_msgs_count - 1 && length == 1) {
                 /* Last msg, issue a STOP */
                 cmd |= (1 << 9);
-                lldbg("STOP\n");
+                i2cvdbg("STOP\n");
             }
 
             if (need_restart) {
                 cmd |= (1 << 10); /* RESTART */
                 need_restart = false;
-                lldbg("RESTART\n");
+                i2cvdbg("RESTART\n");
             }
 
             if (g_msgs[g_tx_index].flags & I2C_M_READ) {
@@ -275,13 +280,13 @@ static void tsb_i2c_transfer_msg(void)
                     break;
 
                 i2c_write(TSB_I2C_DATA_CMD, cmd | 1 << 8); /* READ */
-                lldbg("READ\n");
+                i2cvdbg("READ\n");
 
                 rx_avail--;
                 g_rx_outstanding++;
             } else {
                 i2c_write(TSB_I2C_DATA_CMD, cmd | *buffer++);
-                lldbg("WRITE\n");
+                i2cvdbg("WRITE\n");
             }
 
             tx_avail--;
@@ -316,7 +321,7 @@ static void tsb_i2c_read(void)
 {
     int rx_valid;
 
-    lldbg("rx_index %d\n", g_rx_index);
+    i2cvdbg("rx_index %d\n", g_rx_index);
 
     for (; g_rx_index < g_msgs_count; g_rx_index++) {
         uint32_t len;
@@ -357,10 +362,10 @@ static int tsb_i2c_handle_tx_abort(void)
 {
     unsigned long abort_source = g_abort_source;
 
-    lldbg("%s: 0x%x\n", __func__, abort_source);
+    i2cvdbg("%s: 0x%x\n", __func__, abort_source);
 
     if (abort_source & TSB_I2C_TX_ABRT_NOACK) {
-        lldbg("%s: TSB_I2C_TX_ABRT_NOACK 0x%x\n", __func__, abort_source);
+        i2cdbg("%s: TSB_I2C_TX_ABRT_NOACK 0x%x\n", __func__, abort_source);
         return -EREMOTEIO;
     }
 
@@ -377,7 +382,7 @@ static int up_i2c_transfer(struct i2c_dev_s *idev, struct i2c_msg_s *msgs, int n
 {
     int ret;
 
-    lldbg("msgs: %d\n", num);
+    i2cvdbg("msgs: %d\n", num);
 
     sem_wait(&g_mutex);
 
@@ -410,7 +415,7 @@ static int up_i2c_transfer(struct i2c_dev_s *idev, struct i2c_msg_s *msgs, int n
     wd_cancel(g_timeout);
 
     if (g_status == TSB_I2C_STATUS_TIMEOUT) {
-        lldbg("controller timed out\n");
+        i2cdbg("controller timed out\n");
 
         /* Re-init the adapter */
         tsb_i2c_init();
@@ -422,13 +427,13 @@ static int up_i2c_transfer(struct i2c_dev_s *idev, struct i2c_msg_s *msgs, int n
 
     if (g_msg_err) {
         ret = g_msg_err;
-        lldbg("error msg_err %x\n", g_msg_err);
+        i2cdbg("error msg_err %x\n", g_msg_err);
         goto done;
     }
 
     if (!g_cmd_err) {
         ret = 0;
-        lldbg("no error %d\n", num);
+        i2cvdbg("no error %d\n", num);
         goto done;
     }
 
@@ -440,7 +445,7 @@ static int up_i2c_transfer(struct i2c_dev_s *idev, struct i2c_msg_s *msgs, int n
 
     /* default error code */
     ret = -EIO;
-    lldbg("unknown error %x\n", ret);
+    i2cdbg("unknown error %x\n", ret);
 
 done:
     sem_post(&g_mutex);
@@ -487,7 +492,7 @@ static int i2c_interrupt(int irq, void *context)
     enabled = i2c_read(TSB_I2C_ENABLE);
     stat = i2c_read(TSB_I2C_RAW_INTR_STAT);
 
-    lldbg("enabled=0x%x stat=0x%x\n", enabled, stat);
+    i2cdbg("enabled=0x%x stat=0x%x\n", enabled, stat);
 
     if (!enabled || !(stat & ~TSB_I2C_INTR_ACTIVITY))
         return -1;
@@ -495,7 +500,7 @@ static int i2c_interrupt(int irq, void *context)
     stat = tsb_i2c_read_clear_intrbits();
 
     if (stat & TSB_I2C_INTR_TX_ABRT) {
-        lldbg("abort\n");
+        i2cdbg("abort\n");
         g_cmd_err |= TSB_I2C_ERR_TX_ABRT;
         g_status = TSB_I2C_STATUS_IDLE;
 
@@ -511,10 +516,10 @@ static int i2c_interrupt(int irq, void *context)
 
 tx_aborted:
     if (stat & TSB_I2C_INTR_TX_ABRT)
-        lldbg("aborted %x %x\n", stat, g_abort_source);
+        i2cdbg("aborted %x %x\n", stat, g_abort_source);
 
     if ((stat & (TSB_I2C_INTR_TX_ABRT | TSB_I2C_INTR_STOP_DET)) || g_msg_err) {
-        lldbg("release sem\n");
+        i2cdbg("release sem\n");
         sem_post(&g_wait);
     }
 
@@ -526,13 +531,13 @@ tx_aborted:
  */
 static void i2c_timeout(int argc, uint32_t arg, ...)
 {
-    lldbg("\n");
+    i2cdbg("\n");
 
     irqstate_t flags = irqsave();
 
     if (g_status != TSB_I2C_STATUS_IDLE)
     {
-        lldbg("finished\n");
+        i2cdbg("finished\n");
         /* Mark the transfer as finished */
         g_status = TSB_I2C_STATUS_TIMEOUT;
         sem_post(&g_wait);
@@ -550,7 +555,7 @@ struct i2c_dev_s *up_i2cinitialize(int port)
 {
     irqstate_t flags;
 
-    lldbg("Init I2C port %d\n", port);
+    i2cvdbg("Init I2C port %d\n", port);
 
     /* Only one I2C port on TSB */
     if (port > 0)
@@ -606,7 +611,7 @@ int up_i2cuninitialize(struct i2c_dev_s *dev)
 {
     irqstate_t flags;
 
-    lldbg("Deinit I2C port\n");
+    i2cvdbg("Deinit I2C port\n");
 
     flags = irqsave();
 
@@ -631,7 +636,7 @@ out:
  */
 static uint32_t up_i2c_setfrequency(struct i2c_dev_s *dev, uint32_t frequency)
 {
-    lldbg("%d\n", frequency);
+    i2cvdbg("%d\n", frequency);
 
     return frequency;
 }
