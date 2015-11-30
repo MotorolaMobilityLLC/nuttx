@@ -52,7 +52,9 @@ void board_initialize(void)
     bufram_register_region(BUFRAM_BASE, 16);
     bufram_register_region(BUFRAM_BASE + (1 << 16), 17);
 
+#ifdef CONFIG_GPIO
     tsb_gpio_register(NULL);
+#endif
 
 #ifdef CONFIG_DEVICE_CORE
     tsb_device_table_register();
