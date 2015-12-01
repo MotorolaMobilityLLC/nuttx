@@ -230,6 +230,12 @@ static int i2s_test_parse_cmdline(int argc, char *argv[],
         return -EINVAL;
     }
 
+    if (optind + 1 >= argc) {
+        fprintf(stderr,
+                "Missing rb entries and/or sample per rb entry parameter\n");
+        return -EINVAL;
+    }
+
     info->rb_entries = strtoul(argv[optind], NULL, 0);
     info->samples_per_rb_entry = strtoul(argv[optind + 1], NULL, 0);
 
