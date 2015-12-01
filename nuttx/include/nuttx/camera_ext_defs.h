@@ -141,14 +141,25 @@ struct camera_ext_frmival {
     };
 } __packed;
 
+/*  Flags for 'capability' and 'capturemode' fields */
+#define CAMERA_EXT_MODE_HIGHQUALITY 0x0001 /* V4L2_MODE_HIGHQUALITY */
+#define CAMERA_EXT_CAP_TIMEPERFRAME 0x1000 /* V4L2_CAP_TIMEPERFRAME */
+
 /* from v4l2_captureparm */
 struct camera_ext_captureparm {
+    __le32 capability;
+    __le32 capturemode;
     struct camera_ext_fract timeperframe;
+    __le32 extendedmode;
+    __le32 readbuffers;
 } __packed;
+
+/* V4L2_BUF_TYPE_VIDEO_CAPTURE */
+#define CAMERA_EXT_BUFFER_TYPE_VIDEO_CAPTURE 1
 
 /* from v4l2_streamparm */
 struct camera_ext_streamparm {
-    __le32 type;
+    __le32 type; /* CAMERA_EXT_BUFFER_TYPE_XXX */
     union {
         struct camera_ext_captureparm capture;
         uint8_t raw_data[200]; /*user defined */

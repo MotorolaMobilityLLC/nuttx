@@ -89,6 +89,8 @@ struct device_camera_ext_dev_type_ops {
     int (*frmival_enum)(struct device *dev,
             struct camera_ext_frmival *frmival);
 
+    int (*stream_get_parm)(struct device *dev,
+            struct camera_ext_streamparm *parm);
     int (*stream_set_parm)(struct device *dev,
             struct camera_ext_streamparm *parm);
 };
@@ -113,6 +115,8 @@ IMPL_CAMERA_EXT_DEV_OP_ARG1(frmsize_enum, \
 IMPL_CAMERA_EXT_DEV_OP_ARG1(frmival_enum, \
     struct camera_ext_frmival*, frmival)
 
+IMPL_CAMERA_EXT_DEV_OP_ARG1(stream_get_parm,\
+    struct camera_ext_streamparm*, parm)
 IMPL_CAMERA_EXT_DEV_OP_ARG1(stream_set_parm,\
     struct camera_ext_streamparm*, parm)
 
