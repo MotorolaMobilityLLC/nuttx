@@ -419,7 +419,7 @@ static int csi_cam_stream_set_parm(struct device *dev,
 
     if (frmival_node == NULL) {
         CAM_ERR("failed to apply stream parm\n");
-        return EINVAL;
+        return -EINVAL;
     }
 
     //write the resolution setttings
@@ -427,6 +427,43 @@ static int csi_cam_stream_set_parm(struct device *dev,
     user_data = frmival_node->user_data;
     retval = cam_set_resolution(cam_dev, &user_data->res_regs);
     return retval;
+}
+
+static int csi_cam_stream_get_parm(struct device *dev,
+        struct camera_ext_streamparm *parm)
+{
+    __le32 frmival_type;
+    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
+            device_driver_get_private(dev);
+    struct gb_camera_ext_sensor_db const *db;
+    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_frmival_node const *frmival_node;
+
+    db = cam_dev->sensor->sensor_db;
+    cfg = &cam_dev->sensor->user_config;
+    frmival_node = get_current_frmival_node(db, cfg);
+
+    if (frmival_node == NULL) {
+        CAM_ERR("failed to get current frmival node\n");
+        return -EINVAL;
+    }
+
+    memset(parm, 0, sizeof(*parm));
+    parm->type = cpu_to_le32(CAMERA_EXT_BUFFER_TYPE_VIDEO_CAPTURE);
+    frmival_type = frmival_node->raw_data.type;
+    if (frmival_type == le32_to_cpu(CAM_EXT_FRMIVAL_TYPE_DISCRETE)) {
+        parm->capture.timeperframe.numerator=
+                frmival_node->raw_data.discrete.numerator;
+        parm->capture.timeperframe.denominator =
+                frmival_node->raw_data.discrete.denominator;
+    } else {
+        //for step/continuous type, frame rate stored in user config
+        parm->capture.timeperframe.numerator = cfg->frmival.numerator;
+        parm->capture.timeperframe.denominator = cfg->frmival.denominator;
+    }
+    parm->capture.capability = cpu_to_le32(CAMERA_EXT_MODE_HIGHQUALITY);
+    parm->capture.capturemode = cpu_to_le32(CAMERA_EXT_CAP_TIMEPERFRAME);
+    return 0;
 }
 
 static int csi_cam_dev_open(struct device *dev)
@@ -472,6 +509,7 @@ static struct device_camera_ext_dev_type_ops csi_camera_ext_type_ops = {
     .frmsize_enum    = csi_cam_frmsize_enum,
     .frmival_enum    = csi_cam_frmival_enum,
     .stream_set_parm = csi_cam_stream_set_parm,
+    .stream_get_parm = csi_cam_stream_get_parm,
 };
 
 static struct device_driver_ops camera_ext_driver_ops = {

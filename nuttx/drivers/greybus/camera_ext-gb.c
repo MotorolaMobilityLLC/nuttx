@@ -68,6 +68,7 @@
 #define GB_CAMERA_EXT_TYPE_STREAM_OFF   0x0D
 
 #define GB_CAMERA_EXT_TYPE_STREAM_PARM_SET 0x0E
+#define GB_CAMERA_EXT_TYPE_STREAM_PARM_GET 0x0F
 
 struct gb_proto_version_response {
     uint8_t major;
@@ -382,6 +383,21 @@ static uint8_t gb_camera_ext_stream_set_parm(struct gb_operation *operation)
     return gb_operation_errno_map(retval);
 }
 
+static uint8_t gb_camera_ext_stream_get_parm(struct gb_operation *operation)
+{
+    int retval;
+    struct camera_ext_streamparm *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (response != NULL) {
+        retval = CALL_CAM_DEV_OP(dev_info.dev, stream_get_parm, response);
+    } else {
+        retval = -ENOMEM;
+    }
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
 static struct gb_operation_handler gb_camera_handlers[] = {
     GB_HANDLER(GB_CAMERA_TYPE_PROTOCOL_VERSION, gb_camera_protocol_version),
     GB_HANDLER(GB_CAMERA_TYPE_POWER_ON, gb_camera_power_on),
@@ -399,6 +415,8 @@ static struct gb_operation_handler gb_camera_handlers[] = {
     GB_HANDLER(GB_CAMERA_EXT_TYPE_STREAM_OFF, gb_camera_ext_stream_off),
     GB_HANDLER(GB_CAMERA_EXT_TYPE_STREAM_PARM_SET,
         gb_camera_ext_stream_set_parm),
+    GB_HANDLER(GB_CAMERA_EXT_TYPE_STREAM_PARM_GET,
+        gb_camera_ext_stream_get_parm),
 };
 
 static struct gb_driver gb_camera_driver = {
