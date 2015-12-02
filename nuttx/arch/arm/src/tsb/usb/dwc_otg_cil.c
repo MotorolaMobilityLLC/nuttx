@@ -3929,7 +3929,8 @@ void dwc_otg_ep_start_transfer(dwc_otg_core_if_t * core_if, dwc_ep_t * ep)
 							ep->descs_dma_addr);
 				} else {
 #endif
-					init_dma_desc_chain(core_if, ep);
+					if (!ep->desc_cnt)
+						init_dma_desc_chain(core_if, ep);
 				/** DIEPDMAn Register write */
 					DWC_WRITE_REG32(&in_regs->diepdma,
 							ep->dma_desc_addr);

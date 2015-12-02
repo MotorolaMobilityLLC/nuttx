@@ -243,9 +243,9 @@ dwc_otg_pcd_ep_t *get_ep_by_addr(dwc_otg_pcd_t * pcd, u16 wIndex)
 
 /**
  * This function checks the EP request queue, if the queue is not
- * empty the next request is started.
+ * empty, all the pending request are started.
  */
-void start_next_request(dwc_otg_pcd_ep_t * ep)
+void start_pending_requests(dwc_otg_pcd_ep_t * ep, int one_requests)
 {
 	dwc_otg_pcd_request_t *req = 0;
 	uint32_t max_transfer =
@@ -312,6 +312,9 @@ void start_next_request(dwc_otg_pcd_ep_t * ep)
 #ifdef DWC_UTE_CFI
 		}
 #endif
+		if (one_requests != 1) {
+			init_fifo_dma_desc_chain(GET_CORE_IF(ep->pcd), ep);
+		}
 		dwc_otg_ep_start_transfer(GET_CORE_IF(ep->pcd), &ep->dwc_ep);
 	} else if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_ISOC) {
 		diepmsk_data_t intr_mask = {.d32 = 0 };
@@ -328,6 +331,15 @@ void start_next_request(dwc_otg_pcd_ep_t * ep)
 		DWC_PRINTF("There are no more ISOC requests \n");
 		ep->dwc_ep.frame_num = 0xFFFFFFFF;
 	}
+}
+
+/**
+ * This function checks the EP request queue, if the queue is not
+ * empty the next request is started.
+ */
+void start_next_request(dwc_otg_pcd_ep_t * ep)
+{
+	start_pending_requests(ep, 1);
 }
 
 /**
@@ -2224,6 +2236,7 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 	dwc_otg_dev_in_ep_regs_t *in_ep_regs =
 	    dev_if->in_ep_regs[ep->dwc_ep.num];
 	deptsiz_data_t deptsiz;
+	depctl_data_t depctl;
 	dev_dma_desc_sts_t desc_sts;
 	dwc_otg_pcd_request_t *req = 0;
 	dwc_otg_dev_dma_desc_t *dma_desc;
@@ -2250,6 +2263,7 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 
 	if (ep->dwc_ep.is_in) {
 		deptsiz.d32 = DWC_READ_REG32(&in_ep_regs->dieptsiz);
+		depctl.d32 = DWC_READ_REG32(&in_ep_regs->diepctl);
 
 		if (core_if->dma_enable) {
 			if (core_if->dma_desc_enable == 0) {
@@ -2336,11 +2350,23 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 					byte_count = residue;
 				} else {
 #endif
-					for (i = 0; i < ep->dwc_ep.desc_cnt;
-					     ++i) {
-						desc_sts = dma_desc->status;
-						byte_count += desc_sts.b.bytes;
-						dma_desc++;
+					if (!depctl.b.epena) {
+						for (i = 0; i < ep->dwc_ep.desc_cnt;
+						     ++i) {
+							desc_sts = dma_desc->status;
+							byte_count += desc_sts.b.bytes;
+							dma_desc++;
+						}
+					} else {
+						for (i = 0; i < ep->dwc_ep.desc_cnt;
+						     ++i) {
+							desc_sts = dma_desc->status;
+							if (desc_sts.b.bs == BS_DMA_DONE) {
+								byte_count = desc_sts.b.bytes;
+								break;
+							}
+							dma_desc++;
+						}
 					}
 #ifdef DWC_UTE_CFI
 				}
@@ -2367,6 +2393,7 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 				 *      if no, setup transfer for next portion of data
 				 */
 				if (ep->dwc_ep.xfer_len < ep->dwc_ep.total_len) {
+					ep->dwc_ep.desc_cnt = 0;
 					dwc_otg_ep_start_transfer(core_if,
 								  &ep->dwc_ep);
 				} else if (ep->dwc_ep.sent_zlp) {
@@ -2456,6 +2483,7 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 						    ep->dwc_ep.desc_cnt *
 						    ep->dwc_ep.maxpacket;
 					if (ep->dwc_ep.xfer_len > 0) {
+						ep->dwc_ep.desc_cnt = 0;
 						dwc_otg_ep_start_transfer
 						    (core_if, &ep->dwc_ep);
 					} else {
@@ -2485,6 +2513,7 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 				 *      if no, setup transfer for next portion of data
 				 */
 				if (ep->dwc_ep.xfer_len < ep->dwc_ep.total_len) {
+					ep->dwc_ep.desc_cnt = 0;
 					dwc_otg_ep_start_transfer(core_if,
 								  &ep->dwc_ep);
 				} else if (ep->dwc_ep.sent_zlp) {
@@ -2515,6 +2544,7 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 			 *      if no, setup transfer for next portion of data
 			 */
 			if (ep->dwc_ep.xfer_len < ep->dwc_ep.total_len) {
+				ep->dwc_ep.desc_cnt = 0;
 				dwc_otg_ep_start_transfer(core_if, &ep->dwc_ep);
 			} else if (ep->dwc_ep.sent_zlp) {
 				/*     
@@ -2573,8 +2603,22 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 		ep->dwc_ep.xfer_buff = 0;
 		ep->dwc_ep.xfer_len = 0;
 
-		/* If there is a request in the queue start it. */
-		start_next_request(ep);
+		/* If there is a request in the queue start it.
+		 * Only start DMA with multiple requests if ep is disabled.
+		 * If ep is enabled, then DMA is still processing multiple
+		 * requests and we need to wait.
+		 */
+		if (ep->dwc_ep.is_in) {
+			if (!depctl.b.epena) {
+				/*
+				 * FIXME
+				 * Use it only if there are multiple requests
+				 */
+				start_pending_requests(ep, 0);
+			}
+		} else {
+			start_next_request(ep);
+		}
 	}
 }
 /**
@@ -3503,6 +3547,7 @@ static void restart_transfer(dwc_otg_pcd_t * pcd, const uint32_t epnum)
 		if (epnum == 0) {
 			dwc_otg_ep0_start_transfer(core_if, &ep->dwc_ep);
 		} else {
+			ep->dwc_ep.desc_cnt = 0;
 			dwc_otg_ep_start_transfer(core_if, &ep->dwc_ep);
 		}
 	}
@@ -4117,6 +4162,7 @@ do { \
 	dwc_otg_pcd_ep_t *ep;
 	dwc_ep_t *dwc_ep;
 	gintmsk_data_t intr_mask = {.d32 = 0 };
+	int i;
 
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, pcd);
 
@@ -4202,7 +4248,12 @@ do { \
 							} else 
 								dwc_ep->frm_overrun = 0;
 						}
-						complete_ep(ep);
+						for (i = 0; i < ep->dwc_ep.desc_cnt; i++) {
+							if (ep->dwc_ep.desc_addr[i].status.b.bs == BS_DMA_DONE) {
+							    ep->dwc_ep.desc_addr[i].status.b.bs = BS_HOST_BUSY;
+								complete_ep(ep);
+							}
+						}
 						if(diepint.b.nak)
 							CLEAR_IN_EP_INTR(core_if, epnum, nak);
 					}

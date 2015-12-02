@@ -2852,8 +2852,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 
 			depctl_data_t depctl;
 			depctl.d32 = DWC_READ_REG32(&GET_CORE_IF(pcd)->dev_if->out_ep_regs[ep->dwc_ep.num]->doepctl);
-			if (ep->dwc_ep.is_in || !depctl.b.epena  ||
-				ep->dwc_ep.type != DWC_OTG_EP_TYPE_BULK) {
+			if (!depctl.b.epena || ep->dwc_ep.type != DWC_OTG_EP_TYPE_BULK) {
 				ep->dwc_ep.desc_cnt = 0;
 				last = req->dma_desc->status.b.l;
 				dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
