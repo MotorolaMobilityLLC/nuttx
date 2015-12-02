@@ -2400,6 +2400,27 @@ dwc_otg_pcd_request_t *dwc_otg_pcd_get_queue_req(dwc_otg_pcd_ep_t *ep,
 	return NULL;
 }
 
+dwc_otg_pcd_request_t *dwc_otg_pcd_get_queue_req_alloc(dwc_otg_pcd_ep_t *ep,
+                                                       dwc_dma_t dma,
+                                                       int atomic_alloc)
+{
+	dwc_otg_pcd_request_t *req = NULL;
+
+	if (!ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK) {
+		req = dwc_otg_pcd_get_queue_req(ep, dma);
+	}
+
+	if (!req) {
+		if (atomic_alloc) {
+			req = DWC_ALLOC_ATOMIC(sizeof(*req));
+		} else {
+			req = DWC_ALLOC(sizeof(*req));
+		}
+	}
+
+	return req;
+}
+
 static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 			   dwc_otg_pcd_ep_t *ep);
 
@@ -2412,7 +2433,7 @@ static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 {
 	int i = 0;
 	dwc_irqflags_t flags;
-	dwc_otg_pcd_request_t *req;
+	dwc_otg_pcd_request_t *req = NULL;
 	dwc_otg_dev_dma_desc_t *dma_desc;
 
 	if (ep->dwc_ep.is_in || ep->dwc_ep.type != DWC_OTG_EP_TYPE_BULK) {
@@ -2420,26 +2441,25 @@ static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 	}
 
 	DWC_SPINLOCK_IRQSAVE(ep->sg_dma_queue_lock, &flags);
-	DWC_CIRCLEQ_FOREACH(req, &ep->sg_dma_queue, sg_dma_queue_entry) {
-		if (req->dma == new_req->dma) {
-			DWC_SPINUNLOCK_IRQRESTORE(ep->sg_dma_queue_lock, flags);
-			dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
-			init_ring_dma_desc(&ep->dwc_ep, dma_desc,
-					   req->dma, req->length);
-			return;
-		}
-		i++;
+	req = dwc_otg_pcd_get_queue_req(ep, new_req->dma);
+	if (req) {
+		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
+		init_ring_dma_desc(&ep->dwc_ep, dma_desc,
+				   req->dma, req->length);
+	} else {
+		/* We didn't found an existing request: add it to queue */
+		DWC_CIRCLEQ_INIT_ENTRY(new_req, sg_dma_queue_entry);
+		DWC_CIRCLEQ_INSERT_TAIL(&ep->sg_dma_queue, new_req,
+					sg_dma_queue_entry);
 	}
-	DWC_CIRCLEQ_INIT_ENTRY(new_req, sg_dma_queue_entry);
-	DWC_CIRCLEQ_INSERT_TAIL(&ep->sg_dma_queue, new_req,
-				sg_dma_queue_entry);
-	DWC_SPINUNLOCK_IRQRESTORE(ep->sg_dma_queue_lock, flags);
+
 	/*
 	 * May be very dangerous!
 	 * We need to stop the DMA before to regenerate the descriptors.
 	 */
-	if (!ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK)
+	if (!req && !ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK)
 		init_ring_dma_desc_chain(core_if, ep);
+	DWC_SPINUNLOCK_IRQRESTORE(ep->sg_dma_queue_lock, flags);
 }
 
 static void dwc_otg_pcd_dequeue_req(dwc_otg_core_if_t * core_if,
@@ -2510,15 +2530,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 		return -DWC_E_INVALID;
 	}
 
-    req = dwc_otg_pcd_get_queue_req(ep, dma_buf);
-    if (!req) {
-	    if (atomic_alloc) {
-		    req = DWC_ALLOC_ATOMIC(sizeof(*req));
-	    } else {
-		    req = DWC_ALLOC(sizeof(*req));
-	    }
-    }
-
+	req = dwc_otg_pcd_get_queue_req_alloc(ep, dma_buf, atomic_alloc);
 	if (!req) {
 		return -DWC_E_NO_MEMORY;
 	}
