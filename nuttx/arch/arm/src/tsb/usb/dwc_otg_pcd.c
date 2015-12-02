@@ -2457,8 +2457,13 @@ static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 	 * May be very dangerous!
 	 * We need to stop the DMA before to regenerate the descriptors.
 	 */
-	if (!req && !ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK)
-		init_ring_dma_desc_chain(core_if, ep);
+	if (!req && !ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK) {
+		depctl_data_t depctl;
+		depctl.d32 = DWC_READ_REG32(&core_if->dev_if->out_ep_regs[ep->dwc_ep.num]->doepctl);
+		if (!depctl.b.epena) {
+			init_ring_dma_desc_chain(core_if, ep);
+		}
+	}
 	DWC_SPINUNLOCK_IRQRESTORE(ep->sg_dma_queue_lock, flags);
 }
 
@@ -2724,11 +2729,17 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 #ifdef DWC_UTE_CFI
 			}
 #endif
-			ep->dwc_ep.desc_cnt = 0;
-			dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
-			dwc_otg_ep_start_transfer(GET_CORE_IF(pcd),
-						  &ep->dwc_ep);
-			start_transfer = 1;
+
+			depctl_data_t depctl;
+			depctl.d32 = DWC_READ_REG32(&GET_CORE_IF(pcd)->dev_if->out_ep_regs[ep->dwc_ep.num]->doepctl);
+			if (ep->dwc_ep.is_in || !depctl.b.epena  ||
+				ep->dwc_ep.type != DWC_OTG_EP_TYPE_BULK) {
+				ep->dwc_ep.desc_cnt = 0;
+				dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
+				dwc_otg_ep_start_transfer(GET_CORE_IF(pcd),
+							  &ep->dwc_ep);
+				start_transfer = 1;
+			}
 		}
 	}
 
