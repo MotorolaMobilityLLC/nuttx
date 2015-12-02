@@ -38,4 +38,7 @@ extern int mods_cport_valid(int c);
 
 #define MODS_VENDOR_CTRL_CPORT (0xffff)
 
+/* Valid masks for the slave mask */
+#define MB_CONTROL_SLAVE_MASK_APBE            (1 << 0)
+
 #endif /* _GREYBUS_MODS_CTRL_H_ */
