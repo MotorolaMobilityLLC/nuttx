@@ -125,6 +125,7 @@ void dwc_otg_request_done(dwc_otg_pcd_ep_t * ep, dwc_otg_pcd_request_t * req,
 	}
 
 	ep->stopped = stopped;
+	/* Don't free request still in bulk out ring descriptor */
 	if (!ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK &&
 		DWC_CIRCLEQ_ENTRY_IN_QUEUE(req, sg_dma_queue_entry))
 		return;
@@ -2388,6 +2389,7 @@ dwc_otg_pcd_request_t *dwc_otg_pcd_get_queue_req(dwc_otg_pcd_ep_t *ep,
 	dwc_irqflags_t flags;
 	dwc_otg_pcd_request_t *req;
 
+	/* Go through the queue to see if request is already in queue */
 	DWC_SPINLOCK_IRQSAVE(ep->sg_dma_queue_lock, &flags);
 	DWC_CIRCLEQ_FOREACH(req, &ep->sg_dma_queue, sg_dma_queue_entry) {
 		if (req->dma == dma) {
@@ -2406,6 +2408,7 @@ dwc_otg_pcd_request_t *dwc_otg_pcd_get_queue_req_alloc(dwc_otg_pcd_ep_t *ep,
 {
 	dwc_otg_pcd_request_t *req = NULL;
 
+	/* Go through the queue to see if request is already in queue */
 	if (!ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK) {
 		req = dwc_otg_pcd_get_queue_req(ep, dma);
 	}
@@ -2424,8 +2427,9 @@ dwc_otg_pcd_request_t *dwc_otg_pcd_get_queue_req_alloc(dwc_otg_pcd_ep_t *ep,
 static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 			   dwc_otg_pcd_ep_t *ep);
 
-/* This method assume we are pushing in queue always the same requests
- * (bulk out require preallocated request then we are re queueing them)
+/*
+ * Queue a request to sg dma queue.
+ * For bulk out endpoint, also re init the descriptor.
  */
 static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 			   dwc_otg_pcd_ep_t *ep,
@@ -2441,6 +2445,7 @@ static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 	}
 
 	DWC_SPINLOCK_IRQSAVE(ep->sg_dma_queue_lock, &flags);
+	/* Look for an existing request an init it */
 	req = dwc_otg_pcd_get_queue_req(ep, new_req->dma);
 	if (req) {
 		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
@@ -2454,8 +2459,8 @@ static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 	}
 
 	/*
-	 * May be very dangerous!
-	 * We need to stop the DMA before to regenerate the descriptors.
+	 * Program bulk out ring descriptor only if endpoint is disabled
+	 * to avoid race between CPU and DMA.
 	 */
 	if (!req && !ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK) {
 		depctl_data_t depctl;
