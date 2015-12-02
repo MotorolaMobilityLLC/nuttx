@@ -93,6 +93,7 @@
 #define MAX17050_STATUS_POR             BIT(1)  /* Power-On Reset */
 #define MAX17050_STATUS_BST             BIT(3)  /* Battery Status */
 #define MAX17050_STATUS_VMN             BIT(8)  /* Min Valrt */
+#define MAX17050_STATUS_VMX             BIT(12) /* Max Valrt */
 
 #define MAX17050_CONFIG_AEN             BIT(2)  /* Alert enable */
 
@@ -654,7 +655,7 @@ static void max17050_alrt_worker(FAR void *arg)
 
     status = max17050_reg_read(priv, MAX17050_REG_STATUS);
     if (status >= 0) {
-        if (status & MAX17050_STATUS_VMN) {
+        if (status & MAX17050_STATUS_VMX) {
             max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
             pthread_create(&por_thread, NULL, max17050_por, priv);
             pthread_detach(por_thread);
@@ -703,11 +704,12 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv,
 
     // Configure device after Power-On Reset or with the new configuration
     if (ret & MAX17050_STATUS_POR || max17050_new_config(priv)) {
-        max17050_set_voltage_alert(priv, INT_MIN, MAX17050_MIN_BATTERY_VOLTAGE);
-        if (use_voltage_alert)
+        if (use_voltage_alert) {
+            max17050_set_voltage_alert(priv, INT_MIN,
+                                       MAX17050_MIN_BATTERY_VOLTAGE);
             max17050_reg_modify(priv, MAX17050_REG_CONFIG,
                                 MAX17050_CONFIG_AEN, MAX17050_CONFIG_AEN);
-        else {
+        } else {
             pthread_create(&por_thread, NULL, max17050_por, priv);
             pthread_detach(por_thread);
         }
