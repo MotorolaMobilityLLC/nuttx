@@ -317,12 +317,14 @@ static int mb_control_init(unsigned int cport)
 
     ctrl_info->cport = cport;
 
+#ifdef CONFIG_DEVICE_CORE
     /* see if this device functions as the power control for additional */
     /* devices.  Not having one is not an error.                        */
     ctrl_info->dev = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, 0);
     if (!ctrl_info->dev) {
         gb_info("Failed to open SLAVE Power Control\n");
     }
+#endif
 
     return 0;
 }
@@ -332,9 +334,11 @@ static void mb_control_exit(unsigned int cport)
     if (!ctrl_info)
         return;
 
+#ifdef CONFIG_DEVICE_CORE
     if (ctrl_info->dev) {
         device_close(ctrl_info->dev);
     }
+#endif
 
     free(ctrl_info);
     ctrl_info = NULL;
