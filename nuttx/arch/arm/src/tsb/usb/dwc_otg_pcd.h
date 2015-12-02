@@ -141,7 +141,7 @@ typedef struct dwc_otg_pcd_request {
 	dwc_dma_t dw_align_buf_dma;
 
 	 DWC_CIRCLEQ_ENTRY(dwc_otg_pcd_request) queue_entry;
-	 DWC_CIRCLEQ_ENTRY(dwc_otg_pcd_request) ring_entry;
+	 DWC_CIRCLEQ_ENTRY(dwc_otg_pcd_request) sg_dma_queue_entry;
 	dwc_otg_dev_dma_desc_t *dma_desc;
 #ifdef DWC_UTE_PER_IO
 	struct dwc_iso_xreq_port ext_req;
@@ -161,8 +161,8 @@ typedef struct dwc_otg_pcd_ep {
 
 	/** queue of dwc_otg_pcd_requests. */
 	struct req_list queue;
-	struct req_list ring;
-	dwc_spinlock_t *ring_lock;
+	struct req_list sg_dma_queue;
+	dwc_spinlock_t *sg_dma_queue_lock;
 
 	unsigned stopped:1;
 	unsigned disabling:1;
