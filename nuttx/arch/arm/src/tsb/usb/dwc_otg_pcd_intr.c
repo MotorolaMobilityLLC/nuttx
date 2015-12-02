@@ -2420,8 +2420,17 @@ static void complete_ep(dwc_otg_pcd_ep_t * ep)
 					byte_count = residue;
 				} else {
 #endif
-					desc_sts = req->dma_desc->status;
-					byte_count += desc_sts.b.bytes;
+					if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK) {
+						desc_sts = req->dma_desc->status;
+						byte_count += desc_sts.b.bytes;
+					} else {
+						for (i = 0; i < ep->dwc_ep.desc_cnt;
+						     ++i) {
+							desc_sts = dma_desc->status;
+							byte_count += desc_sts.b.bytes;
+							dma_desc++;
+						}
+					}
 #ifdef DWC_UTE_CFI
 				}
 #endif
@@ -4748,9 +4757,7 @@ exit_xfercompl:
 					if (core_if->dma_desc_enable && dwc_ep->type == DWC_OTG_EP_TYPE_ISOC) {
 						handle_xfercompl_iso_ddma(core_if->dev_if, ep);
 					} else {
-						if (ep->dwc_ep.is_in) {
-							complete_ep(ep);
-						} else {
+						if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK) {
 							int i;
 							for (i = 0; i < ep->dwc_ep.desc_cnt; i++) {
 								if (ep->dwc_ep.desc_addr[i].status.b.bs == BS_DMA_DONE) {
@@ -4758,6 +4765,8 @@ exit_xfercompl:
 									complete_ep(ep);
 								}
 							}
+						} else {
+							complete_ep(ep);
 						}
 					}
 				}

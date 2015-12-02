@@ -125,8 +125,10 @@ void dwc_otg_request_done(dwc_otg_pcd_ep_t * ep, dwc_otg_pcd_request_t * req,
 	}
 
 	ep->stopped = stopped;
-	if (!DWC_CIRCLEQ_ENTRY_IN_QUEUE(req, ring_entry))
-		DWC_FREE(req);
+	if (!ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK &&
+		DWC_CIRCLEQ_ENTRY_IN_QUEUE(req, ring_entry))
+		return;
+	DWC_FREE(req);
 }
 
 /**
@@ -2412,14 +2414,17 @@ static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 	dwc_otg_pcd_request_t *req;
 	dwc_otg_dev_dma_desc_t *dma_desc;
 
+	if (ep->dwc_ep.is_in || ep->dwc_ep.type != DWC_OTG_EP_TYPE_BULK) {
+		return;
+	}
+
 	DWC_SPINLOCK_IRQSAVE(ep->ring_lock, &flags);
 	DWC_CIRCLEQ_FOREACH(req, &ep->ring, ring_entry) {
 		if (req->dma == new_req->dma) {
 			DWC_SPINUNLOCK_IRQRESTORE(ep->ring_lock, flags);
 			dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
-			if (!ep->dwc_ep.is_in)
-				init_ring_dma_desc(&ep->dwc_ep, dma_desc,
-						   req->dma, req->length);
+			init_ring_dma_desc(&ep->dwc_ep, dma_desc,
+					   req->dma, req->length);
 			return;
 		}
 		i++;
@@ -2431,7 +2436,7 @@ static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 	 * May be very dangerous!
 	 * We need to stop the DMA before to regenerate the descriptors.
 	 */
-	if (!ep->dwc_ep.is_in)
+	if (!ep->dwc_ep.is_in && ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK)
 		init_ring_dma_desc_chain(core_if, ep);
 }
 
@@ -2475,6 +2480,9 @@ static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 
 static void dwc_otg_pcd_ep_resume(dwc_otg_pcd_ep_t *ep)
 {
+	if (ep->dwc_ep.is_in)
+		return;
+
 	depctl_data_t depctl = {.d32 = 0 };
 	dwc_otg_pcd_t *pcd = ep->pcd;
 	dwc_ep_t *dwc_ep = &ep->dwc_ep;
@@ -2492,6 +2500,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 	dwc_otg_pcd_request_t *req;
 	dwc_otg_pcd_ep_t *ep;
 	uint32_t max_transfer;
+	int start_transfer = 0;
 
 	ep = get_ep_from_handle(pcd, ep_handle);
 	if (!ep || (!ep->desc && ep->dwc_ep.num != 0)) {
@@ -2701,23 +2710,22 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 #ifdef DWC_UTE_CFI
 			}
 #endif
+			ep->dwc_ep.desc_cnt = 0;
 			dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
-			if (!ep->dwc_ep.is_in && ep->stopped) {
-				ep->dwc_ep.desc_cnt = 0;
-				init_ring_dma_desc_chain(GET_CORE_IF(pcd), ep);
-			}
 			dwc_otg_ep_start_transfer(GET_CORE_IF(pcd),
 						  &ep->dwc_ep);
+			start_transfer = 1;
 		}
 	}
 
 	if (req != 0) {
 		++pcd->request_pending;
-		if (!(DWC_CIRCLEQ_EMPTY(&ep->queue) && !ep->stopped)) {
+		if(!start_transfer) {
 			dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
 		}
 		DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
-		if (!ep->dwc_ep.is_in && ep->bna) {
+		if (!ep->dwc_ep.is_in &&
+			ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK && ep->bna) {
 			/*
 			 * Endpoint may be disable because of BNA.
 			 * Enable endpoint since we have resolve the BNA
