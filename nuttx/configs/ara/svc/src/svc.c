@@ -562,9 +562,12 @@ static int svc_consume_hotplug_events(void)
         case HOTPLUG_ST_PLUGGED:
             svc_hot_plug(i);
             break;
-        /* Port unplugged, send event to the AP */
+        /*
+         * Module not present, don't send event to the AP as the AP never got a
+         * hotplug event for the port.
+         */
         case HOTPLUG_ST_UNPLUGGED:
-            svc_hot_unplug(i);
+            dbg_info("Hot_unplug event ignored for port %u\n", i);
             break;
         /* State not initialized yet or event already consumed, do nothing */
         case HOTPLUG_ST_UNKNOWN:
