@@ -168,7 +168,7 @@ static inline int interface_is_builtin(struct interface *iface) {
     return !!(iface->if_type == ARA_IFACE_TYPE_BUILTIN);
 }
 
-/** @brief Test if an interface connects to a module port */
+/* @brief Test if an interface connects to a module port */
 static inline int interface_is_module_port(struct interface *iface) {
     return !!(iface->if_type == ARA_IFACE_TYPE_MODULE_PORT);
 }
