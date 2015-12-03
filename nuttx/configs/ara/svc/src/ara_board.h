@@ -73,19 +73,6 @@
 #define ES2_MBOX_ACK_ATTR       T_TSTSRCINTERMESSAGEGAP
 #define MBOX_ACK_ATTR           ES2_MBOX_ACK_ATTR
 
-/*
- * Common timing parameters
- */
-
-/* Module power on hold time (10 ms). */
-#define HOLD_TIME_MODULE                (10000)
-/* Switch 1.1V power on hold time (50 ms). */
-#define HOLD_TIME_SW_1P1                (50000)
-/* Switch 1.8V power on hold time (10 ms). */
-#define HOLD_TIME_SW_1P8                (10000)
-/* Stabilization time after configuring switch vregs at init (10 ms). */
-#define POWER_SWITCH_OFF_STAB_TIME_US   (10000)
-
 struct io_expander_info {
     void *io_exp_driver_data;
     uint32_t reset;
