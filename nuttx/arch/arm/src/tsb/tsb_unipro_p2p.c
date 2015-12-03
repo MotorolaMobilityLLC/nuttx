@@ -303,6 +303,157 @@ void unipro_p2p_detect_linkloss(void) {
     }
 }
 
+void unipro_p2p_setup_test_connection(unsigned int cport, unsigned int test_port, unsigned int src_from_local, unsigned int enable_e2efc) {
+    /* Set-up the L4 attributes */
+    uint32_t cport_flags = CPORT_FLAGS_CSV_N|CPORT_FLAGS_E2EFC;;
+    const uint32_t traffic_class = CPORT_TC0;
+    const uint32_t token_value = 0x20;
+    const uint32_t max_segment = 0x118;
+    const uint32_t default_buffer_space = 0x240;
+
+    if (enable_e2efc) {
+        cport_flags |= CPORT_FLAGS_E2EFC;
+    } else {
+        cport_flags |= CPORT_FLAGS_CSD_N;
+    }
+
+    /* Disable CPORTs before making changes. */
+    unipro_attr_local_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport);
+    unipro_attr_peer_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport);
+
+    /* Disable test ports before making changes. */
+    unipro_attr_local_write(T_TSTSRCON, 0 /* disabled */, test_port);
+    unipro_attr_peer_write(T_TSTSRCON, 0 /* disabled */, test_port);
+
+    unipro_attr_local_write(T_TSTDSTON, 0 /* disabled */, test_port);
+    unipro_attr_peer_write(T_TSTDSTON, 0 /* disabled */, test_port);
+
+    /* Test Ports */
+    unipro_attr_local_write(T_TSTCPORTID, cport, test_port);
+    unipro_attr_peer_write(T_TSTCPORTID, cport, test_port);
+
+    /* Test Source */
+    unipro_attr_local_write(T_TSTSRCMESSAGECOUNT, 0 /* infinite */, test_port);
+    unipro_attr_peer_write(T_TSTSRCMESSAGECOUNT, 0 /* infinite */, test_port);
+
+    /* Test Destination */
+    unipro_attr_local_write(T_TSTDSTMESSAGECOUNT, 0 /* clear */, test_port);
+    unipro_attr_peer_write(T_TSTDSTMESSAGECOUNT, 0 /* clear */, test_port);
+
+    if (src_from_local) {
+        unipro_attr_local_write(T_TSTSRCON, 1 /* enabled */, test_port);
+        unipro_attr_peer_write(T_TSTDSTON, 1 /* enabled */, test_port);
+    } else /* src_from_peer */ {
+        unipro_attr_peer_write(T_TSTSRCON, 1 /* enabled */, test_port);
+        unipro_attr_local_write(T_TSTDSTON, 1 /* enabled */, test_port);
+    }
+
+    /* L4 */
+    unipro_attr_local_write(T_PEERDEVICEID, CONFIG_UNIPRO_REMOTE_DEVICEID, cport);
+    unipro_attr_peer_write(T_PEERDEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, cport);
+
+    unipro_attr_local_write(T_PEERCPORTID, cport, cport);
+    unipro_attr_peer_write(T_PEERCPORTID, cport, cport);
+
+    unipro_attr_local_write(T_TRAFFICCLASS, traffic_class, cport);
+    unipro_attr_peer_write(T_TRAFFICCLASS, traffic_class, cport);
+
+    unipro_attr_local_write(T_TXTOKENVALUE, token_value, cport);
+    unipro_attr_peer_write(T_TXTOKENVALUE, token_value, cport);
+
+    unipro_attr_local_write(T_RXTOKENVALUE, token_value, cport);
+    unipro_attr_peer_write(T_RXTOKENVALUE, token_value, cport);
+
+    unipro_attr_local_write(T_CPORTFLAGS, cport_flags, cport);
+    unipro_attr_peer_write(T_CPORTFLAGS, cport_flags, cport);
+
+    unipro_attr_local_write(T_CPORTMODE, CPORT_MODE_UNDER_TEST, cport);
+    unipro_attr_peer_write(T_CPORTMODE, CPORT_MODE_UNDER_TEST, cport);
+
+    unipro_attr_local_write(T_CREDITSTOSEND, 0, cport);
+    unipro_attr_peer_write(T_CREDITSTOSEND, 0, cport);
+
+    /* The local buffer space has to match peer buffer space if E2EFC or CSD is enabled. */
+    uint32_t local = 0;
+    unipro_attr_local_read(T_LOCALBUFFERSPACE, &local, cport);
+    if (!local) {
+        local = default_buffer_space;
+    }
+
+    uint32_t peer = 0;
+    unipro_attr_peer_read(T_LOCALBUFFERSPACE, &peer, cport);
+    if (!peer) {
+        peer = default_buffer_space;
+    }
+
+    unipro_attr_local_write(T_PEERBUFFERSPACE, peer, cport);
+    //unipro_attr_peer_write(T_PEERBUFFERSPACE, local, cport, NULL);
+
+    unipro_attr_local_write(TSB_MAXSEGMENTCONFIG, max_segment, cport);
+    unipro_attr_peer_write(TSB_MAXSEGMENTCONFIG, max_segment, cport);
+
+    /* Configure the local cport's registers. */
+    unipro_enable_cport(cport);
+
+    /* Notify the remote to configure it's cport registers. */
+    unipro_mbox_enable_cport(cport);
+}
+
+void unipro_p2p_test_start(unsigned int cport) {
+    /* Enable CPORTs. */
+    unipro_attr_local_write(T_CONNECTIONSTATE, 1 /* connected */, cport);
+    unipro_attr_peer_write(T_CONNECTIONSTATE, 1 /* connected */, cport);
+}
+
+void unipro_p2p_test_stop(unsigned int cport) {
+    /* Disable CPORTs. */
+    unipro_attr_local_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport);
+    unipro_attr_peer_write(T_CONNECTIONSTATE, 0 /* disconnected */, cport);
+
+    unipro_reset_cport(cport, NULL, NULL);
+}
+
+void unipro_p2p_test_stats(void) {
+    uint32_t val;
+
+    unipro_attr_local_read(TSB_DEBUGRXBYTECOUNT, &val, 0);
+    printf("local rx=%u\n", val);
+    unipro_attr_local_read(TSB_DEBUGTXBYTECOUNT, &val, 0);
+    printf("local tx=%u\n", val);
+    unipro_attr_peer_read(TSB_DEBUGRXBYTECOUNT, &val, 0);
+    printf("peer rx=%u\n", val);
+    unipro_attr_peer_read(TSB_DEBUGTXBYTECOUNT, &val, 0);
+    printf("peer tx=%u\n", val);
+    printf("\n");
+    unipro_attr_local_read(T_TSTDSTMESSAGECOUNT, &val, 0);
+    printf("local message count[0]=%u\n", val);
+    unipro_attr_local_read(T_TSTDSTMESSAGECOUNT, &val, 1);
+    printf("local message count[1]=%u\n", val);
+    unipro_attr_peer_read(T_TSTDSTMESSAGECOUNT, &val, 0);
+    printf("peer message count[0]=%u\n", val);
+    unipro_attr_peer_read(T_TSTDSTMESSAGECOUNT, &val, 1);
+    printf("peer message count[1]=%u\n", val);
+    printf("\n");
+    unipro_attr_local_read(T_TSTDSTERRORCODE, &val, 0);
+    printf("local error code[0]=%u\n", val);
+    unipro_attr_local_read(T_TSTDSTERRORCODE, &val, 1);
+    printf("local error code[1]=%u\n", val);
+    unipro_attr_peer_read(T_TSTDSTERRORCODE, &val, 0);
+    printf("peer error code[0]=%u\n", val);
+    unipro_attr_peer_read(T_TSTDSTERRORCODE, &val, 1);
+    printf("peer error code[1]=%u\n", val);
+    printf("\n");
+    unipro_attr_local_read(T_TSTDSTMESSAGEOFFSET, &val, 0);
+    printf("local error offset[0]=%u\n", val);
+    unipro_attr_local_read(T_TSTDSTMESSAGEOFFSET, &val, 1);
+    printf("local error offset[1]=%u\n", val);
+    unipro_attr_peer_read(T_TSTDSTMESSAGEOFFSET, &val, 0);
+    printf("peer error offset[0]=%u\n", val);
+    unipro_attr_peer_read(T_TSTDSTMESSAGEOFFSET, &val, 1);
+    printf("peer error offset[1]=%u\n", val);
+    printf("\n");
+}
+
 const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     /*
      * L1 attributes

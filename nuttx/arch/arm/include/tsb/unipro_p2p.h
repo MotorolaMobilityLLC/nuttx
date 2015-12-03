@@ -54,6 +54,11 @@ void unipro_stop(void);
 void unipro_restart(void);
 void unipro_reset(void);
 
+void unipro_p2p_setup_test_connection(unsigned int cport, unsigned int test_port, unsigned int src_from_local, unsigned int enable_e2efc);
+void unipro_p2p_test_start(unsigned int cport);
+void unipro_p2p_test_stop(unsigned int cport);
+void unipro_p2p_test_stats(void);
+
 void unipro_dump_attributes(int peer);
 void unipro_dump_cport_attributes(size_t start, size_t end, int peer);
 void unipro_dump_status(void);
