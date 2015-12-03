@@ -562,7 +562,6 @@ struct tsb_switch_data {
     unsigned int gpio_1p8;
     unsigned int gpio_reset;
     unsigned int gpio_irq;
-    bool         irq_rising_edge;
     unsigned int rev;
     unsigned int bus;
     unsigned int spi_cs;

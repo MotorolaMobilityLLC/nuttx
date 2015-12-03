@@ -923,13 +923,11 @@ static int es2_switch_irq_enable(struct tsb_switch *sw, bool enable)
         }
 
         /*
-         * Configure switch IRQ line: parameters from pdata, install
-         * handler, and pass the tsb_switch struct to the handler.
+         * Configure switch IRQ line: rising edge; install handler
+         * and pass the tsb_switch struct to the handler
          */
-        stm32_gpiosetevent_priv(sw->pdata->gpio_irq,
-                                sw->pdata->irq_rising_edge,
-                                !sw->pdata->irq_rising_edge,
-                                true, switch_irq_handler, sw);
+        stm32_gpiosetevent_priv(sw->pdata->gpio_irq, true, false, true,
+                                switch_irq_handler, sw);
 
         // Enable the switch internal interrupt sources
         if (switch_internal_setattr(sw, SWINE, SWINE_ENABLE_ALL)) {
