@@ -27,14 +27,7 @@
  */
 
 /**
- * @file nuttx/configs/ara/svc/src/vreg.h
- * @brief "voltage regulator" framework
- *
- * This API started out life as a refcounted mechanism for managing
- * voltage regulators which are controlled using GPIOs, and which need
- * to be enabled/disabled in a defined order. Over time, it started to
- * be used for other purposes, such as controlling clock enable lines
- * that need to be handled similarly.
+ * @brief: Manage a voltage regulator
  */
 
 #ifndef  _VREG_H_
