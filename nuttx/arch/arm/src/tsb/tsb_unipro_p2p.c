@@ -86,21 +86,21 @@ static void unipro_dump_attribute_array(const struct dbg_entry *attributes, int 
 
         uint32_t val;
         unipro_attr_read(attributes->val, &val, cportid, peer);
-        lldbg("%04x %s: %08x\n", attributes->val, (attributes->str ? attributes->str : ""), val);
+        printf("%04x %s: %08x\n", attributes->val, (attributes->str ? attributes->str : ""), val);
         attributes++;
     }
 }
 
 static void unipro_dump_register_array(const struct dbg_entry *registers) {
     while (registers && registers->val) {
-        lldbg("%08x %s: %08x\n", registers->val, (registers->str ? registers->str : ""), unipro_read(registers->val));
+        printf("%08x %s: %08x\n", registers->val, (registers->str ? registers->str : ""), unipro_read(registers->val));
         registers++;
     }
 }
 
 static void unipro_dump_register_index_array(const struct dbg_entry *registers, int idx) {
     while (registers && registers->val) {
-        lldbg("%08x [%d] %s: %08x\n", (registers->val + idx * 4), idx, (registers->str ? registers->str : ""), unipro_read((registers->val + idx * 4)));
+        printf("%08x [%d] %s: %08x\n", (registers->val + idx * 4), idx, (registers->str ? registers->str : ""), unipro_read((registers->val + idx * 4)));
         registers++;
     }
 }
@@ -790,7 +790,7 @@ void unipro_dump_cport_attributes(size_t start, size_t end, int peer) {
     size_t i;
 
     for (i = start; i <= end; i++) {
-        lldbg("CP%d:\n", i);
+        printf("CP%d:\n", i);
         unipro_dump_attribute_array(CPORT_ATTRIBUTES, i, peer);
     }
 }
@@ -826,11 +826,11 @@ void unipro_dump_status(void) {
             break;
         }
 
-        lldbg("TSB_INTERRUPTSTATUS, val=0x%x, rc=%d\n", attr_val, rc);
+        printf("TSB_INTERRUPTSTATUS, val=0x%x, rc=%d\n", attr_val, rc);
         for (j = 0; j < sizeof(unipro_irq_attr)/sizeof(unipro_irq_attr[0]); j++) {
             if ((attr_val & (1 << j)) && unipro_irq_attr[j]) {
                 rc = unipro_attr_read(unipro_irq_attr[j], &attr_val, 0, 0);
-                lldbg("j=%d, attr=0x%x, val=0x%x, rc=%d\n", j, unipro_irq_attr[j], attr_val, rc);
+                printf("j=%d, attr=0x%x, val=0x%x, rc=%d\n", j, unipro_irq_attr[j], attr_val, rc);
             }
         }
     }
