@@ -38,8 +38,8 @@
 #include <nuttx/i2c.h>
 #include <nuttx/kmalloc.h>
 #include <arch/board/tfa9890_firmware.h>
-
-#include "tfa9890.h"
+#include <arch/board/tfa9890_registers.h>
+#include <nuttx/tfa9890.h>
 
 #define CLRBIT(val, mask)   (val & ~(mask))
 #define SETBIT(val, mask)   (val | mask)
@@ -694,19 +694,14 @@ static int tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
 
 static void tfa9890_init_registers(FAR struct tfa9890_dev_s *priv)
 {
+    int i;
+
     /* set up initial register values*/
-    tfa9890_reg_write(priv, TFA9890_REG_I2S_CTRL, 0x889b);
-    tfa9890_reg_write(priv, TFA9890_REG_BS_CTRL, 0x13A2);
-    tfa9890_reg_write(priv, TFA9890_REG_VOLUME_CTRL, 0x000f);
-    tfa9890_reg_write(priv, TFA9890_REG_DC_TO_DC_CTRL, 0x8FE6);
-    tfa9890_reg_write(priv, TFA9890_REG_SPEAKER_CTRL , 0x3832);
-    tfa9890_reg_write(priv, TFA9890_REG_SYSTEM_CTRL_1, 0x827D);
-    tfa9890_reg_write(priv, TFA9890_REG_SYSTEM_CTRL_2, 0x38D2);
-    tfa9890_reg_write(priv, TFA9890_PWM_CTL_REG, 0x0308);
-    tfa9890_reg_write(priv, TFA9890_REG_CURRENT_SENSE, 0x7be1);
-    tfa9890_reg_write(priv, TFA9890_CURRT_SNS2_REG, 0x340);
-    tfa9890_reg_write(priv, TFA9890_REG_CLIP_SENSE , 0xAD93);
-    tfa9890_reg_write(priv, TFA9890_DEM_CTL_REG, 0x00);
+    for (i = 0; i < ARRAY_SIZE(tfa9890_registers_init_list); i++)
+    {
+         tfa9890_reg_write(priv, tfa9890_registers_init_list[i].reg,
+                     tfa9890_registers_init_list[i].val);
+    }
 }
 
 static int tfa9890_driver_stereo_setup(FAR struct tfa9890_dev_s *priv, int type)

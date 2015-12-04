@@ -41,10 +41,11 @@
 #include <nuttx/i2c.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/util.h>
+#include <nuttx/tfa9890.h>
 
 #include "audio-gb.h"
 #include "i2s-gb.h"
-#include "tfa9890.h"
+
 
 #define TFA9890_SUPPORTED_USE_CASES (GB_AUDIO_MUSIC_USE_CASE | \
                            GB_AUDIO_VOICE_CALL_SPKR_USE_CASE | \

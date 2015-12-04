@@ -33,6 +33,11 @@
 
 #define TFA9890_MAX_I2C_SIZE    252
 
+struct tfa9890_registers {
+    uint16_t reg;
+    uint16_t val;
+};
+
 /*******************  Registers ******************/
 #define TFA9890_REG_SYSTEM_STATUS        0x00
 #define TFA9890_REG_BATTERY_STATUS       0x01
