@@ -61,6 +61,7 @@ static void apbridge_unipro_evt_handler(enum unipro_event evt)
 {
     switch (evt) {
     case UNIPRO_EVT_LUP_DONE:
+        tsb_unipro_set_init_status(INIT_STATUS_OPERATING);
         /*
          * Tell the SVC that the AP Module is ready
          */
