@@ -34,23 +34,42 @@
 #define GB_AUDIO_PROTOCOL_VERSION       0x01
 
 /* Commands */
-#define GB_AUDIO_GET_VOLUME_DB_RANGE        0x02
-#define GB_AUDIO_GET_SUPPORTED_USE_CASES    0x03
-#define GB_AUDIO_SET_USE_CASE       0x04
-#define GB_AUDIO_SET_VOLUME     0x05
-#define GB_AUDIO_SET_SYSTEM_VOLUME      0x06
-#define GB_AUDIO_GET_SUPPORTED_DEVICES      0x07
-#define GB_AUDIO_DEVICES_REPORT_EVENT   0x08
-#define GB_AUDIO_ENABLE_DEVICES   0x09
+#define GB_AUDIO_GET_VOLUME_DB_RANGE      0x02
+#define GB_AUDIO_GET_SUPPORTED_USE_CASES  0x03
+#define GB_AUDIO_SET_CAPTURE_USE_CASE     0x04
+#define GB_AUDIO_SET_PLAYBACK_USE_CASE    0x05
+#define GB_AUDIO_SET_VOLUME               0x06
+#define GB_AUDIO_SET_SYSTEM_VOLUME        0x07
+#define GB_AUDIO_GET_SUPPORTED_DEVICES    0x08
+#define GB_AUDIO_DEVICES_REPORT_EVENT     0x09
+#define GB_AUDIO_ENABLE_DEVICES	          0x0a
 
 /* use cases bit mask*/
 
+/* Playback use cases bit mask*/
+
+
+#define GB_AUDIO_PLAYBACK_NONE_USE_CASE              BIT(0)
 /* Music */
-#define GB_AUDIO_MUSIC_USE_CASE         BIT(0x1)
-/* voice call */
-#define GB_AUDIO_VOICE_CALL_SPKR_USE_CASE   BIT(0x2)
-/* Low latency stream use cases (ringer, alarm, system sounds ..) which demand min processing delay*/
-#define GB_AUDIO_LOW_LATENCY_USE_CASE   BIT(0x3)
+#define GB_AUDIO_PLAYBACK_MUSIC_USE_CASE             BIT(1)
+/* Voice call */
+#define GB_AUDIO_PLAYBACK_VOICE_CALL_SPKR_USE_CASE   BIT(2)
+/* Ringer  */
+#define GB_AUDIO_PLAYBACK_RINGTONE_USE_CASE          BIT(3)
+/* System sounds */
+#define GB_AUDIO_PLAYBACK_SONIFICATION_USE_CASE      BIT(4)
+
+
+/* Capture use cases bit mask*/
+
+/* Default setting capture */
+#define GB_AUDIO_CAPTURE_DEFAULT_USE_CASE     BIT(0)
+/* Voice  */
+#define GB_AUDIO_CAPTURE_VOICE_USE_CASE       BIT(1)
+/* Unprocessed pcm capture */
+#define GB_AUDIO_CAPTURE_RAW_USE_CASE         BIT(2)
+/* Camcorder */
+#define GB_AUDIO_CAPTURE_CAMCORDER_USE_CASE   BIT(3)
 
 /* audio output devices bit mask */
 #define GB_AUDIO_DEVICE_OUT_LOUDSPEAKER BIT(0)
@@ -75,21 +94,18 @@ struct gb_audio_proto_version_response {
     __u8    minor;
 };
 
-/* Audio bundle will indicate supported use cases to help
- * host make routing decisions.
- * Remote audio bundle should support Music use case at minimum.
- * Remote audio bundle will indicate support for voice call speaker phone
- * use case if it supports either of the three cases
- *  1) echo cancellation on chip,
- *  2) capable of looping back output signal to host
- *  3) no non linear processing, in this case HOST can use internal signal for echo cancellation
- * Remote audio bundle will indicate support for low latency use case if it supports max processing
- * delay required.
+/* Audio bundle will indicate supported use cases for
+ * capture and playback. Host will make routing decisions,
+ * for capture based on the supported use cases.
 */
+struct gb_aud_usecases {
+    __le32 playback_usecases;
+    __le32 capture_usecases;
+} __packed;
 
 struct gb_audio_get_supported_usecases_response {
-    __u8                    use_cases;
-};
+	struct gb_aud_usecases aud_use_cases;
+} __packed;
 
 struct gb_aud_vol_range {
     __le32 min;
@@ -111,9 +127,13 @@ struct gb_audio_get_volume_step_response {
     __le32                  vol_step;
 };
 
-/* set current use case */
+/* Set current playback/capture use case.
+ * can set unsupported use cases too, its up
+ * to the mod to use the info or not to do
+ * use case specific tuning.
+ */
 struct gb_audio_set_use_case_request {
-    __u8                    use_case;
+    __le32                  use_case;
 };
 
 /* set volume */

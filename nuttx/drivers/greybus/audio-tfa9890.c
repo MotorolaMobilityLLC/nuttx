@@ -47,9 +47,13 @@
 #include "i2s-gb.h"
 
 
-#define TFA9890_SUPPORTED_USE_CASES (GB_AUDIO_MUSIC_USE_CASE | \
-                           GB_AUDIO_VOICE_CALL_SPKR_USE_CASE | \
-                           GB_AUDIO_LOW_LATENCY_USE_CASE)
+#define TFA9890_SUPPORTED_PLAYBACK_USE_CASES (GB_AUDIO_PLAYBACK_MUSIC_USE_CASE | \
+                           GB_AUDIO_PLAYBACK_VOICE_CALL_SPKR_USE_CASE | \
+                           GB_AUDIO_PLAYBACK_RINGTONE_USE_CASE | \
+                           GB_AUDIO_PLAYBACK_SONIFICATION_USE_CASE)
+
+#define TFA9890_SUPPORTED_CAPTURE_USE_CASES  GB_AUDIO_CAPTURE_DEFAULT_USE_CASE
+
 #define TFA9890_SUPPORTED_OUT_DEVICES    GB_AUDIO_DEVICE_OUT_LOUDSPEAKER
 #define TFA9890_SUPPORTED_IN_DEVICES    GB_AUDIO_DEVICE_IN_EC_REF
 
@@ -154,11 +158,12 @@ int muc_aud_dev_open(struct device *dev)
 }
 
 static int muc_aud_dev_get_supported_use_cases(struct device *dev,
-                           uint32_t *use_cases)
+                           struct device_aud_usecases *use_cases)
 {
     gb_debug("%s()\n", __func__);
 
-    *use_cases = TFA9890_SUPPORTED_USE_CASES;
+    use_cases->playback_usecases = TFA9890_SUPPORTED_PLAYBACK_USE_CASES;
+    use_cases->capture_usecases = TFA9890_SUPPORTED_CAPTURE_USE_CASES;
 
     return 0;
 }
@@ -183,11 +188,14 @@ static int muc_aud_dev_set_current_use_case(struct device *dev, uint32_t use_cas
     int ret;
     int i;
 
-    if (!(TFA9890_SUPPORTED_USE_CASES & use_case))
-        return -EINVAL;
     gb_debug("%s()\n", __func__);
 
-    gb_aud.use_case = use_case;
+    /* if unsupported playback use case fallback to music don't return error*/
+    if (!(TFA9890_SUPPORTED_PLAYBACK_USE_CASES & use_case))
+        gb_aud.use_case = GB_AUDIO_PLAYBACK_MUSIC_USE_CASE;
+    else
+        gb_aud.use_case = use_case;
+
     caps.ac_type = AUDIO_TYPE_FEATURE;
     caps.ac_format.hw = AUDIO_FU_EQUALIZER;
     caps.ac_controls.hw[0] = use_case;
@@ -407,7 +415,7 @@ static int muc_i2s_tfa9890_direct_op_stop_receiver(struct device *dev)
 static struct device_aud_dev_type_ops muc_aud_dev_type_ops = {
     .get_volume_db_range         = muc_aud_dev_get_vol_db_range,
     .get_supported_use_cases     = muc_aud_dev_get_supported_use_cases,
-    .set_current_use_case        = muc_aud_dev_set_current_use_case,
+    .set_current_playback_use_case = muc_aud_dev_set_current_use_case,
     .set_volume                  = muc_aud_dev_set_volume,
     .set_sys_volume              = muc_aud_dev_set_sys_volume,
     .get_supp_devices            = muc_aud_dev_get_supp_devices,

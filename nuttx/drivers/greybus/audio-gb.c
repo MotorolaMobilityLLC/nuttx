@@ -77,7 +77,7 @@ static uint8_t gb_aud_get_supported_use_case(struct gb_operation *operation)
 {
     struct gb_audio_get_supported_usecases_response *response;
     int ret;
-    uint32_t gb_use_cases;
+    struct device_aud_usecases gb_use_cases;
 
     gb_debug("%s()\n", __func__);
     response = gb_operation_alloc_response(operation, sizeof(*response));
@@ -88,7 +88,10 @@ static uint8_t gb_aud_get_supported_use_case(struct gb_operation *operation)
     if (ret)
         return GB_OP_SUCCESS;
 
-     response->use_cases = gb_use_cases;
+    response->aud_use_cases.capture_usecases =
+                       cpu_to_le32(gb_use_cases.capture_usecases);
+    response->aud_use_cases.playback_usecases =
+                       cpu_to_le32(gb_use_cases.playback_usecases);
 
     return GB_OP_SUCCESS;
 }
@@ -115,17 +118,36 @@ static uint8_t gb_aud_get_vol_range(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_aud_protocol_set_use_case(struct gb_operation *operation)
+static uint8_t gb_aud_protocol_set_playback_use_case(struct gb_operation *operation)
 {
     struct gb_audio_set_use_case_request *request =
                             gb_operation_get_request_payload(operation);
     int ret;
+    uint32_t use_case;
 
     gb_debug("%s()\n", __func__);
-
-    ret =  device_audio_set_use_case(dev_info.dev, request->use_case);
+    use_case =  le32_to_cpu(request->use_case);
+    ret =  device_audio_set_playback_use_case(dev_info.dev,
+                                 use_case);
     if (ret)
-        return -EIO;
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_aud_protocol_set_capture_use_case(struct gb_operation *operation)
+{
+    struct gb_audio_set_use_case_request *request =
+                            gb_operation_get_request_payload(operation);
+    int ret;
+    uint32_t use_case;
+
+    gb_debug("%s()\n", __func__);
+    use_case =  le32_to_cpu(request->use_case);
+    ret =  device_audio_set_capture_use_case(dev_info.dev,
+                                 use_case);
+    if (ret)
+        return  GB_OP_UNKNOWN_ERROR;
 
     return GB_OP_SUCCESS;
 }
@@ -237,7 +259,8 @@ static struct gb_operation_handler gb_aud_handlers[] = {
     GB_HANDLER(GB_AUDIO_PROTOCOL_VERSION, gb_aud_protocol_version),
     GB_HANDLER(GB_AUDIO_GET_VOLUME_DB_RANGE, gb_aud_get_vol_range),
     GB_HANDLER(GB_AUDIO_GET_SUPPORTED_USE_CASES, gb_aud_get_supported_use_case),
-    GB_HANDLER(GB_AUDIO_SET_USE_CASE, gb_aud_protocol_set_use_case),
+    GB_HANDLER(GB_AUDIO_SET_CAPTURE_USE_CASE, gb_aud_protocol_set_capture_use_case),
+    GB_HANDLER(GB_AUDIO_SET_PLAYBACK_USE_CASE, gb_aud_protocol_set_playback_use_case),
     GB_HANDLER(GB_AUDIO_SET_VOLUME, gb_aud_protocol_set_volume),
     GB_HANDLER(GB_AUDIO_SET_SYSTEM_VOLUME, gb_aud_protocol_set_sys_volume),
     GB_HANDLER(GB_AUDIO_GET_SUPPORTED_DEVICES, gb_aud_protocol_get_devices),

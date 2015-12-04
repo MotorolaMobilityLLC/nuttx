@@ -46,6 +46,11 @@ struct device_aud_devices {
     uint32_t out_devices;
 };
 
+struct device_aud_usecases {
+    uint32_t playback_usecases;
+    uint32_t capture_usecases;
+};
+
 struct device_aud_data {
     void (*report_devices)(struct device *dev, struct device_aud_devices *devices);
 };
@@ -53,8 +58,9 @@ struct device_aud_data {
 struct device_aud_dev_type_ops {
     int (*get_volume_db_range)(struct device *dev,
                       struct device_aud_vol_range *vol_range);
-    int (*get_supported_use_cases)(struct device *dev, uint32_t *use_cases);
-    int (*set_current_use_case)(struct device *dev, uint32_t use_case);
+    int (*get_supported_use_cases)(struct device *dev,struct device_aud_usecases *use_cases);
+    int (*set_current_playback_use_case)(struct device *dev, uint32_t use_case);
+    int (*set_current_capture_use_case)(struct device *dev, uint32_t use_case);
     int (*set_volume)(struct device *dev, uint32_t vol_step);
     int (*set_sys_volume)(struct device *dev, int vol_db);
     int (*get_supp_devices)(struct device *dev, struct device_aud_devices  *devices);
@@ -77,7 +83,7 @@ static inline int device_audio_get_volume_db_range(struct device *dev,
 }
 
 static inline int device_audio_get_supported_use_cases(struct device *dev,
-                                                               uint32_t *use_cases)
+                                         struct device_aud_usecases *use_cases)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -92,7 +98,7 @@ static inline int device_audio_get_supported_use_cases(struct device *dev,
 
 }
 
-static inline int device_audio_set_use_case(struct device *dev,
+static inline int device_audio_set_playback_use_case(struct device *dev,
                                                                  uint32_t use_case)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
@@ -100,13 +106,29 @@ static inline int device_audio_set_use_case(struct device *dev,
     if (!device_is_open(dev))
         return -ENODEV;
 
-     if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supported_use_cases)
-        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_current_use_case(dev, use_case);
+     if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_current_playback_use_case)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_current_playback_use_case(dev,
+                                         use_case);
 
     return -ENOSYS;
 
 }
 
+static inline int device_audio_set_capture_use_case(struct device *dev,
+                                                                 uint32_t use_case)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+     if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_current_capture_use_case)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_current_capture_use_case(dev,
+                                        use_case);
+
+    return -ENOSYS;
+
+}
 static inline int device_audio_set_volume(struct device *dev,
                                                 uint32_t vol_step)
 {
