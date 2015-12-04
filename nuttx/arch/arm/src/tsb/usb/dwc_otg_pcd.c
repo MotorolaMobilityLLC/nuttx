@@ -2539,6 +2539,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 	dwc_otg_pcd_ep_t *ep;
 	uint32_t max_transfer;
 	int start_transfer = 0;
+	int ret = 0;
 
 	ep = get_ep_from_handle(pcd, ep_handle);
 	if (!ep || (!ep->desc && ep->dwc_ep.num != 0)) {
@@ -2757,9 +2758,12 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 	if (req != 0) {
 		++pcd->request_pending;
 		if(!start_transfer) {
-			dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
+			ret = dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
 		}
-		DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
+		/* Don't add request to queue if we couldn't program DMA */
+		if (!ret) {
+			DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
+		}
 		if (!ep->dwc_ep.is_in &&
 			ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK && ep->bna) {
 			/*
