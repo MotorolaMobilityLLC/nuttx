@@ -2513,7 +2513,57 @@ static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 		desc_cnt = MAX_DMA_DESC_CNT;
 
 	ep->dwc_ep.desc_cnt = desc_cnt;
+	ep->dwc_ep.resize_desc = 0;
 	DWC_CIRCLEQ_FOREACH(req, &ep->sg_dma_queue, sg_dma_queue_entry) {
+		/** DMA Descriptor Setup */
+		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
+		init_ring_dma_desc(&ep->dwc_ep, dma_desc, req->dma, req->length);
+		req->dma_desc = dma_desc;
+		i++;
+	}
+}
+
+/*
+ * Update the ring descriptor chain while DMA is disabled.
+ * TODO Add support of request increasing or removing at runtime.
+ */
+void update_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
+				dwc_otg_pcd_ep_t *ep)
+{
+	int i = 0;
+	unsigned int desc_cnt;
+	dwc_otg_pcd_request_t *req;
+	dwc_otg_dev_dma_desc_t *dma_desc;
+
+	desc_cnt = ep->dwc_ep.desc_cnt;
+	if (!desc_cnt && ep->sg_dma_queue_count < desc_cnt) {
+		DWC_ERROR("Removing a request from ring descriptor is not supported\n");
+		return;
+	}
+
+	ep->dwc_ep.desc_cnt = ep->sg_dma_queue_count;
+	if (ep->dwc_ep.desc_cnt > MAX_DMA_DESC_CNT)
+		ep->dwc_ep.desc_cnt = MAX_DMA_DESC_CNT;
+
+	DWC_CIRCLEQ_FOREACH(req, &ep->sg_dma_queue, sg_dma_queue_entry) {
+		/* Sanity check */
+		if (i >= ep->dwc_ep.desc_cnt) {
+			break;
+		}
+
+		/* Don't update all descritpors */
+		if (i < desc_cnt) {
+			dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
+			if (dma_desc->status.b.l) {
+				ep->dwc_ep.resize_desc = 1;
+			}
+			i++;
+			continue;
+		}
+
+		/* Add the request to driver queue */
+		DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
+
 		/** DMA Descriptor Setup */
 		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
 		init_ring_dma_desc(&ep->dwc_ep, dma_desc, req->dma, req->length);
@@ -2546,6 +2596,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 	uint32_t max_transfer;
 	int start_transfer = 0;
 	int ret = 0;
+	int last = 0;
 
 	ep = get_ep_from_handle(pcd, ep_handle);
 	if (!ep || (!ep->desc && ep->dwc_ep.num != 0)) {
@@ -2753,6 +2804,7 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 			if (ep->dwc_ep.is_in || !depctl.b.epena  ||
 				ep->dwc_ep.type != DWC_OTG_EP_TYPE_BULK) {
 				ep->dwc_ep.desc_cnt = 0;
+				last = req->dma_desc->status.b.l;
 				dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
 				dwc_otg_ep_start_transfer(GET_CORE_IF(pcd),
 							  &ep->dwc_ep);
@@ -2764,11 +2816,18 @@ int dwc_otg_pcd_ep_queue(dwc_otg_pcd_t * pcd, void *ep_handle,
 	if (req != 0) {
 		++pcd->request_pending;
 		if(!start_transfer) {
+			last = req->dma_desc->status.b.l;
 			ret = dwc_otg_pcd_queue_req(GET_CORE_IF(pcd), ep, req);
 		}
 		/* Don't add request to queue if we couldn't program DMA */
 		if (!ret) {
-			DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
+			if (ep->dwc_ep.resize_desc && last) {
+				ep->dwc_ep.resize_desc = 0;
+				req->dma_desc->status.b.l = 0;
+				DWC_CIRCLEQ_INSERT_HEAD(&ep->queue, req, queue_entry);
+			} else {
+				DWC_CIRCLEQ_INSERT_TAIL(&ep->queue, req, queue_entry);
+			}
 		}
 		if (!ep->dwc_ep.is_in &&
 			ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK && ep->bna) {

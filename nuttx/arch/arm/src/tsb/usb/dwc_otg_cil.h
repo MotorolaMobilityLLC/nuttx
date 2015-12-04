@@ -202,6 +202,8 @@ typedef struct dwc_ep {
 #define MAX_DMA_DESC_CNT 256
 	/** Allocated DMA Desc count */
 	uint32_t desc_cnt;
+	/** Do we resize the descriptors chain */
+	unsigned resize_desc:1;
 	
 	/** First ISO Desc in use in the first chain*/
 	uint32_t iso_desc_first;

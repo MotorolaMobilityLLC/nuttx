@@ -3286,6 +3286,13 @@ static void dwc_otg_pcd_handle_noniso_bna(dwc_otg_pcd_ep_t * ep)
 		ep->bna = 1;
 		if (start >= dwc_ep->desc_cnt)
 			dma_desc = &(dwc_ep->desc_addr[0]);
+		/* We may have added new requests: update DMA */
+		if (ep->sg_dma_queue_count != dwc_ep->desc_cnt) {
+			update_ring_dma_desc_chain(core_if, ep);
+			dwc_otg_ep_start_transfer(GET_CORE_IF(pcd),
+						  &ep->dwc_ep);
+			return;
+		}
 		sts.d32 = dma_desc->status.d32;
 		if (sts.b.bs != BS_HOST_READY)
 			return;

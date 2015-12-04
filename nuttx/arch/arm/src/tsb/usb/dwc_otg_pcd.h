@@ -271,5 +271,7 @@ extern void dwc_otg_pcd_start_iso_ddma(dwc_otg_core_if_t * core_if,
 				dwc_otg_pcd_ep_t * ep);
 
 extern void do_test_mode(void *data);
+extern void update_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
+				       dwc_otg_pcd_ep_t *ep);
 #endif
 #endif /* DWC_HOST_ONLY */
