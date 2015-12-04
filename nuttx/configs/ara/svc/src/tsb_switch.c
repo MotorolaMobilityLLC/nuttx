@@ -1841,17 +1841,6 @@ int switch_connection_create(struct tsb_switch *sw,
 
     return 0;
 
-#if !(CONFIG_ARCH_BOARD_ARA_BDB2A_SVC || CONFIG_ARCH_BOARD_ARA_SDB_SVC || \
-      CONFIG_ARCH_BOARD_ARA_DB3_SVC)
-err1:
-    dbg_error("%s: couldn't set link power mode to default state.\n",
-              __func__);
-    switch_cport_disconnect(sw,
-                            c->port_id0,
-                            c->cport_id0,
-                            c->port_id1,
-                            c->cport_id1);
-#endif
 err0:
     dbg_error("%s: Connection setup failed. "
               "[p=%u,d=%u,c=%u]<->[p=%u,d=%u,c=%u] "
