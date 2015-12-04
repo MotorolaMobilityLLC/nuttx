@@ -162,6 +162,7 @@ typedef struct dwc_otg_pcd_ep {
 	/** queue of dwc_otg_pcd_requests. */
 	struct req_list queue;
 	struct req_list sg_dma_queue;
+	uint32_t sg_dma_queue_count;
 	dwc_spinlock_t *sg_dma_queue_lock;
 
 	unsigned stopped:1;

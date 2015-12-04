@@ -960,6 +960,7 @@ static void dwc_otg_pcd_init_ep(dwc_otg_pcd_t * pcd, dwc_otg_pcd_ep_t * pcd_ep,
 	pcd_ep->dwc_ep.total_len = 0;
 	pcd_ep->dwc_ep.desc_addr = 0;
 	pcd_ep->dwc_ep.dma_desc_addr = 0;
+	pcd_ep->sg_dma_queue_count = 0;
 	DWC_CIRCLEQ_INIT(&pcd_ep->queue);
 	DWC_CIRCLEQ_INIT(&pcd_ep->sg_dma_queue);
 	if (!pcd_ep->sg_dma_queue_lock)
@@ -999,6 +1000,7 @@ static void dwc_otg_pcd_reinit(dwc_otg_pcd_t * pcd)
 
 			DWC_CIRCLEQ_INIT(&ep->queue);
 			DWC_CIRCLEQ_INIT(&ep->sg_dma_queue);
+			ep->sg_dma_queue_count = 0;
 		}
 		hwcfg1 >>= 2;
 	}
@@ -1017,6 +1019,7 @@ static void dwc_otg_pcd_reinit(dwc_otg_pcd_t * pcd)
 			dwc_otg_pcd_init_ep(pcd, ep, 0 /* OUT */ , i);
 			DWC_CIRCLEQ_INIT(&ep->queue);
 			DWC_CIRCLEQ_INIT(&ep->sg_dma_queue);
+			ep->sg_dma_queue_count = 0;
 		}
 		hwcfg1 >>= 2;
 	}
@@ -2458,6 +2461,7 @@ static int dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 		DWC_CIRCLEQ_INIT_ENTRY(new_req, sg_dma_queue_entry);
 		DWC_CIRCLEQ_INSERT_TAIL(&ep->sg_dma_queue, new_req,
 					sg_dma_queue_entry);
+		ep->sg_dma_queue_count++;
 	}
 
 	/*
@@ -2484,8 +2488,10 @@ static void dwc_otg_pcd_dequeue_req(dwc_otg_core_if_t * core_if,
 	dwc_irqflags_t flags;
 
 	DWC_SPINLOCK_IRQSAVE(ep->sg_dma_queue_lock, &flags);
-	if (DWC_CIRCLEQ_ENTRY_IN_QUEUE(req, sg_dma_queue_entry))
+	if (DWC_CIRCLEQ_ENTRY_IN_QUEUE(req, sg_dma_queue_entry)) {
 		DWC_CIRCLEQ_REMOVE(&ep->sg_dma_queue, req, sg_dma_queue_entry);
+		ep->sg_dma_queue_count--;
+	}
 	DWC_SPINUNLOCK_IRQRESTORE(ep->sg_dma_queue_lock, flags);
 }
 
