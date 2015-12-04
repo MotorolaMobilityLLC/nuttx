@@ -2430,18 +2430,20 @@ static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 /*
  * Queue a request to sg dma queue.
  * For bulk out endpoint, also re init the descriptor.
+ * Return -DWC_E_BUSY if we can't program DMA with the new request.
  */
-static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
-			   dwc_otg_pcd_ep_t *ep,
-			   dwc_otg_pcd_request_t *new_req)
+static int dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
+				 dwc_otg_pcd_ep_t *ep,
+				 dwc_otg_pcd_request_t *new_req)
 {
 	int i = 0;
+	int ret = 0;
 	dwc_irqflags_t flags;
 	dwc_otg_pcd_request_t *req = NULL;
 	dwc_otg_dev_dma_desc_t *dma_desc;
 
 	if (ep->dwc_ep.is_in || ep->dwc_ep.type != DWC_OTG_EP_TYPE_BULK) {
-		return;
+		return ret;
 	}
 
 	DWC_SPINLOCK_IRQSAVE(ep->sg_dma_queue_lock, &flags);
@@ -2467,9 +2469,13 @@ static void dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 		depctl.d32 = DWC_READ_REG32(&core_if->dev_if->out_ep_regs[ep->dwc_ep.num]->doepctl);
 		if (!depctl.b.epena) {
 			init_ring_dma_desc_chain(core_if, ep);
+		} else {
+			ret = -DWC_E_BUSY;
 		}
 	}
 	DWC_SPINUNLOCK_IRQRESTORE(ep->sg_dma_queue_lock, flags);
+
+	return ret;
 }
 
 static void dwc_otg_pcd_dequeue_req(dwc_otg_core_if_t * core_if,
