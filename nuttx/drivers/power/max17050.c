@@ -201,7 +201,7 @@ static int max17050_online(struct battery_dev_s *dev, bool *status)
 
     ret = max17050_reg_read(priv, MAX17050_REG_STATUS);
     if (ret < 0)
-        return ret;
+        return -ENODEV;
 
     // BST is 0 when battery is present and 1 when battery is removed
     *status = (ret & MAX17050_STATUS_BST) != MAX17050_STATUS_BST;
@@ -220,7 +220,7 @@ static int max17050_voltage(struct battery_dev_s *dev, b16_t *voltage)
 
     ret = max17050_reg_read(priv, MAX17050_REG_VCELL);
     if (ret < 0)
-        return ret;
+        return -ENODEV;
 
     *voltage = ret * 625 / 8;
 
@@ -238,7 +238,7 @@ static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
 
     ret = max17050_reg_read(priv, MAX17050_REG_REP_SOC);
     if (ret < 0)
-        return ret;
+        return -ENODEV;
 
     *capacity = ret >> 8;
 
@@ -256,7 +256,7 @@ static int max17050_max_voltage(struct battery_dev_s *dev, b16_t *max_voltage)
 
     ret = max17050_reg_read(priv, MAX17050_REG_MAX_VOLT);
     if (ret < 0)
-        return ret;
+        return -ENODEV;
 
     *max_voltage = ret >> 8;
     *max_voltage *= 20000; /* Units of LSB = 20mV */
@@ -275,7 +275,7 @@ static int max17050_temperature(struct battery_dev_s *dev, b16_t *temperature)
 
     ret = max17050_reg_read(priv, MAX17050_REG_TEMP);
     if (ret < 0)
-        return ret;
+        return -ENODEV;
 
     *temperature = ret;
     /* The value is signed. */
@@ -302,7 +302,7 @@ static int max17050_current(struct battery_dev_s *dev, b16_t *current)
 
     ret = max17050_reg_read(priv, MAX17050_REG_CURRENT);
     if (ret < 0)
-        return ret;
+        return -ENODEV;
 
     *current = ret;
     if (*current & 0x8000) {
@@ -327,7 +327,7 @@ static int max17050_full_capacity(struct battery_dev_s *dev, b16_t *capacity)
 
     ret = max17050_reg_read(priv, MAX17050_REG_FULL_CAP);
     if (ret < 0)
-        return ret;
+        return -ENODEV;
 
     *capacity = ret * 1000 / 2;
 
@@ -347,7 +347,7 @@ static int max17050_state(struct battery_dev_s *dev, int *status)
     ret = max17050_capacity(dev, &value);
     if (ret < 0) {
         *status = BATTERY_UNKNOWN;
-        return ret;
+        return -ENODEV;
     }
 
     // TODO: Currently treating 100% capacity as full. Should it be based on
