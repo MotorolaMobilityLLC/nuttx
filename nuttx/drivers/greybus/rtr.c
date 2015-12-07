@@ -131,7 +131,6 @@ static void *_get_value(void *tbl[], int lvl, uint16_t a)
 
 void *rtr_get_value(void *tbl[], uint16_t a)
 {
-    gb_debug("%s(%p, 0x%04x)\n", __func__, tbl, a);
     return _get_value(tbl, LEVELS - 1, a);
 }
 
