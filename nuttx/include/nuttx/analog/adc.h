@@ -50,6 +50,7 @@
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
 
+#include <poll.h>
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -146,6 +147,15 @@ struct adc_dev_s
   struct adc_fifo_s       ad_recv;       /* Describes receive FIFO */
   const struct adc_ops_s *ad_ops;        /* Arch-specific operations */
   void                   *ad_priv;       /* Used by the arch-specific logic */
+
+  /* The following is a list of poll structures of threads waiting for
+   * driver events. The 'struct pollfd' reference for each open is also
+   * retained in the f_priv field of the 'struct file'.
+   */
+
+#if !defined(CONFIG_DISABLE_POLL) && defined(CONFIG_ADC_NPOLLWAITERS)
+  struct pollfd *fds[CONFIG_ADC_NPOLLWAITERS];
+#endif
 };
 
 /************************************************************************************
