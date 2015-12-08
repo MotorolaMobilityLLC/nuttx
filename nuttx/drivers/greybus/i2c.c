@@ -37,14 +37,6 @@
 
 #include "i2c-gb.h"
 
-#define GB_I2C_VERSION_MAJOR 0
-#define GB_I2C_VERSION_MINOR 1
-
-#define I2C_FUNC_I2C                    0x00000001
-#define I2C_FUNC_SMBUS_READ_BYTE        0x00020000
-#define I2C_FUNC_SMBUS_WRITE_BYTE       0x00040000
-#define I2C_M_RD                        0x0001
-
 /* TODO move it inside a struct */
 struct i2c_dev_s *i2c_dev = NULL;
 
@@ -69,9 +61,9 @@ static uint8_t gb_i2c_protocol_functionality(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->functionality = cpu_to_le32(I2C_FUNC_I2C |
-                                          I2C_FUNC_SMBUS_READ_BYTE |
-                                          I2C_FUNC_SMBUS_WRITE_BYTE);
+    response->functionality = cpu_to_le32(GB_I2C_FUNC_I2C |
+                                          GB_I2C_FUNC_SMBUS_READ_BYTE |
+                                          GB_I2C_FUNC_SMBUS_WRITE_BYTE);
 
     return GB_OP_SUCCESS;
 }
@@ -116,7 +108,7 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
 
     for (i = 0; i < op_count; i++) {
         desc = &request->desc[i];
-        read_op = (le16_to_cpu(desc->flags) & I2C_M_RD) ? true : false;
+        read_op = (le16_to_cpu(desc->flags) & GB_I2C_M_RD) ? true : false;
 
         if (read_op)
             size += le16_to_cpu(desc->size);
@@ -134,14 +126,14 @@ static uint8_t gb_i2c_protocol_transfer(struct gb_operation *operation)
 
     for (i = 0; i < op_count; i++) {
         desc = &request->desc[i];
-        read_op = (le16_to_cpu(desc->flags) & I2C_M_RD) ? true : false;
+        read_op = (le16_to_cpu(desc->flags) & GB_I2C_M_RD) ? true : false;
 
         msg[i].flags = 0;
         msg[i].addr = le16_to_cpu(desc->addr);
         msg[i].length = le16_to_cpu(desc->size);
 
         if (read_op) {
-            msg[i].flags |= I2C_M_READ;
+            msg[i].flags |= GB_I2C_M_RD;
             msg[i].buffer = &response->data[read_count];
             read_count += le16_to_cpu(desc->size);
         } else {
