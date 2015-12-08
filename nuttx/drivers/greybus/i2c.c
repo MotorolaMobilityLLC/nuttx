@@ -63,7 +63,13 @@ static uint8_t gb_i2c_protocol_functionality(struct gb_operation *operation)
 
     response->functionality = cpu_to_le32(GB_I2C_FUNC_I2C |
                                           GB_I2C_FUNC_SMBUS_READ_BYTE |
-                                          GB_I2C_FUNC_SMBUS_WRITE_BYTE);
+                                          GB_I2C_FUNC_SMBUS_WRITE_BYTE |
+                                          GB_I2C_FUNC_SMBUS_READ_BYTE_DATA |
+                                          GB_I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
+                                          GB_I2C_FUNC_SMBUS_READ_WORD_DATA |
+                                          GB_I2C_FUNC_SMBUS_WRITE_WORD_DATA |
+                                          GB_I2C_FUNC_SMBUS_READ_I2C_BLOCK |
+                                          GB_I2C_FUNC_SMBUS_WRITE_I2C_BLOCK);
 
     return GB_OP_SUCCESS;
 }
