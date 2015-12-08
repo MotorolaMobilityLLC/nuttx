@@ -31,7 +31,7 @@
 
 config EXAMPLES_VERSION
 	bool "Version Utility"
-	default n
+	default y
 	---help---
 		Enable the version utility
 
