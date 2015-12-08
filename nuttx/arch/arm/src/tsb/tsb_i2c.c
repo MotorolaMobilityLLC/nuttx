@@ -75,12 +75,17 @@ static unsigned int     g_status;
 static uint32_t         g_abort_source;
 static unsigned int     g_rx_outstanding;
 
+#if defined(CONFIG_TSB_I2C_SPEED_FAST)
+#define TSB_I2C_CON_SPEED	TSB_I2C_CON_SPEED_FAST
+#else
+#define TSB_I2C_CON_SPEED	TSB_I2C_CON_SPEED_STD
+#endif
 
 /* I2C controller configuration */
 #define TSB_I2C_CONFIG (TSB_I2C_CON_RESTART_EN | \
                         TSB_I2C_CON_MASTER | \
                         TSB_I2C_CON_SLAVE_DISABLE | \
-                        TSB_I2C_CON_SPEED_FAST)
+                        TSB_I2C_CON_SPEED)
 
 #define TSB_I2C_TX_FIFO_DEPTH   8
 #define TSB_I2C_RX_FIFO_DEPTH   8

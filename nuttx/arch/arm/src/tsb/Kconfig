@@ -155,6 +155,22 @@ config ARCH_CHIP_TSB_I2S
 
 endchoice
 
+choice
+	prompt "Toshiba I2C connection speed"
+	default TSB_I2C_SPEED_FAST
+	depends on ARCH_CHIP_TSB
+	---help---
+		The Toshiba GPBridge I2C controller can run at two speeds,
+		"fast" and "slow".
+
+config TSB_I2C_SPEED_FAST
+	bool "I2C controller speed fast"
+
+config TSB_I2C_SPEED_SLOW
+	bool "I2C controller speed slow"
+
+endchoice
+
 config ARCH_CHIP_USB_COMMON
 	bool
 	select CLOCK_MONOTONIC
