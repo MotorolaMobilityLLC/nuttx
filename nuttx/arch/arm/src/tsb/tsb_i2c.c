@@ -164,11 +164,15 @@ static void tsb_i2c_init(void)
     /* Disable the adapter */
     tsb_i2c_disable();
 
-    /* Set timings for Standard and Fast Speed mode */
-    i2c_write(TSB_I2C_SS_SCL_HCNT, 28);
-    i2c_write(TSB_I2C_SS_SCL_LCNT, 52);
-    i2c_write(TSB_I2C_FS_SCL_HCNT, 47);
-    i2c_write(TSB_I2C_FS_SCL_LCNT, 65);
+    /*
+     * Set timings for Standard and Fast Speed mode:
+     * Values taken from ARA_ES2_GPBridge_AppendixA and tweaked for
+     * 98.4 kHz in standard mode and 396.7 kHz in full speed mode
+     */
+    i2c_write(TSB_I2C_SS_SCL_HCNT, 205);
+    i2c_write(TSB_I2C_SS_SCL_LCNT, 270);
+    i2c_write(TSB_I2C_FS_SCL_HCNT, 45);
+    i2c_write(TSB_I2C_FS_SCL_LCNT, 63);
 
     /* Configure Tx/Rx FIFO threshold levels */
     i2c_write(TSB_I2C_TX_TL, TSB_I2C_TX_FIFO_DEPTH - 1);
