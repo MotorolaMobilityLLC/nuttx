@@ -68,12 +68,12 @@ static inline int cam_init(struct camera_dev_s *cam_dev)
                cam_dev->sensor->init.regs, cam_dev->sensor->init.size);
 }
 
-static int apba_cam_rx_start(void)
+static int apba_cam_tx_start(void)
 {
 #ifdef CONFIG_ICE_IPC_CLIENT
     struct ipc_cdsi_param_s param;
     param.type = IPC_CDSI_TYPE_CAMERA;
-    param.u.cam_cmd.cmd = IPC_CDSI_CAMERA_RX_START;
+    param.u.cam_cmd.cmd = IPC_CDSI_CAMERA_TX_START;
     return ipc_request_sync(IPC_APP_ID_CDSI, &param, sizeof(param),
         NULL, 0, IPC_TIMEOUT);
 #else
@@ -191,17 +191,17 @@ static int csi_cam_stream_on(struct device *dev)
         return -EINVAL;
     }
 
-    //start apa camera rx
+    //start apa camera tx
     if (retval == 0) {
-        retval = apba_cam_rx_start();
-        CAM_DBG("start apba cam rx result %d\n", retval);
+        retval = apba_cam_tx_start();
+        CAM_DBG("start apba cam tx result %d\n", retval);
     }
 
     //start stream
     if (retval == 0) {
         retval = cci_write_regs(cam_dev->i2c, cam_dev->sensor->i2c_addr,
                cam_dev->sensor->start.regs, cam_dev->sensor->start.size);
-    } //else no need to rollback for gear config or rx start
+    } //else no need to rollback for gear config or tx start
 
     //TODO: this function creates a thread to do the real job.
     //And not return if the job is successfully done.
