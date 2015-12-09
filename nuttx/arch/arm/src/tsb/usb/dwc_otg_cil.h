@@ -206,6 +206,8 @@ typedef struct dwc_ep {
 	uint32_t desc_cnt_save;
 	/** Next descriptor to complete */
 	uint32_t next_desc;
+	/** Next descriptor to free to avoid or solve a BNA */
+	uint32_t busy_desc;
 	/** Do we resize the descriptors chain */
 	unsigned resize_desc:1;
 	

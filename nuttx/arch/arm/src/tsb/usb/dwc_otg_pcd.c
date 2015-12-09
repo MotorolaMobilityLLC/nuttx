@@ -2440,7 +2440,6 @@ static int dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 				 dwc_otg_pcd_ep_t *ep,
 				 dwc_otg_pcd_request_t *new_req)
 {
-	int i = 0;
 	int ret = 0;
 	dwc_irqflags_t flags;
 	dwc_otg_pcd_request_t *req = NULL;
@@ -2454,11 +2453,21 @@ static int dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 	/* Look for an existing request an init it */
 	req = dwc_otg_pcd_get_queue_req(ep, new_req->dma);
 	if (req) {
-		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
 		/* Restore desc_cnt */
 		if (!ep->dwc_ep.desc_cnt) {
 			ep->dwc_ep.desc_cnt = ep->dwc_ep.desc_cnt_save;
 		}
+
+		/* Try to find the best descriptor to use */
+		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, -1);
+		if (!dma_desc) {
+			dma_desc = req->dma_desc;
+		}
+		/* If we are using another descriptor then update request */
+		if (dma_desc != req->dma_desc) {
+			req->dma_desc = dma_desc;
+		}
+
 		init_ring_dma_desc(&ep->dwc_ep, dma_desc,
 				   req->dma, req->length);
 	} else {
@@ -2520,6 +2529,7 @@ static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 	ep->dwc_ep.desc_cnt = desc_cnt;
 	ep->dwc_ep.desc_cnt_save = desc_cnt;
 	ep->dwc_ep.next_desc = 0;
+	ep->dwc_ep.busy_desc = 0;
 	ep->dwc_ep.resize_desc = 0;
 	DWC_CIRCLEQ_FOREACH(req, &ep->sg_dma_queue, sg_dma_queue_entry) {
 		/** DMA Descriptor Setup */
@@ -2551,6 +2561,7 @@ void update_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 	ep->dwc_ep.desc_cnt = ep->sg_dma_queue_count;
 	ep->dwc_ep.desc_cnt_save = ep->sg_dma_queue_count;
 	ep->dwc_ep.next_desc = 0;
+	ep->dwc_ep.busy_desc = 0;
 	if (ep->dwc_ep.desc_cnt > MAX_DMA_DESC_CNT)
 		ep->dwc_ep.desc_cnt = MAX_DMA_DESC_CNT;
 

@@ -3729,7 +3729,26 @@ static void init_dma_desc_chain(dwc_otg_core_if_t * core_if, dwc_ep_t * ep)
 
 dwc_otg_dev_dma_desc_t *get_ring_dma_desc_chain(dwc_ep_t * ep, uint32_t i)
 {
-	return ep->desc_addr + i;
+	dwc_otg_dev_dma_desc_t * dma_desc;
+
+	if (i != -1) {
+		return ep->desc_addr + i;
+	} else {
+		for (i = 0; i < ep->desc_cnt; i++, ep->busy_desc++) {
+			if (ep->busy_desc >= ep->desc_cnt) {
+				ep->busy_desc = 0;
+			}
+
+			dma_desc = &ep->desc_addr[ep->busy_desc];
+			if (dma_desc->status.b.bs == BS_HOST_BUSY) {
+				if (!ep->resize_desc)
+					ep->busy_desc++;
+				return dma_desc;
+			}
+		}
+	}
+
+	return NULL;
 }
 
 void init_ring_dma_desc(dwc_ep_t * ep, dwc_otg_dev_dma_desc_t *dma_desc,
