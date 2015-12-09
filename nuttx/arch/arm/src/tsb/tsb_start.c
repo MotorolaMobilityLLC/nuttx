@@ -86,9 +86,14 @@ void tsb_start(void) {
     /* Configure clocks */
     tsb_clk_init();
 
-    /* Configure the UART so we can get debug output as soon as possible */
+#ifdef CONFIG_UART_SERIAL_CONSOLE
+    /*
+     * If we're using the serial console, configure the UART so we can get
+     * debug output as soon as possible.
+     */
     tsb_lowsetup();
     dbg('A');
+#endif
 
 #ifdef CONFIG_TSB_PINSHARE_ETM
     retval = tsb_request_pinshare(TSB_PIN_ETM);
