@@ -729,6 +729,7 @@ void dwc_otg_iso_ep_stop_transfer(dwc_otg_core_if_t * core_if, dwc_ep_t * ep)
 	ep->pkt_per_frm = 0;
 	ep->pkt_per_frm = 0;
 	ep->desc_cnt = 0;
+	ep->desc_cnt_save = 0;
 	ep->iso_desc_addr = 0;
 	ep->iso_dma_desc_addr = 0;
 }
@@ -2454,6 +2455,10 @@ static int dwc_otg_pcd_queue_req(dwc_otg_core_if_t * core_if,
 	req = dwc_otg_pcd_get_queue_req(ep, new_req->dma);
 	if (req) {
 		dma_desc = get_ring_dma_desc_chain(&ep->dwc_ep, i);
+		/* Restore desc_cnt */
+		if (!ep->dwc_ep.desc_cnt) {
+			ep->dwc_ep.desc_cnt = ep->dwc_ep.desc_cnt_save;
+		}
 		init_ring_dma_desc(&ep->dwc_ep, dma_desc,
 				   req->dma, req->length);
 	} else {
@@ -2513,6 +2518,7 @@ static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 		desc_cnt = MAX_DMA_DESC_CNT;
 
 	ep->dwc_ep.desc_cnt = desc_cnt;
+	ep->dwc_ep.desc_cnt_save = desc_cnt;
 	ep->dwc_ep.resize_desc = 0;
 	DWC_CIRCLEQ_FOREACH(req, &ep->sg_dma_queue, sg_dma_queue_entry) {
 		/** DMA Descriptor Setup */
@@ -2542,6 +2548,7 @@ void update_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 	}
 
 	ep->dwc_ep.desc_cnt = ep->sg_dma_queue_count;
+	ep->dwc_ep.desc_cnt_save = ep->sg_dma_queue_count;
 	if (ep->dwc_ep.desc_cnt > MAX_DMA_DESC_CNT)
 		ep->dwc_ep.desc_cnt = MAX_DMA_DESC_CNT;
 
