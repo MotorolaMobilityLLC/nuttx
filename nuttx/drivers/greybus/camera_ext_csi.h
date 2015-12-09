@@ -48,6 +48,8 @@ struct camera_dev_s
     camera_status_t status;
     struct i2c_dev_s *i2c;
     struct sensor_info *sensor;
+
+    struct camera_ext_ctrl_db ctrl_db;
 };
 
 struct gb_camera_ext_v4l_info {
@@ -96,4 +98,7 @@ struct sensor_info {
 //each csi camera instance must implement this function
 struct sensor_info *camera_ext_csi_get_board_sensor_info(void);
 
+//any camera related drivers can expose their own controls
+int register_camera_ext_ctrl_db(struct camera_dev_s *cam_dev,
+        const struct cam_ext_ctrl_item **ctrls, int num);
 #endif

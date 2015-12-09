@@ -65,6 +65,11 @@ static int cam_setup(struct camera_dev_s *cam_dev)
     }
     cam_dev->status = OFF;
     cam_dev->sensor = sensor;
+    /* Notify all sub devices to register their controls.
+     * sensor_init_ctrl(cam_dev);
+     * actuator_init_ctrl(cam_dev);
+     * ...
+     */
     return 0;
 }
 
@@ -486,6 +491,69 @@ static int csi_cam_stream_get_parm(struct device *dev,
     return 0;
 }
 
+static int csi_cam_ctrl_get_cfg(struct device *dev, uint32_t idx,
+                struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg)
+{
+    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
+            device_driver_get_private(dev);
+
+    return cam_ext_ctrl_get_cfg(&cam_dev->ctrl_db, idx, mod_ctrl_cfg);
+}
+
+static int csi_cam_ctrl_get(struct device *dev,
+            struct camera_ext_ctrl_val *ctrl_val)
+{
+    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
+            device_driver_get_private(dev);
+
+    return cam_ext_ctrl_get(&cam_dev->ctrl_db, ctrl_val);
+}
+
+static int csi_cam_ctrl_set(struct device *dev,
+            struct camera_ext_ctrl_val *ctrl_val)
+{
+    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
+            device_driver_get_private(dev);
+
+    return cam_ext_ctrl_set(&cam_dev->ctrl_db, ctrl_val);
+}
+
+static int csi_cam_ctrl_try(struct device *dev,
+            struct camera_ext_ctrl_val *ctrl_val)
+{
+    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
+            device_driver_get_private(dev);
+
+    return cam_ext_ctrl_try(&cam_dev->ctrl_db, ctrl_val);
+}
+
+static int csi_cam_ctrl_array_get(struct device *dev,
+                struct camera_ext_ctrl_array_val *ctrl_val)
+{
+    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
+            device_driver_get_private(dev);
+
+    return cam_ext_ctrl_array_get(&cam_dev->ctrl_db, ctrl_val);
+}
+
+static int csi_cam_ctrl_array_set(struct device *dev,
+                struct camera_ext_ctrl_array_val *ctrl_val)
+{
+    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
+            device_driver_get_private(dev);
+
+    return cam_ext_ctrl_array_set(&cam_dev->ctrl_db, ctrl_val);
+}
+
+static int csi_cam_ctrl_array_try(struct device *dev,
+                struct camera_ext_ctrl_array_val *ctrl_val)
+{
+    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
+            device_driver_get_private(dev);
+
+    return cam_ext_ctrl_array_try(&cam_dev->ctrl_db, ctrl_val);
+}
+
 static int csi_cam_dev_open(struct device *dev)
 {
     int retval;
@@ -530,6 +598,13 @@ static struct device_camera_ext_dev_type_ops csi_camera_ext_type_ops = {
     .frmival_enum    = csi_cam_frmival_enum,
     .stream_set_parm = csi_cam_stream_set_parm,
     .stream_get_parm = csi_cam_stream_get_parm,
+    .ctrl_get_cfg    = csi_cam_ctrl_get_cfg,
+    .ctrl_get        = csi_cam_ctrl_get,
+    .ctrl_set        = csi_cam_ctrl_set,
+    .ctrl_try        = csi_cam_ctrl_try,
+    .ctrl_array_get  = csi_cam_ctrl_array_get,
+    .ctrl_array_set  = csi_cam_ctrl_array_set,
+    .ctrl_array_try  = csi_cam_ctrl_array_try,
 };
 
 static struct device_driver_ops camera_ext_driver_ops = {
@@ -544,3 +619,21 @@ struct device_driver cam_ext_csi_driver = {
     .desc = "driver for csi camera",
     .ops  = &camera_ext_driver_ops,
 };
+
+int register_camera_ext_ctrl_db(struct camera_dev_s *cam_dev,
+        const struct cam_ext_ctrl_item **ctrls, int num)
+{
+    struct cam_ext_ctrl_item **tail =
+                &cam_dev->ctrl_db.ctrls[cam_dev->ctrl_db.num_ctrls];
+
+    cam_dev->ctrl_db.num_ctrls += num;
+    cam_dev->ctrl_db.ctrls = realloc(cam_dev->ctrl_db.ctrls,
+        sizeof(struct cam_ext_ctrl_item *) * cam_dev->ctrl_db.num_ctrls);
+    if (cam_dev->ctrl_db.ctrls == NULL) {
+        cam_dev->ctrl_db.num_ctrls = 0;
+        return -ENOMEM;
+    }
+
+    memcpy(tail, ctrls, sizeof(struct cam_ext_ctrl_item *) * num);
+    return 0;
+}

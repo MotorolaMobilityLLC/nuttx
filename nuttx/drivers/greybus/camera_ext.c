@@ -27,6 +27,8 @@
  */
 
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 #include "camera_ext.h"
 
 //fill format with current user config
@@ -252,3 +254,87 @@ struct camera_ext_frmival_node const *cam_ext_frmival_set(
     return frmival_node;
 }
 
+int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
+        struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg)
+{
+    if (idx >= ctrl_db->num_ctrls) return -EINVAL;
+
+    memcpy(mod_ctrl_cfg, &ctrl_db->ctrls[idx]->ctrl_cfg,
+        sizeof(*mod_ctrl_cfg));
+    return 0;
+}
+
+int cam_ext_ctrl_get(struct camera_ext_ctrl_db *ctrl_db,
+        struct camera_ext_ctrl_val *ctrl_val)
+{
+    uint32_t idx = cam_ext_get_ctrl_val_idx(ctrl_val);
+
+    if (idx >= ctrl_db->num_ctrls) return -EINVAL;
+
+    if (ctrl_db->ctrls[idx]->g_volatile_ctrl != NULL)
+        return ctrl_db->ctrls[idx]->g_volatile_ctrl(ctrl_val);
+    return -EINVAL;
+}
+
+int cam_ext_ctrl_set(struct camera_ext_ctrl_db *ctrl_db,
+        struct camera_ext_ctrl_val *ctrl_val)
+{
+    uint32_t idx = cam_ext_get_ctrl_val_idx(ctrl_val);
+
+    if (idx >= ctrl_db->num_ctrls) return -EINVAL;
+
+    if (ctrl_db->ctrls[idx]->s_ctrl != NULL)
+        return ctrl_db->ctrls[idx]->s_ctrl(ctrl_val);
+    return -EINVAL;
+}
+
+int cam_ext_ctrl_try(struct camera_ext_ctrl_db *ctrl_db,
+        struct camera_ext_ctrl_val *ctrl_val)
+{
+    uint32_t idx = cam_ext_get_ctrl_val_idx(ctrl_val);
+
+    if (idx >= ctrl_db->num_ctrls) return -EINVAL;
+
+    if (ctrl_db->ctrls[idx]->try_ctrl != NULL)
+        return ctrl_db->ctrls[idx]->try_ctrl(ctrl_val);
+    /* if try does not exist, no try needed, return ok */
+    return 0;
+}
+
+
+int cam_ext_ctrl_array_get(struct camera_ext_ctrl_db *ctrl_db,
+        struct camera_ext_ctrl_array_val *ctrl_val)
+{
+    uint32_t idx = cam_ext_get_ctrl_val_idx(ctrl_val);
+
+    if (idx >= ctrl_db->num_ctrls) return -EINVAL;
+
+    if (ctrl_db->ctrls[idx]->g_volatile_ctrl != NULL)
+        return ctrl_db->ctrls[idx]->g_volatile_ctrl(ctrl_val);
+    return -EINVAL;
+}
+
+int cam_ext_ctrl_array_set(struct camera_ext_ctrl_db *ctrl_db,
+        struct camera_ext_ctrl_array_val *ctrl_val)
+{
+    uint32_t idx = cam_ext_get_ctrl_val_idx(ctrl_val);
+
+    if (idx >= ctrl_db->num_ctrls) return -EINVAL;
+
+    if (ctrl_db->ctrls[idx]->s_ctrl != NULL)
+        return ctrl_db->ctrls[idx]->s_ctrl(ctrl_val);
+    return -EINVAL;
+}
+
+int cam_ext_ctrl_array_try(struct camera_ext_ctrl_db *ctrl_db,
+        struct camera_ext_ctrl_array_val *ctrl_val)
+{
+    uint32_t idx = cam_ext_get_ctrl_val_idx(ctrl_val);
+
+    if (idx >= ctrl_db->num_ctrls) return -EINVAL;
+
+    if (ctrl_db->ctrls[idx]->try_ctrl != NULL)
+        return ctrl_db->ctrls[idx]->try_ctrl(ctrl_val);
+    /* no need to try, always ok */
+    return 0;
+}

@@ -93,6 +93,20 @@ struct device_camera_ext_dev_type_ops {
             struct camera_ext_streamparm *parm);
     int (*stream_set_parm)(struct device *dev,
             struct camera_ext_streamparm *parm);
+
+    int (*ctrl_get_cfg)(struct device *dev, uint32_t idx,
+            struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg);
+
+    int (*ctrl_get)(struct device *dev, struct camera_ext_ctrl_val *ctrl_val);
+    int (*ctrl_set)(struct device *dev, struct camera_ext_ctrl_val *ctrl_val);
+    int (*ctrl_try)(struct device *dev, struct camera_ext_ctrl_val *ctrl_val);
+
+    int (*ctrl_array_get)(struct device *dev,
+            struct camera_ext_ctrl_array_val *ctrl_val);
+    int (*ctrl_array_set)(struct device *dev,
+            struct camera_ext_ctrl_array_val *ctrl_val);
+    int (*ctrl_array_try)(struct device *dev,
+            struct camera_ext_ctrl_array_val *ctrl_val);
 };
 
 IMPL_CAMERA_EXT_DEV_OP_ARG0(power_on)
@@ -119,5 +133,19 @@ IMPL_CAMERA_EXT_DEV_OP_ARG1(stream_get_parm,\
     struct camera_ext_streamparm*, parm)
 IMPL_CAMERA_EXT_DEV_OP_ARG1(stream_set_parm,\
     struct camera_ext_streamparm*, parm)
+
+IMPL_CAMERA_EXT_DEV_OP_ARG2(ctrl_get_cfg, int, idx,
+    struct camera_ext_predefined_ctrl_mod_cfg*, mod_ctrl_cfg)
+
+IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_get, struct camera_ext_ctrl_val*, ctrl_val)
+IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_set, struct camera_ext_ctrl_val*, ctrl_val)
+IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_try, struct camera_ext_ctrl_val*, ctrl_val)
+
+IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_array_get, \
+    struct camera_ext_ctrl_array_val*, ctrl_val)
+IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_array_set, \
+    struct camera_ext_ctrl_array_val*, ctrl_val)
+IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_array_try, \
+    struct camera_ext_ctrl_array_val*, ctrl_val)
 
 #endif
