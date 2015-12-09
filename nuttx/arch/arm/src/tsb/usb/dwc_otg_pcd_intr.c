@@ -4764,9 +4764,13 @@ exit_xfercompl:
 						if (ep->dwc_ep.type == DWC_OTG_EP_TYPE_BULK) {
 							int i;
 							for (i = 0; i < ep->dwc_ep.desc_cnt; i++) {
-								if (ep->dwc_ep.desc_addr[i].status.b.bs == BS_DMA_DONE) {
-								    ep->dwc_ep.desc_addr[i].status.b.bs = BS_HOST_BUSY;
+								if (ep->dwc_ep.next_desc >= ep->dwc_ep.desc_cnt) {
+									ep->dwc_ep.next_desc = 0;
+								}
+								if (ep->dwc_ep.desc_addr[ep->dwc_ep.next_desc].status.b.bs == BS_DMA_DONE) {
+									ep->dwc_ep.desc_addr[ep->dwc_ep.next_desc].status.b.bs = BS_HOST_BUSY;
 									complete_ep(ep);
+									ep->dwc_ep.next_desc++;
 								}
 							}
 						} else {

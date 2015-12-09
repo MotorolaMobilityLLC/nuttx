@@ -204,6 +204,8 @@ typedef struct dwc_ep {
 	uint32_t desc_cnt;
 	/** Allocated DMA Desc count */
 	uint32_t desc_cnt_save;
+	/** Next descriptor to complete */
+	uint32_t next_desc;
 	/** Do we resize the descriptors chain */
 	unsigned resize_desc:1;
 	

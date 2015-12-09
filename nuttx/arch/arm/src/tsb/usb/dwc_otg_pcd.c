@@ -2519,6 +2519,7 @@ static void init_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 
 	ep->dwc_ep.desc_cnt = desc_cnt;
 	ep->dwc_ep.desc_cnt_save = desc_cnt;
+	ep->dwc_ep.next_desc = 0;
 	ep->dwc_ep.resize_desc = 0;
 	DWC_CIRCLEQ_FOREACH(req, &ep->sg_dma_queue, sg_dma_queue_entry) {
 		/** DMA Descriptor Setup */
@@ -2549,6 +2550,7 @@ void update_ring_dma_desc_chain(dwc_otg_core_if_t * core_if,
 
 	ep->dwc_ep.desc_cnt = ep->sg_dma_queue_count;
 	ep->dwc_ep.desc_cnt_save = ep->sg_dma_queue_count;
+	ep->dwc_ep.next_desc = 0;
 	if (ep->dwc_ep.desc_cnt > MAX_DMA_DESC_CNT)
 		ep->dwc_ep.desc_cnt = MAX_DMA_DESC_CNT;
 
