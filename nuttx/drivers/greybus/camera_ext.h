@@ -98,10 +98,35 @@ struct camera_ext_input_node {
     struct camera_ext_format_node const *format_nodes;
 };
 
-//root node
+/* An array of cam_ext_ctrl_item holds all supported controls' config.
+ * ctrl_ids are in ascending order in the array.
+ */
+struct cam_ext_ctrl_item {
+    struct camera_ext_predefined_ctrl_mod_cfg const ctrl_cfg;
+    union {
+        uint8_t val_8;
+        uint16_t val_16;
+        uint32_t val;
+        void *p_val; //point to val_64 or an array of 8/16/32 bits number
+    };
+
+    /* val points to struct camera_ext_val_base */
+    int (*g_volatile_ctrl)(void *val);
+    int (*s_ctrl)(void *val);
+    int (*try_ctrl)(void *val);
+};
+
+//format root node
 struct gb_camera_ext_sensor_db {
     const int num_inputs;
     struct camera_ext_input_node const *input_nodes;
+
+};
+
+//control db
+struct camera_ext_ctrl_db {
+    uint32_t num_ctrls;
+    struct cam_ext_ctrl_item **ctrls;
 };
 
 struct frmsize_user_config {
@@ -229,5 +254,22 @@ struct camera_ext_frmival_node const *cam_ext_frmival_set(
     struct gb_camera_ext_sensor_db const *db,
     struct gb_camera_ext_sensor_user_config *cfg,
     struct camera_ext_streamparm *parm);
+
+int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
+    struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg);
+
+int cam_ext_ctrl_get(struct camera_ext_ctrl_db *ctrl_db,
+    struct camera_ext_ctrl_val *ctrl_val);
+int cam_ext_ctrl_set(struct camera_ext_ctrl_db *ctrl_db,
+    struct camera_ext_ctrl_val *ctrl_val);
+int cam_ext_ctrl_try(struct camera_ext_ctrl_db *ctrl_db,
+    struct camera_ext_ctrl_val *ctrl_val);
+
+int cam_ext_ctrl_array_get(struct camera_ext_ctrl_db *ctrl_db,
+    struct camera_ext_ctrl_array_val *ctrl_val);
+int cam_ext_ctrl_array_set(struct camera_ext_ctrl_db *ctrl_db,
+    struct camera_ext_ctrl_array_val *ctrl_val);
+int cam_ext_ctrl_array_try(struct camera_ext_ctrl_db *ctrl_db,
+    struct camera_ext_ctrl_array_val *ctrl_val);
 
 #endif

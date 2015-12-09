@@ -166,4 +166,54 @@ struct camera_ext_streamparm {
     };
 } __packed;
 
-#endif
+#define CAM_EXT_CTRL_ID_MASK		(0x0fffffff)
+
+/* objects to enumerate mod pre-defined controls */
+struct camera_ext_predefined_ctrl_mod_cfg {
+	__le32 id;
+	__le64 def;
+	__le64 menu_mask;
+} __packed;
+
+struct camera_ext_ctrl_val_base {
+	/* MOD controls config are stored in an array and phone side code
+	 * accesses (get_config/set/get/try each control via index.
+	 */
+	__le32 idx;
+} __packed;
+
+/* to get/set/try for std or menu type controls over greybus */
+struct camera_ext_ctrl_val {
+	struct camera_ext_ctrl_val_base base;
+	union {
+		uint8_t val_8;
+		__le16 val_16;
+		__le32 val;
+		__le64 val_64;
+	};
+} __packed;
+
+#define CAMERA_EXT_CTRL_ARRAY_SIZE 128
+/* to get/set/try for controls with array data over greybus */
+struct camera_ext_ctrl_array_val {
+    struct camera_ext_ctrl_val_base base;
+	union {
+		uint8_t val_8[CAMERA_EXT_CTRL_ARRAY_SIZE];
+		__le16 val_16[CAMERA_EXT_CTRL_ARRAY_SIZE >> 1];
+		__le32 val[CAMERA_EXT_CTRL_ARRAY_SIZE >> 2];
+		__le64 val_64[CAMERA_EXT_CTRL_ARRAY_SIZE >> 3];
+	};
+} __packed;
+
+static inline uint32_t cam_ext_get_ctrl_val_idx(void *ctrl_val)
+{
+	__le32 idx = ((struct camera_ext_ctrl_val_base *)ctrl_val)->idx;
+	return le32_to_cpu(idx);
+}
+
+static inline void cam_ext_set_ctrl_val_idx(void *ctrl_val, __le32 idx)
+{
+    ((struct camera_ext_ctrl_val_base *)ctrl_val)->idx = idx;
+}
+
+#endif /* __CAMERA_EXT_DEFS_H */

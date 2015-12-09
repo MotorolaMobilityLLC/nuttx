@@ -70,6 +70,16 @@
 #define GB_CAMERA_EXT_TYPE_STREAM_PARM_SET 0x0E
 #define GB_CAMERA_EXT_TYPE_STREAM_PARM_GET 0x0F
 
+#define GB_CAMERA_EXT_TYPE_CTRL_GET_CFG 0x10
+
+#define GB_CAMERA_EXT_TYPE_CTRL_GET     0x11
+#define GB_CAMERA_EXT_TYPE_CTRL_SET     0x12
+#define GB_CAMERA_EXT_TYPE_CTRL_TRY     0x13
+
+#define GB_CAMERA_EXT_TYPE_CTRL_ARRAY_GET   0x14
+#define GB_CAMERA_EXT_TYPE_CTRL_ARRAY_SET   0x15
+#define GB_CAMERA_EXT_TYPE_CTRL_ARRAY_TRY   0x16
+
 struct gb_proto_version_response {
     uint8_t major;
     uint8_t minor;
@@ -111,7 +121,7 @@ static uint8_t gb_operation_errno_map(int code)
     }
 }
 
-static int gb_camera_ext_init(void)
+static int gb_camera_ext_init(unsigned int cport)
 {
     CAM_DBG("init camera device\n");
     if (dev_info.dev != NULL) {
@@ -126,7 +136,7 @@ static int gb_camera_ext_init(void)
     return 0;
 }
 
-static void gb_camera_ext_exit(void)
+static void gb_camera_ext_exit(unsigned int cport)
 {
     if (dev_info.dev != NULL) {
         device_close(dev_info.dev);
@@ -152,14 +162,7 @@ static uint8_t gb_camera_power_on(struct gb_operation *operation)
 {
     int retval;
 
-    retval = gb_camera_ext_init();
-    if (retval == 0) {
-        retval = CALL_CAM_DEV_OP(dev_info.dev, power_on);
-        if (retval != 0) {
-            gb_camera_ext_exit();
-        }
-    }
-
+    retval = CALL_CAM_DEV_OP(dev_info.dev, power_on);
     CAM_DBG("result %d\n", retval);
     return gb_operation_errno_map(retval);
 }
@@ -167,9 +170,8 @@ static uint8_t gb_camera_power_on(struct gb_operation *operation)
 static uint8_t gb_camera_power_off(struct gb_operation *operation)
 {
     int retval = CALL_CAM_DEV_OP(dev_info.dev, power_off);
-    CAM_DBG("result %d\n", retval);
 
-    gb_camera_ext_exit();
+    CAM_DBG("result %d\n", retval);
     return gb_operation_errno_map(retval);
 }
 
@@ -398,6 +400,151 @@ static uint8_t gb_camera_ext_stream_get_parm(struct gb_operation *operation)
     return gb_operation_errno_map(retval);
 }
 
+static uint8_t gb_camera_ext_ctrl_get_cfg(struct gb_operation *operation)
+{
+    int retval;
+    __le32 *idx;
+    struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg;
+
+    if (gb_operation_get_request_payload_size(operation) == sizeof(__le32)) {
+        idx = (__le32*)gb_operation_get_request_payload(operation);
+        mod_ctrl_cfg = gb_operation_alloc_response(operation,
+                            sizeof(*mod_ctrl_cfg));
+        if (mod_ctrl_cfg != NULL) {
+            retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_get_cfg, le32_to_cpu(*idx),
+                        mod_ctrl_cfg);
+        } else {
+            retval = -ENOMEM;
+        }
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
+static uint8_t gb_camera_ext_ctrl_get(struct gb_operation *operation)
+{
+    int retval;
+    __le32 *idx;
+    struct camera_ext_ctrl_val *ctrl_val;
+
+    if (gb_operation_get_request_payload_size(operation) == sizeof(__le32)) {
+        idx = (__le32*)gb_operation_get_request_payload(operation);
+        ctrl_val = gb_operation_alloc_response(operation, sizeof(*ctrl_val));
+        if (ctrl_val != NULL) {
+            cam_ext_set_ctrl_val_idx(ctrl_val, *idx);
+            retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_get, ctrl_val);
+        } else {
+            retval = -ENOMEM;
+        }
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
+static uint8_t gb_camera_ext_ctrl_set(struct gb_operation *operation)
+{
+    int retval;
+    struct camera_ext_ctrl_val *ctrl_val;
+
+    if (gb_operation_get_request_payload_size(operation)
+            == sizeof(*ctrl_val)) {
+        ctrl_val = gb_operation_get_request_payload(operation);
+        retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_set, ctrl_val);
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
+static uint8_t gb_camera_ext_ctrl_try(struct gb_operation *operation)
+{
+    int retval;
+    struct camera_ext_ctrl_val *ctrl_val;
+
+    if (gb_operation_get_request_payload_size(operation)
+            == sizeof(*ctrl_val)) {
+        ctrl_val = gb_operation_get_request_payload(operation);
+        retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_try, ctrl_val);
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
+static uint8_t gb_camera_ext_ctrl_array_get(struct gb_operation *operation)
+{
+    int retval;
+    __le32 *idx;
+    struct camera_ext_ctrl_array_val *ctrl_val;
+
+    if (gb_operation_get_request_payload_size(operation) == sizeof(__le32)) {
+        idx = (__le32*)gb_operation_get_request_payload(operation);
+        ctrl_val = gb_operation_alloc_response(operation, sizeof(*ctrl_val));
+        if (ctrl_val != NULL) {
+            cam_ext_set_ctrl_val_idx(ctrl_val, *idx);
+            retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_array_get, ctrl_val);
+        } else {
+            retval = -ENOMEM;
+        }
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
+static uint8_t gb_camera_ext_ctrl_array_set(struct gb_operation *operation)
+{
+    int retval;
+    struct camera_ext_ctrl_array_val *ctrl_val;
+
+    if (gb_operation_get_request_payload_size(operation)
+            == sizeof(*ctrl_val)) {
+        ctrl_val = gb_operation_get_request_payload(operation);
+        retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_array_set, ctrl_val);
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
+static uint8_t gb_camera_ext_ctrl_array_try(struct gb_operation *operation)
+{
+    int retval;
+    struct camera_ext_ctrl_array_val *ctrl_val;
+
+    if (gb_operation_get_request_payload_size(operation)
+            == sizeof(*ctrl_val)) {
+        ctrl_val = gb_operation_get_request_payload(operation);
+        retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_array_try, ctrl_val);
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
 static struct gb_operation_handler gb_camera_handlers[] = {
     GB_HANDLER(GB_CAMERA_TYPE_PROTOCOL_VERSION, gb_camera_protocol_version),
     GB_HANDLER(GB_CAMERA_TYPE_POWER_ON, gb_camera_power_on),
@@ -417,9 +564,25 @@ static struct gb_operation_handler gb_camera_handlers[] = {
         gb_camera_ext_stream_set_parm),
     GB_HANDLER(GB_CAMERA_EXT_TYPE_STREAM_PARM_GET,
         gb_camera_ext_stream_get_parm),
+
+    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_GET_CFG,
+        gb_camera_ext_ctrl_get_cfg),
+
+    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_GET, gb_camera_ext_ctrl_get),
+    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_SET, gb_camera_ext_ctrl_set),
+    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_TRY, gb_camera_ext_ctrl_try),
+
+    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_ARRAY_GET,
+        gb_camera_ext_ctrl_array_get),
+    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_ARRAY_SET,
+        gb_camera_ext_ctrl_array_set),
+    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_ARRAY_TRY,
+        gb_camera_ext_ctrl_array_try),
 };
 
 static struct gb_driver gb_camera_driver = {
+    .init = gb_camera_ext_init,
+    .exit = gb_camera_ext_exit,
     .op_handlers = gb_camera_handlers,
     .op_handlers_count = ARRAY_SIZE(gb_camera_handlers),
 };
