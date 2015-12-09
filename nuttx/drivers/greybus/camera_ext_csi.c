@@ -82,6 +82,20 @@ static int apba_cam_tx_start(void)
 #endif
 }
 
+static int apba_cam_tx_stop(void)
+{
+#ifdef CONFIG_ICE_IPC_CLIENT
+    struct ipc_cdsi_param_s param;
+    param.type = IPC_CDSI_TYPE_CAMERA;
+    param.u.cam_cmd.cmd = IPC_CDSI_CAMERA_TX_STOP;
+    return ipc_request_sync(IPC_APP_ID_CDSI, &param, sizeof(param),
+        NULL, 0, IPC_TIMEOUT);
+#else
+    CAM_ERR("ipc client not enabled\n");
+    return -1;
+#endif
+}
+
 static int config_apba_unipro_gear(uint32_t speed /* Mb/S */)
 {
 #ifdef CONFIG_ICE_IPC_CLIENT
@@ -225,7 +239,9 @@ static int csi_cam_stream_off(struct device *dev)
                cam_dev->sensor->stop.regs, cam_dev->sensor->stop.size);
     if (retval == 0) {
         cam_dev->status = ON;
+        apba_cam_tx_stop();
     }
+
     return retval;
 }
 
