@@ -360,7 +360,7 @@ static int tsb_dma_chan_alloc(struct device *dev,
         }
     }
 
-    pthread_mutex_lock(&info->lock);
+    pthread_mutex_unlock(&info->lock);
 
     return retval;
 }
