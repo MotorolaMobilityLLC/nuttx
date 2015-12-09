@@ -3284,8 +3284,7 @@ static void dwc_otg_pcd_handle_noniso_bna(dwc_otg_pcd_ep_t * ep)
 	
 	if (!dwc_ep->is_in && dwc_ep->type == DWC_OTG_EP_TYPE_BULK) {
 		ep->bna = 1;
-		if (start >= dwc_ep->desc_cnt)
-			dma_desc = &(dwc_ep->desc_addr[0]);
+		dma_desc = &(dwc_ep->desc_addr[start-1]);
 		/* We may have added new requests: update DMA */
 		if (ep->sg_dma_queue_count != dwc_ep->desc_cnt) {
 			update_ring_dma_desc_chain(core_if, ep);
