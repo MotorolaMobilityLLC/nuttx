@@ -257,7 +257,7 @@ static inline int device_display_set_backlight_brightness(struct device *dev,
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, display)->set_backlight_config(dev, brightness);
+    return DEVICE_DRIVER_GET_OPS(dev, display)->set_backlight_brightness(dev, brightness);
 }
 
 /**
