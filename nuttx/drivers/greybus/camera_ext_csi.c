@@ -31,10 +31,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <apps/ice/ipc.h>
+
 #include <apps/ice/cdsi.h>
-#include <apps/ice/unipro_ipc.h>
-#include <arch/chip/unipro_p2p.h>
+
+#include <arch/chip/cdsi.h>
+#include <arch/chip/cdsi_config.h>
+
 #include <nuttx/config.h>
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/gpio.h>
@@ -49,7 +51,7 @@
 
 #define CAMERA_POWER_DELAY_US (100000)
 
-#define CPORTID_CDSI1 (17)
+static struct cdsi_dev *g_cdsi_dev;
 
 static int cci_write_regs(struct i2c_dev_s *i2c_dev, uint16_t i2c_addr,
         const struct cam_i2c_reg_array* items, uint16_t size);
@@ -70,50 +72,6 @@ static inline int cam_init(struct camera_dev_s *cam_dev)
 {
     return cci_write_regs(cam_dev->i2c, cam_dev->sensor->i2c_addr,
                cam_dev->sensor->init.regs, cam_dev->sensor->init.size);
-}
-
-static int apba_cam_tx_start(void)
-{
-#ifdef CONFIG_ICE_IPC_CLIENT
-    struct ipc_cdsi_param_s param;
-    param.type = IPC_CDSI_TYPE_CAMERA;
-    param.u.cam_cmd.cmd = IPC_CDSI_CAMERA_TX_START;
-    return ipc_request_sync(IPC_APP_ID_CDSI, &param, sizeof(param),
-        NULL, 0, IPC_TIMEOUT);
-#else
-    CAM_ERR("ipc client not enabled\n");
-    return -1;
-#endif
-}
-
-static int apba_cam_tx_stop(void)
-{
-#ifdef CONFIG_ICE_IPC_CLIENT
-    struct ipc_cdsi_param_s param;
-    param.type = IPC_CDSI_TYPE_CAMERA;
-    param.u.cam_cmd.cmd = IPC_CDSI_CAMERA_TX_STOP;
-    return ipc_request_sync(IPC_APP_ID_CDSI, &param, sizeof(param),
-        NULL, 0, IPC_TIMEOUT);
-#else
-    CAM_ERR("ipc client not enabled\n");
-    return -1;
-#endif
-}
-
-static int config_apba_unipro_gear(uint32_t speed /* Mb/S */)
-{
-#ifdef CONFIG_ICE_IPC_CLIENT
-    struct ipc_unipro_param_s param;
-    param.type = IPC_UNIPRO_TYPE_CONFIG_BANDWIDTH;
-    param.u.bw_param.cport = CAMERA_UNIPRO_CPORT;
-    param.u.bw_param.megabits = speed;
-
-    return ipc_request_sync(IPC_APP_ID_UNIRPO, &param, sizeof(param),
-        NULL, 0, IPC_TIMEOUT);
-#else
-    CAM_ERR("ipc client not enabled\n");
-    return -1;
-#endif
 }
 
 static int cam_power_on(struct device *dev)
@@ -183,6 +141,44 @@ static int cam_set_resolution(struct camera_dev_s *cam_dev,
                res->regs, res->size);
 }
 
+const static struct cdsi_config CAMERA_CONFIG = {
+    /* TODO: some fields like mbits_per_lane, width, height etc. should
+     *       be derived from configuration chosen by the user.
+     */
+    /* Common */
+    .mode = TSB_CDSI_MODE_CSI,
+    .mbits_per_lane = 518*1000*1000,
+    .num_lanes = 4,
+    /* RX only */
+    .hs_rx_timeout = 0xffffffff,
+    /* TX only */
+    .framerate = 24,
+    .pll_frs = 0,
+    .pll_prd = 0,
+    .pll_fbd = 26,
+    .width = 3264,
+    .height = 2510,
+    .bpp = 10,
+    .bta_enabled = 0,
+    .continuous_clock = 0,
+    .blank_packet_enabled = 0,
+    .video_mode = 0,
+    .color_bar_enabled = 0,
+    /* CSI only */
+    /* DSI only */
+    /* Video Mode only */
+    /* Command Mode only */
+};
+
+static void generic_csi_init(struct cdsi_dev *dev)
+{
+    cdsi_initialize_rx(dev, &CAMERA_CONFIG);
+}
+
+const static struct camera_sensor generic_sensor = {
+    .cdsi_sensor_init = generic_csi_init,
+};
+
 static int csi_cam_stream_on(struct device *dev)
 {
     int retval;
@@ -197,13 +193,8 @@ static int csi_cam_stream_on(struct device *dev)
 
     retval = -EINVAL;
     if (frmival_node != NULL) {
-        //config apba gear
         struct csi_stream_user_data const *user_data = frmival_node->user_data;
-        retval = config_apba_unipro_gear(user_data->mbps);
-        //set camera resolution
-        if (retval == 0) {
-            retval = cam_set_resolution(cam_dev, &user_data->res_regs);
-        }
+        retval = cam_set_resolution(cam_dev, &user_data->res_regs);
     } else {
         CAM_ERR("invalid current stream config\n");
         return -EINVAL;
@@ -211,7 +202,7 @@ static int csi_cam_stream_on(struct device *dev)
 
     //start apa camera tx
     if (retval == 0) {
-        retval = apba_cam_tx_start();
+        retval = cdsi_apba_cam_tx_start(&CAMERA_CONFIG);
         CAM_DBG("start apba cam tx result %d\n", retval);
     }
 
@@ -219,11 +210,13 @@ static int csi_cam_stream_on(struct device *dev)
     if (retval == 0) {
         retval = cci_write_regs(cam_dev->i2c, cam_dev->sensor->i2c_addr,
                cam_dev->sensor->start.regs, cam_dev->sensor->start.size);
-    } //else no need to rollback for gear config or tx start
+    }
 
-    //TODO: this function creates a thread to do the real job.
-    //And not return if the job is successfully done.
-    cdsi_camera_rx_start();
+    g_cdsi_dev = csi_initialize((struct camera_sensor *)&generic_sensor, TSB_CDSI1, TSB_CDSI_RX);
+    if (!g_cdsi_dev) {
+        CAM_DBG("failed to initialize CSI RX\n");
+        retval = -1;
+    }
 
     if (retval == 0) {
         cam_dev->status = STREAMING;
@@ -243,8 +236,12 @@ static int csi_cam_stream_off(struct device *dev)
                cam_dev->sensor->stop.regs, cam_dev->sensor->stop.size);
     if (retval == 0) {
         cam_dev->status = ON;
-        apba_cam_tx_stop();
-        unipro_p2p_reset_connection(CPORTID_CDSI1);
+        retval = cdsi_apba_cam_tx_stop();
+
+        if (g_cdsi_dev) {
+            csi_uninitialize(g_cdsi_dev);
+            g_cdsi_dev = NULL;
+        }
     }
 
     return retval;
