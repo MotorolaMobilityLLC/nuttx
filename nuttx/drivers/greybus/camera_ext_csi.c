@@ -34,10 +34,12 @@
 #include <apps/ice/ipc.h>
 #include <apps/ice/cdsi.h>
 #include <apps/ice/unipro_ipc.h>
+#include <arch/chip/unipro_p2p.h>
 #include <nuttx/config.h>
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
+
 
 #include "camera_ext.h"
 #include "camera_ext_csi.h"
@@ -46,6 +48,8 @@
 #define GPIO_APBE_CAM_RST_N  (5) /* output to camera (CAM_RST_N) */
 
 #define CAMERA_POWER_DELAY_US (100000)
+
+#define CPORTID_CDSI1 (17)
 
 static int cci_write_regs(struct i2c_dev_s *i2c_dev, uint16_t i2c_addr,
         const struct cam_i2c_reg_array* items, uint16_t size);
@@ -240,6 +244,7 @@ static int csi_cam_stream_off(struct device *dev)
     if (retval == 0) {
         cam_dev->status = ON;
         apba_cam_tx_stop();
+        unipro_p2p_reset_connection(CPORTID_CDSI1);
     }
 
     return retval;
