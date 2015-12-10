@@ -121,7 +121,7 @@
 #define SW_UNIPRO_1P8_PWM  STM32_GPIO_PIN(GPIO_PORTE | GPIO_PIN2)
 #define SW_IO_1P8_PWM      STM32_GPIO_PIN(GPIO_PORTE | GPIO_PIN4)
 #define SW_TO_SVC_INT      STM32_GPIO_PIN(GPIO_PORTC | GPIO_PIN9)
-#define SW_TO_SVC_INT_GPIO (GPIO_INPUT | GPIO_FLOAT | GPIO_EXTI | \
+#define SW_TO_SVC_INT_GPIO (GPIO_INPUT | GPIO_PULLUP | GPIO_EXTI | \
                             GPIO_PORTC | GPIO_PIN9)
 #define SVC_SW_SPI_CS_GPIO (GPIO_OUTPUT | GPIO_PUSHPULL | GPIO_OUTPUT_SET | \
                             GPIO_PORTB | GPIO_PIN12)
@@ -437,7 +437,7 @@ struct ara_board_info *board_init(void) {
      * (Module hotplug pins unconfigured. TODO, part of SW-1942.)
      */
 
-    return NULL;
+    return &evt1_board_info;
 }
 
 void board_exit(void) {
