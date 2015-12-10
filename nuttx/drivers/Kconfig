@@ -56,6 +56,10 @@ config LYNX_DISPLAY
     bool "Lynx Display"
     default n
 
+config GHOST_DISPLAY
+    bool "Ghost Display"
+    default n
+
 config DEV_RANDOM
 	bool "Enable /dev/random"
 	default n

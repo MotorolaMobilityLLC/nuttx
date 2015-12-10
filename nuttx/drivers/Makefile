@@ -136,6 +136,10 @@ ifeq ($(CONFIG_LYNX_DISPLAY),y)
   CSRCS += lynx_display.c
 endif
 
+ifeq ($(CONFIG_GHOST_DISPLAY),y)
+  CSRCS += ghost_display.c
+endif
+
 ifeq ($(CONFIG_DEVICE_CORE),y)
   CSRCS += device.c device_resource.c device_table.c
 endif
