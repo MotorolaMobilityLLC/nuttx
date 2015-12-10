@@ -49,7 +49,7 @@
 
 /* Version of the Greybus control protocol we support */
 #define MB_CONTROL_VERSION_MAJOR              0x00
-#define MB_CONTROL_VERSION_MINOR              0x01
+#define MB_CONTROL_VERSION_MINOR              0x02
 
 /* Greybus control request types */
 #define MB_CONTROL_TYPE_INVALID               0x00
@@ -59,6 +59,7 @@
 #define MB_CONTROL_TYPE_PORT_CONNECTED        0x04
 #define MB_CONTROL_TYPE_PORT_DISCONNECTED     0x05
 #define MB_CONTROL_TYPE_SLAVE_POWER           0x06
+#define MB_CONTROL_TYPE_GET_ROOT_VER          0x07
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
@@ -69,6 +70,14 @@
 #define MB_CONTROL_SLAVE_POWER_ON             0x01
 #define MB_CONTROL_SLAVE_POWER_OFF            0x02
 #define MB_CONTROL_SLAVE_POWER_FLASH_MODE     0x03
+
+/* Reserved values for get core version */
+#define MB_CONTROL_ROOT_VER_INVALID           0x00
+#define MB_CONTROL_ROOT_VER_NOT_APPLICABLE    0xff
+
+#ifndef CONFIG_GREYBUS_MODS_HW_ROOT_VERSION
+#define CONFIG_GREYBUS_MODS_HW_ROOT_VERSION MB_CONTROL_ROOT_VER_NOT_APPLICABLE
+#endif
 
 /* version request has no payload */
 struct gb_control_proto_version_response {
@@ -106,6 +115,11 @@ struct mb_control_power_ctrl_request {
     __u8      mode;
 } __packed;
 /* Control protocol slave power response has no payload */
+
+/* Control protocol get root version response */
+struct mb_control_root_ver_response {
+    __u8      version;
+} __packed;
 
 struct mb_control_info {
     uint16_t cport;
@@ -308,6 +322,19 @@ static uint8_t mb_control_power_ctrl(struct gb_operation *operation)
     return ret ? GB_OP_UNKNOWN_ERROR : GB_OP_SUCCESS;
 }
 
+static uint8_t mb_control_get_root_vers(struct gb_operation *operation)
+{
+    struct mb_control_root_ver_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    response->version = CONFIG_GREYBUS_MODS_HW_ROOT_VERSION;
+
+    return GB_OP_SUCCESS;
+}
+
 static int mb_control_init(unsigned int cport)
 {
     ctrl_info = zalloc(sizeof(*ctrl_info));
@@ -351,6 +378,7 @@ static struct gb_operation_handler mb_control_handlers[] = {
     GB_HANDLER(MB_CONTROL_TYPE_PORT_CONNECTED, gb_control_connected),
     GB_HANDLER(MB_CONTROL_TYPE_PORT_DISCONNECTED, gb_control_disconnected),
     GB_HANDLER(MB_CONTROL_TYPE_SLAVE_POWER, mb_control_power_ctrl),
+    GB_HANDLER(MB_CONTROL_TYPE_GET_ROOT_VER, mb_control_get_root_vers),
 };
 
 struct gb_driver mb_control_driver = {

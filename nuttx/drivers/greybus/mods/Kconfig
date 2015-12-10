@@ -97,3 +97,11 @@ if GREYBUS_SELF_DESTRUCT
       default 0x08007fff
 endif
 endif
+
+config GREYBUS_MODS_HW_ROOT_VERSION
+	hex "Pre-defined HW Root Version"
+	default 0xff
+	---help---
+		The version/revision of the root hardware circuitry. This will
+		communicate to the host/phone side what hardware features are
+		supported by the mod. Valid values are 0x00 to 0xFF.
