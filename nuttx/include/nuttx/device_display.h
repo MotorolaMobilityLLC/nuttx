@@ -31,6 +31,22 @@
 
 #define DEVICE_TYPE_DISPLAY_HW          "display"
 
+enum display_type {
+    DISPLAY_CONFIG_TYPE_INVALID  = 0x00,
+    DISPLAY_CONFIG_TYPE_EDID_1P3 = 0x01,
+};
+
+enum display_state {
+    DISPLAY_STATE_OFF = 0x00,
+    DISPLAY_STATE_ON  = 0x01,
+};
+
+enum display_backlight_config {
+    DISPLAY_BACKLIGHT_NONE      = 0x00,
+    DISPLAY_BACKLIGHT_MANUAL    = 0x01,
+    DISPLAY_BACKLIGHT_AUTOMATIC = 0x02,
+};
+
 enum display_notification_event {
     DISPLAY_NOTIFICATION_EVENT_INVALID  = 0x00,
     DISPLAY_NOTIFICATION_EVENT_FAILURE  = 0x01,
