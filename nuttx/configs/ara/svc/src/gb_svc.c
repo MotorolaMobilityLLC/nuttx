@@ -124,10 +124,10 @@ int gb_svc_intf_hotplug(uint32_t intf_id, uint32_t unipro_mfg_id,
 
     req = gb_operation_get_request_payload(op_req);
     req->intf_id = intf_id;
-    req->data.unipro_mfg_id = unipro_mfg_id;
-    req->data.unipro_prod_id = unipro_prod_id;
-    req->data.ara_vend_id = ara_vend_id;
-    req->data.ara_prod_id = ara_prod_id;
+    req->data.unipro_mfg_id = cpu_to_le32(unipro_mfg_id);
+    req->data.unipro_prod_id = cpu_to_le32(unipro_prod_id);
+    req->data.ara_vend_id = cpu_to_le32(ara_vend_id);
+    req->data.ara_prod_id = cpu_to_le32(ara_prod_id);
 
     gb_operation_send_request_sync(op_req);
     gb_operation_destroy(op_req);
