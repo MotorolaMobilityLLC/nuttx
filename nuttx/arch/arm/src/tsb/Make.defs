@@ -143,6 +143,8 @@ endif
 
 ifeq ($(CONFIG_UNIPRO_P2P),y)
 CHIP_CSRCS += tsb_cdsi_dbg.c
+CHIP_CSRCS += tsb_cdsi_config.c
+CHIP_CSRCS += tsb_cdsi_display.c
 CHIP_CSRCS += tsb_unipro_p2p.c
 endif
 
