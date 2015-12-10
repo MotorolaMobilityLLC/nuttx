@@ -880,17 +880,10 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
           /* clear the CRCERR bit */
           status &= ~SPI_SR_CRCERR;
           spi_putreg(priv, STM32_SPI_SR_OFFSET, status);
-          spivdbg("CRC error on read\n");
+          spidbg("CRC error on read: %X\n", status);
 
-          /*
-           * If the master sent too many bytes (as indicated by the RX buffer
-           * being not empty), reset the SPI block to clear the FIFO.
-           */
-          if (status & SPI_SR_RXNE)
-            {
-              spi_portreset(priv);
-              spi_portinitialize(priv);
-            }
+          spi_portreset(priv);
+          spi_portinitialize(priv);
 
           CALL_CB_IF_SET(priv, txn_err);
         }
@@ -1818,6 +1811,7 @@ static int stm32_spi_ss_isr(struct stm32_spidev_s *priv, int nss_gpio)
       spi_portreset(priv);
       spi_portinitialize(priv);
 
+      spidbg("Early end of frame\n");
       CALL_CB_IF_SET(priv, txn_err);
     }
 
