@@ -30,6 +30,7 @@
  * @brief MIPI UniPro stack for APBridge ES1
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
@@ -37,6 +38,7 @@
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
 #include <nuttx/irq.h>
+#include <nuttx/list.h>
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/util.h>
 
@@ -48,6 +50,7 @@
 #include "debug.h"
 #include "up_arch.h"
 #include "tsb_scm.h"
+#include "tsb_unipro.h"
 #include "tsb_unipro_es2.h"
 #include "tsb_es2_mphy_fixups.h"
 
@@ -253,6 +256,10 @@ void unipro_p2p_setup_connection(unsigned int cport) {
 
     /* Notify the remote to configure it's cport registers. */
     unipro_mbox_enable_cport(cport);
+}
+
+void unipro_p2p_reset_connection(unsigned int cport) {
+    _unipro_reset_cport(cport);
 }
 
 #if defined(CONFIG_ICE_APBA)
