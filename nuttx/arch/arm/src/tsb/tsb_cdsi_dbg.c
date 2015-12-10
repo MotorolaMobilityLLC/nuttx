@@ -7,7 +7,6 @@
 #include "up_arch.h"
 #include "tsb_scm.h"
 
-#include <arch/tsb/cdsi_offs_def.h>
 #include <arch/tsb/cdsi_reg_def.h>
 
 //#define CONFIG_CDSI_DBG_VERBOSE
@@ -24,7 +23,7 @@ struct dbg_entry {
 
 static void cdsi_dump_register_array(uint32_t base, const struct dbg_entry *registers, size_t entries) {
     while (entries) {
-        lldbg("%08x %s: %08x\n", base+registers->val, (registers->str ? registers->str : ""), getreg32(base + registers->val));
+        printf("%08x %s: %08x\n", base+registers->val, (registers->str ? registers->str : ""), getreg32(base + registers->val));
         registers++;
         entries--;
     }
