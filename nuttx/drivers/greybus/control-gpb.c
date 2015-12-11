@@ -50,12 +50,6 @@ static uint8_t gb_control_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-/* Only the AP need to send authentication data in reply to this */
-static uint8_t gb_control_probe_ap(struct gb_operation *operation)
-{
-    return GB_OP_SUCCESS;
-}
-
 static uint8_t gb_control_get_manifest_size(struct gb_operation *operation)
 {
     struct gb_control_get_manifest_size_response *response;
@@ -154,7 +148,6 @@ static uint8_t gb_control_disconnected(struct gb_operation *operation)
 
 static struct gb_operation_handler gb_control_handlers[] = {
     GB_HANDLER(GB_CONTROL_TYPE_PROTOCOL_VERSION, gb_control_protocol_version),
-    GB_HANDLER(GB_CONTROL_TYPE_PROBE_AP, gb_control_probe_ap),
     GB_HANDLER(GB_CONTROL_TYPE_GET_MANIFEST_SIZE, gb_control_get_manifest_size),
     GB_HANDLER(GB_CONTROL_TYPE_GET_MANIFEST, gb_control_get_manifest),
     GB_HANDLER(GB_CONTROL_TYPE_CONNECTED, gb_control_connected),

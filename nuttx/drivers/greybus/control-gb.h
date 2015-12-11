@@ -38,7 +38,7 @@
 /* Greybus control request types */
 #define GB_CONTROL_TYPE_INVALID                 0x00
 #define GB_CONTROL_TYPE_PROTOCOL_VERSION        0x01
-#define GB_CONTROL_TYPE_PROBE_AP                0x02
+/* RESERVED					0x02 */
 #define GB_CONTROL_TYPE_GET_MANIFEST_SIZE       0x03
 #define GB_CONTROL_TYPE_GET_MANIFEST            0x04
 #define GB_CONTROL_TYPE_CONNECTED               0x05
