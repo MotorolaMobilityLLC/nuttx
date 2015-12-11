@@ -33,8 +33,6 @@
 // Use version MSB to identify battery and LSB as the version of the config for
 // this battery. Incrementing version number forces re-programming of config
 // data, otherwise data is only programmed after Power-On reset of the device.
-
-#ifdef CONFIG_BATTERY_MAX17050_SAMPLE_CFG
 const struct max17050_config max17050_cfg = {
     .version        = 0xFF00,
     // Application specific settings
@@ -68,6 +66,3 @@ const struct max17050_config max17050_cfg = {
         0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100, 0x0100
     }
 };
-#else
-// Place configurations for actual batteries here
-#endif

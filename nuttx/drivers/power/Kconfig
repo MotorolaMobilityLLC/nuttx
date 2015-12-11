@@ -36,6 +36,12 @@ choice
 	prompt "Select Battery Specific Configuration"
 config BATTERY_MAX17050_SAMPLE_CFG
 	bool "Sample configuration"
+        ---help---
+                Sample configuration for a 300mAh cell.
+config BATTERY_MAX17050_STD_MODEL_2220_CFG
+        bool "Standard model (2220mAh) configuration"
+        ---help---
+                Maxim Integrated's standard model for a 2220mAh cell.
 endchoice
 endif
 
