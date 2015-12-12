@@ -228,7 +228,6 @@ struct clk_info clk_names[] = {
     { TSB_CLK_I2SSYS,       "i2ssys" },
     { TSB_CLK_I2SBIT,       "i2sbit" },
     { TSB_CLK_UNIPROSYS,    "unipro_sys" },
-    { TSB_CLK_UNIPROREF,    "unipro_ref" },
     { TSB_CLK_HSIC480,      "hsic480" },
     { TSB_CLK_HSICBUS,      "hsicbus" },
     { TSB_CLK_HSICREF,      "hsicref" },

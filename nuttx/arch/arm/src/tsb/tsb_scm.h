@@ -69,10 +69,9 @@
 #define TSB_CLK_I2SSYS          (TSB_SCM_REG1 | 0)
 #define TSB_CLK_I2SBIT          (TSB_SCM_REG1 | 1)
 #define TSB_CLK_UNIPROSYS       (TSB_SCM_REG1 | 2)
-#define TSB_CLK_UNIPROREF       (TSB_SCM_REG1 | 3)
-#define TSB_CLK_HSIC480         (TSB_SCM_REG1 | 4)
-#define TSB_CLK_HSICBUS         (TSB_SCM_REG1 | 5)
-#define TSB_CLK_HSICREF         (TSB_SCM_REG1 | 6)
+#define TSB_CLK_HSIC480         (TSB_SCM_REG1 | 3)
+#define TSB_CLK_HSICBUS         (TSB_SCM_REG1 | 4)
+#define TSB_CLK_HSICREF         (TSB_SCM_REG1 | 5)
 
 /* Register 2 (APBridge only) */
 #define TSB_CLK_CDSI0_TX_SYS    (TSB_SCM_REG2 | 0)
