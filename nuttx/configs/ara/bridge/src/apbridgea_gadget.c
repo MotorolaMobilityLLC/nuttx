@@ -143,8 +143,8 @@
 
 #define APBRIDGE_MANUFACTURERSTRID   (1)
 #define APBRIDGE_PRODUCTSTRID        (2)
-#define APBRIDGE_SERIALSTRID         (3)
-#define APBRIDGE_CONFIGSTRID         (4)
+#define APBRIDGE_SERIALSTRID         (0)
+#define APBRIDGE_CONFIGSTRID         (0)
 
 /* Buffer big enough for any of our descriptors */
 
@@ -207,6 +207,8 @@ struct apbridge_dev_s {
     struct gb_timestamp *ts;
     int epout_to_cport_n[APBRIDGE_NBULKS];
 
+    struct gadget_descriptor *g_desc;
+
     struct apbridge_usb_driver *driver;
 };
 
@@ -231,10 +233,8 @@ enum ctrlreq_state {
 
 /* Configuration ***********************************************************/
 
-static int usbclass_mkstrdesc(uint8_t id, struct usb_strdesc_s *strdesc);
 static void usbclass_mkepdesc(const struct usb_epdesc_s *indesc,
                               uint16_t mxpacket, struct usb_epdesc_s *outdesc);
-static int16_t usbclass_mkcfgdesc(uint8_t * buf, uint8_t speed, uint8_t type);
 static void usbclass_resetconfig(struct apbridge_dev_s *priv);
 static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config);
 
@@ -340,10 +340,9 @@ static const struct usb_epdesc_s g_epbulkindesc = {
     0                           /* interval */
 };
 
-static const struct usb_epdesc_s *g_usbdesc[APBRIDGE_MAX_ENDPOINTS] = {
-    NULL,               /* No descriptor for ep0 */
-    &g_epbulkindesc,
-    &g_epbulkoutdesc,
+static const struct usb_desc_s *g_usb_desc[APBRIDGE_MAX_ENDPOINTS + 2] = {
+    (struct usb_desc_s *) &g_ifdesc,
+    NULL,
 };
 
 static const struct usb_qualdesc_s g_qualdesc = {
@@ -356,6 +355,20 @@ static const struct usb_qualdesc_s g_qualdesc = {
     CONFIG_APBRIDGE_EP0MAXPACKET,       /* mxpacketsize */
     APBRIDGE_NCONFIGS,          /* nconfigs */
     0,                          /* reserved */
+};
+
+static const struct gadget_string g_strings[] = {
+    {APBRIDGE_MANUFACTURERSTRID, "Toshiba"},
+    {APBRIDGE_PRODUCTSTRID, "APBridgeA"},
+    { },
+};
+
+static const struct gadget_strings g_strings_table[] = {
+    {
+        .lang = 0x0409, /* en-us */
+        .strs = g_strings,
+    },
+    { }
 };
 
 static inline
@@ -544,68 +557,6 @@ void map_cport_to_ep(struct apbridge_dev_s *priv,
  ****************************************************************************/
 
 /****************************************************************************
- * Name: usbclass_mkstrdesc
- *
- * Description:
- *   Construct a string descriptor
- *
- ****************************************************************************/
-
-static int usbclass_mkstrdesc(uint8_t id, struct usb_strdesc_s *strdesc)
-{
-    const char *str;
-    int len;
-    int ndata;
-    int i;
-
-    switch (id) {
-    case 0:
-        {
-            /* Descriptor 0 is the language id */
-
-            strdesc->len = 4;
-            strdesc->type = USB_DESC_TYPE_STRING;
-            strdesc->data[0] = LSBYTE(APBRIDGE_STR_LANGUAGE);
-            strdesc->data[1] = MSBYTE(APBRIDGE_STR_LANGUAGE);
-            return 4;
-        }
-
-    case APBRIDGE_MANUFACTURERSTRID:
-        str = CONFIG_APBRIDGE_VENDORSTR;
-        break;
-
-    case APBRIDGE_PRODUCTSTRID:
-        str = CONFIG_APBRIDGE_PRODUCTSTR;
-        break;
-
-    case APBRIDGE_SERIALSTRID:
-        str = CONFIG_APBRIDGE_SERIALSTR;
-        break;
-
-    case APBRIDGE_CONFIGSTRID:
-        str = CONFIG_APBRIDGE_CONFIGSTR;
-        break;
-
-    default:
-        return -EINVAL;
-    }
-
-    /* The string is utf16-le.  The poor man's utf-8 to utf16-le
-     * conversion below will only handle 7-bit en-us ascii
-     */
-
-    len = strlen(str);
-    for (i = 0, ndata = 0; i < len; i++, ndata += 2) {
-        strdesc->data[ndata] = str[i];
-        strdesc->data[ndata + 1] = 0;
-    }
-
-    strdesc->len = ndata + 2;
-    strdesc->type = USB_DESC_TYPE_STRING;
-    return strdesc->len;
-}
-
-/****************************************************************************
  * Name: usbclass_mkepdesc
  *
  * Description:
@@ -625,68 +576,6 @@ static inline void usbclass_mkepdesc(const struct usb_epdesc_s *indesc,
 
     outdesc->mxpacketsize[0] = LSBYTE(mxpacket);
     outdesc->mxpacketsize[1] = MSBYTE(mxpacket);
-}
-
-/****************************************************************************
- * Name: usbclass_mkcfgdesc
- *
- * Description:
- *   Construct the configuration descriptor
- *
- ****************************************************************************/
-
-static int16_t usbclass_mkcfgdesc(uint8_t * buf, uint8_t speed, uint8_t type)
-{
-    int i;
-    struct usb_cfgdesc_s *cfgdesc = (struct usb_cfgdesc_s *)buf;
-    bool hispeed = (speed == USB_SPEED_HIGH);
-    uint16_t mxpacket;
-    uint16_t totallen;
-
-    /* This is the total length of the configuration (not necessarily the
-     * size that we will be sending now.
-     */
-
-    totallen =
-        USB_SIZEOF_CFGDESC + USB_SIZEOF_IFDESC +
-        APBRIDGE_NENDPOINTS * USB_SIZEOF_EPDESC;
-
-    /* Configuration descriptor -- Copy the canned descriptor and fill in the
-     * type (we'll also need to update the size below
-     */
-
-    memcpy(cfgdesc, &g_cfgdesc, USB_SIZEOF_CFGDESC);
-    buf += USB_SIZEOF_CFGDESC;
-
-    /*  Copy the canned interface descriptor */
-
-    memcpy(buf, &g_ifdesc, USB_SIZEOF_IFDESC);
-    buf += USB_SIZEOF_IFDESC;
-
-    /* Make the three endpoint configurations.  First, check for switches
-     * between high and full speed
-     */
-
-    if (type == USB_DESC_TYPE_OTHERSPEEDCONFIG) {
-        hispeed = !hispeed;
-    }
-
-    for (i = 1; i < APBRIDGE_MAX_ENDPOINTS; i++) {
-        if (hispeed) {
-            mxpacket = GETUINT16(g_usbdesc[i]->mxpacketsize);
-        } else {
-            mxpacket = 64;
-        }
-        usbclass_mkepdesc(g_usbdesc[i],
-                          mxpacket, (struct usb_epdesc_s *)buf);
-        buf += USB_SIZEOF_EPDESC;
-    }
-
-    /* Finally, fill in the total size of the configuration descriptor */
-
-    cfgdesc->totallen[0] = LSBYTE(totallen);
-    cfgdesc->totallen[1] = MSBYTE(totallen);
-    return totallen;
 }
 
 /****************************************************************************
@@ -766,14 +655,14 @@ static int usbclass_setconfig(struct apbridge_dev_s *priv, uint8_t config)
         return -EINVAL;
     }
 
-    for (i = 1; i < APBRIDGE_MAX_ENDPOINTS; i++) {
+    for (i = 0; i < APBRIDGE_NENDPOINTS; i++) {
         if (priv->usbdev->speed == USB_SPEED_HIGH) {
-            mxpacket = GETUINT16(g_usbdesc[i]->mxpacketsize);
+            mxpacket = GETUINT16(((struct usb_epdesc_s *)g_usb_desc[i + 1])->mxpacketsize);
         } else {
             mxpacket = 64;
         }
-        usbclass_mkepdesc(g_usbdesc[i], mxpacket, &epdesc);
-        ret = EP_CONFIGURE(priv->ep[i], &epdesc, false);
+        usbclass_mkepdesc((struct usb_epdesc_s *)g_usb_desc[i + 1], mxpacket, &epdesc);
+        ret = EP_CONFIGURE(priv->ep[i + 1], &epdesc, false);
         if (ret < 0) {
             usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_EPINTINCONFIGFAIL), 0);
             goto errout;
@@ -1001,16 +890,18 @@ static void g_usbdesc_init(void) {
     int i;
     struct usb_epdesc_s *usbdesc;
 
+    memset(&g_usb_desc[1], 0,
+           sizeof(struct usb_epdesc_s *) * APBRIDGE_MAX_ENDPOINTS);
     for (i = 0; i < APBRIDGE_NBULKS; i++) {
         usbdesc = malloc(sizeof(struct usb_epdesc_s));
         memcpy(usbdesc, &g_epbulkoutdesc, sizeof(struct usb_epdesc_s));
         usbdesc->addr += i * 2;
-        g_usbdesc[i * 2 + CONFIG_APBRIDGE_EPBULKOUT] = usbdesc;
+        g_usb_desc[i * 2 + CONFIG_APBRIDGE_EPBULKOUT] = (struct usb_desc_s *)usbdesc;
 
         usbdesc = malloc(sizeof(struct usb_epdesc_s));
         memcpy(usbdesc, &g_epbulkindesc, sizeof(struct usb_epdesc_s));
         usbdesc->addr += i * 2;
-        g_usbdesc[i * 2 + CONFIG_APBRIDGE_EPBULKIN] = usbdesc;
+        g_usb_desc[i * 2 + CONFIG_APBRIDGE_EPBULKIN] = (struct usb_desc_s *)usbdesc;
     }
 }
 
@@ -1037,10 +928,15 @@ static int usbclass_bind(struct usbdevclass_driver_s *driver,
 
      g_usbdesc_init();
 
+    priv->g_desc = gadget_descriptor_alloc(&g_devdesc, &g_qualdesc);
+    if (!priv->g_desc)
+        goto error;
+    gadget_add_cfgdesc(priv->g_desc, &g_cfgdesc, g_usb_desc);
+    gadget_set_strings(priv->g_desc, g_strings_table);
     /* Allocate endpoints */
 
     for (i = 0; i < APBRIDGE_MAX_ENDPOINTS; i++) {
-        ret = allocep(priv, g_usbdesc[i]);
+        ret = allocep(priv, (struct usb_epdesc_s *)g_usb_desc[i + 1]);
         if (ret < 0)
             goto error;
     }
@@ -1130,6 +1026,7 @@ static void usbclass_unbind(struct usbdevclass_driver_s *driver,
             freeep(priv, i);
         }
 
+        gadget_descriptor_free(priv->g_desc);
     }
 }
 
@@ -1290,6 +1187,12 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
 
     *req_priv = USB_REQ;
 
+    /* Manage enumeration and other common requests */
+    ret = gadget_control_handler(priv->g_desc, dev, req, ctrl);
+    if (ret != -EOPNOTSUPP) {
+        return ret;
+    }
+
     /* Extract the little-endian 16-bit values to host order */
 
     value = GETUINT16(ctrl->value);
@@ -1307,57 +1210,6 @@ static int usbclass_setup(struct usbdevclass_driver_s *driver,
     case USB_REQ_TYPE_STANDARD:
         {
             switch (ctrl->req) {
-            case USB_REQ_GETDESCRIPTOR:
-                {
-                    /* The value field specifies the descriptor type in the MS byte and the
-                     * descriptor index in the LS byte (order is little endian)
-                     */
-
-                    switch (ctrl->value[1]) {
-                    case USB_DESC_TYPE_DEVICE:
-                        {
-                            ret = USB_SIZEOF_DEVDESC;
-                            memcpy(req->buf, &g_devdesc, ret);
-                        }
-                        break;
-
-                    case USB_DESC_TYPE_DEVICEQUALIFIER:
-                        {
-                            ret = USB_SIZEOF_QUALDESC;
-                            memcpy(req->buf, &g_qualdesc, ret);
-                        }
-                        break;
-
-                    case USB_DESC_TYPE_OTHERSPEEDCONFIG:
-                    case USB_DESC_TYPE_CONFIG:
-                        {
-                            ret =
-                                usbclass_mkcfgdesc(req->buf, dev->speed,
-                                                   ctrl->req);
-                        }
-                        break;
-
-                    case USB_DESC_TYPE_STRING:
-                        {
-                            /* index == language code. */
-
-                            ret =
-                                usbclass_mkstrdesc(ctrl->value[0],
-                                                   (struct usb_strdesc_s *)
-                                                   req->buf);
-                        }
-                        break;
-
-                    default:
-                        {
-                            usbtrace(TRACE_CLSERROR
-                                     (USBSER_TRACEERR_GETUNKNOWNDESC), value);
-                        }
-                        break;
-                    }
-                }
-                break;
-
             case USB_REQ_SETCONFIGURATION:
                 {
                     if (ctrl->type == 0) {
