@@ -220,7 +220,7 @@ static struct mm_buffer *get_buffer(int order)
         return buffer;
     }
 
-    return get_buffer(order);
+    return NULL;
 }
 
 void *bufram_alloc(size_t size)
