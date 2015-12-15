@@ -33,7 +33,7 @@
 
 #ifdef DEBUG
     #ifdef CONFIG_NSH_CONSOLE
-        #define CAM_DBG printf
+        #define CAM_DBG(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
     #else
         #define CAM_DBG lldbg
     #endif
@@ -42,7 +42,7 @@
 #endif
 
 #ifdef CONFIG_NSH_CONSOLE
-    #define CAM_ERR printf
+    #define CAM_ERR(fmt, ...) printf("%s" fmt, __func__, ##__VA_ARGS__)
 #else
     #define CAM_ERR lldbg
 #endif
