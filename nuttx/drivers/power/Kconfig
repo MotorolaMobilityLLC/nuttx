@@ -48,6 +48,10 @@ config BATTERY_MAX17050_STD_MODEL_2220_CFG
         bool "Standard model (2220mAh) configuration"
         ---help---
                 Maxim Integrated's standard model for a 2220mAh cell.
+config BATTERY_MAX17050_STD_MODEL_1580_CFG
+        bool "Standard model (1580mAh) configuration"
+        ---help---
+                Maxim Integrated's standard model for a 1580mAh cell.
 endchoice
 endif
 
