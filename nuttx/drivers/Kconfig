@@ -60,6 +60,10 @@ config GHOST_DISPLAY
     bool "Ghost Display"
     default n
 
+config GREYBUS_CAMERA_TC35874X
+    bool "TC35874X Camera Test Pattern generator"
+    default n
+
 config DEV_RANDOM
 	bool "Enable /dev/random"
 	default n
