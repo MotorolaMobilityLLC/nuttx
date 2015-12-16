@@ -65,10 +65,6 @@ menu "NSH Library"
 source "$APPSDIR/nshlib/Kconfig"
 endmenu
 
-menu "NxWidgets/NxWM"
-source "$APPSDIR/NxWidgets/Kconfig"
-endmenu
-
 menu "Platform-specific Support"
 source "$APPSDIR/platform/Kconfig"
 endmenu
