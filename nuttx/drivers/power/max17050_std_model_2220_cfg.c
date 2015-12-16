@@ -34,7 +34,7 @@
 // this battery. Incrementing version number forces re-programming of config
 // data, otherwise data is only programmed after Power-On reset of the device.
 const struct max17050_config max17050_cfg = {
-    .version        = 0x0000,
+    .version        = 0x0200,
     // Application specific settings
     .config         = 0x0210,   // Enable Temperature channel with updates every 1.4S
     .relax_cfg      = 0x023B,   // Load = 5 mA, dV = 3.75 mV, dT = 6 mins
