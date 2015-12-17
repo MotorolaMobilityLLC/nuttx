@@ -3,7 +3,6 @@ misc/tools/README.txt
 
 Contents:
 
-  o genromfs-0.5.2.tar.gz
   o kconfig-frontends
     - General Build Instructions
     - Graphical Configuration Tools
@@ -15,16 +14,6 @@ Contents:
     - kconfig-frontends for Windows
     - Buildroot
   o osmocon
-
-genromfs-0.5.2.tar.gz
-=====================
-
-  This is a snapshot of the genromfs tarball taken from
-  http://sourceforge.net/projects/romfs/.  This snapshot is provided to
-  assure that a working version of genromfs is always available for NuttX.
-
-  This tool is also include in the buildroot and can be built automatically
-  from the buildroot.
 
 kconfig-frontends
 =================
