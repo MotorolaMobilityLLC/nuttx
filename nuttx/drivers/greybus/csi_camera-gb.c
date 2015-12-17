@@ -12,6 +12,8 @@
 
 #include "csi_camera.h"
 
+#include <apps/ice/cdsi.h>
+
 /* Version of the Greybus camera protocol we support */
 #define GB_CAMERA_VERSION_MAJOR 0x00
 #define GB_CAMERA_VERSION_MINOR 0x01
