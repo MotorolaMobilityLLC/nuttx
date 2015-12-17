@@ -73,6 +73,7 @@
 #define MAX17050_REG_RELAX_CFG          0x2A
 #define MAX17050_REG_TGAIN              0x2C
 #define MAX17050_REG_TOFF               0x2D
+#define MAX17050_REG_CGAIN              0x2E
 #define MAX17050_REG_Q_RESIDUAL_20      0x32
 #define MAX17050_REG_RCOMP0             0x38
 #define MAX17050_REG_TEMPCO             0x39
@@ -107,6 +108,8 @@
 #define MAX17050_REM_CAP_DIV            25600
 #define MAX17050_DQ_ACC_DIV             16
 #define MAX17050_DP_ACC                 0x0C80
+
+#define MAX17050_CGAIN_REVERSED_SENSE_R 0xC000
 
 /* Priority to report to PM framework when reporting activity */
 #define PM_ACTIVITY                     10
@@ -574,6 +577,13 @@ static int max17050_por_load_new_capacity_params(FAR struct max17050_dev_s *priv
 
 static int max17050_por_init(FAR struct max17050_dev_s *priv)
 {
+    /* Workaround for h/w where sense reistor is connected in reverse to the
+     * fuel gauge CSN and CSP inputs
+     */
+#ifdef CONFIG_BATTERY_MAX17050_REVERSED_SENSE_RESISTOR
+    WRITE(priv, MAX17050_REG_CGAIN, MAX17050_CGAIN_REVERSED_SENSE_R);
+#endif
+
     if (max17050_por_perform_init_config(priv))
         return -EIO;
 
