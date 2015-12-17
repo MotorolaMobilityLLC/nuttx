@@ -60,8 +60,6 @@ static uint8_t gb_operation_errno_map(int code)
         return GB_OP_INVALID;
     case -EAGAIN:
         return GB_OP_RETRY;
-    case -EILSEQ:
-        return GB_OP_MALFUNCTION;
     case -ENODEV:
         return GB_OP_NONEXISTENT;
     case -EIO:
