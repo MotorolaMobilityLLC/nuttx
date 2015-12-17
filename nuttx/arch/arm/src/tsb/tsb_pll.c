@@ -241,6 +241,18 @@ err_unlock:
     return ret;
 }
 
+static int tsb_pll_op_query_frequency(uint32_t frequency)
+{
+    struct tsb_pll_freq_table_entry *pfte;
+
+    /* test if frequency is supported */
+    pfte = tsb_pll_find_pfte(frequency);
+    if (!pfte)
+        return -EINVAL;
+
+    return 0;
+}
+
 static int tsb_pll_dev_open(struct device *dev)
 {
     struct tsb_pll_info *info = device_get_private(dev);
@@ -335,6 +347,7 @@ static struct device_pll_type_ops tsb_pll_type_ops = {
     .start          = tsb_pll_op_start,
     .stop           = tsb_pll_op_stop,
     .set_frequency  = tsb_pll_op_set_frequency,
+    .query_frequency  = tsb_pll_op_query_frequency
 };
 
 static struct device_driver_ops tsb_pll_driver_ops = {
