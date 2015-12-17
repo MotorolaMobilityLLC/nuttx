@@ -57,6 +57,7 @@ const struct max17050_config max17050_cfg = {
     .capacity       = 0x1158,   // 4440 = 2220 mAh for 10mOhm
     .vf_fullcap     = 0x1158,   // 4440 = 2220 mAh for 10mOhm
     .ichg_term      = 0x058D,   // 222mA (units of 1.5625uV/Rsense)
+    .voltage_max_design = 4350000, // uV units
     .cell_data = {
        0x9760, 0xa510, 0xb100, 0xb600, 0xb7a0, 0xb900, 0xba70, 0xbc70,
        0xbde0, 0xbfc0, 0xc250, 0xc510, 0xc990, 0xcea0, 0xd040, 0xd750,

@@ -255,20 +255,12 @@ static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
 
 static int max17050_max_voltage(struct battery_dev_s *dev, b16_t *max_voltage)
 {
-    FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
-    int ret;
+    /* The MAX17050_REG_MAX_VOLT returns the maximum voltage that the IC has
+       seen thus far. Instead we want to return the max_voltage per design */
 
-    if (!priv->initialized)
-        return -EAGAIN;
+    *max_voltage = max17050_cfg.voltage_max_design; // units of mV
 
-    ret = max17050_reg_read(priv, MAX17050_REG_MAX_VOLT);
-    if (ret < 0)
-        return -ENODEV;
-
-    *max_voltage = ret >> 8;
-    *max_voltage *= 20000; /* Units of LSB = 20mV */
-
-    dbg("%d uV\n", *max_voltage);
+    dbg("%d mV\n", *max_voltage);
     return OK;
 }
 
