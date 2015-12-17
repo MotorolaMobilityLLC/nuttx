@@ -57,6 +57,7 @@ const struct max17050_config max17050_cfg = {
     .capacity       = 606,      // 303 mA
     .vf_fullcap     = 606,      // 303 mA
     .ichg_term      = 0x0060,   // 15 mA
+    .voltage_max_design = 4200000, // uV units
     .cell_data = {
         0x9cf0, 0xa310, 0xb180, 0xb360, 0xb6a0, 0xb6e0, 0xba10, 0xbb10,
         0xbbd0, 0xbc10, 0xc200, 0xc250, 0xc7c0, 0xc820, 0xd050, 0xd710,
