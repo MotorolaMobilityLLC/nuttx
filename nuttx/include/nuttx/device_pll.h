@@ -42,6 +42,7 @@ struct device_pll_type_ops {
     int (*start)(struct device *dev);
     int (*stop)(struct device *dev);
     int (*set_frequency)(struct device *dev, uint32_t frequency);
+    int (*query_frequency)(uint32_t frequency);
 };
 
 /**
@@ -99,6 +100,27 @@ static inline int device_pll_set_frequency(struct device *dev,
 
     if (DEVICE_DRIVER_GET_OPS(dev, pll)->set_frequency)
         return DEVICE_DRIVER_GET_OPS(dev, pll)->set_frequency(dev, frequency);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Test if frequency is supported
+ * @param dev PLL device to test frequency of
+ * @param frequency PLL frequency to support
+ * @return 0: PLL frequency set successfully
+ *         -errno: Cause of failure
+ */
+static inline int device_pll_query_frequency(struct device *dev,
+                                             uint32_t frequency)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, pll)->query_frequency)
+        return DEVICE_DRIVER_GET_OPS(dev, pll)->query_frequency(frequency);
 
     return -ENOSYS;
 }
