@@ -32,6 +32,12 @@ config BATTERY_MAX17050
 		Select to support the MAX17050 battery fuel gauge IC.
 
 if BATTERY_MAX17050
+config BATTERY_MAX17050_REVERSED_SENSE_RESISTOR
+	bool "Sense resistor is connected in reverse to the IC inputs"
+	default n
+	---help---
+		Select if sense resistor is erroneously connected in reverse on your h/w.
+
 choice
 	prompt "Select Battery Specific Configuration"
 config BATTERY_MAX17050_SAMPLE_CFG
