@@ -101,6 +101,8 @@ const static struct gb_transport_backend mods_network =
   .send = network_send,
   .listen = network_listen,
   .stop_listening = network_stop_listening,
+  .alloc_buf = zalloc,
+  .free_buf = free,
 };
 
 int mods_network_init(void)
