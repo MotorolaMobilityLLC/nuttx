@@ -65,6 +65,7 @@ struct gb_cport_driver {
     volatile bool exit_worker;
     struct wdog_s timeout_wd;
     struct gb_operation timedout_operation;
+    uint16_t cport;
 };
 
 struct gb_tape_record_header {
@@ -110,9 +111,20 @@ static void g_cport_add_entry(uint16_t cport, struct gb_driver *driver)
         entry->timedout_operation.request_buffer = timedout_hdr;
         list_init(&entry->timedout_operation.list);
         entry->driver = driver;
+        entry->cport = cport;
 
         rtr_add_value(cport_tbl, cport, (void *)entry);
     }
+}
+
+static inline void g_cport_remove_entry(uint16_t cport)
+{
+	struct gb_cport_driver *entry = _g_cport(cport);
+
+	if (entry) {
+		rtr_remove_value(cport_tbl, cport);
+	    free(entry);
+	}
 }
 
 static void gb_operation_timeout(int argc, uint32_t cport, ...);
@@ -360,8 +372,8 @@ static void *gb_pending_message_worker(void *data)
         if (retval < 0)
             continue;
 
-        if (g_cport[cportid].exit_worker &&
-            list_is_empty(&g_cport[cportid].rx_fifo)) {
+        if (g_cport(cportid).exit_worker &&
+            list_is_empty(&g_cport(cportid).rx_fifo)) {
             break;
         }
 
@@ -487,7 +499,7 @@ static void gb_flush_tx_fifo(unsigned int cport)
 {
     struct list_head *iter, *iter_next;
 
-    list_foreach_safe(&g_cport[cport].tx_fifo, iter, iter_next) {
+    list_foreach_safe(&_g_cport(cport)->tx_fifo, iter, iter_next) {
         struct gb_operation *op = list_entry(iter, struct gb_operation, list);
 
         list_del(iter);
@@ -497,23 +509,24 @@ static void gb_flush_tx_fifo(unsigned int cport)
 
 int gb_unregister_driver(unsigned int cport)
 {
-    if (cport >= cport_count || !g_cport[cport].driver || !transport_backend)
+    if (!gb_is_valid_cport(cport) || !_g_cport(cport) ||
+		!_g_cport(cport)->driver || !transport_backend)
         return -EINVAL;
 
     if (transport_backend->stop_listening)
         transport_backend->stop_listening(cport);
 
-    wd_cancel(&g_cport[cport].timeout_wd);
+    wd_cancel(&g_cport(cport).timeout_wd);
 
-    g_cport[cport].exit_worker = true;
-    sem_post(&g_cport[cport].rx_fifo_lock);
-    pthread_join(g_cport[cport].thread, NULL);
+    g_cport(cport).exit_worker = true;
+    sem_post(&g_cport(cport).rx_fifo_lock);
+    pthread_join(g_cport(cport).thread, NULL);
 
     gb_flush_tx_fifo(cport);
 
-    if (g_cport[cport].driver->exit)
-        g_cport[cport].driver->exit(cport);
-    g_cport[cport].driver = NULL;
+    if (g_cport(cport).driver->exit)
+        g_cport(cport).driver->exit(cport);
+    _g_cport(cport)->driver = NULL;
 
     return 0;
 }
@@ -564,7 +577,7 @@ int _gb_register_driver(unsigned int cport, struct gb_driver *driver)
               sizeof(*driver->op_handlers), gb_compare_handlers);
     }
 
-    g_cport[cport].exit_worker = false;
+    g_cport(cport).exit_worker = false;
 
     if (!driver->stack_size)
         driver->stack_size = DEFAULT_STACK_SIZE;
@@ -669,7 +682,7 @@ int gb_operation_send_request(struct gb_operation *operation,
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->send);
 
-    if (g_cport[operation->cport].exit_worker)
+    if (g_cport(operation->cport).exit_worker)
         return -ENETDOWN;
 
     hdr->id = 0;
@@ -735,7 +748,7 @@ static int gb_operation_send_oom_response(struct gb_operation *operation)
     irqstate_t flags;
     struct gb_operation_hdr *req_hdr = operation->request_buffer;
 
-    if (g_cport[operation->cport].exit_worker)
+    if (g_cport(operation->cport).exit_worker)
         return -ENETDOWN;
 
     flags = irqsave();
@@ -761,7 +774,7 @@ int gb_operation_send_response(struct gb_operation *operation, uint8_t result)
     DEBUGASSERT(transport_backend);
     DEBUGASSERT(transport_backend->send);
 
-    if (g_cport[operation->cport].exit_worker)
+    if (g_cport(operation->cport).exit_worker)
         return -ENETDOWN;
 
     if (operation->has_responded)
@@ -994,18 +1007,29 @@ int gb_init(struct gb_transport_backend *transport)
 void gb_deinit(void)
 {
     int i;
+    struct gb_cport_driver *drv;
+    void *v;
 
     if (!transport_backend)
         return; /* gb not initialized */
 
-    for (i = 0; i < cport_count; i++) {
+    for (v = rtr_get_first_value(cport_tbl);
+         v != NULL;
+         v = rtr_get_next_value(cport_tbl, i)) {
+
+        drv = (struct gb_cport_driver *) v;
+        i = drv->cport;
+
         gb_unregister_driver(i);
 
-        wd_delete(&g_cport[i].timeout_wd);
-        sem_destroy(&g_cport[i].rx_fifo_lock);
+        wd_delete(&drv->timeout_wd);
+        sem_destroy(&drv->rx_fifo_lock);
+
+        g_cport_remove_entry(i);
     }
 
-    free(g_cport);
+    rtr_free_table(cport_tbl);
+    cport_tbl = NULL;
 
     if (transport_backend->exit)
         transport_backend->exit();
@@ -1106,21 +1130,21 @@ error_buffer_alloc:
 
 int gb_notify(unsigned cport, enum gb_event event)
 {
-    if (cport >= cport_count)
+    if (!gb_is_valid_cport(cport))
         return -EINVAL;
 
-    if (!g_cport[cport].driver)
+    if (!_g_cport(cport)->driver)
         return -ENOTCONN;
 
     switch (event) {
     case GB_EVT_CONNECTED:
-        if (g_cport[cport].driver->connected)
-            g_cport[cport].driver->connected(cport);
+        if (g_cport(cport).driver->connected)
+            g_cport(cport).driver->connected(cport);
         break;
 
     case GB_EVT_DISCONNECTED:
-        if (g_cport[cport].driver->disconnected)
-            g_cport[cport].driver->disconnected(cport);
+        if (g_cport(cport).driver->disconnected)
+            g_cport(cport).driver->disconnected(cport);
         break;
 
     default:
