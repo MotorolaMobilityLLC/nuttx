@@ -34,3 +34,8 @@ unsigned int unipro_cport_count(void)
 {
   return CONFIG_GREYBUS_MODS_NUM_CPORTS;
 }
+
+
+void unipro_rxbuf_free(unsigned int cportid, void *ptr)
+{
+}
