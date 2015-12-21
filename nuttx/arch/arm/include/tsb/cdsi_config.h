@@ -35,8 +35,10 @@
 struct cdsi_config {
     /* Common */
     uint32_t mode:1;       /* TSB_CDSI_MODE_DSI | TSB_CDSI_MODE_CSI */
-    uint32_t num_lanes:3;
-    uint32_t mbits_per_lane;
+    uint32_t rx_num_lanes:3;
+    uint32_t tx_num_lanes:3;
+    uint32_t rx_mbits_per_lane;
+    uint32_t tx_mbits_per_lane;
     /* RX only */
     uint32_t hs_rx_timeout;
     /* TX only */

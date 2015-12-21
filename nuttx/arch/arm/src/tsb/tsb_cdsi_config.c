@@ -553,7 +553,7 @@ static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
 }
 
 int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
-    const struct rx_table_row *rx_table = CDSI_LOOKUP_TABLE(rx_table, config->mbits_per_lane);
+    const struct rx_table_row *rx_table = CDSI_LOOKUP_TABLE(rx_table, config->rx_mbits_per_lane);
 
     cdsi_write(dev, CDSI_AL_RX_BRG_CSI_INFO_OFFS, 0);
     cdsi_write(dev, CDSI_AL_RX_BRG_CSI_DT0_OFFS, 0);
@@ -594,7 +594,7 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
     /* Lane configuration */
     CDSI_WRITE(dev, CDSI_CDSIRX_LANE_ENABLE, CLANEEN, 1);
-    CDSI_MODIFY(dev, CDSI_CDSIRX_LANE_ENABLE, DTLANEEN, config->num_lanes);
+    CDSI_MODIFY(dev, CDSI_CDSIRX_LANE_ENABLE, DTLANEEN, config->rx_num_lanes);
 
     /* Enable virtual channels 0-3. */
     cdsi_write(dev, CDSI_CDSIRX_VC_ENABLE_OFFS, 0xf);
@@ -665,7 +665,7 @@ static void cdsi_clear_tx_status(struct cdsi_dev *dev) {
 }
 
 int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
-    lldbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->num_lanes, config->mbits_per_lane);
+    lldbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->tx_num_lanes, config->tx_mbits_per_lane);
     lldbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
     lldbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
     lldbg("video_mode=%d\n", config->video_mode);
@@ -686,7 +686,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
         lldbg("ERROR: hsck invalid: %d\n", hsck);
     }
 
-    const int32_t delta = (config->mbits_per_lane / 1000 / 1000) - hsck;
+    const int32_t delta = (config->tx_mbits_per_lane / 1000 / 1000) - hsck;
     lldbg("delta=%d\n", delta);
     if (delta > 0) {
         lldbg("ERROR: delta invalid: %d\n", delta);
@@ -695,18 +695,18 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     const uint32_t horz_period_ns = 1000*1000*1000 / config->framerate / config->height;
     lldbg("horz_period_ns=%d\n", horz_period_ns);
 
-    const struct sys_cld_tclk_table_row *sys_cld_tclk_table_row = CDSI_LOOKUP_TABLE(sys_cld_tclk_table, config->mbits_per_lane);
-    const struct tx_table_row *tx_table_row = CDSI_LOOKUP_TABLE(tx_table, config->mbits_per_lane);
-    const struct tclk_pre_zero_cnt_table_row *tclk_pre_zero_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_pre_zero_cnt_table, config->mbits_per_lane);
-    const struct tclk_pre_cnt_table_row *tclk_pre_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_pre_cnt_table, config->mbits_per_lane);
-    const struct tclk_prepare_cnt_table_row *tclk_prepare_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_prepare_cnt_table, config->mbits_per_lane);
-    const struct tclk_exit_cnt_table_row *tclk_exit_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_exit_cnt_table, config->mbits_per_lane);
-    const struct tclk_trail_cnt_table_row *tclk_trail_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_trail_cnt_table, config->mbits_per_lane);
-    const struct ths_pre_zero_cnt_table_row *ths_pre_zero_cnt_table_row = CDSI_LOOKUP_TABLE(ths_pre_zero_cnt_table, config->mbits_per_lane);
-    const struct ths_prepare_cnt_table_row *ths_prepare_cnt_table_row = CDSI_LOOKUP_TABLE(ths_prepare_cnt_table, config->mbits_per_lane);
-    const struct ths_exit_cnt_table_row *ths_exit_cnt_table_row = CDSI_LOOKUP_TABLE(ths_exit_cnt_table, config->mbits_per_lane);
-    const struct ths_trail_cnt_table_row *ths_trail_cnt_table_row = CDSI_LOOKUP_TABLE(ths_trail_cnt_table, config->mbits_per_lane);
-    const struct tclk_post_cnt_table_row *tclk_post_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_post_cnt_table, config->mbits_per_lane);
+    const struct sys_cld_tclk_table_row *sys_cld_tclk_table_row = CDSI_LOOKUP_TABLE(sys_cld_tclk_table, config->tx_mbits_per_lane);
+    const struct tx_table_row *tx_table_row = CDSI_LOOKUP_TABLE(tx_table, config->tx_mbits_per_lane);
+    const struct tclk_pre_zero_cnt_table_row *tclk_pre_zero_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_pre_zero_cnt_table, config->tx_mbits_per_lane);
+    const struct tclk_pre_cnt_table_row *tclk_pre_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_pre_cnt_table, config->tx_mbits_per_lane);
+    const struct tclk_prepare_cnt_table_row *tclk_prepare_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_prepare_cnt_table, config->tx_mbits_per_lane);
+    const struct tclk_exit_cnt_table_row *tclk_exit_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_exit_cnt_table, config->tx_mbits_per_lane);
+    const struct tclk_trail_cnt_table_row *tclk_trail_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_trail_cnt_table, config->tx_mbits_per_lane);
+    const struct ths_pre_zero_cnt_table_row *ths_pre_zero_cnt_table_row = CDSI_LOOKUP_TABLE(ths_pre_zero_cnt_table, config->tx_mbits_per_lane);
+    const struct ths_prepare_cnt_table_row *ths_prepare_cnt_table_row = CDSI_LOOKUP_TABLE(ths_prepare_cnt_table, config->tx_mbits_per_lane);
+    const struct ths_exit_cnt_table_row *ths_exit_cnt_table_row = CDSI_LOOKUP_TABLE(ths_exit_cnt_table, config->tx_mbits_per_lane);
+    const struct ths_trail_cnt_table_row *ths_trail_cnt_table_row = CDSI_LOOKUP_TABLE(ths_trail_cnt_table, config->tx_mbits_per_lane);
+    const struct tclk_post_cnt_table_row *tclk_post_cnt_table_row = CDSI_LOOKUP_TABLE(tclk_post_cnt_table, config->tx_mbits_per_lane);
 
     cdsi_write(dev, CDSI_AL_TX_BRG_SOFT_RESET_OFFS, 1);
     cdsi_write(dev, CDSI_AL_TX_BRG_SYSCLK_ENABLE_OFFS, 1);
@@ -731,7 +731,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
         csi2dsi_sel = 0x3;
 
-        vdelay_end = vdelay_start = (config->mbits_per_lane / 1000 / 1000 * horz_period_ns / 1000 / 8 + 1) / 2;
+        vdelay_end = vdelay_start = (config->tx_mbits_per_lane / 1000 / 1000 * horz_period_ns / 1000 / 8 + 1) / 2;
     } else {
         if (config->video_mode) {
             brg_mode = 0;
@@ -744,7 +744,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
             csi2dsi_sel = 0;
 
-            vdelay_start = config->mbits_per_lane / 1000 / 1000 * horz_period_ns / 1000 / 8 + 1;
+            vdelay_start = config->tx_mbits_per_lane / 1000 / 1000 * horz_period_ns / 1000 / 8 + 1;
             vdelay_end = 0;
         } else {
             brg_mode = CDSI_AL_TX_BRG_MODE_AL_TX_BRG_COMMAND_MODE_MASK;
@@ -757,7 +757,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
             csi2dsi_sel = 0;
 
-            vdelay_start = vdelay_end = config->mbits_per_lane / 8 / 1000 / 2 * horz_period_ns + 1;
+            vdelay_start = vdelay_end = config->tx_mbits_per_lane / 8 / 1000 / 2 * horz_period_ns + 1;
         }
     }
 
@@ -825,7 +825,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     cdsi_write(dev, CDSI_CDSITX_PLL_CONTROL_01_OFFS, 1);
 
     /* Set the four LSBs for each lane enabled, then OR 0x10. */
-    uint32_t lane_enable = 0x10 | ((1 << config->num_lanes) - 1);
+    uint32_t lane_enable = 0x10 | ((1 << config->tx_num_lanes) - 1);
     cdsi_write(dev, CDSI_CDSITX_LANE_ENABLE_00_OFFS, lane_enable);
     cdsi_write(dev, CDSI_CDSITX_LANE_ENABLE_01_OFFS, lane_enable);
     cdsi_write(dev, CDSI_CDSITX_LANE_ENABLE_02_OFFS, lane_enable);
