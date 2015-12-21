@@ -93,8 +93,10 @@ const static uint8_t GHOST_EDID_CONFIG[] = {
 const static struct cdsi_config GHOST_DISPLAY_CONFIG = {
     /* Common */
     .mode = TSB_CDSI_MODE_DSI,
-    .mbits_per_lane = 422*1000*1000,
-    .num_lanes = 4,
+    .tx_num_lanes = 4,
+    .rx_num_lanes = 4,
+    .tx_mbits_per_lane = 422*1000*1000,
+    .rx_mbits_per_lane = 422*1000*1000,
     /* RX only */
     .hs_rx_timeout = 0xffffffff,
     /* TX only */
