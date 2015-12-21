@@ -147,8 +147,10 @@ const static struct cdsi_config CAMERA_CONFIG = {
      */
     /* Common */
     .mode = TSB_CDSI_MODE_CSI,
-    .mbits_per_lane = 518*1000*1000,
-    .num_lanes = 4,
+    .tx_num_lanes = 4,
+    .rx_num_lanes = 4,
+    .tx_mbits_per_lane = 518*1000*1000,
+    .rx_mbits_per_lane = 518*1000*1000,
     /* RX only */
     .hs_rx_timeout = 0xffffffff,
     /* TX only */
