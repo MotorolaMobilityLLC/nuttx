@@ -237,6 +237,7 @@ struct camera_ext_frmival_node const *cam_ext_frmival_set(
                     &parm->capture.timeperframe)) {
                 //accept
                 cfg->frmival.idx_frmival = index;
+                break;
             } else {
                 frmival_node = NULL;
             }
