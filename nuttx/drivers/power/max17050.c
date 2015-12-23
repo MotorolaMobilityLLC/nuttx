@@ -559,7 +559,7 @@ static int max17050_por_advance_to_cc_mode(FAR struct max17050_dev_s *priv)
 static int max17050_por_load_new_capacity_params(FAR struct max17050_dev_s *priv)
 {
     int vfsoc = max17050_reg_read(priv, MAX17050_REG_VFSOC);
-    int remcap = vfsoc * max17050_cfg.vf_fullcap / 256000;
+    int remcap = vfsoc * max17050_cfg.vf_fullcap / 25600;
     int repcap = remcap * max17050_cfg.capacity / max17050_cfg.vf_fullcap;
     int dq_acc = max17050_cfg.vf_fullcap / 16;
 
