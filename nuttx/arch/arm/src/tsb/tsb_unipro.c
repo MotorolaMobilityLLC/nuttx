@@ -616,7 +616,7 @@ static void unipro_evt_handler(enum unipro_event evt)
         break;
 
     case UNIPRO_EVT_LUP_DONE:
-#if defined(CONFIG_TSB_CHIP_REV_ES2)
+#if defined(CONFIG_TSB_CHIP_REV_ES2) && !defined(CONFIG_UNIPRO_P2P)
         es2_apply_mphy_fixup();
 #endif
         break;
