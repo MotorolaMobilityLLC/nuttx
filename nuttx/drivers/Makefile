@@ -96,6 +96,7 @@ include usbdev$(DELIM)Make.defs
 include usbhost$(DELIM)Make.defs
 include wireless$(DELIM)Make.defs
 include greybus$(DELIM)Make.defs
+include display$(DELIM)Make.defs
 
 ifneq ($(CONFIG_NFILE_DESCRIPTORS),0)
   CSRCS += dev_null.c dev_zero.c loop.c

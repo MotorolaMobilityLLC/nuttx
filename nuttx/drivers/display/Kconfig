@@ -1,0 +1,10 @@
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+config DISPLAY_ANX7750
+	bool "Analogix 7750 support"
+	default n
+	select I2C
+	---help---
+		ANX7750 is SlimPort to DisplayPort Converter
+		for video stream up to 4K@30Hz.
