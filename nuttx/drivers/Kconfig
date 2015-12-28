@@ -528,6 +528,16 @@ if SENSORS
 source drivers/sensors/Kconfig
 endif # SENSORS
 
+menuconfig DISPLAY
+	bool "DISPLAY driver Support"
+	default n
+	---help---
+		Enable building of Display related devices.
+
+if DISPLAY
+source drivers/display/Kconfig
+endif # DISPLAY
+
 menuconfig SERCOMM_CONSOLE
 	bool "Osmocom-bb Sercomm Driver Support"
 	default n
