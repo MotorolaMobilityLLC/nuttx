@@ -336,7 +336,7 @@ static int max17050_full_capacity(struct battery_dev_s *dev, b16_t *capacity)
     if (ret < 0)
         return -ENODEV;
 
-    *capacity = ret * 5000000 / max17050_cfg.sns_resistor;
+    *capacity = ret * (5000000 / max17050_cfg.sns_resistor);
 
     dbg("%d uAh\n", *capacity);
     return OK;
