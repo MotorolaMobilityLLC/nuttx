@@ -524,7 +524,7 @@ static int max17050_por_update_full_capacity_params(FAR struct max17050_dev_s *p
 {
     WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP, max17050_cfg.capacity);
     WRITE(priv, MAX17050_REG_DESIGN_CAP, max17050_cfg.vf_fullcap);
-    WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP_NOM, max17050_cfg.capacity);
+    WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP_NOM, max17050_cfg.vf_fullcap);
 
     return 0;
 }
@@ -551,7 +551,7 @@ static int max17050_por_advance_to_cc_mode(FAR struct max17050_dev_s *priv)
 static int max17050_por_load_new_capacity_params(FAR struct max17050_dev_s *priv)
 {
     int vfsoc = max17050_reg_read(priv, MAX17050_REG_VFSOC);
-    int remcap = vfsoc * max17050_cfg.vf_fullcap / 25600;
+    int remcap = vfsoc * max17050_cfg.vf_fullcap / MAX17050_REM_CAP_DIV;
     int repcap = remcap * max17050_cfg.capacity / max17050_cfg.vf_fullcap;
     int dq_acc = max17050_cfg.vf_fullcap / 16;
 
