@@ -26,6 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -44,18 +45,42 @@
 #define LEVELS (TOTAL_BITS / BITS_PER_LEVEL)
 #define TABLE_SIZE (TABLE_ENTRIES * sizeof(void *))
 
-#define SUB_TABLE(a, lvl) ((a >> (lvl * LEVELS)) & LEVEL_MASK)
+#define SUB_TABLE(a, lvl) ((a >> (lvl * BITS_PER_LEVEL)) & LEVEL_MASK)
+
+#define HDR_ENTRIES 1  /* one entry for parent pointer */
+#define HDR_SIZE (HDR_ENTRIES * sizeof(void *))
+#define HDR_NDX    -1
+
+static inline void **_rtr_get_parent(void *tbl[])
+{
+    return tbl[-HDR_ENTRIES];
+}
+
+static void *_rtr_alloc_table(void *parent[])
+{
+    void **child = zalloc(TABLE_SIZE + HDR_SIZE);
+    void *rv;
+
+    child[0] = parent;
+    rv = &child[HDR_ENTRIES];
+    gb_debug("%s ALLOC %p -> %p %p\n", __func__, parent, child, rv);
+    return rv;
+}
 
 void *rtr_alloc_table(void)
 {
-    void *p = zalloc(TABLE_SIZE);
-    return p;
+    return _rtr_alloc_table(NULL);
 }
 
-void rtr_free_table(void **tbl)
+static void _rtr_free_table(void *tbl[])
 {
-    gb_debug("%s FREE %p\n", __func__, tbl);
-    free(tbl);
+    gb_debug("%s FREE %p %p\n", __func__, tbl, &tbl[-HDR_ENTRIES]);
+    free(&tbl[-HDR_ENTRIES]);
+}
+
+void rtr_free_table(void *tbl)
+{
+    _rtr_free_table((void **)tbl);
 }
 
 static void _add_value(void *tbl[], uint16_t a, int lvl, void *data)
@@ -63,11 +88,10 @@ static void _add_value(void *tbl[], uint16_t a, int lvl, void *data)
     int a3 = SUB_TABLE(a, lvl);
 
     if (lvl == 0) {
-            /* TODO: should this be an error if tbl[a3] already has a value */
             tbl[a3] = data;
     } else {
         if (tbl[a3] == NULL) {
-            tbl[a3] = rtr_alloc_table();
+            tbl[a3] = _rtr_alloc_table(tbl);
         }
         _add_value(tbl[a3], a, lvl - 1, data);
     }
@@ -104,7 +128,7 @@ static void _remove_value(void *tbl[], uint16_t a, int lvl)
     }
 
     if (empty && (lvl < LEVELS - 1))
-        rtr_free_table(tbl);
+        _rtr_free_table(tbl);
 }
 
 void rtr_remove_value(void *tbl[], uint16_t a)
@@ -113,7 +137,15 @@ void rtr_remove_value(void *tbl[], uint16_t a)
     _remove_value(tbl, a, LEVELS - 1);
 }
 
-static void *_get_value(void *tbl[], int lvl, uint16_t a)
+/*
+ * tbl    : tbl to search
+ * lvl   : level countdown
+ * a     : requested value
+ * ndx   : offset in table
+ * returns the pointer to the table containing the value.  The
+ * value then is retrieved using  the ndx returned;
+ */
+static void **_get_value(void *tbl[], int lvl, uint16_t a, uint16_t *ndx)
 {
     int a3 = SUB_TABLE(a, lvl);
 
@@ -123,15 +155,127 @@ static void *_get_value(void *tbl[], int lvl, uint16_t a)
     }
 
     if (lvl == 0) {
-        return tbl[a3];
+        *ndx = a3;
+        return tbl;
     } else {
-        return _get_value(tbl[a3], lvl - 1, a);
+        return _get_value(tbl[a3], lvl - 1, a, ndx);
     }
 }
 
 void *rtr_get_value(void *tbl[], uint16_t a)
 {
-    return _get_value(tbl, LEVELS - 1, a);
+    uint16_t ndx;
+    void **l0_tbl;
+
+    l0_tbl = _get_value(tbl, LEVELS - 1, a, &ndx);
+    if (l0_tbl)
+        return l0_tbl[ndx];
+
+    return NULL;
+}
+
+/* return the first entry greater than or equal to the ndx given */
+/* ndx: value representing the index into the table              */
+static void *_rtr_get_first_tbl_entry(void **tbl, uint16_t ndx)
+{
+    int i;
+
+    for (i = ndx; i < TABLE_ENTRIES; i++) {
+        if (tbl[i])
+            return tbl[i];
+    }
+
+    return NULL;
+}
+
+/* find the given pointer in the table */
+static int _rtr_find_ndx(void **tbl, void *p)
+{
+    int i;
+
+    for (i = 0; i < TABLE_ENTRIES; i++)
+        if (tbl[i] == p)
+            return i;
+
+    return -1;
+}
+
+static void *_rtr_get_next_value(void *tbl, int lvl, int ndx)
+{
+    void *rv = NULL;
+    void **parent = NULL;
+    int parent_ndx;
+
+    if (tbl == NULL) {
+        /* we walked off the top - nothing found */
+        return NULL;
+    }
+
+    rv = _rtr_get_first_tbl_entry(tbl, ndx + 1);
+    if (rv) {
+        if (lvl == 0) {
+            /* we are at the bottom level and found an entry */
+            /* we are done */
+            return rv;
+        } else {
+            /* head back down the tree */
+            return _rtr_get_next_value(rv, lvl - 1, -1);
+        }
+    }
+
+    /* up one level, find our parent and index in that table */
+    parent = _rtr_get_parent(tbl);
+    if (!parent) {
+        /* can't go any higher */
+        return NULL;
+    }
+    parent_ndx = _rtr_find_ndx(parent, tbl);
+    assert(parent_ndx >= 0);
+
+    return _rtr_get_next_value(parent, lvl + 1, parent_ndx);
+}
+
+void *rtr_get_next_value(void *tbl, uint16_t last_value)
+{
+    uint16_t ndx;
+
+    /* find the last_value table */
+    void **last_tbl = _get_value(tbl, LEVELS - 1, last_value, &ndx);
+    if (last_tbl) {
+        return _rtr_get_next_value(last_tbl, 0, ndx);
+    }
+
+    return NULL;
+}
+
+static void *_rtr_get_first_value(void **tbl, int lvl)
+{
+    int i;
+
+    gb_debug("%s %p %d\n", __func__, tbl, lvl);
+    if (lvl == 0) {
+        for (i = 0; i < TABLE_ENTRIES; i++) {
+            if (tbl[i]) {
+                gb_debug("found value at ndx %d\n", i);
+                return tbl[i];
+            }
+
+        }
+    } else {
+        for (i = 0; i < TABLE_ENTRIES; i++) {
+            if (tbl[i] != NULL) {
+                gb_debug("found value at ndx %d\n", i);
+                return _rtr_get_first_value(tbl[i], lvl - 1);
+            }
+        }
+    }
+
+    return NULL;
+}
+
+void *rtr_get_first_value(void *tbl)
+{
+    return _rtr_get_first_value((void **)tbl, LEVELS - 1);
 }
 
 #ifdef CONFIG_GREYBUS_DEBUG
@@ -141,15 +285,19 @@ static void _dump_tbls(void *tbl[], int lvl, int p)
     uint16_t full_address;
 
     if (lvl == 0) {
+        gb_debug("DUMP: self %p parent %p\n", tbl, _rtr_get_parent(tbl));
         for (i = 0; i < TABLE_ENTRIES; i++) {
             full_address = i | (p << BITS_PER_LEVEL);
-            if (tbl[i] != NULL)
-                gb_debug("DUMP: %d %08x %p\n", lvl, full_address, tbl[i]);
+            gb_debug("DUMP: %d 0x%08x 0x%08x %p\n", lvl, p, full_address, tbl[i]);
         }
     } else {
+        gb_debug("DUMP: self %p parent %p\n", tbl, tbl[-1]);
+        for (i = 0; i < TABLE_ENTRIES; i++) {
+            full_address = i | (p << BITS_PER_LEVEL);
+            gb_debug("DUMP: %d 0x%08x 0x%08x %p\n", lvl, p, full_address, tbl[i]);
+        }
         for (i = 0; i < TABLE_ENTRIES; i++) {
             if (tbl[i] != NULL) {
-                full_address = i | (p << BITS_PER_LEVEL);
                 _dump_tbls(tbl[i], lvl -1, full_address);
             }
         }

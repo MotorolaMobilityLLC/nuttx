@@ -30,9 +30,13 @@
 #define _RTR_H__
 
 void *rtr_alloc_table(void);
+void rtr_free_table(void *tbl);
 void rtr_add_value(void *tbl[], uint16_t a, void *data);
 void rtr_remove_value(void *tbl[], uint16_t a);
 void *rtr_get_value(void *tbl[], uint16_t a);
+
+void *rtr_get_first_value(void *tbl);
+void *rtr_get_next_value(void *tbl, uint16_t last_value);
 
 #ifdef CONFIG_GREYBUS_DEBUG
 void rtr_dump_tbls(void *tbl[]);
