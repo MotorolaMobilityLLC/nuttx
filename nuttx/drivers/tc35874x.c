@@ -161,6 +161,42 @@ static const struct camera_ext_frmsize_node _frmsizes_rgb888[] = {
     },
 };
 
+static const struct camera_ext_frmsize_node _frmsizes_yuv422[] = {
+    {
+        .raw_data = {
+            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
+            .discrete = {
+                .width = cpu_to_le32(1920),
+                .height = cpu_to_le32(1080),
+            },
+        },
+        .num_frmivals = ARRAY_SIZE(frmival_30_60),
+        .frmival_nodes = frmival_30_60,
+    },
+    {
+        .raw_data = {
+            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
+            .discrete = {
+                .width = cpu_to_le32(1280),
+                .height = cpu_to_le32(720),
+            },
+        },
+        .num_frmivals = ARRAY_SIZE(frmival_30_60_120),
+        .frmival_nodes = frmival_30_60_120,
+    },
+    {
+        .raw_data = {
+            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
+            .discrete = {
+                .width = cpu_to_le32(640),
+                .height = cpu_to_le32(480),
+            },
+        },
+        .num_frmivals = ARRAY_SIZE(frmival_30_60_120),
+        .frmival_nodes = frmival_30_60_120,
+    },
+};
+
 static const struct camera_ext_format_node _formats[] = {
     {
         .raw_data = {
@@ -170,6 +206,15 @@ static const struct camera_ext_format_node _formats[] = {
         },
         .num_frmsizes = ARRAY_SIZE(_frmsizes_rgb888),
         .frmsize_nodes = _frmsizes_rgb888,
+    },
+    {
+        .raw_data = {
+            .name = {'U', 'Y', 'V', 'Y', 0},
+            .fourcc = cpu_to_le32(v4l2_fourcc('U', 'Y', 'V', 'Y')),
+            .depth = cpu_to_le32(16),
+        },
+        .num_frmsizes = ARRAY_SIZE(_frmsizes_yuv422),
+        .frmsize_nodes = _frmsizes_yuv422,
     },
 };
 
@@ -360,6 +405,88 @@ static void set_pll_rgb888(struct tc35874x_i2c_dev_info *i2c, uint32_t width, ui
     tc35874x_write_reg2(i2c, 0x0018, pll2);
 }
 
+static void set_color_yuv422(struct tc35874x_i2c_dev_info *i2c, int repeat,
+                             uint16_t val0, uint16_t val1)
+{
+    int i;
+
+    for (i = 0; i < repeat; i++) {
+        tc35874x_write_reg2(i2c, 0x00e8, val0);
+        tc35874x_write_reg2(i2c, 0x00e8, val1);
+    }
+}
+
+static uint16_t get_vertical_blank_yuv422(uint32_t width)
+{
+    if (width >= 1280)
+        return 10;
+
+    return 20;
+}
+
+
+static uint16_t get_line_length_yuv422(uint32_t width)
+{
+    if (width == 1920)
+        return 1200;
+
+    return 1000;
+}
+
+static void setup_color_bar_yuv422(struct tc35874x_i2c_dev_info *i2c, int width, int height)
+{
+    tc35874x_write_reg2(i2c, 0x00e0, 0x8000);
+    tc35874x_write_reg2(i2c, 0x00e2, get_line_length_yuv422(width));
+    tc35874x_write_reg2(i2c, 0x00e4, get_vertical_blank_yuv422(width));
+
+    /* debug video buffer has size limitation. Use 640 width pattern */
+    int repeat = 640 / 8 / 2; /* 8 color, set 2 pixel at a time */
+
+    set_color_yuv422(i2c, repeat, 0x007f, 0x007f); /* black */
+    set_color_yuv422(i2c, repeat, 0x0000, 0x00ff); /* red */
+    set_color_yuv422(i2c, repeat, 0x7f00, 0x7f00); /* green */
+    set_color_yuv422(i2c, repeat, 0xff00, 0xffff); /* yellow */
+    set_color_yuv422(i2c, repeat, 0x00ff, 0x0000); /* blue */
+    set_color_yuv422(i2c, repeat, 0x7fff, 0x7ff0); /* pink */
+    set_color_yuv422(i2c, repeat, 0xc0ff, 0xc000); /* cyan */
+    set_color_yuv422(i2c, repeat, 0xff7f, 0xff7f); /* white */
+
+    tc35874x_write_reg2(i2c, 0x00e0, 0xc000 | (height - 1)); /* active line count */
+}
+
+static void set_pll_yuv422(struct tc35874x_i2c_dev_info *i2c, uint32_t width, uint32_t fps)
+{
+    uint16_t pll1, pll2;
+
+    if (width == 1920) {
+        pll1 = 0x60e5;
+        if (fps == 60)
+            pll2 = 0x0213;
+        else
+            pll2 = 0x0613;
+    } else if (width == 1280) {
+        pll1 = 0x50da;
+        if (fps == 120)
+            pll2 = 0x0213;
+        else if (fps == 60)
+            pll2 = 0x0613;
+        else
+            pll2 = 0x0A13;
+    } else { /* 640 */
+        pll1 = 0x5095;
+        if (fps == 120)
+            pll2 = 0x0213;
+        else if (fps == 60)
+            pll2 = 0x0613;
+        else
+            pll2 = 0x0A13;
+    }
+
+    /* PLL */
+    tc35874x_write_reg2(i2c, 0x0016, pll1);
+    tc35874x_write_reg2(i2c, 0x0018, pll2);
+}
+
 static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
 {
     struct gb_camera_ext_sensor_user_config *cfg =
@@ -372,7 +499,8 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
         return -1;
     }
 
-    if (fmt.pixelformat != v4l2_fourcc('R', 'G', 'B', '3')) {
+    if (fmt.pixelformat != v4l2_fourcc('R', 'G', 'B', '3') &&
+        fmt.pixelformat != v4l2_fourcc('U', 'Y', 'V', 'Y')) {
         CAM_ERR("Unsupported format 0x%x\n", fmt.pixelformat);
         return -1;
     }
@@ -385,6 +513,9 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
 
     if (fmt.pixelformat == v4l2_fourcc('R', 'G', 'B', '3')) {
         set_pll_rgb888(i2c, le32_to_cpu(fmt.width),
+                       le32_to_cpu(ival->raw_data.discrete.denominator));
+    } else if (fmt.pixelformat == v4l2_fourcc('U', 'Y', 'V', 'Y')) {
+        set_pll_yuv422(i2c, le32_to_cpu(fmt.width),
                        le32_to_cpu(ival->raw_data.discrete.denominator));
     }
 
@@ -417,11 +548,14 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
     if (fmt.pixelformat == v4l2_fourcc('R', 'G', 'B', '3')) {
         tc35874x_write_reg2(i2c, 0x0050, 0x0024); /* CSI data type RGB888 */
         tc35874x_write_reg2(i2c, 0x0022, le32_to_cpu(fmt.width) * 3); /* byte count per line */
-    } else {
-        CAM_ERR("Unsupported format = %x\n", fmt.pixelformat);
-        return -1;
+
+        setup_color_bar_rgb888(i2c, le32_to_cpu(fmt.width), le32_to_cpu(fmt.height));
+    } else if (fmt.pixelformat == v4l2_fourcc('U', 'Y', 'V', 'Y')) {
+        tc35874x_write_reg2(i2c, 0x0050, 0x001E); /* CSI data type YUV422 8-bit */
+        tc35874x_write_reg2(i2c, 0x0022, le32_to_cpu(fmt.width) * 2); /* byte count per line */
+
+        setup_color_bar_yuv422(i2c, le32_to_cpu(fmt.width), le32_to_cpu(fmt.height));
     }
-    setup_color_bar_rgb888(i2c, le32_to_cpu(fmt.width), le32_to_cpu(fmt.height));
 
 #if DEBUG_DUMP_REGISTER
     bridge_debug_dump(i2c);
@@ -539,16 +673,22 @@ static int _stream_on(struct device *dev)
         return -1;
     }
 
+    CDSI_CONFIG.width = le32_to_cpu(fmt.width);
+    CDSI_CONFIG.height = le32_to_cpu(fmt.height);
+
+    float fps = (float)(le32_to_cpu(ival->raw_data.discrete.denominator)) /
+        (float)(le32_to_cpu(ival->raw_data.discrete.numerator));
+    CDSI_CONFIG.framerate = roundf(fps);
+
     /* Fill in the rest of CSDI_CONGIG field */
     if (fmt.pixelformat == v4l2_fourcc('R', 'G', 'B', '3')) {
-        CDSI_CONFIG.tx_mbits_per_lane = 500000000;
-        CDSI_CONFIG.rx_mbits_per_lane = 500000000;
-        CDSI_CONFIG.width = le32_to_cpu(fmt.width);
-        CDSI_CONFIG.height = le32_to_cpu(fmt.height);
+        CDSI_CONFIG.tx_mbits_per_lane = 550000000;
+        CDSI_CONFIG.rx_mbits_per_lane = 550000000;
         CDSI_CONFIG.bpp = 24;
-        float fps = (float)(le32_to_cpu(ival->raw_data.discrete.denominator)) /
-            (float)(le32_to_cpu(ival->raw_data.discrete.numerator));
-        CDSI_CONFIG.framerate = roundf(fps);
+    } else if (fmt.pixelformat == v4l2_fourcc('U', 'Y', 'V', 'Y')) {
+        CDSI_CONFIG.tx_mbits_per_lane = 720000000;
+        CDSI_CONFIG.rx_mbits_per_lane = 720000000;
+        CDSI_CONFIG.bpp = 16;
     } else {
         CAM_ERR("Unsupported format %x\n", fmt.pixelformat);
         return -1;
