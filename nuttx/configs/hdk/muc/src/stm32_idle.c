@@ -50,7 +50,7 @@
 #include "stm32_exti.h"
 
 /****************************************************************************
- * Name: stm32_idlepm
+ * Name: idlepm
  *
  * Description:
  *   Perform IDLE state power management.
@@ -58,7 +58,7 @@
  ****************************************************************************/
 
 #ifdef CONFIG_PM
-static void stm32_idlepm(void)
+static void idlepm(void)
 {
   static enum pm_state_e oldstate = PM_NORMAL;
   enum pm_state_e newstate;
@@ -86,7 +86,7 @@ static void stm32_idlepm(void)
           goto errout;
         }
 
-      lldbg("newstate= %d oldstate=%d\n", newstate, oldstate);
+      lldbg("%d -> %d\n", oldstate, newstate);
 
       /* Then perform board-specific, state-dependent logic here */
 
@@ -99,8 +99,13 @@ static void stm32_idlepm(void)
         case PM_STANDBY:
         case PM_SLEEP:
           {
-            /* Call the STM32 stop mode */
+#ifdef CONFIG_DEBUG
+            /* Use STOP 1 mode when debugging so serial console can wake */
             stm32_pmstop(true);
+#else
+            /* Use STOP 2 mode to achieve lower current drain */
+            stm32_pmstop2();
+#endif
 
             /* Resume normal operation */
             stm32_clockenable();
@@ -119,7 +124,7 @@ errout:
     }
 }
 #else
-#  define stm32_idlepm()
+#  define idlepm()
 #endif
 
 /****************************************************************************
@@ -138,7 +143,7 @@ errout:
 void up_idle(void)
 {
   /* Perform IDLE mode power management */
-  stm32_idlepm();
+  idlepm();
 
   /* Sleep until an interrupt occurs to save power. */
   asm("WFI");
