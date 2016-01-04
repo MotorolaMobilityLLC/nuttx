@@ -59,6 +59,37 @@
  * Private Functions
  ****************************************************************************/
 
+static int do_stop(void)
+{
+  uint32_t regval;
+
+  /* Set SLEEPDEEP bit of Cortex System Control Register */
+
+  regval  = getreg32(NVIC_SYSCON);
+  regval |= NVIC_SYSCON_SLEEPDEEP;
+  putreg32(regval, NVIC_SYSCON);
+
+  /* Sleep until the wakeup interrupt or event occurs */
+
+#ifdef CONFIG_PM_WFE
+  /* Mode: SLEEP + Entry with WFE */
+
+  asm("wfe");
+#else
+  /* Mode: SLEEP + Entry with WFI */
+
+  asm("wfi");
+#endif
+
+  /* Clear SLEEPDEEP bit of Cortex System Control Register */
+
+  regval  = getreg32(NVIC_SYSCON);
+  regval &= ~NVIC_SYSCON_SLEEPDEEP;
+  putreg32(regval, NVIC_SYSCON);
+
+  return OK;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -118,29 +149,36 @@ int stm32_pmstop(bool lpds)
   putreg32(regval, STM32_PWR_CR);
 #endif
 
-  /* Set SLEEPDEEP bit of Cortex System Control Register */
-
-  regval  = getreg32(NVIC_SYSCON);
-  regval |= NVIC_SYSCON_SLEEPDEEP;
-  putreg32(regval, NVIC_SYSCON);
-
-  /* Sleep until the wakeup interrupt or event occurs */
-
-#ifdef CONFIG_PM_WFE
-  /* Mode: SLEEP + Entry with WFE */
-
-  asm("wfe");
-#else
-  /* Mode: SLEEP + Entry with WFI */
-
-  asm("wfi");
-#endif
-
-  /* Clear SLEEPDEEP bit of Cortex System Control Register */
-
-  regval  = getreg32(NVIC_SYSCON);
-  regval &= ~NVIC_SYSCON_SLEEPDEEP;
-  putreg32(regval, NVIC_SYSCON);
-
-  return OK;
+  return do_stop();
 }
+
+/****************************************************************************
+ * Name: stm32_pmstop2
+ *
+ * Description:
+ *   Enter STOP2 mode.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Zero means that the STOP2 was successfully entered and the system has
+ *   been re-awakened.  Otherwise, STOP2 mode did not occur and a negated
+ *   errno value is returned to indicate the cause of the failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STM32_STM32L4X6
+int stm32_pmstop2(void)
+{
+  uint32_t regval;
+
+  /* Select Stop 2 mode in power control register 1. */
+  regval  = getreg32(STM32_PWR_CR1);
+  regval &= ~PWR_CR1_LPMS_MASK;
+  regval |= PWR_CR1_LPMS_STOP2;
+  putreg32(regval, STM32_PWR_CR1);
+
+  return do_stop();
+}
+#endif

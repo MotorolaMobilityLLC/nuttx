@@ -84,13 +84,33 @@ extern "C" {
  *
  * Returned Value:
  *   Zero means that the STOP was successfully entered and the system has
- *   been re-awakened.  The internal volatage regulator is back to its
+ *   been re-awakened.  The internal voltage regulator is back to its
  *   original state.  Otherwise, STOP mode did not occur and a negated
  *   errno value is returned to indicate the cause of the failure.
  *
  ****************************************************************************/
 
 EXTERN int stm32_pmstop(bool lpds);
+
+/****************************************************************************
+ * Name: stm32_pmstop2
+ *
+ * Description:
+ *   Enter STOP2 mode.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Zero means that the STOP2 was successfully entered and the system has
+ *   been re-awakened.  Otherwise, STOP2 mode did not occur and a negated
+ *   errno value is returned to indicate the cause of the failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STM32_STM32L4X6
+EXTERN int stm32_pmstop2(void);
+#endif
 
 /****************************************************************************
  * Name: stm32_pmstandby
