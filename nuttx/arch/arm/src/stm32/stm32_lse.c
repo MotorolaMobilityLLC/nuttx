@@ -102,26 +102,6 @@ void stm32_rcc_enablelse(void)
       up_waste();
     }
 
-  /* The primariy purpose of the LSE clock is to drive the RTC with an accurate
-   * clock source.  In the STM32L family, the RTC and the LCD are coupled so
-   * that must use the same clock source.  Calling this function will select
-   * the LSE will be used to drive the LCD as well.
-   */
-
-#if defined(CONFIG_STM32_LCD) || defined(CONFIG_RTC)
-  /* Select LSE as RTC/LCD Clock Source by setting the RTCSEL field of the RCC
-   * CSR register.
-   */
-
-  modifyreg32(STM32_RCC_CSR, RCC_CSR_RTCSEL_MASK, RCC_CSR_RTCSEL_LSE);
-
-#if defined(CONFIG_RTC)
-  /* Enable the RTC Clock by setting the RTCEN bit in the RCC CSR register */
-
-  modifyreg32(STM32_RCC_CSR, 0, RCC_CSR_RTCEN);
-#endif
-#endif
-
   /* Restore the previous state of the DBP bit */
 
   putreg16(pwrcr, STM32_PWR_CR);
@@ -142,22 +122,5 @@ void stm32_rcc_enablelse(void)
     {
       up_waste();
     }
-
-  /* The primariy purpose of the LSE clock is to drive the RTC.  The RTC could
-   * also be driven by the LSI (but that would be very inaccurate) or by the
-   * HSE (but that would prohibit low-power operation)
-   */
-
-#ifdef CONFIG_RTC
-  /* Select LSE as RTC Clock Source by setting the RTCSEL field of the RCC
-   * BDCR register.
-   */
-
-  modifyreg16(STM32_RCC_BDCR, RCC_BDCR_RTCSEL_MASK, RCC_BDCR_RTCSEL_LSE);
-
-  /* Enable the RTC Clock by setting the RTCEN bit in the RCC BDCR register */
-
-  modifyreg16(STM32_RCC_BDCR, 0, RCC_BDCR_RTCEN);
-#endif
 }
 #endif
