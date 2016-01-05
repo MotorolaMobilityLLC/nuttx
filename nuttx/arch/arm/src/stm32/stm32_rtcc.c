@@ -77,13 +77,48 @@
 #  undef CONFIG_DEBUG_RTC
 #endif
 
+#ifdef CONFIG_STM32_STM32L15XX
+#  if defined(CONFIG_RTC_HSECLOCK)
+#    error "RTC with HSE clock not yet implemented for STM32L15XXX"
+#  elif defined(CONFIG_RTC_LSICLOCK)
+#    error "RTC with LSI clock not yet implemented for STM32L15XXX"
+#  endif
+#endif
+
 /* Constants ************************************************************************/
 
 #define SYNCHRO_TIMEOUT  (0x00020000)
 #define INITMODE_TIMEOUT (0x00010000)
 #define RTC_MAGIC        (0xfacefeed)
-#define RTC_PREDIV_S     (0xff)
+
+#ifdef CONFIG_RTC_LSECLOCK
+#  define RTC_SRC_FREQ   (STM32_LSE_FREQUENCY)
+#elif defined(CONFIG_RTC_LSICLOCK)
+#  define RTC_SRC_FREQ   (STM32_LSI_FREQUENCY)
+#elif defined(CONFIG_RTC_HSECLOCK)
+#  define RTC_SRC_FREQ   (STM32_HSE_FREQUENCY)
+#endif
+
 #define RTC_PREDIV_A     (0x7f)
+#define RTC_PREDIV_S     ((RTC_SRC_FREQ / (RTC_PREDIV_A + 1)) - 1)
+
+/* Proxy definitions to make the same code work for all the STM32 series ************/
+
+#if defined(CONFIG_STM32_STM32L15XX)
+# define STM32_RCC_XXX       STM32_RCC_CSR
+# define RCC_XXX_RTCEN       RCC_CSR_RTCEN
+# define RCC_XXX_RTCSEL_MASK RCC_CSR_RTCSEL_MASK
+# define RCC_XXX_RTCSEL_LSE  RCC_CSR_RTCSEL_LSE
+# define RCC_XXX_RTCSEL_LSI  RCC_CSR_RTCSEL_LSI
+# define RCC_XXX_RTCSEL_HSE  RCC_CSR_RTCSEL_HSE
+#else
+# define STM32_RCC_XXX       STM32_RCC_BDCR
+# define RCC_XXX_RTCEN       RCC_BDCR_RTCEN
+# define RCC_XXX_RTCSEL_MASK RCC_BDCR_RTCSEL_MASK
+# define RCC_XXX_RTCSEL_LSE  RCC_BDCR_RTCSEL_LSE
+# define RCC_XXX_RTCSEL_LSI  RCC_BDCR_RTCSEL_LSI
+# define RCC_XXX_RTCSEL_HSE  RCC_BDCR_RTCSEL_HSE
+#endif
 
 /* Debug ****************************************************************************/
 
@@ -437,12 +472,6 @@ static int rtc_setup(void)
   uint32_t regval;
   int ret;
 
-  /* Enable the External Low-Speed (LSE) Oscillator setup the LSE as the RTC clock\
-   * source, and enable the RTC.
-   */
-
-  stm32_rcc_enablelse();
-
   /* Wait for the RTC Time and Date registers to be synchronized with RTC APB
    * clock.
    */
@@ -471,8 +500,8 @@ static int rtc_setup(void)
            * use with the 32.768 KHz LSE clock:
            */
 
-          putreg32(((uint32_t)0xff << RTC_PRER_PREDIV_S_SHIFT) |
-                   ((uint32_t)0x7f << RTC_PRER_PREDIV_A_SHIFT),
+          putreg32(((uint32_t)RTC_PREDIV_S << RTC_PRER_PREDIV_S_SHIFT) |
+                   ((uint32_t)RTC_PREDIV_A << RTC_PRER_PREDIV_A_SHIFT),
                    STM32_RTC_PRER);
 
           /* Exit RTC initialization mode */
@@ -593,6 +622,34 @@ int up_rtcinitialize(void)
    */
 
   stm32_pwr_enablebkp();
+
+  /* Some boards do not have the external 32khz oscillator installed, for those
+   * boards we must fallback to the crummy internal RC clock or the external high
+   * rate clock
+   */
+
+#ifdef CONFIG_RTC_HSECLOCK
+  /* Use the HSE clock as the input to the RTC block */
+
+  modifyreg32(STM32_RCC_XXX, RCC_XXX_RTCSEL_MASK, RCC_XXX_RTCSEL_HSE);
+
+#elif defined(CONFIG_RTC_LSICLOCK)
+  /* Use the LSI clock as the input to the RTC block */
+
+  stm32_rcc_enablelsi();
+  modifyreg32(STM32_RCC_XXX, RCC_XXX_RTCSEL_MASK, RCC_XXX_RTCSEL_LSI);
+
+#elif defined(CONFIG_RTC_LSECLOCK)
+  /* Use the LSE clock as the input to the RTC block */
+
+  stm32_rcc_enablelse();
+  modifyreg32(STM32_RCC_XXX, RCC_XXX_RTCSEL_MASK, RCC_XXX_RTCSEL_LSE);
+
+#endif
+
+  /* Enable the RTC Clock by setting the RTCEN bit in the RCC register */
+
+  modifyreg32(STM32_RCC_XXX, 0, RCC_XXX_RTCEN);
 
   /* Loop, attempting to initialize/resume the RTC.  This loop is necessary
    * because it seems that occasionally it takes longer to initialize the RTC
