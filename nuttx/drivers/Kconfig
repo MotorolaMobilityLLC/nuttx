@@ -68,6 +68,8 @@ config CAMERA_IMX179
 	bool "SONY IMX179 Camera Sensor"
 config CAMERA_TC35874X
 	bool "TC35874X Camera Test Pattern generator"
+config CAMERA_TC35874X_PDISP
+	bool "TC35874X Display Parallel to CSI bridge"
 endchoice
 
 config DEV_RANDOM
