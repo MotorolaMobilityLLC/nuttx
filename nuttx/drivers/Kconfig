@@ -60,9 +60,15 @@ config GHOST_DISPLAY
     bool "Ghost Display"
     default n
 
+choice
+  prompt "Select Camera to use"
+config GREYBUS_CAMERA_IMX220
+	bool "SONY IMX220 Camera Sensor"
+config GREYBUS_CAMERA_IMX179
+	bool "SONY IMX179 Camera Sensor"
 config GREYBUS_CAMERA_TC35874X
-    bool "TC35874X Camera Test Pattern generator"
-    default n
+	bool "TC35874X Camera Test Pattern generator"
+endchoice
 
 config DEV_RANDOM
 	bool "Enable /dev/random"
