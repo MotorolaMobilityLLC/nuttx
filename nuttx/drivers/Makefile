@@ -140,6 +140,14 @@ ifeq ($(CONFIG_GHOST_DISPLAY),y)
   CSRCS += ghost_display.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_CAMERA_IMX179), y)
+    CSRCS += camera_ext_csi.c camera_ext-imx179.c
+endif
+
+ifeq ($(CONFIG_GREYBUS_CAMERA_IMX220), y)
+    CSRCS += camera_ext_csi.c camera_ext-imx220.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_CAMERA_TC35874X), y)
   CSRCS += tc35874x.c tc35874x-util.c
 endif
