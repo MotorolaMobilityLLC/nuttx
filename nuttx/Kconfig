@@ -411,6 +411,15 @@ config DEBUG_VERBOSE
 		generated.  This means there are two levels of debug output:
 		errors-only and everything.
 
+config DEBUG_TIMESTAMP
+	bool "Add timestamp to debug output"
+	depends on RTC_HIRES
+	default n
+	---help---
+		Add a timestamp prefix to debug output (disabled by default).
+		Support for this debug option depends on a high resolution RTC,
+		which may not be available for some MCUs.
+
 comment "Subsystem Debug Options"
 
 config DEBUG_AUDIO
@@ -765,4 +774,3 @@ endmenu
 menu "Application Configuration"
 source "$APPSDIR/Kconfig"
 endmenu
-
