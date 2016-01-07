@@ -46,7 +46,7 @@
 #define WDOG_TIMEOUT_MS  15000
 #define WDOG_PING_MS      5000
 
-#define WDOG_STACK_SIZE    512
+#define WDOG_STACK_SIZE    640
 
 #ifdef CONFIG_WATCHDOG
 int wdog_fd;
