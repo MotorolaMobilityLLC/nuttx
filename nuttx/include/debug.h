@@ -42,6 +42,7 @@
 
 #include <nuttx/config.h>
 #include <nuttx/compiler.h>
+#include <nuttx/rtc.h>
 
 #include <syslog.h>
 
@@ -103,23 +104,43 @@
 /* C-99 style variadic macros are supported */
 
 #ifdef CONFIG_DEBUG
-# define dbg(format, ...) \
-  syslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
+# ifdef CONFIG_DEBUG_TIMESTAMP
+#  define dbg(format, ...)                                                     \
+   do                                                                          \
+     {                                                                         \
+       struct timespec __tp;                                                   \
+       up_rtc_gettime(&__tp);                                                  \
+       syslog("[%u.%03u] " EXTRA_FMT format, __tp.tv_sec,                      \
+              (__tp.tv_nsec / 1000000) EXTRA_ARG, ##__VA_ARGS__);              \
+     } while (0)
+# else
+#  define dbg(format, ...) \
+   syslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
+# endif
 
 # ifdef CONFIG_ARCH_LOWPUTC
-#  define lldbg(format, ...) \
-   lowsyslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
+#  ifdef CONFIG_DEBUG_TIMESTAMP
+#   define lldbg(format, ...)                                                  \
+    do                                                                         \
+      {                                                                        \
+        struct timespec __tp;                                                  \
+        up_rtc_gettime(&__tp);                                                 \
+        lowsyslog("[%u.%03u] " EXTRA_FMT format, __tp.tv_sec,                  \
+                  (__tp.tv_nsec / 1000000) EXTRA_ARG, ##__VA_ARGS__);          \
+      } while (0)
+#  else
+#   define lldbg(format, ...) \
+    lowsyslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
+#  endif
 # else
 #  define lldbg(x...)
 # endif
 
 # ifdef CONFIG_DEBUG_VERBOSE
-#  define vdbg(format, ...) \
-   syslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
+#  define vdbg       dbg
 
 #  ifdef CONFIG_ARCH_LOWPUTC
-#    define llvdbg(format, ...) \
-     lowsyslog(EXTRA_FMT format EXTRA_ARG, ##__VA_ARGS__)
+#    define llvdbg   lldbg
 #  else
 #    define llvdbg(x...)
 #  endif
