@@ -664,6 +664,7 @@ endchoice
 config STM32_STM32L15XX
 	bool
 	default n
+	select STM32_HAVE_RTC_SUBSECONDS if !STM32_LOWDENSITY
 
 config STM32_ENERGYLITE
 	bool
@@ -678,22 +679,23 @@ config STM32_ENERGYLITE
 	select STM32_HAVE_ADC2
 
 config STM32_STM32L4X3
-        bool
-        default n
-        select ARCH_HAVE_UID
-        select ARCH_HAVE_CHIPID
-        select ARCH_HAVE_BOARDID
-        select ARCH_HAVE_RESET_FLAGS
-        select ARCH_HAVE_PROGMEM
-        select STM32_HAVE_USART3
-        select STM32_HAVE_TIM1
-        select STM32_HAVE_TIM2
-        select STM32_HAVE_TIM6
-        select STM32_HAVE_TIM7
-        select STM32_HAVE_TIM15
-        select STM32_HAVE_TIM16
-        select STM32_HAVE_CAN1
-        select STM32_HAVE_RNG
+	bool
+	default n
+	select ARCH_HAVE_UID
+	select ARCH_HAVE_CHIPID
+	select ARCH_HAVE_BOARDID
+	select ARCH_HAVE_RESET_FLAGS
+	select ARCH_HAVE_PROGMEM
+	select STM32_HAVE_USART3
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM6
+	select STM32_HAVE_TIM7
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_RNG
+	select STM32_HAVE_RTC_SUBSECONDS
 
 config STM32_STM32L4X6
 	bool
@@ -722,6 +724,7 @@ config STM32_STM32L4X6
 	select STM32_HAVE_ADC3
 	select STM32_HAVE_CAN1
 	select STM32_HAVE_RNG
+	select STM32_HAVE_RTC_SUBSECONDS
 
 config STM32_STM32F10XX
 	bool
@@ -3328,6 +3331,10 @@ endmenu
 
 menu "RTC Configuration"
 	depends on RTC
+
+config STM32_HAVE_RTC_SUBSECONDS
+	bool
+	default n
 
 choice
 	prompt "RTC clock source"
