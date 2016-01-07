@@ -57,7 +57,7 @@ CSRCS += i2c.c
 endif
 
 ifeq ($(CONFIG_GREYBUS_MODS_I2S_PHY),y)
-CSRCS += i2s-gb-direct-mgmt.c i2s-gb-direct-data.c
+CSRCS += i2s-gb-direct-mgmt.c
 endif
 
 ifeq ($(CONFIG_GREYBUS_MODS_AUDIO),y)
