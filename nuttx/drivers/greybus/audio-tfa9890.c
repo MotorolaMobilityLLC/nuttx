@@ -454,10 +454,10 @@ static struct device_i2s_type_ops muc_i2s_tfa9890_direct_type_ops = {
     .get_processing_delay         = muc_i2s_tfa9890_direct_op_get_processing_delay,
     .get_supported_configurations = muc_i2s_tfa9890_direct_op_get_supported_configurations,
     .set_configuration            = muc_i2s_tfa9890_direct_op_set_configuration,
-    .start_transmitter            = muc_i2s_tfa9890_direct_op_start_transmitter,
-    .start_receiver               = muc_i2s_tfa9890_direct_op_start_receiver,
-    .stop_receiver                = muc_i2s_tfa9890_direct_op_stop_receiver,
-    .stop_transmitter             = muc_i2s_tfa9890_direct_op_stop_transmitter,
+    .start_transmitter_port       = muc_i2s_tfa9890_direct_op_start_transmitter,
+    .start_receiver_port          = muc_i2s_tfa9890_direct_op_start_receiver,
+    .stop_receiver_port           = muc_i2s_tfa9890_direct_op_stop_receiver,
+    .stop_transmitter_port        = muc_i2s_tfa9890_direct_op_stop_transmitter,
 };
 
 static struct device_driver_ops muc_i2s_tfa9890_direct_driver_ops = {

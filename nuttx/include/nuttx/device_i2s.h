@@ -131,11 +131,15 @@ struct device_i2s_type_ops {
                             device_i2s_callback callback, void *arg);
     int (*start_receiver)(struct device *dev);
     int (*stop_receiver)(struct device *dev);
+    int (*start_receiver_port)(struct device *dev);
+    int (*stop_receiver_port)(struct device *dev);
     int (*shutdown_receiver)(struct device *dev);
     int (*prepare_transmitter)(struct device *dev, struct ring_buf *tx_rb,
                                device_i2s_callback callback, void *arg);
     int (*start_transmitter)(struct device *dev);
     int (*stop_transmitter)(struct device *dev);
+    int (*start_transmitter_port)(struct device *dev);
+    int (*stop_transmitter_port)(struct device *dev);
     int (*shutdown_transmitter)(struct device *dev);
 };
 
@@ -276,6 +280,48 @@ static inline int device_i2s_stop_receiver(struct device *dev)
 }
 
 /**
+ * Start I2S receiver port.  Should be called whenever host requests receiver
+ * port to be started, this does not start reception of audio data, this only
+ * activates phyiscal I2S port
+ *
+ * @brief Start receiver port
+ * @param dev I2S device to start receiver port
+ * @return 0: Successfully started receiver port
+ *         -errno: Cause of failure
+ */
+static inline int device_i2s_start_receiver_port(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->start_receiver_port)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->start_receiver_port(dev);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Stop I2S receiver port
+ * @param dev I2S device to stop receiver I2S port
+ * @return 0: Successfully stopped receiver I2S port
+ *         -errno: Cause of failure
+ */
+static inline int device_i2s_stop_receiver_port(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_receiver_port)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_receiver_port(dev);
+
+    return -ENOSYS;
+}
+
+/**
  * @brief Shutdown audio data receiver (counterpart to preparing receiver)
  * @param dev I2S device whose receiver is shutdown
  * @return 0: Successfully shutdown receiver
@@ -356,6 +402,48 @@ static inline int device_i2s_stop_transmitter(struct device *dev)
 
     if (DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_transmitter)
         return DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_transmitter(dev);
+
+    return -ENOSYS;
+}
+
+/**
+ * Start I2S transmitter port. Should be called whenever host requests transmitter
+ * port to be started, this does not start transmission of audio data, this only
+ * activates phyiscal I2S port
+ *
+ * @brief Start I2S Transmitter port
+ * @param dev I2S device to start port
+ * @return 0: Successfully started port
+ *         -errno: Cause of failure
+ */
+static inline int device_i2s_start_transmitter_port(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->start_transmitter_port)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->start_transmitter_port(dev);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Stop transmitter port
+ * @param dev I2S device to stop transmitter port
+ * @return 0: Successfully stopped port
+ *         -errno: Cause of failure
+ */
+static inline int device_i2s_stop_transmitter_port(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_transmitter_port)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->stop_transmitter_port(dev);
 
     return -ENOSYS;
 }

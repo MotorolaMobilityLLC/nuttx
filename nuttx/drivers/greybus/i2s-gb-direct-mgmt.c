@@ -267,6 +267,49 @@ static uint8_t  gb_i2s_mgmt_protocol_deactivate_cport(struct gb_operation *opera
     return 0;
 }
 
+static uint8_t  gb_i2s_mgmt_protocol_activate_port(struct gb_operation *operation)
+{
+    struct gb_i2s_activate_port_request *request =
+                        gb_operation_get_request_payload(operation);
+    int ret;
+
+    gb_debug("%s() activate port type: %d\n", __func__, request->port_type);
+
+    if (request->port_type == GB_I2S_MGMT_PORT_TYPE_RECEIVER)
+        ret = device_i2s_start_receiver_port(i2s_dev_info.dev);
+    else if (request->port_type == GB_I2S_MGMT_PORT_TYPE_TRANSMITTER)
+        ret = device_i2s_start_transmitter_port(i2s_dev_info.dev);
+    else
+        ret = -EINVAL;
+
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return 0;
+}
+
+
+static uint8_t  gb_i2s_mgmt_protocol_deactivate_port(struct gb_operation *operation)
+{
+    struct gb_i2s_deactivate_port_request *request =
+              gb_operation_get_request_payload(operation);
+    int ret;
+
+    gb_debug("%s() deactivate port type : %d\n", __func__, request->port_type);
+
+   if (request->port_type == GB_I2S_MGMT_PORT_TYPE_RECEIVER)
+        ret = device_i2s_stop_receiver_port(i2s_dev_info.dev);
+    else if (request->port_type == GB_I2S_MGMT_PORT_TYPE_TRANSMITTER)
+        ret = device_i2s_stop_transmitter_port(i2s_dev_info.dev);
+    else
+        ret = -EINVAL;
+
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return 0;
+}
+
 static struct gb_operation_handler gb_i2s_mgmt_handlers[] = {
     GB_HANDLER(GB_I2S_MGMT_TYPE_PROTOCOL_VERSION, gb_i2s_mgmt_protocol_version),
     GB_HANDLER(GB_I2S_MGMT_TYPE_GET_SUPPORTED_CONFIGURATIONS, gb_i2s_mgmt_protocol_get_supported_cfgs),
@@ -276,6 +319,8 @@ static struct gb_operation_handler gb_i2s_mgmt_handlers[] = {
     GB_HANDLER(GB_I2S_MGMT_TYPE_SET_START_DELAY, gb_i2s_mgmt_protocol_start_delay),
     GB_HANDLER(GB_I2S_MGMT_TYPE_ACTIVATE_CPORT, gb_i2s_mgmt_protocol_activate_cport),
     GB_HANDLER(GB_I2S_MGMT_TYPE_DEACTIVATE_CPORT, gb_i2s_mgmt_protocol_deactivate_cport),
+    GB_HANDLER(GB_I2S_MGMT_TYPE_ACTIVATE_PORT, gb_i2s_mgmt_protocol_activate_port),
+    GB_HANDLER(GB_I2S_MGMT_TYPE_DEACTIVATE_PORT, gb_i2s_mgmt_protocol_deactivate_port),
 };
 
 static struct gb_driver gb_i2s_mgmt_driver = {
