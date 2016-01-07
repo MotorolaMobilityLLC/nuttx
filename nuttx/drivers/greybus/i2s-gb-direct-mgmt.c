@@ -257,7 +257,7 @@ static uint8_t  gb_i2s_mgmt_protocol_deactivate_cport(struct gb_operation *opera
    if (request->cport == i2s_dev_info.rx_cport)
         ret = device_i2s_stop_receiver(i2s_dev_info.dev);
     else if (request->cport == i2s_dev_info.tx_cport)
-        ret = device_i2s_stop_receiver(i2s_dev_info.dev);
+        ret = device_i2s_stop_transmitter(i2s_dev_info.dev);
     else
         ret = -EINVAL;
 
