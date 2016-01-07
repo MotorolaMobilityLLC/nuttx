@@ -389,6 +389,15 @@ static int muc_i2s_tfa9890_direct_op_start_receiver(struct device *dev)
    return 0;
 }
 
+static int muc_i2s_tfa9890_direct_op_start_transmitter(struct device *dev)
+{
+    gb_debug("%s()\n", __func__);
+    /* dsp by default loops back its output on the tx line, if rx is active.
+     * nothing to set up here.
+     */
+    return 0;
+}
+
 static int muc_i2s_tfa9890_direct_op_stop_receiver(struct device *dev)
 {
     struct audio_lowerhalf_s *aud_dev;
@@ -411,6 +420,12 @@ static int muc_i2s_tfa9890_direct_op_stop_receiver(struct device *dev)
    return 0;
 }
 
+static int muc_i2s_tfa9890_direct_op_stop_transmitter(struct device *dev)
+{
+    gb_debug("%s()\n", __func__);
+
+    return 0;
+}
 /* audio device protocol driver and ops */
 static struct device_aud_dev_type_ops muc_aud_dev_type_ops = {
     .get_volume_db_range         = muc_aud_dev_get_vol_db_range,
@@ -439,8 +454,10 @@ static struct device_i2s_type_ops muc_i2s_tfa9890_direct_type_ops = {
     .get_processing_delay         = muc_i2s_tfa9890_direct_op_get_processing_delay,
     .get_supported_configurations = muc_i2s_tfa9890_direct_op_get_supported_configurations,
     .set_configuration            = muc_i2s_tfa9890_direct_op_set_configuration,
+    .start_transmitter            = muc_i2s_tfa9890_direct_op_start_transmitter,
     .start_receiver               = muc_i2s_tfa9890_direct_op_start_receiver,
     .stop_receiver                = muc_i2s_tfa9890_direct_op_stop_receiver,
+    .stop_transmitter             = muc_i2s_tfa9890_direct_op_stop_transmitter,
 };
 
 static struct device_driver_ops muc_i2s_tfa9890_direct_driver_ops = {
