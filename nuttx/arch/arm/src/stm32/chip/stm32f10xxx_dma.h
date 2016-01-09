@@ -107,7 +107,7 @@
 #define STM32_DMA_CMAR6_OFFSET    0x0078 /* DMA channel 6 memory address register */
 #define STM32_DMA_CMAR7_OFFSET    0x008c /* DMA channel 7 memory address register */
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #define STM32_DMA_CSELR_OFFSET    0x00A8 /* DMA channel select register */
 #endif
 
@@ -152,7 +152,7 @@
 #define STM32_DMA1_CMAR6          (STM32_DMA1_BASE+STM32_DMA_CMAR6_OFFSET)
 #define STM32_DMA1_CMAR7          (STM32_DMA1_BASE+STM32_DMA_CMAR7_OFFSET)
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #define STM32_DMA1_CSELR          (STM32_DMA1_BASE+STM32_DMA_CSELR_OFFSET)
 #endif
 
@@ -195,7 +195,7 @@
 #define STM32_DMA2_CMAR6          (STM32_DMA2_BASE+STM32_DMA_CMAR6_OFFSET)
 #define STM32_DMA2_CMAR7          (STM32_DMA2_BASE+STM32_DMA_CMAR7_OFFSET)
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #define STM32_DMA2_CSELR          (STM32_DMA2_BASE+STM32_DMA_CSELR_OFFSET)
 #endif
 
@@ -292,7 +292,7 @@
 #define DMA_CNDTR_NDT_SHIFT       (0)       /* Bits 15-0: Number of data to Transfer */
 #define DMA_CNDTR_NDT_MASK        (0xffff << DMA_CNDTR_NDT_SHIFT)
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 
 /* DMA1 channel selection register */
 
@@ -678,7 +678,7 @@
 #  define DMACHAN_UART4_TX        STM32_DMA2_CHAN5
 #  define DMACHAN_TIM8_CH2        STM32_DMA2_CHAN5
 
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 
 #  define DMACHAN_ADC1_1          STM32_DMA1_CHAN1
 #  define DMACHAN_TIM2_CH3        STM32_DMA1_CHAN1

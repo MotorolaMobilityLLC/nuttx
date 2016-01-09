@@ -45,6 +45,8 @@
 
 #if defined(CONFIG_STM32_STM32L15XX)
 #  include "chip/stm32l15xxx_memorymap.h"
+#elif defined(CONFIG_STM32_STM32L4X3)
+#  include "chip/stm32l4x3xx_memorymap.h"
 #elif defined(CONFIG_STM32_STM32L4X6)
 #  include "chip/stm32l4x6xx_memorymap.h"
 #elif defined(CONFIG_STM32_STM32F10XX)

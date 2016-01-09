@@ -55,6 +55,8 @@
 
 #if defined(CONFIG_STM32_STM32L15XX)
 #  include "chip/stm32l15xxx_gpio.h"
+#elif defined(CONFIG_STM32_STM32L4X3)
+#  include "chip/stm32l4x3xx_gpio.h"
 #elif defined(CONFIG_STM32_STM32L4X6)
 #  include "chip/stm32l4x6xx_gpio.h"
 #elif defined(CONFIG_STM32_STM32F10XX)
@@ -204,7 +206,7 @@
 
 #elif defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F20XX) || \
       defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX) || \
-      defined(CONFIG_STM32_STM32L4X6)
+      defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3)
 
 /* Each port bit of the general-purpose I/O (GPIO) ports can be individually configured
  * by software in several modes:
@@ -227,7 +229,7 @@
  * Analog:                S MM.. .... .... PPPP BBBB
  */
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 /* Analog switch selection (analog only):
  *
  * 2 1111 1111 1100 0000 0000

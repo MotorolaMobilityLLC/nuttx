@@ -55,7 +55,7 @@
 #if defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX)
 #  define STM32_DBGMCU_APB1_FZ    0xe0042008  /* Debug MCU APB1 freeze register */
 #  define STM32_DBGMCU_APB2_FZ    0xe004200c  /* Debug MCU APB2 freeze register */
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define STM32_DBGMCU_APB1_FZ1   0xe0042008  /* Debug MCU APB1 freeze register 1 */
 #  define STM32_DBGMCU_APB1_FZ2   0xe004200c  /* Debug MCU APB1 freeze register 2 */
 #  define STM32_DBGMCU_APB2_FZ    0xe0042010  /* Debug MCU APB2 freeze register */
@@ -121,7 +121,7 @@
 #  define DBGMCU_APB1_I2C3STOP    (1 << 23)  /* Bit 23: SMBUS timeout mode stopped when Core is halted */
 #  define DBGMCU_APB1_CAN1STOP    (1 << 25)  /* Bit 25: CAN1 stopped when core is halted */
 #  define DBGMCU_APB1_CAN2STOP    (1 << 26)  /* Bit 26: CAN2 stopped when core is halted */
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6)|| defined(CONFIG_STM32_STM32L4X3)
 #  define DBGMCU_APB1_TIM2STOP    (1 << 0)   /* Bit 0: TIM2 stopped when core is halted */
 #  define DBGMCU_APB1_TIM3STOP    (1 << 1)   /* Bit 1: TIM3 stopped when core is halted */
 #  define DBGMCU_APB1_TIM4STOP    (1 << 2)   /* Bit 2: TIM4 stopped when core is halted */
@@ -158,7 +158,7 @@
 #  define DBGMCU_APB2_TIM9STOP    (1 << 16)  /* Bit 16: TIM9 stopped when core is halted */
 #  define DBGMCU_APB2_TIM10STOP   (1 << 17)  /* Bit 17: TIM10 stopped when core is halted */
 #  define DBGMCU_APB2_TIM11STOP   (1 << 18)  /* Bit 18: TIM11 stopped when core is halted */
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define DBGMCU_APB2_TIM1STOP    (1 << 11)  /* Bit 11: TIM1 stopped when core is halted */
 #  define DBGMCU_APB2_TIM8STOP    (1 << 13)  /* Bit 13: TIM8 stopped when core is halted */
 #  define DBGMCU_APB2_TIM15STOP   (1 << 16)  /* Bit 16: TIM15 stopped when core is halted */

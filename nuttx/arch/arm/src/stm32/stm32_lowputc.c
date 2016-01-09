@@ -90,7 +90,7 @@
 #    else
 #      define STM32_APBCLOCK       STM32_PCLK1_FREQUENCY
 #    endif
-#    if defined(CONFIG_STM32_STM32L4X6)
+#    if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #      define STM32_CONSOLE_APBREG STM32_RCC_APB1ENR1
 #      define STM32_CONSOLE_APBEN  RCC_APB1ENR1_USART2EN
 #    else
@@ -118,7 +118,7 @@
 #    else
 #      define STM32_APBCLOCK       STM32_PCLK1_FREQUENCY
 #    endif
-#    if defined(CONFIG_STM32_STM32L4X6)
+#    if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #      define STM32_CONSOLE_APBREG STM32_RCC_APB1ENR1
 #      define STM32_CONSOLE_APBEN  RCC_APB1ENR1_USART3EN
 #    else
@@ -146,7 +146,7 @@
 #    else
 #      define STM32_APBCLOCK       STM32_PCLK1_FREQUENCY
 #    endif
-#    if defined(CONFIG_STM32_STM32L4X6)
+#    if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #      define STM32_CONSOLE_APBREG STM32_RCC_APB1ENR1
 #      define STM32_CONSOLE_APBEN  RCC_APB1ENR1_UART4EN
 #    else
@@ -174,7 +174,7 @@
 #    else
 #      define STM32_APBCLOCK       STM32_PCLK1_FREQUENCY
 #    endif
-#    if defined(CONFIG_STM32_STM32L4X6)
+#    if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #      define STM32_CONSOLE_APBREG STM32_RCC_APB1ENR1
 #      define STM32_CONSOLE_APBEN  RCC_APB1ENR1_UART5EN
 #    else
@@ -288,7 +288,7 @@
        USART_CR1_PCE |USART_CR1_WAKE | USART_CR1_M | USART_CR1_MME |\
        USART_CR1_OVER8 | USART_CR1_DEDT_MASK | USART_CR1_DEAT_MASK |\
        USART_CR1_ALLINTS)
-#  elif defined(CONFIG_STM32_STM32L4X6)
+#  elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #    define USART_CR1_CLRBITS\
       (USART_CR1_RE | USART_CR1_TE | USART_CR1_PS | USART_CR1_PCE |\
        USART_CR1_WAKE | USART_CR1_M | USART_CR1_MME | USART_CR1_OVER8 |\
@@ -309,7 +309,8 @@
 #    define USART_CR2_STOP2_VALUE 0
 #  endif
 
-#  if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
+#  if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6) || \
+    defined(CONFIG_STM32_STM32L4X3)
 #    define USART_CR2_CLRBITS \
       (USART_CR2_ADDM7 | USART_CR2_LBDL | USART_CR2_LBDIE | USART_CR2_LBCL |\
        USART_CR2_CPHA | USART_CR2_CPOL | USART_CR2_CLKEN | USART_CR2_STOP_MASK |\
@@ -325,7 +326,8 @@
 
   /* CR3 settings */
 
-#  if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
+#  if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6) || \
+	defined(CONFIG_STM32_STM32L4X3)
 
 #    define USART_CR3_CLRBITS \
       (USART_CR3_EIE | USART_CR3_IREN | USART_CR3_IRLP | USART_CR3_HDSEL |\
@@ -345,7 +347,8 @@
 
   /* Calculate USART BAUD rate divider */
 
-#  if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
+#  if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6) || \
+	defined(CONFIG_STM32_STM32L4X3)
 
     /* Baud rate for standard USART (SPI mode included):
      *
@@ -621,7 +624,7 @@ void stm32_lowsetup(void)
 
 #elif defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F20XX) || \
       defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX) || \
-      defined(CONFIG_STM32_STM32L4X6)
+      defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 
 void stm32_lowsetup(void)
 {

@@ -46,7 +46,9 @@
 
 /* Include the correct PWR register definitions for this STM32 family */
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X3)
+#  include "chip/stm32l4x3xx_pwr.h"
+#elif defined(CONFIG_STM32_STM32L4X6)
 #  include "chip/stm32l4x6xx_pwr.h"
 #else
 #  include "chip/stm32_pwr.h"

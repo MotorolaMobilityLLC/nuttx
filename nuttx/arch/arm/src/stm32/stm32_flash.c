@@ -59,7 +59,8 @@
 
 #if defined(CONFIG_STM32_STM32F10XX)  || \
     defined (CONFIG_STM32_STM32F40XX) || \
-    defined (CONFIG_STM32_STM32L4X6)
+    defined (CONFIG_STM32_STM32L4X6) || \
+    defined (CONFIG_STM32_STM32L4X3)
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -105,7 +106,8 @@ void stm32_flash_lock(void)
  * Public Functions
  ************************************************************************************/
 
-#if defined CONFIG_STM32_STM32F10XX || defined(CONFIG_STM32_STM32L4X6)
+#if defined CONFIG_STM32_STM32F10XX || defined(CONFIG_STM32_STM32L4X6) || \
+    defined(CONFIG_STM32_STM32L4X3)
 
 size_t up_progmem_pagesize(size_t page)
 {
@@ -226,7 +228,7 @@ bool up_progmem_isuniform(void)
 #endif /* def STM32_FLASH_PAGESIZE */
 }
 
-#if defined(CONFIG_STM32_STM32L4X6)
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 
 ssize_t _up_progmem_erase_page(size_t page)
 {
@@ -367,7 +369,7 @@ ssize_t up_progmem_ispageerased(size_t page)
   return bwritten;
 }
 
-#if defined (CONFIG_STM32_STM32L4X6)
+#if defined (CONFIG_STM32_STM32L4X6) || defined (CONFIG_STM32_STM32L4X3)
 
 static inline void write_single_dword(uint32_t *a, const uint32_t dword[])
 {

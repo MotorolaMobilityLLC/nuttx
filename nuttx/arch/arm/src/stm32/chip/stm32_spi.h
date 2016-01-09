@@ -135,7 +135,7 @@
 #define SPI_CR1_SSI               (1 << 8)  /* Bit 8: Internal slave select */
 #define SPI_CR1_SSM               (1 << 9)  /* Bit 9: Software slave management */
 #define SPI_CR1_RXONLY            (1 << 10) /* Bit 10: Receive only */
-#if defined(CONFIG_STM32_STM32L4X6)
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #define SPI_CR1_CRCL              (1 << 11) /* Bit 11: CRC Length  */
 #else
 #define SPI_CR1_DFF               (1 << 11) /* Bit 11: Data Frame Format */
@@ -160,7 +160,8 @@
 #define SPI_CR2_RXNEIE            (1 << 6)  /* Bit 6: RX buffer not empty interrupt enable */
 #define SPI_CR2_TXEIE             (1 << 7)  /* Bit 7: Tx buffer empty interrupt enable */
 
-#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
+#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6) || \
+    defined(CONFIG_STM32_STM32L4X3)
 #define SPI_CR2_DS_SHIFT          (8)       /* Bits 8-11:  Data size */
 #define SPI_CR2_DS_MASK           (15 << SPI_CR2_DS_SHIFT)
 #  define SPI_CR2_DS_4BIT         (3 << SPI_CR2_DS_SHIFT)
