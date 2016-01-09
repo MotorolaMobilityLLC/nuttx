@@ -102,7 +102,8 @@
 #if defined(CONFIG_STM32_I2C1) || defined(CONFIG_STM32_I2C2) || defined(CONFIG_STM32_I2C3)
 /* This implementation is for the STM32 F1, F2, and F4 only */
 
-#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
+#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6) || \
+    defined(CONFIG_STM32_STM32L4X3)
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -363,7 +364,7 @@ static const struct stm32_i2c_config_s stm32_i2c1_config =
 #if defined(CONFIG_STM32_STM32F30XX)
   .clk_bit    = RCC_APB1ENR_I2C1EN,
   .reset_bit  = RCC_APB1RSTR_I2C1RST,
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
   .clk_bit    = RCC_APB1ENR1_I2C1EN,
   .reset_bit  = RCC_APB1RSTR1_I2C1RST,
 #endif
@@ -397,7 +398,7 @@ static const struct stm32_i2c_config_s stm32_i2c2_config =
 #if defined(CONFIG_STM32_STM32F30XX)
   .clk_bit    = RCC_APB1ENR_I2C2EN,
   .reset_bit  = RCC_APB1RSTR_I2C2RST,
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
   .clk_bit    = RCC_APB1ENR1_I2C2EN,
   .reset_bit  = RCC_APB1RSTR1_I2C2RST,
 #endif
@@ -431,7 +432,7 @@ static const struct stm32_i2c_config_s stm32_i2c3_config =
 #if defined(CONFIG_STM32_STM32F30XX)
   .clk_bit    = RCC_APB1ENR_I2C3EN,
   .reset_bit  = RCC_APB1RSTR_I2C3RST,
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
   .clk_bit    = RCC_APB1ENR1_I2C3EN,
   .reset_bit  = RCC_APB1RSTR1_I2C3RST,
 #endif
@@ -1586,7 +1587,7 @@ static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv)
   modifyreg32(STM32_RCC_APB1ENR, 0, priv->config->clk_bit);
   modifyreg32(STM32_RCC_APB1RSTR, 0, priv->config->reset_bit);
   modifyreg32(STM32_RCC_APB1RSTR, priv->config->reset_bit, 0);
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
   modifyreg32(STM32_RCC_APB1ENR1, 0, priv->config->clk_bit);
   modifyreg32(STM32_RCC_APB1RSTR1, 0, priv->config->reset_bit);
   modifyreg32(STM32_RCC_APB1RSTR1, priv->config->reset_bit, 0);
@@ -1660,7 +1661,7 @@ static int stm32_i2c_deinit(FAR struct stm32_i2c_priv_s *priv)
   /* Disable clocking */
 #if defined(CONFIG_STM32_STM32F30XX)
   modifyreg32(STM32_RCC_APB1ENR, priv->config->clk_bit, 0);
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
   modifyreg32(STM32_RCC_APB1ENR1, priv->config->clk_bit, 0);
 #endif
   return OK;
@@ -2227,5 +2228,5 @@ out:
 }
 #endif /* CONFIG_I2C_RESET */
 
-#endif /* CONFIG_STM32_STM32F30XX || CONFIG_STM32_STM32L4X6 */
+#endif /* CONFIG_STM32_STM32F30XX || CONFIG_STM32_STM32L4X6 || CONFIG_STM32_STM32L4X3 */
 #endif /* CONFIG_STM32_I2C1 || CONFIG_STM32_I2C2 || CONFIG_STM32_I2C3 */

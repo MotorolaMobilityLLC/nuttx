@@ -44,7 +44,8 @@
 #include <nuttx/i2c.h>
 
 #include "chip.h"
-#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
+#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6) || \
+    defined(CONFIG_STM32_STM32L4X3)
 #  include "chip/stm32f30xxx_i2c.h"
 #else
 #  include "chip/stm32_i2c.h"

@@ -57,7 +57,7 @@
 #define STM32_ADC_IER_OFFSET         0x0004  /* ADC interrupt enable register */
 #define STM32_ADC_CR_OFFSET          0x0008  /* ADC control register */
 #define STM32_ADC_CFGR_OFFSET        0x000c  /* ADC configuration register */
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define STM32_ADC_CFGR2_OFFSET     0x0010  /* ADC configuration register 2 */
 #endif
 #define STM32_ADC_SMPR1_OFFSET       0x0014  /* ADC sample time register 1 */
@@ -96,7 +96,7 @@
 #define STM32_ADC1_IER               (STM32_ADC1_BASE+STM32_ADC_IER_OFFSET)
 #define STM32_ADC1_CR                (STM32_ADC1_BASE+STM32_ADC_CR_OFFSET)
 #define STM32_ADC1_CFGR              (STM32_ADC1_BASE+STM32_ADC_CFGR_OFFSET)
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define STM32_ADC1_CFGR2           (STM32_ADC1_BASE+STM32_ADC_CFGR2_OFFSET)
 #endif
 #define STM32_ADC1_SMPR1             (STM32_ADC1_BASE+STM32_ADC_SMPR1_OFFSET)
@@ -269,7 +269,7 @@
 
 /* ADC configuration register */
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define ADC_CFGR_DMAEN             (1 << 0)  /* Bit 0: Direct memory access enable */
 #endif
 #define ADC_CFGR_DMACFG              (1 << 1)  /* Bit 1:  Direct memory access configuration */
@@ -305,7 +305,7 @@
 #define ADC_CFGR_AWD1CH_SHIFT        (26)      /* Bits 26-30: Analog watchdog 1 channel select bits */
 #define ADC_CFGR_AWD1CH_MASK         (31 << ADC_CFGR_AWD1CH_SHIFT)
 #  define ADC_CFGR_AWD1CH_DISABLED   (0 << ADC_CFGR_AWD1CH_SHIFT)
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define ADC_CFGR_JQDIS             (1 << 31) /* Bit 31: Injected Queue disable */
 #endif
 
@@ -562,7 +562,7 @@
 #  define ADC_CCR_CKMODE_SYNCH_DIV1 (1 << ADC_CCR_CKMODE_SHIFT) /* Synchronous clock mode divided by 1 */
 #  define ADC_CCR_CKMODE_SYNCH_DIV2 (2 << ADC_CCR_CKMODE_SHIFT) /* Synchronous clock mode divided by 2 */
 #  define ADC_CCR_CKMODE_SYNCH_DIV4 (3 << ADC_CCR_CKMODE_SHIFT) /* Synchronous clock mode divided by 4 */
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define ADC_CCR_PRESC_SHIFT       (18)       /* Bits 18-21: ADC prescaler */
 #  define ADC_CCR_PRESC_MASK        (3 << ADC_CCR_PRESC_SHIFT)
 #    define ADC_CCR_PRESC_NOT_DIV   (0 << ADC_CCR_PRESC_SHIFT)  /* Input ADC clock not divided */

@@ -44,7 +44,8 @@
 
 #include "chip.h"
 
-#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6)
+#if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6) || \
+    defined(CONFIG_STM32_STM32L4X3)
 #  include "chip/stm32f30xxx_adc.h"
 #else
 #  include "chip/stm32_adc.h"

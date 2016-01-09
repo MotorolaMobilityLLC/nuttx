@@ -108,7 +108,7 @@ EXTERN int stm32_pmstop(bool lpds);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 EXTERN int stm32_pmstop2(void);
 #endif
 
@@ -169,7 +169,7 @@ EXTERN void stm32_pmsleep(bool sleeponexit);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 EXTERN int stm32_pmlpr(void);
 #endif
 

@@ -94,7 +94,7 @@ static inline void stm32_pwr_modifyreg(uint8_t offset, uint16_t clearbits, uint1
 
 void stm32_pwr_enablebkp(void)
 {
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
   stm32_pwr_modifyreg(STM32_PWR_CR1_OFFSET, 0, PWR_CR1_DBP);
 #else
   stm32_pwr_modifyreg(STM32_PWR_CR_OFFSET, 0, PWR_CR_DBP);

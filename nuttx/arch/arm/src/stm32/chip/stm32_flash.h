@@ -66,6 +66,18 @@
 #  define STM32_FLASH_NPAGES        256
 #  define STM32_FLASH_PAGESIZE      2048
 
+#elif defined(CONFIG_ARCH_CHIP_STM32L433CB)
+#  define STM32_FLASH_NPAGES        64
+#  define STM32_FLASH_PAGESIZE      2048
+#  define STM32_FLASH_PAGE_PER_BANK 128
+#  define STM32_FLASH_PAGE_BANK_MASK 0xff
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L433CC)
+#  define STM32_FLASH_NPAGES        128
+#  define STM32_FLASH_PAGESIZE      2048
+#  define STM32_FLASH_PAGE_PER_BANK 128
+#  define STM32_FLASH_PAGE_BANK_MASK 0xff
+
 #elif defined(CONFIG_STM32_STM32L4X6)
 #  define STM32_FLASH_NPAGES        512
 #  define STM32_FLASH_PAGESIZE      2048
@@ -90,7 +102,7 @@
 
 /* Register Offsets *****************************************************************/
 
-#ifdef CONFIG_STM32_STM32L4X6
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define STM32_FLASH_ACR_OFFSET      0x0000
 #  define STM32_FLASH_PDKEYR_OFFSET   0x0004
 #  define STM32_FLASH_KEYR_OFFSET     0x0008
@@ -139,7 +151,7 @@
 #  define STM32_FLASH_AR           (STM32_FLASHIF_BASE+STM32_FLASH_AR_OFFSET)
 #  define STM32_FLASH_OBR          (STM32_FLASHIF_BASE+STM32_FLASH_OBR_OFFSET)
 #  define STM32_FLASH_WRPR         (STM32_FLASHIF_BASE+STM32_FLASH_WRPR_OFFSET)
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define STM32_FLASH_OPTR         (STM32_FLASHIF_BASE+STM32_FLASH_OPTR_OFFSET)
 #elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX)
 #  define STM32_FLASH_OPTCR        (STM32_FLASHIF_BASE+STM32_FLASH_OPTCR_OFFSET)
@@ -166,7 +178,9 @@
 #    define FLASH_ACR_LATENCY_2     (2 << FLASH_ACR_LATENCY_SHIFT)    /* 010: Two wait states */
 #    define FLASH_ACR_LATENCY_3     (3 << FLASH_ACR_LATENCY_SHIFT)    /* 011: Three wait states */
 #    define FLASH_ACR_LATENCY_4     (4 << FLASH_ACR_LATENCY_SHIFT)    /* 100: Four wait states */
-#  ifndef CONFIG_STM32_STM32L4X6
+#  if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+     /* No latency definition */
+#  else
 #    define FLASH_ACR_LATENCY_5     (5 << FLASH_ACR_LATENCY_SHIFT)    /* 101: Five wait states */
 #    define FLASH_ACR_LATENCY_6     (6 << FLASH_ACR_LATENCY_SHIFT)    /* 110: Six wait states */
 #    define FLASH_ACR_LATENCY_7     (7 << FLASH_ACR_LATENCY_SHIFT)    /* 111: Seven wait states */
@@ -179,14 +193,14 @@
 #      define FLASH_ACR_PRFTBS      (1 << 5)  /* Bit 5: FLASH prefetch buffer status */
 #    endif
 #  elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX) || \
-        defined(CONFIG_STM32_STM32L4X6)
+        defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #    define FLASH_ACR_PRFTEN        (1 << 8)  /* FLASH prefetch enable */
 #    define FLASH_ACR_ICEN          (1 << 9)  /* Bit 9: Instruction cache enable */
 #    define FLASH_ACR_DCEN          (1 << 10) /* Bit 10: Data cache enable */
 #    define FLASH_ACR_ICRST         (1 << 11) /* Bit 11: Instruction cache reset */
 #    define FLASH_ACR_DCRST         (1 << 12) /* Bit 12: Data cache reset */
 #  endif
-#  ifdef CONFIG_STM32_STM32L4X6
+#  if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #    define FLASH_ACR_RUN_PD        (1 << 13) /* Bit 13: Flash Power-down mode during Low-power run mode */
 #    define FLASH_ACR_SLEEP_PD      (1 << 14) /* Bit 14: Flash Power-down mode during Low-power sleep mode */
 #  endif
@@ -200,7 +214,7 @@
 #  define FLASH_SR_WRPRT_ERR        (1 << 4)  /* Write Protection Error */
 #  define FLASH_SR_EOP              (1 << 5)  /* End of Operation */
 #elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX) || \
-      defined(CONFIG_STM32_STM32L4X6)
+      defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define FLASH_SR_EOP              (1 << 0)  /* Bit 0: End of operation */
 #  define FLASH_SR_OPERR            (1 << 1)  /* Bit 1: Operation error */
 #  define FLASH_SR_WRPERR           (1 << 4)  /* Bit 4: Write protection error */
@@ -226,7 +240,7 @@
 #  ifdef CONFIG_STM32_STM32F30XX
 #    define FLASH_CR_OBL_LAUNCH     (1 << 13) /* Bit 13: Force option byte loading */
 #  endif
-#elif defined(CONFIG_STM32_STM32L4X6)
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define FLASH_CR_PG               (1 << 0)                /* Bit 0: Programming */
 #  define FLASH_CR_PER              (1 << 1)                /* Bit 1: Page Erase */
 #  define FLASH_CR_MER1             (1 << 2)                /* Bit 2: Bank 1 Mass Erase */
@@ -310,7 +324,7 @@
 
 /* Flash Option Register (OPTR) */
 
-#if defined(CONFIG_STM32_STM32L4X6)
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
 #  define FLASH_OPTR_IWDG_STOP      (1 << 17)               /* Bit 17: IWDG counter freeze in Stop mode */
 #  define FLASH_OPTR_IWDG_STDBY     (1 << 18)               /* Bit 18: IWDG counter freeze in Standby mode */
 #endif
