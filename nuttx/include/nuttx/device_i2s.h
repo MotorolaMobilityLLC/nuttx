@@ -119,14 +119,14 @@ typedef void (*device_i2s_callback)(struct ring_buf *rb,
                                     enum device_i2s_event event, void *arg);
 
 struct device_i2s_type_ops {
-    int (*get_processing_delay)(struct device *dev,
-                                uint32_t *processing_delay);
+
     int (*get_supported_configurations)(struct device *dev,
                                         uint16_t *configuration_count,
                                         const struct device_i2s_configuration
                                                              *configurations[]);
     int (*set_configuration)(struct device *dev,
                              struct device_i2s_configuration *configuration);
+    int (*get_delay_receiver)(struct device *dev, uint32_t *delay);
     int (*prepare_receiver)(struct device *dev, struct ring_buf *rx_rb,
                             device_i2s_callback callback, void *arg);
     int (*start_receiver)(struct device *dev);
@@ -134,6 +134,7 @@ struct device_i2s_type_ops {
     int (*start_receiver_port)(struct device *dev);
     int (*stop_receiver_port)(struct device *dev);
     int (*shutdown_receiver)(struct device *dev);
+    int (*get_delay_transmitter)(struct device *dev, uint32_t *delay);
     int (*prepare_transmitter)(struct device *dev, struct ring_buf *tx_rb,
                                device_i2s_callback callback, void *arg);
     int (*start_transmitter)(struct device *dev);
@@ -143,27 +144,6 @@ struct device_i2s_type_ops {
     int (*shutdown_transmitter)(struct device *dev);
 };
 
-/**
- * @brief Get processing delay
- * @param dev I2S device to get delay of
- * @param processing_delay Address to write delay value
- * @return 0: Delay value returned successfully
- *         -errno: Cause of failure
- */
-static inline int device_i2s_get_processing_delay(struct device *dev,
-                                                  uint32_t *processing_delay)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev))
-        return -ENODEV;
-
-    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->get_processing_delay)
-        return DEVICE_DRIVER_GET_OPS(dev, i2s)->get_processing_delay(dev,
-                                                              processing_delay);
-
-    return -ENOSYS;
-}
 
 /**
  * @brief Get supported configurations
@@ -233,6 +213,27 @@ static inline int device_i2s_prepare_receiver(struct device *dev,
     if (DEVICE_DRIVER_GET_OPS(dev, i2s)->prepare_receiver)
         return DEVICE_DRIVER_GET_OPS(dev, i2s)->prepare_receiver(dev, rx_rb,
                                                                  callback, arg);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Get receiver start-up delay
+ * @param dev I2S device to get delay of
+ * @param delay Address to write delay value
+ * @return 0: Delay value returned successfully
+ *         -errno: Cause of failure
+ */
+static inline int device_i2s_get_delay_receiver(struct device *dev,
+                                                uint32_t *delay)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->get_delay_receiver)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->get_delay_receiver(dev, delay);
 
     return -ENOSYS;
 }
@@ -336,6 +337,28 @@ static inline int device_i2s_shutdown_receiver(struct device *dev)
 
     if (DEVICE_DRIVER_GET_OPS(dev, i2s)->shutdown_receiver)
         return DEVICE_DRIVER_GET_OPS(dev, i2s)->shutdown_receiver(dev);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Get transmitter start-up delay
+ * @param dev I2S device to get delay of
+ * @param delay Address to write delay value
+ * @return 0: Delay value returned successfully
+ *         -errno: Cause of failure
+ */
+static inline int device_i2s_get_delay_transmitter(struct device *dev,
+                                                   uint32_t *delay)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->get_delay_transmitter)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->get_delay_transmitter(dev,
+                                                                      delay);
 
     return -ENOSYS;
 }

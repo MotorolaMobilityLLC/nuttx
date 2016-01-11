@@ -1503,13 +1503,22 @@ static int tsb_i2s_irq_si_handler(int irq, void *context)
     return OK;
 }
 
-static int tsb_i2s_op_get_processing_delay(struct device *dev,
-                                           uint32_t *processing_delay)
+static int tsb_i2s_op_get_delay_receiver(struct device *dev,
+                                         uint32_t *processing_delay)
 {
     *processing_delay = 0; /* TODO: Make accurate guess for this */
 
     return 0;
 }
+
+static int tsb_i2s_op_get_delay_transmitter(struct device *dev,
+                                            uint32_t *processing_delay)
+{
+    *processing_delay = 0; /* TODO: Make accurate guess for this */
+
+    return 0;
+}
+
 
 static int tsb_i2s_op_get_supported_configurations(struct device *dev,
                         uint16_t *configuration_count,
@@ -2012,13 +2021,14 @@ static void tsb_i2s_dev_remove(struct device *dev)
 }
 
 static struct device_i2s_type_ops tsb_i2s_type_ops = {
-    .get_processing_delay         = tsb_i2s_op_get_processing_delay,
     .get_supported_configurations = tsb_i2s_op_get_supported_configurations,
     .set_configuration            = tsb_i2s_op_set_configuration,
+    .get_delay_receiver           = tsb_i2s_op_get_delay_receiver,
     .prepare_receiver             = tsb_i2s_op_prepare_receiver,
     .start_receiver               = tsb_i2s_op_start_receiver,
     .stop_receiver                = tsb_i2s_op_stop_receiver,
     .shutdown_receiver            = tsb_i2s_op_shutdown_receiver,
+    .get_delay_transmitter        = tsb_i2s_op_get_delay_transmitter,
     .prepare_transmitter          = tsb_i2s_op_prepare_transmitter,
     .start_transmitter            = tsb_i2s_op_start_transmitter,
     .stop_transmitter             = tsb_i2s_op_stop_transmitter,
