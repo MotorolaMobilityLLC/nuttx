@@ -93,9 +93,7 @@ static void pg_worker(FAR void *arg)
 
     /* Configure registers every time power is attached */
     if (regval && !prev_pg) {
-        dbg("Reconfiguring BQ24292\n");
         bq24292_configure();
-
         list_foreach(&notify_list, iter) {
             node = list_entry(iter, struct notify_node, list);
             node->callback(node->arg);
@@ -142,6 +140,7 @@ static int configure_device(void)
 {
     int i, ret;
 
+    dbg("Reconfiguring BQ24292\n");
     for (i = 0; i < bq24292_cfg_size; i++) {
         if (bq24292_cfg[i].mask == 0xFF)
             ret = reg_write(bq24292_cfg[i].reg, bq24292_cfg[i].set);
@@ -352,9 +351,8 @@ int bq24292_driver_init(int16_t pg_n)
         goto init_done;
     }
 
-    ret = work_queue(HPWORK, &pg_work, pg_worker, NULL, 0);
-    if (ret)
-        dbg("failed to run worker thread\n");
+    /* Perform initial configuration */
+    (void) configure_device();
 
 init_done:
     sem_post(&sem);
