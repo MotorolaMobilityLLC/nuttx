@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015 Google Inc.
- * Copyright (c) 2015 Motorola LLC.
+ * Copyright (c) 2015-2016 Motorola LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,11 +31,14 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <arch/byteorder.h>
 #include <nuttx/arch.h>
 #include <nuttx/bootmode.h>
 #include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/progmem.h>
+#include <nuttx/rtc.h>
+#include <nuttx/time.h>
 #include <nuttx/version.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
@@ -49,7 +52,7 @@
 
 /* Version of the Greybus control protocol we support */
 #define MB_CONTROL_VERSION_MAJOR              0x00
-#define MB_CONTROL_VERSION_MINOR              0x02
+#define MB_CONTROL_VERSION_MINOR              0x03
 
 /* Greybus control request types */
 #define MB_CONTROL_TYPE_INVALID               0x00
@@ -60,6 +63,7 @@
 #define MB_CONTROL_TYPE_PORT_DISCONNECTED     0x05
 #define MB_CONTROL_TYPE_SLAVE_POWER           0x06
 #define MB_CONTROL_TYPE_GET_ROOT_VER          0x07
+#define MB_CONTROL_TYPE_RTC_SYNC              0x08
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
@@ -120,6 +124,12 @@ struct mb_control_power_ctrl_request {
 struct mb_control_root_ver_response {
     __u8      version;
 } __packed;
+
+/* Control protocol RTC sync request */
+struct mb_control_rtc_sync_request {
+    __le64    nsec;
+} __packed;
+/* Control protocol RTC sync has no response */
 
 struct mb_control_info {
     uint16_t cport;
@@ -335,6 +345,28 @@ static uint8_t mb_control_get_root_vers(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t mb_control_rtc_sync(struct gb_operation *operation)
+{
+#ifdef CONFIG_RTC
+    struct mb_control_rtc_sync_request *request =
+        gb_operation_get_request_payload(operation);
+    struct timespec ts;
+    int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    nsec_to_timespec(request->nsec, &ts);
+    ret = up_rtc_settime(&ts);
+
+    return ret ? GB_OP_UNKNOWN_ERROR : GB_OP_SUCCESS;
+#else
+    return GB_OP_UNKNOWN_ERROR;
+#endif
+}
+
 static int mb_control_init(unsigned int cport)
 {
     ctrl_info = zalloc(sizeof(*ctrl_info));
@@ -379,6 +411,7 @@ static struct gb_operation_handler mb_control_handlers[] = {
     GB_HANDLER(MB_CONTROL_TYPE_PORT_DISCONNECTED, gb_control_disconnected),
     GB_HANDLER(MB_CONTROL_TYPE_SLAVE_POWER, mb_control_power_ctrl),
     GB_HANDLER(MB_CONTROL_TYPE_GET_ROOT_VER, mb_control_get_root_vers),
+    GB_HANDLER(MB_CONTROL_TYPE_RTC_SYNC, mb_control_rtc_sync),
 };
 
 struct gb_driver mb_control_driver = {
