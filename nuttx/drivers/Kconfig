@@ -60,6 +60,7 @@ config GHOST_DISPLAY
     bool "Ghost Display"
     default n
 
+if GREYBUS_CAMERA_EXT
 choice
   prompt "Select Camera to use"
 config CAMERA_IMX220
@@ -71,6 +72,7 @@ config CAMERA_TC35874X
 config CAMERA_TC35874X_PDISP
 	bool "TC35874X Display Parallel to CSI bridge"
 endchoice
+endif
 
 config DEV_RANDOM
 	bool "Enable /dev/random"
