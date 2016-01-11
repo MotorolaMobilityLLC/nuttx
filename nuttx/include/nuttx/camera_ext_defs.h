@@ -112,14 +112,6 @@ struct camera_ext_fract {
     __le32 denominator;
 } __packed;
 
-static inline int camera_ext_fract_equal(struct camera_ext_fract const *l,
-        struct camera_ext_fract const *r)
-{
-    //suppose they are irreducible fraction
-    return l->numerator == r->numerator
-        && l->denominator == r->denominator;
-}
-
 /* from v4l2_frmival_stepwise */
 struct camera_ext_frmival_stepwise {
     struct camera_ext_fract min;

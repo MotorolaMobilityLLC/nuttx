@@ -31,41 +31,6 @@
 #include <string.h>
 #include "camera_ext.h"
 
-//fill format with current user config
-int cam_ext_fill_current_format(struct gb_camera_ext_sensor_db const *db,
-    struct gb_camera_ext_sensor_user_config *cfg,
-    struct camera_ext_format *format)
-{
-    struct camera_ext_format_node const *format_node;
-    struct camera_ext_frmsize_node const *frmsize_node;
-
-    format_node = get_current_format_node(db, cfg);
-    frmsize_node = get_current_frmsize_node(db, cfg);
-
-    if (format_node == NULL || frmsize_node == NULL) {
-        CAM_ERR("invalid user config\n");
-        return -EINVAL;
-    }
-
-    if (frmsize_node->raw_data.type ==
-            cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE)) {
-        format->width = frmsize_node->raw_data.discrete.width;
-        format->height = frmsize_node->raw_data.discrete.height;
-    } else {
-        //step or continuous
-        format->width = cfg->frmsize.width;
-        format->height = cfg->frmsize.height;
-    }
-
-    //considering 'step' or 'continuous' frame size,
-    //calc other fields at run time.
-    format->pixelformat = format_node->raw_data.fourcc;
-    format->bytesperline = (format->width * format_node->raw_data.depth) >> 3;
-    format->sizeimage = format->bytesperline * format->height;
-    return 0;
-
-}
-
 //Find the format node (by fourcc) which is a sub node of a input node
 //return index in the input->format_nodes array, -1 not found.
 static int find_format_node(struct camera_ext_input_node const *input_node,
@@ -76,7 +41,7 @@ static int find_format_node(struct camera_ext_input_node const *input_node,
 
     for (index = 0; index < input_node->num_formats; index++) {
         format_node = &input_node->format_nodes[index];
-        if (format_node->raw_data.fourcc == pixelformat) {
+        if (format_node->fourcc == le32_to_cpu(pixelformat)) {
             break;
         }
     }
@@ -96,17 +61,15 @@ static int find_frmsize_node(struct camera_ext_format_node const *format_node,
 
     for (index = 0; index < format_node->num_frmsizes; index++) {
         frmsize_node = &format_node->frmsize_nodes[index];
-        if (frmsize_node->raw_data.type == CAM_EXT_FRMSIZE_TYPE_DISCRETE) {
-            if (frmsize_node->raw_data.discrete.width == width
-                && frmsize_node->raw_data.discrete.height == height) {
+        if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_DISCRETE) {
+            if (frmsize_node->discrete.width == le32_to_cpu(width)
+                && frmsize_node->discrete.height == le32_to_cpu(height)) {
                 break;
             }
-        } else if (frmsize_node->raw_data.type
-            == CAM_EXT_FRMSIZE_TYPE_CONTINUOUS) {
+        } else if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_CONTINUOUS) {
             //TODO: store w/h to frmsize_user_config
             break;
-        } else if (frmsize_node->raw_data.type
-            == CAM_EXT_FRMSIZE_TYPE_STEPWISE) {
+        } else if (frmsize_node->type  == CAM_EXT_FRMSIZE_TYPE_STEPWISE) {
             //TODO: store w/h to frmsize_user_config
             //check if the width/height meet the step requirement
             break;
@@ -117,14 +80,20 @@ static int find_frmsize_node(struct camera_ext_format_node const *format_node,
     return index;
 }
 
-int cam_ext_set_current_format(struct camera_ext_input_node const *input_node,
-    struct gb_camera_ext_sensor_user_config *cfg,
-    struct camera_ext_format *format)
+/* Functions to set user configuration */
+int cam_ext_set_current_format(struct gb_camera_ext_sensor_db const *db,
+                               struct gb_camera_ext_sensor_user_config *cfg,
+                               struct camera_ext_format *format)
 {
     int retval;
     int index_format;
     int index_frmsize;
+    struct camera_ext_input_node const *input_node;
     struct camera_ext_format_node const *format_node;
+
+    input_node = get_current_input_node(db, cfg);
+    if (input_node == NULL)
+        return -EINVAL;
 
     retval = -EINVAL;
     //find format node
@@ -147,12 +116,230 @@ int cam_ext_set_current_format(struct camera_ext_input_node const *input_node,
     return retval;
 }
 
-int cam_ext_frmsize_enum(struct camera_ext_input_node const *input_node,
-    int index, struct camera_ext_frmsize* frmsize)
+//Update the stream frame rate. If success, return the frmival_node in use
+int cam_ext_frmival_set(struct gb_camera_ext_sensor_db const *db,
+                        struct gb_camera_ext_sensor_user_config *cfg,
+                        struct camera_ext_streamparm *parm)
+{
+    int index;
+    struct camera_ext_frmsize_node const *frmsize_node;
+    struct camera_ext_frmival_node const *frmival_node;
+
+    frmsize_node = get_current_frmsize_node(db, cfg);
+    if (frmsize_node == NULL) {
+        CAM_ERR("invalid user config\n");
+        return -EINVAL;
+    }
+
+    frmival_node = NULL;
+    for (index = 0; index < frmsize_node->num_frmivals; index++) {
+        frmival_node = &frmsize_node->frmival_nodes[index];
+        if (frmival_node->type == CAM_EXT_FRMIVAL_TYPE_DISCRETE) {
+            if (camera_ext_fract_equal(&frmival_node->discrete,
+                                       &parm->capture.timeperframe)) {
+                //accept
+                cfg->frmival.idx_frmival = index;
+                break;
+            } else {
+                frmival_node = NULL;
+            }
+        } else if (frmival_node->type == CAM_EXT_FRMIVAL_TYPE_STEPWISE) {
+            //TODO: not support for now
+            frmival_node = NULL;
+        } else if (frmival_node->type == CAM_EXT_FRMIVAL_TYPE_CONTINUOUS) {
+            //TODO: not support for now
+            frmival_node = NULL;
+        }
+    }
+
+    return 0;
+}
+
+/* Utility Function to access Format DB structure */
+bool is_input_valid(struct gb_camera_ext_sensor_db const *db, uint32_t input)
+{
+    return (input >= 0 && input < db->num_inputs) ? true : false;
+}
+
+bool is_format_valid(struct gb_camera_ext_sensor_db const *db,
+                                   uint32_t input, uint32_t format)
+{
+    if (is_input_valid(db, input)) {
+        return (format >= 0 &&
+                format < db->input_nodes[input].num_formats) ? true : false;
+    }
+    return false;
+}
+
+bool is_frmsize_valid(struct gb_camera_ext_sensor_db const *db,
+                      uint32_t input, uint32_t format, uint32_t frmsize)
+{
+    if (is_format_valid(db, input, format)) {
+        return (frmsize >= 0 &&
+                frmsize < db->input_nodes[input].format_nodes[format].num_frmsizes) ?
+            true : false;
+    }
+    return false;
+}
+
+bool is_frmival_valid(struct gb_camera_ext_sensor_db const *db,
+                      uint32_t input, uint32_t format, uint32_t frmsize, uint32_t frmival)
+{
+    if (is_frmsize_valid(db, input, format, frmsize)) {
+        return (frmival >= 0 &&
+                frmival < db->input_nodes[input].format_nodes[format].
+                frmsize_nodes[frmsize].num_frmivals) ? true : false;
+    }
+    return false;
+}
+
+static struct camera_ext_input_node const *get_input_node(
+    struct gb_camera_ext_sensor_db const *db, uint32_t input)
+{
+    if (!is_input_valid(db, input))
+        return NULL;
+
+    return &db->input_nodes[input];
+}
+
+static struct camera_ext_format_node const *get_format_node(
+    struct gb_camera_ext_sensor_db const *db, uint32_t input, uint32_t format)
+{
+    if (!is_format_valid(db, input, format))
+        return NULL;
+
+    return &db->input_nodes[input].format_nodes[format];
+}
+
+static struct camera_ext_frmsize_node const *get_frmsize_node(
+    struct gb_camera_ext_sensor_db const *db, uint32_t input, uint32_t format, uint32_t frmsize)
+{
+    if (!is_frmsize_valid(db, input, format, frmsize))
+        return NULL;
+
+    return &db->input_nodes[input].format_nodes[format].frmsize_nodes[frmsize];
+}
+
+static struct camera_ext_frmival_node const *get_frmival_node(
+    struct gb_camera_ext_sensor_db const *db, uint32_t input, uint32_t format,
+    uint32_t frmsize, uint32_t frmival)
+{
+    if (!is_frmival_valid(db, input, format, frmsize, frmival))
+        return NULL;
+
+    return &db->input_nodes[input].format_nodes[format].
+        frmsize_nodes[frmsize].frmival_nodes[frmival];
+}
+
+struct camera_ext_input_node const *get_current_input_node(
+    struct gb_camera_ext_sensor_db const *db,
+    struct gb_camera_ext_sensor_user_config *cfg)
+{
+    return get_input_node(db, cfg->input);
+}
+
+struct camera_ext_format_node const *get_current_format_node(
+    struct gb_camera_ext_sensor_db const *db,
+    struct gb_camera_ext_sensor_user_config *cfg)
+{
+    return get_format_node(db, cfg->input, cfg->format);
+}
+
+struct camera_ext_frmsize_node const *get_current_frmsize_node(
+    struct gb_camera_ext_sensor_db const *db,
+    struct gb_camera_ext_sensor_user_config *cfg)
+{
+    return get_frmsize_node(db, cfg->input, cfg->format, cfg->frmsize.idx_frmsize);
+}
+
+struct camera_ext_frmival_node const *get_current_frmival_node(
+    struct gb_camera_ext_sensor_db const *db,
+    struct gb_camera_ext_sensor_user_config *cfg)
+{
+    return get_frmival_node(db, cfg->input, cfg->format,
+                            cfg->frmsize.idx_frmsize,
+                            cfg->frmival.idx_frmival);
+}
+
+/* Function to set GB data structure from Format DB structure */
+int camera_ext_fill_gb_input(struct gb_camera_ext_sensor_db const *db, uint32_t index,
+                             struct camera_ext_input *input)
+{
+    const struct camera_ext_input_node *inode = get_input_node(db, index);
+
+    if (inode == NULL)
+        return -EINVAL;
+
+    input->index = cpu_to_le32(index);
+    strncat(input->name, inode->name, 31);
+    input->type = cpu_to_le32(inode->type);
+    input->status = cpu_to_le32(inode->status);
+    return 0;
+}
+
+int camera_ext_fill_gb_fmtdesc(struct gb_camera_ext_sensor_db const *db, uint32_t input,
+                               uint32_t format, struct camera_ext_fmtdesc *fmt)
+{
+    const struct camera_ext_format_node *fnode = get_format_node(db, input, format);
+
+    if (fnode == NULL)
+        return -EINVAL;
+
+    fmt->index = cpu_to_le32(format);
+    strncat(fmt->name, fnode->name, 31);
+    fmt->fourcc = cpu_to_le32(fnode->fourcc);
+    fmt->depth = cpu_to_le32(fnode->depth);
+    return 0;
+}
+
+int cam_ext_fill_gb_format(struct gb_camera_ext_sensor_db const *db,
+                           uint32_t input, uint32_t format,
+                           uint32_t frmsize, uint32_t user_width, uint32_t user_height,
+                           struct camera_ext_format *fmt)
+{
+    struct camera_ext_format_node const *format_node;
+    struct camera_ext_frmsize_node const *frmsize_node;
+
+    format_node = get_format_node(db, input, format);
+    frmsize_node = get_frmsize_node(db, input, format, frmsize);
+
+    if (format_node == NULL || frmsize_node == NULL) {
+        CAM_ERR("invalid user config\n");
+        return -EINVAL;
+    }
+
+    uint32_t w, h;
+    if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_DISCRETE) {
+        w = frmsize_node->discrete.width;
+        h = frmsize_node->discrete.height;
+    } else {
+        //step or continuous
+        w = user_width;
+        h = user_height;
+    }
+    uint32_t byte_count = (w * format_node->depth) >> 3;
+
+    //considering 'step' or 'continuous' frame size,
+    //calc other fields at run time.
+    fmt->width = cpu_to_le32(w);
+    fmt->height = cpu_to_le32(h);
+    fmt->pixelformat = cpu_to_le32(format_node->fourcc);
+    fmt->bytesperline = cpu_to_le32(byte_count);
+    fmt->sizeimage = cpu_to_le32(byte_count * h);
+
+    return 0;
+}
+
+int cam_ext_fill_gb_frmsize(struct gb_camera_ext_sensor_db const *db, uint32_t input,
+                            uint32_t index, struct camera_ext_frmsize* frmsize)
 {
     int index_format;
     struct camera_ext_format_node const *format_node;
     struct camera_ext_frmsize_node const *frmsize_node;
+    struct camera_ext_input_node const *input_node = get_input_node(db, input);
+
+    if (input_node == NULL)
+        return -EINVAL;
 
     //find format node
     index_format = find_format_node(input_node, frmsize->pixelformat);
@@ -160,13 +347,18 @@ int cam_ext_frmsize_enum(struct camera_ext_input_node const *input_node,
         format_node = &input_node->format_nodes[index_format];
         if (index >=0 && index < format_node->num_frmsizes) {
             frmsize_node = &format_node->frmsize_nodes[index];
-            frmsize->index = index;
-            frmsize->type = frmsize_node->raw_data.type;
-            if (frmsize->type == cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE)) {
-                frmsize->discrete = frmsize_node->raw_data.discrete;
-            } else if (frmsize->type
-                        == cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_STEPWISE)) {
-                frmsize->stepwise = frmsize_node->raw_data.stepwise;
+            frmsize->index = cpu_to_le32(index);
+            frmsize->type = cpu_to_le32(frmsize_node->type);
+            if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_DISCRETE) {
+                frmsize->discrete.width = cpu_to_le32(frmsize_node->discrete.width);
+                frmsize->discrete.height = cpu_to_le32(frmsize_node->discrete.height);
+            } else if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_STEPWISE) {
+                frmsize->stepwise.min_width = cpu_to_le32(frmsize_node->stepwise.min_width);
+                frmsize->stepwise.max_width = cpu_to_le32(frmsize_node->stepwise.max_width);
+                frmsize->stepwise.step_width = cpu_to_le32(frmsize_node->stepwise.step_width);
+                frmsize->stepwise.min_height = cpu_to_le32(frmsize_node->stepwise.min_height);
+                frmsize->stepwise.max_height = cpu_to_le32(frmsize_node->stepwise.max_height);
+                frmsize->stepwise.step_height = cpu_to_le32(frmsize_node->stepwise.step_height);
             }
             return 0;
         }
@@ -175,14 +367,18 @@ int cam_ext_frmsize_enum(struct camera_ext_input_node const *input_node,
     return -EINVAL;
 }
 
-int cam_ext_frmival_enum(struct camera_ext_input_node const *input_node,
-    int index, struct camera_ext_frmival* frmival)
+int cam_ext_fill_gb_frmival(struct gb_camera_ext_sensor_db const *db, uint32_t input,
+                            uint32_t index, struct camera_ext_frmival* frmival)
 {
     int index_format;
     int index_frmsize;
     struct camera_ext_format_node const *format_node;
     struct camera_ext_frmsize_node const *frmsize_node;
     struct camera_ext_frmival_node const *frmival_node;
+    struct camera_ext_input_node const *input_node = get_input_node(db, input);
+
+    if (input_node == NULL)
+        return -EINVAL;
 
     //find format node
     index_format = find_format_node(input_node, frmival->pixelformat);
@@ -190,19 +386,31 @@ int cam_ext_frmival_enum(struct camera_ext_input_node const *input_node,
         format_node = &input_node->format_nodes[index_format];
         //find frmsize node
         index_frmsize = find_frmsize_node(format_node,
-                                frmival->width, frmival->height);
+                                          le32_to_cpu(frmival->width),
+                                          le32_to_cpu(frmival->height));
         if (index_frmsize != -1) {
             frmsize_node = &format_node->frmsize_nodes[index_frmsize];
             if (index >= 0  && index < frmsize_node->num_frmivals) {
                 frmival_node = &frmsize_node->frmival_nodes[index];
                 //copy raw data
-                frmival->index = index;
-                frmival->type = frmival_node->raw_data.type;
-                if (frmival->type == cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE)) {
-                    frmival->discrete = frmival_node->raw_data.discrete;
-                } else if (frmival->type
-                            == cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_STEPWISE)) {
-                    frmival->stepwise = frmival_node->raw_data.stepwise;
+                frmival->index = cpu_to_le32(index);
+                frmival->type = cpu_to_le32(frmival_node->type);
+                if (frmival_node->type == CAM_EXT_FRMIVAL_TYPE_DISCRETE) {
+                    frmival->discrete.numerator = cpu_to_le32(frmival_node->discrete.numerator);
+                    frmival->discrete.denominator = cpu_to_le32(frmival_node->discrete.denominator);
+                } else if (frmival_node->type == CAM_EXT_FRMSIZE_TYPE_STEPWISE) {
+                    frmival->stepwise.min.numerator =
+                        cpu_to_le32(frmival_node->stepwise.min.numerator);
+                    frmival->stepwise.min.denominator =
+                        cpu_to_le32(frmival_node->stepwise.min.denominator);
+                    frmival->stepwise.max.numerator =
+                        cpu_to_le32(frmival_node->stepwise.max.numerator);
+                    frmival->stepwise.max.denominator =
+                        cpu_to_le32(frmival_node->stepwise.max.denominator);
+                    frmival->stepwise.step.numerator =
+                        cpu_to_le32(frmival_node->stepwise.step.numerator);
+                    frmival->stepwise.step.denominator =
+                        cpu_to_le32(frmival_node->stepwise.step.denominator);
                 }
                 return 0;
             }
@@ -212,49 +420,41 @@ int cam_ext_frmival_enum(struct camera_ext_input_node const *input_node,
     return -EINVAL;
 }
 
-//Update the stream frame rate. If success, return the frmival_node in use
-struct camera_ext_frmival_node const *cam_ext_frmival_set(
-    struct gb_camera_ext_sensor_db const *db,
-    struct gb_camera_ext_sensor_user_config *cfg,
-    struct camera_ext_streamparm *parm)
+int cam_ext_fill_gb_streamparm(struct gb_camera_ext_sensor_db const *db,
+                               struct gb_camera_ext_sensor_user_config *cfg,
+                               uint32_t capability, uint32_t capturemode,
+                               struct camera_ext_streamparm *parm)
 {
-    int index;
-    struct camera_ext_frmsize_node const *frmsize_node;
     struct camera_ext_frmival_node const *frmival_node;
 
-    frmsize_node = get_current_frmsize_node(db, cfg);
-    if (frmsize_node == NULL) {
-        CAM_ERR("invalid user config\n");
-        return NULL;
+    frmival_node = get_current_frmival_node(db, cfg);
+    if (frmival_node == NULL) {
+        CAM_ERR("failed to get current frmival node\n");
+        return -EINVAL;
     }
 
-    frmival_node = NULL;
-    for (index = 0; index < frmsize_node->num_frmivals; index++) {
-        frmival_node = &frmsize_node->frmival_nodes[index];
-        if (frmival_node->raw_data.type
-            == cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE)) {
-            if (camera_ext_fract_equal(&frmival_node->raw_data.discrete,
-                    &parm->capture.timeperframe)) {
-                //accept
-                cfg->frmival.idx_frmival = index;
-                break;
-            } else {
-                frmival_node = NULL;
-            }
-        } else if (frmival_node->raw_data.type
-            == cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_STEPWISE)) {
-            //TODO: not support for now
-            frmival_node = NULL;
-        } else if (frmival_node->raw_data.type
-            == cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_CONTINUOUS)) {
-            //TODO: not support for now
-            frmival_node = NULL;
-        }
+    memset(parm, 0, sizeof(*parm));
+    parm->type = cpu_to_le32(CAMERA_EXT_BUFFER_TYPE_VIDEO_CAPTURE);
+    uint32_t frmival_type = frmival_node->type;
+    if (frmival_type == CAM_EXT_FRMIVAL_TYPE_DISCRETE) {
+        parm->capture.timeperframe.numerator=
+            cpu_to_le32(frmival_node->discrete.numerator);
+        parm->capture.timeperframe.denominator =
+            cpu_to_le32(frmival_node->discrete.denominator);
+    } else {
+        //for step/continuous type, frame rate stored in user config
+        parm->capture.timeperframe.numerator =
+            cpu_to_le32(cfg->frmival.numerator);
+        parm->capture.timeperframe.denominator =
+            cpu_to_le32(cfg->frmival.denominator);
     }
+    parm->capture.capability = cpu_to_le32(capability);
+    parm->capture.capturemode = cpu_to_le32(capturemode);
 
-    return frmival_node;
+    return 0;
 }
 
+/* Functions to set GB data structure from Control DB structure */
 int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
         struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg)
 {
