@@ -176,7 +176,7 @@ static inline useconds_t timeval_to_usec(const struct timeval *tv)
  ****************************************************************************/
 static inline void usec_to_timespec(uint32_t usec, struct timespec *ts)
 {
-    ts->tv_sec = DIV_ROUND_CLOSEST(usec, USEC_PER_SEC);
+    ts->tv_sec = usec / USEC_PER_SEC;
     ts->tv_nsec = (usec % USEC_PER_SEC) * NSEC_PER_USEC;
 }
 
@@ -189,7 +189,7 @@ static inline void usec_to_timespec(uint32_t usec, struct timespec *ts)
  ****************************************************************************/
 static inline void nsec_to_timespec(uint64_t ns, struct timespec *ts)
 {
-    ts->tv_sec = DIV_ROUND_CLOSEST(ns, NSEC_PER_SEC);
+    ts->tv_sec = ns / NSEC_PER_SEC;
     ts->tv_nsec = ns % NSEC_PER_SEC;
 }
 
