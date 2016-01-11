@@ -57,7 +57,7 @@ struct max17050_config {
     uint16_t capacity;
     uint16_t vf_fullcap;
     uint16_t ichg_term;
-    uint16_t voltage_max_design; // in uV units
+    uint32_t voltage_max_design; // in uV units
     int cell_data[MAX17050_CELL_DATA_SIZE];
 };
 
