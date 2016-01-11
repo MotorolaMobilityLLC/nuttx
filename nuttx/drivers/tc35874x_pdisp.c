@@ -63,11 +63,6 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-/* TODO: move below macro to camera_ext.h */
-#define v4l2_fourcc(a, b, c, d) \
-    ((uint32_t)(a) | ((uint32_t)(b) << 8)               \
-     | ((uint32_t)(c) << 16) | ((uint32_t)(d) << 24))
-
 /* BEGIN - Supported Format definitions */
 struct user_data_t {
     uint16_t pll1;
@@ -105,12 +100,10 @@ static struct user_data_t _user_data[] = {
 
 static const struct camera_ext_frmival_node _frmival_fhd[] = {
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE),
-            .discrete = {
-                .numerator = cpu_to_le32(1),
-                .denominator = cpu_to_le32(15),
-            }
+        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
+        .discrete = {
+            .numerator = 1,
+            .denominator = 15,
         },
         .user_data = &_user_data[0],
     },
@@ -118,12 +111,10 @@ static const struct camera_ext_frmival_node _frmival_fhd[] = {
 
 static const struct camera_ext_frmival_node _frmival_qhd[] = {
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE),
-            .discrete = {
-                .numerator = cpu_to_le32(1),
-                .denominator = cpu_to_le32(30),
-            }
+        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
+        .discrete = {
+            .numerator = 1,
+            .denominator = 30,
         },
         .user_data = &_user_data[1],
     },
@@ -131,12 +122,10 @@ static const struct camera_ext_frmival_node _frmival_qhd[] = {
 
 static const struct camera_ext_frmival_node _frmival_vga[] = {
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE),
-            .discrete = {
-                .numerator = cpu_to_le32(1),
-                .denominator = cpu_to_le32(60),
-            }
+        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
+        .discrete = {
+            .numerator = 1,
+            .denominator = 60,
         },
         .user_data = &_user_data[2],
     },
@@ -144,34 +133,28 @@ static const struct camera_ext_frmival_node _frmival_vga[] = {
 
 static const struct camera_ext_frmsize_node _frmsizes_rgb888[] = {
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
-            .discrete = {
-                .width = cpu_to_le32(1920),
-                .height = cpu_to_le32(1080),
-            },
+        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
+        .discrete = {
+            .width = 1920,
+            .height = 1080,
         },
         .num_frmivals = ARRAY_SIZE(_frmival_fhd),
         .frmival_nodes = _frmival_fhd,
     },
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
-            .discrete = {
-                .width = cpu_to_le32(960),
-                .height = cpu_to_le32(540),
-            },
+        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
+        .discrete = {
+            .width = 960,
+            .height = 540,
         },
         .num_frmivals = ARRAY_SIZE(_frmival_qhd),
         .frmival_nodes = _frmival_qhd,
     },
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
-            .discrete = {
-                .width = cpu_to_le32(640),
-                .height = cpu_to_le32(480),
-            },
+        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
+        .discrete = {
+            .width = 640,
+            .height = 480,
         },
         .num_frmivals = ARRAY_SIZE(_frmival_vga),
         .frmival_nodes = _frmival_vga,
@@ -180,11 +163,9 @@ static const struct camera_ext_frmsize_node _frmsizes_rgb888[] = {
 
 static const struct camera_ext_format_node _formats[] = {
     {
-        .raw_data = {
-            .name = {'R', 'G', 'B', '8', '8', '8', 0},
-            .fourcc = cpu_to_le32(v4l2_fourcc('R', 'G', 'B', '3')),
-            .depth = cpu_to_le32(24),
-        },
+        .name = "RGB888",
+        .fourcc = V4L2_PIX_FMT_RGB24,
+        .depth = 24,
         .num_frmsizes = ARRAY_SIZE(_frmsizes_rgb888),
         .frmsize_nodes = _frmsizes_rgb888,
     },
@@ -192,12 +173,9 @@ static const struct camera_ext_format_node _formats[] = {
 
 static const struct camera_ext_input_node _inputs[] = {
     {
-        .raw_data = {
-            .index = cpu_to_le32(0),
-            .name = {'T', 'C', '3', '5', '8', '7', '4', 'X',  0},
-            .type = cpu_to_le32(CAM_EXT_INPUT_TYPE_CAMERA),
-            .status = cpu_to_le32(0),
-        },
+        .name = "TC35874X",
+        .type = CAM_EXT_INPUT_TYPE_CAMERA,
+        .status = 0,
         .num_formats = ARRAY_SIZE(_formats),
         .format_nodes = _formats,
     },
@@ -300,17 +278,25 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
     uint32_t value;
     struct gb_camera_ext_sensor_user_config *cfg =
         (struct gb_camera_ext_sensor_user_config *)data;
-    struct camera_ext_format fmt;
+    const struct camera_ext_format_node *fmt;
+    const struct camera_ext_frmsize_node  *frmsize;
     const struct camera_ext_frmival_node *ival;
     const struct user_data_t *udata;
 
-    if (cam_ext_fill_current_format(&_db, cfg, &fmt) != 0) {
+    fmt = get_current_format_node(&_db, cfg);
+    if (fmt == NULL) {
         CAM_ERR("Failed to get current format\n");
         return -1;
     }
 
-    if (fmt.pixelformat != v4l2_fourcc('R', 'G', 'B', '3')) {
-        CAM_ERR("Unsupported format 0x%x\n", fmt.pixelformat);
+    if (fmt->fourcc != V4L2_PIX_FMT_RGB24) {
+        CAM_ERR("Unsupported format 0x%x\n", fmt->fourcc);
+        return -1;
+    }
+
+    frmsize = get_current_frmsize_node(&_db, cfg);
+    if (frmsize == NULL) {
+        CAM_ERR("Failed to get current frame size\n");
         return -1;
     }
 
@@ -334,7 +320,7 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
     /* DPI input control */
     tc35874x_write_reg2(i2c, 0x0006, udata->fifo_level);  /* FIFO level */
     tc35874x_write_reg2(i2c, 0x0008, 0x0030);  /* Data format */
-    tc35874x_write_reg2(i2c, 0x0022, 3 * le32_to_cpu(fmt.width));  /* Word count */
+    tc35874x_write_reg2(i2c, 0x0022, 3 * frmsize->discrete.width);  /* Word count */
 
     /* CSI Tx Phy */
     tc35874x_write_reg4(i2c, 0x0140, 0x00000000);
@@ -485,10 +471,24 @@ static int _stream_on(struct device *dev)
     if (dev_priv->status != ON)
         return -1;
 
-    struct camera_ext_format fmt;
+    const struct camera_ext_format_node *fmt;
+    const struct camera_ext_frmsize_node *frmsize;
     const struct camera_ext_frmival_node *ival;
-    if (cam_ext_fill_current_format(&_db, &dev_priv->cfg, &fmt) != 0) {
+
+    fmt = get_current_format_node(&_db, &dev_priv->cfg);
+    if (fmt == NULL) {
         CAM_ERR("Failed to get current format\n");
+        return -1;
+    }
+
+    if (fmt->fourcc != V4L2_PIX_FMT_RGB24) {
+        CAM_ERR("Unsupported format 0x%x\n", fmt->fourcc);
+        return -1;
+    }
+
+    frmsize = get_current_frmsize_node(&_db, &dev_priv->cfg);
+    if (frmsize == NULL) {
+        CAM_ERR("Failed to get current frame size\n");
         return -1;
     }
 
@@ -505,22 +505,19 @@ static int _stream_on(struct device *dev)
         return -1;
     }
 
-    CDSI_CONFIG.width = le32_to_cpu(fmt.width);
-    CDSI_CONFIG.height = le32_to_cpu(fmt.height);
+    CDSI_CONFIG.width = frmsize->discrete.width;
+    CDSI_CONFIG.height = frmsize->discrete.height;
     CDSI_CONFIG.rx_num_lanes = udata->num_csi_lanes;
 
-    float fps = (float)(le32_to_cpu(ival->raw_data.discrete.denominator)) /
-        (float)(le32_to_cpu(ival->raw_data.discrete.numerator));
+    float fps = (float)(ival->discrete.denominator) /
+        (float)(ival->discrete.numerator);
     CDSI_CONFIG.framerate = roundf(fps);
 
     /* Fill in the rest of CSDI_CONGIG field */
-    if (fmt.pixelformat == v4l2_fourcc('R', 'G', 'B', '3')) {
+    if (fmt->fourcc == V4L2_PIX_FMT_RGB24) {
         CDSI_CONFIG.tx_mbits_per_lane = 500000000;
         CDSI_CONFIG.rx_mbits_per_lane = 500000000;
         CDSI_CONFIG.bpp = 24;
-    } else {
-        CAM_ERR("Unsupported format %x\n", fmt.pixelformat);
-        return -1;
     }
 
     /* start CSI TX on APBA */
@@ -576,10 +573,10 @@ static int _input_enum(struct device *dev,
 {
     int index = le32_to_cpu(input->index);
 
-    if (index >= ARRAY_SIZE(_inputs))
+    if(camera_ext_fill_gb_input(&_db, index, input) != 0) {
+        CAM_DBG("no such input: %d\n", index);
         return -EFAULT;
-
-    memcpy(input, &_inputs[index].raw_data, sizeof(*input));
+    }
     return 0;
 }
 
@@ -587,8 +584,10 @@ static int _input_get(struct device *dev, int *input)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
 
-    if (get_current_input_node(&_db, &dev_priv->cfg) == NULL)
+    if (!is_input_valid(&_db, dev_priv->cfg.input)) {
+        CAM_ERR("invalid current config\n");
         return -EFAULT;
+    }
 
     *input = dev_priv->cfg.input;
     return 0;
@@ -598,8 +597,10 @@ static int _input_set(struct device *dev, int index)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
 
-    if (index >= ARRAY_SIZE(_inputs))
+    if (!is_input_valid(&_db, le32_to_cpu(index))) {
+        CAM_DBG("v4l input index %d out of range\n", index);
         return -EFAULT;
+    }
 
     dev_priv->cfg.input = index;
 
@@ -609,15 +610,12 @@ static int _input_set(struct device *dev, int index)
 static int _format_enum(struct device *dev, struct camera_ext_fmtdesc *format)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
-    struct camera_ext_format_node const *format_node;
     int index = le32_to_cpu(format->index);
 
-    format_node = get_format_node(&_db, dev_priv->cfg.input, index);
-
-    if (format_node == NULL)
+    if (camera_ext_fill_gb_fmtdesc(&_db, dev_priv->cfg.input, index, format) != 0) {
+        CAM_DBG("no such format: %d\n", index);
         return -EFAULT;
-
-    memcpy(format, &format_node->raw_data, sizeof(*format));
+    }
 
     return 0;
 }
@@ -626,55 +624,48 @@ static int _format_get(struct device *dev, struct camera_ext_format *format)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
 
-    return cam_ext_fill_current_format(&_db, &dev_priv->cfg, format);
+    return cam_ext_fill_gb_format(&_db,
+                                  dev_priv->cfg.input, dev_priv->cfg.format,
+                                  dev_priv->cfg.frmsize.idx_frmsize,
+                                  dev_priv->cfg.frmsize.width,
+                                  dev_priv->cfg.frmsize.height,
+                                  format);
 }
 
 static int _format_set(struct device *dev, struct camera_ext_format* format)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
-    struct camera_ext_input_node const *input_node;
 
-    input_node = get_current_input_node(&_db, &dev_priv->cfg);
-
-    return cam_ext_set_current_format(input_node, &dev_priv->cfg, format);
+    return cam_ext_set_current_format(&_db, &dev_priv->cfg, format);
 }
 
 static int _frmsize_enum(struct device *dev, struct camera_ext_frmsize* frmsize)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
-    struct camera_ext_input_node const *input_node;
     int index = le32_to_cpu(frmsize->index);
 
-    input_node = get_current_input_node(&_db, &dev_priv->cfg);
-
-    return cam_ext_frmsize_enum(input_node, index, frmsize);
+    return cam_ext_fill_gb_frmsize(&_db, dev_priv->cfg.input, index, frmsize);
 }
 
 static int _frmival_enum(struct device *dev, struct camera_ext_frmival* frmival)
 
 {
     DEV_TO_PRIVATE(dev, dev_priv);
-    struct camera_ext_input_node const *input_node;
     int index = le32_to_cpu(frmival->index);
 
-    input_node = get_current_input_node(&_db, &dev_priv->cfg);
-
-    return cam_ext_frmival_enum(input_node, index, frmival);
+    return cam_ext_fill_gb_frmival(&_db, dev_priv->cfg.input, index, frmival);
 }
 
 static int _stream_set_parm(struct device *dev, struct camera_ext_streamparm *parm)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
-    struct camera_ext_frmival_node const *frmival_node;
 
     if (dev_priv->status == STREAMING) {
         CAM_ERR("can not update stream param during streaming\n");
         return -EBUSY;
     }
 
-    frmival_node = cam_ext_frmival_set(&_db, &dev_priv->cfg, parm);
-
-    if (frmival_node == NULL) {
+    if (cam_ext_frmival_set(&_db, &dev_priv->cfg, parm) != 0) {
         CAM_ERR("failed to apply stream parm\n");
         return -EINVAL;
     }
@@ -685,19 +676,11 @@ static int _stream_set_parm(struct device *dev, struct camera_ext_streamparm *pa
 static int _stream_get_parm(struct device *dev, struct camera_ext_streamparm *parm)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
-    struct camera_ext_frmival_node const *frmival_node;
 
-    frmival_node = get_current_frmival_node(&_db, &dev_priv->cfg);
-
-    if (frmival_node == NULL) {
-        CAM_ERR("failed to get current frmival node\n");
+    if (cam_ext_fill_gb_streamparm(&_db, &dev_priv->cfg, 0, 0, parm) != 0) {
+        CAM_ERR("failed to get current stream param\n");
         return -EINVAL;
     }
-
-    memset(parm, 0, sizeof(*parm));
-    parm->type = cpu_to_le32(CAMERA_EXT_BUFFER_TYPE_VIDEO_CAPTURE);
-    parm->capture.timeperframe.numerator= frmival_node->raw_data.discrete.numerator;
-    parm->capture.timeperframe.denominator = frmival_node->raw_data.discrete.denominator;
 
     return 0;
 }
