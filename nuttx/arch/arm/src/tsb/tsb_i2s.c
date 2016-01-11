@@ -51,7 +51,33 @@
 #include "tsb_scm.h"
 #include "tsb_i2s_regs.h"
 
-#define TSB_I2S_DRIVER_NAME                             "tsb i2s driver"
+#define TSB_I2S_DRIVER_NAME         "tsb i2s driver"
+
+#define TSB_I2S_FMT_MASK            (DEVICE_I2S_PCM_FMT_8           | \
+                                     DEVICE_I2S_PCM_FMT_16          | \
+                                     DEVICE_I2S_PCM_FMT_24          | \
+                                     DEVICE_I2S_PCM_FMT_32)
+
+#define TSB_I2S_RATE_MASK           (DEVICE_I2S_PCM_RATE_8000       | \
+                                     DEVICE_I2S_PCM_RATE_16000      | \
+                                     DEVICE_I2S_PCM_RATE_32000      | \
+                                     DEVICE_I2S_PCM_RATE_48000)
+
+#define TSB_I2S_PROTOCOL_MASK       (DEVICE_I2S_PROTOCOL_PCM        | \
+                                     DEVICE_I2S_PROTOCOL_I2S        | \
+                                     DEVICE_I2S_PROTOCOL_LR_STEREO)
+
+#define TSB_I2S_WCLK_PALARITY_MASK  (DEVICE_I2S_POLARITY_NORMAL     | \
+                                     DEVICE_I2S_POLARITY_REVERSED)
+
+#define TSB_I2S_WCLK_EDGE_MASK      (DEVICE_I2S_EDGE_RISING         | \
+                                     DEVICE_I2S_EDGE_FALLING)
+
+#define TSB_I2S_RXCLK_EDGE_MASK     (DEVICE_I2S_EDGE_RISING         | \
+                                     DEVICE_I2S_EDGE_FALLING)
+
+#define TSB_I2S_TXCLK_EDGE_MASK     (DEVICE_I2S_EDGE_RISING         | \
+                                     DEVICE_I2S_EDGE_FALLING)
 
 enum tsb_i2s_block {
     TSB_I2S_BLOCK_INVALID,
@@ -80,7 +106,11 @@ struct tsb_i2s_info {
     int                             so_irq;
     int                             sierr_irq;
     int                             si_irq;
-    struct device_i2s_configuration config;
+    struct device_i2s_pcm           pcm;
+    struct device_i2s_dai           dai;
+    uint8_t                         mclk_role;
+    uint8_t                         bclk_role;
+    uint8_t                         wclk_role;
 };
 
 /*
@@ -93,548 +123,178 @@ static struct device *saved_dev;
 static int tsb_i2s_rx_data(struct tsb_i2s_info *info);
 static int tsb_i2s_tx_data(struct tsb_i2s_info *info);
 
-/*
- * TODO: The entire configuration method in the I2S spec needs to be redone -
- * there are just too many permutations.  For now, this table work for
- * master mode.
- */
-static const struct device_i2s_configuration tsb_i2s_config_table[] = {
-    {
-        .sample_frequency       = 192000,
-        .num_channels           = 1,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FC,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_PCM,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 96000,
-        .num_channels           = 1,
-        .bytes_per_channel      = 4,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FC,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_PCM,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 96000,
-        .num_channels           = 1,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FC,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_PCM,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 96000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_I2S,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING,
-        .ll_data_offset         = 1,
-    },
-    {
-        .sample_frequency       = 96000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_LR_STEREO,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 48000,
-        .num_channels           = 1,
-        .bytes_per_channel      = 4,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FC,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_PCM,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 48000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 4,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_I2S,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 1,
-    },
-    {
-        .sample_frequency       = 48000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 4,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_LR_STEREO,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 48000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_I2S,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 1,
-    },
-    {
-        .sample_frequency       = 48000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_LR_STEREO,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 48000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 1,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_I2S,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 1,
-    },
-    {
-        .sample_frequency       = 48000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 1,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_LR_STEREO,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 24000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 4,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_I2S,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 1,
-    },
-    {
-        .sample_frequency       = 24000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 4,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_LR_STEREO,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    /* Not all possible options defined below */
-    {
-        .sample_frequency       = 24000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_I2S,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 1,
-    },
-    {
-        .sample_frequency       = 24000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_LR_STEREO,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 16000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_I2S,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 1,
-    },
-    {
-        .sample_frequency       = 16000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_LR_STEREO,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-    {
-        .sample_frequency       = 8000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_I2S,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 1,
-    },
-    {
-        .sample_frequency       = 8000,
-        .num_channels           = 2,
-        .bytes_per_channel      = 2,
-        .byte_order             = DEVICE_I2S_BYTE_ORDER_BE |
-                                  DEVICE_I2S_BYTE_ORDER_LE,
-        .spatial_locations      = DEVICE_I2S_SPATIAL_LOCATION_FL |
-                                  DEVICE_I2S_SPATIAL_LOCATION_FR,
-        .ll_protocol            = DEVICE_I2S_PROTOCOL_LR_STEREO,
-        .ll_mclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_bclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_role           = DEVICE_I2S_ROLE_MASTER |
-                                  DEVICE_I2S_ROLE_SLAVE,
-        .ll_wclk_polarity       = DEVICE_I2S_POLARITY_NORMAL |
-                                  DEVICE_I2S_POLARITY_REVERSED,
-        .ll_wclk_change_edge    = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_tx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_rx_edge        = DEVICE_I2S_EDGE_RISING |
-                                  DEVICE_I2S_EDGE_FALLING,
-        .ll_data_offset         = 0,
-    },
-};
 
-static int tsb_i2s_config_is_valid(struct device_i2s_configuration
-                                   *configuration)
+static int tsb_i2s_verify_pcm_support(uint8_t clk_role, struct device_i2s_pcm *pcm)
 {
-    const struct device_i2s_configuration *config;
-    unsigned int i;
+    int ret = 0;
 
-    if (!ONE_BIT_IS_SET(configuration->byte_order) ||
-        !ONE_BIT_IS_SET(configuration->ll_protocol) ||
-        !ONE_BIT_IS_SET(configuration->ll_mclk_role) ||
-        !ONE_BIT_IS_SET(configuration->ll_bclk_role) ||
-        !ONE_BIT_IS_SET(configuration->ll_wclk_role) ||
-        !ONE_BIT_IS_SET(configuration->ll_wclk_polarity) ||
-        !ONE_BIT_IS_SET(configuration->ll_wclk_change_edge) ||
-        !ONE_BIT_IS_SET(configuration->ll_data_tx_edge) ||
-        !ONE_BIT_IS_SET(configuration->ll_data_rx_edge)) {
-
-        return 0;
+    /*
+     * For now ignore clk_role, TODO if we are a bclk slave.
+     * We may be able to support a greater range of frequencies
+     */
+    if (!ONE_BIT_IS_SET(pcm->format) ||
+        !ONE_BIT_IS_SET(pcm->rate)) {
+        ret = -EINVAL;
+    } else if (!(pcm->format & TSB_I2S_FMT_MASK)) {
+        ret = -EINVAL;
+    } else if (!(pcm->rate & TSB_I2S_RATE_MASK)) {
+        ret = -EINVAL;
+    } else if ((pcm->channels > 2) || (pcm->channels == 0)) {
+        ret = -EINVAL;
     }
 
-    for (i = 0, config = tsb_i2s_config_table;
-         i < ARRAY_SIZE(tsb_i2s_config_table);
-         i++, config++) {
+    return ret;
+}
 
-        if ((config->sample_frequency == configuration->sample_frequency) &&
-            (config->num_channels == configuration->num_channels) &&
-            (config->bytes_per_channel == configuration->bytes_per_channel) &&
-            (config->byte_order & configuration->byte_order) &&
-            (config->spatial_locations & configuration->spatial_locations) &&
-            (config->ll_protocol & configuration->ll_protocol) &&
-            (config->ll_mclk_role & configuration->ll_mclk_role) &&
-            (config->ll_bclk_role & configuration->ll_bclk_role) &&
-            (config->ll_wclk_role & configuration->ll_wclk_role) &&
-            (configuration->ll_bclk_role ==
-                             configuration->ll_wclk_role) && /* Must be = */
-            (config->ll_wclk_polarity & configuration->ll_wclk_polarity) &&
-            (config->ll_wclk_change_edge &
-                                     configuration->ll_wclk_change_edge) &&
-            (config->ll_data_tx_edge & configuration->ll_data_tx_edge) &&
-            (config->ll_data_rx_edge & configuration->ll_data_rx_edge) &&
-            (config->ll_data_offset == configuration->ll_data_offset)) {
+static int tsb_i2s_ratebit_to_ratefreq(int rate_bitfield)
+{
+    int frequency = 0;
 
-            return 1;
+    if (!ONE_BIT_IS_SET(rate_bitfield))
+        return -EINVAL;
+
+    switch (rate_bitfield) {
+    case DEVICE_I2S_PCM_RATE_5512:
+        frequency = 5512;
+        break;
+    case DEVICE_I2S_PCM_RATE_8000:
+        frequency = 8000;
+        break;
+    case DEVICE_I2S_PCM_RATE_11025:
+        frequency = 11025;
+        break;
+    case DEVICE_I2S_PCM_RATE_16000:
+        frequency = 16000;
+        break;
+    case DEVICE_I2S_PCM_RATE_22050:
+        frequency = 22050;
+        break;
+    case DEVICE_I2S_PCM_RATE_32000:
+        frequency = 32000;
+        break;
+    case DEVICE_I2S_PCM_RATE_44100:
+        frequency = 44100;
+        break;
+    case DEVICE_I2S_PCM_RATE_48000:
+        frequency = 48000;
+        break;
+    case DEVICE_I2S_PCM_RATE_64000:
+        frequency = 64000;
+        break;
+    case DEVICE_I2S_PCM_RATE_88200:
+        frequency = 88200;
+        break;
+    case DEVICE_I2S_PCM_RATE_96000:
+        frequency = 96000;
+        break;
+    case DEVICE_I2S_PCM_RATE_176400:
+        frequency = 176400;
+        break;
+    case DEVICE_I2S_PCM_RATE_192000:
+        frequency = 192000;
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    return frequency;
+}
+
+static int tsb_i2s_fmtbit_to_numbits(int format_bitfield)
+{
+    int bits = 0;
+
+    if (!ONE_BIT_IS_SET(format_bitfield))
+        return -EINVAL;
+
+    switch (format_bitfield) {
+    case DEVICE_I2S_PCM_FMT_8:
+        bits = 8;
+        break;
+    case DEVICE_I2S_PCM_FMT_16:
+        bits = 16;
+        break;
+    case DEVICE_I2S_PCM_FMT_24:
+        bits = 24;
+        break;
+    case DEVICE_I2S_PCM_FMT_32:
+        bits = 32;
+        break;
+    case DEVICE_I2S_PCM_FMT_64:
+        bits = 64;
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    return bits;
+}
+
+static int tsb_i2s_calc_bclk(struct device_i2s_pcm *pcm)
+{
+    int sample_frequency = 0;
+    int sample_size = 0;
+
+    sample_frequency = tsb_i2s_ratebit_to_ratefreq(pcm->rate);
+    if (sample_frequency <= 0) {
+        return -EINVAL;
+    }
+    sample_size = tsb_i2s_fmtbit_to_numbits(pcm->format);
+    if (sample_size <= 0) {
+        return -EINVAL;
+    }
+
+    return (sample_frequency * pcm->channels * sample_size);
+}
+
+static int tsb_i2s_test_mclk(struct device *pll_dev,
+                             struct device_i2s_pcm *pcm)
+{
+    int ret;
+    uint32_t bclk_freq;
+    uint32_t mclk_freq;
+    bool close_pll = false;
+
+    /* Can we generate mclk to match pcm setting */
+    ret = tsb_i2s_calc_bclk(pcm);
+    if (ret < 0) {
+        return ret;
+    }
+    if (ret == 0) {
+        return -EINVAL;
+    }
+    bclk_freq = (uint32_t)ret;
+
+    if (!pll_dev) {
+        pll_dev = device_open(DEVICE_TYPE_PLL_HW, TSB_I2S_PLLA_ID);
+        if (!pll_dev) {
+            return -EIO;
+        }
+
+        close_pll = true;
+    }
+    /*
+     * The I2S controller always divides MCLK by four and optionally
+     * by two again to get the BCLK.  So try to set the PLL/MCLK
+     * frequency to four or eight times the required BCLK frequency.
+     */
+    mclk_freq = bclk_freq * 4;
+    ret = device_pll_query_frequency(pll_dev, mclk_freq);
+    if (ret) {
+        if (ret == -EINVAL) {
+            mclk_freq = bclk_freq * 8;
+            ret = device_pll_query_frequency(pll_dev, mclk_freq);
         }
     }
 
-    return 0;
+    if (close_pll) {
+        device_close(pll_dev);
+    }
+
+    if (ret)
+        return ret;
+
+    return mclk_freq;
 }
 
 static int tsb_i2s_device_is_open(struct tsb_i2s_info *info)
@@ -835,43 +495,45 @@ static void tsb_i2s_init_block(struct tsb_i2s_info *info,
 
 static int tsb_i2s_config_hw(struct tsb_i2s_info *info)
 {
-    struct device_i2s_configuration *config = &info->config;
+    struct device_i2s_dai *dai = &info->dai;
+    struct device_i2s_pcm *pcm = &info->pcm;
     uint32_t sc_audioset, so_audioset, si_audioset, modeset;
+    uint32_t bits_per_channel;
 
     sc_audioset = 0;
     so_audioset = 0;
     si_audioset = 0;
     modeset = 0;
 
-    /* config->num_channels ignored since its defined by ll_protocol */
-    /* config->spatial_locations ignored since its defined by ll_protocol */
-    /* config->ll_data_offset ignored since its defined by ll_protocol */
+    bits_per_channel = tsb_i2s_fmtbit_to_numbits(pcm->format);
 
-    if (config->bytes_per_channel > 2) {
+    if (bits_per_channel > 16) {
         sc_audioset |= TSB_I2S_REG_AUDIOSET_SCLKTOWS;
         so_audioset |= TSB_I2S_REG_AUDIOSET_SCLKTOWS;
         si_audioset |= TSB_I2S_REG_AUDIOSET_SCLKTOWS;
     }
 
-    if (config->ll_wclk_change_edge == DEVICE_I2S_EDGE_RISING) {
+    if (dai->wclk_change_edge == DEVICE_I2S_EDGE_RISING) {
         sc_audioset |= TSB_I2S_REG_AUDIOSET_EDGE;
         si_audioset |= TSB_I2S_REG_AUDIOSET_EDGE;
     } else {
         so_audioset |= TSB_I2S_REG_AUDIOSET_EDGE;
     }
 
-    if (config->ll_data_tx_edge == DEVICE_I2S_EDGE_RISING)
+    if (dai->data_tx_edge == DEVICE_I2S_EDGE_RISING) {
         so_audioset |= TSB_I2S_REG_AUDIOSET_SDEDGE;
+    }
 
-    if (config->ll_data_rx_edge == DEVICE_I2S_EDGE_RISING)
+    if (dai->data_rx_edge == DEVICE_I2S_EDGE_RISING) {
         si_audioset |= TSB_I2S_REG_AUDIOSET_SDEDGE;
+    }
 
-    so_audioset |= (config->bytes_per_channel * 8);
-    si_audioset |= (config->bytes_per_channel * 8);
+    so_audioset |= (bits_per_channel);
+    si_audioset |= (bits_per_channel);
 
-    switch (config->ll_protocol) {
+    switch (dai->protocol) {
     case DEVICE_I2S_PROTOCOL_PCM:
-        if (config->ll_wclk_polarity == DEVICE_I2S_POLARITY_REVERSED)
+        if (dai->wclk_change_edge == DEVICE_I2S_POLARITY_REVERSED)
             modeset |= TSB_I2S_REG_MODESET_PCM_MONO_REV_POL;
         else
             modeset |= TSB_I2S_REG_MODESET_PCM_MONO;
@@ -880,13 +542,13 @@ static int tsb_i2s_config_hw(struct tsb_i2s_info *info)
         modeset |= TSB_I2S_REG_MODESET_I2S_STEREO;
         break;
     case DEVICE_I2S_PROTOCOL_LR_STEREO:
-        if (config->ll_wclk_polarity == DEVICE_I2S_POLARITY_REVERSED)
+        if (dai->wclk_change_edge == DEVICE_I2S_POLARITY_REVERSED)
             modeset |= TSB_I2S_REG_MODESET_LR_STEREO;
         else
             modeset |= TSB_I2S_REG_MODESET_LR_STEREO_REV_POL;
         break;
     default:
-        return -EINVAL; /* config already checked so should never happen */
+        return -EINVAL; /* Arguments already checked so should never happen */
     }
 
     tsb_i2s_init_block(info, TSB_I2S_BLOCK_SO);
@@ -908,14 +570,12 @@ static int tsb_i2s_config_hw(struct tsb_i2s_info *info)
 
 static int tsb_i2s_start_clocks(struct tsb_i2s_info *info)
 {
-    struct device_i2s_configuration *config = &info->config;
     uint32_t bclk_freq, i2s_clk_sel = 0;
     int ret;
 
-    bclk_freq = config->sample_frequency * config->num_channels *
-                ((config->bytes_per_channel <= 2) ? 16 : 32);
+    bclk_freq = tsb_i2s_calc_bclk(&info->pcm);
 
-    if (config->ll_mclk_role == DEVICE_I2S_ROLE_MASTER) {
+    if (info->mclk_role == DEVICE_I2S_ROLE_MASTER) {
         info->pll_dev = device_open(DEVICE_TYPE_PLL_HW, TSB_I2S_PLLA_ID);
         if (!info->pll_dev)
             return -EIO;
@@ -950,7 +610,7 @@ static int tsb_i2s_start_clocks(struct tsb_i2s_info *info)
         i2s_clk_sel |= TSB_CG_BRIDGE_I2S_CLOCK_SELECTOR_MASTER_CLOCK_SEL;
     }
 
-    if (config->ll_bclk_role == DEVICE_I2S_ROLE_SLAVE)
+    if (info->mclk_role == DEVICE_I2S_ROLE_SLAVE)
         i2s_clk_sel |= TSB_CG_BRIDGE_I2S_CLOCK_SELECTOR_LR_BCLK_SEL;
 
     /* This write starts MCLK & BCLK (not WCLK) if they are clock masters */
@@ -976,7 +636,7 @@ static void tsb_i2s_stop_clocks(struct tsb_i2s_info *info)
                         TSB_CG_BRIDGE_I2S_CLOCK_SELECTOR_MASTER_CLOCK_SEL |
                             TSB_CG_BRIDGE_I2S_CLOCK_SELECTOR_LR_BCLK_SEL);
 
-    if (info->config.ll_mclk_role == DEVICE_I2S_ROLE_MASTER) {
+    if (info->mclk_role == DEVICE_I2S_ROLE_MASTER) {
         device_pll_stop(info->pll_dev);
         device_close(info->pll_dev);
         info->pll_dev = NULL;
@@ -1077,14 +737,14 @@ static int tsb_i2s_start(struct tsb_i2s_info *info, enum tsb_i2s_block block)
 {
     int ret;
 
-    if (info->config.ll_bclk_role == DEVICE_I2S_ROLE_MASTER) {
+    if (info->bclk_role == DEVICE_I2S_ROLE_MASTER) {
         ret = tsb_i2s_start_block(info, TSB_I2S_BLOCK_SC);
         if (ret)
             return ret;
     }
 
     ret = tsb_i2s_start_block(info, block);
-    if (ret && (info->config.ll_bclk_role == DEVICE_I2S_ROLE_MASTER))
+    if (ret && (info->bclk_role == DEVICE_I2S_ROLE_MASTER))
         tsb_i2s_stop_block(info, TSB_I2S_BLOCK_SC, 0);
 
     return ret;
@@ -1095,7 +755,7 @@ static void tsb_i2s_stop(struct tsb_i2s_info *info, enum tsb_i2s_block block,
 {
     tsb_i2s_stop_block(info, block, is_err);
 
-    if (info->config.ll_bclk_role == DEVICE_I2S_ROLE_MASTER)
+    if (info->bclk_role == DEVICE_I2S_ROLE_MASTER)
         tsb_i2s_stop_block(info, TSB_I2S_BLOCK_SC, is_err);
 }
 
@@ -1228,37 +888,6 @@ static enum device_i2s_event tsb_i2s_intstat2event(uint32_t intstat)
     return event;
 }
 
-static uint32_t tsb_i2s_fifo_data(struct tsb_i2s_info *info, uint32_t w)
-{
-    uint16_t *hw;
-
-    /*
-     * The way FIFO data ordering works out when TSB_I2S_REG_AUDIOSET_DTFMT
-     * is cleared make little endian just work.
-     */
-    if (info->config.byte_order == DEVICE_I2S_BYTE_ORDER_BE) {
-        switch(info->config.bytes_per_channel) {
-        case 2:
-            hw = (uint16_t *)&w;
-
-            hw[0] = __swap32(hw[0]);
-            hw[1] = __swap32(hw[1]);
-            break;
-        case 3:
-            /*
-             * Only valid for 24-bit data in a 32-bit container
-             * (pad on MSB side).
-             */
-            /* FALLTHROUGH */
-        case 4:
-            if (info->config.byte_order == DEVICE_I2S_BYTE_ORDER_BE)
-                w = __swap32(w);
-            break;
-        }
-    }
-
-    return w;
-}
 
 static int tsb_i2s_drain_fifo(struct tsb_i2s_info *info,
                               enum device_i2s_event *event)
@@ -1282,8 +911,7 @@ static int tsb_i2s_drain_fifo(struct tsb_i2s_info *info,
         if (!(intstat & TSB_I2S_REG_INT_INT))
             break;
 
-        *dp++ = tsb_i2s_fifo_data(info, tsb_i2s_read_raw(info, TSB_I2S_BLOCK_SI,
-                                                         TSB_I2S_REG_LMEM00));
+        *dp++ = tsb_i2s_read_raw(info, TSB_I2S_BLOCK_SI, TSB_I2S_REG_LMEM00);
 
         tsb_i2s_clear_irqs(info, TSB_I2S_BLOCK_SI, intstat);
     }
@@ -1366,8 +994,7 @@ static int tsb_i2s_fill_fifo(struct tsb_i2s_info *info,
         if (!(intstat & TSB_I2S_REG_INT_INT))
             break;
 
-        tsb_i2s_write_raw(info, TSB_I2S_BLOCK_SO, TSB_I2S_REG_LMEM00,
-                          tsb_i2s_fifo_data(info, *dp++));
+        tsb_i2s_write_raw(info, TSB_I2S_BLOCK_SO, TSB_I2S_REG_LMEM00, *dp++);
 
         tsb_i2s_clear_irqs(info, TSB_I2S_BLOCK_SO, intstat);
     }
@@ -1519,44 +1146,110 @@ static int tsb_i2s_op_get_delay_transmitter(struct device *dev,
     return 0;
 }
 
-
-static int tsb_i2s_op_get_supported_configurations(struct device *dev,
-                        uint16_t *configuration_count,
-                        const struct device_i2s_configuration *configurations[])
-{
-    *configuration_count = ARRAY_SIZE(tsb_i2s_config_table);
-    *configurations = tsb_i2s_config_table;
-
-    return 0;
-}
-
-static int tsb_i2s_op_set_configuration(struct device *dev,
-                                 struct device_i2s_configuration *configuration)
+static int tsb_i2s_op_get_caps(struct device *dev,
+                               uint8_t clk_role,
+                               struct device_i2s_pcm *pcm,
+                               struct device_i2s_dai *dai)
 {
     struct tsb_i2s_info *info = device_get_private(dev);
-    int ret = 0;
+    int ret;
+    uint32_t mclk_freq;
 
-    sem_wait(&info->lock);
 
-    if (tsb_i2s_rx_is_prepared(info) || tsb_i2s_tx_is_prepared(info)) {
-        ret = -EBUSY;
-        goto err_unlock;
+    ret = tsb_i2s_verify_pcm_support(clk_role, pcm);
+    if (ret) {
+        return ret;
     }
 
-    if (!tsb_i2s_config_is_valid(configuration)) {
-        ret = -EINVAL;
-        goto err_unlock;
+    if (clk_role == DEVICE_I2S_ROLE_MASTER) {
+
+        ret = tsb_i2s_test_mclk(info->pll_dev, pcm);
+        if (ret < 0) {
+            return ret;
+        } else if (ret == 0) {
+            /* this should never happen */
+            return -EINVAL;
+        }
+        mclk_freq = ret;
+        ret = 0;
+
+        dai->mclk_freq = mclk_freq;
+
+        dai->protocol = TSB_I2S_PROTOCOL_MASK;
+        dai->wclk_polarity = TSB_I2S_WCLK_PALARITY_MASK;
+        dai->wclk_change_edge = TSB_I2S_WCLK_EDGE_MASK;
+        dai->data_rx_edge = TSB_I2S_RXCLK_EDGE_MASK;
+        dai->data_tx_edge = TSB_I2S_TXCLK_EDGE_MASK;
+    } else {
+        dai->protocol = TSB_I2S_PROTOCOL_MASK;
+        dai->wclk_polarity = TSB_I2S_WCLK_PALARITY_MASK;
+        dai->wclk_change_edge = TSB_I2S_WCLK_EDGE_MASK;
+        dai->data_rx_edge = TSB_I2S_RXCLK_EDGE_MASK;
+        dai->data_tx_edge = TSB_I2S_TXCLK_EDGE_MASK;
     }
 
-    memcpy(&info->config, configuration, sizeof(info->config));
+    return OK;
+};
+
+static int tsb_i2s_op_set_config(struct device *dev,
+                               uint8_t clk_role,
+                               struct device_i2s_pcm *pcm,
+                               struct device_i2s_dai *dai)
+{
+    struct tsb_i2s_info *info = device_get_private(dev);
+    int ret;
+
+    ret = tsb_i2s_verify_pcm_support(clk_role, pcm);
+    if (ret) {
+        return ret;
+    }
+
+    /* Check only one bit is set for all bitfields */
+    if ( !ONE_BIT_IS_SET(dai->wclk_polarity)  ||
+         !ONE_BIT_IS_SET(dai->wclk_change_edge)  ||
+         !ONE_BIT_IS_SET(dai->data_rx_edge)  ||
+         !ONE_BIT_IS_SET(dai->data_tx_edge)) {
+
+        return -ERANGE;
+    }
+
+    /* Check that bit field settings match our capabilities */
+    if (!(dai->protocol & TSB_I2S_PROTOCOL_MASK) ||
+        !(dai->wclk_polarity & TSB_I2S_WCLK_PALARITY_MASK) ||
+        !(dai->wclk_change_edge & TSB_I2S_WCLK_EDGE_MASK) ||
+        !(dai->data_rx_edge & TSB_I2S_RXCLK_EDGE_MASK) ||
+        !(dai->data_tx_edge & TSB_I2S_TXCLK_EDGE_MASK)) {
+
+        return -ERANGE;
+    }
+
+    if (clk_role == DEVICE_I2S_ROLE_MASTER) {
+        ret = tsb_i2s_test_mclk(info->pll_dev, pcm);
+        if (ret < 0) {
+            return ret;
+        } else if (ret == 0) {
+            /* this should never happen */
+            return -EINVAL;
+        }
+    }
+
+    memcpy(&info->pcm, pcm, sizeof(struct device_i2s_pcm));
+    memcpy(&info->dai, dai, sizeof(struct device_i2s_dai));
+    if (clk_role == DEVICE_I2S_ROLE_MASTER) {
+        info->mclk_role = DEVICE_I2S_ROLE_MASTER;
+        info->bclk_role = DEVICE_I2S_ROLE_MASTER;
+        info->wclk_role = DEVICE_I2S_ROLE_MASTER;
+    } else {
+        info->mclk_role = DEVICE_I2S_ROLE_SLAVE;
+        info->bclk_role = DEVICE_I2S_ROLE_SLAVE;
+        info->wclk_role = DEVICE_I2S_ROLE_SLAVE;
+    }
 
     info->flags |= TSB_I2S_FLAG_CONFIGURED;
 
-err_unlock:
-    sem_post(&info->lock);
-
-    return ret;
+    return OK;
 }
+
 
 static int tsb_i2s_op_prepare_receiver(struct device *dev,
                                        struct ring_buf *rx_rb,
@@ -2021,8 +1714,8 @@ static void tsb_i2s_dev_remove(struct device *dev)
 }
 
 static struct device_i2s_type_ops tsb_i2s_type_ops = {
-    .get_supported_configurations = tsb_i2s_op_get_supported_configurations,
-    .set_configuration            = tsb_i2s_op_set_configuration,
+    .get_caps                     = tsb_i2s_op_get_caps,
+    .set_config                   = tsb_i2s_op_set_config,
     .get_delay_receiver           = tsb_i2s_op_get_delay_receiver,
     .prepare_receiver             = tsb_i2s_op_prepare_receiver,
     .start_receiver               = tsb_i2s_op_start_receiver,
