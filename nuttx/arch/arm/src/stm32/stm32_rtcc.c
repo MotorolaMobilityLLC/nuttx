@@ -1002,6 +1002,14 @@ int up_rtc_settime(FAR const struct timespec *tp)
   /* Break out the time values (not that the time is set only to units of seconds) */
 
   (void)gmtime_r(&tp->tv_sec, &newtime);
+
+  /* STM32 supports years 2000-2099, and tm_year is years since 1900. */
+  if (newtime.tm_year < 100)
+    {
+      rtclldbg("Invalid year: %d < 2000\n", newtime.tm_year + 1900);
+      return -EINVAL;
+    }
+
   rtc_dumptime(&newtime, "Setting time");
 
   /* Then write the broken out values to the RTC */
