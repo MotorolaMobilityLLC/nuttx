@@ -44,57 +44,101 @@
 #define BW_MEGA_BIT(w, h, depth, fps) \
     ((((uint32_t)w*(uint32_t)h*(uint32_t)depth*(uint32_t)fps)>>20) + 1)
 
-/*
- * Structures used to store static sensor v4l2 info data in a hierachy way.
- * Each node has a raw data and points to its subnodes array.
- *
- */
-struct camera_ext_frmival_raw_data {
-    const __le32 type;
-    union {
-        const struct camera_ext_fract discrete;
-        const struct camera_ext_frmival_stepwise stepwise;
-    };
-};
+#define v4l2_fourcc(a, b, c, d) \
+    ((uint32_t)(a) | ((uint32_t)(b) << 8)               \
+     | ((uint32_t)(c) << 16) | ((uint32_t)(d) << 24))
 
-struct camera_ext_frmsize_raw_data {
-    const __le32 type;
-    union {
-        const struct camera_ext_frmsize_discrete discrete;
-        const struct camera_ext_frmsize_stepwise stepwise;
-    };
-};
+/* Common V4L2 pixel formats. Note the below is not the exhuausive list */
+#define V4L2_PIX_FMT_BGR24   v4l2_fourcc('B', 'G', 'R', '3') /* 24  BGR-8-8-8     */
+#define V4L2_PIX_FMT_RGB24   v4l2_fourcc('R', 'G', 'B', '3') /* 24  RGB-8-8-8     */
+#define V4L2_PIX_FMT_YUYV    v4l2_fourcc('Y', 'U', 'Y', 'V') /* 16  YUV 4:2:2     */
+#define V4L2_PIX_FMT_YVYU    v4l2_fourcc('Y', 'V', 'Y', 'U') /* 16 YVU 4:2:2 */
+#define V4L2_PIX_FMT_UYVY    v4l2_fourcc('U', 'Y', 'V', 'Y') /* 16  YUV 4:2:2     */
+#define V4L2_PIX_FMT_VYUY    v4l2_fourcc('V', 'Y', 'U', 'Y') /* 16  YUV 4:2:2     */
+#define V4L2_PIX_FMT_SBGGR10 v4l2_fourcc('B', 'G', '1', '0') /* 10  BGBG.. GRGR.. */
+#define V4L2_PIX_FMT_SGBRG10 v4l2_fourcc('G', 'B', '1', '0') /* 10  GBGB.. RGRG.. */
+#define V4L2_PIX_FMT_SGRBG10 v4l2_fourcc('B', 'A', '1', '0') /* 10  GRGR.. BGBG.. */
+#define V4L2_PIX_FMT_SRGGB10 v4l2_fourcc('R', 'G', '1', '0') /* 10  RGRG.. GBGB.. */
+
+/*
+ * Structures used to store v4l2 format information in a hierachy way.
+ */
 
 /* Frame interval for a specific frame size and format.
- * It's a leaf node and may store some user data per
- * sensor type (csi camera or usb camera).
+ * It's a leaf node and may store some user data for the format.
  */
-struct camera_ext_frmival_node {
-    const struct camera_ext_frmival_raw_data raw_data;
-    void const *user_data;
+struct camera_ext_fract_node {
+    uint32_t numerator;
+    uint32_t denominator;
 };
 
-//frame size for a specific format
-struct camera_ext_frmsize_node {
-    const struct camera_ext_frmsize_raw_data raw_data;
+struct camera_ext_stepwise_node {
+    struct camera_ext_fract_node min;
+    struct camera_ext_fract_node max;
+    struct camera_ext_fract_node step;
+};
 
-    const int num_frmivals;
-    const struct camera_ext_frmival_node *frmival_nodes;
+struct camera_ext_frmival_node {
+    uint32_t type;
+    union {
+        struct camera_ext_fract_node discrete;
+        struct camera_ext_stepwise_node stepwise;
+    };
+
+    const void *user_data;
+};
+
+static inline int camera_ext_fract_equal(struct camera_ext_fract_node const *l,
+                                         struct camera_ext_fract const *r)
+{
+    //suppose they are irreducible fraction
+    return l->numerator == le32_to_cpu(r->numerator)
+        && l->denominator == le32_to_cpu(r->denominator);
+}
+
+//frame size for a specific format
+struct camera_ext_frmsize_discrete_node {
+    uint32_t width;
+    uint32_t height;
+};
+
+struct camera_ext_frmsize_stepwise_node {
+    uint32_t min_width;
+    uint32_t max_width;
+    uint32_t step_width;
+    uint32_t min_height;
+    uint32_t max_height;
+    uint32_t step_height;
+};
+
+struct camera_ext_frmsize_node {
+    uint32_t type;
+    union {
+        struct camera_ext_frmsize_discrete_node discrete;
+        struct camera_ext_frmsize_stepwise_node stepwise;
+    };
+
+    int num_frmivals;
+    struct camera_ext_frmival_node const *frmival_nodes;
 };
 
 //format for a specific input
 struct camera_ext_format_node {
-    const struct camera_ext_fmtdesc raw_data;
+    const char *name;
+    uint32_t fourcc;
+    uint32_t depth;
 
-    const int num_frmsizes;
+    int num_frmsizes;
     struct camera_ext_frmsize_node const *frmsize_nodes;
 };
 
 //input of this sensor
 struct camera_ext_input_node {
-    const struct camera_ext_input raw_data;
+    const char *name;
+    uint32_t type;
+    uint32_t status;
 
-    const int num_formats;
+    int num_formats;
     struct camera_ext_format_node const *format_nodes;
 };
 
@@ -150,111 +194,63 @@ struct gb_camera_ext_sensor_user_config {
     struct frmival_user_config frmival;
 };
 
-//helper functions
-static inline struct camera_ext_input_node const *get_input_node(
-    struct gb_camera_ext_sensor_db const *db, int index)
-{
-    if (index >= 0 && index < db->num_inputs) {
-        return &db->input_nodes[index];
-    }
-    return NULL;
-}
+/* Functions to access Format DB */
+bool is_input_valid(struct gb_camera_ext_sensor_db const *db, uint32_t input);
+bool is_format_valid(struct gb_camera_ext_sensor_db const *db, uint32_t input, uint32_t format);
+bool is_frmsize_valid(struct gb_camera_ext_sensor_db const *db,
+                      uint32_t input, uint32_t format, uint32_t frmsize);
+bool is_frmsize_valid(struct gb_camera_ext_sensor_db const *db,
+                      uint32_t input, uint32_t format, uint32_t frmsize);
 
-static inline struct camera_ext_format_node const *get_format_node(
-    struct gb_camera_ext_sensor_db const *db, int input, int format)
-{
-    struct camera_ext_input_node const *input_node = get_input_node(db, input);
-    if (input_node != NULL) {
-        if (format >= 0 && format < input_node->num_formats) {
-            return &input_node->format_nodes[format];
-        }
-    }
-    return NULL;
-}
-
-static inline struct camera_ext_frmsize_node const *get_frmsize_node(
-    struct gb_camera_ext_sensor_db const *db, int input, int format,
-    struct frmsize_user_config *frmsize)
-{
-    struct camera_ext_format_node const *format_node =
-                get_format_node(db, input, format);
-
-    if (format_node != NULL) {
-        if (frmsize->idx_frmsize >= 0
-            && frmsize->idx_frmsize < format_node->num_frmsizes) {
-            return &format_node->frmsize_nodes[frmsize->idx_frmsize];
-        }
-    }
-    return NULL;
-}
-
-static inline struct camera_ext_frmival_node const *get_frmival_node(
-    struct gb_camera_ext_sensor_db const *db, int input, int format,
-    struct frmsize_user_config *frmsize, struct frmival_user_config *frmival)
-{
-    struct camera_ext_frmsize_node const *frmsize_node =
-                get_frmsize_node(db, input, format, frmsize);
-
-    if (frmsize_node != NULL) {
-        if (frmival->idx_frmival >= 0
-            && frmival->idx_frmival < frmsize_node->num_frmivals) {
-            return &frmsize_node->frmival_nodes[frmival->idx_frmival];
-        }
-    }
-    return NULL;
-}
-
-static inline struct camera_ext_input_node const *get_current_input_node(
+struct camera_ext_input_node const *get_current_input_node(
     struct gb_camera_ext_sensor_db const *db,
-    struct gb_camera_ext_sensor_user_config *cfg)
-{
-    return get_input_node(db, cfg->input);
-}
+    struct gb_camera_ext_sensor_user_config *cfg);
 
-static inline struct camera_ext_format_node const *get_current_format_node(
+struct camera_ext_format_node const *get_current_format_node(
     struct gb_camera_ext_sensor_db const *db,
-    struct gb_camera_ext_sensor_user_config *cfg)
-{
-    return get_format_node(db, cfg->input, cfg->format);
-}
+    struct gb_camera_ext_sensor_user_config *cfg);
 
-static inline struct camera_ext_frmsize_node const *get_current_frmsize_node(
+struct camera_ext_frmsize_node const *get_current_frmsize_node(
     struct gb_camera_ext_sensor_db const *db,
-    struct gb_camera_ext_sensor_user_config *cfg)
-{
-    return get_frmsize_node(db, cfg->input, cfg->format, &cfg->frmsize);
-}
+    struct gb_camera_ext_sensor_user_config *cfg);
 
-static inline struct camera_ext_frmival_node const *get_current_frmival_node(
+struct camera_ext_frmival_node const *get_current_frmival_node(
     struct gb_camera_ext_sensor_db const *db,
-    struct gb_camera_ext_sensor_user_config *cfg)
-{
-    return get_frmival_node(db,
-            cfg->input,
-            cfg->format,
-            &cfg->frmsize,
-            &cfg->frmival);
-}
+    struct gb_camera_ext_sensor_user_config *cfg);
 
-int cam_ext_fill_current_format(struct gb_camera_ext_sensor_db const *db,
-    struct gb_camera_ext_sensor_user_config *cfg,
-    struct camera_ext_format *format);
+/* Function to fill in GB structure from Format DB*/
+int camera_ext_fill_gb_input(struct gb_camera_ext_sensor_db const *db, uint32_t index,
+                             struct camera_ext_input *input);
 
-int cam_ext_set_current_format(struct camera_ext_input_node const *input_node,
-    struct gb_camera_ext_sensor_user_config *cfg,
-    struct camera_ext_format *format);
+int camera_ext_fill_gb_fmtdesc(struct gb_camera_ext_sensor_db const *db, uint32_t input,
+                               uint32_t format, struct camera_ext_fmtdesc *fmt);
 
-int cam_ext_frmsize_enum(struct camera_ext_input_node const *input_node,
-    int index, struct camera_ext_frmsize* fmsize);
+int cam_ext_fill_gb_format(struct gb_camera_ext_sensor_db const *db,
+                           uint32_t input, uint32_t format,
+                           uint32_t frmsize, uint32_t user_width, uint32_t user_height,
+                           struct camera_ext_format *fmt);
 
-int cam_ext_frmival_enum(struct camera_ext_input_node const *input_node,
-    int index, struct camera_ext_frmival* frmival);
+int cam_ext_fill_gb_frmsize(struct gb_camera_ext_sensor_db const *db, uint32_t input,
+                            uint32_t index, struct camera_ext_frmsize* fmsize);
 
-struct camera_ext_frmival_node const *cam_ext_frmival_set(
-    struct gb_camera_ext_sensor_db const *db,
-    struct gb_camera_ext_sensor_user_config *cfg,
-    struct camera_ext_streamparm *parm);
+int cam_ext_fill_gb_frmival(struct gb_camera_ext_sensor_db const *db, uint32_t input,
+                            uint32_t index, struct camera_ext_frmival* frmival);
 
+int cam_ext_fill_gb_streamparm(struct gb_camera_ext_sensor_db const *db,
+                               struct gb_camera_ext_sensor_user_config *cfg,
+                               uint32_t capability, uint32_t capturemode,
+                               struct camera_ext_streamparm *parm);
+
+/* Functions to update current user setting */
+int cam_ext_set_current_format(struct gb_camera_ext_sensor_db const *db,
+                               struct gb_camera_ext_sensor_user_config *cfg,
+                               struct camera_ext_format *format);
+
+int cam_ext_frmival_set(struct gb_camera_ext_sensor_db const *db,
+                        struct gb_camera_ext_sensor_user_config *cfg,
+                        struct camera_ext_streamparm *parm);
+
+/* Functions to for v4l2 controls */
 int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
     struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg);
 
