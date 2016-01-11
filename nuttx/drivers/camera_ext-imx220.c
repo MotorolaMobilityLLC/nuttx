@@ -932,12 +932,10 @@ static const struct csi_stream_user_data frmival_2624x1476_user_data = {
 //frame rate for 2624x1476 BGGR10
 static const struct camera_ext_frmival_node frmival_2624x1476[] = {
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE),
-            .discrete = {
-                .numerator = cpu_to_le32(30),
-                .denominator = cpu_to_le32(1),
-            }
+        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
+        .discrete = {
+            .numerator = 1,
+            .denominator = 30,
         },
         .user_data = &frmival_2624x1476_user_data,
     },
@@ -954,12 +952,10 @@ static const struct csi_stream_user_data frmival_2624x1968_user_data = {
 //frame rate for 2624x1968 BGGR10
 static const struct camera_ext_frmival_node frmival_2624x1968[] = {
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE),
-            .discrete = {
-                .numerator = cpu_to_le32(24),
-                .denominator = cpu_to_le32(1),
-            }
+        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
+        .discrete = {
+            .numerator = 1,
+            .denominator = 24,
         },
         .user_data = &frmival_2624x1968_user_data,
     },
@@ -977,12 +973,10 @@ static const struct csi_stream_user_data frmival_3600x2024_user_data = {
 static const struct camera_ext_frmival_node frmival_3600x2024[] = {
 
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE),
-            .discrete = {
-                .numerator = cpu_to_le32(24),
-                .denominator = cpu_to_le32(1),
-            }
+        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
+        .discrete = {
+            .numerator = 1,
+            .denominator = 24,
         },
         .user_data = &frmival_3600x2024_user_data,
     },
@@ -999,12 +993,10 @@ static const struct csi_stream_user_data frmival_5248x3936_user_data = {
 //frame rate for 5248x3936 BGGR10
 static const struct camera_ext_frmival_node frmival_5248x3936[] = {
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE),
-            .discrete = {
-                .numerator = cpu_to_le32(12),
-                .denominator = cpu_to_le32(1),
-            }
+        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
+        .discrete = {
+            .numerator = 1,
+            .denominator = 12,
         },
         .user_data = &frmival_5248x3936_user_data,
     },
@@ -1013,48 +1005,40 @@ static const struct camera_ext_frmival_node frmival_5248x3936[] = {
 // frame sizes for BGGR10
 static const struct camera_ext_frmsize_node imx220_cam_frmsizes[] = {
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
-            .discrete = {
-                .width = cpu_to_le32(2624),
-                .height = cpu_to_le32(1476),
-            },
+        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
+        .discrete = {
+            .width = 2624,
+            .height = 1476,
         },
         .num_frmivals = ARRAY_SIZE(frmival_2624x1476),
         .frmival_nodes = frmival_2624x1476,
     },
 
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
-            .discrete = {
-                .width = cpu_to_le32(2624),
-                .height = cpu_to_le32(1968),
-            },
+        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
+        .discrete = {
+            .width = 2624,
+            .height = 1968,
         },
         .num_frmivals = ARRAY_SIZE(frmival_2624x1968),
         .frmival_nodes = frmival_2624x1968,
     },
 
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
-            .discrete = {
-                .width = cpu_to_le32(3600),
-                .height = cpu_to_le32(2024),
-            },
+        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
+        .discrete = {
+            .width = 3600,
+            .height = 2024,
         },
         .num_frmivals = ARRAY_SIZE(frmival_3600x2024),
         .frmival_nodes = frmival_3600x2024,
     },
 
     {
-        .raw_data = {
-            .type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE),
-            .discrete = {
-                .width = cpu_to_le32(5248),
-                .height = cpu_to_le32(3936),
-            },
+        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
+        .discrete = {
+            .width = 5248,
+            .height = 3936,
         },
         .num_frmivals = ARRAY_SIZE(frmival_5248x3936),
         .frmival_nodes = frmival_5248x3936,
@@ -1064,11 +1048,9 @@ static const struct camera_ext_frmsize_node imx220_cam_frmsizes[] = {
 // format for camera input
 static const struct camera_ext_format_node imx220_cam_formats[] = {
     {
-        .raw_data = {
-            .name = {'B', 'G', 'G', 'R', '1', '0', 0},
-            .fourcc = cpu_to_le32(v4l2_fourcc('B', 'G', '1', '0')),
-            .depth = cpu_to_le32(10),
-        },
+        .name = "BGGR10",
+        .fourcc = v4l2_fourcc('B', 'G', '1', '0'),
+        .depth = 10,
         .num_frmsizes = ARRAY_SIZE(imx220_cam_frmsizes),
         .frmsize_nodes = imx220_cam_frmsizes,
     },
@@ -1077,12 +1059,9 @@ static const struct camera_ext_format_node imx220_cam_formats[] = {
 // imx220 input
 static const struct camera_ext_input_node imx220_inputs[] = {
     {
-        .raw_data = {
-            .index = cpu_to_le32(0),
-            .name = {'c', 's', 'i', '-', 'i', 'm', 'x', '2', '2', '0', 0},
-            .type = cpu_to_le32(CAM_EXT_INPUT_TYPE_CAMERA),
-            .status = cpu_to_le32(CAM_EXT_IN_ST_HFLIP), /*vanilla ice*/
-        },
+        .name = "csi-imx220",
+        .type = CAM_EXT_INPUT_TYPE_CAMERA,
+        .status = CAM_EXT_IN_ST_HFLIP, /*vanilla ice*/
         .num_formats = ARRAY_SIZE(imx220_cam_formats),
         .format_nodes = imx220_cam_formats,
     },
