@@ -41,12 +41,6 @@ enum display_state {
     DISPLAY_STATE_ON  = 0x01,
 };
 
-enum display_backlight_config {
-    DISPLAY_BACKLIGHT_NONE      = 0x00,
-    DISPLAY_BACKLIGHT_MANUAL    = 0x01,
-    DISPLAY_BACKLIGHT_AUTOMATIC = 0x02,
-};
-
 enum display_notification_event {
     DISPLAY_NOTIFICATION_EVENT_INVALID  = 0x00,
     DISPLAY_NOTIFICATION_EVENT_FAILURE  = 0x01,
@@ -63,10 +57,6 @@ struct device_display_type_ops {
     int (*set_config)(struct device *dev, uint8_t index);
     int (*get_state)(struct device *dev, uint8_t *state);
     int (*set_state)(struct device *dev, uint8_t state);
-    int (*get_backlight_config)(struct device *dev, uint8_t *config);
-    int (*set_backlight_config)(struct device *dev, uint8_t config);
-    int (*get_backlight_brightness)(struct device *dev, uint8_t *brightness);
-    int (*set_backlight_brightness)(struct device *dev, uint8_t brightness);
     int (*register_callback)(struct device *dev, display_notification_cb cb);
     int (*unregister_callback)(struct device *dev);
 };
@@ -184,97 +174,6 @@ static inline int device_display_set_state(struct device *dev, uint8_t state)
     return DEVICE_DRIVER_GET_OPS(dev, display)->set_state(dev, state);
 }
 
-/**
- * @brief Display get_backlight_config() wrap function
- *
- * @param dev pointer to structure of device data
- * @param config the backlight configuration
- * @return 0 on success, negative errno on error
- */
-static inline int device_display_get_backlight_config(struct device *dev,
-        uint8_t *config)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev)) {
-        return -ENODEV;
-    }
-
-    if (!DEVICE_DRIVER_GET_OPS(dev, display)->get_backlight_config) {
-        return -ENOSYS;
-    }
-
-    return DEVICE_DRIVER_GET_OPS(dev, display)->get_backlight_config(dev, config);
-}
-
-/**
- * @brief Display get_backlight_config() wrap function
- *
- * @param dev pointer to structure of device data
- * @param config the backlight configuration
- * @return 0 on success, negative errno on error
- */
-static inline int device_display_set_backlight_config(struct device *dev,
-        uint8_t config)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev)) {
-        return -ENODEV;
-    }
-
-    if (!DEVICE_DRIVER_GET_OPS(dev, display)->set_backlight_config) {
-        return -ENOSYS;
-    }
-
-    return DEVICE_DRIVER_GET_OPS(dev, display)->set_backlight_config(dev, config);
-}
-
-/**
- * @brief Display get_backlight_brightness() wrap function
- *
- * @param dev pointer to structure of device data
- * @param brightness the backlight brightness level
- * @return 0 on success, negative errno on error
- */
-static inline int device_display_get_backlight_brightness(struct device *dev,
-        uint8_t *brightness)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev)) {
-        return -ENODEV;
-    }
-
-    if (!DEVICE_DRIVER_GET_OPS(dev, display)->get_backlight_brightness) {
-        return -ENOSYS;
-    }
-
-    return DEVICE_DRIVER_GET_OPS(dev, display)->get_backlight_brightness(dev, brightness);
-}
-
-/**
- * @brief Display get_backlight_brightness() wrap function
- *
- * @param dev pointer to structure of device data
- * @param brightness the backlight brightness level
- * @return 0 on success, negative errno on error
- */
-static inline int device_display_set_backlight_brightness(struct device *dev,
-        uint8_t brightness)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev)) {
-        return -ENODEV;
-    }
-
-    if (!DEVICE_DRIVER_GET_OPS(dev, display)->set_backlight_brightness) {
-        return -ENOSYS;
-    }
-
-    return DEVICE_DRIVER_GET_OPS(dev, display)->set_backlight_brightness(dev, brightness);
-}
 
 /**
  * @brief Display register_callback() wrap function

@@ -207,79 +207,6 @@ static uint8_t gb_mods_display_set_state(struct gb_operation *operation)
 }
 
 /**
- * @brief Get the backlight configuration
- *
- * @param operation Pointer to structure of gb_operation.
- * @return GB_OP_SUCCESS on success, error code on failure
- */
-static uint8_t gb_mods_display_get_backlight_config(struct gb_operation *operation)
-{
-    struct gb_mods_display_get_backlight_config_response *response;
-    uint8_t config;
-    int ret;
-
-    ret = device_display_get_backlight_config(display_info->dev,  &config);
-    if (ret)
-        return GB_OP_UNKNOWN_ERROR;
-
-    response = gb_operation_alloc_response(operation, sizeof(*response));
-    if (!response)
-        return GB_OP_NO_MEMORY;
-
-    response->config = config;
-
-    return GB_OP_SUCCESS;
-}
-
-/**
- * @brief Set the backlight configuration
- *
- * @param operation Pointer to structure of gb_operation.
- * @return GB_OP_SUCCESS on success, error code on failure
- */
-static uint8_t gb_mods_display_set_backlight_config(struct gb_operation *operation)
-{
-    struct gb_mods_display_set_backlight_config_request *request;
-    int ret;
-
-    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
-        gb_error("%s(): dropping short message\n", __func__);
-        return GB_OP_INVALID;
-    }
-
-    request = gb_operation_get_request_payload(operation);
-    ret = device_display_set_backlight_config(display_info->dev, request->config);
-    if (ret)
-        return GB_OP_UNKNOWN_ERROR;
-
-    return GB_OP_SUCCESS;
-}
-
-/**
- * @brief Set the backlight brightness to value between 0-255
- *
- * @param operation Pointer to structure of gb_operation.
- * @return GB_OP_SUCCESS on success, error code on failure
- */
-static uint8_t gb_mods_display_set_backlight_brightness(struct gb_operation *operation)
-{
-    struct gb_mods_display_set_backlight_brightness_request *request;
-    int ret;
-
-    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
-        gb_error("%s(): dropping short message\n", __func__);
-        return GB_OP_INVALID;
-    }
-
-    request = gb_operation_get_request_payload(operation);
-    ret = device_display_set_backlight_brightness(display_info->dev, request->brightness);
-    if (ret)
-        return GB_OP_UNKNOWN_ERROR;
-
-    return GB_OP_SUCCESS;
-}
-
-/**
  * @brief Send notification of state change
  *
  * @param event to send
@@ -390,9 +317,6 @@ static struct gb_operation_handler gb_mods_display_handlers[] = {
     GB_HANDLER(GB_MODS_DISPLAY_TYPE_SET_CONFIG, gb_mods_display_set_config),
     GB_HANDLER(GB_MODS_DISPLAY_TYPE_SET_STATE, gb_mods_display_set_state),
     GB_HANDLER(GB_MODS_DISPLAY_TYPE_GET_STATE, gb_mods_display_get_state),
-    GB_HANDLER(GB_MODS_DISPLAY_TYPE_GET_BACKLIGHT_CONFIG, gb_mods_display_get_backlight_config),
-    GB_HANDLER(GB_MODS_DISPLAY_TYPE_SET_BACKLIGHT_CONFIG, gb_mods_display_set_backlight_config),
-    GB_HANDLER(GB_MODS_DISPLAY_TYPE_SET_BACKLIGHT_BRIGHTNESS, gb_mods_display_set_backlight_brightness),
 };
 
 static struct gb_driver gb_mods_display_driver = {

@@ -38,9 +38,6 @@
 #define GB_MODS_DISPLAY_TYPE_SET_CONFIG               0x04
 #define GB_MODS_DISPLAY_TYPE_SET_STATE                0x05
 #define GB_MODS_DISPLAY_TYPE_GET_STATE                0x06
-#define GB_MODS_DISPLAY_TYPE_GET_BACKLIGHT_CONFIG     0x07
-#define GB_MODS_DISPLAY_TYPE_SET_BACKLIGHT_CONFIG     0x08
-#define GB_MODS_DISPLAY_TYPE_SET_BACKLIGHT_BRIGHTNESS 0x09
 #define GB_MODS_DISPLAY_TYPE_NOTIFICATION             0x0a
 
 #define GB_MODS_DISPLAY_VERSION_MAJOR              0
@@ -107,28 +104,6 @@ struct gb_mods_display_set_display_state_request {
  */
 struct gb_mods_display_get_display_state_response {
     __u8 state;
-} __packed;
-
-/**
- * Greybus Display Get Backlight Config
- */
-struct gb_mods_display_get_backlight_config_response {
-    __u8 config;
-} __packed;
-
-/**
- * Greybus Display Set Backlight Config
- */
-struct gb_mods_display_set_backlight_config_request {
-    __u8 config;
-} __packed;
-
-/**
- * Greybus Display Set Backlight Brightness
- */
-
-struct gb_mods_display_set_backlight_brightness_request {
-    __u8 brightness;
 } __packed;
 
 /**
