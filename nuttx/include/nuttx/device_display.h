@@ -32,6 +32,12 @@
 #define DEVICE_TYPE_DISPLAY_HW          "display"
 
 enum display_type {
+    DISPLAY_TYPE_INVALID = 0x00,
+    DISPLAY_TYPE_DSI     = 0x01,
+    DISPLAY_TYPE_DP      = 0x02,
+};
+
+enum display_config_type {
     DISPLAY_CONFIG_TYPE_INVALID  = 0x00,
     DISPLAY_CONFIG_TYPE_EDID_1P3 = 0x01,
 };
@@ -56,7 +62,8 @@ typedef int (*display_notification_cb)(struct device *dev,
 struct device_display_type_ops {
     int (*host_ready)(struct device *dev);
     int (*get_config_size)(struct device *dev, uint32_t *size);
-    int (*get_config)(struct device *dev, uint8_t *type, uint32_t *size, uint8_t **config);
+    int (*get_config)(struct device *dev, uint8_t *display_type,
+        uint8_t *config_type, uint32_t *size, uint8_t **config);
     int (*set_config)(struct device *dev, uint8_t index);
     int (*get_state)(struct device *dev, uint8_t *state);
     int (*set_state)(struct device *dev, uint8_t state);
@@ -116,8 +123,8 @@ static inline int device_display_get_config_size(struct device *dev, uint32_t *s
  * @param config_data the configuration data
  * @return 0 on success, negative errno on error
  */
-static inline int device_display_get_config(struct device *dev, uint8_t *type,
-    size_t *size, uint8_t **config)
+static inline int device_display_get_config(struct device *dev,
+    uint8_t *display_type, uint8_t *config_type, size_t *size, uint8_t **config)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -129,7 +136,8 @@ static inline int device_display_get_config(struct device *dev, uint8_t *type,
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, display)->get_config(dev, type, size, config);
+    return DEVICE_DRIVER_GET_OPS(dev, display)->get_config(dev, display_type,
+        config_type, size, config);
 }
 
 /**
