@@ -159,8 +159,6 @@ static struct ghost_display
     struct cdsi_dev *cdsi_dev;
     display_notification_cb callback;
     uint8_t state;
-    uint8_t backlight_config;
-    uint8_t brightness;
 #if CONFIG_GHOST_DISPLAY_POWER_MODE
     uint8_t power_mode;
 #endif
@@ -376,58 +374,6 @@ static int ghost_display_set_state(struct device *dev, uint8_t state)
     return result;
 }
 
-static int ghost_display_get_backlight_config(struct device *dev, uint8_t *config)
-{
-    *config = g_display.backlight_config;
-    return 0;
-}
-
-static int ghost_display_set_backlight_config(struct device *dev, uint8_t config)
-{
-    int result;
-
-    switch (config)
-      {
-        case DISPLAY_BACKLIGHT_NONE:
-          {
-            g_display.backlight_config = config;
-            result = 0;
-            break;
-          }
-        case DISPLAY_BACKLIGHT_MANUAL:
-          {
-            dbg("ERROR: Manual backlight not supported\n");
-            result = -EINVAL;
-            break;
-          }
-        case DISPLAY_BACKLIGHT_AUTOMATIC:
-          {
-            g_display.backlight_config = config;
-            result = 0;
-            break;
-          }
-        default:
-          {
-            dbg("Invalid backlight config\n");
-            result = -EINVAL;
-            break;
-          }
-    }
-
-    return result;
-}
-
-static int ghost_display_get_backlight_brightness(struct device *dev, uint8_t *brightness)
-{
-    return -EINVAL;
-}
-
-static int ghost_display_set_backlight_brightness(struct device *dev, uint8_t brightness)
-{
-    // TODO: Implement by sending DCS command.
-    return -EINVAL;
-}
-
 static int ghost_display_register_callback(struct device *dev,
         display_notification_cb callback)
 {
@@ -486,8 +432,6 @@ static int ghost_display_probe(struct device *dev)
     memset(&g_display, 0, sizeof(g_display));
     g_display.display_device = dev;
     g_display.state = DISPLAY_STATE_OFF;
-    g_display.brightness = 0xff;
-    g_display.backlight_config = DISPLAY_BACKLIGHT_AUTOMATIC;
 
     return 0;
 }
@@ -498,10 +442,6 @@ static struct device_display_type_ops ghost_display_ops = {
     .set_config = ghost_display_set_config,
     .get_state = ghost_display_get_state,
     .set_state = ghost_display_set_state,
-    .get_backlight_config = ghost_display_get_backlight_config,
-    .set_backlight_config = ghost_display_set_backlight_config,
-    .get_backlight_brightness = ghost_display_get_backlight_brightness,
-    .set_backlight_brightness = ghost_display_set_backlight_brightness,
     .register_callback = ghost_display_register_callback,
     .unregister_callback = ghost_display_unregister_callback,
 };
