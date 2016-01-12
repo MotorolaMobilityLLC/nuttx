@@ -129,13 +129,14 @@ static uint8_t gb_mods_display_get_config_size(struct gb_operation *operation)
 static uint8_t gb_mods_display_get_config(struct gb_operation *operation)
 {
     struct gb_mods_display_get_display_config_response *response;
-    uint8_t type;
+    uint8_t display_type;
+    uint8_t config_type;
     size_t config_size;
     uint8_t *config_data;
     int ret;
 
-    ret = device_display_get_config(display_info->dev,  &type, &config_size,
-            &config_data);
+    ret = device_display_get_config(display_info->dev, &display_type,
+            &config_type, &config_size, &config_data);
     if (ret || !config_size)
         return GB_OP_UNKNOWN_ERROR;
 
@@ -144,7 +145,8 @@ static uint8_t gb_mods_display_get_config(struct gb_operation *operation)
     if (!response)
         return GB_OP_NO_MEMORY;
 
-    response->config_type = type;
+    response->display_type = display_type;
+    response->config_type = config_type;
     memcpy(response->config_data, config_data, config_size);
 
     return GB_OP_SUCCESS;

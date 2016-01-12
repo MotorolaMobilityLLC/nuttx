@@ -44,6 +44,10 @@
 #define GB_MODS_DISPLAY_VERSION_MAJOR              0
 #define GB_MODS_DISPLAY_VERSION_MINOR              1
 
+#define GB_MODS_DISPLAY_DISPLAY_TYPE_INVALID          0x00
+#define GB_MODS_DISPLAY_DISPLAY_TYPE_DSI              0x01
+#define GB_MODS_DISPLAY_DISPLAY_TYPE_DP               0x02
+
 #define GB_MODS_DISPLAY_CONFIG_TYPE_INVALID           0x00
 #define GB_MODS_DISPLAY_CONFIG_TYPE_EDID_1P3          0x01
 
@@ -81,8 +85,9 @@ struct gb_mods_display_get_display_config_size_response {
  */
 
 struct gb_mods_display_get_display_config_response {
+    __u8 display_type;
     __u8 config_type;
-    __u8 reserved[3];
+    __u8 reserved[2];
     __u8 config_data[0];
 } __packed;
 
