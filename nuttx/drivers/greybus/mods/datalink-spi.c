@@ -138,7 +138,7 @@ struct spi_dl_msg
 static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
                       const void *buf, size_t len);
 
-static int set_packet_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
+static int set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
 {
   struct ring_buf *tx_rb_new;
   __u8 *rx_buf_new;
@@ -236,7 +236,7 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
   return queue_data(priv, MSG_TYPE_DL, &resp, sizeof(resp));
 }
 
-static void setup_xfer(FAR struct mods_spi_dl_s *priv)
+static void xfer(FAR struct mods_spi_dl_s *priv)
 {
   irqstate_t flags;
   struct ring_buf *rb;
@@ -247,7 +247,7 @@ static void setup_xfer(FAR struct mods_spi_dl_s *priv)
   /* Verify not already setup to tranceive packet */
   if (atomic_get(&priv->xfer))
     {
-      vdbg("Already setup to tranceive packet. Do nothing.\n");
+      vdbg("Already setup to tranceive packet\n");
       goto done;
     }
 
@@ -326,7 +326,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
         }
 
       /* Return packet size back to default */
-      (void)set_packet_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
+      (void)set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
     }
 #ifdef GPIO_MODS_CC_EN
   else
@@ -389,7 +389,7 @@ static void txn_finished_cb(void *v)
       if ((priv->new_pkt_size > 0) && (priv->txp_rb == priv->txc_rb))
         {
           /* If this fails, communication with the base will be lost. */
-          (void)set_packet_size(priv, priv->new_pkt_size);
+          (void)set_pkt_size(priv, priv->new_pkt_size);
           priv->new_pkt_size = 0;
         }
 
@@ -429,7 +429,7 @@ static void txn_finished_cb(void *v)
     }
 
 done:
-  setup_xfer(priv);
+  xfer(priv);
 }
 
 /*
@@ -453,7 +453,7 @@ static void txn_error_cb(void *v)
   /* Clear transfer setup flag */
   atomic_dec(&priv->xfer);
 
-  setup_xfer(priv);
+  xfer(priv);
 }
 
 static const struct spi_cb_ops_s cb_ops =
@@ -531,7 +531,7 @@ static int queue_data_nw(FAR struct mods_dl_s *dl, const void *buf, size_t len)
   if (ret)
       return ret;
 
-  setup_xfer(priv);
+  xfer(priv);
 
   return OK;
 }
@@ -575,7 +575,7 @@ static int wake_isr(int irq, void *context)
       return OK;
 
   pm_activity(PM_ACTIVITY_WAKE);
-  setup_xfer(&mods_spi_dl);
+  xfer(&mods_spi_dl);
 
   return OK;
 }
@@ -597,7 +597,7 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
   mods_spi_dl.spi = spi;
   atomic_init(&mods_spi_dl.xfer, 0);
 
-  if (set_packet_size(&mods_spi_dl, PKT_SIZE(DEFAULT_PAYLOAD_SZ)) != OK)
+  if (set_pkt_size(&mods_spi_dl, PKT_SIZE(DEFAULT_PAYLOAD_SZ)) != OK)
     return NULL;
 
   /* RDY GPIO must be initialized before the WAKE interrupt */
