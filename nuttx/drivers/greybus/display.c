@@ -75,6 +75,23 @@ static uint8_t gb_mods_display_protocol_version(struct gb_operation *operation)
 }
 
 /**
+ * @brief Indication that the core implementation is now ready
+ *
+ * @param operation Pointer to structure of gb_operation.
+ * @return GB_OP_SUCCESS on success, error code on failure
+ */
+static uint8_t gb_mods_display_host_ready(struct gb_operation *operation)
+{
+    int ret;
+
+    ret = device_display_host_ready(display_info->dev);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+}
+
+/**
  * @brief Get the size of the configuration data
  *
  * This function is called before gb_mods_display_get_config() to get the
@@ -312,6 +329,7 @@ static void gb_mods_display_exit(unsigned int cport)
  */
 static struct gb_operation_handler gb_mods_display_handlers[] = {
     GB_HANDLER(GB_MODS_DISPLAY_TYPE_PROTOCOL_VERSION, gb_mods_display_protocol_version),
+    GB_HANDLER(GB_MODS_DISPLAY_TYPE_HOST_READY, gb_mods_display_host_ready),
     GB_HANDLER(GB_MODS_DISPLAY_TYPE_GET_CONFIG_SIZE, gb_mods_display_get_config_size),
     GB_HANDLER(GB_MODS_DISPLAY_TYPE_GET_CONFIG, gb_mods_display_get_config),
     GB_HANDLER(GB_MODS_DISPLAY_TYPE_SET_CONFIG, gb_mods_display_set_config),
