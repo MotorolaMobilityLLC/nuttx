@@ -54,6 +54,7 @@ typedef int (*display_notification_cb)(struct device *dev,
     enum display_notification_event event);
 
 struct device_display_type_ops {
+    int (*host_ready)(struct device *dev);
     int (*get_config_size)(struct device *dev, uint32_t *size);
     int (*get_config)(struct device *dev, uint8_t *type, uint32_t *size, uint8_t **config);
     int (*set_config)(struct device *dev, uint8_t index);
@@ -62,6 +63,27 @@ struct device_display_type_ops {
     int (*register_callback)(struct device *dev, display_notification_cb cb);
     int (*unregister_callback)(struct device *dev);
 };
+
+/**
+ * @brief Display host_ready() wrap function
+ *
+ * @param dev pointer to structure of device data
+ * @return 0 on success, negative errno on error
+ */
+static inline int device_display_host_ready(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, display)->host_ready) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, display)->host_ready(dev);
+}
 
 /**
  * @brief Display get_config_size() wrap function
