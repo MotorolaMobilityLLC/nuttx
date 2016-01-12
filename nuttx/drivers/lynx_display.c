@@ -242,9 +242,11 @@ static int lynx_display_get_config_size(struct device *dev, uint32_t *size)
     return 0;
 }
 
-static int lynx_display_get_config(struct device *dev, uint8_t *type, uint32_t *size, uint8_t **config)
+static int lynx_display_get_config(struct device *dev, uint8_t *display_type,
+    uint8_t *config_type, uint32_t *size, uint8_t **config)
 {
-    *type = DISPLAY_CONFIG_TYPE_EDID_1P3;
+    *display_type = DISPLAY_TYPE_DSI;
+    *config_type = DISPLAY_CONFIG_TYPE_EDID_1P3;
     *size = sizeof(LYNX_EDID_CONFIG);
     *config = (uint8_t *)LYNX_EDID_CONFIG;
 
