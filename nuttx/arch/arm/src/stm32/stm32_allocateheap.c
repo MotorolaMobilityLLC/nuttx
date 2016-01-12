@@ -320,9 +320,10 @@
 
 #elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX)
 
-   /* The STM32 F2 and the STM32 F401 have no CCM SRAM */
+   /* The STM32 F2, STM32 F401 and the STM32 F466 have no CCM SRAM */
 
-#  if defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F401)
+#  if defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F401) || \
+      defined(CONFIG_STM32_STM32F446)
 #    undef CONFIG_STM32_CCMEXCLUDE
 #    define CONFIG_STM32_CCMEXCLUDE 1
 #  endif
@@ -631,7 +632,7 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
 #if CONFIG_MM_REGIONS > 1
 void up_addregion(void)
 {
-#if defined(CONFIG_STM32_HAVE_CCM) && !defined(CONFIG_STM32_CCMEXCLUDE)
+#ifndef CONFIG_STM32_CCMEXCLUDE
 #if defined(CONFIG_BUILD_PROTECTED) && defined(CONFIG_MM_KERNEL_HEAP)
 
   /* Allow user-mode access to the STM32F20xxx/STM32F40xxx CCM SRAM heap */
