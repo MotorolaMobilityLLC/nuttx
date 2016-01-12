@@ -33,12 +33,13 @@
 
 /* Greybus Display operation types */
 #define GB_MODS_DISPLAY_TYPE_PROTOCOL_VERSION         0x01
-#define GB_MODS_DISPLAY_TYPE_GET_CONFIG_SIZE          0x02
-#define GB_MODS_DISPLAY_TYPE_GET_CONFIG               0x03
-#define GB_MODS_DISPLAY_TYPE_SET_CONFIG               0x04
-#define GB_MODS_DISPLAY_TYPE_SET_STATE                0x05
-#define GB_MODS_DISPLAY_TYPE_GET_STATE                0x06
-#define GB_MODS_DISPLAY_TYPE_NOTIFICATION             0x0a
+#define GB_MODS_DISPLAY_TYPE_HOST_READY               0x02
+#define GB_MODS_DISPLAY_TYPE_GET_CONFIG_SIZE          0x03
+#define GB_MODS_DISPLAY_TYPE_GET_CONFIG               0x04
+#define GB_MODS_DISPLAY_TYPE_SET_CONFIG               0x05
+#define GB_MODS_DISPLAY_TYPE_SET_STATE                0x06
+#define GB_MODS_DISPLAY_TYPE_GET_STATE                0x07
+#define GB_MODS_DISPLAY_TYPE_NOTIFICATION             0x08
 
 #define GB_MODS_DISPLAY_VERSION_MAJOR              0
 #define GB_MODS_DISPLAY_VERSION_MINOR              1
