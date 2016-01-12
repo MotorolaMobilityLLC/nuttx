@@ -319,7 +319,7 @@ static int tfa9890_dsp_transfer(FAR struct tfa9890_dev_s *priv, int module_id,
                          buffer, sizeof(buffer));
     if (err < 0)
     {
-        lldbg("tfa9890: Failed to Write DSP controls req %d:\n", err);
+        lldbg("Failed to Write DSP controls req %d\n", err);
         return err;
     }
     /* check transfer type */
@@ -345,7 +345,7 @@ static int tfa9890_dsp_transfer(FAR struct tfa9890_dev_s *priv, int module_id,
     cf_status = tfa9890_reg_read(priv, TFA9890_CF_STATUS);
     if ((cf_status & TFA9890_STATUS_CF) == 0)
     {
-        lldbg("tfa9890: Failed to ack DSP CTL req 0x%04x:\n", cf_status);
+        lldbg("Failed to ack DSP CTL req 0x%04x\n", cf_status);
         return -EIO;
     }
 
@@ -361,15 +361,14 @@ static int tfa9890_dsp_transfer(FAR struct tfa9890_dev_s *priv, int module_id,
                         buffer, 5);
     if (err < 0)
     {
-        lldbg("tfa9890: Failed to Write NXP DSP CTL reg for rpc check %d\n",
-           err);
+        lldbg("Failed to Write NXP DSP CTL reg for rpc check %d\n", err);
         return err;
     }
 
     rpc_status = tfa9890_reg_read(priv, TFA9890_CF_MEM);
     if (rpc_status != TFA9890_STATUS_OK)
     {
-        lldbg("tfa9890: RPC status check failed %x\n", rpc_status);
+        lldbg("RPC status check failed %x\n", rpc_status);
         return -EIO;
     }
     if (type == TFA9890_DSP_READ)
@@ -403,20 +402,20 @@ static int tfa9887_load_dsp_patch(FAR struct tfa9890_dev_s *priv,
         if ((index + size) > length)
         {
             /* outside the buffer, error in the input data */
-            lldbg("tfa9890: invalid length\n");
+            lldbg("invalid length\n");
             goto out;
         }
         if ((size) > TFA9890_MAX_I2C_SIZE)
         {
             /* too big */
-            lldbg("tfa9890: ivalid dsp patch\n");
+            lldbg("invalid dsp patch\n");
             goto out;
         }
         err = tfa9890_bulk_write(priv->i2c, priv->i2c_addr, *(fw_data + index),
                      (fw_data + index), size);
         if (err < 0)
         {
-            lldbg("tfa9890: writing dsp patch failed\n");
+            lldbg("writing dsp patch failed\n");
             goto out;
         }
         index += size;
@@ -465,7 +464,7 @@ int tfa9890_load_config(FAR struct tfa9890_dev_s *priv)
                      tfa9890_n1c2_patch_len);
     if (ret)
     {
-        lldbg("tfa9890: Failed to load dsp patch!!\n");
+        lldbg("Failed to load dsp patch!\n");
         goto out;
     }
 
@@ -474,7 +473,7 @@ int tfa9890_load_config(FAR struct tfa9890_dev_s *priv)
                    tfa9890_speaker_len, TFA9890_DSP_WRITE, 0);
     if (ret)
     {
-        lldbg("tfa9890: Failed to load speaker!!\n");
+        lldbg("Failed to load speaker!\n");
         goto out;
     }
 
@@ -483,7 +482,7 @@ int tfa9890_load_config(FAR struct tfa9890_dev_s *priv)
                    tfa9890_config_len, TFA9890_DSP_WRITE, 0);
     if (ret)
     {
-         lldbg("tfa9890: Failed to load config!!\n");
+         lldbg("Failed to load config!\n");
          goto out;
     }
 
@@ -492,7 +491,7 @@ int tfa9890_load_config(FAR struct tfa9890_dev_s *priv)
                    TFA9890_DSP_WRITE, 0);
     if (ret)
     {
-         lldbg("tfa9890: Failed to load eq!!\n");
+         lldbg("Failed to load eq!\n");
          goto out;
     }
 
@@ -502,7 +501,7 @@ int tfa9890_load_config(FAR struct tfa9890_dev_s *priv)
                    TFA9890_DSP_WRITE, 0);
     if (ret)
     {
-        lldbg("tfa9890: Failed to load preset!!\n");
+        lldbg("Failed to load preset!\n");
         goto out;
     }
 
@@ -510,7 +509,7 @@ int tfa9890_load_config(FAR struct tfa9890_dev_s *priv)
     tfa9890_modify(priv, TFA9890_REG_SYSTEM_CTRL_1, 1, 1, TFA9890_SBSL_OFFSET);
 
 
-    lldbg("%s() dsp loaded successfully \n", __func__);
+    lldbg("dsp loaded successfully\n");
 
     ret = 0;
 
@@ -583,7 +582,7 @@ static int tfa9890_wait_pll_sync(struct tfa9890_dev_s *priv)
 
     if (tries >= 10)
     {
-        lldbg("tfa9890 0X%x:DSP pll sync failed!!\n",  priv->i2c_addr);
+        lldbg("0X%x:DSP pll sync failed!\n", priv->i2c_addr);
         ret = -EIO;
     }
 
@@ -597,7 +596,7 @@ int tfa9890_start(FAR struct audio_lowerhalf_s *dev)
 
     struct tfa9890_dev_s *priv= dev->priv;
 
-    lldbg("%s activating 0X%x\n", __func__, priv->i2c_addr);
+    lldbg("activating 0X%x\n", priv->i2c_addr);
     tfa9890_powerup(priv, 1);
     tfa9890_wait_pll_sync(priv);
     if (!priv->is_dsp_cfg_done)
@@ -616,7 +615,7 @@ int tfa9890_start(FAR struct audio_lowerhalf_s *dev)
             */
             if (!(val & TFA9890_STATUS_MTPEX))
             {
-                lldbg("tfa9890:Calibration not completed initiating seq");
+                lldbg("Calibration not completed initiating seq\n");
                 tfa9890_calibaration(priv);
                 val = tfa9890_reg_read(priv, TFA9890_REG_VOLUME_CTRL);
                 val = val & ~(TFA9890_STATUS_MUTE);
@@ -626,7 +625,7 @@ int tfa9890_start(FAR struct audio_lowerhalf_s *dev)
     }
     /* read speaker impedence*/
     priv->speaker_imp = tfa9890_read_spkr_imp(priv);
-    lldbg("tfa9890: Calibration imp %d\n ", priv->speaker_imp);
+    lldbg("Calibration imp %d\n", priv->speaker_imp);
 #ifdef DEBUG
     tfa9890_dump_regs(priv);
 #endif
@@ -638,7 +637,7 @@ static int tfa9890_stop(FAR struct audio_lowerhalf_s *dev)
 {
     struct tfa9890_dev_s *priv = dev->priv;
 
-    lldbg("%s deactivating %x\n", __func__, priv->i2c_addr);
+    lldbg("deactivating %x\n", priv->i2c_addr);
 
     tfa9890_powerup(priv, 0);
 
@@ -650,9 +649,8 @@ static int tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
 {
     struct tfa9890_dev_s *priv = dev->priv;
 
-    lldbg("%s() audio feature: %d type: %d value: %d\n",
-             __func__, caps->ac_type, caps->ac_format.hw,
-             caps->ac_controls.hw[0]);
+    lldbg("audio feature: %d type: %d value: %d\n",
+             caps->ac_type, caps->ac_format.hw, caps->ac_controls.hw[0]);
 
     if(!priv || !caps)
         return -EINVAL;
@@ -753,7 +751,7 @@ FAR struct audio_lowerhalf_s *tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
     int ret;
     FAR struct tfa9890_dev_s *priv;
 
-    lldbg("%s()\n", __func__);
+    lldbg("0x%x\n", i2c_addr);
 
     priv = (FAR struct tfa9890_dev_s  *)kmm_zalloc(sizeof(FAR struct tfa9890_dev_s));
     if (!priv)
@@ -771,7 +769,7 @@ FAR struct audio_lowerhalf_s *tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
     ret = tfa9890_reg_read(priv, TFA9890_REG_ID);
     if (ret != 0x80)
     {
-        lldbg("tfa9890 0X%x: failed rev check \n", i2c_addr);
+        lldbg("0X%x: failed rev check\n", i2c_addr);
         goto err;
     }
     tfa9890_modify(priv, TFA9890_REG_SYSTEM_CTRL_1, 1, 1, TFA9890_RESET_OFFSET);
