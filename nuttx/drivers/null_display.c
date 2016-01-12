@@ -82,9 +82,10 @@ static int null_display_get_config_size(struct device *dev, uint32_t *size)
     return OK;
 }
 
-static int null_display_get_config(struct device *dev, uint8_t *type, uint32_t *size, uint8_t **config)
+static int null_display_get_config(struct device *dev, uint8_t *display_type, uint8_t *config_type, uint32_t *size, uint8_t **config)
 {
-    *type = 0;
+    *display_type = 0;
+    *config_type = 0;
     *size = sizeof(g_config);
     *config = g_config;
 
