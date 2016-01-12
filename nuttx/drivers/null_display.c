@@ -110,32 +110,6 @@ static int null_display_set_state(struct device *dev, uint8_t state)
     return 0;
 }
 
-static int null_display_get_backlight_config(struct device *dev, uint8_t *config)
-{
-    dbg("%s\n", __func__);
-    *config = 0;
-    return 0;
-}
-
-static int null_display_set_backlight_config(struct device *dev, uint8_t config)
-{
-    dbg("%s %d\n", __func__, config);
-    return 0;
-}
-
-static int null_display_get_backlight_brightness(struct device *dev, uint8_t *brightness)
-{
-    dbg("%s\n", __func__);
-    *brightness = 0;
-    return 0;
-}
-
-static int null_display_set_backlight_brightness(struct device *dev, uint8_t brightness)
-{
-    dbg("%s %d\n", __func__, brightness);
-    return 0;
-}
-
 static int null_display_register_callback(struct device *dev,
         display_notification_cb callback)
 {
@@ -166,10 +140,6 @@ static struct device_display_type_ops null_display_ops = {
     .set_config = null_display_set_config,
     .get_state = null_display_get_state,
     .set_state = null_display_set_state,
-    .get_backlight_config = null_display_get_backlight_config,
-    .set_backlight_config = null_display_set_backlight_config,
-    .get_backlight_brightness = null_display_get_backlight_brightness,
-    .set_backlight_brightness = null_display_set_backlight_brightness,
     .register_callback = null_display_register_callback,
     .unregister_callback = null_display_unregister_callback,
 };
