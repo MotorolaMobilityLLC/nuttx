@@ -267,9 +267,10 @@ static void batt_ptp_set_battery_state(const struct batt_state_s *batt,
                                        struct batt_ptp *state)
 {
     state->chg_allowed = (batt->temp != BATTERY_TEMP_NO_CHARGING &&
-                          batt->temp != BATTERY_TEMP_NO_DISCHARGING &&
+                          batt->temp != BATTERY_TEMP_COOL_DOWN &&
                           batt->level != BATTERY_LEVEL_FULL);
-    state->dischg_allowed = (batt->temp != BATTERY_TEMP_NO_DISCHARGING &&
+    state->dischg_allowed = (batt->temp != BATTERY_TEMP_COOL_DOWN &&
+                             batt->temp != BATTERY_TEMP_UNAVAILABLE &&
                              batt->level != BATTERY_LEVEL_EMPTY);
 
     if (state->chg_allowed) {

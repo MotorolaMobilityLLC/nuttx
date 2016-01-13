@@ -36,7 +36,8 @@ enum batt_temp_e {
     BATTERY_TEMP_NORMAL,
     BATTERY_TEMP_REDUCED_CHARGING,
     BATTERY_TEMP_NO_CHARGING,
-    BATTERY_TEMP_NO_DISCHARGING, /* and no charging! */
+    BATTERY_TEMP_COOL_DOWN,   /* no charging or discharging */
+    BATTERY_TEMP_UNAVAILABLE, /* charging is allowed, but no discharging */
 };
 
 /*
@@ -91,5 +92,37 @@ int battery_state_init(void);
  ****************************************************************************/
 
 int battery_state_register(batt_callback_t callback, void *arg);
+
+/****************************************************************************
+ * Name: battery_state_set_level
+ *
+ * Description:
+ *   Set battery level.
+ *
+ * Input Parameters:
+ *   level - battery level
+ *
+ * Returned Value:
+ *   0 on success or negative errno on failure
+ *
+ ****************************************************************************/
+
+int battery_state_set_level(enum batt_level_e level);
+
+/****************************************************************************
+ * Name: battery_state_set_temp
+ *
+ * Description:
+ *   Set battery temperature.
+ *
+ * Input Parameters:
+ *   temp - battery temperature
+ *
+ * Returned Value:
+ *   0 on success or negative errno on failure
+ *
+ ****************************************************************************/
+
+int battery_state_set_temp(enum batt_temp_e temp);
 
 #endif /* __INCLUDE_NUTTX_POWER_BATTERY_STATE_H */
