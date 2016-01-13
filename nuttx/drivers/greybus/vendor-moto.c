@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Motorola Mobility, LLC.
+ * Copyright (c) 2015-2016 Motorola Mobility, LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@
 #include "vendor-moto-gb.h"
 
 #define GB_VENDOR_MOTO_VERSION_MAJOR     0
-#define GB_VENDOR_MOTO_VERSION_MINOR     1
+#define GB_VENDOR_MOTO_VERSION_MINOR     2
 
 static uint8_t gb_vendor_moto_protocol_version(struct gb_operation *operation)
 {
@@ -131,11 +131,29 @@ static uint8_t gb_vendor_moto_pwr_up_reason(struct gb_operation *operation)
 #endif
 }
 
+static uint8_t gb_vendor_moto_get_dmesg_size(struct gb_operation *operation)
+{
+#ifdef CONFIG_RAMLOG_LAST_DMESG
+    struct gb_vendor_moto_get_dmesg_size_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    response->size = cpu_to_le16(GB_VENDOR_MOTO_DMESG_SIZE);
+
+    return GB_OP_SUCCESS;
+#else
+    return GB_OP_NONEXISTENT;
+#endif
+}
+
 static struct gb_operation_handler gb_vendor_moto_handlers[] = {
     GB_HANDLER(GB_VENDOR_MOTO_PROTOCOL_VERSION, gb_vendor_moto_protocol_version),
     GB_HANDLER(GB_VENDOR_MOTO_GET_DMESG, gb_vendor_moto_get_dmesg),
     GB_HANDLER(GB_VENDOR_MOTO_GET_LAST_DMESG, gb_vendor_moto_get_last_dmesg),
     GB_HANDLER(GB_VENDOR_MOTO_GET_PWR_UP_REASON, gb_vendor_moto_pwr_up_reason),
+    GB_HANDLER(GB_VENDOR_MOTO_GET_DMESG_SIZE, gb_vendor_moto_get_dmesg_size),
 };
 
 static struct gb_driver gb_vendor_moto_driver = {

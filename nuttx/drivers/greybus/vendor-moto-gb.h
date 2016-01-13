@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Motorola Mobility, LLC.
+ * Copyright (c) 2015-2016 Motorola Mobility, LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,33 +29,40 @@
 #ifndef _GREYBUS_VENDOR_MOTO_H_
 #define _GREYBUS_VENDOR_MOTO_H_
 
+#include <nuttx/config.h>
+#include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/types.h>
+
+#define MIN_SZ(a,b) (a < b ? a : b)
 
 #define GB_VENDOR_MOTO_PROTOCOL_VERSION   0x01
 #define GB_VENDOR_MOTO_GET_DMESG          0x02
 #define GB_VENDOR_MOTO_GET_LAST_DMESG     0x03
 #define GB_VENDOR_MOTO_GET_PWR_UP_REASON  0x04
+#define GB_VENDOR_MOTO_GET_DMESG_SIZE     0x05
 
-/*
- * This is slightly less than max greybus payload size to allow for headers
- * and other overhead.
- */
-#define GB_VENDOR_MOTO_DMESG_SIZE         1000
+#define GB_VENDOR_MOTO_DMESG_SIZE \
+            MIN_SZ(CONFIG_RAMLOG_BUFSIZE, GB_MAX_PAYLOAD_SIZE)
 
 /* version request has no payload */
 struct gb_vendor_moto_proto_version_response {
-	__u8	major;
-	__u8	minor;
-};
+    __u8    major;
+    __u8    minor;
+} __packed;
 
 /* get (last) dmesg request has no payload */
 struct gb_vendor_moto_get_dmesg_response {
-	char	buf[GB_VENDOR_MOTO_DMESG_SIZE];
-};
+    char    buf[GB_VENDOR_MOTO_DMESG_SIZE];
+} __packed;
 
 /* power up reason request has no payload */
 struct gb_vendor_moto_pwr_up_reason_response {
-	__le32	reason;
+    __le32  reason;
+} __packed;
+
+/* get dmesg size request has no payload */
+struct gb_vendor_moto_get_dmesg_size_response {
+    __le16  size;
 } __packed;
 
 #endif /* _GREYBUS_VENDOR_MOTO_H_ */
