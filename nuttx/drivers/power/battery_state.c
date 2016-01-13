@@ -32,8 +32,11 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include <nuttx/device.h>
 #include <nuttx/power/battery_state.h>
 #include <nuttx/list.h>
+
+#include "battery_temp.h"
 
 static sem_t sem = SEM_INITIALIZER(1);
 
@@ -52,7 +55,6 @@ struct battery_info_s
 
 static struct battery_info_s *g_info;
 
-#ifdef CONFIG_BATTERY_STATE_SIMULATOR
 static void battery_notify(void)
 {
     struct notify_node_s *node;
@@ -64,22 +66,26 @@ static void battery_notify(void)
     }
 }
 
-int set_battery_level(enum batt_level_e level)
+int battery_state_set_level(enum batt_level_e level)
 {
     while (sem_wait(&sem) != OK) {
         if (errno == EINVAL) {
             return -EINVAL;
         }
     }
+
+    if (g_info->batt.level == level)
+        goto done;
 
     g_info->batt.level = level;
     battery_notify();
 
+done:
     sem_post(&sem);
     return 0;
 }
 
-int set_battery_temp(enum batt_temp_e temp)
+int battery_state_set_temp(enum batt_temp_e temp)
 {
     while (sem_wait(&sem) != OK) {
         if (errno == EINVAL) {
@@ -87,13 +93,16 @@ int set_battery_temp(enum batt_temp_e temp)
         }
     }
 
+    if (g_info->batt.temp == temp)
+        goto done;
+
     g_info->batt.temp = temp;
     battery_notify();
 
+done:
     sem_post(&sem);
     return 0;
 }
-#endif
 
 int battery_state_register(batt_callback_t callback, void *arg)
 {
@@ -129,15 +138,7 @@ register_done:
 
 int battery_state_init(void)
 {
-    while (sem_wait(&sem) != OK) {
-        if (errno == EINVAL) {
-            dbg("failed to acquire semaphore\n");
-            return -EINVAL;
-        }
-    }
-
-    if (g_info)
-        goto done;
+    int ret = 0;
 
     g_info = zalloc(sizeof(*g_info));
     if (!g_info) {
@@ -147,10 +148,14 @@ int battery_state_init(void)
 
     list_init(&g_info->notify_list);
 
-    g_info->batt.temp = BATTERY_TEMP_NORMAL;
     g_info->batt.level = BATTERY_LEVEL_NORMAL;
 
-done:
-    sem_post(&sem);
+    ret = battery_temp_start();
+    if (ret) {
+        free(g_info);
+        g_info = NULL;
+        return ret;
+    }
+
     return 0;
 }

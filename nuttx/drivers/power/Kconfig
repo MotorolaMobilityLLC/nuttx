@@ -89,10 +89,53 @@ config BATTERY_STATE
 	bool "Battery level and temp notifier"
 	default n
 
-config BATTERY_STATE_SIMULATOR
-	bool "Simulated battery temp and level"
-        depends on BATTERY_STATE
+menuconfig BATTERY_TEMP
+	bool "Battery temp monitor"
+	depends on BATTERY_STATE
 	default n
+
+config BATTERY_TEMP_COLD
+	int "Cold temp (deg C)"
+	depends on BATTERY_TEMP
+	default -20
+	---help---
+		Charging is disabled when battery is cold
+
+config BATTERY_TEMP_COOL
+	int "Cool temp (deg C)"
+	depends on BATTERY_TEMP
+	default 0
+	---help---
+		Charging is restricted when battery is cool
+
+config BATTERY_TEMP_WARM
+	int "Warm temp (deg C)"
+	depends on BATTERY_TEMP
+	default 45
+	---help---
+		Charging is restricted when battery is warm
+
+config BATTERY_TEMP_HOT
+	int "Hot temp (deg C)"
+	depends on BATTERY_TEMP
+	default 60
+	---help---
+		Charging is disabled when battery is hot
+
+config BATTERY_TEMP_COOL_DOWN
+	int "Cool down temp (deg C)"
+	depends on BATTERY_TEMP
+	default 70
+	---help---
+		Charging and discharging are disabled when in cool down mode
+
+config BATTERY_TEMP_HYST
+	int "Temp hysteresis (deg C)"
+	depends on BATTERY_TEMP
+	default 2
+	---help---
+		Hysteresis to transition from hot to warm, warm to normal,
+		cool down to hot, hot to warm, and warm to normal
 
 config GREYBUS_PTP_CHG_DEVICE_BQ24292
 	bool "BQ24292 PTP charger device driver"
