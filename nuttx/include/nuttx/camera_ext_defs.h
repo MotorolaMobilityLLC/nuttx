@@ -160,52 +160,68 @@ struct camera_ext_streamparm {
 
 #define CAM_EXT_CTRL_ID_MASK		(0x0fffffff)
 
-/* objects to enumerate mod pre-defined controls */
-struct camera_ext_predefined_ctrl_mod_cfg {
-	__le32 id;
-	__le64 def;
-	__le64 menu_mask;
-} __packed;
+/*
+ * Phone side predfines controls and indicating which fields are
+ * needed from MOD.
+ * MOD will send missing config in the binary format "FLAG0 data0 FLAG1
+ * data1 ...
+ * FLAG takes a __le32 and data is in the format in each flag's comment.
+ */
+#define CAMERA_EXT_CTRL_FLAG_NEED_MIN		0x00010000 /* s64 */
+#define CAMERA_EXT_CTRL_FLAG_NEED_MAX		0x00020000 /* s64 */
+#define CAMERA_EXT_CTRL_FLAG_NEED_STEP		0x00040000 /* u64 */
+#define CAMERA_EXT_CTRL_FLAG_NEED_DEF		0x00080000 /* s64 */
+#define CAMERA_EXT_CTRL_FLAG_NEED_DIMS		0x00100000 /* u32 [4] */
+#define CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK	0x00200000 /* u64 */
+#define CAMERA_EXT_CTRL_FLAG_NEED_MENU_INT	0x00400000 /* s64 [64] */
+/* camera_ext_ctrl_float[64]: uint8_t [64][13] */
+#define CAMERA_EXT_CTRL_FLAG_NEED_MENU_FLOAT	0x00800000
 
-struct camera_ext_ctrl_val_base {
-	/* MOD controls config are stored in an array and phone side code
-	 * accesses (get_config/set/get/try each control via index.
+#define CAMERA_EXT_MAX_MENU_NUM     64
+#define CAMERA_EXT_MAX_DIM	4
+
+/* If this flag is set, make sure the default value from MOD is properly
+ * passed to control (by set_ctrl).
+ */
+#define CAMERA_EXT_CTRL_FLAG_STRING_AS_NUMBER	0x80000000
+
+/* Y.XXXXXXE-ZZZ plus '\0': len is 13 */
+#define CAM_EXT_CTRL_FLOAT_STR_LEN  13
+/* Y.XXXXXXXXXXXXE-ZZZ plus '\0': len 19 */
+#define CAM_EXT_CTRL_DOUBLE_STR_LEN 19
+typedef char camera_ext_ctrl_float[CAM_EXT_CTRL_FLOAT_STR_LEN];
+typedef char camera_ext_ctrl_double[CAM_EXT_CTRL_DOUBLE_STR_LEN];
+
+struct camera_ext_predefined_ctrl_mod_req {
+	/* Phone access MOD control by index (0, 1, ...).
 	 */
 	__le32 idx;
+	/* required response size
+	 * Expected responding config data size (including header) for
+	 * GB_CAMERA_EXT_TYPE_CTRL_GET_CFG.
+	 * Expected control value size for GB_CAMERA_EXT_TYPE_CTRL_GET.
+	 * Size of control value to set/try for GB_CAMERA_EXT_TYPE_CTRL_SET/TRY.
+	 */
+	__le32 data_size;
+	/* control value to set for GB_CAMERA_EXT_TYPE_CTRL_SET/TRY
+	 */
+	uint8_t data[0];
+};
+
+/* ctrl config from MOD, playload is decided by
+ * CAMERA_EXT_CTRL_FLAG_NEED_XXX. MOD side must provide all fields
+ * each field is tagged by its NEED_XXX flag.
+ */
+struct camera_ext_predefined_ctrl_mod_cfg {
+	/* control id at position idx (camera_ext_predefined_ctrl_mod_req) */
+	__le32 id;
+	/* next available id, -1 if no more */
+	__le32 next_id;
+	/* if next control has menu/dims from MOD, indicating the array
+	 * item number */
+	__le32 next_array_size;
+	/* FLAG0 DATA0 FLAG1 DATA1 ... */
+	uint8_t data[0];
 } __packed;
-
-/* to get/set/try for std or menu type controls over greybus */
-struct camera_ext_ctrl_val {
-	struct camera_ext_ctrl_val_base base;
-	union {
-		uint8_t val_8;
-		__le16 val_16;
-		__le32 val;
-		__le64 val_64;
-	};
-} __packed;
-
-#define CAMERA_EXT_CTRL_ARRAY_SIZE 128
-/* to get/set/try for controls with array data over greybus */
-struct camera_ext_ctrl_array_val {
-    struct camera_ext_ctrl_val_base base;
-	union {
-		uint8_t val_8[CAMERA_EXT_CTRL_ARRAY_SIZE];
-		__le16 val_16[CAMERA_EXT_CTRL_ARRAY_SIZE >> 1];
-		__le32 val[CAMERA_EXT_CTRL_ARRAY_SIZE >> 2];
-		__le64 val_64[CAMERA_EXT_CTRL_ARRAY_SIZE >> 3];
-	};
-} __packed;
-
-static inline uint32_t cam_ext_get_ctrl_val_idx(void *ctrl_val)
-{
-	__le32 idx = ((struct camera_ext_ctrl_val_base *)ctrl_val)->idx;
-	return le32_to_cpu(idx);
-}
-
-static inline void cam_ext_set_ctrl_val_idx(void *ctrl_val, __le32 idx)
-{
-    ((struct camera_ext_ctrl_val_base *)ctrl_val)->idx = idx;
-}
 
 #endif /* __CAMERA_EXT_DEFS_H */

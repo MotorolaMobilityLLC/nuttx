@@ -558,45 +558,27 @@ static struct camera_ext_ctrl_db _ctrl_db = {
 };
 
 static int _ctrl_get_cfg(struct device *dev, uint32_t idx,
-                struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg)
+                uint8_t *cfg, uint32_t cfg_size)
 {
-    return cam_ext_ctrl_get_cfg(&_ctrl_db, idx, mod_ctrl_cfg);
+    return cam_ext_ctrl_get_cfg(&_ctrl_db, idx, cfg, cfg_size);
 }
 
-static int _ctrl_get(struct device *dev,
-            struct camera_ext_ctrl_val *ctrl_val)
+static int _ctrl_get(struct device *dev, uint32_t idx,
+            uint8_t *ctrl_val, uint32_t ctrl_val_size)
 {
-    return cam_ext_ctrl_get(&_ctrl_db, ctrl_val);
+    return cam_ext_ctrl_get(dev, &_ctrl_db, idx, ctrl_val, ctrl_val_size);
 }
 
-static int _ctrl_set(struct device *dev,
-            struct camera_ext_ctrl_val *ctrl_val)
+static int _ctrl_set(struct device *dev, uint32_t idx,
+            uint8_t *ctrl_val, uint32_t ctrl_val_size)
 {
-    return cam_ext_ctrl_set(&_ctrl_db, ctrl_val);
+    return cam_ext_ctrl_set(dev, &_ctrl_db, idx, ctrl_val, ctrl_val_size);
 }
 
-static int _ctrl_try(struct device *dev,
-            struct camera_ext_ctrl_val *ctrl_val)
+static int _ctrl_try(struct device *dev, uint32_t idx,
+            uint8_t *ctrl_val, uint32_t ctrl_val_size)
 {
-    return cam_ext_ctrl_try(&_ctrl_db, ctrl_val);
-}
-
-static int _ctrl_array_get(struct device *dev,
-                struct camera_ext_ctrl_array_val *ctrl_val)
-{
-    return cam_ext_ctrl_array_get(&_ctrl_db, ctrl_val);
-}
-
-static int _ctrl_array_set(struct device *dev,
-                struct camera_ext_ctrl_array_val *ctrl_val)
-{
-    return cam_ext_ctrl_array_set(&_ctrl_db, ctrl_val);
-}
-
-static int _ctrl_array_try(struct device *dev,
-                struct camera_ext_ctrl_array_val *ctrl_val)
-{
-    return cam_ext_ctrl_array_try(&_ctrl_db, ctrl_val);
+    return cam_ext_ctrl_try(dev, &_ctrl_db, idx, ctrl_val, ctrl_val_size);
 }
 
 static int _dev_open(struct device *dev)
@@ -662,9 +644,6 @@ static struct device_camera_ext_dev_type_ops _camera_ext_type_ops = {
     .ctrl_get        = _ctrl_get,
     .ctrl_set        = _ctrl_set,
     .ctrl_try        = _ctrl_try,
-    .ctrl_array_get  = _ctrl_array_get,
-    .ctrl_array_set  = _ctrl_array_set,
-    .ctrl_array_try  = _ctrl_array_try,
 };
 
 static struct device_driver_ops camera_ext_driver_ops = {
