@@ -79,10 +79,6 @@
 #define GB_CAMERA_EXT_TYPE_CTRL_SET     0x12
 #define GB_CAMERA_EXT_TYPE_CTRL_TRY     0x13
 
-#define GB_CAMERA_EXT_TYPE_CTRL_ARRAY_GET   0x14
-#define GB_CAMERA_EXT_TYPE_CTRL_ARRAY_SET   0x15
-#define GB_CAMERA_EXT_TYPE_CTRL_ARRAY_TRY   0x16
-
 struct gb_proto_version_response {
     uint8_t major;
     uint8_t minor;
@@ -417,16 +413,19 @@ static uint8_t gb_camera_ext_stream_get_parm(struct gb_operation *operation)
 static uint8_t gb_camera_ext_ctrl_get_cfg(struct gb_operation *operation)
 {
     int retval;
-    __le32 *idx;
+    struct camera_ext_predefined_ctrl_mod_req *req;
     struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg;
+    uint32_t cfg_size;
 
-    if (gb_operation_get_request_payload_size(operation) == sizeof(__le32)) {
-        idx = (__le32*)gb_operation_get_request_payload(operation);
-        mod_ctrl_cfg = gb_operation_alloc_response(operation,
-                            sizeof(*mod_ctrl_cfg));
+    if (gb_operation_get_request_payload_size(operation) == sizeof(*req)) {
+        req = (struct camera_ext_predefined_ctrl_mod_req *)
+                    gb_operation_get_request_payload(operation);
+        cfg_size = le32_to_cpu(req->data_size);
+        mod_ctrl_cfg = gb_operation_alloc_response(operation, cfg_size);
         if (mod_ctrl_cfg != NULL) {
-            retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_get_cfg, le32_to_cpu(*idx),
-                        mod_ctrl_cfg);
+            retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_get_cfg,
+                        le32_to_cpu(req->idx), mod_ctrl_cfg,
+                        cfg_size - sizeof(*mod_ctrl_cfg));
         } else {
             retval = -ENOMEM;
         }
@@ -442,17 +441,52 @@ static uint8_t gb_camera_ext_ctrl_get_cfg(struct gb_operation *operation)
 static uint8_t gb_camera_ext_ctrl_get(struct gb_operation *operation)
 {
     int retval;
-    __le32 *idx;
-    struct camera_ext_ctrl_val *ctrl_val;
+    struct camera_ext_predefined_ctrl_mod_req *req;
+    uint8_t *ctrl_val;
+    uint32_t ctrl_val_size;
 
-    if (gb_operation_get_request_payload_size(operation) == sizeof(__le32)) {
-        idx = (__le32*)gb_operation_get_request_payload(operation);
-        ctrl_val = gb_operation_alloc_response(operation, sizeof(*ctrl_val));
+    if (gb_operation_get_request_payload_size(operation) == sizeof(*req)) {
+        req = (struct camera_ext_predefined_ctrl_mod_req *)
+                gb_operation_get_request_payload(operation);
+        ctrl_val_size = le32_to_cpu(req->data_size);
+        ctrl_val = gb_operation_alloc_response(operation, ctrl_val_size);
         if (ctrl_val != NULL) {
-            cam_ext_set_ctrl_val_idx(ctrl_val, *idx);
-            retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_get, ctrl_val);
+            retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_get,
+                        le32_to_cpu(req->idx), ctrl_val, ctrl_val_size);
         } else {
             retval = -ENOMEM;
+        }
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
+    CAM_DBG("result %d\n", retval);
+    return gb_operation_errno_map(retval);
+}
+
+static uint8_t gb_camera_ext_ctrl_set_try(struct gb_operation *operation, int is_set)
+{
+    int retval;
+    struct camera_ext_predefined_ctrl_mod_req *req;
+    size_t req_size;
+    size_t ctrl_val_size;
+
+    req_size = gb_operation_get_request_payload_size(operation);
+    if (req_size >= sizeof(*req)) {
+        req = (struct camera_ext_predefined_ctrl_mod_req *)
+                gb_operation_get_request_payload(operation);
+        ctrl_val_size = le32_to_cpu(req->data_size);
+        if (ctrl_val_size + sizeof(*req) == req_size) {
+            if (is_set)
+                retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_set,
+                    le32_to_cpu(req->idx), req->data, ctrl_val_size);
+            else
+                retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_try,
+                    le32_to_cpu(req->idx), req->data, ctrl_val_size);
+        } else {
+            CAM_ERR("invalid payload size\n");
+            retval = -EINVAL;
         }
     } else {
         CAM_ERR("invalid request size\n");
@@ -465,98 +499,12 @@ static uint8_t gb_camera_ext_ctrl_get(struct gb_operation *operation)
 
 static uint8_t gb_camera_ext_ctrl_set(struct gb_operation *operation)
 {
-    int retval;
-    struct camera_ext_ctrl_val *ctrl_val;
-
-    if (gb_operation_get_request_payload_size(operation)
-            == sizeof(*ctrl_val)) {
-        ctrl_val = gb_operation_get_request_payload(operation);
-        retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_set, ctrl_val);
-    } else {
-        CAM_ERR("invalid request size\n");
-        retval = -EINVAL;
-    }
-
-    CAM_DBG("result %d\n", retval);
-    return gb_operation_errno_map(retval);
+    return gb_camera_ext_ctrl_set_try(operation, 1);
 }
 
 static uint8_t gb_camera_ext_ctrl_try(struct gb_operation *operation)
 {
-    int retval;
-    struct camera_ext_ctrl_val *ctrl_val;
-
-    if (gb_operation_get_request_payload_size(operation)
-            == sizeof(*ctrl_val)) {
-        ctrl_val = gb_operation_get_request_payload(operation);
-        retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_try, ctrl_val);
-    } else {
-        CAM_ERR("invalid request size\n");
-        retval = -EINVAL;
-    }
-
-    CAM_DBG("result %d\n", retval);
-    return gb_operation_errno_map(retval);
-}
-
-static uint8_t gb_camera_ext_ctrl_array_get(struct gb_operation *operation)
-{
-    int retval;
-    __le32 *idx;
-    struct camera_ext_ctrl_array_val *ctrl_val;
-
-    if (gb_operation_get_request_payload_size(operation) == sizeof(__le32)) {
-        idx = (__le32*)gb_operation_get_request_payload(operation);
-        ctrl_val = gb_operation_alloc_response(operation, sizeof(*ctrl_val));
-        if (ctrl_val != NULL) {
-            cam_ext_set_ctrl_val_idx(ctrl_val, *idx);
-            retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_array_get, ctrl_val);
-        } else {
-            retval = -ENOMEM;
-        }
-    } else {
-        CAM_ERR("invalid request size\n");
-        retval = -EINVAL;
-    }
-
-    CAM_DBG("result %d\n", retval);
-    return gb_operation_errno_map(retval);
-}
-
-static uint8_t gb_camera_ext_ctrl_array_set(struct gb_operation *operation)
-{
-    int retval;
-    struct camera_ext_ctrl_array_val *ctrl_val;
-
-    if (gb_operation_get_request_payload_size(operation)
-            == sizeof(*ctrl_val)) {
-        ctrl_val = gb_operation_get_request_payload(operation);
-        retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_array_set, ctrl_val);
-    } else {
-        CAM_ERR("invalid request size\n");
-        retval = -EINVAL;
-    }
-
-    CAM_DBG("result %d\n", retval);
-    return gb_operation_errno_map(retval);
-}
-
-static uint8_t gb_camera_ext_ctrl_array_try(struct gb_operation *operation)
-{
-    int retval;
-    struct camera_ext_ctrl_array_val *ctrl_val;
-
-    if (gb_operation_get_request_payload_size(operation)
-            == sizeof(*ctrl_val)) {
-        ctrl_val = gb_operation_get_request_payload(operation);
-        retval = CALL_CAM_DEV_OP(dev_info.dev, ctrl_array_try, ctrl_val);
-    } else {
-        CAM_ERR("invalid request size\n");
-        retval = -EINVAL;
-    }
-
-    CAM_DBG("result %d\n", retval);
-    return gb_operation_errno_map(retval);
+    return gb_camera_ext_ctrl_set_try(operation, 0);
 }
 
 static struct gb_operation_handler gb_camera_handlers[] = {
@@ -585,13 +533,6 @@ static struct gb_operation_handler gb_camera_handlers[] = {
     GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_GET, gb_camera_ext_ctrl_get),
     GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_SET, gb_camera_ext_ctrl_set),
     GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_TRY, gb_camera_ext_ctrl_try),
-
-    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_ARRAY_GET,
-        gb_camera_ext_ctrl_array_get),
-    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_ARRAY_SET,
-        gb_camera_ext_ctrl_array_set),
-    GB_HANDLER(GB_CAMERA_EXT_TYPE_CTRL_ARRAY_TRY,
-        gb_camera_ext_ctrl_array_try),
 };
 
 static struct gb_driver gb_camera_driver = {

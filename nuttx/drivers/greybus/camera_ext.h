@@ -61,6 +61,13 @@
 #define V4L2_PIX_FMT_SGRBG10 v4l2_fourcc('B', 'A', '1', '0') /* 10  GRGR.. BGBG.. */
 #define V4L2_PIX_FMT_SRGGB10 v4l2_fourcc('R', 'G', '1', '0') /* 10  RGRG.. GBGB.. */
 
+#ifdef CONFIG_ENDIAN_BIG
+#error "big-endian unsupported"
+#endif
+
+#define le64_to_cpu(v) (v)
+#define cpu_to_le64(v) (v)
+
 /*
  * Structures used to store v4l2 format information in a hierachy way.
  */
@@ -110,22 +117,83 @@ struct camera_ext_input_node {
     struct camera_ext_format_node const *format_nodes;
 };
 
-/* An array of cam_ext_ctrl_item holds all supported controls' config.
- * ctrl_ids are in ascending order in the array.
+/*
+ * Each supported control will have a MOD side config.
+ * Flags are combination of CAMERA_EXT_CTRL_FLAG_NEED_XXX and should be same
+ * as predfined controls at phone side. Otherwise it will be rejected by phone.
+ * Id and flags are mandatory. Others are optional and indicated by flags.
  */
-struct cam_ext_ctrl_item {
-    struct camera_ext_predefined_ctrl_mod_cfg const ctrl_cfg;
+struct camera_ext_ctrl_cfg {
+    uint32_t id;
+    uint32_t flags; /* tell camera_ext how to pack/unpack data */
     union {
-        uint8_t val_8;
-        uint16_t val_16;
-        uint32_t val;
-        void *p_val; //point to val_64 or an array of 8/16/32 bits number
+        int64_t min;
+        float min_f; /* used to validate set_ctrl, mod side only */
     };
+    union {
+        int64_t max;
+        float max_f; /* used to validate set_ctrl, mod side only */
+    };
+    union {
+        /* pass int/float/douoble to phone for initial value */
+        int64_t def;
+        float def_f;
+        double def_d;
+    };
+    uint64_t step;
+    uint64_t menu_skip_mask;
+    uint32_t array_size; //size of array in below union
+    union {
+        uint32_t *dims;
+        int64_t *menu_int;
+        float *menu_float;
+    };
+};
 
-    /* val points to struct camera_ext_val_base */
-    int (*g_volatile_ctrl)(void *val);
-    int (*s_ctrl)(void *val);
-    int (*try_ctrl)(void *val);
+#define CAM_EXT_CTRL_DATA_TYPE_INT    1
+#define CAM_EXT_CTRL_DATA_TYPE_BOOL   2
+#define CAM_EXT_CTRL_DATA_TYPE_INT64  3
+#define CAM_EXT_CTRL_DATA_TYPE_FLOAT  4
+#define CAM_EXT_CTRL_DATA_TYPE_DOUBLE 5
+
+struct camera_ext_ctrl_val {
+    //if nr_of_elem > 1, pointer field will be used.
+    //elem_size indicates data size in bytes
+    uint32_t nr_of_elem; /* if > 1, must init p_val_xxx */
+    uint32_t elem_type;
+
+    union {
+        uint32_t val;
+        uint64_t val_64;
+        float val_f;
+        double val_d;
+
+        uint8_t *p_val_8; //string type
+        uint32_t *p_val;
+        uint64_t *p_val_64;
+        float *p_val_f;
+        double *p_val_d;
+    };
+};
+
+struct device;
+struct camera_ext_ctrl_item {
+    const struct camera_ext_ctrl_cfg cfg;
+    //phone will call set_ctrl with def value upon attached for none volatile
+    //controls.
+    struct camera_ext_ctrl_val val;
+
+    //for none volatile contrl, phone only reads its cached value
+    //which is init by def and updated by set_ctrl.
+    int (*get_volatile_ctrl)(struct device *dev,
+            struct camera_ext_ctrl_item *self,
+            struct camera_ext_ctrl_val *val);
+    int (*set_ctrl)(struct device *dev,
+            struct camera_ext_ctrl_item *self,
+            struct camera_ext_ctrl_val *val);
+    int (*try_ctrl)(struct device *dev,
+            struct camera_ext_ctrl_item *self,
+            struct camera_ext_ctrl_val *val);
 };
 
 //format root node
@@ -145,7 +213,7 @@ struct camera_ext_format_user_config *camera_ext_get_user_config(void);
 //control db
 struct camera_ext_ctrl_db {
     uint32_t num_ctrls;
-    struct cam_ext_ctrl_item **ctrls;
+    struct camera_ext_ctrl_item **ctrls;
 };
 
 struct camera_ext_format_user_config {
@@ -224,20 +292,13 @@ int camera_ext_stream_get_parm(struct device *dev, struct camera_ext_streamparm 
 
 /* Functions to for v4l2 controls */
 int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
-    struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg);
+    struct camera_ext_predefined_ctrl_mod_cfg *cfg, uint32_t cfg_size);
 
-int cam_ext_ctrl_get(struct camera_ext_ctrl_db *ctrl_db,
-    struct camera_ext_ctrl_val *ctrl_val);
-int cam_ext_ctrl_set(struct camera_ext_ctrl_db *ctrl_db,
-    struct camera_ext_ctrl_val *ctrl_val);
-int cam_ext_ctrl_try(struct camera_ext_ctrl_db *ctrl_db,
-    struct camera_ext_ctrl_val *ctrl_val);
-
-int cam_ext_ctrl_array_get(struct camera_ext_ctrl_db *ctrl_db,
-    struct camera_ext_ctrl_array_val *ctrl_val);
-int cam_ext_ctrl_array_set(struct camera_ext_ctrl_db *ctrl_db,
-    struct camera_ext_ctrl_array_val *ctrl_val);
-int cam_ext_ctrl_array_try(struct camera_ext_ctrl_db *ctrl_db,
-    struct camera_ext_ctrl_array_val *ctrl_val);
+int cam_ext_ctrl_get(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
+    uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size);
+int cam_ext_ctrl_set(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
+    uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size);
+int cam_ext_ctrl_try(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
+    uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size);
 
 #endif

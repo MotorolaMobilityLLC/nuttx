@@ -65,6 +65,13 @@
         DEV_INVOKE_OPS(dev, op, a0, a1); \
     }
 
+#define IMPL_CAMERA_EXT_DEV_OP_ARG3(op, t0, a0, t1, a1, t2, a2) \
+    static inline int device_camera_ext_##op(struct device *dev, t0 a0,\
+                        t1 a1, t2 a2) \
+    { \
+        DEV_INVOKE_OPS(dev, op, a0, a1, a2); \
+    }
+
 #define CALL_CAM_DEV_OP(dev, op, ...) \
     dev == NULL? -ENODEV : device_camera_ext_##op(dev, ##__VA_ARGS__)
 
@@ -95,18 +102,14 @@ struct device_camera_ext_dev_type_ops {
             struct camera_ext_streamparm *parm);
 
     int (*ctrl_get_cfg)(struct device *dev, uint32_t idx,
-            struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg);
+            struct camera_ext_predefined_ctrl_mod_cfg *cfg, uint32_t cfg_size);
 
-    int (*ctrl_get)(struct device *dev, struct camera_ext_ctrl_val *ctrl_val);
-    int (*ctrl_set)(struct device *dev, struct camera_ext_ctrl_val *ctrl_val);
-    int (*ctrl_try)(struct device *dev, struct camera_ext_ctrl_val *ctrl_val);
-
-    int (*ctrl_array_get)(struct device *dev,
-            struct camera_ext_ctrl_array_val *ctrl_val);
-    int (*ctrl_array_set)(struct device *dev,
-            struct camera_ext_ctrl_array_val *ctrl_val);
-    int (*ctrl_array_try)(struct device *dev,
-            struct camera_ext_ctrl_array_val *ctrl_val);
+    int (*ctrl_get)(struct device *dev, uint32_t idx,
+            uint8_t *ctrl_val, uint32_t ctrl_val_size);
+    int (*ctrl_set)(struct device *dev, uint32_t idx,
+            uint8_t *ctrl_val, uint32_t ctrl_val_size);
+    int (*ctrl_try)(struct device *dev, uint32_t idx,
+            uint8_t *ctrl_val, uint32_t ctrl_val_size);
 };
 
 IMPL_CAMERA_EXT_DEV_OP_ARG0(power_on)
@@ -134,18 +137,14 @@ IMPL_CAMERA_EXT_DEV_OP_ARG1(stream_get_parm,\
 IMPL_CAMERA_EXT_DEV_OP_ARG1(stream_set_parm,\
     struct camera_ext_streamparm*, parm)
 
-IMPL_CAMERA_EXT_DEV_OP_ARG2(ctrl_get_cfg, int, idx,
-    struct camera_ext_predefined_ctrl_mod_cfg*, mod_ctrl_cfg)
+IMPL_CAMERA_EXT_DEV_OP_ARG3(ctrl_get_cfg, int, idx, \
+    struct camera_ext_predefined_ctrl_mod_cfg *, cfg, uint32_t, cfg_size)
 
-IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_get, struct camera_ext_ctrl_val*, ctrl_val)
-IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_set, struct camera_ext_ctrl_val*, ctrl_val)
-IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_try, struct camera_ext_ctrl_val*, ctrl_val)
-
-IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_array_get, \
-    struct camera_ext_ctrl_array_val*, ctrl_val)
-IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_array_set, \
-    struct camera_ext_ctrl_array_val*, ctrl_val)
-IMPL_CAMERA_EXT_DEV_OP_ARG1(ctrl_array_try, \
-    struct camera_ext_ctrl_array_val*, ctrl_val)
+IMPL_CAMERA_EXT_DEV_OP_ARG3(ctrl_get, uint32_t, idx, \
+    uint8_t*, ctrl_val, uint32_t, ctrl_val_size)
+IMPL_CAMERA_EXT_DEV_OP_ARG3(ctrl_set, uint32_t, idx, \
+    uint8_t*, ctrl_val, uint32_t, ctrl_val_size)
+IMPL_CAMERA_EXT_DEV_OP_ARG3(ctrl_try, uint32_t, idx, \
+    uint8_t*, ctrl_val, uint32_t, ctrl_val_size)
 
 #endif
