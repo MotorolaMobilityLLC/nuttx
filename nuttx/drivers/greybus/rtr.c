@@ -150,7 +150,7 @@ static void **_get_value(void *tbl[], int lvl, uint16_t a, uint16_t *ndx)
     int a3 = SUB_TABLE(a, lvl);
 
     if (tbl[a3] == NULL) {
-        gb_error("NOT FOUND\n");
+        gb_debug("NOT FOUND\n");
         return NULL;
     }
 
