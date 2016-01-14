@@ -406,11 +406,17 @@ static struct gb_operation *gb_rx_create_operation(unsigned cport, void *data,
 {
     struct gb_operation *op;
 
+    if (transport_backend->headroom) {
+        gb_error("headroom allocation cannot be used with zero copy\n");
+        return NULL;
+    }
+
     op = _gb_operation_create(cport);
     if (!op)
         return NULL;
 
     op->is_unipro_rx_buf = true;
+    op->request_headroom = data;
     op->request_buffer = data;
 
     return op;
