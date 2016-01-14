@@ -906,6 +906,9 @@ static int unipro_init_cport(unsigned int cportid)
 #endif
     cport->switch_buf_on_free = false;
 
+    if (cport->rx_buf)
+        unipro_rxbuf_free(cportid, cport->rx_buf);
+
     cport->rx_buf = unipro_rxbuf_alloc(cportid);
     if (!cport->rx_buf) {
         lowsyslog("unipro: couldn't allocate initial buffer for CP%u\n",
