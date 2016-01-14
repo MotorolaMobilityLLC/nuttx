@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <nuttx/util.h>
 #include <nuttx/config.h>
+#include <nuttx/rtc.h>
 #include <nuttx/greybus/types.h>
 
 #include <arch/irq.h>
@@ -44,11 +45,23 @@
 #define GB_LOG_DUMP     BIT(4)
 
 #ifdef CONFIG_GREYBUS_DEBUG
+#ifdef CONFIG_DEBUG_TIMESTAMP
+#define gb_log(lvl, fmt, ...)                                       \
+    do {                                                            \
+        if ((lvl == GB_LOG_INFO) || (gb_log_level & lvl)) {         \
+            struct timespec __tp;                                   \
+            up_rtc_gettime(&__tp);                                  \
+            _gb_log("[%u.%03u] " fmt, __tp.tv_sec,                  \
+                    (__tp.tv_nsec / 1000000), ##__VA_ARGS__);       \
+        }                                                           \
+    } while(0)
+#else
 #define gb_log(lvl, fmt, ...)                                       \
     do {                                                            \
         if ((lvl == GB_LOG_INFO) || (gb_log_level & lvl))           \
             _gb_log(fmt, ##__VA_ARGS__);                            \
     } while(0)
+#endif
 
 #define gb_dump(buf, size)                                          \
     do {                                                            \
@@ -85,4 +98,3 @@ static inline __attribute__ ((format(printf, 2, 3)))
 #define gb_debug(fmt, ...)                                          \
     gb_log(GB_LOG_DEBUG, gb_log_format(D, fmt), ##__VA_ARGS__);
 #endif
-
