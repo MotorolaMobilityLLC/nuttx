@@ -29,6 +29,7 @@
  */
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -52,7 +53,7 @@
 
 /* Version of the Greybus control protocol we support */
 #define MB_CONTROL_VERSION_MAJOR              0x00
-#define MB_CONTROL_VERSION_MINOR              0x03
+#define MB_CONTROL_VERSION_MINOR              0x04
 
 /* Greybus control request types */
 #define MB_CONTROL_TYPE_INVALID               0x00
@@ -96,6 +97,7 @@ struct gb_control_reboot_request {
 /* Control protocol reboot has no response */
 
 /* Control protocol get_ids request has no payload */
+#define MB_CONTROL_FW_VER_STR_SZ              32
 struct gb_control_get_ids_response {
     __le32    unipro_mfg_id;
     __le32    unipro_prod_id;
@@ -105,6 +107,7 @@ struct gb_control_get_ids_response {
     __le64    uid_high;
     __le32    fw_version;
     __le32    slave_mask;
+    char      fw_version_str[MB_CONTROL_FW_VER_STR_SZ];
 } __packed;
 
 /* Control protocol [dis]connected request */
@@ -255,6 +258,8 @@ static uint8_t gb_control_get_ids(struct gb_operation *operation)
 
     response->fw_version =
             cpu_to_le32(CONFIG_VERSION_MAJOR << 16 | CONFIG_VERSION_MINOR);
+    snprintf(response->fw_version_str, MB_CONTROL_FW_VER_STR_SZ,
+             "%s %s", CONFIG_VERSION_STRING, CONFIG_VERSION_BUILD);
 
 #ifdef CONFIG_ARCH_UID
     /* Populate the UID from the microprocessor */
