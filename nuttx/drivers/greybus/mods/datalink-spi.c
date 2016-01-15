@@ -298,6 +298,9 @@ static void cleanup_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
 static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)arg;
+  irqstate_t flags;
+
+  flags = irqsave();
 
   if (state != BASE_ATTACHED)
     {
@@ -337,6 +340,8 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 #endif
 
   priv->bstate = state;
+
+  irqrestore(flags);
 }
 
 /*
@@ -568,11 +573,14 @@ static struct pm_callback_s pm_callback =
 
 static int wake_isr(int irq, void *context)
 {
-  vdbg("Asserted\n");
-
   /* Any wake interrupts when not attached are spurious */
   if (mods_spi_dl.bstate != BASE_ATTACHED)
+    {
+      llvdbg("ignored\n");
       return OK;
+    }
+
+  llvdbg("asserted\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
   xfer(&mods_spi_dl);
