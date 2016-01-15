@@ -231,9 +231,9 @@ static int csi_cam_stream_on(struct device *dev)
         goto stop_csi_tx;
     }
 
-    CDSI_CONFIG.width = frmsize->discrete.width;
-    CDSI_CONFIG.height = frmsize->discrete.height;
-    float fps = (float)frmival->discrete.denominator / (float)frmival->discrete.numerator;
+    CDSI_CONFIG.width = frmsize->width;
+    CDSI_CONFIG.height = frmsize->height;
+    float fps = (float)frmival->denominator / (float)frmival->numerator;
     CDSI_CONFIG.framerate = roundf(fps);
 
     g_cdsi_dev = csi_initialize((struct camera_sensor *)&generic_sensor, TSB_CDSI1, TSB_CDSI_RX);
@@ -378,10 +378,7 @@ static int csi_cam_format_get(struct device *dev,
 
     return cam_ext_fill_gb_format(cam_dev->sensor->sensor_db,
                                   cfg->input, cfg->format,
-                                  cfg->frmsize.idx_frmsize,
-                                  cfg->frmsize.width,
-                                  cfg->frmsize.height,
-                                  format);
+                                  cfg->frmsize, format);
 }
 
 static int csi_cam_format_set(struct device *dev,

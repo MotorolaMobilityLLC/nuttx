@@ -61,17 +61,8 @@ static int find_frmsize_node(struct camera_ext_format_node const *format_node,
 
     for (index = 0; index < format_node->num_frmsizes; index++) {
         frmsize_node = &format_node->frmsize_nodes[index];
-        if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_DISCRETE) {
-            if (frmsize_node->discrete.width == le32_to_cpu(width)
-                && frmsize_node->discrete.height == le32_to_cpu(height)) {
-                break;
-            }
-        } else if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_CONTINUOUS) {
-            //TODO: store w/h to frmsize_user_config
-            break;
-        } else if (frmsize_node->type  == CAM_EXT_FRMSIZE_TYPE_STEPWISE) {
-            //TODO: store w/h to frmsize_user_config
-            //check if the width/height meet the step requirement
+        if (frmsize_node->width == le32_to_cpu(width)
+            && frmsize_node->height == le32_to_cpu(height)) {
             break;
         }
     }
@@ -105,9 +96,9 @@ int cam_ext_set_current_format(struct camera_ext_format_db const *db,
                                 format->height);
         if (index_frmsize != -1) {
             //store user config
-            cfg->frmival.idx_frmival = 0; //reset to first frame rate
+            cfg->frmival = 0; //reset to first frame rate
             cfg->format = index_format;
-            cfg->frmsize.idx_frmsize = index_frmsize;
+            cfg->frmsize = index_frmsize;
             retval = 0;
         }
     }
@@ -134,20 +125,12 @@ int cam_ext_frmival_set(struct camera_ext_format_db const *db,
     frmival_node = NULL;
     for (index = 0; index < frmsize_node->num_frmivals; index++) {
         frmival_node = &frmsize_node->frmival_nodes[index];
-        if (frmival_node->type == CAM_EXT_FRMIVAL_TYPE_DISCRETE) {
-            if (camera_ext_fract_equal(&frmival_node->discrete,
-                                       &parm->capture.timeperframe)) {
-                //accept
-                cfg->frmival.idx_frmival = index;
-                break;
-            } else {
-                frmival_node = NULL;
-            }
-        } else if (frmival_node->type == CAM_EXT_FRMIVAL_TYPE_STEPWISE) {
-            //TODO: not support for now
-            frmival_node = NULL;
-        } else if (frmival_node->type == CAM_EXT_FRMIVAL_TYPE_CONTINUOUS) {
-            //TODO: not support for now
+        if (camera_ext_fract_equal(frmival_node,
+                                   &parm->capture.timeperframe)) {
+            //accept
+            cfg->frmival = index;
+            break;
+        } else {
             frmival_node = NULL;
         }
     }
@@ -249,16 +232,14 @@ struct camera_ext_frmsize_node const *get_current_frmsize_node(
     struct camera_ext_format_db const *db,
     struct camera_ext_format_user_config *cfg)
 {
-    return get_frmsize_node(db, cfg->input, cfg->format, cfg->frmsize.idx_frmsize);
+    return get_frmsize_node(db, cfg->input, cfg->format, cfg->frmsize);
 }
 
 struct camera_ext_frmival_node const *get_current_frmival_node(
     struct camera_ext_format_db const *db,
     struct camera_ext_format_user_config *cfg)
 {
-    return get_frmival_node(db, cfg->input, cfg->format,
-                            cfg->frmsize.idx_frmsize,
-                            cfg->frmival.idx_frmival);
+    return get_frmival_node(db, cfg->input, cfg->format, cfg->frmsize, cfg->frmival);
 }
 
 /* Function to set GB data structure from Format DB structure */
@@ -293,8 +274,7 @@ int camera_ext_fill_gb_fmtdesc(struct camera_ext_format_db const *db, uint32_t i
 }
 
 int cam_ext_fill_gb_format(struct camera_ext_format_db const *db,
-                           uint32_t input, uint32_t format,
-                           uint32_t frmsize, uint32_t user_width, uint32_t user_height,
+                           uint32_t input, uint32_t format, uint32_t frmsize,
                            struct camera_ext_format *fmt)
 {
     struct camera_ext_format_node const *format_node;
@@ -309,14 +289,8 @@ int cam_ext_fill_gb_format(struct camera_ext_format_db const *db,
     }
 
     uint32_t w, h;
-    if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_DISCRETE) {
-        w = frmsize_node->discrete.width;
-        h = frmsize_node->discrete.height;
-    } else {
-        //step or continuous
-        w = user_width;
-        h = user_height;
-    }
+    w = frmsize_node->width;
+    h = frmsize_node->height;
     uint32_t byte_count = (w * format_node->depth) >> 3;
 
     //considering 'step' or 'continuous' frame size,
@@ -348,18 +322,9 @@ int cam_ext_fill_gb_frmsize(struct camera_ext_format_db const *db, uint32_t inpu
         if (index >=0 && index < format_node->num_frmsizes) {
             frmsize_node = &format_node->frmsize_nodes[index];
             frmsize->index = cpu_to_le32(index);
-            frmsize->type = cpu_to_le32(frmsize_node->type);
-            if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_DISCRETE) {
-                frmsize->discrete.width = cpu_to_le32(frmsize_node->discrete.width);
-                frmsize->discrete.height = cpu_to_le32(frmsize_node->discrete.height);
-            } else if (frmsize_node->type == CAM_EXT_FRMSIZE_TYPE_STEPWISE) {
-                frmsize->stepwise.min_width = cpu_to_le32(frmsize_node->stepwise.min_width);
-                frmsize->stepwise.max_width = cpu_to_le32(frmsize_node->stepwise.max_width);
-                frmsize->stepwise.step_width = cpu_to_le32(frmsize_node->stepwise.step_width);
-                frmsize->stepwise.min_height = cpu_to_le32(frmsize_node->stepwise.min_height);
-                frmsize->stepwise.max_height = cpu_to_le32(frmsize_node->stepwise.max_height);
-                frmsize->stepwise.step_height = cpu_to_le32(frmsize_node->stepwise.step_height);
-            }
+            frmsize->type = cpu_to_le32(CAM_EXT_FRMSIZE_TYPE_DISCRETE);
+            frmsize->discrete.width = cpu_to_le32(frmsize_node->width);
+            frmsize->discrete.height = cpu_to_le32(frmsize_node->height);
             return 0;
         }
     }
@@ -394,24 +359,9 @@ int cam_ext_fill_gb_frmival(struct camera_ext_format_db const *db, uint32_t inpu
                 frmival_node = &frmsize_node->frmival_nodes[index];
                 //copy raw data
                 frmival->index = cpu_to_le32(index);
-                frmival->type = cpu_to_le32(frmival_node->type);
-                if (frmival_node->type == CAM_EXT_FRMIVAL_TYPE_DISCRETE) {
-                    frmival->discrete.numerator = cpu_to_le32(frmival_node->discrete.numerator);
-                    frmival->discrete.denominator = cpu_to_le32(frmival_node->discrete.denominator);
-                } else if (frmival_node->type == CAM_EXT_FRMSIZE_TYPE_STEPWISE) {
-                    frmival->stepwise.min.numerator =
-                        cpu_to_le32(frmival_node->stepwise.min.numerator);
-                    frmival->stepwise.min.denominator =
-                        cpu_to_le32(frmival_node->stepwise.min.denominator);
-                    frmival->stepwise.max.numerator =
-                        cpu_to_le32(frmival_node->stepwise.max.numerator);
-                    frmival->stepwise.max.denominator =
-                        cpu_to_le32(frmival_node->stepwise.max.denominator);
-                    frmival->stepwise.step.numerator =
-                        cpu_to_le32(frmival_node->stepwise.step.numerator);
-                    frmival->stepwise.step.denominator =
-                        cpu_to_le32(frmival_node->stepwise.step.denominator);
-                }
+                frmival->type = cpu_to_le32(CAM_EXT_FRMIVAL_TYPE_DISCRETE);
+                frmival->discrete.numerator = cpu_to_le32(frmival_node->numerator);
+                frmival->discrete.denominator = cpu_to_le32(frmival_node->denominator);
                 return 0;
             }
         }
@@ -435,19 +385,8 @@ int cam_ext_fill_gb_streamparm(struct camera_ext_format_db const *db,
 
     memset(parm, 0, sizeof(*parm));
     parm->type = cpu_to_le32(CAMERA_EXT_BUFFER_TYPE_VIDEO_CAPTURE);
-    uint32_t frmival_type = frmival_node->type;
-    if (frmival_type == CAM_EXT_FRMIVAL_TYPE_DISCRETE) {
-        parm->capture.timeperframe.numerator=
-            cpu_to_le32(frmival_node->discrete.numerator);
-        parm->capture.timeperframe.denominator =
-            cpu_to_le32(frmival_node->discrete.denominator);
-    } else {
-        //for step/continuous type, frame rate stored in user config
-        parm->capture.timeperframe.numerator =
-            cpu_to_le32(cfg->frmival.numerator);
-        parm->capture.timeperframe.denominator =
-            cpu_to_le32(cfg->frmival.denominator);
-    }
+    parm->capture.timeperframe.numerator= cpu_to_le32(frmival_node->numerator);
+    parm->capture.timeperframe.denominator = cpu_to_le32(frmival_node->denominator);
     parm->capture.capability = cpu_to_le32(capability);
     parm->capture.capturemode = cpu_to_le32(capturemode);
 

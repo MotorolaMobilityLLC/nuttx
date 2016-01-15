@@ -184,11 +184,8 @@ static const struct csi_stream_user_data frmival_1600x1200_user_data = {
 // frame rate for 1600x1200 BGGR10
 static const struct camera_ext_frmival_node frmival_1600x1200[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 60,
-        },
+        .numerator = 1,
+        .denominator = 60,
         .user_data = &frmival_1600x1200_user_data,
     },
 };
@@ -204,11 +201,8 @@ static const struct csi_stream_user_data frmival_3264x2448_user_data = {
 // frame rate for 3264x2448 BGGR10
 static const struct camera_ext_frmival_node frmival_3264x2448[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 30,
-        },
+        .numerator = 1,
+        .denominator = 30,
         .user_data = &frmival_3264x2448_user_data,
     },
 };
@@ -216,21 +210,15 @@ static const struct camera_ext_frmival_node frmival_3264x2448[] = {
 // frame sizes for BGGR10
 static const struct camera_ext_frmsize_node imx179_cam_frmsizes[] = {
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 1600,
-            .height = 1200,
-        },
+        .width = 1600,
+        .height = 1200,
         .num_frmivals = ARRAY_SIZE(frmival_1600x1200),
         .frmival_nodes = frmival_1600x1200,
     },
 
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 3264,
-            .height = 2448,
-        },
+        .width = 3264,
+        .height = 2448,
         .num_frmivals = ARRAY_SIZE(frmival_3264x2448),
         .frmival_nodes = frmival_3264x2448,
     },
@@ -287,12 +275,8 @@ static struct sensor_info imx179 = {
     .user_config = {
         .input = 0,
         .format = 0,
-        .frmsize = {
-            .idx_frmsize = 0,
-        },
-        .frmival = {
-            .idx_frmival = 0,
-        },
+        .frmsize = 0,
+        .frmival = 0,
     },
 };
 

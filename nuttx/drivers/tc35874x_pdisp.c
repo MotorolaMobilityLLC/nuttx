@@ -100,62 +100,44 @@ static struct user_data_t _user_data[] = {
 
 static const struct camera_ext_frmival_node _frmival_fhd[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 15,
-        },
+        .numerator = 1,
+        .denominator = 15,
         .user_data = &_user_data[0],
     },
 };
 
 static const struct camera_ext_frmival_node _frmival_qhd[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 30,
-        },
+        .numerator = 1,
+        .denominator = 30,
         .user_data = &_user_data[1],
     },
 };
 
 static const struct camera_ext_frmival_node _frmival_vga[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 60,
-        },
+        .numerator = 1,
+        .denominator = 60,
         .user_data = &_user_data[2],
     },
 };
 
 static const struct camera_ext_frmsize_node _frmsizes_rgb888[] = {
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 1920,
-            .height = 1080,
-        },
+        .width = 1920,
+        .height = 1080,
         .num_frmivals = ARRAY_SIZE(_frmival_fhd),
         .frmival_nodes = _frmival_fhd,
     },
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 960,
-            .height = 540,
-        },
+        .width = 960,
+        .height = 540,
         .num_frmivals = ARRAY_SIZE(_frmival_qhd),
         .frmival_nodes = _frmival_qhd,
     },
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 640,
-            .height = 480,
-        },
+        .width = 640,
+        .height = 480,
         .num_frmivals = ARRAY_SIZE(_frmival_vga),
         .frmival_nodes = _frmival_vga,
     },
@@ -320,7 +302,7 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
     /* DPI input control */
     tc35874x_write_reg2(i2c, 0x0006, udata->fifo_level);  /* FIFO level */
     tc35874x_write_reg2(i2c, 0x0008, 0x0030);  /* Data format */
-    tc35874x_write_reg2(i2c, 0x0022, 3 * frmsize->discrete.width);  /* Word count */
+    tc35874x_write_reg2(i2c, 0x0022, 3 * frmsize->width);  /* Word count */
 
     /* CSI Tx Phy */
     tc35874x_write_reg4(i2c, 0x0140, 0x00000000);
@@ -505,12 +487,12 @@ static int _stream_on(struct device *dev)
         return -1;
     }
 
-    CDSI_CONFIG.width = frmsize->discrete.width;
-    CDSI_CONFIG.height = frmsize->discrete.height;
+    CDSI_CONFIG.width = frmsize->width;
+    CDSI_CONFIG.height = frmsize->height;
     CDSI_CONFIG.rx_num_lanes = udata->num_csi_lanes;
 
-    float fps = (float)(ival->discrete.denominator) /
-        (float)(ival->discrete.numerator);
+    float fps = (float)(ival->denominator) /
+        (float)(ival->numerator);
     CDSI_CONFIG.framerate = roundf(fps);
 
     /* Fill in the rest of CSDI_CONGIG field */
@@ -626,10 +608,7 @@ static int _format_get(struct device *dev, struct camera_ext_format *format)
 
     return cam_ext_fill_gb_format(&_db,
                                   dev_priv->cfg.input, dev_priv->cfg.format,
-                                  dev_priv->cfg.frmsize.idx_frmsize,
-                                  dev_priv->cfg.frmsize.width,
-                                  dev_priv->cfg.frmsize.height,
-                                  format);
+                                  dev_priv->cfg.frmsize, format);
 }
 
 static int _format_set(struct device *dev, struct camera_ext_format* format)
