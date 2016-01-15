@@ -180,7 +180,6 @@ struct dev_private_s
 {
     dev_status_t status;
     struct tc35874x_i2c_dev_info i2c_info;
-    struct camera_ext_format_user_config cfg;
 };
 
 #define DEV_TO_PRIVATE(dev_ptr, priv_ptr) struct dev_private_s *priv_ptr =\
@@ -258,8 +257,8 @@ static int bridge_off(struct tc35874x_i2c_dev_info *i2c, void *data)
 static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
 {
     uint32_t value;
-    struct camera_ext_format_user_config *cfg =
-        (struct camera_ext_format_user_config *)data;
+    const struct camera_ext_format_user_config *cfg =
+        (const struct camera_ext_format_user_config *)data;
     const struct camera_ext_format_node *fmt;
     const struct camera_ext_frmsize_node  *frmsize;
     const struct camera_ext_frmival_node *ival;
@@ -408,6 +407,8 @@ static int _power_on(struct device *dev)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
 
+    camera_ext_register_format_db(&_db);
+
     if (dev_priv->status == OFF) {
         if (tc35874x_run_command(&bridge_on, NULL) != 0) {
             CAM_ERR("Failed to run bridge_on commands\n");
@@ -453,11 +454,13 @@ static int _stream_on(struct device *dev)
     if (dev_priv->status != ON)
         return -1;
 
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
     const struct camera_ext_format_node *fmt;
     const struct camera_ext_frmsize_node *frmsize;
     const struct camera_ext_frmival_node *ival;
 
-    fmt = get_current_format_node(&_db, &dev_priv->cfg);
+    fmt = get_current_format_node(db, cfg);
     if (fmt == NULL) {
         CAM_ERR("Failed to get current format\n");
         return -1;
@@ -468,13 +471,13 @@ static int _stream_on(struct device *dev)
         return -1;
     }
 
-    frmsize = get_current_frmsize_node(&_db, &dev_priv->cfg);
+    frmsize = get_current_frmsize_node(db, cfg);
     if (frmsize == NULL) {
         CAM_ERR("Failed to get current frame size\n");
         return -1;
     }
 
-    ival = get_current_frmival_node(&_db, &dev_priv->cfg);
+    ival = get_current_frmival_node(db, cfg);
     if (ival == NULL) {
         CAM_ERR("Failed to get current frame interval\n");
         return -1;
@@ -515,7 +518,7 @@ static int _stream_on(struct device *dev)
     }
 
     /* setup the bridge chip and start streaming data */
-    if (tc35874x_run_command(&bridge_setup_and_start, &dev_priv->cfg) != 0) {
+    if (tc35874x_run_command(&bridge_setup_and_start, (void *)cfg) != 0) {
         CAM_ERR("Failed to run setup & start commands\n");
         goto stop_csi_tx;
     }
@@ -545,120 +548,6 @@ static int _stream_off(struct device *dev)
     if (g_cdsi_dev) {
         csi_uninitialize(g_cdsi_dev);
         g_cdsi_dev = NULL;
-    }
-
-    return 0;
-}
-
-static int _input_enum(struct device *dev,
-                              struct camera_ext_input *input)
-{
-    int index = le32_to_cpu(input->index);
-
-    if(camera_ext_fill_gb_input(&_db, index, input) != 0) {
-        CAM_DBG("no such input: %d\n", index);
-        return -EFAULT;
-    }
-    return 0;
-}
-
-static int _input_get(struct device *dev, int *input)
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-
-    if (!is_input_valid(&_db, dev_priv->cfg.input)) {
-        CAM_ERR("invalid current config\n");
-        return -EFAULT;
-    }
-
-    *input = dev_priv->cfg.input;
-    return 0;
-}
-
-static int _input_set(struct device *dev, int index)
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-
-    if (!is_input_valid(&_db, le32_to_cpu(index))) {
-        CAM_DBG("v4l input index %d out of range\n", index);
-        return -EFAULT;
-    }
-
-    dev_priv->cfg.input = index;
-
-    return 0;
-}
-
-static int _format_enum(struct device *dev, struct camera_ext_fmtdesc *format)
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-    int index = le32_to_cpu(format->index);
-
-    if (camera_ext_fill_gb_fmtdesc(&_db, dev_priv->cfg.input, index, format) != 0) {
-        CAM_DBG("no such format: %d\n", index);
-        return -EFAULT;
-    }
-
-    return 0;
-}
-
-static int _format_get(struct device *dev, struct camera_ext_format *format)
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-
-    return cam_ext_fill_gb_format(&_db,
-                                  dev_priv->cfg.input, dev_priv->cfg.format,
-                                  dev_priv->cfg.frmsize, format);
-}
-
-static int _format_set(struct device *dev, struct camera_ext_format* format)
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-
-    return cam_ext_set_current_format(&_db, &dev_priv->cfg, format);
-}
-
-static int _frmsize_enum(struct device *dev, struct camera_ext_frmsize* frmsize)
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-    int index = le32_to_cpu(frmsize->index);
-
-    return cam_ext_fill_gb_frmsize(&_db, dev_priv->cfg.input, index, frmsize);
-}
-
-static int _frmival_enum(struct device *dev, struct camera_ext_frmival* frmival)
-
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-    int index = le32_to_cpu(frmival->index);
-
-    return cam_ext_fill_gb_frmival(&_db, dev_priv->cfg.input, index, frmival);
-}
-
-static int _stream_set_parm(struct device *dev, struct camera_ext_streamparm *parm)
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-
-    if (dev_priv->status == STREAMING) {
-        CAM_ERR("can not update stream param during streaming\n");
-        return -EBUSY;
-    }
-
-    if (cam_ext_frmival_set(&_db, &dev_priv->cfg, parm) != 0) {
-        CAM_ERR("failed to apply stream parm\n");
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int _stream_get_parm(struct device *dev, struct camera_ext_streamparm *parm)
-{
-    DEV_TO_PRIVATE(dev, dev_priv);
-
-    if (cam_ext_fill_gb_streamparm(&_db, &dev_priv->cfg, 0, 0, parm) != 0) {
-        CAM_ERR("failed to get current stream param\n");
-        return -EINVAL;
     }
 
     return 0;
@@ -734,9 +623,6 @@ static int _dev_open(struct device *dev)
         }
     }
 
-    /* init default config */
-    memset(&s_device.cfg, 0, sizeof(s_device.cfg));
-
     device_driver_set_private(dev, (void*)&s_device);
 
     return 0;
@@ -762,16 +648,16 @@ static struct device_camera_ext_dev_type_ops _camera_ext_type_ops = {
     .power_off       = _power_off,
     .stream_on       = _stream_on,
     .stream_off      = _stream_off,
-    .input_enum      = _input_enum,
-    .input_get       = _input_get,
-    .input_set       = _input_set,
-    .format_enum     = _format_enum,
-    .format_get      = _format_get,
-    .format_set      = _format_set,
-    .frmsize_enum    = _frmsize_enum,
-    .frmival_enum    = _frmival_enum,
-    .stream_set_parm = _stream_set_parm,
-    .stream_get_parm = _stream_get_parm,
+    .input_enum      = camera_ext_input_enum,
+    .input_get       = camera_ext_input_get,
+    .input_set       = camera_ext_input_set,
+    .format_enum     = camera_ext_format_enum,
+    .format_get      = camera_ext_format_get,
+    .format_set      = camera_ext_format_set,
+    .frmsize_enum    = camera_ext_frmsize_enum,
+    .frmival_enum    = camera_ext_frmival_enum,
+    .stream_set_parm = camera_ext_stream_set_parm,
+    .stream_get_parm = camera_ext_stream_get_parm,
     .ctrl_get_cfg    = _ctrl_get_cfg,
     .ctrl_get        = _ctrl_get,
     .ctrl_set        = _ctrl_set,

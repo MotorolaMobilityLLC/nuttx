@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <arch/byteorder.h>
+#include <nuttx/device.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/camera_ext_defs.h>
 
@@ -134,6 +135,13 @@ struct camera_ext_format_db {
 
 };
 
+/* Function to register format db to camera_ext framework */
+void camera_ext_register_format_db(const struct camera_ext_format_db *db);
+
+/* Functions to retrieve format db and user config from camera_ext framework */
+const struct camera_ext_format_db *camera_ext_get_format_db(void);
+struct camera_ext_format_user_config *camera_ext_get_user_config(void);
+
 //control db
 struct camera_ext_ctrl_db {
     uint32_t num_ctrls;
@@ -157,19 +165,19 @@ bool is_frmsize_valid(struct camera_ext_format_db const *db,
 
 struct camera_ext_input_node const *get_current_input_node(
     struct camera_ext_format_db const *db,
-    struct camera_ext_format_user_config *cfg);
+    struct camera_ext_format_user_config const *cfg);
 
 struct camera_ext_format_node const *get_current_format_node(
     struct camera_ext_format_db const *db,
-    struct camera_ext_format_user_config *cfg);
+    struct camera_ext_format_user_config const *cfg);
 
 struct camera_ext_frmsize_node const *get_current_frmsize_node(
     struct camera_ext_format_db const *db,
-    struct camera_ext_format_user_config *cfg);
+    struct camera_ext_format_user_config const *cfg);
 
 struct camera_ext_frmival_node const *get_current_frmival_node(
     struct camera_ext_format_db const *db,
-    struct camera_ext_format_user_config *cfg);
+    struct camera_ext_format_user_config const *cfg);
 
 /* Function to fill in GB structure from Format DB*/
 int camera_ext_fill_gb_input(struct camera_ext_format_db const *db, uint32_t index,
@@ -189,7 +197,7 @@ int cam_ext_fill_gb_frmival(struct camera_ext_format_db const *db, uint32_t inpu
                             uint32_t index, struct camera_ext_frmival* frmival);
 
 int cam_ext_fill_gb_streamparm(struct camera_ext_format_db const *db,
-                               struct camera_ext_format_user_config *cfg,
+                               struct camera_ext_format_user_config const *cfg,
                                uint32_t capability, uint32_t capturemode,
                                struct camera_ext_streamparm *parm);
 
@@ -201,6 +209,18 @@ int cam_ext_set_current_format(struct camera_ext_format_db const *db,
 int cam_ext_frmival_set(struct camera_ext_format_db const *db,
                         struct camera_ext_format_user_config *cfg,
                         struct camera_ext_streamparm *parm);
+
+/* Common format db access functions for drivers to pick up */
+int camera_ext_input_enum(struct device *dev, struct camera_ext_input *input);
+int camera_ext_input_get(struct device *dev, int *input);
+int camera_ext_input_set(struct device *dev, int index);
+int camera_ext_format_enum(struct device *dev, struct camera_ext_fmtdesc *format);
+int camera_ext_format_get(struct device *dev, struct camera_ext_format *format);
+int camera_ext_format_set(struct device *dev, struct camera_ext_format* format);
+int camera_ext_frmsize_enum(struct device *dev, struct camera_ext_frmsize* frmsize);
+int camera_ext_frmival_enum(struct device *dev, struct camera_ext_frmival* frmival);
+int camera_ext_stream_set_parm(struct device *dev, struct camera_ext_streamparm *parm);
+int camera_ext_stream_get_parm(struct device *dev, struct camera_ext_streamparm *parm);
 
 /* Functions to for v4l2 controls */
 int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,

@@ -271,13 +271,6 @@ static struct sensor_info imx179 = {
     },
 
     .sensor_db = &imx179_sensor_db,
-
-    .user_config = {
-        .input = 0,
-        .format = 0,
-        .frmsize = 0,
-        .frmival = 0,
-    },
 };
 
 struct sensor_info * camera_ext_csi_get_board_sensor_info(void) {

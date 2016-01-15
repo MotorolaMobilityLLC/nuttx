@@ -84,6 +84,9 @@ static int cam_power_on(struct device *dev)
     int retval;
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
+
+    camera_ext_register_format_db(cam_dev->sensor->sensor_db);
+
     if (cam_dev->status == OFF) {
         //TODO: these gpio configs are changing among boards
         //move these gpio config to board level
@@ -185,6 +188,8 @@ const static struct camera_sensor generic_sensor = {
 
 static int csi_cam_stream_on(struct device *dev)
 {
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
     const struct camera_ext_frmsize_node  *frmsize;
     struct camera_ext_frmival_node const *frmival;
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
@@ -192,16 +197,13 @@ static int csi_cam_stream_on(struct device *dev)
 
     if (cam_dev->status != ON) return -1;
 
-    frmsize = get_current_frmsize_node(cam_dev->sensor->sensor_db,
-                                       &cam_dev->sensor->user_config);
+    frmsize = get_current_frmsize_node(db, cfg);
     if (frmsize == NULL) {
         CAM_ERR("Failed to get current frame size\n");
         return -EINVAL;
     }
 
-    frmival = get_current_frmival_node(cam_dev->sensor->sensor_db,
-                                       &cam_dev->sensor->user_config);
-
+    frmival = get_current_frmival_node(db, cfg);
     if (frmival == NULL) {
         CAM_ERR("Failed to get current frame interval\n");
         return -EINVAL;
@@ -306,175 +308,6 @@ static int cci_write_regs(struct i2c_dev_s *i2c_dev, uint16_t i2c_addr,
     return 0;
 }
 
-static int csi_cam_input_enum(struct device *dev,
-        struct camera_ext_input *input)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-    int index = le32_to_cpu(input->index);
-
-    if(camera_ext_fill_gb_input(cam_dev->sensor->sensor_db, index, input) != 0) {
-        CAM_DBG("no such input: %d\n", index);
-        return -EFAULT;
-    }
-    return 0;
-}
-
-static int csi_cam_input_get(struct device *dev, int *input)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-
-    struct camera_ext_format_user_config *cfg;
-
-    cfg = &cam_dev->sensor->user_config;
-    if (!is_input_valid(cam_dev->sensor->sensor_db, cfg->input)) {
-        CAM_ERR("invalid current config\n");
-        return -EFAULT;
-    }
-
-    *input = cfg->input;
-    return 0;
-}
-
-static int csi_cam_input_set(struct device *dev, int index)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-    struct camera_ext_format_db const *db = cam_dev->sensor->sensor_db;
-
-    if (!is_input_valid(db, index)) {
-        CAM_DBG("v4l input index %d out of range\n", index);
-        return -EFAULT;
-    }
-
-    cam_dev->sensor->user_config.input = index;
-    return 0;
-}
-
-static int csi_cam_format_enum(struct device *dev,
-        struct camera_ext_fmtdesc *format)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-    struct camera_ext_format_user_config *cfg;
-    int index = le32_to_cpu(format->index);
-
-    cfg = &cam_dev->sensor->user_config;
-    if (camera_ext_fill_gb_fmtdesc(cam_dev->sensor->sensor_db, cfg->input, index, format) != 0) {
-        CAM_DBG("no such format: %d\n", index);
-        return -EFAULT;
-    }
-    return 0;
-}
-
-static int csi_cam_format_get(struct device *dev,
-        struct camera_ext_format *format)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-    struct camera_ext_format_user_config *cfg;
-    cfg = &cam_dev->sensor->user_config;
-
-    return cam_ext_fill_gb_format(cam_dev->sensor->sensor_db,
-                                  cfg->input, cfg->format,
-                                  cfg->frmsize, format);
-}
-
-static int csi_cam_format_set(struct device *dev,
-        struct camera_ext_format* format)
-{
-    int retval;
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-
-    struct camera_ext_format_db const *db;
-    struct camera_ext_format_user_config *cfg;
-
-    db = cam_dev->sensor->sensor_db;
-    cfg = &cam_dev->sensor->user_config;
-    retval = cam_ext_set_current_format(db, cfg, format);
-
-    return retval;
-}
-
-static int csi_cam_frmsize_enum(struct device *dev,
-        struct camera_ext_frmsize* frmsize)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-
-    struct camera_ext_format_db const *db;
-    struct camera_ext_format_user_config *cfg;
-    int index = le32_to_cpu(frmsize->index);
-
-    db = cam_dev->sensor->sensor_db;
-    cfg = &cam_dev->sensor->user_config;
-
-    return cam_ext_fill_gb_frmsize(db, cfg->input, index, frmsize);
-}
-
-static int csi_cam_frmival_enum(struct device *dev,
-        struct camera_ext_frmival* frmival)
-
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-
-    struct camera_ext_format_db const *db;
-    struct camera_ext_format_user_config *cfg;
-    int index = le32_to_cpu(frmival->index);
-
-    db = cam_dev->sensor->sensor_db;
-    cfg = &cam_dev->sensor->user_config;
-
-    return cam_ext_fill_gb_frmival(db, cfg->input, index, frmival);
-}
-
-static int csi_cam_stream_set_parm(struct device *dev,
-        struct camera_ext_streamparm *parm)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-    struct camera_ext_format_db const *db;
-    struct camera_ext_format_user_config *cfg;
-
-    if (cam_dev->status == STREAMING) {
-        CAM_ERR("can not update stream param during streaming\n");
-        return -EBUSY;
-    }
-
-    db = cam_dev->sensor->sensor_db;
-    cfg = &cam_dev->sensor->user_config;
-    if (cam_ext_frmival_set(db, cfg, parm) != 0) {
-        CAM_ERR("failed to apply stream parm\n");
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int csi_cam_stream_get_parm(struct device *dev,
-        struct camera_ext_streamparm *parm)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-    struct camera_ext_format_db const *db;
-    struct camera_ext_format_user_config *cfg;
-
-    db = cam_dev->sensor->sensor_db;
-    cfg = &cam_dev->sensor->user_config;
-
-    if (cam_ext_fill_gb_streamparm(db, cfg,
-                                   CAMERA_EXT_MODE_HIGHQUALITY,
-                                   CAMERA_EXT_CAP_TIMEPERFRAME,
-                                   parm) != 0) {
-        CAM_ERR("failed to get current stream param\n");
-        return -EINVAL;
-    }
-    return 0;
-}
-
 static int csi_cam_ctrl_get_cfg(struct device *dev, uint32_t idx,
                 struct camera_ext_predefined_ctrl_mod_cfg *mod_ctrl_cfg)
 {
@@ -572,16 +405,16 @@ static struct device_camera_ext_dev_type_ops csi_camera_ext_type_ops = {
     .power_off       = cam_power_off,
     .stream_on       = csi_cam_stream_on,
     .stream_off      = csi_cam_stream_off,
-    .input_enum      = csi_cam_input_enum,
-    .input_get       = csi_cam_input_get,
-    .input_set       = csi_cam_input_set,
-    .format_enum     = csi_cam_format_enum,
-    .format_get      = csi_cam_format_get,
-    .format_set      = csi_cam_format_set,
-    .frmsize_enum    = csi_cam_frmsize_enum,
-    .frmival_enum    = csi_cam_frmival_enum,
-    .stream_set_parm = csi_cam_stream_set_parm,
-    .stream_get_parm = csi_cam_stream_get_parm,
+    .input_enum      = camera_ext_input_enum,
+    .input_get       = camera_ext_input_get,
+    .input_set       = camera_ext_input_set,
+    .format_enum     = camera_ext_format_enum,
+    .format_get      = camera_ext_format_get,
+    .format_set      = camera_ext_format_set,
+    .frmsize_enum    = camera_ext_frmsize_enum,
+    .frmival_enum    = camera_ext_frmival_enum,
+    .stream_set_parm = camera_ext_stream_set_parm,
+    .stream_get_parm = camera_ext_stream_get_parm,
     .ctrl_get_cfg    = csi_cam_ctrl_get_cfg,
     .ctrl_get        = csi_cam_ctrl_get,
     .ctrl_set        = csi_cam_ctrl_set,

@@ -31,6 +31,36 @@
 #include <string.h>
 #include "camera_ext.h"
 
+struct format_cfg {
+    const struct camera_ext_format_db *format_db;
+    struct camera_ext_format_user_config user_cfg;
+};
+
+/*
+ * TODO: Need to support multiple instances of format_cfg below if more than
+ *       one camera_ext protocol is configured in a single manifest.
+*/
+static struct format_cfg g_format_cfg;
+
+void camera_ext_register_format_db(const struct camera_ext_format_db *db)
+{
+    if (db == NULL)
+        return;
+
+    memset(&g_format_cfg, 0, sizeof(g_format_cfg));
+    g_format_cfg.format_db = db;
+}
+
+const struct camera_ext_format_db *camera_ext_get_format_db(void)
+{
+    return g_format_cfg.format_db;
+}
+
+struct camera_ext_format_user_config *camera_ext_get_user_config(void)
+{
+    return &g_format_cfg.user_cfg;
+}
+
 //Find the format node (by fourcc) which is a sub node of a input node
 //return index in the input->format_nodes array, -1 not found.
 static int find_format_node(struct camera_ext_input_node const *input_node,
@@ -216,28 +246,28 @@ static struct camera_ext_frmival_node const *get_frmival_node(
 
 struct camera_ext_input_node const *get_current_input_node(
     struct camera_ext_format_db const *db,
-    struct camera_ext_format_user_config *cfg)
+    struct camera_ext_format_user_config const *cfg)
 {
     return get_input_node(db, cfg->input);
 }
 
 struct camera_ext_format_node const *get_current_format_node(
     struct camera_ext_format_db const *db,
-    struct camera_ext_format_user_config *cfg)
+    struct camera_ext_format_user_config const *cfg)
 {
     return get_format_node(db, cfg->input, cfg->format);
 }
 
 struct camera_ext_frmsize_node const *get_current_frmsize_node(
     struct camera_ext_format_db const *db,
-    struct camera_ext_format_user_config *cfg)
+    struct camera_ext_format_user_config const *cfg)
 {
     return get_frmsize_node(db, cfg->input, cfg->format, cfg->frmsize);
 }
 
 struct camera_ext_frmival_node const *get_current_frmival_node(
     struct camera_ext_format_db const *db,
-    struct camera_ext_format_user_config *cfg)
+    struct camera_ext_format_user_config const *cfg)
 {
     return get_frmival_node(db, cfg->input, cfg->format, cfg->frmsize, cfg->frmival);
 }
@@ -371,7 +401,7 @@ int cam_ext_fill_gb_frmival(struct camera_ext_format_db const *db, uint32_t inpu
 }
 
 int cam_ext_fill_gb_streamparm(struct camera_ext_format_db const *db,
-                               struct camera_ext_format_user_config *cfg,
+                               struct camera_ext_format_user_config const *cfg,
                                uint32_t capability, uint32_t capturemode,
                                struct camera_ext_streamparm *parm)
 {
@@ -389,6 +419,122 @@ int cam_ext_fill_gb_streamparm(struct camera_ext_format_db const *db,
     parm->capture.timeperframe.denominator = cpu_to_le32(frmival_node->denominator);
     parm->capture.capability = cpu_to_le32(capability);
     parm->capture.capturemode = cpu_to_le32(capturemode);
+
+    return 0;
+}
+
+/* Common format db access functions each drivers can pick up */
+int camera_ext_input_enum(struct device *dev, struct camera_ext_input *input)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    int index = le32_to_cpu(input->index);
+
+    if(camera_ext_fill_gb_input(db, index, input) != 0) {
+        CAM_DBG("no such input: %d\n", index);
+        return -EFAULT;
+    }
+    return 0;
+}
+
+int camera_ext_input_get(struct device *dev, int *input)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+
+    if (!is_input_valid(db, cfg->input)) {
+        CAM_ERR("invalid current config\n");
+        return -EFAULT;
+    }
+
+    *input = cfg->input;
+    return 0;
+}
+
+int camera_ext_input_set(struct device *dev, int index)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+
+    if (!is_input_valid(db, le32_to_cpu(index))) {
+        CAM_DBG("v4l input index %d out of range\n", index);
+        return -EFAULT;
+    }
+
+    cfg->input = index;
+
+    return 0;
+}
+
+int camera_ext_format_enum(struct device *dev, struct camera_ext_fmtdesc *format)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+    int index = le32_to_cpu(format->index);
+
+    if (camera_ext_fill_gb_fmtdesc(db, cfg->input, index, format) != 0) {
+        CAM_DBG("no such format: %d\n", index);
+        return -EFAULT;
+    }
+
+    return 0;
+}
+
+int camera_ext_format_get(struct device *dev, struct camera_ext_format *format)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+
+    return cam_ext_fill_gb_format(db, cfg->input, cfg->format, cfg->frmsize, format);
+}
+
+int camera_ext_format_set(struct device *dev, struct camera_ext_format* format)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+
+    return cam_ext_set_current_format(db, cfg, format);
+}
+
+int camera_ext_frmsize_enum(struct device *dev, struct camera_ext_frmsize* frmsize)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+    int index = le32_to_cpu(frmsize->index);
+
+    return cam_ext_fill_gb_frmsize(db, cfg->input, index, frmsize);
+}
+
+int camera_ext_frmival_enum(struct device *dev, struct camera_ext_frmival* frmival)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+    int index = le32_to_cpu(frmival->index);
+
+    return cam_ext_fill_gb_frmival(db, cfg->input, index, frmival);
+}
+
+int camera_ext_stream_set_parm(struct device *dev, struct camera_ext_streamparm *parm)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+
+    if (cam_ext_frmival_set(db, cfg, parm) != 0) {
+        CAM_ERR("failed to apply stream parm\n");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+int camera_ext_stream_get_parm(struct device *dev, struct camera_ext_streamparm *parm)
+{
+    const struct camera_ext_format_db *db = camera_ext_get_format_db();
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+
+    if (cam_ext_fill_gb_streamparm(db, cfg, 0, 0, parm) != 0) {
+        CAM_ERR("failed to get current stream param\n");
+        return -EINVAL;
+    }
 
     return 0;
 }
