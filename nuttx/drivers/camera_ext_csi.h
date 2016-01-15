@@ -91,8 +91,8 @@ struct sensor_info {
     const struct cam_i2c_reg_setting start;
     const struct cam_i2c_reg_setting stop;
 
-    struct gb_camera_ext_sensor_db const *sensor_db;
-    struct gb_camera_ext_sensor_user_config user_config;
+    struct camera_ext_format_db const *sensor_db;
+    struct camera_ext_format_user_config user_config;
 };
 
 //each csi camera instance must implement this function

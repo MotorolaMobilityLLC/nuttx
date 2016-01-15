@@ -181,7 +181,7 @@ static const struct camera_ext_input_node _inputs[] = {
     },
 };
 
-static const struct gb_camera_ext_sensor_db _db = {
+static const struct camera_ext_format_db _db = {
     .num_inputs = ARRAY_SIZE(_inputs),
     .input_nodes = _inputs,
 };
@@ -198,7 +198,7 @@ struct dev_private_s
 {
     dev_status_t status;
     struct tc35874x_i2c_dev_info i2c_info;
-    struct gb_camera_ext_sensor_user_config cfg;
+    struct camera_ext_format_user_config cfg;
 };
 
 #define DEV_TO_PRIVATE(dev_ptr, priv_ptr) struct dev_private_s *priv_ptr =\
@@ -276,8 +276,8 @@ static int bridge_off(struct tc35874x_i2c_dev_info *i2c, void *data)
 static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
 {
     uint32_t value;
-    struct gb_camera_ext_sensor_user_config *cfg =
-        (struct gb_camera_ext_sensor_user_config *)data;
+    struct camera_ext_format_user_config *cfg =
+        (struct camera_ext_format_user_config *)data;
     const struct camera_ext_format_node *fmt;
     const struct camera_ext_frmsize_node  *frmsize;
     const struct camera_ext_frmival_node *ival;
