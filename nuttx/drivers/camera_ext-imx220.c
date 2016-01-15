@@ -932,11 +932,8 @@ static const struct csi_stream_user_data frmival_2624x1476_user_data = {
 //frame rate for 2624x1476 BGGR10
 static const struct camera_ext_frmival_node frmival_2624x1476[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 30,
-        },
+        .numerator = 1,
+        .denominator = 30,
         .user_data = &frmival_2624x1476_user_data,
     },
 };
@@ -952,11 +949,8 @@ static const struct csi_stream_user_data frmival_2624x1968_user_data = {
 //frame rate for 2624x1968 BGGR10
 static const struct camera_ext_frmival_node frmival_2624x1968[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 24,
-        },
+        .numerator = 1,
+        .denominator = 24,
         .user_data = &frmival_2624x1968_user_data,
     },
 };
@@ -973,11 +967,8 @@ static const struct csi_stream_user_data frmival_3600x2024_user_data = {
 static const struct camera_ext_frmival_node frmival_3600x2024[] = {
 
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 24,
-        },
+        .numerator = 1,
+        .denominator = 24,
         .user_data = &frmival_3600x2024_user_data,
     },
 };
@@ -993,11 +984,8 @@ static const struct csi_stream_user_data frmival_5248x3936_user_data = {
 //frame rate for 5248x3936 BGGR10
 static const struct camera_ext_frmival_node frmival_5248x3936[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 12,
-        },
+        .numerator = 1,
+        .denominator = 12,
         .user_data = &frmival_5248x3936_user_data,
     },
 };
@@ -1005,41 +993,29 @@ static const struct camera_ext_frmival_node frmival_5248x3936[] = {
 // frame sizes for BGGR10
 static const struct camera_ext_frmsize_node imx220_cam_frmsizes[] = {
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 2624,
-            .height = 1476,
-        },
+        .width = 2624,
+        .height = 1476,
         .num_frmivals = ARRAY_SIZE(frmival_2624x1476),
         .frmival_nodes = frmival_2624x1476,
     },
 
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 2624,
-            .height = 1968,
-        },
+        .width = 2624,
+        .height = 1968,
         .num_frmivals = ARRAY_SIZE(frmival_2624x1968),
         .frmival_nodes = frmival_2624x1968,
     },
 
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 3600,
-            .height = 2024,
-        },
+        .width = 3600,
+        .height = 2024,
         .num_frmivals = ARRAY_SIZE(frmival_3600x2024),
         .frmival_nodes = frmival_3600x2024,
     },
 
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 5248,
-            .height = 3936,
-        },
+        .width = 5248,
+        .height = 3936,
         .num_frmivals = ARRAY_SIZE(frmival_5248x3936),
         .frmival_nodes = frmival_5248x3936,
     },
@@ -1049,7 +1025,7 @@ static const struct camera_ext_frmsize_node imx220_cam_frmsizes[] = {
 static const struct camera_ext_format_node imx220_cam_formats[] = {
     {
         .name = "BGGR10",
-        .fourcc = v4l2_fourcc('B', 'G', '1', '0'),
+        .fourcc = V4L2_PIX_FMT_SBGGR10,
         .depth = 10,
         .num_frmsizes = ARRAY_SIZE(imx220_cam_frmsizes),
         .frmsize_nodes = imx220_cam_frmsizes,
@@ -1095,12 +1071,8 @@ static struct sensor_info imx220 = {
     .user_config = {
         .input = 0,
         .format = 0,
-        .frmsize = {
-            .idx_frmsize = 0,
-        },
-        .frmival = {
-            .idx_frmival = 0,
-        },
+        .frmsize = 0,
+        .frmival = 0,
     },
 };
 

@@ -67,28 +67,13 @@
 /* Frame interval for a specific frame size and format.
  * It's a leaf node and may store some user data for the format.
  */
-struct camera_ext_fract_node {
+struct camera_ext_frmival_node {
     uint32_t numerator;
     uint32_t denominator;
-};
-
-struct camera_ext_stepwise_node {
-    struct camera_ext_fract_node min;
-    struct camera_ext_fract_node max;
-    struct camera_ext_fract_node step;
-};
-
-struct camera_ext_frmival_node {
-    uint32_t type;
-    union {
-        struct camera_ext_fract_node discrete;
-        struct camera_ext_stepwise_node stepwise;
-    };
-
     const void *user_data;
 };
 
-static inline int camera_ext_fract_equal(struct camera_ext_fract_node const *l,
+static inline int camera_ext_fract_equal(struct camera_ext_frmival_node const *l,
                                          struct camera_ext_fract const *r)
 {
     //suppose they are irreducible fraction
@@ -97,27 +82,9 @@ static inline int camera_ext_fract_equal(struct camera_ext_fract_node const *l,
 }
 
 //frame size for a specific format
-struct camera_ext_frmsize_discrete_node {
+struct camera_ext_frmsize_node {
     uint32_t width;
     uint32_t height;
-};
-
-struct camera_ext_frmsize_stepwise_node {
-    uint32_t min_width;
-    uint32_t max_width;
-    uint32_t step_width;
-    uint32_t min_height;
-    uint32_t max_height;
-    uint32_t step_height;
-};
-
-struct camera_ext_frmsize_node {
-    uint32_t type;
-    union {
-        struct camera_ext_frmsize_discrete_node discrete;
-        struct camera_ext_frmsize_stepwise_node stepwise;
-    };
-
     int num_frmivals;
     struct camera_ext_frmival_node const *frmival_nodes;
 };
@@ -173,25 +140,11 @@ struct camera_ext_ctrl_db {
     struct cam_ext_ctrl_item **ctrls;
 };
 
-struct frmsize_user_config {
-    uint32_t idx_frmsize;
-    //actual frame size if idx points to a step/continuous type
-    uint32_t width;
-    uint32_t height;
-};
-
-struct frmival_user_config {
-    uint32_t idx_frmival;
-    //actual frame interval if idx points to a step/continuous type
-    uint32_t numerator;
-    uint32_t denominator;
-};
-
 struct camera_ext_format_user_config {
-    uint32_t input;//index of current input
-    uint32_t format; //index of current format
-    struct frmsize_user_config frmsize;
-    struct frmival_user_config frmival;
+    uint32_t input;   //index of current input
+    uint32_t format;  //index of current format
+    uint32_t frmsize; //index of current frame size
+    uint32_t frmival; //index of current frame interval
 };
 
 /* Functions to access Format DB */
@@ -226,8 +179,7 @@ int camera_ext_fill_gb_fmtdesc(struct camera_ext_format_db const *db, uint32_t i
                                uint32_t format, struct camera_ext_fmtdesc *fmt);
 
 int cam_ext_fill_gb_format(struct camera_ext_format_db const *db,
-                           uint32_t input, uint32_t format,
-                           uint32_t frmsize, uint32_t user_width, uint32_t user_height,
+                           uint32_t input, uint32_t format, uint32_t frmsize,
                            struct camera_ext_format *fmt);
 
 int cam_ext_fill_gb_frmsize(struct camera_ext_format_db const *db, uint32_t input,

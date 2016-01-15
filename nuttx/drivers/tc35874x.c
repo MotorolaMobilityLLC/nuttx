@@ -66,75 +66,51 @@
 /* BEGIN - Supported Format definitions */
 static const struct camera_ext_frmival_node frmival_30_60_120[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 30,
-        },
+        .numerator = 1,
+        .denominator = 30,
         .user_data = NULL,
     },
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 60,
-        },
+        .numerator = 1,
+        .denominator = 60,
         .user_data = NULL,
     },
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 120,
-        },
+        .numerator = 1,
+        .denominator = 120,
         .user_data = NULL,
     },
 };
 
 static const struct camera_ext_frmival_node frmival_30_60[] = {
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 30,
-        },
+        .numerator = 1,
+        .denominator = 30,
         .user_data = NULL,
     },
     {
-        .type = CAM_EXT_FRMIVAL_TYPE_DISCRETE,
-        .discrete = {
-            .numerator = 1,
-            .denominator = 60,
-        },
+        .numerator = 1,
+        .denominator = 60,
         .user_data = NULL,
     },
 };
 
 static const struct camera_ext_frmsize_node _frmsizes_rgb888[] = {
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 1280,
-            .height = 720,
-        },
+        .width = 1280,
+        .height = 720,
         .num_frmivals = ARRAY_SIZE(frmival_30_60),
         .frmival_nodes = frmival_30_60,
     },
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 960,
-            .height = 540,
-        },
+        .width = 960,
+        .height = 540,
         .num_frmivals = ARRAY_SIZE(frmival_30_60_120),
         .frmival_nodes = frmival_30_60_120,
     },
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 640,
-            .height = 480,
-        },
+        .width = 640,
+        .height = 480,
         .num_frmivals = ARRAY_SIZE(frmival_30_60_120),
         .frmival_nodes = frmival_30_60_120,
     },
@@ -142,29 +118,20 @@ static const struct camera_ext_frmsize_node _frmsizes_rgb888[] = {
 
 static const struct camera_ext_frmsize_node _frmsizes_yuv422[] = {
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 1920,
-            .height = 1080,
-        },
+        .width = 1920,
+        .height = 1080,
         .num_frmivals = ARRAY_SIZE(frmival_30_60),
         .frmival_nodes = frmival_30_60,
     },
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 1280,
-            .height = 720,
-        },
+        .width = 1280,
+        .height = 720,
         .num_frmivals = ARRAY_SIZE(frmival_30_60_120),
         .frmival_nodes = frmival_30_60_120,
     },
     {
-        .type = CAM_EXT_FRMSIZE_TYPE_DISCRETE,
-        .discrete = {
-            .width = 640,
-            .height = 480,
-        },
+        .width = 640,
+        .height = 480,
         .num_frmivals = ARRAY_SIZE(frmival_30_60_120),
         .frmival_nodes = frmival_30_60_120,
     },
@@ -486,11 +453,11 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
     }
 
     if (fmt->fourcc == V4L2_PIX_FMT_RGB24) {
-        set_pll_rgb888(i2c, frmsize->discrete.width,
-                       ival->discrete.denominator);
+        set_pll_rgb888(i2c, frmsize->width,
+                       ival->denominator);
     } else if (fmt->fourcc == V4L2_PIX_FMT_UYVY) {
-        set_pll_yuv422(i2c, frmsize->discrete.width,
-                       ival->discrete.denominator);
+        set_pll_yuv422(i2c, frmsize->width,
+                       ival->denominator);
     }
 
     /* CSI Tx Phy */
@@ -521,14 +488,14 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
     tc35874x_write_reg2(i2c, 0x0008, 0x0001); /* Use data type */
     if (fmt->fourcc == V4L2_PIX_FMT_RGB24) {
         tc35874x_write_reg2(i2c, 0x0050, 0x0024); /* CSI data type RGB888 */
-        tc35874x_write_reg2(i2c, 0x0022, frmsize->discrete.width * 3); /* byte count per line */
+        tc35874x_write_reg2(i2c, 0x0022, frmsize->width * 3); /* byte count per line */
 
-        setup_color_bar_rgb888(i2c, frmsize->discrete.width, frmsize->discrete.height);
+        setup_color_bar_rgb888(i2c, frmsize->width, frmsize->height);
     } else if (fmt->fourcc == V4L2_PIX_FMT_UYVY) {
         tc35874x_write_reg2(i2c, 0x0050, 0x001E); /* CSI data type YUV422 8-bit */
-        tc35874x_write_reg2(i2c, 0x0022, frmsize->discrete.width * 2); /* byte count per line */
+        tc35874x_write_reg2(i2c, 0x0022, frmsize->width * 2); /* byte count per line */
 
-        setup_color_bar_yuv422(i2c, frmsize->discrete.width, frmsize->discrete.height);
+        setup_color_bar_yuv422(i2c, frmsize->width, frmsize->height);
     }
 
 #if DEBUG_DUMP_REGISTER
@@ -662,11 +629,10 @@ static int _stream_on(struct device *dev)
         return -1;
     }
 
-    CDSI_CONFIG.width = frmsize->discrete.width;
-    CDSI_CONFIG.height = frmsize->discrete.height;
+    CDSI_CONFIG.width = frmsize->width;
+    CDSI_CONFIG.height = frmsize->height;
 
-    float fps = (float)ival->discrete.denominator /
-        (float)ival->discrete.numerator;
+    float fps = (float)ival->denominator / (float)ival->numerator;
     CDSI_CONFIG.framerate = roundf(fps);
 
     /* Fill in the rest of CSDI_CONGIG field */
@@ -786,10 +752,7 @@ static int _format_get(struct device *dev, struct camera_ext_format *format)
 
     return cam_ext_fill_gb_format(&_db,
                                   dev_priv->cfg.input, dev_priv->cfg.format,
-                                  dev_priv->cfg.frmsize.idx_frmsize,
-                                  dev_priv->cfg.frmsize.width,
-                                  dev_priv->cfg.frmsize.height,
-                                  format);
+                                  dev_priv->cfg.frmsize, format);
 }
 
 static int _format_set(struct device *dev, struct camera_ext_format* format)
