@@ -50,19 +50,21 @@ struct gb_vendor_moto_proto_version_response {
     __u8    minor;
 } __packed;
 
-/* get (last) dmesg request has no payload */
-struct gb_vendor_moto_get_dmesg_response {
-    char    buf[GB_VENDOR_MOTO_DMESG_SIZE];
-} __packed;
-
 /* power up reason request has no payload */
 struct gb_vendor_moto_pwr_up_reason_response {
     __le32  reason;
+} __packed;
+
+#ifdef CONFIG_RAMLOG_SYSLOG
+/* get (last) dmesg request has no payload */
+struct gb_vendor_moto_get_dmesg_response {
+    char    buf[GB_VENDOR_MOTO_DMESG_SIZE];
 } __packed;
 
 /* get dmesg size request has no payload */
 struct gb_vendor_moto_get_dmesg_size_response {
     __le16  size;
 } __packed;
+#endif /* CONFIG_RAMLOG_SYSLOG */
 
 #endif /* _GREYBUS_VENDOR_MOTO_H_ */
