@@ -1068,7 +1068,7 @@ static const struct camera_ext_input_node imx220_inputs[] = {
 };
 
 //root node
-static const struct gb_camera_ext_sensor_db imx220_sensor_db = {
+static const struct camera_ext_format_db imx220_sensor_db = {
     .num_inputs = ARRAY_SIZE(imx220_inputs),
     .input_nodes = imx220_inputs,
 };

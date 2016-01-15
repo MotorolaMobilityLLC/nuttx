@@ -325,7 +325,7 @@ static int csi_cam_input_get(struct device *dev, int *input)
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
 
-    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_format_user_config *cfg;
 
     cfg = &cam_dev->sensor->user_config;
     if (!is_input_valid(cam_dev->sensor->sensor_db, cfg->input)) {
@@ -341,7 +341,7 @@ static int csi_cam_input_set(struct device *dev, int index)
 {
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
-    struct gb_camera_ext_sensor_db const *db = cam_dev->sensor->sensor_db;
+    struct camera_ext_format_db const *db = cam_dev->sensor->sensor_db;
 
     if (!is_input_valid(db, index)) {
         CAM_DBG("v4l input index %d out of range\n", index);
@@ -357,7 +357,7 @@ static int csi_cam_format_enum(struct device *dev,
 {
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
-    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_format_user_config *cfg;
     int index = le32_to_cpu(format->index);
 
     cfg = &cam_dev->sensor->user_config;
@@ -373,7 +373,7 @@ static int csi_cam_format_get(struct device *dev,
 {
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
-    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_format_user_config *cfg;
     cfg = &cam_dev->sensor->user_config;
 
     return cam_ext_fill_gb_format(cam_dev->sensor->sensor_db,
@@ -391,8 +391,8 @@ static int csi_cam_format_set(struct device *dev,
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
 
-    struct gb_camera_ext_sensor_db const *db;
-    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_format_db const *db;
+    struct camera_ext_format_user_config *cfg;
 
     db = cam_dev->sensor->sensor_db;
     cfg = &cam_dev->sensor->user_config;
@@ -407,8 +407,8 @@ static int csi_cam_frmsize_enum(struct device *dev,
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
 
-    struct gb_camera_ext_sensor_db const *db;
-    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_format_db const *db;
+    struct camera_ext_format_user_config *cfg;
     int index = le32_to_cpu(frmsize->index);
 
     db = cam_dev->sensor->sensor_db;
@@ -424,8 +424,8 @@ static int csi_cam_frmival_enum(struct device *dev,
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
 
-    struct gb_camera_ext_sensor_db const *db;
-    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_format_db const *db;
+    struct camera_ext_format_user_config *cfg;
     int index = le32_to_cpu(frmival->index);
 
     db = cam_dev->sensor->sensor_db;
@@ -439,8 +439,8 @@ static int csi_cam_stream_set_parm(struct device *dev,
 {
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
-    struct gb_camera_ext_sensor_db const *db;
-    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_format_db const *db;
+    struct camera_ext_format_user_config *cfg;
 
     if (cam_dev->status == STREAMING) {
         CAM_ERR("can not update stream param during streaming\n");
@@ -462,8 +462,8 @@ static int csi_cam_stream_get_parm(struct device *dev,
 {
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
-    struct gb_camera_ext_sensor_db const *db;
-    struct gb_camera_ext_sensor_user_config *cfg;
+    struct camera_ext_format_db const *db;
+    struct camera_ext_format_user_config *cfg;
 
     db = cam_dev->sensor->sensor_db;
     cfg = &cam_dev->sensor->user_config;
