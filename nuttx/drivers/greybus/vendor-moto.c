@@ -133,7 +133,7 @@ static uint8_t gb_vendor_moto_pwr_up_reason(struct gb_operation *operation)
 
 static uint8_t gb_vendor_moto_get_dmesg_size(struct gb_operation *operation)
 {
-#ifdef CONFIG_RAMLOG_LAST_DMESG
+#ifdef CONFIG_RAMLOG_SYSLOG
     struct gb_vendor_moto_get_dmesg_size_response *response;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
