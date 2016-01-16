@@ -46,6 +46,9 @@
 #define GB_CAMERA_EXT_VERSION_MAJOR 0x00
 #define GB_CAMERA_EXT_VERSION_MINOR 0x01
 
+/* Used to indicate enum index is not found */
+#define GB_CAMERA_EXT_INVALID_INDEX cpu_to_le32(0xFFFFFFFF)
+
 /* Greybus camera request types */
 #define GB_CAMERA_TYPE_INVALID          0x00
 #define GB_CAMERA_TYPE_PROTOCOL_VERSION 0x01
@@ -201,7 +204,10 @@ static uint8_t gb_camera_ext_input_enum(struct gb_operation *operation)
             sizeof(struct camera_ext_input));
         if (response != NULL) {
             response->index = *index;
-            retval = CALL_CAM_DEV_OP(dev_info.dev, input_enum, response);
+            if (CALL_CAM_DEV_OP(dev_info.dev, input_enum, response) != 0)
+                response->index = GB_CAMERA_EXT_INVALID_INDEX;
+
+            retval = 0;
         } else {
             retval = -ENOMEM;
         }
@@ -263,7 +269,10 @@ static uint8_t gb_camera_ext_fmt_enum(struct gb_operation *operation)
             sizeof(struct camera_ext_fmtdesc));
         if (response != NULL) {
             response->index = *index;
-            retval = CALL_CAM_DEV_OP(dev_info.dev, format_enum, response);
+            if (CALL_CAM_DEV_OP(dev_info.dev, format_enum, response) != 0)
+                response->index = GB_CAMERA_EXT_INVALID_INDEX;
+
+            retval = 0;
         } else {
             retval = -ENOMEM;
         }
@@ -324,8 +333,10 @@ static uint8_t gb_camera_ext_frmsize_enum(struct gb_operation *operation)
         if (response != NULL) {
             response->index = request->index;
             response->pixelformat = request->pixelformat;
+            if (CALL_CAM_DEV_OP(dev_info.dev, frmsize_enum, response) != 0)
+                response->index = GB_CAMERA_EXT_INVALID_INDEX;
 
-            retval = CALL_CAM_DEV_OP(dev_info.dev, frmsize_enum, response);
+            retval = 0;
         } else {
             retval = -ENOMEM;
         }
@@ -356,7 +367,10 @@ static uint8_t gb_camera_ext_frmival_enum(struct gb_operation *operation)
             response->width = request->width;
             response->height = request->height;
 
-            retval = CALL_CAM_DEV_OP(dev_info.dev, frmival_enum, response);
+            if (CALL_CAM_DEV_OP(dev_info.dev, frmival_enum, response) != 0)
+                response->index = GB_CAMERA_EXT_INVALID_INDEX;
+
+            retval = 0;
         } else {
             retval = -ENOMEM;
         }
