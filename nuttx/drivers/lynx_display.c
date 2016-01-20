@@ -155,7 +155,6 @@ static struct lynx_display
     struct cdsi_dev *cdsi_dev;
     display_notification_cb callback;
     uint8_t state;
-    uint8_t backlight_config;
     uint8_t brightness;
 #if CONFIG_LYNX_DISPLAY_POWER_MODE
     uint8_t power_mode;
@@ -375,53 +374,6 @@ static int lynx_display_set_state(struct device *dev, uint8_t state)
     return result;
 }
 
-static int lynx_display_get_backlight_config(struct device *dev, uint8_t *config)
-{
-    *config = g_display.backlight_config;
-    return 0;
-}
-
-static int lynx_display_set_backlight_config(struct device *dev, uint8_t config)
-{
-    int result;
-
-    switch (config)
-      {
-        case DISPLAY_BACKLIGHT_NONE:
-          {
-            g_display.backlight_config = config;
-            result = 0;
-            break;
-          }
-        case DISPLAY_BACKLIGHT_MANUAL:
-          {
-            g_display.backlight_config = config;
-            result = 0;
-            break;
-          }
-        case DISPLAY_BACKLIGHT_AUTOMATIC:
-          {
-            dbg("ERROR: Automatic backlight not supported\n");
-            result = -EINVAL;
-            break;
-          }
-        default:
-          {
-            dbg("Invalid backlight config\n");
-            result = -EINVAL;
-            break;
-          }
-    }
-
-    return result;
-}
-
-static int lynx_display_get_backlight_brightness(struct device *dev, uint8_t *brightness)
-{
-    *brightness = g_display.brightness;
-    return 0;
-}
-
 static int lynx_display_i2c_write(struct i2c_dev_s *dev, uint16_t addr,
         uint8_t regaddr, uint8_t value)
 {
@@ -534,7 +486,6 @@ static int lynx_display_probe(struct device *dev)
     memset(&g_display, 0, sizeof(g_display));
     g_display.display_device = dev;
     g_display.state = DISPLAY_STATE_OFF;
-    g_display.backlight_config = DISPLAY_BACKLIGHT_MANUAL;
 
     return 0;
 }
@@ -545,10 +496,6 @@ static struct device_display_type_ops lynx_display_ops = {
     .set_config = lynx_display_set_config,
     .get_state = lynx_display_get_state,
     .set_state = lynx_display_set_state,
-    .get_backlight_config = lynx_display_get_backlight_config,
-    .set_backlight_config = lynx_display_set_backlight_config,
-    .get_backlight_brightness = lynx_display_get_backlight_brightness,
-    .set_backlight_brightness = lynx_display_set_backlight_brightness,
     .register_callback = lynx_display_register_callback,
     .unregister_callback = lynx_display_unregister_callback,
 };
