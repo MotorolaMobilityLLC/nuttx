@@ -55,12 +55,12 @@
  * Alternative pin selections are provided with a numeric suffix like _1, _2, etc.
  * Drivers, however, will use the pin selection without the numeric suffix.
  * Additional definitions are required in the board.h file.  For example, if
- * USART1_RX connects vis PA10 on some board, then the following definitions should
- * appear inthe board.h header file for that board:
+ * USART1_RX connects via PA10 on some board, then the following definitions should
+ * appear in the board.h header file for that board:
  *
  * #define GPIO_USART1_RX GPIO_USART1_RX_1
  *
- * The driver will then automatically configre PA10 as the USART1 RX pin.
+ * The driver will then automatically configure PA10 as the USART1 RX pin.
  */
 
 /* WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!! WARNING!!!
@@ -200,9 +200,15 @@
 
 /* UARTs/USARTs */
 
-#define GPIO_USART1_CK        (GPIO_ALT|GPIO_AF7|GPIO_PORTA|GPIO_PIN8)
-#define GPIO_USART1_CTS       (GPIO_ALT|GPIO_AF7|GPIO_PORTA|GPIO_PIN11)
-#define GPIO_USART1_RTS       (GPIO_ALT|GPIO_AF7|GPIO_PORTA|GPIO_PIN12)
+#define GPIO_USART1_CK_1      (GPIO_ALT|GPIO_AF7|GPIO_PORTA|GPIO_PIN8)
+#define GPIO_USART1_CK_2      (GPIO_ALT|GPIO_AF7|GPIO_PORTB|GPIO_PIN5)
+#define GPIO_USART1_CK_3      (GPIO_ALT|GPIO_AF7|GPIO_PORTG|GPIO_PIN13)
+#define GPIO_USART1_CTS_1     (GPIO_ALT|GPIO_AF7|GPIO_PORTA|GPIO_PIN11)
+#define GPIO_USART1_CTS_2     (GPIO_ALT|GPIO_AF7|GPIO_PORTB|GPIO_PIN4)
+#define GPIO_USART1_CTS_3     (GPIO_ALT|GPIO_AF7|GPIO_PORTG|GPIO_PIN11)
+#define GPIO_USART1_RTS_1     (GPIO_ALT|GPIO_AF7|GPIO_PORTA|GPIO_PIN12)
+#define GPIO_USART1_RTS_2     (GPIO_ALT|GPIO_AF7|GPIO_PORTB|GPIO_PIN3)
+#define GPIO_USART1_RTS_3     (GPIO_ALT|GPIO_AF7|GPIO_PORTG|GPIO_PIN12)
 #define GPIO_USART1_RX_1      (GPIO_ALT|GPIO_AF7|GPIO_PULLUP|GPIO_SPEED_100MHz|GPIO_PUSHPULL|GPIO_PORTA|GPIO_PIN10)
 #define GPIO_USART1_RX_2      (GPIO_ALT|GPIO_AF7|GPIO_PULLUP|GPIO_SPEED_100MHz|GPIO_PUSHPULL|GPIO_PORTB|GPIO_PIN7)
 #define GPIO_USART1_TX_1      (GPIO_ALT|GPIO_AF7|GPIO_PULLUP|GPIO_SPEED_100MHz|GPIO_PUSHPULL|GPIO_PORTA|GPIO_PIN9)
