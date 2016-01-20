@@ -38,7 +38,7 @@
 
 #define SHUTDOWN_TEMPERATURE         500
 
-#define MAX17050_I2C_BUS               1
+#define MAX17050_I2C_BUS               3
 #define MAX17050_I2C_FREQ         400000
 
 /**

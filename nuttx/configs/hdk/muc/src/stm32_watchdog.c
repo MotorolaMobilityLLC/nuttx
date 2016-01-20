@@ -1,5 +1,4 @@
 /************************************************************************************
- * configs/hdk/muc/src/stm32_watchdog.c
  *
  *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>

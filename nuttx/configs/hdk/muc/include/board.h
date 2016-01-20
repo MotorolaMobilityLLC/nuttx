@@ -1,5 +1,4 @@
 /************************************************************************************
- * configs/hdk/muc/include/board.h
  *
  *   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
  *   Copyright (C) 2014 Gregory Nutt. All rights reserved.
@@ -121,32 +120,30 @@
 #define STM32_TIM18_FREQUENCY   (STM32_PCLK2_FREQUENCY)
 #define STM32_TIM27_FREQUENCY   (STM32_PCLK1_FREQUENCY)
 
-/* The board only has one button */
-
-#define BUTTON_POWER       0
-#define NUM_BUTTONS        1
-#define BUTTON_POWER_BIT   (1 << BUTTON_POWER)
-
 /* USART */
 
-#define STM32_USART1_FREQUENCY  STM32_HSI_FREQUENCY
+#define STM32_USART3_FREQUENCY  STM32_HSI_FREQUENCY
 
-#define GPIO_USART1_RX   GPIO_USART1_RX_1    /* PA10 */
-#define GPIO_USART1_TX   GPIO_USART1_TX_1    /* PA9  */
+#define GPIO_USART1_CTS  GPIO_USART1_CTS_3   /* PG11 */
+#define GPIO_USART1_RTS  GPIO_USART1_RTS_2   /* PB3  */
+#define GPIO_USART1_RX   GPIO_USART1_RX_2    /* PB7  */
+#define GPIO_USART1_TX   GPIO_USART1_TX_2    /* PB6  */
 
+#define GPIO_USART2_CTS  GPIO_USART2_CTS_1   /* PA0  */
+#define GPIO_USART2_RTS  GPIO_USART2_RTS_1   /* PA1  */
 #define GPIO_USART2_RX   GPIO_USART2_RX_1    /* PA3  */
 #define GPIO_USART2_TX   GPIO_USART2_TX_1    /* PA2  */
 
+#define GPIO_USART3_RX   GPIO_USART3_RX_2    /* PC11 */
+#define GPIO_USART3_TX   GPIO_USART3_TX_2    /* PC10 */
+
 /* I2C */
 
-#define GPIO_I2C1_SCL    GPIO_I2C1_SCL_1
-#define GPIO_I2C1_SDA    GPIO_I2C1_SDA_1
+#define GPIO_I2C2_SCL    GPIO_I2C2_SCL_1     /* PB10 */
+#define GPIO_I2C2_SDA    GPIO_I2C2_SDA_1     /* PB11 */
 
-#define GPIO_I2C2_SCL    GPIO_I2C2_SCL_1
-#define GPIO_I2C2_SDA    GPIO_I2C2_SDA_1
-
-#define GPIO_I2C3_SCL    GPIO_I2C3_SCL_1
-#define GPIO_I2C3_SDA    GPIO_I2C3_SDA_1
+#define GPIO_I2C3_SCL    GPIO_I2C3_SCL_1     /* PC0  */
+#define GPIO_I2C3_SDA    GPIO_I2C3_SDA_1     /* PC1  */
 
 /* SPI */
 
@@ -167,19 +164,6 @@
 #define SPI2_MODE_TYPE   SPI_MODE_TYPE_SLAVE
 #define stm32_spi2select NULL
 #define stm32_spi2status NULL
-
-/* Mods ****************************************************************************/
-#define GPIO_APBE_SPIBOOT_N       (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN15)
-
-#define GPIO_APBE_BOOTRET         (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN13)
-
-#define GPIO_APBE_PWR_EN          (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN8)
-
-#define GPIO_APBE_RST_N           (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz| \
-                                   GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN5)
 
 /************************************************************************************
  * Public Data
