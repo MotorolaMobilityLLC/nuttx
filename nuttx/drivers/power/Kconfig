@@ -137,6 +137,15 @@ config BATTERY_TEMP_HYST
 		Hysteresis to transition from hot to warm, warm to normal,
 		cool down to hot, hot to warm, and warm to normal
 
+if BATTERY_TEMP
+choice
+	prompt "Select low level driver"
+config BATTERY_TEMP_DEVICE_MAX17050
+	bool "Use MAX17050"
+	depends on BATTERY_MAX17050
+endchoice
+endif
+
 config GREYBUS_PTP_CHG_DEVICE_BQ24292
 	bool "BQ24292 PTP charger device driver"
 	default n
