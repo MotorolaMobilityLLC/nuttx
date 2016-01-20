@@ -41,15 +41,23 @@
 
 #define CALC_GPIO_NUM(port, pin)  ((16 * (port - 'A')) + pin)
 
-#define GPIO_MODS_INT            CALC_GPIO_NUM('A', 11)
-#define GPIO_MODS_SL_BPLUS_EN    CALC_GPIO_NUM('A', 12)
-#define GPIO_MODS_RFR            CALC_GPIO_NUM('B',  0)
-#define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  1)
-#define GPIO_MODS_CHG_PG_N       CALC_GPIO_NUM('C',  2)
+#define GPIO_MODS_SL_BPLUS_EN    CALC_GPIO_NUM('A', 11)
+#define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  0)
+#define GPIO_MODS_SPI_CS_N       CALC_GPIO_NUM('B', 12)
+#define GPIO_MODS_RFR            CALC_GPIO_NUM('C',  2)
+#define GPIO_MODS_CHG_INT_N      CALC_GPIO_NUM('C',  4)
+#define GPIO_MODS_SL_BPLUS_AIN   CALC_GPIO_NUM('C',  5)
+#define GPIO_MODS_INT            CALC_GPIO_NUM('C', 13)
+#define GPIO_MODS_SYS_RST        CALC_GPIO_NUM('H',  0)
 
-#if (BOARD_REVISION >= 1)
-#  define GPIO_MODS_SPI_CS_N     CALC_GPIO_NUM('B', 12)
-#endif
+/*
+ * On this board, the CHG_PG_N pin is not connected, so the BQ24292 driver
+ * needs to use the CHG_INT_N line for power good.
+ */
+#define GPIO_MODS_CHG_PG_N       GPIO_MODS_CHG_INT_N
+
+/* Select the SL_BPLUS_AIN pin for base attach */
+#define GPIO_MODS_BASE_ATTACH    GPIO_MODS_SL_BPLUS_AIN
 
 static inline void mods_rfr_init(void)
 {

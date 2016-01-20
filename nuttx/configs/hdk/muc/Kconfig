@@ -15,28 +15,6 @@ config PM_STANDBYENTER_COUNT
 	default 5
 	depends on PM
 
-config PM_BUTTONS
-	bool "PM button support"
-	default n
-	depends on PM && ARCH_IRQBUTTONS
-	---help---
-		Enable PM button EXTI interrupts to support PM testing
-
-config HID_BUTTONS
-	bool "HID button support"
-	default n
-	depends on !PM_BUTTONS && ARCH_IRQBUTTONS
-	---help---
-		Enable Generic HID buttons support
-
-config PM_BUTTON_ACTIVITY
-	int "Button PM activity weight"
-	default 10
-	depends on PM_BUTTONS || HID_BUTTONS
-	---help---
-		The activity weight to report to the power management subsystem when
-		a button is pressed.
-
 config MODS_RAW
 	bool "Mods Raw support"
 	default n
@@ -50,5 +28,17 @@ config MAX17050_DEVICE
 	default n
 	depends on BATTERY_MAX17050
 	select DEVICE_CORE
+
+config SLAVE_PWRCTRL_DEVICE
+        bool "Slave power control device"
+        default n
+        depends on GREYBUS_MODS
+        select DEVICE_CORE
+
+if SLAVE_PWRCTRL_DEVICE
+config SLAVE_PWRCTRL_FORCE_FLASH
+        bool "Slave power control force flash"
+        default n
+endif
 
 endif

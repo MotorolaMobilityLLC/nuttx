@@ -1,5 +1,4 @@
 /****************************************************************************
- * configs/hdk/muc/src/hdk.h
  *
  *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -35,31 +34,6 @@
 
 #ifndef __CONFIGS_HDK_MUC_SRC_HDK_H
 #define __CONFIGS_HDK_MUC_SRC_HDK_H
-
-#include <nuttx/config.h>
-#include <nuttx/compiler.h>
-#include <stdint.h>
-
-/* BUTTONS -- NOTE that all have EXTI interrupts configured */
-
-#define MIN_IRQBUTTON   BUTTON_POWER
-#define MAX_IRQBUTTON   BUTTON_POWER
-#define NUM_IRQBUTTONS  1
-
-#define GPIO_BTN_POWER  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTC|GPIO_PIN7)
-
-/****************************************************************************
- * Name: stm32_pm_buttons
- *
- * Description:
- *   Configure the user button of the STM32f4discovery board as EXTI,
- *   so it is able to wakeup the MCU from the PM_STANDBY mode
- *
- ****************************************************************************/
-
-#if defined(CONFIG_PM) && defined(CONFIG_ARCH_IDLE_CUSTOM) && defined(CONFIG_PM_BUTTONS)
-void stm32_pm_buttons(void);
-#endif
 
 /****************************************************************************
  * Name: mods_init

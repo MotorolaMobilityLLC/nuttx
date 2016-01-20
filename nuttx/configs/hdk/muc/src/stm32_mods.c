@@ -41,6 +41,7 @@
 void mods_init(void)
 {
     gpio_direction_out(GPIO_MODS_INT, 0);
+    gpio_direction_out(GPIO_MODS_SYS_RST, 1);
 }
 
 #ifdef CONFIG_MODS_USER_INIT

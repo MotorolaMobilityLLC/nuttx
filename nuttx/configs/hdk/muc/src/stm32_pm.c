@@ -1,5 +1,4 @@
 /****************************************************************************
- * configs/hdk/muc/src/stm32_pm.c
  *
  *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
  *   Authors: Gregory Nutt <gnutt@nuttx.org>
@@ -45,7 +44,6 @@
 #include <arch/board/board.h>
 
 #include "stm32_waste.h"
-#include "hdk.h"
 
 #ifdef CONFIG_PM
 
@@ -160,13 +158,15 @@ static void stm32_freeze_iwdg_stop(void)
 
 void up_pminitialize(void)
 {
+#ifdef CONFIG_STM32_USART3
   uint32_t regval;
 
-  /* Enable USART1 in Stop Mode */
+  /* Enable USART3 in Stop Mode */
 
-  regval  = getreg32(STM32_USART1_CR1);
+  regval  = getreg32(STM32_USART3_CR1);
   regval |= USART_CR1_UESM;
-  putreg32(regval, STM32_USART1_CR1);
+  putreg32(regval, STM32_USART3_CR1);
+#endif
 
 #ifdef CONFIG_STM32_IWDG
   /* IWDG must be frozen in Stop Mode */
@@ -176,12 +176,6 @@ void up_pminitialize(void)
   /* Then initialize the NuttX power management subsystem proper */
 
   pm_initialize();
-
-#if defined(CONFIG_ARCH_IDLE_CUSTOM) && defined(CONFIG_PM_BUTTONS)
-  /* Initialize the buttons to wake up the system from low power modes */
-
-  stm32_pm_buttons();
-#endif
 }
 
 #endif /* CONFIG_PM */

@@ -1,5 +1,4 @@
 ############################################################################
-# configs/hdk/muc/src/Makefile
 #
 #   Copyright (C) 2011-2013 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -42,24 +41,12 @@ AOBJS = $(ASRCS:.S=$(OBJEXT))
 
 CSRCS = stm32_boot.c stm32_sysclk.c
 
-ifeq ($(CONFIG_ARCH_BUTTONS),y)
-CSRCS += stm32_buttons.c
-endif
-
 ifeq ($(CONFIG_WATCHDOG),y)
 CSRCS += stm32_watchdog.c
 endif
 
 ifeq ($(CONFIG_ARCH_CUSTOM_PMINIT),y)
 CSRCS += stm32_pm.c
-endif
-
-ifeq ($(CONFIG_PM_BUTTONS),y)
-CSRCS += stm32_pmbuttons.c
-endif
-
-ifeq ($(CONFIG_HID_BUTTONS),y)
-CSRCS += stm32_hidbuttons.c
 endif
 
 ifeq ($(CONFIG_MODS_RAW),y)
@@ -76,6 +63,10 @@ endif
 
 ifeq ($(CONFIG_MAX17050_DEVICE),y)
 CSRCS += stm32_battery.c
+endif
+
+ifeq  ($(CONFIG_SLAVE_PWRCTRL_DEVICE),y)
+CSRCS += stm32_slave_pwrctrl.c
 endif
 
 COBJS = $(CSRCS:.c=$(OBJEXT))

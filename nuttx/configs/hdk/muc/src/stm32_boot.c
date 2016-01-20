@@ -1,5 +1,4 @@
 /************************************************************************************
- * configs/hdk/muc/src/stm32_boot.c
  *
  *   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
  *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
@@ -44,6 +43,7 @@
 #include <nuttx/device_ptp.h>
 #include <nuttx/device_ptp_chg.h>
 #include <nuttx/device_raw.h>
+#include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/device_table.h>
 #include <nuttx/power/battery_state.h>
 #include <nuttx/util.h>
@@ -64,27 +64,13 @@ struct board_gpio_cfg_s
 
 static const struct board_gpio_cfg_s board_gpio_cfgs[] =
 {
-#if (BOARD_REVISION >= 1)
   { GPIO_MODS_SL_BPLUS_EN,   (GPIO_PULLUP)           },
-#else
-  { GPIO_MODS_SL_BPLUS_EN,   (GPIO_FLOAT)            },
-#endif
   { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT) },
-#ifdef GPIO_MODS_SPI_CS_N
   { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)         },
-#endif
 };
 
 #ifdef CONFIG_DEVICE_CORE
 static struct device devices[] = {
-#ifdef CONFIG_HID_BUTTONS
-    {
-        .type = DEVICE_TYPE_HID_HW,
-        .name = "hid_buttons",
-        .desc = "Generic HID buttons",
-        .id   = 0,
-    },
-#endif
 #ifdef CONFIG_MODS_RAW
     {
         .type = DEVICE_TYPE_RAW_HW,
@@ -114,6 +100,14 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_BATTERY_DEVICE,
         .name = "max17050_battery",
         .desc = "MAX17050 Battery Driver",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_SLAVE_PWRCTRL_DEVICE
+    {
+        .type = DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+        .name = "slave_pwrctrl",
+        .desc = "slave power control",
         .id   = 0,
     },
 #endif
@@ -177,11 +171,6 @@ void stm32_boardinitialize(void)
   regval |= DMA1_CSELR_CHAN5_SPI2_TX;
   putreg32(regval, STM32_DMA1_CSELR);
 #endif
-
-  stm32_configgpio(GPIO_APBE_SPIBOOT_N);
-  stm32_configgpio(GPIO_APBE_BOOTRET);
-  stm32_configgpio(GPIO_APBE_PWR_EN);
-  stm32_configgpio(GPIO_APBE_RST_N);
 }
 
 /****************************************************************************
@@ -215,10 +204,6 @@ void board_initialize(void)
 #ifdef CONFIG_DEVICE_CORE
   device_table_register(&muc_device_table);
 
-#ifdef CONFIG_HID_BUTTONS
-  extern struct device_driver hid_buttons_driver;
-  device_register_driver(&hid_buttons_driver);
-#endif
 #ifdef CONFIG_MODS_RAW
   extern struct device_driver mods_raw_driver;
   device_register_driver(&mods_raw_driver);
@@ -234,6 +219,10 @@ void board_initialize(void)
 #ifdef CONFIG_MAX17050_DEVICE
   extern struct device_driver batt_driver;
   device_register_driver(&batt_driver);
+#endif
+#ifdef CONFIG_SLAVE_PWRCTRL_DEVICE
+  extern struct device_driver slave_pwrctrl_driver;
+  device_register_driver(&slave_pwrctrl_driver);
 #endif
 
 #endif
