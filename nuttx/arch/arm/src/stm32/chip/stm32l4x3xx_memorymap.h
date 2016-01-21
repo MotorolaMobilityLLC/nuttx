@@ -152,8 +152,8 @@
 #define STM32_GPIOC_BASE     0x48000800     /* 0x48000800-0x48000bff: GPIO Port C */
 #define STM32_GPIOD_BASE     0X48000c00     /* 0x48000c00-0x48000fff: GPIO Port D */
 #define STM32_GPIOE_BASE     0x48001000     /* 0x48001000-0x480013ff: GPIO Port E */
-                                            /* 0x48001400-0x480017ff: Reserved */
-                                            /* 0x48001800-0x48001bff: Reserved */
+#define STM32_RESERVED1_BASE 0x48001400     /* 0x48001400-0x480017ff: Reserved */
+#define STM32_RESERVED2_BASE 0x48001800     /* 0x48001800-0x48001bff: Reserved  */
 #define STM32_GPIOH_BASE     0x48001c00     /* 0x48001c00-0x48001fff: GPIO Port H */
                                             /* 0x50000000-0x5003ffff: Reserved */
 #define STM32_ADC_BASE       0x50040000     /* 0x50040000-0x500403ff: ADC */

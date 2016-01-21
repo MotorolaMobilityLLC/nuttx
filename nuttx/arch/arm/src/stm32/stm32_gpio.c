@@ -91,7 +91,7 @@ const uint32_t g_gpiobase[STM32_NGPIO_PORTS] =
   STM32_GPIOE_BASE,
 #endif
 
-#if defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32L4X3)
+#if defined(CONFIG_STM32_STM32L15XX)
 
 #if STM32_NGPIO_PORTS > 5
   STM32_GPIOH_BASE,
@@ -101,6 +101,18 @@ const uint32_t g_gpiobase[STM32_NGPIO_PORTS] =
 #endif
 #if STM32_NGPIO_PORTS > 7
   STM32_GPIOG_BASE,
+#endif
+
+#elif defined(CONFIG_STM32_STM32L4X3)
+
+#if STM32_NGPIO_PORTS > 5
+  STM32_RESERVED1_BASE,
+#endif
+#if STM32_NGPIO_PORTS > 6
+  STM32_RESERVED2_BASE,
+#endif
+#if STM32_NGPIO_PORTS > 7
+  STM32_GPIOH_BASE,
 #endif
 
 #else
