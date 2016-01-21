@@ -284,8 +284,6 @@
 #define RCC_AHB2RSTR_GPIOCRST      (1 << 2)  /* Bit 2:  IO port C reset */
 #define RCC_AHB2RSTR_GPIODRST      (1 << 3)  /* Bit 3:  IO port D reset */
 #define RCC_AHB2RSTR_GPIOERST      (1 << 4)  /* Bit 4:  IO port E reset */
-#define RCC_AHB2RSTR_GPIOFRST      (1 << 5)  /* Bit 5:  IO port F reset */
-#define RCC_AHB2RSTR_GPIOGRST      (1 << 6)  /* Bit 6:  IO port G reset */
 #define RCC_AHB2RSTR_GPIOHRST      (1 << 7)  /* Bit 7:  IO port H reset */
 #define RCC_AHB2RSTR_OTGFSRST      (1 << 12) /* Bit 12: USB OTG FS reset */
 #define RCC_AHB2RSTR_ADCRST        (1 << 13) /* Bit 13: ADC reset */
@@ -339,8 +337,6 @@
 #define RCC_AHB2ENR_GPIOCEN         (1 << 2)  /* Bit 2: IO port C clock enable */
 #define RCC_AHB2ENR_GPIODEN         (1 << 3)  /* Bit 3: IO port D clock enable */
 #define RCC_AHB2ENR_GPIOEEN         (1 << 4)  /* Bit 4: IO port E clock enable */
-#define RCC_AHB2ENR_GPIOFEN         (1 << 5)  /* Bit 5: IO port F clock enable */
-#define RCC_AHB2ENR_GPIOGEN         (1 << 6)  /* Bit 6: IO port G clock enable */
 #define RCC_AHB2ENR_GPIOHEN         (1 << 7)  /* Bit 7: IO port H clock enable */
 #define RCC_AHB2ENR_OTGFSEN         (1 << 12) /* Bit 12: USB OTG FS clock enable */
 #define RCC_AHB2ENR_ADCEN           (1 << 13) /* Bit 13: ADC clock enable */

@@ -167,7 +167,7 @@ static inline void rcc_enableahb2(void)
 
   regval = getreg32(STM32_RCC_AHB2ENR);
 
-  /* Enable GPIOA-H */
+  /* Enable GPIOA-H (Keep GPIOF-G disable. not supported on STM32L 4X3 ) */
 #if STM32_NGPIO > 0
   regval |= RCC_AHB2ENR_GPIOAEN;
 #endif
@@ -182,12 +182,6 @@ static inline void rcc_enableahb2(void)
 #endif
 #if STM32_NGPIO > 64
   regval |= RCC_AHB2ENR_GPIOEEN;
-#endif
-#if STM32_NGPIO > 80
-  regval |= RCC_AHB2ENR_GPIOFEN;
-#endif
-#if STM32_NGPIO > 96
-  regval |= RCC_AHB2ENR_GPIOGEN;
 #endif
 #if STM32_NGPIO > 112
   regval |= RCC_AHB2ENR_GPIOHEN;
