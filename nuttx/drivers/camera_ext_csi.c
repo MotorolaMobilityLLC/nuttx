@@ -81,7 +81,7 @@ static int cam_power_on(struct device *dev)
             device_driver_get_private(dev);
 
     camera_ext_register_format_db(cam_dev->sensor->sensor_db);
-
+    camer_ext_register_control_db(&cam_dev->ctrl_db);
     if (cam_dev->status == OFF) {
         //TODO: these gpio configs are changing among boards
         //move these gpio config to board level
@@ -303,46 +303,6 @@ static int cci_write_regs(struct i2c_dev_s *i2c_dev, uint16_t i2c_addr,
     return 0;
 }
 
-/* TODO: move these functions to camera_ext */
-static int csi_cam_ctrl_get_cfg(struct device *dev, uint32_t idx,
-           struct camera_ext_predefined_ctrl_mod_cfg *cfg, uint32_t cfg_size)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-
-    return cam_ext_ctrl_get_cfg(&cam_dev->ctrl_db, idx, cfg, cfg_size);
-}
-
-static int csi_cam_ctrl_get(struct device *dev, uint32_t idx,
-            uint8_t *ctrl_val, uint32_t ctrl_val_size)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-
-    return cam_ext_ctrl_get(dev, &cam_dev->ctrl_db, idx, ctrl_val,
-                ctrl_val_size);
-}
-
-static int csi_cam_ctrl_set(struct device *dev, uint32_t idx,
-            uint8_t *ctrl_val, uint32_t ctrl_val_size)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-
-    return cam_ext_ctrl_set(dev, &cam_dev->ctrl_db, idx, ctrl_val,
-                ctrl_val_size);
-}
-
-static int csi_cam_ctrl_try(struct device *dev, uint32_t idx,
-            uint8_t *ctrl_val, uint32_t ctrl_val_size)
-{
-    struct camera_dev_s *cam_dev = (struct camera_dev_s *)
-            device_driver_get_private(dev);
-
-    return cam_ext_ctrl_try(dev, &cam_dev->ctrl_db, idx, ctrl_val,
-                ctrl_val_size);
-}
-
 extern int camera_ext_tesing_ctrl_init(struct device *dev);
 
 static int csi_cam_dev_open(struct device *dev)
@@ -396,10 +356,10 @@ static struct device_camera_ext_dev_type_ops csi_camera_ext_type_ops = {
     .frmival_enum    = camera_ext_frmival_enum,
     .stream_set_parm = camera_ext_stream_set_parm,
     .stream_get_parm = camera_ext_stream_get_parm,
-    .ctrl_get_cfg    = csi_cam_ctrl_get_cfg,
-    .ctrl_get        = csi_cam_ctrl_get,
-    .ctrl_set        = csi_cam_ctrl_set,
-    .ctrl_try        = csi_cam_ctrl_try,
+    .ctrl_get_cfg    = camera_ext_ctrl_get_cfg,
+    .ctrl_get        = camera_ext_ctrl_get,
+    .ctrl_set        = camera_ext_ctrl_set,
+    .ctrl_try        = camera_ext_ctrl_try,
 };
 
 static struct device_driver_ops camera_ext_driver_ops = {

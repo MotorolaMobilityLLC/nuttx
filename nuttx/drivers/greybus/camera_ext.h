@@ -216,6 +216,8 @@ struct camera_ext_ctrl_db {
     struct camera_ext_ctrl_item **ctrls;
 };
 
+void camer_ext_register_control_db(struct camera_ext_ctrl_db *ctrl_db);
+
 struct camera_ext_format_user_config {
     uint32_t input;   //index of current input
     uint32_t format;  //index of current format
@@ -290,15 +292,18 @@ int camera_ext_frmival_enum(struct device *dev, struct camera_ext_frmival* frmiv
 int camera_ext_stream_set_parm(struct device *dev, struct camera_ext_streamparm *parm);
 int camera_ext_stream_get_parm(struct device *dev, struct camera_ext_streamparm *parm);
 
+/* Common control functions for drivers to pick up */
+int camera_ext_ctrl_get_cfg(struct device *dev, uint32_t idx,
+        struct camera_ext_predefined_ctrl_mod_cfg *cfg, uint32_t cfg_size);
+int camera_ext_ctrl_get(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
+    uint32_t ctrl_val_size);
+int camera_ext_ctrl_set(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
+    uint32_t ctrl_val_size);
+int camera_ext_ctrl_try(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
+    uint32_t ctrl_val_size);
+
 /* Functions to for v4l2 controls */
 int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
     struct camera_ext_predefined_ctrl_mod_cfg *cfg, uint32_t cfg_size);
-
-int cam_ext_ctrl_get(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
-    uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size);
-int cam_ext_ctrl_set(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
-    uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size);
-int cam_ext_ctrl_try(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
-    uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size);
 
 #endif

@@ -557,6 +557,7 @@ static int _power_on(struct device *dev)
     DEV_TO_PRIVATE(dev, dev_priv);
 
     camera_ext_register_format_db(&_db);
+    camera_ext_register_control_db(&_ctrl_db);
 
     if (dev_priv->status == OFF) {
         if (tc35874x_run_command(&bridge_on, NULL) != 0) {
@@ -702,30 +703,6 @@ static struct camera_ext_ctrl_db _ctrl_db = {
     .num_ctrls = 0,
 };
 
-static int _ctrl_get_cfg(struct device *dev, uint32_t idx,
-                uint8_t *cfg, uint32_t cfg_size)
-{
-    return cam_ext_ctrl_get_cfg(&_ctrl_db, idx, cfg, cfg_size);
-}
-
-static int _ctrl_get(struct device *dev, uint32_t idx,
-            uint8_t *ctrl_val, uint32_t ctrl_val_size)
-{
-    return cam_ext_ctrl_get(dev, &_ctrl_db, idx, ctrl_val, ctrl_val_size);
-}
-
-static int _ctrl_set(struct device *dev, uint32_t idx,
-            uint8_t *ctrl_val, uint32_t ctrl_val_size)
-{
-    return cam_ext_ctrl_set(dev, &_ctrl_db, idx, ctrl_val, ctrl_val_size);
-}
-
-static int _ctrl_try(struct device *dev, uint32_t idx,
-            uint8_t *ctrl_val, uint32_t ctrl_val_size)
-{
-    return cam_ext_ctrl_try(dev, &_ctrl_db, idx, ctrl_val, ctrl_val_size);
-}
-
 static int _dev_open(struct device *dev)
 {
     //static allocate the singleton instance
@@ -788,10 +765,10 @@ static struct device_camera_ext_dev_type_ops _camera_ext_type_ops = {
     .frmival_enum    = camera_ext_frmival_enum,
     .stream_set_parm = camera_ext_stream_set_parm,
     .stream_get_parm = camera_ext_stream_get_parm,
-    .ctrl_get_cfg    = _ctrl_get_cfg,
-    .ctrl_get        = _ctrl_get,
-    .ctrl_set        = _ctrl_set,
-    .ctrl_try        = _ctrl_try,
+    .ctrl_get_cfg    = camera_ext_ctrl_get_cfg,
+    .ctrl_get        = camera_ext_ctrl_get,
+    .ctrl_set        = camera_ext_ctrl_set,
+    .ctrl_try        = camera_ext_ctrl_try,
 };
 
 static struct device_driver_ops camera_ext_driver_ops = {

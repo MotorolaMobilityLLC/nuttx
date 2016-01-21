@@ -31,34 +31,47 @@
 #include <string.h>
 #include "camera_ext.h"
 
-struct format_cfg {
+struct camera_ext_db {
     const struct camera_ext_format_db *format_db;
     struct camera_ext_format_user_config user_cfg;
+    struct camera_ext_ctrl_db *ctrl_db;
 };
 
 /*
  * TODO: Need to support multiple instances of format_cfg below if more than
  *       one camera_ext protocol is configured in a single manifest.
 */
-static struct format_cfg g_format_cfg;
+static struct camera_ext_db g_camera_ext_db;
 
 void camera_ext_register_format_db(const struct camera_ext_format_db *db)
 {
     if (db == NULL)
         return;
 
-    memset(&g_format_cfg, 0, sizeof(g_format_cfg));
-    g_format_cfg.format_db = db;
+    g_camera_ext_db.format_db = db;
 }
 
 const struct camera_ext_format_db *camera_ext_get_format_db(void)
 {
-    return g_format_cfg.format_db;
+    return g_camera_ext_db.format_db;
 }
 
 struct camera_ext_format_user_config *camera_ext_get_user_config(void)
 {
-    return &g_format_cfg.user_cfg;
+    return &g_camera_ext_db.user_cfg;
+}
+
+void camer_ext_register_control_db(struct camera_ext_ctrl_db *ctrl_db)
+{
+    if (ctrl_db == NULL)
+        return;
+
+    g_camera_ext_db.ctrl_db = ctrl_db;
+}
+
+static struct camera_ext_ctrl_db *camera_ext_get_control_db(void)
+{
+    return g_camera_ext_db.ctrl_db;
 }
 
 //Find the format node (by fourcc) which is a sub node of a input node
@@ -740,8 +753,9 @@ static int cfg_local_to_greybus(const struct camera_ext_ctrl_cfg *local,
     return retval;
 }
 
-int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
-        struct camera_ext_predefined_ctrl_mod_cfg *cfg, uint32_t cfg_size)
+int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db,
+        uint32_t idx, struct camera_ext_predefined_ctrl_mod_cfg *cfg,
+        uint32_t cfg_size)
 {
     int retval;
 
@@ -845,8 +859,9 @@ static int ctrl_val_local_to_greybus(struct camera_ext_ctrl_val *local_val,
     return 0;
 }
 
-int cam_ext_ctrl_get(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
-        uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size)
+static int cam_ext_ctrl_get(struct device *dev,
+        struct camera_ext_ctrl_db *ctrl_db, uint32_t idx, uint8_t *ctrl_val,
+        uint32_t ctrl_val_size)
 {
     int retval = -EINVAL;
     struct camera_ext_ctrl_val local_val;
@@ -940,8 +955,9 @@ static int ctrl_val_greybus_to_local(uint8_t *ctrl_val, size_t ctrl_val_size,
     return 0;
 }
 
-int cam_ext_ctrl_set(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
-        uint32_t idx, uint8_t *ctrl_val, size_t ctrl_val_size)
+static int cam_ext_ctrl_set(struct device *dev,
+        struct camera_ext_ctrl_db *ctrl_db, uint32_t idx, uint8_t *ctrl_val,
+        size_t ctrl_val_size)
 {
     if (idx >= ctrl_db->num_ctrls) return -EINVAL;
 
@@ -963,8 +979,9 @@ int cam_ext_ctrl_set(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
     return retval;
 }
 
-int cam_ext_ctrl_try(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
-        uint32_t idx, uint8_t *ctrl_val, size_t ctrl_val_size)
+static int cam_ext_ctrl_try(struct device *dev,
+        struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
+        uint8_t *ctrl_val, size_t ctrl_val_size)
 {
     if (idx >= ctrl_db->num_ctrls) return -EINVAL;
 
@@ -984,4 +1001,36 @@ int cam_ext_ctrl_try(struct device *dev, struct camera_ext_ctrl_db *ctrl_db,
 
     /* if try does not exist, no try needed, return ok */
     return 0;
+}
+
+int camera_ext_ctrl_get_cfg(struct device *dev, uint32_t idx,
+        struct camera_ext_predefined_ctrl_mod_cfg *cfg, uint32_t cfg_size)
+{
+    struct camera_ext_ctrl_db *ctrl_db = camera_ext_get_control_db();
+
+    return cam_ext_ctrl_get_cfg(ctrl_db, idx, cfg, cfg_size);
+}
+
+int camera_ext_ctrl_get(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
+    uint32_t ctrl_val_size)
+{
+    struct camera_ext_ctrl_db *ctrl_db = camera_ext_get_control_db();
+
+    return cam_ext_ctrl_get(dev, ctrl_db, idx, ctrl_val, ctrl_val_size);
+}
+
+int camera_ext_ctrl_set(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
+    uint32_t ctrl_val_size)
+{
+    struct camera_ext_ctrl_db *ctrl_db = camera_ext_get_control_db();
+
+    return cam_ext_ctrl_set(dev, ctrl_db, idx, ctrl_val, ctrl_val_size);
+}
+
+int camera_ext_ctrl_try(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
+    uint32_t ctrl_val_size)
+{
+    struct camera_ext_ctrl_db *ctrl_db = camera_ext_get_control_db();
+
+    return cam_ext_ctrl_try(dev, ctrl_db, idx, ctrl_val, ctrl_val_size);
 }
