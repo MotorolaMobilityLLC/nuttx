@@ -131,10 +131,8 @@
 #  define PWR_CR2_2p9V          (6 << PWR_CR2_PLS_SHIFT) /* 110: 2.9V */
 #  define PWR_CR2_PVD_IN        (7 << PWR_CR2_PLS_SHIFT) /* 111: External input analog voltage PVD_IN */
 #define PWR_CR2_PVME1           (1 << 4)  /* Bit 4: Peripheral voltage monitoring 1 enable */
-#define PWR_CR2_PVME2           (1 << 5)  /* Bit 5: Peripheral voltage monitoring 2 enable */
 #define PWR_CR2_PVME3           (1 << 6)  /* Bit 6: Peripheral voltage monitoring 3 enable */
 #define PWR_CR2_PVME4           (1 << 7)  /* Bit 7: Peripheral voltage monitoring 4 enable */
-#define PWR_CR2_IOSV            (1 << 9)  /* Bit 9: VDDIO2 Independent I/Os supply valid */
 #define PWR_CR2_USV             (1 << 10) /* Bit 10: VDDUSB USB supply valid */
 
 /* Power control register 3 */
@@ -155,7 +153,6 @@
 #define PWR_SR2_VOSF            (1 << 10) /* Bit 10: Voltage scaling flag */
 #define PWR_SR2_PVDO            (1 << 11) /* Bit 11: Power voltage detector output */
 #define PWR_SR2_PVMO1           (1 << 12) /* Bit 12: Peripheral voltage monitoring output: VDDIO2 vs 1.2 V */
-#define PWR_SR2_PVMO2           (1 << 13) /* Bit 13: Peripheral voltage monitoring output: VDDA vs 0.9 V */
 #define PWR_SR2_PVMO3           (1 << 14) /* Bit 14: Peripheral voltage monitoring output: VDDA vs 1.62 V */
 #define PWR_SR2_PVMO4           (1 << 15) /* Bit 15: Peripheral voltage monitoring output: VDDA vs 2.2 V */
 
