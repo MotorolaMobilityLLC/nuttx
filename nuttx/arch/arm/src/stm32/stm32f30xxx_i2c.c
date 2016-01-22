@@ -231,6 +231,7 @@ struct stm32_i2c_config_s
   uint32_t reset_bit;         /* Reset bit */
   uint32_t scl_pin;           /* GPIO configuration for SCL as SCL */
   uint32_t sda_pin;           /* GPIO configuration for SDA as SDA */
+  uint32_t clk_freq;          /* I2C input clock frequency */
 #ifndef CONFIG_I2C_POLLED
   int (*isr)(int, void *);    /* Interrupt handler */
   uint32_t ev_irq;            /* Event IRQ */
@@ -315,8 +316,8 @@ static void stm32_i2c_traceevent(FAR struct stm32_i2c_priv_s *priv,
                                enum stm32_trace_e event, uint32_t parm);
 static void stm32_i2c_tracedump(FAR struct stm32_i2c_priv_s *priv);
 #endif /* CONFIG_I2C_TRACE */
-static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv,
-                               uint32_t frequency);
+static int stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv,
+                              uint32_t frequency);
 static inline void stm32_i2c_sendstart(FAR struct stm32_i2c_priv_s *priv);
 static inline void stm32_i2c_clrstart(FAR struct stm32_i2c_priv_s *priv);
 static inline void stm32_i2c_sendstop(FAR struct stm32_i2c_priv_s *priv);
@@ -370,6 +371,13 @@ static const struct stm32_i2c_config_s stm32_i2c1_config =
 #endif
   .scl_pin    = GPIO_I2C1_SCL,
   .sda_pin    = GPIO_I2C1_SDA,
+#ifdef STM32_I2C1_FREQUENCY
+  .clk_freq   = STM32_I2C1_FREQUENCY,
+#elif defined(CONFIG_STM32_STM32F30XX)
+  .clk_freq   = STM32_HSI_FREQUENCY,
+#else
+  .clk_freq   = STM32_PCLK1_FREQUENCY,
+#endif
 #ifndef CONFIG_I2C_POLLED
   .isr        = stm32_i2c1_isr,
   .ev_irq     = STM32_IRQ_I2C1EV,
@@ -404,6 +412,13 @@ static const struct stm32_i2c_config_s stm32_i2c2_config =
 #endif
   .scl_pin    = GPIO_I2C2_SCL,
   .sda_pin    = GPIO_I2C2_SDA,
+#ifdef STM32_I2C2_FREQUENCY
+  .clk_freq   = STM32_I2C2_FREQUENCY,
+#elif defined(CONFIG_STM32_STM32F30XX)
+  .clk_freq   = STM32_HSI_FREQUENCY,
+#else
+  .clk_freq   = STM32_PCLK1_FREQUENCY,
+#endif
 #ifndef CONFIG_I2C_POLLED
   .isr        = stm32_i2c2_isr,
   .ev_irq     = STM32_IRQ_I2C2EV,
@@ -438,6 +453,13 @@ static const struct stm32_i2c_config_s stm32_i2c3_config =
 #endif
   .scl_pin    = GPIO_I2C3_SCL,
   .sda_pin    = GPIO_I2C3_SDA,
+#ifdef STM32_I2C3_FREQUENCY
+  .clk_freq   = STM32_I2C3_FREQUENCY,
+#elif defined(CONFIG_STM32_STM32F30XX)
+  .clk_freq   = STM32_HSI_FREQUENCY,
+#else
+  .clk_freq   = STM32_PCLK1_FREQUENCY,
+#endif
 #ifndef CONFIG_I2C_POLLED
   .isr        = stm32_i2c3_isr,
   .ev_irq     = STM32_IRQ_I2C3EV,
@@ -1094,7 +1116,7 @@ static void stm32_i2c_tracedump(FAR struct stm32_i2c_priv_s *priv)
  *
  ************************************************************************************/
 
-static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequency)
+static int stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequency)
 {
   uint32_t pe;
   uint8_t presc;
@@ -1102,6 +1124,15 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequ
   uint8_t h_time;
   uint8_t scl_h_period;
   uint8_t scl_l_period;
+
+  /* This driver currently only supports 8MHz or 16MHz I2C clock */
+
+  if ((priv->config->clk_freq !=  8000000ul) &&
+      (priv->config->clk_freq != 16000000ul))
+    {
+      i2cdbg("Source clock frequency not supported\n");
+      return -EINVAL;
+    }
 
   /* Disable the selected I2C peripheral to configure TRISE */
 
@@ -1111,20 +1142,11 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequ
       stm32_i2c_modifyreg32(priv, STM32_I2C_CR1_OFFSET, I2C_CR1_PE, 0);
     }
 
-  /* Update timing and control registers */
-
-  /* TODO: speed/timing calcs */
-#warning "check set filters before timing, see RM0316"
-
-  /* values from 100khz at 8mhz i2c clock */
-
-  /* prescaler */
-  /* t_presc= (presc+1)*t_i2cclk */
-  /* RM0316 */
+  /* Update timing and control registers with values from datasheet */
 
   if (frequency == 10000)
     {
-      presc        = 0x01;
+      presc        = (priv->config->clk_freq == 8000000ul) ? 0x01 : 0x03;
       scl_l_period = 0xc7;
       scl_h_period = 0xc3;
       h_time       = 0x02;
@@ -1132,9 +1154,7 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequ
     }
   else if (frequency == 100000)
     {
-      /* values from datasheet with clock 8mhz */
-
-      presc        = 0x01;
+      presc        = (priv->config->clk_freq == 8000000ul) ? 0x01 : 0x03;
       scl_l_period = 0x13;
       scl_h_period = 0x0f;
       h_time       = 0x02;
@@ -1142,10 +1162,10 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequ
     }
   else
     {
-      presc        = 0x00;
+      presc        = (priv->config->clk_freq == 8000000ul) ? 0x00 : 0x01;
       scl_l_period = 0x09;
       scl_h_period = 0x03;
-      h_time       = 0x01;
+      h_time       = (priv->config->clk_freq == 8000000ul) ? 0x01 : 0x02;
       s_time       = 0x03;
     }
 
@@ -1170,6 +1190,8 @@ static void stm32_i2c_setclock(FAR struct stm32_i2c_priv_s *priv, uint32_t frequ
     {
       stm32_i2c_modifyreg32(priv, STM32_I2C_CR1_OFFSET, 0, I2C_CR1_PE);
     }
+
+  return OK;
 }
 
 /************************************************************************************
@@ -1602,8 +1624,7 @@ static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv)
 
   if (stm32_configgpio(priv->config->sda_pin) < 0)
     {
-      stm32_unconfiggpio(priv->config->scl_pin);
-      return ERROR;
+      goto err_gpio;
     }
 
   /* Attach ISRs */
@@ -1622,12 +1643,30 @@ static int stm32_i2c_init(FAR struct stm32_i2c_priv_s *priv)
   /* TODO: f303 i2c clock source RCC_CFGR3 */
   /* RCC_CFGR3_I2C1SW (default is HSI clock) */
 
-  stm32_i2c_setclock(priv, 100000);
+  if (stm32_i2c_setclock(priv, 100000) < 0)
+    {
+      goto err_clk;
+    }
 
   /* Enable I2C */
 
   stm32_i2c_modifyreg32(priv, STM32_I2C_CR1_OFFSET, 0, I2C_CR1_PE);
   return OK;
+
+err_clk:
+#ifndef CONFIG_I2C_POLLED
+  up_disable_irq(priv->config->ev_irq);
+  up_disable_irq(priv->config->er_irq);
+  irq_detach(priv->config->ev_irq);
+  irq_detach(priv->config->er_irq);
+#endif
+
+  stm32_unconfiggpio(priv->config->sda_pin);
+
+err_gpio:
+  stm32_unconfiggpio(priv->config->scl_pin);
+
+  return ERROR;
 }
 
 /************************************************************************************
@@ -1681,16 +1720,22 @@ static int stm32_i2c_deinit(FAR struct stm32_i2c_priv_s *priv)
 
 static uint32_t stm32_i2c_setfrequency(FAR struct i2c_dev_s *dev, uint32_t frequency)
 {
+  struct stm32_i2c_inst_s     *inst = (struct stm32_i2c_inst_s *)dev;
+  FAR struct stm32_i2c_priv_s *priv = inst->priv;
+
   stm32_i2c_sem_wait(dev);
 
-#if STM32_PCLK1_FREQUENCY < 4000000
-  ((struct stm32_i2c_inst_s *)dev)->frequency = 100000;
-#else
-  ((struct stm32_i2c_inst_s *)dev)->frequency = frequency;
-#endif
+  if (priv->config->clk_freq < 4000000)
+    {
+      inst->frequency = 100000;
+    }
+  else
+    {
+      inst->frequency = frequency;
+    }
 
   stm32_i2c_sem_post(dev);
-  return ((struct stm32_i2c_inst_s *)dev)->frequency;
+  return inst->frequency;
 }
 
 /************************************************************************************
@@ -2002,6 +2047,7 @@ FAR struct i2c_dev_s *up_i2cinitialize(int port)
   struct stm32_i2c_priv_s * priv = NULL;  /* private data of device with multiple instances */
   struct stm32_i2c_inst_s * inst = NULL;  /* device, single instance */
   int irqs;
+  int ret;
 
 #if STM32_PCLK1_FREQUENCY < 4000000
 #   warning STM32_I2C_INIT: Peripheral clock must be at least 4 MHz to support 400 kHz operation.
@@ -2059,7 +2105,13 @@ FAR struct i2c_dev_s *up_i2cinitialize(int port)
   if ((volatile int)priv->refs++ == 0)
     {
       stm32_i2c_sem_init( (struct i2c_dev_s *)inst );
-      stm32_i2c_init( priv );
+      ret = stm32_i2c_init( priv );
+      if (ret != OK)
+        {
+          kmm_free(inst);
+          inst = NULL;
+          priv->refs--;
+        }
     }
 
   irqrestore(irqs);
@@ -2216,8 +2268,7 @@ int up_i2creset(FAR struct i2c_dev_s * dev)
 
   /* Re-init the port */
 
-  stm32_i2c_init(priv);
-  ret = OK;
+  ret = stm32_i2c_init(priv);
 
 out:
 
