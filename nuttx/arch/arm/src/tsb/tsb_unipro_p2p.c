@@ -62,6 +62,8 @@
 
 #if defined(CONFIG_TSB_CHIP_REV_ES2)
     #define DME_DDBL2_INIT_STATUS   T_TSTSRCINCREMENT
+#elif defined(CONFIG_TSB_CHIP_REV_ES3)
+    #define DME_DDBL2_INIT_STATUS   TSB_DME_ES3_INIT_STATUS
 #endif
 
 //#define CONFIG_UNIPRO_P2P_DBG_VERBOSE
@@ -70,6 +72,16 @@
 #else
 #define DBG_ENTRY(x) { x, 0 }
 #endif
+
+#define DME_DDBL2_VID               0x6000
+#define DME_DDBL2_PID               0x6001
+#define DME_DDBL2_SERIALNO_L        0x6002
+#define DME_DDBL2_SERIALNO_H        0x6003
+#define DME_DDBL2_INIT_TYPE         0x6100
+#define DME_DDBL2_INIT_STATUS       0x6101
+#define DME_DDBL2_ENDPOINTID_H      0x6102
+#define DME_DDBL2_ENDPOINTID_L      0x6103
+#define DME_DDBL2_SCR               0x6104
 
 struct dbg_entry {
     uint32_t val;
@@ -89,7 +101,7 @@ static void unipro_dump_attribute_array(const struct dbg_entry *attributes, int 
 
         uint32_t val;
         unipro_attr_read(attributes->val, &val, cportid, peer);
-        printf("%04x %s: %08x\n", attributes->val, (attributes->str ? attributes->str : ""), val);
+        printf("%04x (%d) %s: %08x\n", attributes->val, cportid, (attributes->str ? attributes->str : ""), val);
         attributes++;
     }
 }
@@ -347,6 +359,9 @@ void unipro_p2p_setup_test_connection(unsigned int cport, unsigned int test_port
     unipro_attr_local_write(T_TSTDSTMESSAGECOUNT, 0 /* clear */, test_port);
     unipro_attr_peer_write(T_TSTDSTMESSAGECOUNT, 0 /* clear */, test_port);
 
+    unipro_attr_local_write(T_TSTDSTERRORDETECTIONENABLE, 1 /* enable */, test_port);
+    unipro_attr_peer_write(T_TSTDSTERRORDETECTIONENABLE, 1 /* enable */, test_port);
+
     if (src_from_local) {
         unipro_attr_local_write(T_TSTSRCON, 1 /* enabled */, test_port);
         unipro_attr_peer_write(T_TSTDSTON, 1 /* enabled */, test_port);
@@ -393,8 +408,11 @@ void unipro_p2p_setup_test_connection(unsigned int cport, unsigned int test_port
         peer = default_buffer_space;
     }
 
+    unipro_attr_peer_write(T_LOCALBUFFERSPACE, local, cport);
     unipro_attr_local_write(T_PEERBUFFERSPACE, peer, cport);
-    //unipro_attr_peer_write(T_PEERBUFFERSPACE, local, cport, NULL);
+
+    unipro_attr_local_write(T_LOCALBUFFERSPACE, peer, cport);
+    unipro_attr_peer_write(T_PEERBUFFERSPACE, local, cport);
 
     unipro_attr_local_write(TSB_MAXSEGMENTCONFIG, max_segment, cport);
     unipro_attr_peer_write(TSB_MAXSEGMENTCONFIG, max_segment, cport);
@@ -461,7 +479,7 @@ void unipro_p2p_test_stats(void) {
     printf("\n");
 }
 
-const static struct dbg_entry LAYER_ATTRIBUTES[] = {
+const static struct dbg_entry LAYER1_TX_ATTRIBUTES[] = {
     /*
      * L1 attributes
      */
@@ -511,6 +529,11 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     DBG_ENTRY(MC_LS_TERMINATED_ENABLE),
     DBG_ENTRY(MC_HS_UNTERMINATED_LINE_DRIVE_ENABLE),
     DBG_ENTRY(MC_LS_TERMINATED_LINE_DRIVE_ENABLE),
+
+    { 0, 0 }
+};
+
+const static struct dbg_entry LAYER1_RX_ATTRIBUTES[] = {
     DBG_ENTRY(RX_HSMODE_CAPABILITY),
     DBG_ENTRY(RX_HSGEAR_CAPABILITY),
     DBG_ENTRY(RX_PWMG0_CAPABILITY),
@@ -569,6 +592,10 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     DBG_ENTRY(MC_VENDOR_INFO_PART3),
     DBG_ENTRY(MC_VENDOR_INFO_PART4),
 
+    { 0, 0 }
+};
+
+const static struct dbg_entry LAYER15_ATTRIBUTES[] = {
     /*
      * L1.5 attributes
      */
@@ -634,6 +661,10 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     DBG_ENTRY(PA_PACPERRORCOUNT),
     DBG_ENTRY(PA_PHYTESTCONTROL),
 
+    { 0, 0 }
+};
+
+const static struct dbg_entry LAYER2_ATTRIBUTES[] = {
     /*
      * L2 attributes
      */
@@ -661,6 +692,10 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     DBG_ENTRY(DL_PEERTC1PRESENT),
     DBG_ENTRY(DL_PEERTC1RXINITCREDITVAL),
 
+    { 0, 0 }
+};
+
+const static struct dbg_entry LAYER3_ATTRIBUTES[] = {
     /*
      * L3 attributes
      */
@@ -669,6 +704,10 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     DBG_ENTRY(N_TC0TXMAXSDUSIZE),
     DBG_ENTRY(N_TC1TXMAXSDUSIZE),
 
+    { 0, 0 }
+};
+
+const static struct dbg_entry LAYER4_ATTRIBUTES[] = {
     /*
      * L4 attributes
      */
@@ -676,25 +715,11 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     DBG_ENTRY(T_NUMTESTFEATURES),
     DBG_ENTRY(T_TC0TXMAXSDUSIZE),
     DBG_ENTRY(T_TC1TXMAXSDUSIZE),
-    DBG_ENTRY(T_TSTCPORTID),
-    DBG_ENTRY(T_TSTSRCON),
-    DBG_ENTRY(T_TSTSRCPATTERN),
-    DBG_ENTRY(T_TSTSRCINCREMENT),
-    DBG_ENTRY(T_TSTSRCMESSAGESIZE),
-    DBG_ENTRY(T_TSTSRCMESSAGECOUNT),
-    DBG_ENTRY(T_TSTSRCINTERMESSAGEGAP),
-    DBG_ENTRY(T_TSTDSTON),
-    DBG_ENTRY(T_TSTDSTERRORDETECTIONENABLE),
-    DBG_ENTRY(T_TSTDSTPATTERN),
-    DBG_ENTRY(T_TSTDSTINCREMENT),
-    DBG_ENTRY(T_TSTDSTMESSAGECOUNT),
-    DBG_ENTRY(T_TSTDSTMESSAGEOFFSET),
-    DBG_ENTRY(T_TSTDSTMESSAGESIZE),
-    DBG_ENTRY(T_TSTDSTFCCREDITS),
-    DBG_ENTRY(T_TSTDSTINTERFCTOKENGAP),
-    DBG_ENTRY(T_TSTDSTINITIALFCCREDITS),
-    DBG_ENTRY(T_TSTDSTERRORCODE),
 
+    { 0, 0 }
+};
+
+const static struct dbg_entry DME_ATTRIBUTES[] = {
     /*
      * DME attributes
      */
@@ -704,6 +729,17 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     DBG_ENTRY(DME_DDBL1_MANUFACTURERID),
     DBG_ENTRY(DME_DDBL1_PRODUCTID),
     DBG_ENTRY(DME_DDBL1_LENGTH),
+
+    DBG_ENTRY(DME_DDBL2_VID),
+    DBG_ENTRY(DME_DDBL2_PID),
+    DBG_ENTRY(DME_DDBL2_SERIALNO_L),
+    DBG_ENTRY(DME_DDBL2_SERIALNO_H),
+    DBG_ENTRY(DME_DDBL2_INIT_TYPE),
+    DBG_ENTRY(DME_DDBL2_INIT_STATUS),
+    DBG_ENTRY(DME_DDBL2_ENDPOINTID_H),
+    DBG_ENTRY(DME_DDBL2_ENDPOINTID_L),
+    DBG_ENTRY(DME_DDBL2_SCR),
+
     DBG_ENTRY(DME_FC0PROTECTIONTIMEOUTVAL),
     DBG_ENTRY(DME_TC0REPLAYTIMEOUTVAL),
     DBG_ENTRY(DME_AFC0REQTIMEOUTVAL),
@@ -711,12 +747,14 @@ const static struct dbg_entry LAYER_ATTRIBUTES[] = {
     DBG_ENTRY(DME_TC1REPLAYTIMEOUTVAL),
     DBG_ENTRY(DME_AFC1REQTIMEOUTVAL),
 
+    { 0, 0 }
+};
+
+const static struct dbg_entry TSB_ATTRIBUTES[] = {
     /*
      * TSB attributes
      */
     DBG_ENTRY(TSB_T_REGACCCTRL_TESTONLY),
-    DBG_ENTRY(TSB_DME_DDBL2_A),
-    DBG_ENTRY(TSB_DME_DDBL2_B),
     DBG_ENTRY(TSB_MAILBOX),
     DBG_ENTRY(TSB_DME_LAYERENABLEREQ),
     DBG_ENTRY(TSB_DME_LAYERENABLECNF),
@@ -791,6 +829,30 @@ const static struct dbg_entry CPORT_ATTRIBUTES[] = {
     DBG_ENTRY(T_PEERBUFFERSPACE),
     DBG_ENTRY(T_CREDITSTOSEND),
     DBG_ENTRY(T_CPORTMODE),
+
+    { 0, 0 }
+};
+
+const static struct dbg_entry CPORT_TEST_ATTRIBUTES[] = {
+    DBG_ENTRY(T_TSTCPORTID),
+    DBG_ENTRY(T_TSTSRCON),
+    DBG_ENTRY(T_TSTSRCPATTERN),
+    DBG_ENTRY(T_TSTSRCINCREMENT),
+    DBG_ENTRY(T_TSTSRCMESSAGESIZE),
+    DBG_ENTRY(T_TSTSRCMESSAGECOUNT),
+    DBG_ENTRY(T_TSTSRCINTERMESSAGEGAP),
+    DBG_ENTRY(T_TSTDSTON),
+    DBG_ENTRY(T_TSTDSTERRORDETECTIONENABLE),
+    DBG_ENTRY(T_TSTDSTPATTERN),
+    DBG_ENTRY(T_TSTDSTINCREMENT),
+    DBG_ENTRY(T_TSTDSTMESSAGECOUNT),
+    DBG_ENTRY(T_TSTDSTMESSAGEOFFSET),
+    DBG_ENTRY(T_TSTDSTMESSAGESIZE),
+    DBG_ENTRY(T_TSTDSTFCCREDITS),
+    DBG_ENTRY(T_TSTDSTINTERFCTOKENGAP),
+    DBG_ENTRY(T_TSTDSTINITIALFCCREDITS),
+    DBG_ENTRY(T_TSTDSTERRORCODE),
+
     { 0, 0 }
 };
 
@@ -941,7 +1003,30 @@ const struct dbg_entry CPORT_TX_REGISTERS[] = {
  * debug interfaces
  */
 void unipro_dump_attributes(int peer) {
-    unipro_dump_attribute_array(LAYER_ATTRIBUTES, 0, peer);
+    printf("L1 TX Lane 0\n");
+    unipro_dump_attribute_array(LAYER1_TX_ATTRIBUTES, 0, peer);
+    printf("L1 RX Lane 0\n");
+    unipro_dump_attribute_array(LAYER1_RX_ATTRIBUTES, 4, peer);
+
+    printf("L1.5\n");
+    unipro_dump_attribute_array(LAYER15_ATTRIBUTES, 0, peer);
+    printf("L2\n");
+    unipro_dump_attribute_array(LAYER2_ATTRIBUTES, 0, peer);
+    printf("L3\n");
+    unipro_dump_attribute_array(LAYER3_ATTRIBUTES, 0, peer);
+
+    printf("L4\n");
+    unipro_dump_attribute_array(LAYER4_ATTRIBUTES, 0, peer);
+    printf("L4 Test 0\n");
+    unipro_dump_attribute_array(CPORT_TEST_ATTRIBUTES, 0, peer);
+    printf("L4 Test 1\n");
+    unipro_dump_attribute_array(CPORT_TEST_ATTRIBUTES, 1, peer);
+
+    printf("DME\n");
+    unipro_dump_attribute_array(DME_ATTRIBUTES, 0, peer);
+
+    printf("TSB\n");
+    unipro_dump_attribute_array(TSB_ATTRIBUTES, 0, peer);
 }
 
 void unipro_dump_cport_attributes(size_t start, size_t end, int peer) {
@@ -991,6 +1076,22 @@ void unipro_dump_status(void) {
                 printf("j=%d, attr=0x%x, val=0x%x, rc=%d\n", j, unipro_irq_attr[j], attr_val, rc);
             }
         }
+    }
+
+    {
+        uint32_t mode, pwmgear, hsgear, series, amp;
+        unipro_attr_read(TX_MODE, &mode, 0, 0);
+        unipro_attr_read(TX_PWMGEAR, &pwmgear, 0, 0);
+        unipro_attr_read(TX_HSGEAR, &hsgear, 0, 0);
+        unipro_attr_read(TX_HSRATE_SERIES, &series, 0, 0);
+        unipro_attr_read(TX_AMPLITUDE, &amp, 0, 0);
+        printf("tx: mode=%d, pwm=%d, hs=%d, series=%d, amp=%d\n", mode, pwmgear, hsgear, series, amp);
+
+        unipro_attr_read(RX_MODE, &mode, 4, 0);
+        unipro_attr_read(RX_PWMGEAR, &pwmgear, 4, 0);
+        unipro_attr_read(RX_HSGEAR, &hsgear, 4, 0);
+        unipro_attr_read(RX_HSRATE_SERIES, &series, 4, 0);
+        printf("rx: mode=%d, pwm=%d, hs=%d, series=%d\n", mode, pwmgear, hsgear, series);
     }
 }
 
