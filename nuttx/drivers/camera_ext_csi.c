@@ -80,8 +80,6 @@ static int cam_power_on(struct device *dev)
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
 
-    camera_ext_register_format_db(cam_dev->sensor->sensor_db);
-    camer_ext_register_control_db(&cam_dev->ctrl_db);
     if (cam_dev->status == OFF) {
         //TODO: these gpio configs are changing among boards
         //move these gpio config to board level
@@ -323,6 +321,9 @@ static int csi_cam_dev_open(struct device *dev)
      */
     if (retval == 0)
         retval = camera_ext_tesing_ctrl_init(dev);
+
+    camera_ext_register_format_db(camdev.sensor->sensor_db);
+    camer_ext_register_control_db(&camdev.ctrl_db);
     return retval;
 }
 

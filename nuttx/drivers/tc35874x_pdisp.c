@@ -407,9 +407,6 @@ static int _power_on(struct device *dev)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
 
-    camera_ext_register_format_db(&_db);
-    camera_ext_register_control_db(&_ctrl_db);
-
     if (dev_priv->status == OFF) {
         if (tc35874x_run_command(&bridge_on, NULL) != 0) {
             CAM_ERR("Failed to run bridge_on commands\n");
@@ -583,6 +580,9 @@ static int _dev_open(struct device *dev)
     }
 
     device_driver_set_private(dev, (void*)&s_device);
+
+    camera_ext_register_format_db(&_db);
+    camera_ext_register_control_db(&_ctrl_db);
 
     return 0;
 }
