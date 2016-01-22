@@ -245,8 +245,8 @@ static struct camera_ext_ctrl_item color_correction_transform = {
     .set_ctrl = color_correction_transform_set_ctrl,
 };
 
-static int64_t lens_apertures_items[] = {
-    12, 23, 34, 45, 56, 67, 78,
+static float lens_apertures_items[] = {
+    12.1f, 23.2f, 34.5f, 45.8f, 56.3f, 67.0f, 78.1f,
 };
 
 static int lens_apertures_set_ctrl(struct device *dev,
@@ -260,13 +260,13 @@ static int lens_apertures_set_ctrl(struct device *dev,
 static struct camera_ext_ctrl_item lens_apertures = {
     .cfg = {
         .id = CAM_EXT_CID_LENS_APERTURES,
-        .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_INT
+        .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_FLOAT
                     | CAMERA_EXT_CTRL_FLAG_NEED_DEF
                     | CAMERA_EXT_CTRL_FLAG_NEED_MAX,
         .def = 2,
         .array_size = ARRAY_SIZE(lens_apertures_items),
         .max = ARRAY_SIZE(lens_apertures_items) - 1,
-        .menu_int = lens_apertures_items,
+        .menu_float = lens_apertures_items,
     },
     .val = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
