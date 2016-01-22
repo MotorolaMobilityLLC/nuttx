@@ -31,7 +31,7 @@
 
 config EXAMPLES_BATTERY_STATE
 	bool "Battery temp and level simulator"
-	depends on BATTERY_STATE_SIMULATOR
+	depends on BATTERY_STATE
 	default n
 	---help---
 		Enable the battery_state tool

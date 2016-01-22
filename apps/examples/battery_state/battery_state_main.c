@@ -40,11 +40,8 @@
 #define OPT     1
 #define ARG     2
 
-extern int set_battery_temp(enum batt_temp_e temp);
-extern int set_battery_level(enum batt_level_e level);
-
 /* Rely on the order of the batt_temp_e and batt_level_e enums */
-static const char* t[] = {"normal", "reduced-chg", "no-chg", "no-dischg"};
+static const char* t[] = {"normal", "reduced-chg", "no-chg", "cool-down", "unavailable"};
 static const char* l[] = {"empty", "normal", "full"};
 
 static void print_usage(void)
@@ -61,7 +58,7 @@ static int do_temp(int argc, FAR char *argv[])
 
     for (i = 0; i < ARRAY_SIZE(t); i++)
         if (!strcmp(argv[ARG], t[i]))
-            return set_battery_temp(i);
+            return battery_state_set_temp(i);
 
     return -1;
 }
@@ -72,7 +69,7 @@ static int do_level(int argc, FAR char *argv[])
 
     for (i = 0; i < ARRAY_SIZE(l); i++)
         if (!strcmp(argv[ARG], l[i]))
-            return set_battery_level(i);
+            return battery_state_set_level(i);
 
     return -1;
 }
