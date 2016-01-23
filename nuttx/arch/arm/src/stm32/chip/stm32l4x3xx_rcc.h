@@ -48,7 +48,6 @@
 #define STM32_RCC_CFGR_OFFSET        0x0008  /* Clock configuration register */
 #define STM32_RCC_PLLCFG_OFFSET      0x000c  /* PLL configuration register */
 #define STM32_RCC_PLLSAI1CFGR_OFFSET 0x0010  /* PLLSAI1 configuration register */
-#define STM32_RCC_PLLSAI2CFGR_OFFSET 0x0014  /* PLLSAI2 configuration register */
 #define STM32_RCC_CIER_OFFSET        0x0018  /* Clock interrupt enable register */
 #define STM32_RCC_CIFR_OFFSET        0x001c  /* Clock interrupt flag register */
 #define STM32_RCC_CICR_OFFSET        0x0020  /* Clock interrupt clear register */
@@ -73,6 +72,7 @@
 #define STM32_RCC_CCIPR_OFFSET       0x0088  /* Peripherals independent clock configuration register */
 #define STM32_RCC_BDCR_OFFSET        0x0090  /* Backup domain control register */
 #define STM32_RCC_CSR_OFFSET         0x0094  /* Control/status register */
+#define STM32_RCC_CRRCR_OFFSET       0x0098  /* Clock recovery RC register */
 
 /* Register Addresses *******************************************************************************/
 
@@ -81,7 +81,6 @@
 #define STM32_RCC_CFGR              (STM32_RCC_BASE+STM32_RCC_CFGR_OFFSET)
 #define STM32_RCC_PLLCFG            (STM32_RCC_BASE+STM32_RCC_PLLCFG_OFFSET)
 #define STM32_RCC_PLLSAI1CFGR       (STM32_RCC_BASE+STM32_RCC_PLLSAI1CFGR_OFFSET)
-#define STM32_RCC_PLLSAI2CFGR       (STM32_RCC_BASE+STM32_RCC_PLLSAI2CFGR_OFFSET)
 #define STM32_RCC_CIER              (STM32_RCC_BASE+STM32_RCC_CIER_OFFSET)
 #define STM32_RCC_CIFR              (STM32_RCC_BASE+STM32_RCC_CIFR_OFFSET)
 #define STM32_RCC_CICR              (STM32_RCC_BASE+STM32_RCC_CICR_OFFSET)
@@ -106,6 +105,7 @@
 #define STM32_RCC_CCIPR             (STM32_RCC_BASE+STM32_RCC_CCIPR_OFFSET)
 #define STM32_RCC_BDCR              (STM32_RCC_BASE+STM32_RCC_BDCR_OFFSET)
 #define STM32_RCC_CSR               (STM32_RCC_BASE+STM32_RCC_CSR_OFFSET)
+#define STM32_RCC_CRRCR             (STM32_RCC_BASE+STM32_RCC_CRRCR_OFFSET)
 
 /* Register Bitfield Definitions ********************************************************************/
 
@@ -141,8 +141,6 @@
 #define RCC_CR_PLLRDY               (1 << 25) /* Bit 25: PLL clock ready flag */
 #define RCC_CR_PLLSAI1ON            (1 << 26) /* Bit 26: PLLSAI1 enable */
 #define RCC_CR_PLLSAI1RDY           (1 << 27) /* Bit 27: PLLSAI1 clock ready flag */
-#define RCC_CR_PLLSAI2ON            (1 << 28) /* Bit 28: PLLSAI2 enable */
-#define RCC_CR_PLLSAI2RDY           (1 << 29) /* Bit 29: PLLSAI2 clock ready flag */
 
 /* Internal clock sources calibration register */
 
@@ -230,6 +228,8 @@
 #define RCC_PLLCFG_PLLR_SHIFT       (25)      /* Bits 25-26: Main PLL divider for PLLCLK */
 #define RCC_PLLCFG_PLLR_MASK        (3 << RCC_PLLCFG_PLLR_SHIFT)
 #  define RCC_PLLCFG_PLLR(n)        ((((n)>>1)-1) << RCC_PLLCFG_PLLR_SHIFT) /* n=2,4,6,8 */
+#define RCC_PLLCFG_PLLPDIV_SHIFT    (27)      /* Bits 27-31: Main PLL divider for PLLSAI2CLK */
+#define RCC_PLLCFG_PLLPDIV_MASK     (0x1f << RCC_PLLCFG_PLLPDIV_SHIFT)
 
 #define RCC_PLLCFG_RESET            (0x00001000) /* PLLCFG reset value */
 
@@ -246,8 +246,8 @@
 #define RCC_CIER_HSERDYIE           (1 << 4)  /* Bit 4: HSE Ready Interrupt Enable */
 #define RCC_CIER_PLLRDYIE           (1 << 5)  /* Bit 5: PLL Ready Interrupt Enable */
 #define RCC_CIER_PLLSAI1RDYIE       (1 << 6)  /* Bit 6: PLLSAI1 Ready Interrupt enable */
-#define RCC_CIER_PLLSAI2RDYIE       (1 << 7)  /* Bit 7: PLLSAIS Ready Interrupt enable */
 #define RCC_CIER_LSECSSIE           (1 << 9)  /* Bit 9: LSE clock security system Interrupt enable */
+#define RCC_CIER_HSI48RDYIE         (1 << 10) /* Bit 10: HSI48 ready interrupt enable */
 
 /* Clock interrupt flag register */
 
@@ -258,9 +258,9 @@
 #define RCC_CIFR_HSERDYF            (1 << 4)  /* Bit 4: HSE Ready Interrupt flag */
 #define RCC_CIFR_PLLRDYF            (1 << 5)  /* Bit 5: PLL Ready Interrupt flag */
 #define RCC_CIFR_PLLSAI1RDYF        (1 << 6)  /* Bit 6: PLLSAI1 Ready Interrupt flag */
-#define RCC_CIFR_PLLSAI2RDYF        (1 << 7)  /* Bit 7: PLLSAI2 Ready Interrupt flag */
 #define RCC_CIFR_CSSF               (1 << 8)  /* Bit 8: Clock Security System Interrupt flag */
 #define RCC_CIFR_LSECSSF            (1 << 9)  /* Bit 9: LSE Clock Security System Interrupt flag */
+#define RCC_CIFR_HSI48RDYF          (1 << 10) /* Bit 10: HSI48 ready interrupt flag */
 
 /* Clock interrupt clear register */
 
@@ -271,9 +271,9 @@
 #define RCC_CICR_HSERDYC            (1 << 4)  /* Bit 4: HSE Ready Interrupt clear */
 #define RCC_CICR_PLLRDYC            (1 << 5)  /* Bit 5: PLL Ready Interrupt clear */
 #define RCC_CICR_PLLSAI1RDYC        (1 << 6)  /* Bit 6: PLLSAI1 Ready Interrupt clear */
-#define RCC_CICR_PLLSAI2RDYC        (1 << 7)  /* Bit 7: PLLSAI2 Ready Interrupt clear */
 #define RCC_CICR_CSSC               (1 << 8)  /* Bit 8: Clock Security System Interrupt clear */
 #define RCC_CICR_LSECSSC            (1 << 9)  /* Bit 9: LSE Clock Security System Interrupt clear */
+#define RCC_CICR_HSI48RDYC          (1 << 10) /* Bit 10: HSI48 oscillator ready interrupt clear */
 
 /* AHB1 peripheral reset register */
 
@@ -285,7 +285,6 @@
 #define RCC_AHB2RSTR_GPIODRST      (1 << 3)  /* Bit 3:  IO port D reset */
 #define RCC_AHB2RSTR_GPIOERST      (1 << 4)  /* Bit 4:  IO port E reset */
 #define RCC_AHB2RSTR_GPIOHRST      (1 << 7)  /* Bit 7:  IO port H reset */
-#define RCC_AHB2RSTR_OTGFSRST      (1 << 12) /* Bit 12: USB OTG FS reset */
 #define RCC_AHB2RSTR_ADCRST        (1 << 13) /* Bit 13: ADC reset */
 #define RCC_AHB2RSTR_AESRST        (1 << 16) /* Bit 16: AES hardare accelerator reset */
 #define RCC_AHB2RSTR_RNGRST        (1 << 18) /* Bit 18: Random number generator reset */
@@ -295,9 +294,6 @@
 /* APB1 Peripheral reset register 1 */
 
 #define RCC_APB1RSTR1_TIM2RST       (1 << 0)  /* Bit 0:  TIM2 reset */
-#define RCC_APB1RSTR1_TIM3RST       (1 << 1)  /* Bit 1:  TIM3 reset */
-#define RCC_APB1RSTR1_TIM4RST       (1 << 2)  /* Bit 2:  TIM4 reset */
-#define RCC_APB1RSTR1_TIM5RST       (1 << 3)  /* Bit 3:  TIM5 reset */
 #define RCC_APB1RSTR1_TIM6RST       (1 << 4)  /* Bit 4:  TIM6 reset */
 #define RCC_APB1RSTR1_TIM7RST       (1 << 5)  /* Bit 5:  TIM7 reset */
 #define RCC_APB1RSTR1_LCDRST        (1 << 9)  /* Bit 9:  LCD interface reset */
@@ -305,12 +301,12 @@
 #define RCC_APB1RSTR1_SPI3RST       (1 << 15) /* Bit 15: SPI 3 reset */
 #define RCC_APB1RSTR1_USART2RST     (1 << 17) /* Bit 17: USART 2 reset */
 #define RCC_APB1RSTR1_USART3RST     (1 << 18) /* Bit 18: USART 3 reset */
-#define RCC_APB1RSTR1_UART4RST      (1 << 19) /* Bit 19: USART 4 reset */
-#define RCC_APB1RSTR1_UART5RST      (1 << 20) /* Bit 20: USART 5 reset */
 #define RCC_APB1RSTR1_I2C1RST       (1 << 21) /* Bit 21: I2C1 reset */
 #define RCC_APB1RSTR1_I2C2RST       (1 << 22) /* Bit 22: I2C2 reset */
 #define RCC_APB1RSTR1_I2C3RST       (1 << 23) /* Bit 23: I2C3 reset */
+#define RCC_APB1RSTR1_CRSRST        (1 << 24) /* Bit 24: CRS reset */
 #define RCC_APB1RSTR1_CAN1RST       (1 << 25) /* Bit 25: CAN1 reset */
+#define RCC_APB1RSTR1_USBFSRST      (1 << 26) /* Bit 26: USB FS reset */
 #define RCC_APB1RSTR1_PWRRST        (1 << 28) /* Bit 28: Power interface reset */
 #define RCC_APB1RSTR1_DAC1RST       (1 << 29) /* Bit 29: DAC1 reset */
 #define RCC_APB1RSTR1_OPAMPRST      (1 << 30) /* Bit 30: OPAMP reset */
@@ -338,7 +334,6 @@
 #define RCC_AHB2ENR_GPIODEN         (1 << 3)  /* Bit 3: IO port D clock enable */
 #define RCC_AHB2ENR_GPIOEEN         (1 << 4)  /* Bit 4: IO port E clock enable */
 #define RCC_AHB2ENR_GPIOHEN         (1 << 7)  /* Bit 7: IO port H clock enable */
-#define RCC_AHB2ENR_OTGFSEN         (1 << 12) /* Bit 12: USB OTG FS clock enable */
 #define RCC_AHB2ENR_ADCEN           (1 << 13) /* Bit 13: ADC clock enable */
 #define RCC_AHB2ENR_AESEN           (1 << 16) /* Bit 16: AES accelerator clock enable */
 #define RCC_AHB2ENR_RNGEN           (1 << 18) /* Bit 18: Random number generator clock enable */
@@ -348,23 +343,21 @@
 /* APB1 Peripheral Clock enable register 1 */
 
 #define RCC_APB1ENR1_TIM2EN         (1 << 0)  /* Bit 0:  TIM2 enable */
-#define RCC_APB1ENR1_TIM3EN         (1 << 1)  /* Bit 1:  TIM3 enable */
-#define RCC_APB1ENR1_TIM4EN         (1 << 2)  /* Bit 2:  TIM4 enable */
-#define RCC_APB1ENR1_TIM5EN         (1 << 3)  /* Bit 3:  TIM5 enable */
 #define RCC_APB1ENR1_TIM6EN         (1 << 4)  /* Bit 4:  TIM6 enable */
 #define RCC_APB1ENR1_TIM7EN         (1 << 5)  /* Bit 5:  TIM7 enable */
 #define RCC_APB1ENR1_LCDEN          (1 << 9)  /* Bit 9:  LCD interface enable */
+#define RCC_APB1ENR1_RTCAPBEN       (1 << 10) /* Bit 10: RTC APB enable */
 #define RCC_APB1ENR1_WWDGEN         (1 << 11) /* Bit 11: Window watchdog enable */
 #define RCC_APB1ENR1_SPI2EN         (1 << 14) /* Bit 14: SPI 2 enable */
 #define RCC_APB1ENR1_SPI3EN         (1 << 15) /* Bit 15: SPI 3 enable */
 #define RCC_APB1ENR1_USART2EN       (1 << 17) /* Bit 17: USART 2 enable */
 #define RCC_APB1ENR1_USART3EN       (1 << 18) /* Bit 18: USART 3 enable */
-#define RCC_APB1ENR1_UART4EN        (1 << 19) /* Bit 19: USART 4 enable */
-#define RCC_APB1ENR1_UART5EN        (1 << 20) /* Bit 20: USART 5 enable */
 #define RCC_APB1ENR1_I2C1EN         (1 << 21) /* Bit 21: I2C1 enable */
 #define RCC_APB1ENR1_I2C2EN         (1 << 22) /* Bit 22: I2C2 enable */
 #define RCC_APB1ENR1_I2C3EN         (1 << 23) /* Bit 23: I2C3 enable */
+#define RCC_APB1ENR1_CRSEN          (1 << 24) /* Bit 24: CRS enable */
 #define RCC_APB1ENR1_CAN1EN         (1 << 25) /* Bit 25: CAN1 enable */
+#define RCC_APB1ENR1_USBFSEN        (1 << 26) /* Bit 26: USB FS enable */
 #define RCC_APB1ENR1_PWREN          (1 << 28) /* Bit 28: Power interface enable */
 #define RCC_APB1ENR1_DAC1EN         (1 << 29) /* Bit 29: DAC1 enable */
 #define RCC_APB1ENR1_OPAMPEN        (1 << 30) /* Bit 30: OPAMP enable */
@@ -410,18 +403,6 @@
 #  define RCC_CCIPR_USART3SEL_SYSCLK (1 << RCC_CCIPR_USART3SEL_SHIFT) /* 01: SYSCLK selected as USART3 clock */
 #  define RCC_CCIPR_USART3SEL_HSI    (2 << RCC_CCIPR_USART3SEL_SHIFT) /* 10: HSI clock selected as USART3 clock */
 #  define RCC_CCIPR_USART3SEL_LSE    (3 << RCC_CCIPR_USART3SEL_SHIFT) /* 11: LSE clock selected as USART3 clock */
-#define RCC_CCIPR_UART4SEL_SHIFT     (6)       /* Bits 6-7: UART4 clock source selection */
-#define RCC_CCIPR_UART4SEL_MASK      (3 << RCC_CCIPR_UART4SEL_SHIFT)
-#  define RCC_CCIPR_UART4SEL_PCLK    (0 << RCC_CCIPR_UART4SEL_SHIFT) /* 00: PCLK selected as UART4 clock */
-#  define RCC_CCIPR_UART4SEL_SYSCLK  (1 << RCC_CCIPR_UART4SEL_SHIFT) /* 01: SYSCLK selected as UART4 clock */
-#  define RCC_CCIPR_UART4SEL_HSI     (2 << RCC_CCIPR_UART4SEL_SHIFT) /* 10: HSI clock selected as UART4 clock */
-#  define RCC_CCIPR_UART4SEL_LSE     (3 << RCC_CCIPR_UART4SEL_SHIFT) /* 11: LSE clock selected as UART4 clock */
-#define RCC_CCIPR_UART5SEL_SHIFT     (8)       /* Bits 8-9: UART5 clock source selection */
-#define RCC_CCIPR_UART5SEL_MASK      (3 << RCC_CCIPR_UART5SEL_SHIFT)
-#  define RCC_CCIPR_UART5SEL_PCLK    (0 << RCC_CCIPR_UART5SEL_SHIFT) /* 00: PCLK selected as UART5 clock */
-#  define RCC_CCIPR_UART5SEL_SYSCLK  (1 << RCC_CCIPR_UART5SEL_SHIFT) /* 01: SYSCLK selected as UART5 clock */
-#  define RCC_CCIPR_UART5SEL_HSI     (2 << RCC_CCIPR_UART5SEL_SHIFT) /* 10: HSI clock selected as UART5 clock */
-#  define RCC_CCIPR_UART5SEL_LSE     (3 << RCC_CCIPR_UART5SEL_SHIFT) /* 11: LSE clock selected as UART5 clock */
 #define RCC_CCIPR_ADCSEL_SHIFT       (28)       /* Bits 28-29: ADCs clock source selection */
 #define RCC_CCIPR_ADCSEL_MASK        (3 << RCC_CCIPR_ADCSEL_SHIFT)
 #  define RCC_CCIPR_ADCSEL_NONE      (0 << RCC_CCIPR_ADCSEL_SHIFT) /* 00: No clock selected */
