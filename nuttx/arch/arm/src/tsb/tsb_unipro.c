@@ -253,8 +253,7 @@ static int configure_connected_cport(unsigned int cportid) {
         irqrestore(flags);
 
         /* Start the flow of received data */
-        unipro_write(REG_RX_PAUSE_SIZE_00 + (cportid * sizeof(uint32_t)),
-                     (1 << 31) | CPORT_BUF_SIZE);
+        unipro_unpause_rx(cportid);
         break;
     case CPORT_STATUS_UNCONNECTED:
         ret = -ENOTCONN;
