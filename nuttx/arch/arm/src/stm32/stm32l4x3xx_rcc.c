@@ -93,7 +93,7 @@ static inline void rcc_reset(void)
   /* Reset other clock enable bits */
 
   regval  = getreg32(STM32_RCC_CR);
-  regval &= ~(RCC_CR_HSION|RCC_CR_HSEON|RCC_CR_CSSON|RCC_CR_PLLON|RCC_CR_PLLSAI1ON|RCC_CR_PLLSAI2ON);
+  regval &= ~(RCC_CR_HSION|RCC_CR_HSEON|RCC_CR_CSSON|RCC_CR_PLLON|RCC_CR_PLLSAI1ON);
   putreg32(regval, STM32_RCC_CR);
 
   /* Reset PLLCFGR register to reset default */
@@ -187,12 +187,7 @@ static inline void rcc_enableahb2(void)
   regval |= RCC_AHB2ENR_GPIOHEN;
 #endif
 
-#ifdef CONFIG_STM32_OTGFS
-  /* USB OTG FS clock enable */
-  regval |= RCC_AHB2ENR_OTGFSEN;
-#endif
-
-#if defined(CONFIG_STM32_ADC1) || defined(CONFIG_STM32_ADC2) || defined(CONFIG_STM32_ADC3)
+#if defined(CONFIG_STM32_ADC1)
   /* ADC clock enable */
   regval |= RCC_AHB2ENR_ADCEN;
 #endif
@@ -243,21 +238,6 @@ static inline void rcc_enableapb1_1(void)
   regval |= RCC_APB1ENR1_TIM2EN;
 #endif
 
-#ifdef CONFIG_STM32_TIM3
-  /* TIM3 clock enable */
-  regval |= RCC_APB1ENR1_TIM3EN;
-#endif
-
-#ifdef CONFIG_STM32_TIM4
-  /* TIM4 clock enable */
-  regval |= RCC_APB1ENR1_TIM4EN;
-#endif
-
-#ifdef CONFIG_STM32_TIM5
-  /* TIM5 clock enable */
-  regval |= RCC_APB1ENR1_TIM5EN;
-#endif
-
 #ifdef CONFIG_STM32_TIM6
   /* TIM6 clock enable */
   regval |= RCC_APB1ENR1_TIM6EN;
@@ -293,16 +273,6 @@ static inline void rcc_enableapb1_1(void)
 #ifdef CONFIG_STM32_USART3
   /* USART3 clock enable */
   regval |= RCC_APB1ENR1_USART3EN;
-#endif
-
-#ifdef CONFIG_STM32_UART4
-  /* UART4 clock enable */
-  regval |= RCC_APB1EN1R_UART4EN;
-#endif
-
-#ifdef CONFIG_STM32_UART5
-  /* UART5 clock enable */
-  regval |= RCC_APB1ENR1_UART5EN;
 #endif
 
 #ifdef CONFIG_STM32_I2C1
@@ -457,15 +427,6 @@ static inline void rcc_enableccip(void)
   regval |= RCC_CCIPR_USART3SEL_HSI;
 #endif
 
-#if defined(CONFIG_STM32_UART4) && (STM32_UART4_FREQUENCY == STM32_HSI_FREQUENCY)
-  /* Set UART4 to use HSI clock */
-  regval |= RCC_CCIPR_UART4SEL_HSI;
-#endif
-
-#if defined(CONFIG_STM32_UART5) && (STM32_UART5_FREQUENCY == STM32_HSI_FREQUENCY)
-  /* Set UART5 to use HSI clock */
-  regval |= RCC_CCIPR_UART5SEL_HSI;
-#endif
 #endif /* STM32_BOARD_USEHSI */
 
   putreg32(regval, STM32_RCC_CCIPR);
