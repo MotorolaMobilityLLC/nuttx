@@ -84,6 +84,10 @@ ifeq ($(CONFIG_GREYBUS_USB_HOST_PHY),y)
 CSRCS += usb.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_USB_EXT),y)
+CSRCS += usb-ext.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_PWM_PHY),y)
 CSRCS += pwm-protocol.c
 endif
