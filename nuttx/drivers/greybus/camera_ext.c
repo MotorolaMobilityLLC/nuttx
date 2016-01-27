@@ -973,7 +973,7 @@ static int cam_ext_ctrl_set(struct device *dev,
             retval = ctrl_db->ctrls[idx]->set_ctrl(dev,
                 ctrl_db->ctrls[idx], &local_val);
         else
-            CAM_ERR("failed to get value for control %x\n",
+            CAM_ERR("failed to set value for control %x\n",
                 ctrl_db->ctrls[idx]->cfg.id);
     }
     return retval;

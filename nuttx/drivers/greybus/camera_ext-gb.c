@@ -429,12 +429,12 @@ static uint8_t gb_camera_ext_ctrl_get_cfg(struct gb_operation *operation)
         } else {
             retval = -ENOMEM;
         }
+        CAM_DBG("idx %d, result %d\n", le32_to_cpu(req->idx), retval);
     } else {
         CAM_ERR("invalid request size\n");
         retval = -EINVAL;
     }
 
-    CAM_DBG("result %d\n", retval);
     return gb_operation_errno_map(retval);
 }
 
