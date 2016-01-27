@@ -61,6 +61,7 @@ extern void gb_i2s_direct_tx_register(int cport);
 extern void gb_i2s_direct_rx_register(int cport);
 extern void gb_i2s_direct_mgmt_register(int cport);
 extern void gb_ptp_register(int cport);
+extern void gb_usb_ext_register(int cport);
 
 struct greybus {
     struct list_head cports;
@@ -161,6 +162,13 @@ void enable_cports(void)
         if (protocol == GREYBUS_PROTOCOL_USB) {
             gb_info("Registering USB greybus driver.\n");
             gb_usb_register(id);
+        }
+#endif
+
+#ifdef CONFIG_GREYBUS_USB_EXT
+        if (protocol == GREYBUS_PROTOCOL_USB_EXT) {
+            gb_info("Registering USB-ext greybus driver.\n");
+            gb_usb_ext_register(id);
         }
 #endif
 
