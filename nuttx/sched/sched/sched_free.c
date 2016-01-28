@@ -109,7 +109,7 @@ void sched_ufree(FAR void *address)
 
       /* Signal the worker thread that is has some clean up to do */
 
-#ifdef CONFIG_SCHED_WORKQUEUE
+#ifdef CONFIG_SCHED_LPWORK
       work_signal(LPWORK);
 #endif
       irqrestore(flags);
@@ -148,7 +148,7 @@ void sched_kfree(FAR void *address)
 
       /* Signal the worker thread that is has some clean up to do */
 
-#ifdef CONFIG_SCHED_WORKQUEUE
+#ifdef CONFIG_SCHED_LPWORK
       work_signal(LPWORK);
 #endif
       irqrestore(flags);
