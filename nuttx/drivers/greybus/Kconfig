@@ -73,49 +73,49 @@ config GREYBUS_MODS_AUDIO
 
 if GREYBUS_MODS_AUDIO
 choice
-  prompt "Select a audio dev driver"
+	prompt "Select a audio dev driver"
 config GREYBUS_MODS_AUDIO_TFA9890
-  bool "TFA9890"
+	bool "TFA9890"
 endchoice
 endif
 
 config GREYBUS_TFA9890_I2C_BUS
-    int "TFA9890 I2C Bus Number"
-    default 1
-    depends on GREYBUS_MODS_AUDIO_TFA9890
-    ---help---
-       I2C bus to use to communicate with device (default 1).
+	int "TFA9890 I2C Bus Number"
+	default 1
+	depends on GREYBUS_MODS_AUDIO_TFA9890
+	---help---
+		I2C bus to use to communicate with device (default 1).
 
 if GREYBUS_MODS_AUDIO_TFA9890
 choice
-  prompt "Select a tfa9890 config mono or stereo"
+	prompt "Select a tfa9890 config mono or stereo"
 config GREYBUS_MODS_AUDIO_TFA9890_STEREO
-  bool "STEREO"
+	bool "STEREO"
 config GREYBUS_MODS_AUDIO_TFA9890_MONO
-  bool "MONO"
+	bool "MONO"
 endchoice
 endif
 
 config GREYBUS_TFA9890_LEFT_I2C_ADDR
- int "TFA9890 LEFT I2C ADDR"
-    default 52
-    depends on GREYBUS_MODS_AUDIO_TFA9890_STEREO
-    ---help---
-       I2C addr to use to communicate with device (default 52).
+	int "TFA9890 LEFT I2C ADDR"
+	default 52
+	depends on GREYBUS_MODS_AUDIO_TFA9890_STEREO
+	---help---
+		I2C addr to use to communicate with device (default 52).
 
 config GREYBUS_TFA9890_RIGHT_I2C_ADDR
- int "TFA9890 RIGHT I2C ADDR"
-    default 53
-    depends on GREYBUS_MODS_AUDIO_TFA9890_STEREO
-    ---help---
-       I2C addr to use to communicate with device (default 53).
+	int "TFA9890 RIGHT I2C ADDR"
+	default 53
+	depends on GREYBUS_MODS_AUDIO_TFA9890_STEREO
+	---help---
+		I2C addr to use to communicate with device (default 53).
 
 config GREYBUS_TFA9890_MONO_I2C_ADDR
- int "TFA9890 MONO I2C ADDR"
-    default 52
-    depends on GREYBUS_MODS_AUDIO_TFA9890_MONO
-    ---help---
-       I2C addr to use to communicate with device (default 53).
+	int "TFA9890 MONO I2C ADDR"
+	default 52
+	depends on GREYBUS_MODS_AUDIO_TFA9890_MONO
+	---help---
+		I2C addr to use to communicate with device (default 53).
 
 config GREYBUS_MODS_DISPLAY
 	bool "Display support"
@@ -164,9 +164,9 @@ config GREYBUS_VENDOR
 
 if GREYBUS_VENDOR
 choice
-  prompt "Select a vendor driver"
+	prompt "Select a vendor driver"
 config GREYBUS_VENDOR_MOTO
-  bool "Motorola"
+	bool "Motorola"
 endchoice
 endif
 
@@ -202,39 +202,39 @@ config GREYBUS_PTP
 
 if GREYBUS_PTP
 choice
-  prompt "Select Internal Source Send Power Capabilities"
+	prompt "Select Internal Source Send Power Capabilities"
 config GREYBUS_PTP_INT_SND_NEVER
-  bool "Never sent"
+	bool "Never sent"
 config GREYBUS_PTP_INT_SND_SUPPLEMENTAL
-  bool "Sent with no restrictions"
+	bool "Sent with no restrictions"
 config GREYBUS_PTP_INT_SND_LOW_BATT_SAVER
-  bool "Sent when Handset battery is low"
+	bool "Sent when Handset battery is low"
 endchoice
 
 choice
-  prompt "Select Internal Source Receive Power Capabilities"
+	prompt "Select Internal Source Receive Power Capabilities"
 config GREYBUS_PTP_INT_RCV_NEVER
-  bool "Never received"
+	bool "Never received"
 config GREYBUS_PTP_INT_RCV_FIRST
-  bool "Received before Handset battery"
+	bool "Received before Handset battery"
 config GREYBUS_PTP_INT_RCV_SECOND
-  bool "Received after Handset battery"
+	bool "Received after Handset battery"
 config GREYBUS_PTP_INT_RCV_PARALLEL
-  bool "Received in parallel with Handset battery"
+	bool "Received in parallel with Handset battery"
 endchoice
 
 choice
-  prompt "Select External Power Sources Capabilities"
+	prompt "Select External Power Sources Capabilities"
 config GREYBUS_PTP_EXT_NONE
-  bool "Not supported"
+	bool "Not supported"
 config GREYBUS_PTP_EXT_SUPPORTED
-  bool "Supported"
+	bool "Supported"
 endchoice
 
 config GREYBUS_PTP_INT_RCV_MAX_V
-    int "Maximum possible input voltage in uV"
-    default 5000000
-    depends on !GREYBUS_PTP_INT_RCV_NEVER
+	int "Maximum possible input voltage in uV"
+	default 5000000
+	depends on !GREYBUS_PTP_INT_RCV_NEVER
 endif
 
 menuconfig GREYBUS_MODS
