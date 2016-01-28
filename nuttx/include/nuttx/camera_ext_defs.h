@@ -208,6 +208,20 @@ struct camera_ext_predefined_ctrl_mod_req {
 	uint8_t data[0];
 };
 
+/* max control value size */
+#define CAMERA_EXT_CTRL_MAX_VAL_SIZE (16 * 1024)
+
+/* next available control info (to calc expected gb response size) */
+struct camera_ext_ctrl_size_info {
+	/* id, -1 if no more */
+	__le32 id;
+	/* if next control has menu/dims from MOD, indicating the array
+	 * item number */
+	__le32 array_size;
+	/* next control's value size */
+	__le32 val_size;
+} __packed;
+
 /* ctrl config from MOD, playload is decided by
  * CAMERA_EXT_CTRL_FLAG_NEED_XXX. MOD side must provide all fields
  * each field is tagged by its NEED_XXX flag.
@@ -215,11 +229,7 @@ struct camera_ext_predefined_ctrl_mod_req {
 struct camera_ext_predefined_ctrl_mod_cfg {
 	/* control id at position idx (camera_ext_predefined_ctrl_mod_req) */
 	__le32 id;
-	/* next available id, -1 if no more */
-	__le32 next_id;
-	/* if next control has menu/dims from MOD, indicating the array
-	 * item number */
-	__le32 next_array_size;
+	struct camera_ext_ctrl_size_info next;
 	/* FLAG0 DATA0 FLAG1 DATA1 ... */
 	uint8_t data[0];
 } __packed;

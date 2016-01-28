@@ -117,12 +117,40 @@ struct camera_ext_input_node {
     struct camera_ext_format_node const *format_nodes;
 };
 
+//control value type
+typedef union {
+    uint32_t val;
+    uint64_t val_64;
+    float val_f;
+    double val_d;
+
+    uint8_t *p_val_8; //string type
+    uint32_t *p_val;
+    uint64_t *p_val_64;
+    float *p_val_f;
+    double *p_val_d;
+} camera_ext_ctrl_val_t;
+
+#define CAM_EXT_CTRL_DATA_TYPE_INT    1
+#define CAM_EXT_CTRL_DATA_TYPE_BOOL   2
+#define CAM_EXT_CTRL_DATA_TYPE_INT64  3
+#define CAM_EXT_CTRL_DATA_TYPE_FLOAT  4
+#define CAM_EXT_CTRL_DATA_TYPE_DOUBLE 5
+
+//control value config
+struct camera_ext_ctrl_val_cfg {
+    //if nr_of_elem > 1, value pointer field will be used.
+    uint32_t nr_of_elem; /* if > 1, must init p_val_xxx */
+    uint32_t elem_type;
+};
+
 /*
  * Each supported control will have a MOD side config.
  * Flags are combination of CAMERA_EXT_CTRL_FLAG_NEED_XXX and should be same
  * as predfined controls at phone side. Otherwise it will be rejected by phone.
  * Id and flags are mandatory. Others are optional and indicated by flags.
  */
+struct device;
 struct camera_ext_ctrl_cfg {
     uint32_t id;
     uint32_t flags; /* tell camera_ext how to pack/unpack data */
@@ -134,73 +162,35 @@ struct camera_ext_ctrl_cfg {
         int64_t max;
         float max_f; /* used to validate set_ctrl, mod side only */
     };
-    union {
-        /* pass int/float/douoble to phone for initial value */
-        int64_t def;
-        float def_f;
-        double def_d;
-    };
     uint64_t step;
     uint64_t menu_skip_mask;
     uint32_t array_size; //size of array in below union
     union {
-        uint32_t *dims;
-        int64_t *menu_int;
-        float *menu_float;
+        const uint32_t *dims;
+        const int64_t *menu_int;
+        const float *menu_float;
     };
-};
 
-#define CAM_EXT_CTRL_DATA_TYPE_INT    1
-#define CAM_EXT_CTRL_DATA_TYPE_BOOL   2
-#define CAM_EXT_CTRL_DATA_TYPE_INT64  3
-#define CAM_EXT_CTRL_DATA_TYPE_FLOAT  4
-#define CAM_EXT_CTRL_DATA_TYPE_DOUBLE 5
-
-struct camera_ext_ctrl_val {
-    //if nr_of_elem > 1, pointer field will be used.
-    //elem_size indicates data size in bytes
-    uint32_t nr_of_elem; /* if > 1, must init p_val_xxx */
-    uint32_t elem_type;
-
-    union {
-        uint32_t val;
-        uint64_t val_64;
-        float val_f;
-        double val_d;
-
-        uint8_t *p_val_8; //string type
-        uint32_t *p_val;
-        uint64_t *p_val_64;
-        float *p_val_f;
-        double *p_val_d;
-    };
-};
-
-struct device;
-struct camera_ext_ctrl_item {
-    const struct camera_ext_ctrl_cfg cfg;
-    //phone will call set_ctrl with def value upon attached for none volatile
-    //controls.
-    struct camera_ext_ctrl_val val;
+    struct camera_ext_ctrl_val_cfg val_cfg;
+    const camera_ext_ctrl_val_t def;
 
     //for none volatile contrl, phone only reads its cached value
     //which is init by def and updated by set_ctrl.
     int (*get_volatile_ctrl)(struct device *dev,
-            struct camera_ext_ctrl_item *self,
-            struct camera_ext_ctrl_val *val);
+            const struct camera_ext_ctrl_cfg *self,
+            camera_ext_ctrl_val_t *val);
     int (*set_ctrl)(struct device *dev,
-            struct camera_ext_ctrl_item *self,
-            struct camera_ext_ctrl_val *val);
+            const struct camera_ext_ctrl_cfg *self,
+            const camera_ext_ctrl_val_t *val);
     int (*try_ctrl)(struct device *dev,
-            struct camera_ext_ctrl_item *self,
-            struct camera_ext_ctrl_val *val);
+            const struct camera_ext_ctrl_cfg *self,
+            const camera_ext_ctrl_val_t *val);
 };
 
 //format root node
 struct camera_ext_format_db {
     const int num_inputs;
     struct camera_ext_input_node const *input_nodes;
-
 };
 
 /* Function to register format db to camera_ext framework */
@@ -213,7 +203,7 @@ struct camera_ext_format_user_config *camera_ext_get_user_config(void);
 //control db
 struct camera_ext_ctrl_db {
     uint32_t num_ctrls;
-    struct camera_ext_ctrl_item **ctrls;
+    const struct camera_ext_ctrl_cfg **ctrls;
 };
 
 void camera_ext_register_control_db(struct camera_ext_ctrl_db *ctrl_db);

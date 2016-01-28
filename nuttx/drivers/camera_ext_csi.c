@@ -381,22 +381,22 @@ struct device_driver cam_ext_csi_driver = {
 };
 
 int register_camera_ext_ctrl_db(struct device *dev,
-        const struct camera_ext_ctrl_item **ctrls, size_t num)
+        const struct camera_ext_ctrl_cfg **ctrls, size_t num)
 {
     struct camera_dev_s *cam_dev = (struct camera_dev_s *)
             device_driver_get_private(dev);
 
     cam_dev->ctrl_db.num_ctrls += num;
     cam_dev->ctrl_db.ctrls = realloc(cam_dev->ctrl_db.ctrls,
-        sizeof(struct camera_ext_ctrl_item *) * cam_dev->ctrl_db.num_ctrls);
+        sizeof(struct camera_ext_ctrl_cfg *) * cam_dev->ctrl_db.num_ctrls);
     if (cam_dev->ctrl_db.ctrls == NULL) {
         cam_dev->ctrl_db.num_ctrls = 0;
         CAM_ERR("OOM\n");
         return -ENOMEM;
     }
 
-    struct camera_ext_ctrl_item **tail =
+    const struct camera_ext_ctrl_cfg **tail =
                 &cam_dev->ctrl_db.ctrls[cam_dev->ctrl_db.num_ctrls - num];
-    memcpy(tail, ctrls, sizeof(struct camera_ext_ctrl_item *) * num);
+    memcpy(tail, ctrls, sizeof(struct camera_ext_ctrl_cfg *) * num);
     return 0;
 }

@@ -99,5 +99,5 @@ struct sensor_info *camera_ext_csi_get_board_sensor_info(void);
 
 //any camera related drivers can expose their own controls
 int register_camera_ext_ctrl_db(struct device *dev,
-        const struct camera_ext_ctrl_item **ctrls, size_t num);
+        const struct camera_ext_ctrl_cfg **ctrls, size_t num);
 #endif
