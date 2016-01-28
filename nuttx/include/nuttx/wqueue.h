@@ -240,8 +240,8 @@
    *     used for hi-priority, time-critical, driver bottom-half functions.
    *
    *   LPWORK: This is the ID of the low priority work queue that can be
-   *     used for any purpose.  if CONFIG_SCHED_LPWORK is not defined, then
-   *     there is only one kernel work queue and LPWORK == HPWORK.
+   *     used for any purpose.  Only available when CONFIG_SCHED_LPWORK is
+   *     defined.
    *
    * User Work Queue:
    *   USRWORK:  In the kernel phase a a kernel build, there should be no
@@ -255,7 +255,6 @@
 #    define LPWORK (HPWORK+1)
 #    define NWORKERS 2
 #  else
-#    define LPWORK HPWORK
 #    define NWORKERS 1
 #  endif
 
