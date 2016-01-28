@@ -27,6 +27,8 @@ config BATTERY_MAX17050
 	default n
 	select I2C
 	select I2C_WRITEREAD
+	select SCHED_WORKQUEUE
+	select SCHED_LPWORK
 	depends on BATTERY
 	---help---
 		Select to support the MAX17050 battery fuel gauge IC.
