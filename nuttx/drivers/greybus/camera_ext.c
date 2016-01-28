@@ -37,6 +37,21 @@ struct camera_ext_db {
     struct camera_ext_ctrl_db *ctrl_db;
 };
 
+static size_t get_local_ctrl_val_size(
+        const struct camera_ext_ctrl_val_cfg *val_cfg);
+
+/* packet control value to greybus payload.
+ * val_cfg - control value config
+ * local_val - control value
+ * gb_val - greybus payload
+ * gb_val_size - greybus payload size
+ * is_cfg_pkt - whether pack value to the config
+ */
+static int ctrl_val_local_to_greybus(
+        const struct camera_ext_ctrl_val_cfg *val_cfg,
+        const camera_ext_ctrl_val_t *local_val, uint8_t *gb_val,
+        const uint32_t gb_val_size, int is_cfg_pkt);
+
 /*
  * TODO: Need to support multiple instances of format_cfg below if more than
  *       one camera_ext protocol is configured in a single manifest.
@@ -572,7 +587,8 @@ static inline double camera_ext_ctrl_double_get(camera_ext_ctrl_double *dd)
     return atof(*dd);
 }
 
-static int put_s64(uint8_t **p, uint32_t *size, uint32_t flag, int64_t d)
+static int put_s64(uint8_t **p, uint32_t *size, uint32_t flag,
+    const int64_t d)
 {
     if (*size < sizeof(int64_t) + sizeof(uint32_t))
         return -EINVAL;
@@ -584,8 +600,8 @@ static int put_s64(uint8_t **p, uint32_t *size, uint32_t flag, int64_t d)
     return 0;
 }
 
-static int put_s64s(uint8_t **p, uint32_t *size, uint32_t flag, int64_t *d,
-            size_t d_num)
+static int put_s64s(uint8_t **p, uint32_t *size, uint32_t flag,
+        const int64_t *d, size_t d_num)
 {
     size_t i;
 
@@ -601,7 +617,8 @@ static int put_s64s(uint8_t **p, uint32_t *size, uint32_t flag, int64_t *d,
     return 0;
 }
 
-static int put_u64(uint8_t **p, uint32_t *size, uint32_t flag, uint64_t d)
+static int put_u64(uint8_t **p, uint32_t *size, uint32_t flag,
+        const uint64_t d)
 {
     if (*size < sizeof(uint64_t) + sizeof(uint32_t))
         return -EINVAL;
@@ -614,8 +631,8 @@ static int put_u64(uint8_t **p, uint32_t *size, uint32_t flag, uint64_t d)
     return 0;
 }
 
-static int put_u32s(uint8_t **p, uint32_t *size, uint32_t flag, uint32_t *d,
-            uint32_t d_num)
+static int put_u32s(uint8_t **p, uint32_t *size, uint32_t flag,
+        const uint32_t *d, uint32_t d_num)
 {
     size_t i;
 
@@ -632,36 +649,8 @@ static int put_u32s(uint8_t **p, uint32_t *size, uint32_t flag, uint32_t *d,
     return 0;
 }
 
-static int put_camera_ext_ctrl_float(uint8_t **p, uint32_t *size,
-            uint32_t flag, float d)
-{
-    if (*size < sizeof(uint32_t) + sizeof(camera_ext_ctrl_float))
-        return -EINVAL;
-
-    *(__le32 *)*p = cpu_to_le32(flag);
-    *p += sizeof(uint32_t);
-    camera_ext_ctrl_float_set((camera_ext_ctrl_float *)*p, d);
-    *p += sizeof(camera_ext_ctrl_float);
-    *size -= sizeof(uint32_t) + sizeof(camera_ext_ctrl_float);
-    return 0;
-}
-
-static int put_camera_ext_ctrl_double(uint8_t **p, uint32_t *size,
-            uint32_t flag, double d)
-{
-    if (*size < sizeof(uint32_t) + sizeof(camera_ext_ctrl_double))
-        return -EINVAL;
-
-    *(__le32 *)*p = cpu_to_le32(flag);
-    *p += sizeof(uint32_t);
-    camera_ext_ctrl_double_set((camera_ext_ctrl_double *)*p, d);
-    *p += sizeof(camera_ext_ctrl_double);
-    *size -= sizeof(uint32_t) + sizeof(camera_ext_ctrl_double);
-    return 0;
-}
-
 static int put_camera_ext_ctrl_floats(uint8_t **p, uint32_t *size,
-            uint32_t flag, float *d, uint32_t d_num)
+            uint32_t flag, const float *d, uint32_t d_num)
 {
     size_t i;
 
@@ -678,8 +667,29 @@ static int put_camera_ext_ctrl_floats(uint8_t **p, uint32_t *size,
     return 0;
 }
 
+static int put_def(uint8_t **p, uint32_t *size,
+        const struct camera_ext_ctrl_val_cfg *val_cfg,
+        const camera_ext_ctrl_val_t *def)
+{
+    int retval;
+    size_t val_size;
+
+    val_size = get_local_ctrl_val_size(val_cfg);
+    if (*size < sizeof(uint32_t) + val_size) //flag:val
+        return -EINVAL;
+
+    *(__le32 *)*p = cpu_to_le32(CAMERA_EXT_CTRL_FLAG_NEED_DEF);
+    *p += sizeof(uint32_t);
+    *size -= sizeof(uint32_t);
+
+    retval = ctrl_val_local_to_greybus(val_cfg, def, *p, *size, 1 /*cfg pkt*/);
+    *p += val_size;
+    *size -= val_size;
+
+    return retval;
+}
 static int cfg_local_to_greybus(const struct camera_ext_ctrl_cfg *local,
-            uint8_t *cfg, uint32_t cfg_size, uint32_t val_type)
+            uint8_t *cfg, uint32_t cfg_size)
 {
     int retval = 0;
     if (local->flags & CAMERA_EXT_CTRL_FLAG_NEED_MIN)
@@ -695,15 +705,7 @@ static int cfg_local_to_greybus(const struct camera_ext_ctrl_cfg *local,
                     local->step);
 
     if (!retval && local->flags & CAMERA_EXT_CTRL_FLAG_NEED_DEF) {
-        if (val_type == CAM_EXT_CTRL_DATA_TYPE_FLOAT)
-            retval = put_camera_ext_ctrl_float(&cfg, &cfg_size,
-                        CAMERA_EXT_CTRL_FLAG_NEED_DEF, local->def_f);
-        else if (val_type == CAM_EXT_CTRL_DATA_TYPE_DOUBLE)
-            retval = put_camera_ext_ctrl_double(&cfg, &cfg_size,
-                        CAMERA_EXT_CTRL_FLAG_NEED_DEF, local->def_d);
-        else
-            retval = put_s64(&cfg, &cfg_size, CAMERA_EXT_CTRL_FLAG_NEED_DEF,
-                        local->def);
+        retval = put_def(&cfg, &cfg_size, &local->val_cfg, &local->def);
     }
 
     if (!retval && local->flags & CAMERA_EXT_CTRL_FLAG_NEED_DIMS) {
@@ -745,38 +747,50 @@ static int cfg_local_to_greybus(const struct camera_ext_ctrl_cfg *local,
         }
     }
 
-    if (cfg_size != 0) {
-        CAM_ERR("config data not complete, %d bytes left\n", cfg_size);
+    if (cfg_size != 0 || retval != 0) {
+        CAM_ERR("pack result %d, config data %d bytes left\n",
+            retval, cfg_size);
         retval = -EINVAL;
     }
 
     return retval;
 }
 
+/* let the phone side know how to calculate the next GET_CFG response size */
+static void cam_ext_ctrl_get_size_info(struct camera_ext_ctrl_db *ctrl_db,
+    int idx, struct camera_ext_predefined_ctrl_mod_cfg *cfg)
+{
+    if (ctrl_db == NULL || idx >= ctrl_db->num_ctrls) {
+        /* no more next */
+        cfg->next.id = (uint32_t) -1;
+    } else {
+        cfg->next.id = cpu_to_le32(ctrl_db->ctrls[idx]->id);
+        cfg->next.array_size = cpu_to_le32(
+            ctrl_db->ctrls[idx]->array_size);
+        cfg->next.val_size = cpu_to_le32((uint32_t)
+            get_local_ctrl_val_size(&ctrl_db->ctrls[idx]->val_cfg));
+    }
+}
+
 int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db,
         uint32_t idx, struct camera_ext_predefined_ctrl_mod_cfg *cfg,
         uint32_t cfg_size)
 {
-    int retval;
+    int retval = 0;
 
-    cfg->next_array_size = 0;
-    if (idx == (uint32_t) -1) {
+    cfg->next.array_size = 0;
+    if (idx == (uint32_t) -1) { /* enumeration start */
         cfg->id = (uint32_t) -1;
-        if (ctrl_db->num_ctrls > 0)
-            cfg->next_id = cpu_to_le32(ctrl_db->ctrls[0]->cfg.id);
-        else
-            cfg->next_id = (uint32_t) -1;
-        retval = 0;
+        cam_ext_ctrl_get_size_info(ctrl_db, 0, cfg);
     } else if (idx < ctrl_db->num_ctrls) {
-        cfg->id = cpu_to_le32(ctrl_db->ctrls[idx]->cfg.id);
-        retval = cfg_local_to_greybus(&ctrl_db->ctrls[idx]->cfg,
-                cfg->data, cfg_size, ctrl_db->ctrls[idx]->val.elem_type);
-        if (idx < ctrl_db->num_ctrls - 1) {
-            cfg->next_id = cpu_to_le32(ctrl_db->ctrls[idx + 1]->cfg.id);
-            /* let the phone side know how to calculate the greybus packet size */
-            cfg->next_array_size = cpu_to_le32(ctrl_db->ctrls[idx + 1]->cfg.array_size);
-        } else {
-            cfg->next_id = (uint32_t) -1;
+        //pack this control's config
+        cfg->id = cpu_to_le32(ctrl_db->ctrls[idx]->id);
+        retval = cfg_local_to_greybus(ctrl_db->ctrls[idx],
+                cfg->data, cfg_size);
+
+        if (retval == 0) {
+            //fill next control size info
+            cam_ext_ctrl_get_size_info(ctrl_db, idx + 1, cfg);
         }
     } else
         retval = -EINVAL;
@@ -789,16 +803,18 @@ int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db,
     return retval;
 }
 
-static size_t get_local_ctrl_val_size(struct camera_ext_ctrl_val *val)
+/* packet size to transfer this value over greybus */
+static size_t get_local_ctrl_val_size(
+        const struct camera_ext_ctrl_val_cfg *val_cfg)
 {
     size_t elem_size;
-    switch (val->elem_type) {
+    switch (val_cfg->elem_type) {
     case CAM_EXT_CTRL_DATA_TYPE_INT:
     case CAM_EXT_CTRL_DATA_TYPE_BOOL:
-        elem_size = 4;
+        elem_size = sizeof(uint32_t);
         break;
     case CAM_EXT_CTRL_DATA_TYPE_INT64:
-        elem_size = 8;
+        elem_size = sizeof(uint64_t);
         break;
     case CAM_EXT_CTRL_DATA_TYPE_FLOAT:
         elem_size = sizeof(camera_ext_ctrl_float);
@@ -807,52 +823,59 @@ static size_t get_local_ctrl_val_size(struct camera_ext_ctrl_val *val)
         elem_size = sizeof(camera_ext_ctrl_double);
         break;
     default:
-        CAM_ERR("unsupported val type %d\n", val->elem_type);
+        CAM_ERR("unsupported val type %d\n", val_cfg->elem_type);
         elem_size = 0;
         break;
     }
 
-    return elem_size * val->nr_of_elem;
+    return elem_size * val_cfg->nr_of_elem;
 }
 
-static int ctrl_val_local_to_greybus(struct camera_ext_ctrl_val *local_val,
-                uint8_t *gb_val, uint32_t gb_val_size)
+static int ctrl_val_local_to_greybus(
+        const struct camera_ext_ctrl_val_cfg *val_cfg,
+        const camera_ext_ctrl_val_t *local_val, uint8_t *gb_val,
+        const uint32_t gb_val_size, int is_cfg_pkt)
 {
-    size_t local_val_size = get_local_ctrl_val_size(local_val);
+    size_t local_val_size = get_local_ctrl_val_size(val_cfg);
 
-    if (gb_val_size != local_val_size) {
+    if (is_cfg_pkt && gb_val_size < local_val_size) {
+        /* get config process will check if the total packet size matches */
+        CAM_ERR("not enough space, require %ld, provide %ld\n",
+            gb_val_size, local_val_size);
+    } else if (!is_cfg_pkt && gb_val_size != local_val_size) {
         CAM_ERR("control value mismatch, require %ld, provide %ld\n",
             gb_val_size, local_val_size);
         return -EINVAL;
     }
 
     size_t i;
-    int is_array = local_val->nr_of_elem > 1;
+    int is_array = val_cfg->nr_of_elem > 1;
 
-    for (i = 0; i< local_val->nr_of_elem; i++) {
-        switch (local_val->elem_type) {
+    for (i = 0; i< val_cfg->nr_of_elem; i++) {
+        switch (val_cfg->elem_type) {
         case CAM_EXT_CTRL_DATA_TYPE_INT:
+        case CAM_EXT_CTRL_DATA_TYPE_BOOL:
             *(__le32 *)gb_val = cpu_to_le32(
-                    is_array? *local_val->p_val++ : local_val->val);
+                    is_array? local_val->p_val[i] : local_val->val);
             gb_val += sizeof(__le32);
             break;
         case CAM_EXT_CTRL_DATA_TYPE_INT64:
-            *(__le64 *)local_val = cpu_to_le64(
-                is_array? *local_val->p_val_64++ : local_val->val_64);
+            *(__le64 *)gb_val = cpu_to_le64(
+                is_array? local_val->p_val_64[i] : local_val->val_64);
             gb_val += sizeof(__le64);
             break;
         case CAM_EXT_CTRL_DATA_TYPE_FLOAT:
             camera_ext_ctrl_float_set((camera_ext_ctrl_float *)gb_val,
-                is_array? *local_val->p_val_f++ : local_val->val_f);
+                is_array? local_val->p_val_f[i] : local_val->val_f);
             gb_val += sizeof(camera_ext_ctrl_float);
             break;
         case CAM_EXT_CTRL_DATA_TYPE_DOUBLE:
             camera_ext_ctrl_double_set((camera_ext_ctrl_double *)gb_val,
-                is_array? *local_val->p_val_d++ : local_val->val_d);
+                is_array? local_val->p_val_d[i] : local_val->val_d);
             gb_val += sizeof(camera_ext_ctrl_double);
             break;
         default:
-            CAM_ERR("unsupported val type %d\n", local_val->elem_type);
+            CAM_ERR("unsupported val type %d\n", val_cfg->elem_type);
             return -EINVAL;
         }
     }
@@ -864,21 +887,16 @@ static int cam_ext_ctrl_get(struct device *dev,
         uint32_t ctrl_val_size)
 {
     int retval = -EINVAL;
-    struct camera_ext_ctrl_val local_val;
+    camera_ext_ctrl_val_t local_val;
     if (idx >= ctrl_db->num_ctrls) return -EINVAL;
 
-    /* note we can not read ctrls[idx]->val directly. need driver to decide
-     * if it's valid */
     if (ctrl_db->ctrls[idx]->get_volatile_ctrl != NULL) {
         retval = ctrl_db->ctrls[idx]->get_volatile_ctrl(dev,
             ctrl_db->ctrls[idx], &local_val);
 
-        local_val.elem_type = ctrl_db->ctrls[idx]->val.elem_type;
-        local_val.nr_of_elem = ctrl_db->ctrls[idx]->val.nr_of_elem;
-        if (retval == 0) {
-            retval = ctrl_val_local_to_greybus(&local_val, ctrl_val,
-                        ctrl_val_size);
-        }
+        if (retval == 0)
+            retval = ctrl_val_local_to_greybus(&ctrl_db->ctrls[idx]->val_cfg,
+                        &local_val, ctrl_val, ctrl_val_size, 0 /*not cfg pkt*/);
     }
     return retval;
 }
@@ -889,16 +907,17 @@ static int cam_ext_ctrl_get(struct device *dev,
  * local_val: to driver (elem_type and nr_of_elem are set)
  */
 static int ctrl_val_greybus_to_local(uint8_t *ctrl_val, size_t ctrl_val_size,
-            struct camera_ext_ctrl_val *local_val)
+            const struct camera_ext_ctrl_val_cfg *val_cfg,
+            camera_ext_ctrl_val_t *local_val)
 {
-    size_t local_val_size = get_local_ctrl_val_size(local_val);
+    size_t local_val_size = get_local_ctrl_val_size(val_cfg);
     if (local_val_size != ctrl_val_size) {
         CAM_ERR("ctrl value from greybus has unexpected size %lu  "
             "expected %lu\n", ctrl_val_size, local_val_size);
         return -EINVAL;
     }
 
-    int is_array = local_val->nr_of_elem > 1;
+    int is_array = val_cfg->nr_of_elem > 1;
     size_t i;
     /* in-place data conversion for array. If the source and target data
      * has same length, p will be used to point to both.
@@ -909,8 +928,8 @@ static int ctrl_val_greybus_to_local(uint8_t *ctrl_val, size_t ctrl_val_size,
     float *f = (float *)ctrl_val;
     double *d = (double *)ctrl_val;
 
-    for (i = 0; i < local_val->nr_of_elem; i++) {
-    switch (local_val->elem_type) {
+    for (i = 0; i < val_cfg->nr_of_elem; i++) {
+    switch (val_cfg->elem_type) {
         case CAM_EXT_CTRL_DATA_TYPE_INT:
         case CAM_EXT_CTRL_DATA_TYPE_BOOL:
             if (is_array) {
@@ -947,7 +966,7 @@ static int ctrl_val_greybus_to_local(uint8_t *ctrl_val, size_t ctrl_val_size,
                     (camera_ext_ctrl_double *)p);
             break;
         default:
-            CAM_ERR("unsupported data type %d\n", local_val->elem_type);
+            CAM_ERR("unsupported data type %d\n", val_cfg->elem_type);
             return -EINVAL;
         }
     }
@@ -963,18 +982,16 @@ static int cam_ext_ctrl_set(struct device *dev,
 
     int retval = -EINVAL;
     if (ctrl_db->ctrls[idx]->set_ctrl != NULL) {
-        struct camera_ext_ctrl_val local_val;
+        camera_ext_ctrl_val_t local_val;
         //convert to local struct camera_ext_ctrl_val
-        local_val.nr_of_elem = ctrl_db->ctrls[idx]->val.nr_of_elem;
-        local_val.elem_type = ctrl_db->ctrls[idx]->val.elem_type;
         retval = ctrl_val_greybus_to_local(ctrl_val, ctrl_val_size,
-                    &local_val);
+                    &ctrl_db->ctrls[idx]->val_cfg, &local_val);
         if (retval == 0)
             retval = ctrl_db->ctrls[idx]->set_ctrl(dev,
                 ctrl_db->ctrls[idx], &local_val);
         else
             CAM_ERR("failed to set value for control %x\n",
-                ctrl_db->ctrls[idx]->cfg.id);
+                ctrl_db->ctrls[idx]->id);
     }
     return retval;
 }
@@ -987,12 +1004,10 @@ static int cam_ext_ctrl_try(struct device *dev,
 
     int retval = -EINVAL;
     if (ctrl_db->ctrls[idx]->try_ctrl != NULL) {
-        struct camera_ext_ctrl_val local_val;
+        camera_ext_ctrl_val_t local_val;
         //convert to local struct camera_ext_ctrl_val
-        local_val.nr_of_elem = ctrl_db->ctrls[idx]->val.nr_of_elem;
-        local_val.elem_type = ctrl_db->ctrls[idx]->val.elem_type;
         retval = ctrl_val_greybus_to_local(ctrl_val, ctrl_val_size,
-                    &local_val);
+                    &ctrl_db->ctrls[idx]->val_cfg, &local_val);
         if (retval == 0)
             retval = ctrl_db->ctrls[idx]->try_ctrl(dev,
                 ctrl_db->ctrls[idx], &local_val);
