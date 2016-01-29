@@ -34,6 +34,7 @@
 #include <arch/byteorder.h>
 #include <nuttx/device.h>
 #include <nuttx/greybus/types.h>
+#include <nuttx/device_cam_ext.h>
 #include <nuttx/camera_ext_defs.h>
 
 #define DEBUG
@@ -295,5 +296,11 @@ int camera_ext_ctrl_try(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
 /* Functions to for v4l2 controls */
 int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
     struct camera_ext_predefined_ctrl_mod_cfg *cfg, uint32_t cfg_size);
+
+/* Common event functions for driver to pick up */
+int camera_ext_register_event_cb(struct device *dev, camera_ext_event_cb_t cb);
+
+/* Send event to AP */
+int camera_ext_event_error_send(struct device *dev, int code, const char *desc);
 
 #endif

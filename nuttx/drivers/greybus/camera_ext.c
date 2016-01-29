@@ -58,6 +58,28 @@ static int ctrl_val_local_to_greybus(
 */
 static struct camera_ext_db g_camera_ext_db;
 
+camera_ext_event_cb_t s_event_cb;
+
+int camera_ext_register_event_cb(struct device *dev, camera_ext_event_cb_t cb)
+{
+    s_event_cb = cb;
+    return 0;
+}
+
+int camera_ext_event_error_send(struct device *dev, int code, const char *desc)
+{
+    struct camera_ext_event_error error;
+    if (s_event_cb != NULL) {
+        error.code = cpu_to_le32(code);
+        strncpy(error.desc, desc, CAMERA_EXT_EVENT_ERROR_DESC_LEN);
+        error.desc[CAMERA_EXT_EVENT_ERROR_DESC_LEN - 1] = 0;
+        return s_event_cb(dev, CAMERA_EXT_EV_ERROR, (uint8_t *)&error, sizeof(error));
+    } else {
+        CAM_ERR("event callback not exists\n");
+        return -EINVAL;
+    }
+}
+
 void camera_ext_register_format_db(const struct camera_ext_format_db *db)
 {
     if (db == NULL)
