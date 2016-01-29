@@ -29,7 +29,7 @@
 #include <errno.h>
 #include <debug.h>
 #include <stdlib.h>
-
+#include <string.h>
 #include <arch/byteorder.h>
 #include <apps/ice/cdsi.h>
 #include <nuttx/device_cam_ext.h>
@@ -79,14 +79,16 @@
 #define GB_CAMERA_EXT_TYPE_CTRL_SET     0x12
 #define GB_CAMERA_EXT_TYPE_CTRL_TRY     0x13
 
+#define GB_CAMERA_EXT_EVENT             0x14
 struct gb_proto_version_response {
     uint8_t major;
     uint8_t minor;
 };
 
 struct gb_camera_ext_info {
-    char          *dev_type;
+    unsigned int cport;
     struct device *dev;
+    char          *dev_type;
 };
 
 static struct gb_camera_ext_info dev_info = {
@@ -120,19 +122,67 @@ static uint8_t gb_operation_errno_map(int code)
     }
 }
 
+/* Callback by camera_ext device driver to send event to AP */
+static int gb_camera_ext_event_send(struct device *dev, uint32_t ev_type,
+            uint8_t *data, size_t data_size)
+{
+    struct camera_ext_event_hdr *event;
+    struct gb_operation *operation;
+    int ret;
+
+    operation = gb_operation_create(dev_info.cport, GB_CAMERA_EXT_EVENT,
+                    sizeof(*event) + data_size);
+    if (!operation)
+        return -ENOMEM;
+
+    event = gb_operation_get_request_payload(operation);
+    if (!event) {
+        CAM_ERR("failed to get payload for event\n");
+        gb_operation_destroy(operation);
+        return -EIO;
+    }
+
+    event->type = cpu_to_le32(ev_type);
+    memcpy(event->data, data, data_size);
+
+    ret = gb_operation_send_request(operation, NULL, false);
+    gb_operation_destroy(operation);
+
+    if (ret != 0) {
+        CAM_ERR("failed to send request, result %d\n", ret);
+        return -EIO;
+    }
+
+    return 0;
+}
+
 static int gb_camera_ext_init(unsigned int cport)
 {
+    int ret;
+
     CAM_DBG("init camera device\n");
     if (dev_info.dev != NULL) {
         CAM_DBG("device not closed in last session\n");
         device_close(dev_info.dev);
     }
+
     dev_info.dev = device_open(dev_info.dev_type, CAMERA_EXT_DEVICE_ID);
     if (!dev_info.dev) {
         CAM_ERR("failed to open camera device\n");
         return -EIO;
     }
-    return 0;
+
+    dev_info.cport = cport;
+    ret = CALL_CAM_DEV_OP(dev_info.dev, register_event_cb,
+            gb_camera_ext_event_send);
+
+    if (ret != 0) {
+        CAM_ERR("failed to register event callback\n");
+        device_close(dev_info.dev);
+        dev_info.dev = NULL;
+    }
+
+    return ret;
 }
 
 static void gb_camera_ext_exit(unsigned int cport)

@@ -38,6 +38,9 @@
 
 #define DEVICE_TYPE_CAMERA_EXT_HW "camera_ext_dev"
 
+typedef int (*camera_ext_event_cb_t)(struct device *dev, uint32_t ev_type,
+                uint8_t *data, size_t data_size);
+
 #define DEV_INVOKE_OPS(dev, op, ...) \
     do { \
         DEVICE_DRIVER_ASSERT_OPS(dev); \
@@ -76,6 +79,8 @@
     dev == NULL? -ENODEV : device_camera_ext_##op(dev, ##__VA_ARGS__)
 
 struct device_camera_ext_dev_type_ops {
+    int (*register_event_cb)(struct device *dev, camera_ext_event_cb_t cb);
+
     int (*power_on)(struct device *dev);
     int (*power_off)(struct device *dev);
     int (*stream_on)(struct device *dev);
@@ -111,6 +116,8 @@ struct device_camera_ext_dev_type_ops {
     int (*ctrl_try)(struct device *dev, uint32_t idx,
             uint8_t *ctrl_val, uint32_t ctrl_val_size);
 };
+
+IMPL_CAMERA_EXT_DEV_OP_ARG1(register_event_cb, camera_ext_event_cb_t, cb)
 
 IMPL_CAMERA_EXT_DEV_OP_ARG0(power_on)
 IMPL_CAMERA_EXT_DEV_OP_ARG0(power_off)
