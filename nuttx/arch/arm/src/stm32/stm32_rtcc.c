@@ -42,10 +42,12 @@
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
 #include <nuttx/rtc.h>
+#include <nuttx/time.h>
 
 #include <time.h>
 #include <errno.h>
 #include <debug.h>
+#include <stdlib.h>
 
 #include <arch/board/board.h>
 
@@ -85,7 +87,22 @@
 
 #define SYNCHRO_TIMEOUT  (0x00020000)
 #define INITMODE_TIMEOUT (0x00010000)
-#define RTC_MAGIC        (0xfacefeed)
+#define RTC_MAGIC        (0xca11ab1e)
+
+#define RTC_CALM_MIN     (0x000)
+#define RTC_CALM_MAX     (0x1ff)
+
+#ifndef CONFIG_RTC_ADJ_MIN_USEC
+#  define CONFIG_RTC_ADJ_MIN_USEC (USEC_PER_MSEC)
+#endif
+
+#ifndef CONFIG_RTC_ADJ_MAX_USEC
+#  define CONFIG_RTC_ADJ_MAX_USEC (USEC_PER_SEC * 2)
+#endif
+
+#if CONFIG_RTC_ADJ_MIN_USEC >= CONFIG_RTC_ADJ_MAX_USEC
+#  error "Must have CONFIG_RTC_ADJ_MIN_USEC < CONFIG_RTC_ADJ_MAX_USEC"
+#endif
 
 #ifdef CONFIG_RTC_LSECLOCK
 #  define RTC_SRC_FREQ   (STM32_LSE_FREQUENCY)
@@ -100,10 +117,12 @@
 #    error "CONFIG_RTC_FREQUENCY is not supported"
 #  endif
 #  define RTC_PREDIV_A   (0x00)
-#  define RTC_PREDIV_S   (CONFIG_RTC_FREQUENCY - 1)
+#  define RTC_PREDIV_S   (CONFIG_RTC_FREQUENCY - 1 - 8)
+#  define RTC_CALM       (0x100)
 #else
 #  define RTC_PREDIV_A   (0x7f)
 #  define RTC_PREDIV_S   ((RTC_SRC_FREQ / (RTC_PREDIV_A + 1)) - 1)
+#  define RTC_CALM       (0x000)
 #endif
 
 /* Proxy definitions to make the same code work for all the STM32 series ************/
@@ -525,12 +544,16 @@ static int rtc_setup(void)
           putreg32(regval, STM32_RTC_CR);
 
           /* Configure RTC pre-scaler to the required, default values for
-           * use with the 32.768 KHz LSE clock:
+           * use with the RTC input clock:
            */
 
           putreg32(((uint32_t)RTC_PREDIV_S << RTC_PRER_PREDIV_S_SHIFT) |
                    ((uint32_t)RTC_PREDIV_A << RTC_PRER_PREDIV_A_SHIFT),
                    STM32_RTC_PRER);
+
+          /* Set the default calibration minus configuration */
+
+          modifyreg32(STM32_RTC_CALR, RTC_CALR_CALM_MASK, RTC_CALM);
 
           /* Exit RTC initialization mode */
 
@@ -998,8 +1021,12 @@ int up_rtc_settime(FAR const struct timespec *tp)
   uint32_t tr;
   uint32_t dr;
   int ret;
+#ifdef CONFIG_RTC_HIRES
+  FAR struct timespec oldtime;
+  int delta = 0;
+#endif
 
-  /* Break out the time values (not that the time is set only to units of seconds) */
+  /* Break out the time values (note that the time is set only to units of seconds) */
 
   (void)gmtime_r(&tp->tv_sec, &newtime);
 
@@ -1041,6 +1068,51 @@ int up_rtc_settime(FAR const struct timespec *tp)
   /* Disable the write protection for RTC registers */
 
   rtc_wprunlock();
+
+#ifdef CONFIG_RTC_HIRES
+
+  /* Calculate how far the RTC will be adjusted */
+
+  ret = up_rtc_gettime(&oldtime);
+  if (ret == OK)
+    {
+      useconds_t oldusec;
+      useconds_t newusec;
+
+      oldusec = timespec_to_usec(&oldtime);
+      newusec = timespec_to_usec(tp);
+      delta = newusec - oldusec;
+
+      /* Only adjust clock rate if slightly off. If the adjustment is major,
+       * assume the time has actually changed instead of drifted.
+       */
+
+      if ((abs(delta) > CONFIG_RTC_ADJ_MIN_USEC) &&
+          (abs(delta) < CONFIG_RTC_ADJ_MAX_USEC))
+        {
+          uint32_t calr;
+          uint16_t calm;
+
+          calr = getreg32(STM32_RTC_CALR);
+          calm = calr & RTC_CALR_CALM_MASK;
+          if ((oldusec < newusec) && (calm > RTC_CALM_MIN))
+            {
+              /* Speed up clock by reducing substracted pulses */
+              calm--;
+            }
+          else if ((oldusec > newusec) && (calm < RTC_CALM_MAX))
+            {
+              /* Slow down clock by increasing substracted pulses */
+              calm++;
+            }
+
+          calr &= ~RTC_CALR_CALM_MASK;
+          calr |= calm;
+          putreg32(calr, STM32_RTC_CALR);
+        }
+    }
+
+#endif
 
   /* Set Initialization mode */
 
@@ -1084,6 +1156,11 @@ int up_rtc_settime(FAR const struct timespec *tp)
 
   rtc_wprlock();
   rtc_dumpregs("New time setting");
+
+#ifdef CONFIG_RTC_HIRES
+  rtcllvdbg("Adjusted RTC by %d usec\n", delta);
+#endif
+
   return ret;
 }
 

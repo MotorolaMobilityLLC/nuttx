@@ -3385,6 +3385,24 @@ config RTC_HSECLOCK
 
 endchoice
 
+config RTC_ADJ_MIN_USEC
+	int "Minimum time delta for RTC calibration"
+	default 1000
+	depends on RTC_HIRES
+	---help---
+		The minimum time delta (in microseconds) required between the old and
+		new RTC time before the RTC calibration is adjusted.  Default: 1000
+
+config RTC_ADJ_MAX_USEC
+	int "Maximum time delta for RTC calibration"
+	default 2000000
+	depends on RTC_HIRES
+	---help---
+		The maximum time delta (in microseconds) allowed between the old and
+		new RTC time for RTC calibration. If the time change is larger than
+		this delta, assume the time has actually changed instead of drifted.
+		Default: 2000000
+
 endmenu
 
 if STM32_ETHMAC
