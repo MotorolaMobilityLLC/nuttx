@@ -34,6 +34,7 @@
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/util.h>
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include "ptp-gb.h"
@@ -44,6 +45,7 @@
 struct gb_ptp_info {
     unsigned int cport;
     struct device *dev;
+    bool connected;
 };
 
 static struct gb_ptp_info *ptp_info = NULL;
@@ -176,6 +178,10 @@ static int gb_ptp_ext_power_changed(void)
     struct gb_operation *operation;
     int ret;
 
+    /* Do not notify core until connected */
+    if (!ptp_info->connected)
+        return 0;
+
     operation = gb_operation_create(ptp_info->cport,
                                     GB_PTP_TYPE_EXT_POWER_CHANGED, 0);
     if (!operation) {
@@ -217,6 +223,10 @@ static int gb_ptp_power_required_changed(void)
     struct gb_operation *operation;
     int ret;
 
+   /* Do not notify core until connected */
+    if (!ptp_info->connected)
+        return 0;
+
     operation = gb_operation_create(ptp_info->cport,
                                     GB_PTP_TYPE_POWER_REQUIRED_CHANGED, 0);
     if (!operation) {
@@ -233,6 +243,16 @@ static int gb_ptp_power_required_changed(void)
     return ret;
 }
 #endif
+
+static void gb_ptp_connected(unsigned int cport)
+{
+    ptp_info->connected = true;
+}
+
+static void gb_ptp_disconnected(unsigned int cport)
+{
+    ptp_info->connected = false;
+}
 
 static int gb_ptp_init(unsigned int cport)
 {
@@ -300,6 +320,8 @@ static struct gb_operation_handler gb_ptp_handlers[] = {
 static struct gb_driver gb_ptp_driver = {
     .init = gb_ptp_init,
     .exit = gb_ptp_exit,
+    .connected = gb_ptp_connected,
+    .disconnected = gb_ptp_disconnected,
     .op_handlers = gb_ptp_handlers,
     .op_handlers_count = ARRAY_SIZE(gb_ptp_handlers),
 };
