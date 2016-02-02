@@ -300,7 +300,13 @@ bool unipro_p2p_is_link_up(void) {
 void unipro_p2p_setup(void) {
     /* Layer 1.5 attributes */
     unipro_attr_local_write(PA_TXTERMINATION, 1, 0 /* selector */);
+    unipro_attr_peer_write(PA_TXTERMINATION, 1, 0 /* selector */);
+
     unipro_attr_local_write(PA_RXTERMINATION, 1, 0 /* selector */);
+    unipro_attr_peer_write(PA_RXTERMINATION, 1, 0 /* selector */);
+
+    unipro_attr_local_write(PA_SCRAMBLING, 1, 0 /* selector */);
+    unipro_attr_peer_write(PA_SCRAMBLING, 1, 0 /* selector */);
 
     /* Layer 3 attributes */
     unipro_attr_local_write(N_DEVICEID, CONFIG_UNIPRO_LOCAL_DEVICEID, 0 /* selector */);
