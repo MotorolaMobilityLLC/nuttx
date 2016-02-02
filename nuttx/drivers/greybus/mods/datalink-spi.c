@@ -309,9 +309,6 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       /* Reset GPIOs to initial state */
       mods_host_int_set(false);
       mods_rfr_set(0);
-#ifdef GPIO_MODS_CC_EN
-      gpio_set_value(GPIO_MODS_CC_EN, 0);
-#endif
 
       if (atomic_get(&priv->xfer))
         {
@@ -331,13 +328,6 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       /* Return packet size back to default */
       (void)set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
     }
-#ifdef GPIO_MODS_CC_EN
-  else
-    {
-      /* Required to communicate with the base */
-      gpio_set_value(GPIO_MODS_CC_EN, 1);
-    }
-#endif
 
   priv->bstate = state;
 
@@ -616,7 +606,7 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
   set_gpio_triggering(GPIO_MODS_WAKE_N, IRQ_TYPE_EDGE_FALLING);
 
 #ifdef GPIO_MODS_CC_EN
-  gpio_direction_out(GPIO_MODS_CC_EN, 0);
+  gpio_direction_out(GPIO_MODS_CC_EN, 1);
 #endif
 
   mods_attach_register(attach_cb, &mods_spi_dl);
