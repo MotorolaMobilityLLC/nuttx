@@ -68,6 +68,8 @@ config CHARGER_BQ24292
 	default n
 	select I2C
 	select I2C_WRITEREAD
+	select SCHED_WORKQUEUE
+	select SCHED_LPWORK
 	---help---
 		Select to support the bq24292 charger IC.
 
