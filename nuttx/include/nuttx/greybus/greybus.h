@@ -230,6 +230,7 @@ static inline int gb_register_named_driver(unsigned int cport,
 int gb_listen(unsigned int cport);
 int gb_stop_listening(unsigned int cport);
 int gb_notify(unsigned cport, enum gb_event event);
+int gb_notify_all(enum gb_event event);
 
 void gb_operation_destroy(struct gb_operation *operation);
 void *gb_operation_alloc_response(struct gb_operation *operation, size_t size);
