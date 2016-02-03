@@ -1159,3 +1159,25 @@ int gb_notify(unsigned cport, enum gb_event event)
 
     return 0;
 }
+
+int gb_notify_all(enum gb_event event)
+{
+    struct gb_cport_driver *drv;
+    void *v;
+    int ret;
+
+    if (!cport_tbl)
+        return -ENODEV;
+
+    for (v = rtr_get_first_value(cport_tbl);
+         v != NULL;
+         v = rtr_get_next_value(cport_tbl, drv->cport)) {
+
+        drv = (struct gb_cport_driver *) v;
+        ret = gb_notify(drv->cport, event);
+        if (ret)
+            return ret;
+    }
+
+    return 0;
+}
