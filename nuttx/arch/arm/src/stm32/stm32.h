@@ -93,6 +93,7 @@
 #include "stm32_wdg.h"
 #include "stm32_lowputc.h"
 #include "stm32_eth.h"
+#include "stm32_comp.h"
 
 #endif /* __ARCH_ARM_SRC_STM32_STM32_H */
 

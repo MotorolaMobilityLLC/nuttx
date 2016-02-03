@@ -351,8 +351,10 @@ static inline void rcc_enableapb2(void)
 
   regval = getreg32(STM32_RCC_APB2ENR);
 
-#ifdef CONFIG_STM32_SYSCFG
-  /* System configuration controller clock enable */
+#if defined (CONFIG_STM32_SYSCFG) || defined (CONFIG_STM32_COMP)
+  /* System configuration controller, comparators, and voltage reference buffer
+   * clock enable
+   */
   regval |= RCC_APB2ENR_SYSCFGEN;
 #endif
 
