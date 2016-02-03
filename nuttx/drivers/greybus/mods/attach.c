@@ -36,6 +36,7 @@
 
 #include <nuttx/clock.h>
 #include <nuttx/gpio.h>
+#include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/mods.h>
 #include <nuttx/list.h>
 #include <nuttx/power/pm.h>
@@ -98,6 +99,13 @@ static void base_attach_worker(FAR void *arg)
   if (g_base_state != base_state)
     {
       dbg("base_state=%d\n", base_state);
+
+      /* If moving from the attached state to a not attached state, send the
+       * disconnected message to all greybus drivers.
+       */
+      if (g_base_state == BASE_ATTACHED)
+          gb_notify_all(GB_EVT_DISCONNECTED);
+
       g_base_state = base_state;
 
       list_foreach_safe(&g_notify_list, iter, iter_next)
