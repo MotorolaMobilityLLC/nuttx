@@ -696,6 +696,7 @@ config STM32_STM32L4X3
 	select STM32_HAVE_CAN1
 	select STM32_HAVE_RNG
 	select STM32_HAVE_RTC_SUBSECONDS
+	select STM32_HAVE_COMP
 
 config STM32_STM32L4X6
 	bool
@@ -1164,6 +1165,10 @@ config STM32_HAVE_ETHMAC
 	bool
 	default n
 
+config STM32_HAVE_COMP
+	bool
+	default n
+
 # These are the peripheral selections proper
 
 config STM32_ADC1
@@ -1192,7 +1197,7 @@ config STM32_ADC4
 config STM32_COMP
 	bool "COMP"
 	default n
-	depends on STM32_STM32L15XX
+	depends on STM32_HAVE_COMP
 
 config STM32_BKP
 	bool "BKP"

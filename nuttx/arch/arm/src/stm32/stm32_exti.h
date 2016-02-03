@@ -74,6 +74,10 @@
 #include "chip.h"
 #include "chip/stm32_exti.h"
 
+#ifdef CONFIG_STM32_COMP
+#include "stm32_comp.h"
+#endif
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/
@@ -147,6 +151,31 @@ EXTERN xcpt_priv_t stm32_gpiosetevent_priv(uint32_t pinset, bool risingedge,
 #ifdef CONFIG_RTC_ALARM
 EXTERN xcpt_t stm32_exti_alarm(bool risingedge, bool fallingedge, bool event,
                                xcpt_t func);
+#endif
+
+
+/****************************************************************************
+ * Name: stm32_exti_comp
+ *
+ * Description:
+ *   Sets/clears comparator based even and interrupt triggers.
+ *
+ * Parameters:
+ *  - cmp: comparator
+ *  - rising/falling edge: enables interrupt on rising/falling edget
+ *  - event:  generate event when set
+ *  - func:   when non-NULL, generate interrupt
+ *
+ * Returns:
+ *   The previous value of the interrupt handler function pointer.  This
+ *   value may, for example, be used to restore the previous handler when
+ *   multiple handlers are used.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_STM32_COMP
+EXTERN xcpt_t stm32_exti_comp(stm32_comp_t cmp, bool risingedge,
+                              bool fallingedge, bool event, xcpt_t func);
 #endif
 
 #undef EXTERN
