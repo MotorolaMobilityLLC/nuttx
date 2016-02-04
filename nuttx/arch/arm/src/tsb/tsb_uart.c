@@ -333,6 +333,17 @@ static uint8_t ua_get_interrupt_id(uint32_t base)
 }
 
 /**
+ * @brief Check the transmit FIFO empty.
+ *
+ * @param base The UART register base address.
+ * @return 0 for not empty, 1 for empty.
+ */
+static uint8_t ua_is_tx_fifo_empty(uint32_t base)
+{
+    return (ua_getreg(base, UA_USR) & UA_USR_TFE) ? 1 : 0;
+}
+
+/**
  * @brief Check the transmit FIFO full.
  *
  * @param base The UART register base address.
@@ -1081,6 +1092,40 @@ static int tsb_uart_stop_receiver(struct device *dev)
 }
 
 /**
+* @brief Flush the transmitter.
+*
+* The function ensures that data in the TX queue has been sent out
+* of the UART.
+*
+* @param dev The pointer to the UART device structure.
+* @return 0 for success, -errno for failure.
+*/
+static int tsb_uart_flush_transmitter(struct device *dev)
+{
+    struct tsb_uart_info *uart_info = NULL;
+    int i;
+
+    if (dev == NULL)
+        return -EINVAL;
+
+    uart_info = device_get_private(dev);
+
+    if (!(uart_info->flags & TSB_UART_FLAG_OPEN))
+        return -EBUSY;
+
+    /* Ensure that the TX FIFO is emptied.
+     * At an assumed baud rate of 115200, 8-N-1 configuration,
+     * a FIFO depth of 32 characters would take 2.7 ms to empty.
+     */
+    for (i = 0; i < 6; i++) {
+        if (ua_is_tx_fifo_empty(uart_info->reg_base))
+            return 0;
+        usleep(500);
+    }
+    return -EAGAIN;
+}
+
+/**
 * @brief The device open function.
 *
 * This function is called when protocol preparing to use the driver ops
@@ -1271,6 +1316,7 @@ static struct device_uart_type_ops tsb_uart_type_ops = {
     .stop_transmitter   = tsb_uart_stop_transmitter,
     .start_receiver     = tsb_uart_start_receiver,
     .stop_receiver      = tsb_uart_stop_receiver,
+    .flush_transmitter  = tsb_uart_flush_transmitter,
 };
 
 static struct device_driver_ops tsb_uart_driver_ops = {
