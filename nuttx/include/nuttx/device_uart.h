@@ -119,6 +119,8 @@ struct device_uart_type_ops {
                                            int error));
     /** UART stop_receiver() function pointer */
     int (*stop_receiver)(struct device *dev);
+    /** UART flush tx buffer */
+    int (*flush_transmitter)(struct device *dev);
 };
 
 /**
@@ -428,6 +430,28 @@ static inline int device_uart_stop_receiver(struct device *dev)
 
     if (DEVICE_DRIVER_GET_OPS(dev, uart)->stop_receiver)
         return DEVICE_DRIVER_GET_OPS(dev, uart)->stop_receiver(dev);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief UART flush transmitter function
+ *
+ * The function ensures that data in the TX queue has been sent out
+ * of the UART.
+ *
+ * @param dev pointer to the UART device structure
+ * @return 0 for success, -errno for failures.
+ */
+static inline int device_uart_flush_transmitter(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, uart)->flush_transmitter)
+        return DEVICE_DRIVER_GET_OPS(dev, uart)->flush_transmitter(dev);
 
     return -ENOSYS;
 }
