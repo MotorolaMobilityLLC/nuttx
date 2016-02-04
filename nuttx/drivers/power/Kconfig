@@ -40,6 +40,12 @@ config BATTERY_MAX17050_REVERSED_SENSE_RESISTOR
 	---help---
 		Select if sense resistor is erroneously connected in reverse on your h/w.
 
+config BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP
+	bool "Accurate temperature from thermistor"
+	default n
+	---help---
+		Select if need more accurate temperature with MAX17050.
+
 choice
 	prompt "Select Battery Specific Configuration"
 config BATTERY_MAX17050_SAMPLE_CFG
