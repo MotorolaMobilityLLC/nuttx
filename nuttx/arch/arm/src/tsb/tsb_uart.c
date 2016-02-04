@@ -1137,7 +1137,7 @@ static void tsb_uart_dev_close(struct device *dev)
         tsb_uart_stop_transmitter(dev);
     }
 
-    if (uart_info->flags & TSB_UART_FLAG_XMIT) {
+    if (uart_info->flags & TSB_UART_FLAG_RECV) {
         tsb_uart_stop_receiver(dev);
     }
 
