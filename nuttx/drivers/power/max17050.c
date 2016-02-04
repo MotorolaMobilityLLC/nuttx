@@ -48,6 +48,7 @@
 #include <stdint.h>
 
 #include "max17050_config.h"
+#include "max17050_thermistor.h"
 
 #define MAX17050_I2C_ADDR               0x36
 
@@ -305,6 +306,10 @@ static int max17050_temperature(struct battery_dev_s *dev, b16_t *temperature)
     /* The value is converted into deci-centigrade scale */
     /* Units of LSB = 1 / 256 degree Celsius */
     *temperature = *temperature * 10 / 256;
+
+#ifdef CONFIG_BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP
+    *temperature = max17050_thermistor_fuelgauge_to_real(*temperature);
+#endif
 
     dbg("%d\n", *temperature);
     return OK;
@@ -1049,6 +1054,12 @@ int max17050_battery_temp_get_temperature(struct device *dev, int *temperature)
 int max17050_battery_temp_set_limits(struct device *dev, int min, int max)
 {
     FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+#ifdef CONFIG_BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP
+    /* min and max will be 1x Celsius. */
+    min = max17050_thermistor_real_to_fuelgauge(min*10)/10;
+    max = max17050_thermistor_real_to_fuelgauge(max*10)/10;
+#endif
 
     return max17050_set_temperature_alert(priv, min, max);
 }
