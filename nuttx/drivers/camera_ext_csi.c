@@ -323,7 +323,7 @@ static int csi_cam_dev_open(struct device *dev)
         retval = camera_ext_tesing_ctrl_init(dev);
 
     camera_ext_register_format_db(camdev.sensor->sensor_db);
-    camer_ext_register_control_db(&camdev.ctrl_db);
+    camera_ext_register_control_db(&camdev.ctrl_db);
     return retval;
 }
 
