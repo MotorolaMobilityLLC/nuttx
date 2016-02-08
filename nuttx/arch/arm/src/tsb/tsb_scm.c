@@ -209,18 +209,8 @@ enum tsb_product_id tsb_get_product_id(void)
 {
     /* cache the value to avoid repeated efuse reads */
     static enum tsb_product_id pid;
-#if CONFIG_ARCH_BOARD_ICE
-    if (pid) {
-        return pid;
-    }
-
-    /* If the efuse pid is not set, assume it is an AP bridge. */
-    pid = (enum tsb_product_id)scm_read(TSB_SCM_PID);
-    if (!pid) {
-        pid = tsb_pid_apbridge;
-    }
-
-    return pid;
+#if CONFIG_ARCH_CHIP_APBRIDGE
+    return tsb_pid_apbridge;
 #else
     return pid ? pid : (pid = (enum tsb_product_id)scm_read(TSB_SCM_PID));
 #endif
