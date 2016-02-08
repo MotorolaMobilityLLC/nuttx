@@ -216,7 +216,7 @@ struct camera_ext_ctrl_db {
     struct camera_ext_ctrl_item **ctrls;
 };
 
-void camer_ext_register_control_db(struct camera_ext_ctrl_db *ctrl_db);
+void camera_ext_register_control_db(struct camera_ext_ctrl_db *ctrl_db);
 
 struct camera_ext_format_user_config {
     uint32_t input;   //index of current input

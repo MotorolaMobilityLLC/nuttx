@@ -61,7 +61,7 @@ struct camera_ext_format_user_config *camera_ext_get_user_config(void)
     return &g_camera_ext_db.user_cfg;
 }
 
-void camer_ext_register_control_db(struct camera_ext_ctrl_db *ctrl_db)
+void camera_ext_register_control_db(struct camera_ext_ctrl_db *ctrl_db)
 {
     if (ctrl_db == NULL)
         return;
