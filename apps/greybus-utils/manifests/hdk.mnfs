@@ -56,7 +56,7 @@ protocol = 0x11
 class = 0xff
 
 ; GPIO Phy on CPort 5
-[cport-descriptor 3]
+[cport-descriptor 5]
 bundle = 3
 protocol = 0x02
 
