@@ -60,6 +60,15 @@
     #define TSB_READ_STATUS(boot_status) (boot_status)
 #endif
 
+#define DME_DDBL2_VID               0x6000
+#define DME_DDBL2_PID               0x6001
+#define DME_DDBL2_SERIALNO_L        0x6002
+#define DME_DDBL2_SERIALNO_H        0x6003
+#define DME_DDBL2_INIT_TYPE         0x6100
+#define DME_DDBL2_ENDPOINTID_H      0x6102
+#define DME_DDBL2_ENDPOINTID_L      0x6103
+#define DME_DDBL2_SCR               0x6104
+
 #if defined(CONFIG_TSB_CHIP_REV_ES2)
     #define DME_DDBL2_INIT_STATUS   T_TSTSRCINCREMENT
 #elif defined(CONFIG_TSB_CHIP_REV_ES3)
@@ -72,16 +81,6 @@
 #else
 #define DBG_ENTRY(x) { x, 0 }
 #endif
-
-#define DME_DDBL2_VID               0x6000
-#define DME_DDBL2_PID               0x6001
-#define DME_DDBL2_SERIALNO_L        0x6002
-#define DME_DDBL2_SERIALNO_H        0x6003
-#define DME_DDBL2_INIT_TYPE         0x6100
-#define DME_DDBL2_INIT_STATUS       0x6101
-#define DME_DDBL2_ENDPOINTID_H      0x6102
-#define DME_DDBL2_ENDPOINTID_L      0x6103
-#define DME_DDBL2_SCR               0x6104
 
 struct dbg_entry {
     uint32_t val;
