@@ -54,7 +54,9 @@
 
 #if defined(CONFIG_UNIPRO_P2P)
 #include <arch/chip/unipro_p2p.h>
+#endif
 
+#if defined(CONFIG_ICE_APBA)
 static struct p2p_link_err_reason last_link_err_reason;
 #endif
 
