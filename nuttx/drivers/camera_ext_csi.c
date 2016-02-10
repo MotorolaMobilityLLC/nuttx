@@ -301,7 +301,9 @@ static int cci_write_regs(struct i2c_dev_s *i2c_dev, uint16_t i2c_addr,
     return 0;
 }
 
+#ifdef CONFIG_CAMERA_EXT_TEST_CTRLS
 extern int camera_ext_tesing_ctrl_init(struct device *dev);
+#endif
 
 static int csi_cam_dev_open(struct device *dev)
 {
@@ -319,8 +321,10 @@ static int csi_cam_dev_open(struct device *dev)
      * actuator_init_ctrl(cam_dev);
      * ...
      */
+#ifdef CONFIG_CAMERA_EXT_TEST_CTRLS
     if (retval == 0)
         retval = camera_ext_tesing_ctrl_init(dev);
+#endif
 
     camera_ext_register_format_db(camdev.sensor->sensor_db);
     camera_ext_register_control_db(&camdev.ctrl_db);

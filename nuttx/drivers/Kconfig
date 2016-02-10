@@ -76,6 +76,11 @@ config CAMERA_TC35874X
 config CAMERA_TC35874X_PDISP
 	bool "TC35874X Display Parallel to CSI bridge"
 endchoice
+
+config CAMERA_EXT_TEST_CTRLS
+	bool "Define test V4L2 control on camera_ext driver"
+	default n
+
 endif
 
 config DEV_RANDOM
