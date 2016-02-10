@@ -207,11 +207,11 @@ uint32_t tsb_get_vendor_id(void)
 
 enum tsb_product_id tsb_get_product_id(void)
 {
-    /* cache the value to avoid repeated efuse reads */
-    static enum tsb_product_id pid;
 #if CONFIG_ARCH_CHIP_APBRIDGE
     return tsb_pid_apbridge;
 #else
+    /* cache the value to avoid repeated efuse reads */
+    static enum tsb_product_id pid;
     return pid ? pid : (pid = (enum tsb_product_id)scm_read(TSB_SCM_PID));
 #endif
 }
