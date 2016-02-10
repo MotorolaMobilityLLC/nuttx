@@ -517,6 +517,7 @@ int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t
     }
 }
 
+#if 0
 static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
     cdsi_write(dev, CDSI_CDSIRX_DSI_RXTRIG_INT_MASK_OFFS, 0xffffffff);
 
@@ -551,6 +552,7 @@ static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
 
     cdsi_write(dev, CDSI_AL_RX_BRG_INT_MASK_OFFS, 0xffffffff);
 }
+#endif
 
 int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     const struct rx_table_row *rx_table = CDSI_LOOKUP_TABLE(rx_table, config->rx_mbits_per_lane);
