@@ -146,11 +146,15 @@ ifeq ($(CONFIG_PROJECTOR_DISPLAY),y)
 endif
 
 ifeq ($(CONFIG_CAMERA_IMX179), y)
-    CSRCS += camera_ext_csi.c camera_ext-imx179.c camera_ext_testing_ctrls.c
+    CSRCS += camera_ext_csi.c camera_ext-imx179.c
 endif
 
 ifeq ($(CONFIG_CAMERA_IMX220), y)
-    CSRCS += camera_ext_csi.c camera_ext-imx220.c camera_ext_testing_ctrls.c
+    CSRCS += camera_ext_csi.c camera_ext-imx220.c
+endif
+
+ifeq ($(CONFIG_CAMERA_EXT_TEST_CTRLS), y)
+	CSRCS += camera_ext_testing_ctrls.c
 endif
 
 ifeq ($(CONFIG_CAMERA_TC35874X), y)
