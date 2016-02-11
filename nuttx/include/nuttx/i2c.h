@@ -154,6 +154,24 @@
 #define I2C_SETOWNADDRESS(d,a,n)  ((d)->ops->setownaddress(d,a,n))
 
 /****************************************************************************
+ * Name: I2C_REGISTERCALLBACK
+ *
+ * Description:
+ *   Register callbacks to be notified about slave transfer status.
+ *
+ * Input Parameters:
+ *   d - Device-specific state data
+ *   c - The callback operations struct
+ *   v - Data pointer to pass back in callbacks (can be NULL)
+ *
+ * Returned Value:
+ *   0: success, <0: A negated errno
+ *
+ ****************************************************************************/
+
+#define I2C_REGISTERCALLBACK(d,c,v)  ((d)->ops->registercallback(d,c,v))
+
+/****************************************************************************
  * Name: I2C_WRITE
  *
  * Description:
@@ -239,6 +257,19 @@
 #define I2C_TRANSFER(d,m,c) ((d)->ops->transfer(d,m,c))
 
 /****************************************************************************
+ * Name: I2C_CANCEL
+ *
+ * Description:
+ *   Cancel a I2C slave transaction.
+ *
+ * Input Parameters:
+ *   dev    - Device-specific state data
+ *
+ ****************************************************************************/
+
+#define I2C_CANCEL(d) ((d)->ops->cancel(d))
+
+/****************************************************************************
  * Public Types
  ****************************************************************************/
 
@@ -246,6 +277,7 @@
 
 struct i2c_dev_s;
 struct i2c_msg_s;
+struct i2c_cb_ops_s;
 struct i2c_ops_s
 {
   uint32_t (*setfrequency)(FAR struct i2c_dev_s *dev, uint32_t frequency);
@@ -261,9 +293,35 @@ struct i2c_ops_s
 #endif
 #ifdef CONFIG_I2C_SLAVE
   int    (*setownaddress)(FAR struct i2c_dev_s *dev, int addr, int nbits);
-  int    (*registercallback)(FAR struct i2c_dev_s *dev, int (*callback)(void) );
+  int    (*registercallback)(FAR struct i2c_dev_s *dev,
+                             FAR const struct i2c_cb_ops_s *cb_ops,
+                             FAR void *v);
+  void   (*cancel)(FAR struct i2c_dev_s *dev);
 #endif
 };
+
+/* Callback functions from I2C device during a slave transfer */
+
+#ifdef CONFIG_I2C_SLAVE
+struct i2c_cb_ops_s
+{
+  /* Called on address match to indicate transfer has started
+   *
+   * dir = READBIT set indicates read transfer (slave enters transmitter mode)
+   * buffer = Pointer to the buffer to read/write data
+   * buflen = Length of the provided buffer
+   */
+  int  (*start)(void *v, uint8_t dir, uint8_t **buffer, int *buflen);
+
+  /* Called when transfer is complete or on error.
+   *
+   * status = OK on success or negative errno on error
+   * xfered = Number of bytes transferred to/from the master (can be less than
+   *          buffer size)
+   */
+  void (*stop)(void *v, int status, int xfered);
+};
+#endif
 
 /* I2C transaction segment beginning with a START.  A number of these can
  * be transferred together to form an arbitrary sequence of write/read transfer
