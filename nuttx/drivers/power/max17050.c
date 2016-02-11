@@ -28,7 +28,9 @@
 
 #include <nuttx/clock.h>
 #include <nuttx/config.h>
+#include <nuttx/device.h>
 #include <nuttx/device_battery_temp.h>
+#include <nuttx/device_battery_good.h>
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/kmalloc.h>
@@ -147,6 +149,8 @@ struct max17050_dev_s
     struct work_s alrt_work;
     int alrt_gpio;
     bool use_voltage_alrt;
+    struct work_s batt_good_work;
+    struct device *batt_good_dev;
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
     sem_t battery_temp_sem;
     batt_limits batt_limits_cb;
@@ -887,6 +891,28 @@ static int max17050_i2c_available_isr(int irq, void *context)
     return OK;
 }
 
+static void max17050_batt_is_good_worker(FAR void *arg)
+{
+    max17050_check_por(arg);
+}
+
+static void max17050_batt_is_bad_worker(FAR void *arg)
+{
+    max17050_set_initialized(arg, false);
+}
+
+static void max17050_battery_good(void *arg, bool good)
+{
+    FAR struct max17050_dev_s *priv = arg;
+    worker_t worker = good ? max17050_batt_is_good_worker :
+                             max17050_batt_is_bad_worker;
+
+    if (work_cancel(LPWORK, &priv->batt_good_work) == 0)
+        work_queue(LPWORK, &priv->batt_good_work, worker, priv, 0);
+
+    return;
+}
+
 FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
                                               uint32_t frequency,
                                               int alrt_gpio,
@@ -922,28 +948,45 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
 
         g_max17050_dev = priv;
 
-       /*
-        * When reg line is asserted, fuel gauge can communicate over I2C, but
-        * it is not necessarily fully functional. It becomes fully functional
-        * when battery voltage raises above some min threshold.  Use reg_gpio
-        * irq to set up fuel gauge Valrt min irq and perform por init after
-        * Valrt irq goes off. If the gpios are not utilized, schedule por init
-        * right away if the chip requires initialization.
-        */
-        if (alrt_gpio >= 0) {
-            gpio_irqattach(alrt_gpio, max17050_alrt_isr);
-            set_gpio_triggering(alrt_gpio, IRQ_TYPE_EDGE_FALLING);
+        /* The host could be running when battery voltage is below the min level
+         * needed for a fuel gauge to operate. An external device, such as, for
+         * example, battery voltage comparator could be used to detect when fuel
+         * gauge becomes functional. If such h/w is not present, fuel gauge REG
+         * line may be used to detect when fuel gauge can communicate over I2C to
+         * setup VALRT min IRQ to go off when battery voltage is above the min
+         * level.
+         */
 
-            if (reg_gpio >= 0) {
-                priv->use_voltage_alrt = true;
-                gpio_irqattach(reg_gpio, max17050_i2c_available_isr);
-                set_gpio_triggering(reg_gpio, IRQ_TYPE_EDGE_BOTH);
+        priv->batt_good_dev = device_open(DEVICE_TYPE_BATTERY_GOOD_HW, 0);
+        if (priv->batt_good_dev) {
+            ret = device_batt_good_register_callback(priv->batt_good_dev,
+                                                     max17050_battery_good,
+                                                     priv);
+            if (ret) {
+                g_max17050_dev = NULL;
+                device_close(priv->batt_good_dev);
+                goto err;
             }
         }
 
-        if (work_available(&priv->i2c_available_work))
+        /* Setup ALRT IRQ */
+        if (alrt_gpio >= 0) {
+            gpio_irqattach(alrt_gpio, max17050_alrt_isr);
+            set_gpio_triggering(alrt_gpio, IRQ_TYPE_EDGE_FALLING);
+        }
+
+        /* Use REG line if external batt_good device is not used */
+        if (!priv->batt_good_dev && alrt_gpio >= 0 && reg_gpio >= 0) {
+            priv->use_voltage_alrt = true;
+            gpio_irqattach(reg_gpio, max17050_i2c_available_isr);
+            set_gpio_triggering(reg_gpio, IRQ_TYPE_EDGE_BOTH);
+        }
+
+        /* If batt_good device is not used, check for POR init right away */
+        if (!priv->batt_good_dev && work_available(&priv->i2c_available_work))
             work_queue(LPWORK, &priv->i2c_available_work,
                        max17050_i2c_available_worker, priv, 0);
+
     }
 
     return (FAR struct battery_dev_s *)priv;
