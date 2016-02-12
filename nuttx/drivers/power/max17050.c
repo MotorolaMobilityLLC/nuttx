@@ -117,6 +117,7 @@
 #define MAX17050_DP_ACC                 0x0C80
 
 #define MAX17050_CGAIN_REVERSED_SENSE_R 0xC000
+#define MAX17050_CGAIN_DEFAULT          0x4000
 
 /* Priority to report to PM framework when reporting activity */
 #define PM_ACTIVITY                     10
@@ -606,6 +607,8 @@ static int max17050_por_init(FAR struct max17050_dev_s *priv)
      */
 #ifdef CONFIG_BATTERY_MAX17050_REVERSED_SENSE_RESISTOR
     WRITE(priv, MAX17050_REG_CGAIN, MAX17050_CGAIN_REVERSED_SENSE_R);
+#else
+    WRITE(priv, MAX17050_REG_CGAIN, MAX17050_CGAIN_DEFAULT);
 #endif
 
     if (max17050_por_perform_init_config(priv))
@@ -663,7 +666,7 @@ static void *max17050_por(void *v)
         if (max17050_reg_write(priv, MAX17050_REG_CONFIG_VER, max17050_cfg.version)) {
             dbg("Failed to set config version\n");
         }
-        dbg("Power-On Reset complete\n");
+        dbg("Power-On Reset complete\n");       
     } else {
         dbg("Power-On Reset failed\n");
     }
@@ -824,7 +827,7 @@ static bool max17050_new_config(FAR struct max17050_dev_s *priv)
     ret = max17050_reg_read(priv, MAX17050_REG_CONFIG_VER);
     if (ret < 0)
         return false;
-
+        
     return (max17050_cfg.version != ret);
 }
 
