@@ -77,6 +77,17 @@ config CAMERA_TC35874X_PDISP
 	bool "TC35874X Display Parallel to CSI bridge"
 endchoice
 
+if CAMERA_TC35874X_PDISP
+choice
+  prompt "Select Parrallel display device connected to TC35874X"
+config TC35874X_PDISP_PI
+	bool "Raspberry Pi"
+config TC35874X_PDISP_ALTEK_S10
+	bool "ALTEK S10 chip"
+endchoice
+
+endif
+
 config CAMERA_EXT_TEST_CTRLS
 	bool "Define test V4L2 control on camera_ext driver"
 	default n
