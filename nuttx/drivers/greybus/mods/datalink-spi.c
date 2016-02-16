@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Motorola Mobility, LLC.
+ * Copyright (C) 2015-2016 Motorola Mobility, LLC.
  * Copyright (c) 2014-2015 Google Inc.
  * All rights reserved.
  *
@@ -29,6 +29,7 @@
 
 #include <debug.h>
 #include <errno.h>
+#include <semaphore.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +46,7 @@
 #include <nuttx/ring_buf.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/util.h>
+#include <nuttx/wqueue.h>
 
 #include "datalink.h"
 
@@ -101,6 +103,11 @@ struct mods_spi_dl_s
   size_t pkt_size;               /* Size of packet (hdr + pl + CRC) in bytes */
   size_t new_pkt_size;           /* Packet size to use next time TX queue empty */
 
+  FAR struct work_s wake_work;
+  FAR struct work_s tend_work;
+  FAR struct work_s terr_work;
+  sem_t sem;
+
   struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
   struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
 
@@ -112,6 +119,8 @@ struct mods_spi_dl_s
    */
   __u8 rcvd_payload[MODS_DL_PAYLOAD_MAX_SZ];
   int rcvd_payload_idx;
+
+  uint32_t rfr_cnt;              /* Counter of RFR still asserted errors seen */
 };
 
 struct spi_dl_msg_bus_config_req
@@ -138,10 +147,28 @@ struct spi_dl_msg
 static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
                       const void *buf, size_t len);
 
+static inline void dl_work_queue(FAR struct work_s *work, worker_t worker,
+                                 FAR struct mods_spi_dl_s *priv)
+{
+  if (work_available(work))
+      work_queue(HPWORK, work, worker, priv, 0);
+}
+
+static int alloc_callback(struct ring_buf *rb, void *arg)
+{
+  int *header = ring_buf_get_buf(rb);
+  int *rb_num = arg;
+
+  *header = (*rb_num)++;
+
+  return OK;
+}
+
 static int set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
 {
   struct ring_buf *tx_rb_new;
   __u8 *rx_buf_new;
+  int rb_num;
 
   /* Immediately return if packet size is not changing */
   if (pkt_size == priv->pkt_size)
@@ -153,11 +180,12 @@ static int set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
       return -ENOMEM;
 
   /* Allocate TX ring buffer */
+  rb_num = 0;
   tx_rb_new = ring_buf_alloc_ring(
       (MODS_DL_PAYLOAD_MAX_SZ / PL_SIZE(pkt_size)) + 1 /* entries */,
-      0 /* headroom */, pkt_size /* data len */,
-      0 /* tailroom */, NULL /* alloc_callback */, NULL /* free_callback */,
-      NULL /* arg */);
+      sizeof(rb_num) /* headroom */, pkt_size /* data len */,
+      0 /* tailroom */, alloc_callback /* alloc_callback */,
+      NULL /* free_callback */, &rb_num /* arg */);
   if (!tx_rb_new)
     {
       free(rx_buf_new);
@@ -186,6 +214,7 @@ static int set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
   return OK;
 }
 
+/* Caller must hold semaphore before calling this function! */
 static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)dl;
@@ -236,30 +265,26 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
   return queue_data(priv, MSG_TYPE_DL, &resp, sizeof(resp));
 }
 
+/* Caller must hold semaphore before calling this function! */
 static void xfer(FAR struct mods_spi_dl_s *priv)
 {
-  irqstate_t flags;
   struct ring_buf *rb;
 
-  flags = irqsave();
   rb = priv->txc_rb;
 
   /* Verify not already setup to tranceive packet */
   if (atomic_get(&priv->xfer))
     {
       vdbg("Already setup to tranceive packet\n");
-      goto done;
+      return;
     }
 
-  /* Only setup exchange if base has asserted wake */
-  if (gpio_get_value(GPIO_MODS_WAKE_N))
+  /* Only setup exchange if base has asserted wake or we have something to
+   * transmit. */
+  if (ring_buf_is_producers(rb) && gpio_get_value(GPIO_MODS_WAKE_N))
     {
       vdbg("WAKE not asserted\n");
-
-      /* Set the base interrupt line if data is available to be sent. */
-      mods_host_int_set(ring_buf_is_consumers(rb));
-
-      goto done;
+      return;
     }
 
   /* Set flag to indicate a transfer is setup */
@@ -267,7 +292,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
 
   if (ring_buf_is_producers(rb))
     {
-      dbg("RX\n");
+      vdbg("%d RX\n", *((int *)ring_buf_get_buf(rb)));
 
       /* Claim a ring buffer entry from the producer for the dummy packet */
       ring_buf_pass(priv->txp_rb);
@@ -275,7 +300,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
     }
   else
     {
-      dbg("RX/TX\n");
+      vdbg("%d RX/TX\n", *((int *)ring_buf_get_buf(rb)));
     }
 
   SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb), priv->rx_buf, priv->pkt_size);
@@ -283,12 +308,14 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   /* Signal to base that we're ready to tranceive */
   mods_rfr_set(1);
 
-done:
-  irqrestore(flags);
+  /* Set the base interrupt line if data is available to be sent. */
+  mods_host_int_set(ring_buf_is_consumers(rb));
 }
 
 static void cleanup_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
 {
+  vdbg("%d\n", *((int *)ring_buf_get_buf(priv->txc_rb)));
+
   memset(ring_buf_get_data(priv->txc_rb), 0, priv->pkt_size);
   ring_buf_reset(priv->txc_rb);
   ring_buf_pass(priv->txc_rb);
@@ -319,6 +346,11 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
           atomic_dec(&priv->xfer);
         }
 
+      /* Ensure all work has stopped */
+      work_cancel(HPWORK, &priv->wake_work);
+      work_cancel(HPWORK, &priv->tend_work);
+      work_cancel(HPWORK, &priv->terr_work);
+
       /* Cleanup any unsent messages */
       while (ring_buf_is_consumers(priv->txc_rb))
         {
@@ -327,6 +359,9 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 
       /* Return packet size back to default */
       (void)set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
+
+      /* Reset counters */
+      priv->rfr_cnt = 0;
     }
 
   priv->bstate = state;
@@ -350,16 +385,19 @@ static void txn_start_cb(void *v)
   mods_host_int_set(ring_buf_is_consumers(rb));
 }
 
-/*
- * Called when transaction with base has completed. The CRC has been
- * successfully checked by the hardware.
- */
-static void txn_finished_cb(void *v)
+static void txn_finished_worker(FAR void *arg)
 {
-  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
+  FAR struct mods_spi_dl_s *priv = arg;
   struct spi_msg_hdr *hdr = (struct spi_msg_hdr *)priv->rx_buf;
   size_t pl_size = PL_SIZE(priv->pkt_size);
   buf_t recv = priv->cb->recv;
+  int ret;
+
+  do
+    {
+      ret = sem_wait(&priv->sem);
+    }
+  while (ret < 0 && errno == EINTR);
 
   vdbg("hdr.bits=0x%02X\n", hdr->bits);
 
@@ -368,7 +406,10 @@ static void txn_finished_cb(void *v)
    * active states.
    */
   if (mods_rfr_get())
-      txn_start_cb(v);
+    {
+      txn_start_cb(priv);
+      dbg("RFR still asserted: cnt=%d\n", ++(priv->rfr_cnt));
+    }
 
   /* Cleanup TX consumer ring buffer entry */
   cleanup_txc_rb_entry(priv);
@@ -425,6 +466,44 @@ static void txn_finished_cb(void *v)
 
 done:
   xfer(priv);
+
+  sem_post(&priv->sem);
+}
+
+/*
+ * Called when transaction with base has completed. The CRC has been
+ * successfully checked by the hardware.
+ */
+static void txn_finished_cb(void *v)
+{
+  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
+
+  dl_work_queue(&priv->tend_work, txn_finished_worker, priv);
+}
+
+static void txn_error_worker(FAR void *arg)
+{
+  FAR struct mods_spi_dl_s *priv = arg;
+  int ret;
+
+  do
+    {
+      ret = sem_wait(&priv->sem);
+    }
+  while (ret < 0 && errno == EINTR);
+
+  /* Cleanup TX consumer ring buffer entry */
+  cleanup_txc_rb_entry(priv);
+
+  /* Ignore any received payload from previous packets */
+  priv->rcvd_payload_idx = 0;
+
+  /* Clear transfer setup flag */
+  atomic_dec(&priv->xfer);
+
+  xfer(priv);
+
+  sem_post(&priv->sem);
 }
 
 /*
@@ -439,16 +518,7 @@ static void txn_error_cb(void *v)
   /* Deassert ready line to base */
   mods_rfr_set(0);
 
-  /* Cleanup TX consumer ring buffer entry */
-  cleanup_txc_rb_entry(priv);
-
-  /* Ignore any received payload from previous packets */
-  priv->rcvd_payload_idx = 0;
-
-  /* Clear transfer setup flag */
-  atomic_dec(&priv->xfer);
-
-  xfer(priv);
+  dl_work_queue(&priv->terr_work, txn_error_worker, priv);
 }
 
 static const struct spi_cb_ops_s cb_ops =
@@ -458,11 +528,11 @@ static const struct spi_cb_ops_s cb_ops =
   .txn_err = txn_error_cb,
 };
 
+/* Caller must hold semaphore before calling this function! */
 static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
                       const void *buf, size_t len)
 {
   int remaining = len;
-  irqstate_t flags;
   __u8 *dbuf = (__u8 *)buf;
   size_t pl_size = PL_SIZE(priv->pkt_size);
   int packets;
@@ -478,7 +548,6 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
   if (len > MODS_DL_PAYLOAD_MAX_SZ)
       return -E2BIG;
 
-  flags = irqsave();
   while ((remaining > 0) && (packets > 0))
     {
       struct spi_msg_hdr *hdr;
@@ -488,7 +557,6 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
       if (ring_buf_is_consumers(priv->txp_rb))
         {
           dbg("Ring buffer is full!\n");
-          irqrestore(flags);
           return -ENOMEM;
         }
 
@@ -511,7 +579,6 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
       ring_buf_pass(priv->txp_rb);
       priv->txp_rb = ring_buf_get_next(priv->txp_rb);
     }
-  irqrestore(flags);
 
   return OK;
 }
@@ -522,13 +589,22 @@ static int queue_data_nw(FAR struct mods_dl_s *dl, const void *buf, size_t len)
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)dl;
   int ret;
 
+  do
+    {
+      ret = sem_wait(&priv->sem);
+    }
+  while (ret < 0 && errno == EINTR);
+
   ret = queue_data(priv, MSG_TYPE_NW, buf, len);
   if (ret)
-      return ret;
+      goto err;
 
   xfer(priv);
 
-  return OK;
+err:
+  sem_post(&priv->sem);
+
+  return ret;
 }
 
 static struct mods_dl_ops_s mods_dl_ops =
@@ -561,6 +637,21 @@ static struct pm_callback_s pm_callback =
 };
 #endif
 
+static void wake_worker(FAR void *arg)
+{
+  FAR struct mods_spi_dl_s *priv = arg;
+  int ret;
+
+  do
+    {
+      ret = sem_wait(&priv->sem);
+    }
+  while (ret < 0 && errno == EINTR);
+
+  xfer(priv);
+  sem_post(&priv->sem);
+}
+
 static int wake_isr(int irq, void *context)
 {
   /* Any wake interrupts when not attached are spurious */
@@ -573,7 +664,7 @@ static int wake_isr(int irq, void *context)
   llvdbg("asserted\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
-  xfer(&mods_spi_dl);
+  dl_work_queue(&mods_spi_dl.wake_work, wake_worker, &mods_spi_dl);
 
   return OK;
 }
@@ -594,6 +685,7 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
   mods_spi_dl.cb = cb;
   mods_spi_dl.spi = spi;
   atomic_init(&mods_spi_dl.xfer, 0);
+  sem_init(&mods_spi_dl.sem, 0, 0);
 
   if (set_pkt_size(&mods_spi_dl, PKT_SIZE(DEFAULT_PAYLOAD_SZ)) != OK)
     return NULL;
@@ -617,6 +709,8 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
       dbg("Failed register to power management!\n");
     }
 #endif
+
+  sem_post(&mods_spi_dl.sem);
 
   return (FAR struct mods_dl_s *)&mods_spi_dl;
 }
