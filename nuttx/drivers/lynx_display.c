@@ -304,7 +304,7 @@ static int lynx_display_set_state_on(void)
       }
 
     result = cdsi_apba_display_rx_start(&LYNX_DISPLAY_CONFIG);
-    if (!result)
+    if (result)
       {
         dbg("ERROR: Failed to start APBA DSI RX\n");
         goto uninit;
@@ -326,7 +326,7 @@ static int lynx_display_set_state_off(void)
     int result;
 
     result = cdsi_apba_display_rx_stop();
-    if (!result)
+    if (result)
       {
         dbg("ERROR: Failed to stop APBA DSI RX\n");
       }
