@@ -71,6 +71,7 @@ struct user_data_t {
     uint32_t num_csi_lanes;
 };
 
+#ifdef CONFIG_TC35874X_PDISP_PI
 static struct user_data_t _user_data[] = {
     {
         /* FHD @ 15 fps
@@ -152,6 +153,45 @@ static const struct camera_ext_format_node _formats[] = {
         .frmsize_nodes = _frmsizes_rgb888,
     },
 };
+#endif
+
+#ifdef CONFIG_TC35874X_PDISP_ALTEK_S10
+static struct user_data_t _user_data[] = {
+    {
+        .pll1 = 0x207c,
+        .pll2 = 0x0613,
+        .fifo_level = 10,
+        .num_csi_lanes = 4,
+    },
+};
+
+static const struct camera_ext_frmival_node _frmival_fhd[] = {
+    {
+        .numerator = 1,
+        .denominator = 30,
+        .user_data = &_user_data[0],
+    },
+};
+
+static const struct camera_ext_frmsize_node _frmsizes_altek[] = {
+    {
+        .width = 1920,
+        .height = 1080,
+        .num_frmivals = ARRAY_SIZE(_frmival_fhd),
+        .frmival_nodes = _frmival_fhd,
+    },
+};
+
+static const struct camera_ext_format_node _formats[] = {
+    {
+        .name = "UYVY",
+        .fourcc = V4L2_PIX_FMT_UYVY,
+        .depth = 16,
+        .num_frmsizes = ARRAY_SIZE(_frmsizes_altek),
+        .frmsize_nodes = _frmsizes_altek,
+    },
+};
+#endif
 
 static const struct camera_ext_input_node _inputs[] = {
     {
@@ -257,6 +297,7 @@ static int bridge_off(struct tc35874x_i2c_dev_info *i2c, void *data)
 static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
 {
     uint32_t value;
+    uint16_t svalue;
     const struct camera_ext_format_user_config *cfg =
         (const struct camera_ext_format_user_config *)data;
     const struct camera_ext_format_node *fmt;
@@ -270,7 +311,8 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
         return -1;
     }
 
-    if (fmt->fourcc != V4L2_PIX_FMT_RGB24) {
+    if (fmt->fourcc != V4L2_PIX_FMT_RGB24 &&
+        fmt->fourcc != V4L2_PIX_FMT_UYVY) {
         CAM_ERR("Unsupported format 0x%x\n", fmt->fourcc);
         return -1;
     }
@@ -300,8 +342,10 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
 
     /* DPI input control */
     tc35874x_write_reg2(i2c, 0x0006, udata->fifo_level);  /* FIFO level */
-    tc35874x_write_reg2(i2c, 0x0008, 0x0030);  /* Data format */
-    tc35874x_write_reg2(i2c, 0x0022, 3 * frmsize->width);  /* Word count */
+    svalue = (fmt->fourcc == V4L2_PIX_FMT_RGB24) ? 0x0030 : 0x0060;
+    tc35874x_write_reg2(i2c, 0x0008, svalue);  /* Data format */
+    svalue = (fmt->fourcc == V4L2_PIX_FMT_RGB24) ? 3 * frmsize->width : 2 * frmsize->width;
+    tc35874x_write_reg2(i2c, 0x0022, svalue);  /* Word count */
 
     /* CSI Tx Phy */
     tc35874x_write_reg4(i2c, 0x0140, 0x00000000);
@@ -342,7 +386,13 @@ static int bridge_setup_and_start(struct tc35874x_i2c_dev_info *i2c, void *data)
 
     /* Parallel IN start */
     tc35874x_write_reg2(i2c, 0x0032, 0x0000);
-    tc35874x_write_reg2(i2c, 0x0004, 0x0044);
+#ifdef CONFIG_TC35874X_PDISP_ALTEK_S10
+    svalue = 0x8164;
+#else
+    svalue = 0x0044;
+#endif
+    svalue += udata->num_csi_lanes - 1;
+    tc35874x_write_reg2(i2c, 0x0004, svalue);
 
 #if DEBUG_DUMP_REGISTER
     bridge_debug_dump(i2c);
@@ -464,7 +514,8 @@ static int _stream_on(struct device *dev)
         return -1;
     }
 
-    if (fmt->fourcc != V4L2_PIX_FMT_RGB24) {
+    if (fmt->fourcc != V4L2_PIX_FMT_RGB24 &&
+        fmt->fourcc != V4L2_PIX_FMT_UYVY) {
         CAM_ERR("Unsupported format 0x%x\n", fmt->fourcc);
         return -1;
     }
@@ -496,11 +547,14 @@ static int _stream_on(struct device *dev)
         (float)(ival->numerator);
     CDSI_CONFIG.framerate = roundf(fps);
 
+    CDSI_CONFIG.tx_mbits_per_lane = 500000000;
+    CDSI_CONFIG.rx_mbits_per_lane = 500000000;
+
     /* Fill in the rest of CSDI_CONGIG field */
     if (fmt->fourcc == V4L2_PIX_FMT_RGB24) {
-        CDSI_CONFIG.tx_mbits_per_lane = 500000000;
-        CDSI_CONFIG.rx_mbits_per_lane = 500000000;
         CDSI_CONFIG.bpp = 24;
+    } else if (fmt->fourcc == V4L2_PIX_FMT_UYVY) {
+        CDSI_CONFIG.bpp = 16;
     }
 
     /* start CSI TX on APBA */

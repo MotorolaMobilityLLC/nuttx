@@ -142,7 +142,7 @@ int tc35874x_write_reg2(struct tc35874x_i2c_dev_info* i2c, uint16_t regaddr, uin
 {
     uint8_t addr[4];
 
-    CAM_DBG("write 0x%04x to addr 0x%04x\n", data, regaddr);
+    lldbg("write 0x%04x to addr 0x%04x\n", data, regaddr);
     addr[0] = (regaddr >> 8) & 0xFF;
     addr[1] = regaddr & 0xFF;
     addr[2] = (data >> 8) & 0xFF;
@@ -156,7 +156,7 @@ int tc35874x_write_reg4(struct tc35874x_i2c_dev_info* i2c, uint16_t regaddr, uin
 {
     uint8_t addr[6];
 
-    printf("write 0x%08x to addr 0x%08x\n", data, regaddr);
+    lldbg("write 0x%08x to addr 0x%08x\n", data, regaddr);
     addr[0] = (regaddr >> 8) & 0xFF;
     addr[1] = regaddr & 0xFF;
     addr[2] = (data >> 8) & 0xFF;
