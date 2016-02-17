@@ -238,7 +238,6 @@ static int max17050_online(struct battery_dev_s *dev, bool *status)
     // BST is 0 when battery is present and 1 when battery is removed
     *status = (ret & MAX17050_STATUS_BST) != MAX17050_STATUS_BST;
 
-    dbg("%d\n", *status);
     return OK;
 }
 
@@ -256,7 +255,6 @@ static int max17050_voltage(struct battery_dev_s *dev, b16_t *voltage)
 
     *voltage = ret * 625 / 8;
 
-    dbg("%d uV\n", *voltage);
     return OK;
 }
 
@@ -274,7 +272,6 @@ static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
 
     *capacity = ret >> 8;
 
-    dbg("%d percent\n", *capacity);
     return OK;
 }
 
@@ -285,7 +282,6 @@ static int max17050_max_voltage(struct battery_dev_s *dev, b16_t *max_voltage)
 
     *max_voltage = max17050_cfg.voltage_max_design; // units of mV
 
-    dbg("%d mV\n", *max_voltage);
     return OK;
 }
 
@@ -316,7 +312,6 @@ static int max17050_temperature(struct battery_dev_s *dev, b16_t *temperature)
     *temperature = max17050_thermistor_fuelgauge_to_real(*temperature);
 #endif
 
-    dbg("%d\n", *temperature);
     return OK;
 }
 
@@ -341,7 +336,6 @@ static int max17050_current(struct battery_dev_s *dev, b16_t *current)
     }
     *current *= 1562500 / max17050_cfg.sns_resistor;
 
-    dbg("%d uA\n", *current);
     return OK;
 }
 
@@ -359,7 +353,6 @@ static int max17050_full_capacity(struct battery_dev_s *dev, b16_t *capacity)
 
     *capacity = ret * (5000000 / max17050_cfg.sns_resistor);
 
-    dbg("%d uAh\n", *capacity);
     return OK;
 }
 
@@ -394,7 +387,6 @@ static int max17050_state(struct battery_dev_s *dev, int *status)
     // Positive current means the battery is charging
     *status = (value > 0) ? BATTERY_CHARGING : BATTERY_DISCHARGING;
 
-    dbg("%d\n", *status);
     return OK;
 }
 
