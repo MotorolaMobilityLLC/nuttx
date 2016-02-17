@@ -759,9 +759,18 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
             csi2dsi_sel = 0;
 
-            vdelay_start = vdelay_end = config->tx_mbits_per_lane / 8 / 1000 / 2 * horz_period_ns + 1;
+            vdelay_start = vdelay_end = config->tx_mbits_per_lane / 1000 / 1000 * horz_period_ns / 1000 / 8 / 2 + 1;
         }
     }
+
+    lldbg("brg_mode=0x%08x\n", brg_mode);
+    lldbg("sel1_set=0x%08x\n", sel1_set);
+    lldbg("sel2_set=0x%08x\n", sel2_set);
+    lldbg("mask1=0x%08x\n", mask1);
+    lldbg("mask2=0x%08x\n", mask2);
+    lldbg("csi2dsi_sel=0x%08x\n", csi2dsi_sel);
+    lldbg("vdelay_start=0x%08x\n", vdelay_start);
+    lldbg("vdelay_end=0x%08x\n", vdelay_end);
 
     brg_mode |= CDSI_AL_TX_BRG_MODE_AL_TX_BRG_MASTER_SYNC_MODE_MASK;
     brg_mode |= CDSI_AL_TX_BRG_MODE_AL_TX_BRG_WAIT_INTERVAL_MODE_MASK;
@@ -930,7 +939,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     if (config->mode == TSB_CDSI_MODE_CSI) {
         cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_11_OFFS, 0);
     } else {
-        cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_11_OFFS, 0x4f);
+        cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_11_OFFS, 0x36);
     }
 
     /* Horizontal back porch */
@@ -938,7 +947,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     if (config->mode == TSB_CDSI_MODE_CSI) {
         cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12_OFFS, 0);
     } else {
-        cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12_OFFS, 0x4f);
+        cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12_OFFS, 0x36);
     }
 
     cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_13_OFFS, 0);
