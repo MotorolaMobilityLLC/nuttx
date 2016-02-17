@@ -26,22 +26,22 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DRIVERS_POWER_BATTERY_TEMP_H
-#define __DRIVERS_POWER_BATTERY_TEMP_H
+#ifndef __DRIVERS_POWER_BATTERY_LEVEL_H
+#define __DRIVERS_POWER_BATTERY_LEVEL_H
 
 #include <nuttx/power/battery_state.h>
 
-#ifdef CONFIG_BATTERY_TEMP
-int battery_temp_start(void);
-void battery_temp_stop(void);
+#ifdef CONFIG_BATTERY_LEVEL
+int battery_level_start(void);
+void battery_level_stop(void);
 #else
-static inline int battery_temp_start(void)
+static inline int battery_level_start(void)
 {
-    battery_state_set_temp(BATTERY_TEMP_NORMAL);
+    battery_state_set_level(BATTERY_LEVEL_NORMAL);
     return 0;
 }
-static inline void battery_temp_stop(void)
+static inline void battery_level_stop(void)
 {
 }
 #endif
-#endif /* __DRIVERS_POWER_BATTERY_TEMP_H */
+#endif /* __DRIVERS_POWER_BATTERY_LEVEL_H */

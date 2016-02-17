@@ -45,6 +45,7 @@ enum batt_temp_e {
  */
 enum batt_level_e {
     BATTERY_LEVEL_EMPTY,
+    BATTERY_LEVEL_LOW,
     BATTERY_LEVEL_NORMAL,
     BATTERY_LEVEL_FULL,
 };

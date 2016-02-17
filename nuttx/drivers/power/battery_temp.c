@@ -53,6 +53,8 @@ struct battery_temp_info_s {
     enum battery_temp_zone_e zone;  /* current zone */
 };
 
+static struct battery_temp_info_s *g_info; /* for battery_temp_stop() */
+
 /* Helper function */
 static void battery_temp_set_zone(struct battery_temp_info_s *info,
                                   enum battery_temp_zone_e new_zone)
@@ -203,6 +205,8 @@ int battery_temp_start(void)
         goto error;
     }
 
+    g_info = info;
+
     return 0;
 
 error:
@@ -210,4 +214,11 @@ error:
         device_close(info->dev);
     free(info);
     return ret;
+}
+
+void battery_temp_stop(void)
+{
+    if (g_info && g_info->dev)
+        device_close(g_info->dev);
+    free(g_info);
 }

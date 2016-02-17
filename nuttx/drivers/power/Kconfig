@@ -156,6 +156,21 @@ config BATTERY_TEMP_DEVICE_MAX17050
 endchoice
 endif
 
+menuconfig BATTERY_LEVEL
+	bool "Battery level monitor"
+	depends on BATTERY_STATE
+	default n
+
+config BATTERY_LEVEL_LOW
+	int "Low battery capacity threshold (%)"
+	depends on BATTERY_LEVEL
+	default 20
+
+config BATTERY_LEVEL_FULL_HYST
+	int "Hysteresis to transition from Full to Normal (%)"
+	depends on BATTERY_LEVEL
+	default 5
+
 config GREYBUS_PTP_CHG_DEVICE_BQ24292
 	bool "BQ24292 PTP charger device driver"
 	default n
