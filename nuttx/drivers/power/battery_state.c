@@ -36,6 +36,7 @@
 #include <nuttx/power/battery_state.h>
 #include <nuttx/list.h>
 
+#include "battery_level.h"
 #include "battery_temp.h"
 
 static sem_t sem = SEM_INITIALIZER(1);
@@ -148,10 +149,16 @@ int battery_state_init(void)
 
     list_init(&g_info->notify_list);
 
-    g_info->batt.level = BATTERY_LEVEL_NORMAL;
+    ret = battery_level_start();
+    if (ret) {
+        free(g_info);
+        g_info = NULL;
+        return ret;
+    }
 
     ret = battery_temp_start();
     if (ret) {
+        battery_level_stop();
         free(g_info);
         g_info = NULL;
         return ret;
