@@ -33,30 +33,38 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <arch/board/mods.h>
+
 #include <nuttx/greybus/debug.h>
+#include <nuttx/greybus/mods.h>
 #include <nuttx/arch.h>
 #include <nuttx/device.h>
 #include <nuttx/device_display.h>
 #include <nuttx/gpio.h>
 
-/* TODO */
+#include <nuttx/display/anx7750.h>
+#include <nuttx/display/tc358860xbg.h>
+#include <nuttx/display/quickvx_bx5bxa.h>
+#include <nuttx/display/ti_dlpc3430.h>
+
+/* 854 x 480 Projector */
 static const uint8_t PROJECTOR_EDID_CONFIG[] = {
-    0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
-    0x22, 0xf0, 0x4b, 0x28, 0x01, 0x01, 0x01, 0x01,
+    0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
+    0x22, 0xF0, 0x4B, 0x28, 0x01, 0x01, 0x01, 0x01,
     0x01, 0x15, 0x01, 0x03, 0x80, 0x34, 0x20, 0x78,
-    0xee, 0x9e, 0xc5, 0xa6, 0x56, 0x4b, 0x9a, 0x25,
+    0xEE, 0x9E, 0xC5, 0xA6, 0x56, 0x4B, 0x9A, 0x25,
     0x13, 0x50, 0x54, 0x00, 0x00, 0x00, 0x01, 0x01,
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
-    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x86, 0x35,
-    0xd0, 0xa0, 0x20, 0x00, 0x23, 0xa0, 0x30, 0x20,
-    0x36, 0x00, 0x06, 0x44, 0x21, 0x00, 0x00, 0x1a,
-    0x00, 0x00, 0x00, 0xfd, 0x00, 0x32, 0x3f, 0x18,
-    0x4c, 0x11, 0x00, 0x0a, 0x20, 0x20, 0x20, 0x20,
-    0x20, 0x20, 0x00, 0x00, 0x00, 0xfc, 0x00, 0x4c,
-    0x41, 0x32, 0x34, 0x30, 0x35, 0x0a, 0x20, 0x20,
-    0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0xff,
-    0x00, 0x43, 0x4e, 0x34, 0x31, 0x30, 0x31, 0x30,
-    0x30, 0x4c, 0x54, 0x0a, 0x20, 0x20, 0x00, 0x75,
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1C, 0x0C,
+    0x56, 0x64, 0x30, 0xE0, 0x40, 0x10, 0x34, 0x20,
+    0x00, 0x06, 0xED, 0xED, 0xDD, 0x00, 0x00, 0x1A,
+    0x00, 0x00, 0x00, 0xFD, 0x00, 0x32, 0x3F, 0x18,
+    0x4C, 0x11, 0x00, 0x0A, 0x20, 0x20, 0x20, 0x20,
+    0x20, 0x20, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x4C,
+    0x41, 0x32, 0x34, 0x30, 0x35, 0x0A, 0x20, 0x20,
+    0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0xFF,
+    0x00, 0x43, 0x4E, 0x34, 0x31, 0x30, 0x31, 0x30,
+    0x30, 0x4C, 0x54, 0x0A, 0x20, 0x20, 0x00, 0x21,
 };
 
 static struct projector_display
@@ -76,15 +84,44 @@ void projector_on(void)
 
     if (g_display.state != DISPLAY_STATE_ON)
     {
+#ifdef CONFIG_DISPLAY_QLBX5B3A
+        qlbx5bxa_power(true);
+#endif
+
+#ifdef CONFIG_DISPLAY_DLPC3430
+        dlpc3430_power(true);
+#endif
+
+#ifdef CONFIG_DISPLAY_TC358860
+        tc358860xbg_power(true);
+        tc358860xbg_configure(&qlbx5bxa_configure);
+#endif
+
         g_display.state = DISPLAY_STATE_ON;
     }
 }
 
 void projector_off(void)
 {
-    g_display.state = DISPLAY_STATE_OFF;
-}
+    dbg("enter\n");
 
+    if (g_display.state != DISPLAY_STATE_OFF)
+    {
+#ifdef CONFIG_DISPLAY_DLPC3430
+        dlpc3430_power(false);
+#endif
+
+#ifdef CONFIG_DISPLAY_QLBX5B3A
+        qlbx5bxa_power(false);
+#endif
+
+#ifdef CONFIG_DISPLAY_TC358860
+        tc358860xbg_power(false);
+#endif
+
+        g_display.state = DISPLAY_STATE_OFF;
+    }
+}
 
 /**
  * Greybus Display Protocol Implementation
@@ -106,6 +143,7 @@ static int projector_host_ready(struct device *dev)
     dbg("enter\n");
 
     projector_notification(DISPLAY_NOTIFICATION_EVENT_AVAILABLE);
+    projector_notification(DISPLAY_NOTIFICATION_EVENT_CONNECT);
 
     return OK;
 }
@@ -164,6 +202,42 @@ static int projector_set_state(struct device *dev, uint8_t state)
     return 0;
 }
 
+static void projector_attach_cb(FAR void *arg, enum base_attached_e state)
+{
+    dbg("enter state: %d\n", state);
+
+    switch (state)
+    {
+    case BASE_DETACHED:
+    case BASE_ATTACHED_OFF:
+        projector_off();
+
+#ifdef CONFIG_DISPLAY_ANX7750
+        anx7750_power(false);
+#endif
+
+        usleep(3 * 1000);
+
+        gpio_direction_out(GPIO_MODS_PROJ_DC_EN, 0);
+        gpio_direction_out(GPIO_MODS_APBE_PWR_EN, 0);
+        break;
+    case BASE_ATTACHED:
+        gpio_direction_out(GPIO_MODS_PROJ_DC_EN, 1);
+        gpio_direction_out(GPIO_MODS_APBE_PWR_EN, 1);
+
+        usleep(3 * 1000);
+
+#ifdef CONFIG_DISPLAY_ANX7750
+        anx7750_power(true);
+#endif
+        break;
+    default:
+        dbg("Invalid attach state: %d\n", state);
+        break;
+    }
+}
+
+
 static int projector_register_callback(struct device *dev,
         display_notification_cb callback)
 {
@@ -190,6 +264,27 @@ static int projector_probe(struct device *dev)
     memset(&g_display, 0, sizeof(g_display));
     g_display.display_device = dev;
     g_display.state = DISPLAY_STATE_OFF;
+
+#ifdef CONFIG_DISPLAY_ANX7750
+    anx7750_driver_init(GPIO_MODS_ANX7750_RST_IN_N);
+#endif
+
+#ifdef CONFIG_DISPLAY_TC358860
+    tc358860xbg_driver_init(GPIO_MODS_TC358860_RST_IN_N,
+                            GPIO_MODS_TC358860_CLK_EN);
+#endif
+
+#ifdef CONFIG_DISPLAY_QLBX5B3A
+    qlbx5bxa_driver_init(GPIO_MODS_QL_RST_IN_N,
+                         GPIO_MODS_REF_CLK_EN);
+#endif
+
+#ifdef CONFIG_DISPLAY_DLPC3430
+    dlpc3430_driver_init(GPIO_MODS_PROJ_ON,
+                         GPIO_MODS_DLPC_HOST_IRQ_N);
+#endif
+
+    mods_attach_register(projector_attach_cb, &g_display);
 
     return 0;
 }
