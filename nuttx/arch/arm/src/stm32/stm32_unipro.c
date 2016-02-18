@@ -26,6 +26,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <nuttx/config.h>
+
 #ifndef CONFIG_GREYBUS_MODS_NUM_CPORTS
 # define CONFIG_GREYBUS_MODS_NUM_CPORTS  (32)
 #endif
