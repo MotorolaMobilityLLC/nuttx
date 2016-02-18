@@ -45,6 +45,7 @@
 #include <nuttx/power/pm.h>
 #include <nuttx/ring_buf.h>
 #include <nuttx/spi/spi.h>
+#include <nuttx/unipro/unipro.h>
 #include <nuttx/util.h>
 #include <nuttx/wqueue.h>
 
@@ -52,6 +53,12 @@
 
 /* Default payload size of a SPI packet (in bytes) */
 #define DEFAULT_PAYLOAD_SZ (32)
+
+/*
+ * Maximum number of entries allowed in the ring buffer. This limit exists
+ * to keep RAM usage under control.
+ */
+#define MAX_NUM_RB_ENTRIES (160)
 
 /* SPI packet header bit definitions */
 #define HDR_BIT_VALID  (0x01 << 7)  /* 1 = valid packet, 0 = dummy packet */
@@ -167,6 +174,7 @@ static int alloc_callback(struct ring_buf *rb, void *arg)
 static void set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
 {
   int rb_num;
+  unsigned int rb_entries;
 
   /* Immediately return if packet size is not changing */
   if (pkt_size == priv->pkt_size)
@@ -179,14 +187,18 @@ static void set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
   /* Free existing TX ring buffer (if any) */
   ring_buf_free_ring(priv->txp_rb, NULL /* free_callback */, NULL /* arg */);
 
+  /* Calculate the number of ring buffer entries are needed */
+  rb_entries  = (MODS_DL_PAYLOAD_MAX_SZ / PL_SIZE(pkt_size));
+  rb_entries *= unipro_cport_count();
+  rb_entries  = MIN(rb_entries, MAX_NUM_RB_ENTRIES);
+
   /* Allocate RX buffer */
   priv->rx_buf = malloc(pkt_size);
   ASSERT(priv->rx_buf);
 
   /* Allocate TX ring buffer */
   rb_num = 0;
-  priv->txp_rb = ring_buf_alloc_ring(
-      (MODS_DL_PAYLOAD_MAX_SZ / PL_SIZE(pkt_size)) + 1 /* entries */,
+  priv->txp_rb = ring_buf_alloc_ring(rb_entries /* entries */,
       sizeof(rb_num) /* headroom */, pkt_size /* data len */,
       0 /* tailroom */, alloc_callback /* alloc_callback */,
       NULL /* free_callback */, &rb_num /* arg */);
@@ -196,7 +208,7 @@ static void set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
   /* Save new packet size */
   priv->pkt_size = pkt_size;
 
-  dbg("%d bytes\n", priv->pkt_size);
+  dbg("%d bytes, %d entries\n", priv->pkt_size, rb_entries);
 }
 
 /* Caller must hold semaphore before calling this function! */
