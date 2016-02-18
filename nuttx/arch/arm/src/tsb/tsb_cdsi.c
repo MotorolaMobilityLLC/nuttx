@@ -30,6 +30,7 @@
 
 #include <nuttx/arch.h>
 #include <arch/tsb/cdsi.h>
+#include <arch/tsb/vidcrypt.h>
 
 #include "chip.h"
 #include "up_arch.h"
@@ -56,6 +57,12 @@ static struct cdsi_dev *cdsi_initialize(int cdsi, int tx)
     dev->tx = tx;
     dev->base = cdsi == TSB_CDSI0 ? CDSI0_BASE : CDSI1_BASE;
     tsb_clk_enable(cdsi == TSB_CDSI0 ? TSB_CLK_CDSI0_REF : TSB_CLK_CDSI1_REF);
+#if CONFIG_ARCH_VIDCRYPT
+    tsb_clk_enable(TSB_CLK_VIDENCRYPT);
+    tsb_reset(TSB_RST_VIDCRYPTIF);
+    tsb_reset(TSB_RST_VIDCRYPTCH0);
+    tsb_reset(TSB_RST_VIDCRYPTCH1);
+#endif
     if (tx) {
         if (cdsi == TSB_CDSI0) {
             tsb_clk_enable(TSB_CLK_CDSI0_TX_SYS);
@@ -81,12 +88,22 @@ static struct cdsi_dev *cdsi_initialize(int cdsi, int tx)
             tsb_reset(TSB_RST_CDSI1_RX_AIO);
         }
     }
+
+#if CONFIG_ARCH_VIDCRYPT
+    tsb_vidcrypt_set_mode(cdsi, tx);
+    tsb_vidcrypt_enable(cdsi);
+#endif
     return dev;
 }
 
 static void cdsi_uninitialize(struct cdsi_dev *dev)
 {
     int cdsi = dev->base == CDSI0_BASE ? TSB_CDSI0 : TSB_CDSI1;
+
+#if CONFIG_ARCH_VIDCRYPT
+    tsb_vidcrypt_disable(cdsi);
+    tsb_clk_disable(TSB_CLK_VIDENCRYPT);
+#endif
     tsb_clk_disable(cdsi == TSB_CDSI0 ? TSB_CLK_CDSI0_REF : TSB_CLK_CDSI1_REF);
     if (dev->tx) {
         if (cdsi == TSB_CDSI0) {
