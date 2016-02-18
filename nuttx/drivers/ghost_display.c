@@ -54,15 +54,6 @@
 //#define CONFIG_GHOST_DISPLAY_PANEL_ID (1)
 //#define CONFIG_GHOST_DISPLAY_POWER_MODE (1)
 
-#define GPIO_APBE_DISP_PWR1_EN (3) /* backlight EN-P */
-#define GPIO_APBE_DISP_PWR2_EN (4) /* backlight EN-N */
-#define GPIO_APBE_DISP_PWR3_EN (5) /* I2C switch */
-
-#define GPIO_APBE_DISP_RST_N   (7) /* backlight reset */
-#define GPIO_APBE_DISP_RST2_N  (9) /* touch reset */
-
-#define GPIO_APBE_DISP_TE      (8) /* input from panel */
-
 #define GHOST_DISPLAY_POWER_DELAY_US (100000)
 
 #define GHOST_SUPPLIER_ID (0x0000)
@@ -134,7 +125,7 @@ const static uint32_t unlock_lvl_3[] = { 0x005a5afc };
 const static struct dsi_cmd GHOST_DISPLAY_COMMANDS[] = {
     {CTYPE_LP_SHORT, DT_DCS_WRITE0,     .u = { .sp = { 0x0011 } } }, /* exit_sleep_mode */
 #if CONFIG_GHOST_DISPLAY_COMMAND_MODE
-#if CONFIG_LYNX_DISPLAY_TE
+#if CONFIG_GHOST_DISPLAY_TE
     {CTYPE_LP_SHORT, DT_DCS_WRITE1,     .u = { .sp = { 0x0035 } } }, /* set_tear_on */
 #else
     {CTYPE_LP_SHORT, DT_DCS_WRITE1,     .u = { .sp = { 0x0034 } } }, /* set_tear_off */
@@ -157,6 +148,12 @@ static struct ghost_display
 {
     struct device *display_device;
     struct cdsi_dev *cdsi_dev;
+    uint32_t gpio_pwr1;
+    uint32_t gpio_pwr2;
+    uint32_t gpio_pwr3;
+    uint32_t gpio_rst1;
+    uint32_t gpio_rst2;
+    uint32_t gpio_te;
     display_notification_cb callback;
     uint8_t state;
 #if CONFIG_GHOST_DISPLAY_POWER_MODE
@@ -272,21 +269,40 @@ static int ghost_display_get_state(struct device *dev, uint8_t *state)
 
 static void ghost_display_power_on(void)
 {
-    gpio_direction_out(GPIO_APBE_DISP_PWR1_EN, 1);
-    gpio_direction_out(GPIO_APBE_DISP_PWR2_EN, 1);
-    gpio_direction_out(GPIO_APBE_DISP_PWR3_EN, 1);
+    if (g_display.gpio_pwr1 != -1)
+        gpio_direction_out(g_display.gpio_pwr1, 1);
+
+    if (g_display.gpio_pwr2 != -1)
+        gpio_direction_out(g_display.gpio_pwr2, 1);
+
+    if (g_display.gpio_pwr3 != -1)
+        gpio_direction_out(g_display.gpio_pwr3, 1);
+
     usleep(GHOST_DISPLAY_POWER_DELAY_US);
-    gpio_direction_out(GPIO_APBE_DISP_RST_N, 1);
-    gpio_direction_out(GPIO_APBE_DISP_RST2_N, 1);
+
+    if (g_display.gpio_rst1 != -1)
+        gpio_direction_out(g_display.gpio_rst1, 1);
+
+    if (g_display.gpio_rst2 != -1)
+        gpio_direction_out(g_display.gpio_rst2, 1);
 }
 
 static void ghost_display_power_off(void)
 {
-    gpio_direction_out(GPIO_APBE_DISP_PWR1_EN, 0);
-    gpio_direction_out(GPIO_APBE_DISP_PWR2_EN, 0);
-    gpio_direction_out(GPIO_APBE_DISP_PWR3_EN, 0);
-    gpio_direction_out(GPIO_APBE_DISP_RST_N, 0);
-    gpio_direction_out(GPIO_APBE_DISP_RST2_N, 0);
+    if (g_display.gpio_rst1 != -1)
+        gpio_direction_out(g_display.gpio_rst1, 0);
+
+    if (g_display.gpio_rst2 != -1)
+        gpio_direction_out(g_display.gpio_rst2, 0);
+
+    if (g_display.gpio_pwr1 != -1)
+        gpio_direction_out(g_display.gpio_pwr1, 0);
+
+    if (g_display.gpio_pwr2 != -1)
+        gpio_direction_out(g_display.gpio_pwr2, 0);
+
+    if (g_display.gpio_pwr3 != -1)
+        gpio_direction_out(g_display.gpio_pwr3, 0);
 }
 
 static int ghost_display_set_state_on(void)
@@ -402,21 +418,54 @@ static int ghost_display_te_irq(int irq, FAR void *context)
 }
 #endif
 
-static int ghost_display_config_gpios(void)
+static int ghost_display_config_gpios(struct device *dev)
 {
-    gpio_direction_out(GPIO_APBE_DISP_PWR1_EN, 0);
-    gpio_direction_out(GPIO_APBE_DISP_PWR2_EN, 0);
-    gpio_direction_out(GPIO_APBE_DISP_PWR3_EN, 0);
+    g_display.gpio_pwr1 = -1;
+    struct device_resource *rsrc = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "pwr1_en");
+    if (rsrc) {
+        g_display.gpio_pwr1 = rsrc->start;
+        gpio_direction_out(g_display.gpio_pwr1, 0);
+    }
 
-    gpio_direction_out(GPIO_APBE_DISP_RST_N, 0);
-    gpio_direction_out(GPIO_APBE_DISP_RST2_N, 0);
+    g_display.gpio_pwr2 = -1;
+    rsrc = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "pwr2_en");
+    if (rsrc) {
+        g_display.gpio_pwr2 = rsrc->start;
+        gpio_direction_out(g_display.gpio_pwr2, 0);
+    }
+
+    g_display.gpio_pwr3 = -1;
+    rsrc = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "pwr3_en");
+    if (rsrc) {
+        g_display.gpio_pwr3 = rsrc->start;
+        gpio_direction_out(g_display.gpio_pwr3, 0);
+    }
+
+    g_display.gpio_rst1 = -1;
+    rsrc = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "disp_rst1_n");
+    if (rsrc) {
+        g_display.gpio_rst1 = rsrc->start;
+        gpio_direction_out(g_display.gpio_rst1, 0);
+    }
+
+    g_display.gpio_rst2 = -1;
+    rsrc = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "disp_rst2_n");
+    if (rsrc) {
+        g_display.gpio_rst2 = rsrc->start;
+        gpio_direction_out(g_display.gpio_rst2, 0);
+    }
 
 #if CONFIG_GHOST_DISPLAY_TE
-    gpio_direction_in(GPIO_APBE_DISP_TE);
-    set_gpio_triggering(GPIO_APBE_DISP_TE, IRQ_TYPE_EDGE_RISING);
-    gpio_irqattach(GPIO_APBE_DISP_TE, ghost_display_te_irq);
-    gpio_clear_interrupt(GPIO_APBE_DISP_TE);
-    gpio_unmask_irq(GPIO_APBE_DISP_TE);
+    rsrc = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "disp_te");
+    if (rsrc) {
+        g_display.gpio_te = rsrc->start;
+
+        gpio_direction_in(g_display.gpio_te);
+        set_gpio_triggering(g_display.gpio_te, IRQ_TYPE_EDGE_RISING);
+        gpio_irqattach(g_display.gpio_te, ghost_display_te_irq);
+        gpio_clear_interrupt(g_display.gpio_te);
+        gpio_unmask_irq(g_display.gpio_te);
+    }
 #endif
 
     return 0;
@@ -424,16 +473,16 @@ static int ghost_display_config_gpios(void)
 
 static int ghost_display_probe(struct device *dev)
 {
-    int result = ghost_display_config_gpios();
+    memset(&g_display, 0, sizeof(g_display));
+    g_display.display_device = dev;
+    g_display.state = DISPLAY_STATE_OFF;
+
+    int result = ghost_display_config_gpios(dev);
     if (result)
       {
         dbg("ERROR: Failed to configure GPIOS\n");
         return -EINVAL;
       }
-
-    memset(&g_display, 0, sizeof(g_display));
-    g_display.display_device = dev;
-    g_display.state = DISPLAY_STATE_OFF;
 
     return 0;
 }
