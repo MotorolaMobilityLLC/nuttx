@@ -72,6 +72,9 @@
 #define TSB_CLK_HSIC480         (TSB_SCM_REG1 | 3)
 #define TSB_CLK_HSICBUS         (TSB_SCM_REG1 | 4)
 #define TSB_CLK_HSICREF         (TSB_SCM_REG1 | 5)
+#define TSB_CLK_BOOTROM         (TSB_SCM_REG1 | 6)
+#define TSB_CLK_VIDENCRYPT      (TSB_SCM_REG1 | 7)
+#define TSB_CLK_BUFCRYPT        (TSB_SCM_REG1 | 8)
 
 /* Register 2 (APBridge only) */
 #define TSB_CLK_CDSI0_TX_SYS    (TSB_SCM_REG2 | 0)
@@ -115,6 +118,10 @@
 #define TSB_RST_HSIC            (TSB_SCM_REG1 | 3)
 #define TSB_RST_HSICPHY         (TSB_SCM_REG1 | 4)
 #define TSB_RST_HSICPOR         (TSB_SCM_REG1 | 5)
+#define TSB_RST_VIDCRYPTIF      (TSB_SCM_REG1 | 6)
+#define TSB_RST_VIDCRYPTCH0     (TSB_SCM_REG1 | 7)
+#define TSB_RST_VIDCRYPTCH1     (TSB_SCM_REG1 | 8)
+#define TSB_RST_BUFCRYPT        (TSB_SCM_REG1 | 9)
 
 /* Register 2 (APBridge only) */
 #define TSB_RST_CDSI0_TX        (TSB_SCM_REG2 | 0)
