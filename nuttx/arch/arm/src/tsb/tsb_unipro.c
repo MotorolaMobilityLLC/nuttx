@@ -297,7 +297,10 @@ int unipro_attr_access(uint16_t attr,
                        uint16_t selector,
                        int peer,
                        int write) {
+    int ret;
+    irqstate_t flags;
 
+    flags = irqsave();
     uint32_t ctrl = (REG_ATTRACS_CTRL_PEERENA(peer) |
                      REG_ATTRACS_CTRL_SELECT(selector) |
                      REG_ATTRACS_CTRL_WRITE(write) |
@@ -322,7 +325,10 @@ int unipro_attr_access(uint16_t attr,
         *val = unipro_read(A2D_ATTRACS_DATA_STS_00);
     }
 
-    return unipro_read(A2D_ATTRACS_STS_00);
+    ret = unipro_read(A2D_ATTRACS_STS_00);
+    irqrestore(flags);
+
+    return ret;
 }
 
 /**
