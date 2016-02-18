@@ -64,6 +64,7 @@ config TSB_CHIP_REV_ES2
 
 config TSB_CHIP_REV_ES3
 	bool "ES3"
+	select ARCH_VIDCRYPT
 	---help---
 		Silicon Revision 3
 endchoice
@@ -305,3 +306,9 @@ config UNIPRO_REMOTE_DEVICEID
 	depends on UNIPRO_P2P
         ---help---
                 For UniPro P2P, the remote device ID
+
+config ARCH_VIDCRYPT
+	bool "Support Video Encryption"
+	default n
+	---help---
+		Adds video encryption.

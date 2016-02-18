@@ -163,3 +163,7 @@ endif
 ifeq ($(CONFIG_ARCH_BOARDID),y)
 CHIP_CSRCS += tsb_getboardid.c
 endif
+
+ifeq ($(CONFIG_ARCH_VIDCRYPT),y)
+CHIP_CSRCS += tsb_vidcrypt.c
+endif
