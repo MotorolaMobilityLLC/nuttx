@@ -164,54 +164,39 @@ static int alloc_callback(struct ring_buf *rb, void *arg)
   return OK;
 }
 
-static int set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
+static void set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
 {
-  struct ring_buf *tx_rb_new;
-  __u8 *rx_buf_new;
   int rb_num;
 
   /* Immediately return if packet size is not changing */
   if (pkt_size == priv->pkt_size)
-      return OK;
-
-  /* Allocate RX buffer */
-  rx_buf_new = malloc(pkt_size);
-  if (!rx_buf_new)
-      return -ENOMEM;
-
-  /* Allocate TX ring buffer */
-  rb_num = 0;
-  tx_rb_new = ring_buf_alloc_ring(
-      (MODS_DL_PAYLOAD_MAX_SZ / PL_SIZE(pkt_size)) + 1 /* entries */,
-      sizeof(rb_num) /* headroom */, pkt_size /* data len */,
-      0 /* tailroom */, alloc_callback /* alloc_callback */,
-      NULL /* free_callback */, &rb_num /* arg */);
-  if (!tx_rb_new)
-    {
-      free(rx_buf_new);
-      return -ENOMEM;
-    }
-
-  /* Save new packet size */
-  priv->pkt_size = pkt_size;
+      return;
 
   /* Free any existing RX buffer (if any) */
   if (priv->rx_buf)
     free(priv->rx_buf);
 
-  /* Save pointer to new RX buffer */
-  priv->rx_buf = rx_buf_new;
-
   /* Free existing TX ring buffer (if any) */
   ring_buf_free_ring(priv->txp_rb, NULL /* free_callback */, NULL /* arg */);
 
-  /* Save pointer to new TX ring buffer */
-  priv->txp_rb = tx_rb_new;
-  priv->txc_rb = tx_rb_new;
+  /* Allocate RX buffer */
+  priv->rx_buf = malloc(pkt_size);
+  ASSERT(priv->rx_buf);
+
+  /* Allocate TX ring buffer */
+  rb_num = 0;
+  priv->txp_rb = ring_buf_alloc_ring(
+      (MODS_DL_PAYLOAD_MAX_SZ / PL_SIZE(pkt_size)) + 1 /* entries */,
+      sizeof(rb_num) /* headroom */, pkt_size /* data len */,
+      0 /* tailroom */, alloc_callback /* alloc_callback */,
+      NULL /* free_callback */, &rb_num /* arg */);
+  ASSERT(priv->txp_rb);
+  priv->txc_rb = priv->txp_rb;
+
+  /* Save new packet size */
+  priv->pkt_size = pkt_size;
 
   dbg("%d bytes\n", priv->pkt_size);
-
-  return OK;
 }
 
 /* Caller must hold semaphore before calling this function! */
@@ -358,7 +343,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
         }
 
       /* Return packet size back to default */
-      (void)set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
+      set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
 
       /* Reset counters */
       priv->rfr_cnt = 0;
@@ -424,8 +409,7 @@ static void txn_finished_worker(FAR void *arg)
       /* Only change packet size if TX buffer is empty */
       if ((priv->new_pkt_size > 0) && (priv->txp_rb == priv->txc_rb))
         {
-          /* If this fails, communication with the base will be lost. */
-          (void)set_pkt_size(priv, priv->new_pkt_size);
+          set_pkt_size(priv, priv->new_pkt_size);
           priv->new_pkt_size = 0;
         }
 
@@ -687,8 +671,7 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
   atomic_init(&mods_spi_dl.xfer, 0);
   sem_init(&mods_spi_dl.sem, 0, 0);
 
-  if (set_pkt_size(&mods_spi_dl, PKT_SIZE(DEFAULT_PAYLOAD_SZ)) != OK)
-    return NULL;
+  set_pkt_size(&mods_spi_dl, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
 
   /* RDY GPIO must be initialized before the WAKE interrupt */
   mods_rfr_init();
