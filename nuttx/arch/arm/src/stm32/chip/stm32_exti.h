@@ -137,7 +137,7 @@
 #  define EXTI_RTC_TAMPER        (1 << 21) /* EXTI line 21 is connected to the RTC Tamper and TimeStamp events */
 #  define EXTI_RTC_TIMESTAMP     (1 << 22) /* EXTI line 21 is connected to the RTC Tamper and TimeStamp events */
 #  define EXTI_RTC_WAKEUP        (1 << 23) /* EXTI line 22 is connected to the RTC Wakeup event */
-#elif defined(CONFIG_STM32_STM32L4X3)
+#elif defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X6)
 #  define EXTI_COMP1             (1 << 21) /* EXTI line 21 is connected to the COMP1 output */
 #  define EXTI_COMP2             (1 << 22) /* EXTI line 21 is connected to the COMP2 output */
 #endif
