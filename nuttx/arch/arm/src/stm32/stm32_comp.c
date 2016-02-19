@@ -44,17 +44,29 @@
 
 #include <errno.h>
 
-#if !defined(CONFIG_STM32_STM32L4X3)
+#if !(defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X6))
 #  error "Unrecognized STM32 chip"
 #endif
 
-/****************************************************************************
+/************************************************************************************
+ * Private Functions
+ ************************************************************************************/
+static inline void modify_csr(stm32_comp_t cmp, uint32_t clearbits, uint32_t setbits)
+{
+    modifyreg32(cmp == STM32_COMP1 ? COMP1_CSR : COMP2_CSR, clearbits, setbits);
+}
+
+static inline uint32_t get_csr(stm32_comp_t cmp)
+{
+    return getreg32(cmp == STM32_COMP1 ? COMP1_CSR : COMP2_CSR);
+}
+
+/*************************************************************************************
  * Public Functions
- ****************************************************************************/
+ ************************************************************************************/
 
 int stm32_compconfig(stm32_comp_t cmp, const stm32_comp_config_s* cfg)
 {
-    unsigned int addr = (cmp == STM32_COMP1 ? COMP1_CSR : COMP2_CSR);
     uint32_t regval = 0;
     uint32_t mask = 0;
     uint32_t clearbits, setbits;
@@ -70,10 +82,12 @@ int stm32_compconfig(stm32_comp_t cmp, const stm32_comp_config_s* cfg)
         stm32_configgpio(cmp == STM32_COMP1 ? GPIO_COMP1_INP_2 : GPIO_COMP2_INP_2);
         regval |= COMP_CSR_INPSEL_PIN_2;
         break;
+#if defined(CONFIG_STM32_STM32L4X3)
     case STM32_COMP_INP_PIN_3:
         stm32_configgpio(cmp == STM32_COMP1 ? GPIO_COMP1_INP_3 : GPIO_COMP2_INP_3);
         regval |= COMP_CSR_INPSEL_PIN_3;
         break;
+#endif
     default:
         return -EINVAL;
     }
@@ -113,10 +127,15 @@ int stm32_compconfig(stm32_comp_t cmp, const stm32_comp_config_s* cfg)
         break;
     case STM32_COMP_INM_PIN_2:
         stm32_configgpio(cmp == STM32_COMP1 ? GPIO_COMP1_INM_2 : GPIO_COMP2_INM_2);
+#if defined(CONFIG_STM32_STM32L4X6)
+        regval |= COMP_CSR_INMSEL_PIN_2;
+#else
         regval |= COMP_CSR_INMSEL_INMESEL;
         mask   |= COMP_CSR_INMESEL_MASK;
         regval |= COMP_CSR_INMESEL_PIN_2;
+#endif
         break;
+#if defined(CONFIG_STM32_STM32L4X3)
     case STM32_COMP_INM_PIN_3:
         stm32_configgpio(cmp == STM32_COMP1 ? GPIO_COMP1_INM_3 : GPIO_COMP2_INM_3);
         regval |= COMP_CSR_INMSEL_INMESEL;
@@ -135,6 +154,7 @@ int stm32_compconfig(stm32_comp_t cmp, const stm32_comp_config_s* cfg)
         mask   |= COMP_CSR_INMESEL_MASK;
         regval |= COMP_CSR_INMESEL_PIN_5;
         break;
+#endif
     default:
         return -EINVAL;
     }
@@ -186,25 +206,22 @@ int stm32_compconfig(stm32_comp_t cmp, const stm32_comp_config_s* cfg)
     clearbits = regval ^ mask;
     setbits = regval;
 
-    modifyreg32(addr, clearbits, setbits);
+    modify_csr(cmp, clearbits, setbits);
 
     return 0;
 }
 
 int stm32_compenable(stm32_comp_t cmp, bool en)
 {
-    unsigned int addr = (cmp == STM32_COMP1 ? COMP1_CSR : COMP2_CSR);
     uint32_t clearbits = en ? 0 : COMP_CSR_EN;
     uint32_t setbits = en ? COMP_CSR_EN : 0;
 
-    modifyreg32(addr, clearbits, setbits);
+    modify_csr(cmp, clearbits, setbits);
 
     return 0;
 }
 
 bool stm32_compread(stm32_comp_t cmp)
 {
-    unsigned int addr = (cmp == STM32_COMP1 ? COMP1_CSR : COMP2_CSR);
-
-    return !!(getreg32(addr) & COMP_CSR_VALUE);
+    return !!(get_csr(cmp) & COMP_CSR_VALUE);
 }

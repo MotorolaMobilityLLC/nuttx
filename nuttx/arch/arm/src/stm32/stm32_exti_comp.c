@@ -52,7 +52,7 @@ static xcpt_t stm32_exti_comp_handlers[STM32_COMP_NUM];
 
 /* Comparator EXTI lines */
 static const uint32_t stm32_exti_comp_lines[STM32_COMP_NUM] = {
-#if defined(CONFIG_STM32_STM32L4X3)
+#if defined(CONFIG_STM32_STM32L4X3) || defined (CONFIG_STM32_STM32L4X6)
     EXTI_COMP1,
     EXTI_COMP2
 #else

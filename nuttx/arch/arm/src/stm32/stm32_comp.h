@@ -44,6 +44,8 @@
 
 #if defined(CONFIG_STM32_STM32L4X3)
 #include "chip/stm32l4x3xx_comp.h"
+#elif defined(CONFIG_STM32_STM32L4X6)
+#include "chip/stm32l4x6xx_comp.h"
 #endif
 
 #ifndef __ASSEMBLY__
@@ -82,6 +84,31 @@ typedef enum {
     STM32_COMP_INM_PIN_3,   /* COMP1: PA0, COMP2: PA2 */
     STM32_COMP_INM_PIN_4,   /* COMP1: PA4, COMP2: PA4 */
     STM32_COMP_INM_PIN_5,   /* COMP1: PA5, COMP2: PA5 */
+} stm32_comp_inm_t;
+#elif defined(CONFIG_STM32_STM32L4X6)
+/* Comparators **********************************************************************/
+typedef enum {
+    STM32_COMP1,
+    STM32_COMP2,
+    STM32_COMP_NUM  /* Number of comparators */
+} stm32_comp_t;
+
+/* Plus input ***********************************************************************/
+typedef enum {
+    STM32_COMP_INP_PIN_1,   /* COMP1: PC5, COMP2: PB4 */
+    STM32_COMP_INP_PIN_2,   /* COMP1: PB2, COMP2: PB6 */
+} stm32_comp_inp_t;
+
+/* Minus input ***********************************************************************/
+typedef enum {
+    STM32_COMP_INM_1_4_VREF,
+    STM32_COMP_INM_1_2_VREF,
+    STM32_COMP_INM_3_4_VREF,
+    STM32_COMP_INM_VREF,
+    STM32_COMP_INM_DAC_1,
+    STM32_COMP_INM_DAC_2,
+    STM32_COMP_INM_PIN_1,   /* COMP1: PB1, COMP2: PB3 */
+    STM32_COMP_INM_PIN_2,   /* COMP1: PC4, COMP2: PB7 */
 } stm32_comp_inm_t;
 #else
 /* Unsupported STM32 COMP */
