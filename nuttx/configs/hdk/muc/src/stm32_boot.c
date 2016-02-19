@@ -39,6 +39,7 @@
 #include <nuttx/config.h>
 #include <nuttx/device.h>
 #include <nuttx/device_battery.h>
+#include <nuttx/device_battery_good.h>
 #include <nuttx/device_hid.h>
 #include <nuttx/device_ptp.h>
 #include <nuttx/device_ptp_chg.h>
@@ -111,6 +112,15 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+#ifdef CONFIG_BATTERY_GOOD_DEVICE_COMP
+    {
+        .type = DEVICE_TYPE_BATTERY_GOOD_HW,
+        .name = "comp_batt_good",
+        .desc = "Battery good detection with voltage comparator",
+        .id   = 0,
+    },
+#endif
+
 };
 
 static struct device_table muc_device_table = {
@@ -223,6 +233,10 @@ void board_initialize(void)
 #ifdef CONFIG_SLAVE_PWRCTRL_DEVICE
   extern struct device_driver slave_pwrctrl_driver;
   device_register_driver(&slave_pwrctrl_driver);
+#endif
+#ifdef CONFIG_BATTERY_GOOD_DEVICE_COMP
+  extern struct device_driver comp_batt_good_driver;
+  device_register_driver(&comp_batt_good_driver);
 #endif
 
 #endif

@@ -41,4 +41,9 @@ config SLAVE_PWRCTRL_FORCE_FLASH
         default n
 endif
 
+config BATTERY_GOOD_DEVICE_COMP
+	bool "Battery good detection with voltage comparator"
+	default n
+	depends on STM32_COMP
+
 endif
