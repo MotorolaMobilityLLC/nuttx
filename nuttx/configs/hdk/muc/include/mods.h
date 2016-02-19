@@ -59,6 +59,15 @@
 /* Select the SL_BPLUS_AIN pin for base attach */
 #define GPIO_MODS_BASE_ATTACH    GPIO_MODS_SL_BPLUS_AIN
 
+/* Battery voltage comparator */
+#  define BATT_COMP              STM32_COMP2             /* Comparator */
+#  define BATT_COMP_INP          STM32_COMP_INP_PIN_1    /* Input plus */
+#  define BATT_COMP_INM          STM32_COMP_INM_VREF     /* Input minus */
+#  define BATT_COMP_HYST         STM32_COMP_HYST_HIGH    /* Hysteresis */
+#  define BATT_COMP_SPEED        STM32_COMP_SPEED_LOW    /* Speed */
+#  define BATT_COMP_INV          false                   /* Output not inverted */
+
+
 static inline void mods_rfr_init(void)
 {
     /* On this board, RFR is active high */
