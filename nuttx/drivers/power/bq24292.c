@@ -105,7 +105,10 @@ static void pg_worker(FAR void *arg)
 
 static int pg_isr(int irq, void *context)
 {
-    return work_queue(LPWORK, &pg_work, pg_worker, NULL, 0);
+    if (work_available(&pg_work))
+        return work_queue(LPWORK, &pg_work, pg_worker, NULL, 0);
+    else
+        return OK;
 }
 
 static int reg_read(uint8_t reg)
