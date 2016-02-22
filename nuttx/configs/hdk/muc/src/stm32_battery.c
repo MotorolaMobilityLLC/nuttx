@@ -38,6 +38,15 @@
 
 #define SHUTDOWN_TEMPERATURE         500
 
+/* Defaults to use if driver returns error */
+#define DEFAULT_BATT_STATUS         BATTERY_STATUS_UNKNOWN
+#define DEFAULT_BATT_MAX_VOLTAGE    0                         /* uV   */
+#define DEFAULT_BATT_VOLTAGE        0                         /* uV   */
+#define DEFAULT_BATT_CURRENT        0                         /* uA   */
+#define DEFAULT_BATT_CAPACITY       0                         /* %    */
+#define DEFAULT_BATT_TOTAL_CAPACITY 0                         /* mAh  */
+#define DEFAULT_BATT_TEMP           250                       /* 0.1C */
+
 #define MAX17050_I2C_BUS               3
 #define MAX17050_I2C_FREQ         400000
 
@@ -84,8 +93,10 @@ static int batt_get_status(struct device *dev, uint16_t *status)
 
     info = device_get_private(dev);
     ret = info->bdev->ops->state(info->bdev, &value);
-    if (ret < 0)
-        return ret;
+    if (ret < 0) {
+        *status = DEFAULT_BATT_STATUS;
+        return OK;
+    }
 
     /* Convert to battery device values */
     switch (value) {
@@ -119,13 +130,18 @@ static int batt_get_status(struct device *dev, uint16_t *status)
 static int batt_get_max_voltage(struct device *dev, uint32_t *max_voltage)
 {
     struct batt_info *info = NULL;
+    int ret;
 
     /* check input parameters */
     if (!dev || !max_voltage)
         return -EINVAL;
 
     info = device_get_private(dev);
-    return info->bdev->ops->max_voltage(info->bdev, (b16_t *)max_voltage);
+    ret = info->bdev->ops->max_voltage(info->bdev, (b16_t *)max_voltage);
+    if (ret < 0)
+        *max_voltage = DEFAULT_BATT_MAX_VOLTAGE;
+
+    return OK;
 }
 
 /**
@@ -137,13 +153,18 @@ static int batt_get_max_voltage(struct device *dev, uint32_t *max_voltage)
 static int batt_get_voltage(struct device *dev, uint32_t *voltage)
 {
     struct batt_info *info = NULL;
+    int ret;
 
     /* check input parameters */
     if (!dev || !voltage)
         return -EINVAL;
 
     info = device_get_private(dev);
-    return info->bdev->ops->voltage(info->bdev, (b16_t *)voltage);
+    ret = info->bdev->ops->voltage(info->bdev, (b16_t *)voltage);
+    if (ret < 0)
+        *voltage = DEFAULT_BATT_VOLTAGE;
+
+    return OK;
 }
 
 /**
@@ -155,13 +176,18 @@ static int batt_get_voltage(struct device *dev, uint32_t *voltage)
 static int batt_get_current(struct device *dev, int *current)
 {
     struct batt_info *info = NULL;
+    int ret;
 
     /* check input parameters */
     if (!dev || !current)
         return -EINVAL;
 
     info = device_get_private(dev);
-    return info->bdev->ops->current(info->bdev, (b16_t *)current);
+    ret = info->bdev->ops->current(info->bdev, (b16_t *)current);
+    if (ret < 0)
+        *current = DEFAULT_BATT_CURRENT;
+
+    return OK;
 }
 
 /**
@@ -174,13 +200,18 @@ static int batt_get_current(struct device *dev, int *current)
 static int batt_get_percent_capacity(struct device *dev, uint32_t *capacity)
 {
     struct batt_info *info = NULL;
+    int ret;
 
     /* check input parameters */
     if (!dev || !capacity)
         return -EINVAL;
 
     info = device_get_private(dev);
-    return info->bdev->ops->capacity(info->bdev, (b16_t *)capacity);
+    ret = info->bdev->ops->capacity(info->bdev, (b16_t *)capacity);
+    if (ret < 0)
+        *capacity = DEFAULT_BATT_CAPACITY;
+
+    return OK;
 }
 
 /**
@@ -192,13 +223,18 @@ static int batt_get_percent_capacity(struct device *dev, uint32_t *capacity)
 static int batt_get_total_capacity(struct device *dev, uint32_t *capacity)
 {
     struct batt_info *info = NULL;
+    int ret;
 
     /* check input parameters */
     if (!dev || !capacity)
         return -EINVAL;
 
     info = device_get_private(dev);
-    return info->bdev->ops->full_capacity(info->bdev, (b16_t *)capacity);
+    ret = info->bdev->ops->full_capacity(info->bdev, (b16_t *)capacity);
+    if (ret < 0)
+        *capacity = DEFAULT_BATT_TOTAL_CAPACITY;
+
+    return OK;
 }
 
 /**
@@ -210,13 +246,18 @@ static int batt_get_total_capacity(struct device *dev, uint32_t *capacity)
 static int batt_get_temperature(struct device *dev, int *temperature)
 {
     struct batt_info *info = NULL;
+    int ret;
 
     /* check input parameters */
     if (!dev || !temperature)
         return -EINVAL;
 
     info = device_get_private(dev);
-    return info->bdev->ops->temperature(info->bdev, (b16_t *)temperature);
+    ret = info->bdev->ops->temperature(info->bdev, (b16_t *)temperature);
+    if (ret < 0)
+        *temperature = DEFAULT_BATT_TEMP;
+
+    return OK;
 }
 
 /**
