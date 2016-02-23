@@ -429,6 +429,21 @@ static inline void rcc_enableccip(void)
   regval |= RCC_CCIPR_USART3SEL_HSI;
 #endif
 
+#if defined(CONFIG_STM32_I2C1) && (STM32_I2C1_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set I2C1 to use HSI clock */
+  regval |= RCC_CCIPR_I2C1SEL_HSI;
+#endif
+
+#if defined(CONFIG_STM32_I2C2) && (STM32_I2C2_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set I2C2 to use HSI clock */
+  regval |= RCC_CCIPR_I2C2SEL_HSI;
+#endif
+
+#if defined(CONFIG_STM32_I2C3) && (STM32_I2C3_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set I2C3 to use HSI clock */
+  regval |= RCC_CCIPR_I2C3SEL_HSI;
+#endif
+
 #endif /* STM32_BOARD_USEHSI */
 
   putreg32(regval, STM32_RCC_CCIPR);
