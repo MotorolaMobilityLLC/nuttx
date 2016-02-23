@@ -153,10 +153,10 @@ struct max17050_dev_s
     struct device *batt_good_dev;
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
     sem_t battery_temp_sem;
-    batt_limits batt_limits_cb;
-    void *batt_limits_arg;
-    batt_available batt_available_cb;
-    void *batt_available_arg;
+    batt_temp_limits temp_limits_cb;
+    void *temp_limits_arg;
+    batt_temp_available temp_available_cb;
+    void *temp_available_arg;
 #endif
 };
 
@@ -721,7 +721,7 @@ static int max17050_set_temperature_alert(FAR struct max17050_dev_s *priv,
     return max17050_reg_write(priv, MAX17050_REG_TALRT, talrt);
 }
 
-static void max17050_do_batt_limits_cb(FAR struct max17050_dev_s *priv, bool min)
+static void max17050_do_temp_limits_cb(FAR struct max17050_dev_s *priv, bool min)
 {
     while (sem_wait(&priv->battery_temp_sem) != OK) {
         if (errno == EINVAL) {
@@ -729,8 +729,8 @@ static void max17050_do_batt_limits_cb(FAR struct max17050_dev_s *priv, bool min
         }
     }
 
-    if (priv->initialized && priv->batt_limits_cb)
-        priv->batt_limits_cb(priv->batt_limits_arg, min);
+    if (priv->initialized && priv->temp_limits_cb)
+        priv->temp_limits_cb(priv->temp_limits_arg, min);
 
     sem_post(&priv->battery_temp_sem);
 }
@@ -763,9 +763,9 @@ static void max17050_alrt_worker(FAR void *arg)
 
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
         if (status & MAX17050_STATUS_TMN)
-            max17050_do_batt_limits_cb(priv, true);
+            max17050_do_temp_limits_cb(priv, true);
         else if (status & MAX17050_STATUS_TMX)
-            max17050_do_batt_limits_cb(priv, false);
+            max17050_do_temp_limits_cb(priv, false);
 #endif
     }
 
@@ -797,8 +797,8 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
     }
 
     priv->initialized = state;
-    if (priv->batt_available_cb)
-        priv->batt_available_cb(priv->batt_available_arg, state);
+    if (priv->temp_available_cb)
+        priv->temp_available_cb(priv->temp_available_arg, state);
 
     if (state) {
         /* Make sure alerts are enabled and queue alert worker in case temp
@@ -1014,22 +1014,22 @@ void max17050_battery_temp_close(struct device *dev)
     (void) max17050_set_temperature_alert(priv, INT_MIN, INT_MAX);
 
     /* Unregister callbacks */
-    priv->batt_limits_cb     = NULL;
-    priv->batt_limits_arg    = NULL;
-    priv->batt_available_cb  = NULL;
-    priv->batt_available_arg = NULL;
+    priv->temp_limits_cb     = NULL;
+    priv->temp_limits_arg    = NULL;
+    priv->temp_available_cb  = NULL;
+    priv->temp_available_arg = NULL;
 
     device_set_private(dev, NULL);
 
     sem_post(&priv->battery_temp_sem);
 }
 
-int max17050_battery_temp_register_limits_cb(struct device *dev, batt_limits cb,
+int max17050_battery_temp_register_limits_cb(struct device *dev, batt_temp_limits cb,
                                              void *arg)
 {
     FAR struct max17050_dev_s *priv = device_get_private(dev);
 
-    if (priv->batt_limits_cb)
+    if (priv->temp_limits_cb)
         return -EEXIST;
 
     while (sem_wait(&priv->battery_temp_sem) != OK) {
@@ -1038,8 +1038,8 @@ int max17050_battery_temp_register_limits_cb(struct device *dev, batt_limits cb,
         }
     }
 
-    priv->batt_limits_cb  = cb;
-    priv->batt_limits_arg = arg;
+    priv->temp_limits_cb  = cb;
+    priv->temp_limits_arg = arg;
 
     sem_post(&priv->battery_temp_sem);
 
@@ -1047,12 +1047,12 @@ int max17050_battery_temp_register_limits_cb(struct device *dev, batt_limits cb,
 }
 
 int max17050_battery_temp_register_available_cb(struct device *dev,
-                                                batt_available cb,
+                                                batt_temp_available cb,
                                                 void *arg)
 {
     FAR struct max17050_dev_s *priv = device_get_private(dev);
 
-    if (priv->batt_available_cb)
+    if (priv->temp_available_cb)
         return -EEXIST;
 
     while (sem_wait(&priv->battery_temp_sem) != OK) {
@@ -1061,8 +1061,8 @@ int max17050_battery_temp_register_available_cb(struct device *dev,
         }
     }
 
-    priv->batt_available_cb  = cb;
-    priv->batt_available_arg = arg;
+    priv->temp_available_cb  = cb;
+    priv->temp_available_arg = arg;
     cb(arg, priv->initialized);
     if (priv->initialized)
         /* In case temp alert set in available callback is already active */
