@@ -37,22 +37,22 @@
 #define DEVICE_TYPE_BATTERY_TEMP_HW  "batt_temp"
 
 /* The type of the batt temperature limits callback function */
-typedef void (*batt_limits)(void *arg, bool min);
+typedef void (*batt_temp_limits)(void *arg, bool min);
 
 /* The type of the batt temperature available callback function */
-typedef void (*batt_available)(void *arg, bool available);
+typedef void (*batt_temp_available)(void *arg, bool available);
 
 
 struct device_batt_temp_type_ops {
-    int (*register_limits_cb)(struct device *dev, batt_limits cb, void *arg);
-    int (*register_available_cb)(struct device *dev, batt_available cb, void *arg);
+    int (*register_limits_cb)(struct device *dev, batt_temp_limits cb, void *arg);
+    int (*register_available_cb)(struct device *dev, batt_temp_available cb, void *arg);
     int (*get_temperature)(struct device *dev, int *temp);
     int (*set_limits)(struct device *dev, int min, int max);
 };
 
 static inline int device_batt_temp_register_limits_cb(struct device *dev,
-                                                    batt_limits cb,
-                                                    void* arg)
+                                                      batt_temp_limits cb,
+                                                      void* arg)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -69,7 +69,7 @@ static inline int device_batt_temp_register_limits_cb(struct device *dev,
 }
 
 static inline int device_batt_temp_register_available_cb(struct device *dev,
-                                                         batt_available cb,
+                                                         batt_temp_available cb,
                                                          void* arg)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
