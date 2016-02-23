@@ -86,7 +86,7 @@ static void idlepm(void)
           goto errout;
         }
 
-      lldbg("%d -> %d\n", oldstate, newstate);
+      llvdbg("%d -> %d\n", oldstate, newstate);
 
       /* Then perform board-specific, state-dependent logic here */
 
