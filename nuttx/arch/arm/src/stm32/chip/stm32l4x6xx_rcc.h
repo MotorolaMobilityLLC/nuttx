@@ -426,6 +426,21 @@
 #  define RCC_CCIPR_UART5SEL_SYSCLK  (1 << RCC_CCIPR_UART5SEL_SHIFT) /* 01: SYSCLK selected as UART5 clock */
 #  define RCC_CCIPR_UART5SEL_HSI     (2 << RCC_CCIPR_UART5SEL_SHIFT) /* 10: HSI clock selected as UART5 clock */
 #  define RCC_CCIPR_UART5SEL_LSE     (3 << RCC_CCIPR_UART5SEL_SHIFT) /* 11: LSE clock selected as UART5 clock */
+#define RCC_CCIPR_I2C1SEL_SHIFT      (12)      /* Bits 12-13: I2C1 clock source selection */
+#define RCC_CCIPR_I2C1SEL_MASK       (3 << RCC_CCIPR_I2C1SEL_SHIFT)
+#  define RCC_CCIPR_I2C1SEL_PCLK     (0 << RCC_CCIPR_I2C1SEL_SHIFT) /* 00: PCLK selected as I2C1 clock */
+#  define RCC_CCIPR_I2C1SEL_SYSCLK   (1 << RCC_CCIPR_I2C1SEL_SHIFT) /* 01: SYSCLK selected as I2C1 clock */
+#  define RCC_CCIPR_I2C1SEL_HSI      (2 << RCC_CCIPR_I2C1SEL_SHIFT) /* 10: HSI clock selected as I2C1 clock */
+#define RCC_CCIPR_I2C2SEL_SHIFT      (14)      /* Bits 14-15: I2C2 clock source selection */
+#define RCC_CCIPR_I2C2SEL_MASK       (3 << RCC_CCIPR_I2C2SEL_SHIFT)
+#  define RCC_CCIPR_I2C2SEL_PCLK     (0 << RCC_CCIPR_I2C2SEL_SHIFT) /* 00: PCLK selected as I2C2 clock */
+#  define RCC_CCIPR_I2C2SEL_SYSCLK   (1 << RCC_CCIPR_I2C2SEL_SHIFT) /* 01: SYSCLK selected as I2C2 clock */
+#  define RCC_CCIPR_I2C2SEL_HSI      (2 << RCC_CCIPR_I2C2SEL_SHIFT) /* 10: HSI clock selected as I2C2 clock */
+#define RCC_CCIPR_I2C3SEL_SHIFT      (16)      /* Bits 16-17: I2C3 clock source selection */
+#define RCC_CCIPR_I2C3SEL_MASK       (3 << RCC_CCIPR_I2C3SEL_SHIFT)
+#  define RCC_CCIPR_I2C3SEL_PCLK     (0 << RCC_CCIPR_I2C3SEL_SHIFT) /* 00: PCLK selected as I2C3 clock */
+#  define RCC_CCIPR_I2C3SEL_SYSCLK   (1 << RCC_CCIPR_I2C3SEL_SHIFT) /* 01: SYSCLK selected as I2C3 clock */
+#  define RCC_CCIPR_I2C3SEL_HSI      (2 << RCC_CCIPR_I2C3SEL_SHIFT) /* 10: HSI clock selected as I2C3 clock */
 #define RCC_CCIPR_ADCSEL_SHIFT       (28)       /* Bits 28-29: ADCs clock source selection */
 #define RCC_CCIPR_ADCSEL_MASK        (3 << RCC_CCIPR_ADCSEL_SHIFT)
 #  define RCC_CCIPR_ADCSEL_NONE      (0 << RCC_CCIPR_ADCSEL_SHIFT) /* 00: No clock selected */
