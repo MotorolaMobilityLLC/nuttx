@@ -39,7 +39,11 @@ CFLAGS += -I$(TOPDIR)/sched
 ASRCS =
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 
-CSRCS = stm32_boot.c stm32_sysclk.c
+CSRCS = stm32_boot.c
+
+ifeq ($(CONFIG_ARCH_BOARD_STM32_CUSTOM_CLOCKCONFIG),y)
+CSRCS += stm32_sysclk.c
+endif
 
 ifeq ($(CONFIG_WATCHDOG),y)
 CSRCS += stm32_watchdog.c
