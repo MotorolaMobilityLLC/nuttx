@@ -95,8 +95,7 @@ enum dl_msg_id
 
 struct spi_msg_hdr
 {
-  __u8 bits;
-  __u8 rsvd;
+  __le16 bitmask;                /* See HDR_BIT_* defines for values */
 } __packed;
 
 struct mods_spi_dl_s
@@ -388,6 +387,7 @@ static void txn_finished_worker(FAR void *arg)
 {
   FAR struct mods_spi_dl_s *priv = arg;
   struct spi_msg_hdr *hdr = (struct spi_msg_hdr *)priv->rx_buf;
+  uint16_t bitmask = le16_to_cpu(hdr->bitmask);
   size_t pl_size = PL_SIZE(priv->pkt_size);
   buf_t recv = priv->cb->recv;
   int ret;
@@ -398,7 +398,7 @@ static void txn_finished_worker(FAR void *arg)
     }
   while (ret < 0 && errno == EINTR);
 
-  vdbg("hdr.bits=0x%02X\n", hdr->bits);
+  vdbg("bitmask=0x%04X\n", bitmask);
 
   /* Handle race condition where txn_start_cb does not get invoked
    * before this txn_finished_cb, thereby leaving RFR and INT in
@@ -416,7 +416,7 @@ static void txn_finished_worker(FAR void *arg)
   /* Clear transfer setup flag */
   atomic_dec(&priv->xfer);
 
-  if (!(hdr->bits & HDR_BIT_VALID))
+  if (!(bitmask & HDR_BIT_VALID))
     {
       /* Received a dummy packet - no processing to do! */
 
@@ -430,7 +430,7 @@ static void txn_finished_worker(FAR void *arg)
       goto done;
     }
 
-  if ((hdr->bits & HDR_BIT_TYPE) == MSG_TYPE_DL)
+  if ((bitmask & HDR_BIT_TYPE) == MSG_TYPE_DL)
       recv = dl_recv;
 
   /* Check if un-packetizing is required */
@@ -447,7 +447,7 @@ static void txn_finished_worker(FAR void *arg)
              &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
       priv->rcvd_payload_idx += pl_size;
 
-      if (hdr->bits & HDR_BIT_PKTS)
+      if (bitmask & HDR_BIT_PKTS)
         {
           /* Need additional packets */
           goto done;
@@ -549,6 +549,7 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
   while ((remaining > 0) && (packets > 0))
     {
       struct spi_msg_hdr *hdr;
+      uint16_t bitmask;
       __u8 *payload;
       int this_pl;
 
@@ -565,9 +566,10 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
       this_pl = MIN(remaining, pl_size);
 
       /* Populate the SPI message */
-      hdr->bits  = HDR_BIT_VALID;
-      hdr->bits |= (msg_type & HDR_BIT_TYPE);
-      hdr->bits |= (--packets & HDR_BIT_PKTS);
+      bitmask  = HDR_BIT_VALID;
+      bitmask |= (msg_type & HDR_BIT_TYPE);
+      bitmask |= (--packets & HDR_BIT_PKTS);
+      hdr->bitmask = cpu_to_le16(bitmask);
       memcpy(payload, dbuf, this_pl);
 
       remaining -= this_pl;
