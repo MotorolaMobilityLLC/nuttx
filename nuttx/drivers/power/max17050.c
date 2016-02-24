@@ -29,6 +29,7 @@
 #include <nuttx/clock.h>
 #include <nuttx/config.h>
 #include <nuttx/device.h>
+#include <nuttx/device_battery_level.h>
 #include <nuttx/device_battery_temp.h>
 #include <nuttx/device_battery_good.h>
 #include <nuttx/gpio.h>
@@ -57,6 +58,7 @@
 #define MAX17050_REG_STATUS             0x00
 #define MAX17050_REG_VALRT              0x01
 #define MAX17050_REG_TALRT              0x02
+#define MAX17050_REG_SALRT              0x03
 #define MAX17050_REG_REP_CAP            0x05
 #define MAX17050_REG_REP_SOC            0x06
 #define MAX17050_REG_TEMP               0x08
@@ -102,8 +104,10 @@
 #define MAX17050_STATUS_BST             BIT(3)  /* Battery Status */
 #define MAX17050_STATUS_VMN             BIT(8)  /* Min Valrt */
 #define MAX17050_STATUS_TMN             BIT(9)  /* Min Talrt */
+#define MAX17050_STATUS_SMN             BIT(10) /* Min SOCalrt */
 #define MAX17050_STATUS_VMX             BIT(12) /* Max Valrt */
 #define MAX17050_STATUS_TMX             BIT(13) /* Max Talrt */
+#define MAX17050_STATUS_SMX             BIT(14) /* Max SOCalrt */
 
 #define MAX17050_CONFIG_AEN             BIT(2)  /* Alert enable */
 
@@ -157,6 +161,13 @@ struct max17050_dev_s
     void *temp_limits_arg;
     batt_temp_available temp_available_cb;
     void *temp_available_arg;
+#endif
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+    sem_t battery_level_sem;
+    batt_level_limits level_limits_cb;
+    void *level_limits_arg;
+    batt_level_available level_available_cb;
+    void *level_available_arg;
 #endif
 };
 
@@ -736,6 +747,32 @@ static void max17050_do_temp_limits_cb(FAR struct max17050_dev_s *priv, bool min
 }
 #endif
 
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+static int max17050_set_soc_alert(FAR struct max17050_dev_s *priv, int min,
+                                  int max)
+{
+    uint16_t salrt_min = (min == INT_MIN ? 0x00 : min );
+    uint16_t salrt_max = (max == INT_MAX ? 0xff : max );
+    uint16_t salrt = salrt_min | salrt_max << 8;
+
+    return max17050_reg_write(priv, MAX17050_REG_SALRT, salrt);
+}
+
+static void max17050_do_level_limits_cb(FAR struct max17050_dev_s *priv, bool min)
+{
+    while (sem_wait(&priv->battery_level_sem) != OK) {
+        if (errno == EINVAL) {
+            return;
+        }
+    }
+
+    if (priv->initialized && priv->level_limits_cb)
+        priv->level_limits_cb(priv->level_limits_arg, min);
+
+    sem_post(&priv->battery_level_sem);
+}
+#endif
+
 static void max17050_queue_alrt_work(FAR struct max17050_dev_s *priv, int ms)
 {
     if (work_available(&priv->alrt_work))
@@ -767,6 +804,12 @@ static void max17050_alrt_worker(FAR void *arg)
         else if (status & MAX17050_STATUS_TMX)
             max17050_do_temp_limits_cb(priv, false);
 #endif
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+        if (status & MAX17050_STATUS_SMN)
+            max17050_do_level_limits_cb(priv, true);
+        else if (status & MAX17050_STATUS_SMX)
+            max17050_do_level_limits_cb(priv, false);
+#endif
     }
 
     /* It takes up to 350 mS for the IC to de-assert the ALRT line after the
@@ -795,25 +838,50 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
             return;
         }
     }
+#endif
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+    while (sem_wait(&priv->battery_level_sem) != OK) {
+        if (errno == EINVAL) {
+        #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
+            sem_post(&priv->battery_temp_sem);
+        #endif
+            return;
+        }
+    }
+#endif
 
     priv->initialized = state;
+
+#ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
     if (priv->temp_available_cb)
         priv->temp_available_cb(priv->temp_available_arg, state);
 
-    if (state) {
-        /* Make sure alerts are enabled and queue alert worker in case temp
-         * alert set in available callback is already active */
-        max17050_enable_alrt(priv, true);
-        max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
-    } else {
+    if (!state)
         /* Disable */
         max17050_set_temperature_alert(priv, INT_MIN, INT_MAX);
-    }
 
     sem_post(&priv->battery_temp_sem);
-#else
-    priv->initialized = state;
 #endif
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+    if (priv->level_available_cb)
+        priv->level_available_cb(priv->level_available_arg, state);
+
+    if (!state)
+        /* Disable */
+        max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
+
+    sem_post(&priv->battery_level_sem);
+#endif
+
+#if defined(CONFIG_BATTERY_TEMP_DEVICE_MAX17050) || defined (CONFIG_BATTERY_LEVEL_DEVICE_MAX17050)
+    if (state) {
+        /* Make sure alerts are enabled and queue alert worker in case alert set
+           in available callback is already active */
+        max17050_enable_alrt(priv, true);
+        max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
+    }
+#endif
+
 }
 
 static bool max17050_new_config(FAR struct max17050_dev_s *priv)
@@ -936,6 +1004,10 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
 
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
         sem_init(&priv->battery_temp_sem, 0, 1);
+#endif
+
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+        sem_init(&priv->battery_level_sem, 0, 1);
 #endif
 
         g_max17050_dev = priv;
@@ -1122,5 +1194,152 @@ struct device_driver max17050_battery_temp_driver = {
     .name = "max17050_battery_temp",
     .desc = "Battery temperature monitoring with MAX17050",
     .ops = &max17050_battery_temp_driver_ops,
+};
+#endif
+
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+static int max17050_battery_level_open(struct device *dev)
+{
+    /* Make sure the core driver is initialized and ALRT line is used */
+    if (!g_max17050_dev || g_max17050_dev->alrt_gpio < 0)
+        return -ENODEV;
+
+    device_set_private(dev, g_max17050_dev);
+
+    return 0;
+}
+
+static void max17050_battery_level_close(struct device *dev)
+{
+    FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+    while (sem_wait(&priv->battery_level_sem) != OK) {
+        if (errno == EINVAL) {
+            return;
+        }
+    }
+
+    /* Disable soc alerts */
+    (void) max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
+
+    /* Unregister callbacks */
+    priv->level_limits_cb     = NULL;
+    priv->level_limits_arg    = NULL;
+    priv->level_available_cb  = NULL;
+    priv->level_available_arg = NULL;
+
+    device_set_private(dev, NULL);
+
+    sem_post(&priv->battery_level_sem);
+}
+
+static int max17050_battery_level_register_limits_cb(struct device *dev,
+                                                     batt_level_limits cb,
+                                                     void *arg)
+{
+    FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+    if (priv->level_limits_cb)
+        return -EEXIST;
+
+    while (sem_wait(&priv->battery_level_sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    priv->level_limits_cb  = cb;
+    priv->level_limits_arg = arg;
+
+    sem_post(&priv->battery_level_sem);
+
+    return 0;
+}
+
+static int max17050_battery_level_register_available_cb(struct device *dev,
+                                                        batt_level_available cb,
+                                                        void *arg)
+{
+    FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+    if (priv->level_available_cb)
+        return -EEXIST;
+
+    while (sem_wait(&priv->battery_level_sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    priv->level_available_cb  = cb;
+    priv->level_available_arg = arg;
+    cb(arg, priv->initialized);
+    if (priv->initialized)
+        /* In case level alert set in available callback is already active */
+        max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
+
+    sem_post(&priv->battery_level_sem);
+
+    return 0;
+}
+
+static int max17050_battery_level_get_capacity(struct device *dev, int *capacity)
+{
+    struct battery_dev_s *battery_dev = device_get_private(dev);
+    b16_t c;
+    int ret;
+
+    ret = max17050_capacity(battery_dev, &c);
+    if (ret)
+        return ret;
+
+    *capacity = c;
+
+    return 0;
+}
+
+#define MIN_SOC_ALRT    1   /* No IRQ for 0% since SOC cannot be less than 0% */
+#define MAX_SOC_ALRT    99  /* No IRQ for 100% since SOC cannot exceed 100% */
+static int max17050_battery_level_get_possible_limits(struct device *dev,
+                                                      int *min, int *max)
+{
+    *min = MIN_SOC_ALRT;
+    *max = MAX_SOC_ALRT;
+
+    return 0;
+}
+
+static int max17050_battery_level_set_limits(struct device *dev, int min, int max)
+{
+    FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+    if (min != INT_MIN && min < MIN_SOC_ALRT)
+        return -EINVAL;
+
+    if (max != INT_MAX && max > MAX_SOC_ALRT)
+        return -EINVAL;
+
+    return max17050_set_soc_alert(priv, min, max);
+}
+
+static struct device_batt_level_type_ops max17050_battery_level_type_ops = {
+    .register_limits_cb = max17050_battery_level_register_limits_cb,
+    .register_available_cb = max17050_battery_level_register_available_cb,
+    .get_capacity = max17050_battery_level_get_capacity,
+    .get_possible_limits = max17050_battery_level_get_possible_limits,
+    .set_limits = max17050_battery_level_set_limits,
+};
+
+static struct device_driver_ops max17050_battery_level_driver_ops = {
+    .open = max17050_battery_level_open,
+    .close = max17050_battery_level_close,
+    .type_ops = &max17050_battery_level_type_ops,
+};
+
+struct device_driver max17050_battery_level_driver = {
+    .type = DEVICE_TYPE_BATTERY_LEVEL_HW,
+    .name = "max17050_battery_level",
+    .desc = "Battery level monitoring with MAX17050",
+    .ops = &max17050_battery_level_driver_ops,
 };
 #endif
