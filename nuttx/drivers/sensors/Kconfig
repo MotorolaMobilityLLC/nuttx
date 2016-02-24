@@ -8,6 +8,21 @@ config LIS331DL
 	default n
 	select I2C
 
+config SENSOR_KXTJ9
+	bool "Kionix KXTJ9 Accelerometer support"
+	default n
+	select I2C
+
+if SENSOR_KXTJ9
+config SENSOR_KXTJ9_I2C_BUS
+	int "Kionix KXTJ9 Bus Number"
+	default 1
+
+config SENSOR_KXTJ9_I2C_BUS_SPEED
+	int "Kionix KXTJ9 Bus Speed in Hz"
+	default 400000
+endif
+
 config I2C_LM75
 	bool
 	default y if LM75
