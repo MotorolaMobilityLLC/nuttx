@@ -266,6 +266,7 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
 static void xfer(FAR struct mods_spi_dl_s *priv)
 {
   struct ring_buf *rb;
+  bool set_int = false;
 
   rb = priv->txc_rb;
 
@@ -298,6 +299,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   else
     {
       vdbg("%d RX/TX\n", *((int *)ring_buf_get_buf(rb)));
+      set_int = true;
     }
 
   SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb), priv->rx_buf, priv->pkt_size);
@@ -306,7 +308,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   mods_rfr_set(1);
 
   /* Set the base interrupt line if data is available to be sent. */
-  mods_host_int_set(ring_buf_is_consumers(rb));
+  mods_host_int_set(set_int);
 }
 
 static void cleanup_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
