@@ -39,6 +39,7 @@
 #include <arch/board/mods.h>
 #include <arch/byteorder.h>
 
+#include <nuttx/config.h>
 #include <nuttx/gpio.h>
 #include <nuttx/greybus/mods.h>
 #include <nuttx/greybus/types.h>
@@ -51,6 +52,10 @@
 
 #include "datalink.h"
 
+#if CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE > MODS_DL_PAYLOAD_MAX_SZ
+#  error "CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE > MODS_DL_PAYLOAD_MAX_SZ"
+#endif
+
 /* Default payload size of a SPI packet (in bytes) */
 #define DEFAULT_PAYLOAD_SZ (32)
 
@@ -61,6 +66,7 @@
 #define MAX_NUM_RB_ENTRIES (160)
 
 /* SPI packet header bit definitions */
+#define HDR_BIT_PKT1   (0x01 << 8)  /* 1 = first packet of message */
 #define HDR_BIT_VALID  (0x01 << 7)  /* 1 = valid packet, 0 = dummy packet */
 #define HDR_BIT_TYPE   (0x01 << 6)  /* SPI message type */
 #define HDR_BIT_PKTS   (0x3F << 0)  /* How many additional packets to expect */
@@ -108,6 +114,7 @@ struct mods_spi_dl_s
   atomic_t xfer;                 /* Flag to indicate transfer in progress */
   size_t pkt_size;               /* Size of packet (hdr + pl + CRC) in bytes */
   size_t new_pkt_size;           /* Packet size to use next time TX queue empty */
+  bool pkt1_supported;           /* Flag to indicate base sets pkt1 hdr bit */
 
   FAR struct work_s wake_work;
   FAR struct work_s tend_work;
@@ -124,9 +131,12 @@ struct mods_spi_dl_s
    * multiple packets)
    */
   __u8 rcvd_payload[MODS_DL_PAYLOAD_MAX_SZ];
-  int rcvd_payload_idx;
+  uint32_t rcvd_payload_idx;
+  uint8_t pkts_remaining;        /* Number of packets needed to complete msg */
 
+#ifdef CONFIG_DEBUG
   uint32_t rfr_cnt;              /* Counter of RFR still asserted errors seen */
+#endif
 };
 
 struct spi_dl_msg_bus_config_req
@@ -269,10 +279,10 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
 
   rb = priv->txc_rb;
 
-  /* Verify not already setup to tranceive packet */
+  /* Verify not already setup to transceive packet */
   if (atomic_get(&priv->xfer))
     {
-      vdbg("Already setup to tranceive packet\n");
+      vdbg("Already setup to transceive packet\n");
       return;
     }
 
@@ -303,7 +313,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
 
   SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb), priv->rx_buf, priv->pkt_size);
 
-  /* Signal to base that we're ready to tranceive */
+  /* Signal to base that we're ready to transceive */
   mods_rfr_set(1);
 
   /* Set the base interrupt line if data is available to be sent. */
@@ -358,8 +368,11 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       /* Return packet size back to default */
       set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
 
-      /* Reset counters */
+      /* Reset state variables */
+      priv->pkt1_supported = false;
+#ifdef CONFIG_DEBUG
       priv->rfr_cnt = 0;
+#endif
     }
 
   priv->bstate = state;
@@ -431,36 +444,86 @@ static void txn_finished_worker(FAR void *arg)
     }
 
   if ((bitmask & HDR_BIT_TYPE) == MSG_TYPE_DL)
+    {
       recv = dl_recv;
 
-  /* Check if un-packetizing is required */
-  if (MODS_DL_PAYLOAD_MAX_SZ != pl_size)
+      /*
+       * Check if base supports setting the first packet bit. Once set, it
+       * cannot be reset until next detach. This check is only performed on
+       * datalink packets since datalink packets happen first and are rare.
+       */
+      if (!priv->pkt1_supported)
+          priv->pkt1_supported = (bitmask & HDR_BIT_PKT1) != 0;
+    }
+
+#if CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE == MODS_DL_PAYLOAD_MAX_SZ
+  /* Check if un-packetizing is not required */
+  if (MODS_DL_PAYLOAD_MAX_SZ == pl_size)
     {
-      if (priv->rcvd_payload_idx >= MODS_DL_PAYLOAD_MAX_SZ)
+      if (priv->pkt1_supported && (bitmask & HDR_BIT_PKT1))
+          recv(&priv->dl, &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
+      else
+          dbg("1st pkt bit not set\n");
+      goto done;
+    }
+#endif
+
+  if (priv->pkt1_supported)
+    {
+      if (bitmask & HDR_BIT_PKT1)
         {
-          /* Too many packets received! */
-          priv->rcvd_payload_idx = 0;
-          goto done;
+          /* Check if data exists from earlier packets */
+          if (priv->rcvd_payload_idx)
+            {
+              dbg("1st pkt recv'd before prev msg complete\n");
+              priv->rcvd_payload_idx = 0;
+            }
+
+          priv->pkts_remaining = bitmask & HDR_BIT_PKTS;
         }
-
-      memcpy(&priv->rcvd_payload[priv->rcvd_payload_idx],
-             &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
-      priv->rcvd_payload_idx += pl_size;
-
-      if (bitmask & HDR_BIT_PKTS)
+      else /* not first packet of message */
         {
-          /* Need additional packets */
-          goto done;
-        }
+          /* Check for data from earlier packets */
+          if (!priv->rcvd_payload_idx)
+            {
+              dbg("Ignore non-first packet\n");
+              goto done;
+            }
 
-      recv(&priv->dl, priv->rcvd_payload, priv->rcvd_payload_idx);
+          if ((bitmask & HDR_BIT_PKTS) != --priv->pkts_remaining)
+            {
+              dbg("Packets remaining out of sync\n");
+
+              /* Drop the entire message */
+              priv->rcvd_payload_idx = 0;
+              priv->pkts_remaining = 0;
+              goto done;
+            }
+        }
+    }
+
+  if (priv->rcvd_payload_idx >= MODS_DL_PAYLOAD_MAX_SZ)
+    {
+      dbg("Too many packets received\n");
+
+      /* Drop the entire message */
       priv->rcvd_payload_idx = 0;
+      priv->pkts_remaining = 0;
+      goto done;
     }
-  else
+
+  memcpy(&priv->rcvd_payload[priv->rcvd_payload_idx],
+         &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
+  priv->rcvd_payload_idx += pl_size;
+
+  if (bitmask & HDR_BIT_PKTS)
     {
-      /* Un-packetizing not required */
-      recv(&priv->dl, &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
+      /* Need additional packets */
+      goto done;
     }
+
+  recv(&priv->dl, priv->rcvd_payload, priv->rcvd_payload_idx);
+  priv->rcvd_payload_idx = 0;
 
 done:
   xfer(priv);
@@ -495,6 +558,7 @@ static void txn_error_worker(FAR void *arg)
 
   /* Ignore any received payload from previous packets */
   priv->rcvd_payload_idx = 0;
+  priv->pkts_remaining = 0;
 
   /* Clear transfer setup flag */
   atomic_dec(&priv->xfer);
@@ -511,7 +575,7 @@ static void txn_error_cb(void *v)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
 
-  dbg("Tranceive error\n");
+  dbg("Transceive error\n");
 
   /* Deassert ready line to base */
   mods_rfr_set(0);
@@ -565,10 +629,14 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
       /* Determine the payload size of this packet */
       this_pl = MIN(remaining, pl_size);
 
-      /* Populate the SPI message */
+      /* Setup bitmask for packet header */
       bitmask  = HDR_BIT_VALID;
       bitmask |= (msg_type & HDR_BIT_TYPE);
       bitmask |= (--packets & HDR_BIT_PKTS);
+      if (remaining == len)
+          bitmask |= HDR_BIT_PKT1;
+
+      /* Populate the SPI message */
       hdr->bitmask = cpu_to_le16(bitmask);
       memcpy(payload, dbuf, this_pl);
 
