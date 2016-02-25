@@ -67,6 +67,29 @@
     defined(CONFIG_STM32_TIM11_PWM) || defined(CONFIG_STM32_TIM12_PWM) || \
     defined(CONFIG_STM32_TIM13_PWM) || defined(CONFIG_STM32_TIM14_PWM)
 
+/* Add support for CONFIG_STM32_STM32L4X6 */
+
+#if defined(CONFIG_STM32_STM32L4X6)
+#  define   STM32_RCC_APB1ENR         STM32_RCC_APB1ENR1
+#  define   STM32_RCC_APB1RSTR        STM32_RCC_APB1RSTR1
+#  define   RCC_APB1ENR_TIM1EN        RCC_APB1ENR1_TIM1EN
+#  define   RCC_APB1RSTR_TIM1RST      RCC_APB1RSTR1_TIM1RST
+#  define   RCC_APB1ENR_TIM2EN        RCC_APB1ENR1_TIM2EN
+#  define   RCC_APB1RSTR_TIM2RST      RCC_APB1RSTR1_TIM2RST
+#  define   RCC_APB1ENR_TIM3EN        RCC_APB1ENR1_TIM3EN
+#  define   RCC_APB1RSTR_TIM3RST      RCC_APB1RSTR1_TIM3RST
+#  define   RCC_APB1ENR_TIM4EN        RCC_APB1ENR1_TIM4EN
+#  define   RCC_APB1RSTR_TIM4RST      RCC_APB1RSTR1_TIM4RST
+#  define   RCC_APB1ENR_TIM5EN        RCC_APB1ENR1_TIM5EN
+#  define   RCC_APB1RSTR_TIM5RST      RCC_APB1RSTR1_TIM5RST
+#  define   RCC_APB1ENR_TIM6EN        RCC_APB1ENR1_TIM6EN
+#  define   RCC_APB1RSTR_TIM6RST      RCC_APB1RSTR1_TIM6RST
+#  define   RCC_APB1ENR_TIM7EN        RCC_APB1ENR1_TIM7EN
+#  define   RCC_APB1RSTR_TIM7RST      RCC_APB1RSTR1_TIM7RST
+#  define   RCC_APB1ENR_TIM8EN        RCC_APB1ENR1_TIM8EN
+#  define   RCC_APB1RSTR_TIM8RST      RCC_APB1RSTR1_TIM8RST
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -1294,7 +1317,7 @@ static int pwm_shutdown(FAR struct pwm_lowerhalf_s *dev)
 #if defined(CONFIG_STM32_STM32F10XX)
   pincfg |= (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_MODE_INPUT);
 #elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX) || \
-      defined(CONFIG_STM32_STM32L15XX)
+      defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
   pincfg |= (GPIO_INPUT|GPIO_FLOAT);
 #else
 #  error "Unrecognized STM32 chip"
