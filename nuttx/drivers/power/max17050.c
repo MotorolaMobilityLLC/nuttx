@@ -1095,8 +1095,10 @@ int max17050_battery_temp_set_limits(struct device *dev, int min, int max)
 
 #ifdef CONFIG_BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP
     /* min and max will be 1x Celsius. */
-    min = max17050_thermistor_real_to_fuelgauge(min*10)/10;
-    max = max17050_thermistor_real_to_fuelgauge(max*10)/10;
+    if (min != INT_MIN)
+        min = max17050_thermistor_real_to_fuelgauge(min*10)/10;
+    if (max != INT_MAX)
+        max = max17050_thermistor_real_to_fuelgauge(max*10)/10;
 #endif
 
     return max17050_set_temperature_alert(priv, min, max);
