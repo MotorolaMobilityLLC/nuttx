@@ -60,10 +60,6 @@ config GHOST_DISPLAY
     bool "Ghost Display"
     default n
 
-config PROJECTOR_DISPLAY
-    bool "Projector Display"
-    default n
-
 if GREYBUS_CAMERA_EXT
 choice
   prompt "Select Camera to use"
