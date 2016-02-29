@@ -64,7 +64,7 @@ static void apbe_power_off(void)
 static void apbe_power_on_normal(void)
 {
   lldbg("\n");
-  stm32_gpiowrite(GPIO_APBE_SPIBOOT_N, 1);
+  stm32_gpiowrite(GPIO_APBE_SPIBOOT_N, 0);
   stm32_gpiowrite(GPIO_APBE_WAKE, 0);
   stm32_gpiowrite(GPIO_APBE_PWR_EN, 1);
   usleep(APBE_PWR_EN_DELAY);
