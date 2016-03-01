@@ -47,14 +47,17 @@
 #define GPIO_MODS_SPI_TACK       CALC_GPIO_NUM('B', 14)
 #define GPIO_MODS_SPI_RACK       CALC_GPIO_NUM('B', 15)
 #define GPIO_MODS_RFR            CALC_GPIO_NUM('C',  2)
+#define GPIO_MODS_CHG_VINA_EN    CALC_GPIO_NUM('C',  3)
 #define GPIO_MODS_CHG_INT_N      CALC_GPIO_NUM('C',  4)
 #define GPIO_MODS_SL_BPLUS_AIN   CALC_GPIO_NUM('C',  5)
+#define GPIO_MODS_CHG_VINB_EN    CALC_GPIO_NUM('C',  7)
 #define GPIO_MODS_INT            CALC_GPIO_NUM('C', 13)
+#define GPIO_MODS_FUSB302_INT_N  CALC_GPIO_NUM('G', 13)
 #define GPIO_MODS_SYS_RST        CALC_GPIO_NUM('H',  0)
 #define GPIO_APBE_SPIBOOT_N      CALC_GPIO_NUM('A',  8)
 #define GPIO_APBE_WAKE           CALC_GPIO_NUM('B',  8)
 #define GPIO_APBE_RST_N          CALC_GPIO_NUM('H',  1)
-#define GPIO_APBE_PWR_EN         CALC_GPIO_NUM('G',  14)
+#define GPIO_APBE_PWR_EN         CALC_GPIO_NUM('G', 14)
 
 /* Only present on HDK P2 and later */
 #if (BOARD_REVISION >= 2)

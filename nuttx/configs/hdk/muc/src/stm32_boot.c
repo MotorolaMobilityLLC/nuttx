@@ -41,6 +41,7 @@
 #include <nuttx/device_battery.h>
 #include <nuttx/device_battery_good.h>
 #include <nuttx/device_display.h>
+#include <nuttx/device_ext_power.h>
 #include <nuttx/device_hid.h>
 #include <nuttx/device_lights.h>
 #include <nuttx/device_ptp.h>
@@ -72,9 +73,10 @@ struct board_gpio_cfg_s
 
 static const struct board_gpio_cfg_s board_gpio_cfgs[] =
 {
-  { GPIO_MODS_SL_BPLUS_EN,   (GPIO_PULLUP)           },
-  { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT) },
-  { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)         },
+  { GPIO_MODS_SL_BPLUS_EN,   (GPIO_PULLUP)                },
+  { GPIO_MODS_FUSB302_INT_N, (GPIO_INPUT|GPIO_FLOAT)      },
+  { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT)      },
+  { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)              },
 };
 
 #ifdef CONFIG_DEVICE_CORE
@@ -164,6 +166,38 @@ static struct device_resource dsi_display_resources[] = {
     },
 };
 #endif
+#ifdef CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
+static struct device_resource switch_ptp_chg_resources[] = {
+    {
+       .name   = "base_path",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_MODS_CHG_VINA_EN,
+       .count  = 1,
+    },
+    {
+       .name   = "wrd_path",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_MODS_CHG_VINB_EN,
+       .count  = 1,
+    },
+};
+
+struct ptp_chg_init_data switch_ptp_chg_init_data = {
+       .wls_active_low = false,
+       .wrd_active_low = false,
+       .base_active_low = false,
+};
+#endif
+#ifdef CONFIG_FUSB302
+struct device_resource fusb302_resources[] = {
+    {
+       .name = "int_n",
+       .type = DEVICE_RESOURCE_TYPE_IRQ,
+       .start = GPIO_MODS_FUSB302_INT_N,
+       .count = 1,
+    }
+};
+#endif
 
 static struct device devices[] = {
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
@@ -212,6 +246,9 @@ static struct device devices[] = {
         .name = "switch_ptp_chg",
         .desc = "Charger driver with switches for power transfer protocol",
         .id   = 0,
+        .resources      = switch_ptp_chg_resources,
+        .resource_count = ARRAY_SIZE(switch_ptp_chg_resources),
+        .init_data = &switch_ptp_chg_init_data,
     },
 #endif
 #ifdef CONFIG_MAX17050_DEVICE
@@ -329,6 +366,16 @@ static struct device devices[] = {
     },
 #endif
 
+#ifdef CONFIG_FUSB302
+    {
+        .type = DEVICE_TYPE_EXT_POWER_HW,
+        .name = "fusb302",
+        .desc = "fusb302",
+        .id   = 0,
+        .resources = fusb302_resources,
+        .resource_count = ARRAY_SIZE(fusb302_resources),
+    },
+#endif
 };
 
 static struct device_table muc_device_table = {
@@ -422,6 +469,10 @@ void board_initialize(void)
 #ifdef CONFIG_DEVICE_CORE
   device_table_register(&muc_device_table);
 
+#ifdef CONFIG_FUSB302
+  extern struct device_driver fusb302_driver;
+  device_register_driver(&fusb302_driver);
+#endif
 #ifdef CONFIG_MODS_RAW
   extern struct device_driver mods_raw_driver;
   device_register_driver(&mods_raw_driver);
