@@ -179,6 +179,10 @@ ifeq ($(CONFIG_DEVICE_CORE),y)
   CSRCS += device.c device_resource.c device_table.c
 endif
 
+ifeq ($(CONFIG_FUSB302),y)
+  CSRCS += fusb302_ext_power.c
+endif
+
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
