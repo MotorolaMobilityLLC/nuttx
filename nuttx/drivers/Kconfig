@@ -620,6 +620,26 @@ if USBDEV
 source drivers/usbdev/Kconfig
 endif # USBDEV
 
+menuconfig FUSB302
+	bool "FUSB302 Detection Support"
+	default n
+	---help---
+		Driver for detecting USB Insertion
+
+config FUSB302_I2C_BUS
+	int "FUSB302 I2C Bus Number"
+	default 3
+	depends on FUSB302
+	---help---
+		I2C bus to use to communicate with device
+
+config FUSB302_I2C_BUS_SPEED
+	int "FUSB302 I2C Bus Speed"
+	default 400000
+	depends on FUSB302
+	---help---
+		I2C bus speed to use to communicate with device
+
 menuconfig USBHOST
 	bool "USB Host Driver Support"
 	default n
