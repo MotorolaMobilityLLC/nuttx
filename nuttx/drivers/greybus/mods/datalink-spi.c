@@ -247,20 +247,21 @@ static void set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
 static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)dl;
-  struct spi_dl_msg *req = (struct spi_dl_msg *)buf;
+  struct spi_dl_msg req;
   struct spi_dl_msg resp;
   uint16_t pl_size;
 
-  if (sizeof(*req) > len)
-    {
-      dbg("Dropping short message\n");
-      return -EINVAL;
-    }
+  /*
+   * To support bases running firmware with fewer values in the
+   * request, copy the message into a zero'd local struct.
+   */
+  memset(&req, 0, sizeof(req));
+  memcpy(&req, buf, MIN(len, sizeof(req)));
 
   /* Only BUS_CFG_REQ is supported */
-  if (req->id != DL_MSG_ID_BUS_CFG_REQ)
+  if (req.id != DL_MSG_ID_BUS_CFG_REQ)
     {
-      dbg("Unknown ID (%d)!\n", req->id);
+      dbg("Unknown ID (%d)!\n", req.id);
       return -EINVAL;
     }
 
@@ -268,7 +269,7 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
   resp.bus_resp.max_speed = cpu_to_le32(CONFIG_GREYBUS_MODS_MAX_BUS_SPEED);
 
   pl_size = MIN(CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE,
-                le16_to_cpu(req->bus_req.max_pl_size));
+                le16_to_cpu(req.bus_req.max_pl_size));
   /*
    * Verify new packet size is valid. The payload must be no smaller than
    * the default packet size and must be a power of two.
