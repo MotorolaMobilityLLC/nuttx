@@ -51,11 +51,20 @@ enum batt_level_e {
 };
 
 /*
+ * Battery charge zone
+ */
+enum batt_voltage_e {
+    BATTERY_QUICK_CHARGE,
+    BATTERY_SLOW_CHARGE,
+};
+
+/*
  * Battery state
  */
 struct batt_state_s {
     enum batt_temp_e temp;
     enum batt_level_e level;
+    enum batt_voltage_e voltage;
 };
 
 /* The type of the battery state callback function */
@@ -125,5 +134,21 @@ int battery_state_set_level(enum batt_level_e level);
  ****************************************************************************/
 
 int battery_state_set_temp(enum batt_temp_e temp);
+
+/****************************************************************************
+ * Name: battery_state_set_voltage
+ *
+ * Description:
+ *   Set battery charge voltage.
+ *
+ * Input Parameters:
+ *   charge zone - quick, slow, stop charge
+ *
+ * Returned Value:
+ *   0 on success or negative errno on failure
+ *
+ ****************************************************************************/
+
+int battery_state_set_voltage(enum batt_voltage_e voltage);
 
 #endif /* __INCLUDE_NUTTX_POWER_BATTERY_STATE_H */

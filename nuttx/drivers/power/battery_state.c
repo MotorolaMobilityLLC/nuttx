@@ -38,6 +38,7 @@
 
 #include "battery_level.h"
 #include "battery_temp.h"
+#include "battery_voltage.h"
 
 static sem_t sem = SEM_INITIALIZER(1);
 
@@ -105,6 +106,26 @@ done:
     return 0;
 }
 
+int battery_state_set_voltage(enum batt_voltage_e voltage)
+{
+    while (sem_wait(&sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    if (g_info->batt.voltage == voltage)
+        goto done;
+
+    g_info->batt.voltage = voltage;
+
+    battery_notify();
+
+done:
+    sem_post(&sem);
+    return 0;
+}
+
 int battery_state_register(batt_callback_t callback, void *arg)
 {
     struct notify_node_s *node;
@@ -159,6 +180,15 @@ int battery_state_init(void)
     ret = battery_temp_start();
     if (ret) {
         battery_level_stop();
+        free(g_info);
+        g_info = NULL;
+        return ret;
+    }
+
+    ret = battery_voltage_start();
+    if (ret) {
+        battery_level_stop();
+        battery_temp_stop();
         free(g_info);
         g_info = NULL;
         return ret;
