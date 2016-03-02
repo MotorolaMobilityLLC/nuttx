@@ -72,3 +72,12 @@ protocol = 0xfe
 ; RAW Bundle 4
 [bundle-descriptor 4]
 class = 0xfe
+
+; Sensors Ext on CPort 7
+[cport-descriptor 7]
+bundle = 5
+protocol = 0xeb
+
+; Sensors Ext Bundle 5
+[bundle-descriptor 5]
+class = 0xeb

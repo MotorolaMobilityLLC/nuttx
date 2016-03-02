@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016 Motorola Mobility.
  * Copyright (c) 2014-2015 Google Inc.
  * All rights reserved.
  *
@@ -60,6 +61,7 @@ extern void gb_aud_register(int cport);
 extern void gb_i2s_direct_mgmt_register(int cport);
 extern void gb_ptp_register(int cport);
 extern void gb_usb_ext_register(int cport);
+extern void gb_sensors_ext_register(int cport);
 
 struct greybus {
     struct list_head cports;
@@ -263,6 +265,14 @@ void enable_cports(void)
              gb_ptp_register(id);
         }
 #endif
+
+#ifdef CONFIG_GREYBUS_SENSORS_EXT
+        if (protocol == GREYBUS_PROTOCOL_SENSORS_EXT) {
+             gb_info("Registering Sensors Extension Protocol.\n");
+             gb_sensors_ext_register(id);
+        }
+#endif
+
     }
 }
 #endif
