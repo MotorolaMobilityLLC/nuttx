@@ -663,8 +663,11 @@ static int tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
                 case AUDIO_FU_VOLUME:
                      /* vol step range 0-255
                       * 0 -0db attenuation, 1 -0.5 attenuation
+                      * need to invert the volume value here as
+                      * greybus protocol treats 0 as mute and FF
+                      * as max volume/no attenuation.
                       */
-                     priv->vol_step = caps->ac_controls.hw[0] & 0xFF;
+                     priv->vol_step = ~(caps->ac_controls.hw[0] & 0xFF);
                      tfa9890_modify(priv, TFA9890_REG_VOLUME_CTRL,
                                      0xff, priv->vol_step,
                                      TFA9890_VOLUME_CTRL_OFFSET);
