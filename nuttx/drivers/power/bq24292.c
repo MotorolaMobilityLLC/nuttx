@@ -32,6 +32,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include <nuttx/clock.h>
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/list.h>
@@ -55,7 +56,8 @@ static struct work_s pg_work;
 
 static FAR struct i2c_dev_s *i2c;
 
-#define BQ24292_I2C_ADDR    0x6B
+#define BQ24292_I2C_ADDR            0x6B
+#define PG_OPS_DELAY                MSEC2TICK(500)
 
 int bq24292_power_good_register(bq24292_power_good_callback cb, void *arg)
 {
@@ -105,8 +107,9 @@ static void pg_worker(FAR void *arg)
 
 static int pg_isr(int irq, void *context)
 {
+    /* Make sure auto input source detection finished before PG worker is excuted */
     if (work_available(&pg_work))
-        return work_queue(LPWORK, &pg_work, pg_worker, NULL, 0);
+        return work_queue(LPWORK, &pg_work, pg_worker, NULL, PG_OPS_DELAY);
     else
         return OK;
 }
