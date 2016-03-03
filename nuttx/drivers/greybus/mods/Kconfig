@@ -2,6 +2,10 @@ choice
 	prompt "Select a Mods bus"
 config GREYBUS_MODS_SPI
 	bool "SPI"
+	depends on GPIO
+	depends on ARCH_HAVE_HIRES_TIMER
+	select SCHED_WORKQUEUE
+	select SCHED_LPWORK
 
 config GREYBUS_MODS_I2C
 	bool "I2C"
@@ -47,6 +51,17 @@ config GREYBUS_MODS_DESIRED_PKT_SIZE
 		instead. Value must be greater than or equal to the default packet size
 		and less than or equal to the maximum supported Greybus packet size.
 		Set to zero to report nothing and remain at the default size.
+
+config GREYBUS_MODS_ACK
+	bool "Enable ACK support"
+	default y
+	---help---
+		When this option is enabled, an ACK is signaled to the base after each
+		message to indicate the message was received correctly. This allows
+		the transmitting side to know if there was an error during transmission
+		(for example, CRC mismatch). This increases the reliability of the bus
+		at the cost of speed, so do not enable this feature if you require low
+		latency or high throughput.
 endif
 
 config GREYBUS_MODS_PTP_DEVICE_BATTERY
