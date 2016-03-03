@@ -42,6 +42,7 @@
 #include <nuttx/gpio.h>
 #include <nuttx/greybus/mods.h>
 #include <nuttx/greybus/types.h>
+#include <nuttx/hires_tmr.h>
 #include <nuttx/power/pm.h>
 #include <nuttx/ring_buf.h>
 #include <nuttx/spi/spi.h>
@@ -73,6 +74,9 @@
 #define MSG_TYPE_DL    (0 << 6)     /* Packet for/from data link layer */
 #define MSG_TYPE_NW    (1 << 6)     /* Packet for/from network layer */
 
+/* Possible values for bus config features */
+#define DL_BIT_ACK     (1 << 0)     /* Flag to indicate ACKing is supported */
+
 /* SPI packet CRC size (in bytes) */
 #define CRC_SIZE       (2)
 
@@ -81,6 +85,12 @@
 
 /* The number of times to try sending a datagram before giving up */
 #define NUM_TRIES      (3)
+
+/* Workqueue to use by the datalink layer */
+#define DLWORK         LPWORK
+
+/* Maximum time to wait for an ACK from the base */
+#define ACK_TIMEOUT_US 100000       /* 100 milliseconds */
 
 /* Macro to determine the payload size from the packet size */
 #define PL_SIZE(pkt_size)  (pkt_size - sizeof(struct spi_msg_hdr) - CRC_SIZE)
@@ -123,10 +133,15 @@ struct mods_spi_dl_s
   FAR struct work_s terr_work;
   sem_t sem;
 
-  struct ring_buf *txp_rb;       /* Producer TX ring buffer */
-  struct ring_buf *txc_n2s_rb;   /* Consumer TX ring buffer (next to send) */
-  struct ring_buf *txc_fus_rb;   /* Consumer TX ring buffer (first unknown status) */
+#ifdef CONFIG_GREYBUS_MODS_ACK
+  bool ack_supported;            /* Base supports ACK'ing on success */
+  gpio_cfg_t tack_cfg;           /* Saved config for the ACK transmit line */
+  gpio_cfg_t rack_cfg;           /* Saved config for the ACK receive line */
   uint8_t tx_tries_remaining;    /* Send attempts remaining before giving up */
+#endif
+
+  struct ring_buf *txp_rb;       /* Producer TX ring buffer */
+  struct ring_buf *txc_rb;       /* Consumer TX ring buffer */
 
   __u8 *rx_buf;                  /* Buffer for received packets */
 
@@ -146,12 +161,14 @@ struct mods_spi_dl_s
 struct spi_dl_msg_bus_config_req
 {
   __le16 max_pl_size;            /* Maximum payload size supported by base */
+  __u8   features;               /* See DL_BIT_* defines for values */
 } __packed;
 
 struct spi_dl_msg_bus_config_resp
 {
   __le32 max_speed;              /* Maximum bus speed supported by the mod */
   __le16 pl_size;                /* Payload size that mod has selected to use */
+  __u8   features;               /* See DL_BIT_* defines for values */
 } __packed;
 
 struct spi_dl_msg
@@ -171,25 +188,14 @@ static inline void dl_work_queue(FAR struct work_s *work, worker_t worker,
                                  FAR struct mods_spi_dl_s *priv)
 {
   if (work_available(work))
-      work_queue(HPWORK, work, worker, priv, 0);
+      work_queue(DLWORK, work, worker, priv, 0);
 }
 
-static inline bool rb_n2s_is_xxx(FAR struct mods_spi_dl_s *priv,
-                                 uint16_t bitmask)
+static inline bool txc_rb_is_valid(FAR struct mods_spi_dl_s *priv)
 {
-  struct spi_msg_hdr *hdr = ring_buf_get_data(priv->txc_n2s_rb);
+  struct spi_msg_hdr *hdr = ring_buf_get_data(priv->txc_rb);
 
-  return (le16_to_cpu(hdr->bitmask) & bitmask) != 0;
-}
-
-static inline bool rb_n2s_is_pkt1(FAR struct mods_spi_dl_s *priv)
-{
-  return rb_n2s_is_xxx(priv, HDR_BIT_PKT1);
-}
-
-static inline bool rb_n2s_is_valid(FAR struct mods_spi_dl_s *priv)
-{
-  return rb_n2s_is_xxx(priv, HDR_BIT_VALID);
+  return (le16_to_cpu(hdr->bitmask) & HDR_BIT_VALID) != 0;
 }
 
 static int alloc_callback(struct ring_buf *rb, void *arg)
@@ -237,7 +243,7 @@ static void set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
       0 /* tailroom */, alloc_callback /* alloc_callback */,
       NULL /* free_callback */, &rb_num /* arg */);
   ASSERT(priv->txp_rb);
-  priv->txc_n2s_rb = priv->txc_fus_rb = priv->txp_rb;
+  priv->txc_rb = priv->txp_rb;
 
   /* Save new packet size */
   priv->pkt_size = pkt_size;
@@ -294,6 +300,18 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
     }
   resp.bus_resp.pl_size = cpu_to_le16(pl_size);
 
+  resp.bus_resp.features = 0;
+
+#ifdef CONFIG_GREYBUS_MODS_ACK
+  if (req.bus_req.features & DL_BIT_ACK)
+    {
+      priv->ack_supported = true;
+      resp.bus_resp.features |= DL_BIT_ACK;
+    }
+
+  vdbg("ack_supported = %d\n", priv->ack_supported);
+#endif
+
   return queue_data(priv, MSG_TYPE_DL, &resp, sizeof(resp));
 }
 
@@ -303,7 +321,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   struct ring_buf *rb;
   bool set_int = false;
 
-  rb = priv->txc_n2s_rb;
+  rb = priv->txc_rb;
 
   /* Verify not already setup to transceive packet */
   if (priv->xfer_setup)
@@ -337,6 +355,17 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
       set_int = true;
     }
 
+#ifdef CONFIG_GREYBUS_MODS_ACK
+  if (priv->ack_supported)
+    {
+      /* Restore the GPIOs back to SPI configuration */
+      gpio_cfg_restore(GPIO_MODS_SPI_TACK, priv->tack_cfg);
+      gpio_cfg_restore(GPIO_MODS_SPI_RACK, priv->rack_cfg);
+      priv->tack_cfg = NULL;
+      priv->rack_cfg = NULL;
+    }
+#endif
+
   SPI_EXCHANGE(priv->spi, ring_buf_get_data(rb), priv->rx_buf, priv->pkt_size);
 
   /* Signal to base that we're ready to transceive */
@@ -346,17 +375,14 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   mods_host_int_set(set_int);
 }
 
-static void reset_txc_rb_entries(FAR struct mods_spi_dl_s *priv)
+static void reset_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
 {
-  while (priv->txc_fus_rb != priv->txc_n2s_rb)
-    {
-      vdbg("%d\n", *((int *)ring_buf_get_buf(priv->txc_fus_rb)));
+  vdbg("%d\n", *((int *)ring_buf_get_buf(priv->txc_rb)));
 
-      memset(ring_buf_get_data(priv->txc_fus_rb), 0, priv->pkt_size);
-      ring_buf_reset(priv->txc_fus_rb);
-      ring_buf_pass(priv->txc_fus_rb);
-      priv->txc_fus_rb = ring_buf_get_next(priv->txc_fus_rb);
-    }
+  memset(ring_buf_get_data(priv->txc_rb), 0, priv->pkt_size);
+  ring_buf_reset(priv->txc_rb);
+  ring_buf_pass(priv->txc_rb);
+  priv->txc_rb = ring_buf_get_next(priv->txc_rb);
 }
 
 static void attach_cb(FAR void *arg, enum base_attached_e state)
@@ -374,6 +400,20 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       mods_host_int_set(false);
       mods_rfr_set(0);
 
+#ifdef CONFIG_GREYBUS_MODS_ACK
+      if (priv->ack_supported)
+        {
+          /* Restore the GPIOs back to SPI configuration */
+          gpio_cfg_restore(GPIO_MODS_SPI_TACK, priv->tack_cfg);
+          gpio_cfg_restore(GPIO_MODS_SPI_RACK, priv->rack_cfg);
+          priv->tack_cfg = NULL;
+          priv->rack_cfg = NULL;
+
+          priv->ack_supported = false;
+        }
+      priv->tx_tries_remaining = NUM_TRIES;
+#endif
+
       if (priv->xfer_setup)
         {
           /* Cancel SPI transaction */
@@ -384,20 +424,21 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
         }
 
       /* Ensure all work has stopped */
-      work_cancel(HPWORK, &priv->wake_work);
-      work_cancel(HPWORK, &priv->tend_work);
-      work_cancel(HPWORK, &priv->terr_work);
+      work_cancel(DLWORK, &priv->wake_work);
+      work_cancel(DLWORK, &priv->tend_work);
+      work_cancel(DLWORK, &priv->terr_work);
 
       /* Cleanup any unsent messages */
-      priv->txc_n2s_rb = priv->txp_rb;
-      reset_txc_rb_entries(priv);
+      while (ring_buf_is_consumers(priv->txc_rb))
+        {
+          reset_txc_rb_entry(priv);
+        }
 
       /* Return packet size back to default */
       set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
 
       /* Reset state variables */
       priv->pkt1_supported = false;
-      priv->tx_tries_remaining = NUM_TRIES;
 #ifdef CONFIG_DEBUG
       priv->rfr_cnt = 0;
 #endif
@@ -416,6 +457,77 @@ static void txn_start_cb(void *v)
   /* Deassert signals to base */
   mods_rfr_set(0);
   mods_host_int_set(false);
+}
+
+static bool ack_handler(FAR struct mods_spi_dl_s *priv, bool do_ack)
+{
+#ifdef CONFIG_GREYBUS_MODS_ACK
+  uint32_t start;
+  uint8_t ack;
+  uint8_t wake_n;
+
+  if (!priv->ack_supported) return true;
+
+  start = hrt_getusec();
+
+  /* Send ACK to base */
+  priv->tack_cfg = gpio_cfg_save(GPIO_MODS_SPI_TACK);
+  gpio_direction_out(GPIO_MODS_SPI_TACK, do_ack ? 1 : 0);
+
+  /* Setup to receive ACK from base */
+  priv->rack_cfg = gpio_cfg_save(GPIO_MODS_SPI_RACK);
+  gpio_direction_in(GPIO_MODS_SPI_RACK);
+
+  /* If a packet was sent to the base, look for ACK */
+  if (txc_rb_is_valid(priv))
+    {
+      while (!(ack = gpio_get_value(GPIO_MODS_SPI_RACK)) &&
+             (wake_n = gpio_get_value(GPIO_MODS_WAKE_N)) &&
+             ((hrt_getusec() - start) < ACK_TIMEOUT_US));
+      if (!ack && wake_n)
+        {
+          if (!do_ack)
+            {
+              /*
+               * Since both TX and RX failed, need to spin longer to ensure
+               * base does not see false ACK.
+               */
+              while ((wake_n = gpio_get_value(GPIO_MODS_WAKE_N)) &&
+                     ((hrt_getusec() - start) < (2 * ACK_TIMEOUT_US)));
+            }
+
+          if (--priv->tx_tries_remaining > 0)
+            {
+              dbg("Retry: No ACK received\n");
+              return false;
+            }
+          else
+            {
+              dbg("Abort: No ACK received\n");
+              priv->tx_tries_remaining = NUM_TRIES;
+              return true;
+            }
+        }
+      else if (priv->tx_tries_remaining != NUM_TRIES)
+        {
+          dbg("Retry successful\n");
+          priv->tx_tries_remaining = NUM_TRIES;
+        }
+    }
+
+  if (!do_ack)
+    {
+      /* Must block long enough to ensure base does not see false ACK. */
+      while ((wake_n = gpio_get_value(GPIO_MODS_WAKE_N)) &&
+             ((hrt_getusec() - start) < (2 * ACK_TIMEOUT_US)));
+
+      /* If here, there either was no TX or the TX was successful and ACK'd,
+       * so it is okay to return true.
+       */
+    }
+#endif
+
+  return true;
 }
 
 static void txn_finished_worker(FAR void *arg)
@@ -445,19 +557,10 @@ static void txn_finished_worker(FAR void *arg)
       dbg("RFR still asserted: cnt=%d\n", ++(priv->rfr_cnt));
     }
 
-  priv->txc_n2s_rb = ring_buf_get_next(priv->txc_n2s_rb);
-
-  if (ring_buf_is_producers(priv->txc_n2s_rb) || rb_n2s_is_pkt1(priv))
+  if (ack_handler(priv, true))
     {
-      /* Reset TX consumer ring buffer entries known to be sent */
-      reset_txc_rb_entries(priv);
-
-      /* Reset number of tries counter due to success */
-      if (priv->tx_tries_remaining != NUM_TRIES)
-        {
-          priv->tx_tries_remaining = NUM_TRIES;
-          dbg("Retry successful\n");
-        }
+      /* Reset TX consumer ring buffer entry */
+      reset_txc_rb_entry(priv);
     }
 
   /* Clear transfer setup flag */
@@ -468,7 +571,7 @@ static void txn_finished_worker(FAR void *arg)
       /* Received a dummy packet - no processing to do! */
 
       /* Only change packet size if TX buffer is empty */
-      if ((priv->new_pkt_size > 0) && (priv->txp_rb == priv->txc_fus_rb))
+      if ((priv->new_pkt_size > 0) && (priv->txp_rb == priv->txc_rb))
         {
           set_pkt_size(priv, priv->new_pkt_size);
           priv->new_pkt_size = 0;
@@ -580,7 +683,6 @@ static void txn_error_worker(FAR void *arg)
 {
   FAR struct mods_spi_dl_s *priv = arg;
   int ret;
-  bool is_valid;
 
   do
     {
@@ -588,22 +690,12 @@ static void txn_error_worker(FAR void *arg)
     }
   while (ret < 0 && errno == EINTR);
 
-  is_valid = rb_n2s_is_valid(priv);
-  if (is_valid && --priv->tx_tries_remaining)
-    {
-      dbg("Retrying: tx_tries_remaining=%d\n",
-          priv->tx_tries_remaining);
+  dbg("Transceive error\n");
 
-      priv->txc_n2s_rb = priv->txc_fus_rb;
-    }
-  else
+  if (ack_handler(priv, false))
     {
-      if (is_valid)
-          dbg("Giving up\n");
-
-      priv->txc_n2s_rb = ring_buf_get_next(priv->txc_n2s_rb);
-      reset_txc_rb_entries(priv);
-      priv->tx_tries_remaining = NUM_TRIES;
+      /* Reset TX consumer ring buffer entry */
+      reset_txc_rb_entry(priv);
     }
 
   /* Ignore any received payload from previous packets */
