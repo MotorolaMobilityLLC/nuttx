@@ -224,7 +224,8 @@ static int tfa9890_bulk_read(FAR struct i2c_dev_s *i2c_dev, uint32_t i2c_addr,
         if (remaining_bytes < chunk_size)
             chunk_size = remaining_bytes;
         msgs[1].buffer = data + offset;
-        I2C_TRANSFER(i2c_dev, msgs, chunk_size);
+        msgs[1].length = chunk_size;
+        I2C_TRANSFER(i2c_dev, msgs, 2);
         offset = offset + chunk_size;
         remaining_bytes = remaining_bytes - chunk_size;
     }
