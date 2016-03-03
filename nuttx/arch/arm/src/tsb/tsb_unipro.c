@@ -1067,8 +1067,10 @@ int _unipro_reset_cport(unsigned int cportid)
     tx_queue_empty_offset = CPB_TXQUEUEEMPTY_0 + ((cportid / 32) << 2);
     tx_queue_empty_bit = (1 << (cportid % 32));
 
-    while (!(getreg32(AIO_UNIPRO_BASE + tx_queue_empty_offset) &
+    if (cportid != CPORTID_CDSI0 && cportid != CPORTID_CDSI1) {
+        while (!(getreg32(AIO_UNIPRO_BASE + tx_queue_empty_offset) &
                 tx_queue_empty_bit)) {
+        }
     }
 
     tx_reset_offset = TX_SW_RESET_00 + (cportid << 2);
