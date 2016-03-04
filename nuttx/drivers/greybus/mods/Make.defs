@@ -57,6 +57,14 @@ ifeq ($(CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY),y)
 CSRCS += battery-ptp.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE),y)
+CSRCS += sensors-dummy-pressure.c
+endif
+
+ifeq ($(CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL),y)
+CSRCS += sensors-dummy-accel.c
+endif
+
 # Include Mods build support
 
 DEPPATH += --dep-path greybus$(DELIM)mods

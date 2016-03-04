@@ -241,6 +241,15 @@ menuconfig GREYBUS_SENSORS_EXT
 	bool "Sensors-Ext Protocol"
 	default n
 
+if GREYBUS_SENSORS_EXT
+config GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
+	bool "Dummy Pressure sensor"
+	depends on RTC && SCHED_LPWORK
+config GREYBUS_SENSORS_EXT_DUMMY_ACCEL
+	bool "Dummy Accel Sensor"
+	depends on RTC && SCHED_LPWORK
+endif
+
 menuconfig GREYBUS_MODS
 	bool "Mods Protocol"
 	default n
