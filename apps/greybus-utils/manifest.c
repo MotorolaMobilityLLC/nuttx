@@ -50,6 +50,7 @@ extern void gb_pwm_register(int cport);
 extern void gb_spi_register(int cport);
 extern void gb_uart_register(int cport);
 extern void gb_hid_register(int cport);
+extern void gb_backlight_ext_register(int cport);
 extern void gb_mods_display_register(int cport);
 extern void gb_raw_register(int cport);
 extern void gb_vendor_register(int cport);
@@ -176,6 +177,13 @@ void enable_cports(void)
         if (protocol == GREYBUS_PROTOCOL_PWM) {
             gb_info("Registering PWM greybus driver.\n");
             gb_pwm_register(id);
+        }
+#endif
+
+#ifdef CONFIG_GREYBUS_BACKLIGHT_EXT
+        if (protocol == GREYBUS_PROTOCOL_BACKLIGHT_EXT) {
+            gb_info("Registering Backlight-Ext greybus driver.\n");
+            gb_backlight_ext_register(id);
         }
 #endif
 
