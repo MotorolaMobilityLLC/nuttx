@@ -46,7 +46,7 @@ uint32_t cdsi_read(struct cdsi_dev *dev, uint32_t addr)
     return getreg32(dev->base + addr);
 }
 
-static struct cdsi_dev *cdsi_initialize(int cdsi, int tx)
+struct cdsi_dev *cdsi_initialize(int cdsi, int tx)
 {
     struct cdsi_dev *dev;
 
@@ -96,7 +96,7 @@ static struct cdsi_dev *cdsi_initialize(int cdsi, int tx)
     return dev;
 }
 
-static void cdsi_uninitialize(struct cdsi_dev *dev)
+void cdsi_uninitialize(struct cdsi_dev *dev)
 {
     int cdsi = dev->base == CDSI0_BASE ? TSB_CDSI0 : TSB_CDSI1;
 
