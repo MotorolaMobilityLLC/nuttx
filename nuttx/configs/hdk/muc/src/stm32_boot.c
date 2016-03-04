@@ -1,6 +1,6 @@
 /************************************************************************************
  *
- *   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
+ *   Copyright (C) 2016 Motorola Mobility, LLC. All rights reserved.
  *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
@@ -44,6 +44,7 @@
 #include <nuttx/device_ptp.h>
 #include <nuttx/device_ptp_chg.h>
 #include <nuttx/device_raw.h>
+#include <nuttx/device_sensors_ext.h>
 #include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/device_table.h>
 #include <nuttx/power/battery_state.h>
@@ -71,7 +72,33 @@ static const struct board_gpio_cfg_s board_gpio_cfgs[] =
 };
 
 #ifdef CONFIG_DEVICE_CORE
+typedef enum {
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL
+    DUMMY_ACCEL,
+#endif
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
+    DUMMY_PRESSURE,
+#endif
+    SENSORS_TOTAL,
+} sensor_type;
+
 static struct device devices[] = {
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
+    {
+        .type = DEVICE_TYPE_SENSORS_HW,
+        .name = "sensors_ext_pressure",
+        .desc = "Sensors Extension Protocol",
+        .id   = DUMMY_PRESSURE,
+    },
+#endif
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL
+    {
+        .type = DEVICE_TYPE_SENSORS_HW,
+        .name = "sensors_ext_accel",
+        .desc = "Sensors Extension Protocol",
+        .id   = DUMMY_ACCEL,
+    },
+#endif
 #ifdef CONFIG_MODS_RAW
     {
         .type = DEVICE_TYPE_RAW_HW,
@@ -237,6 +264,14 @@ void board_initialize(void)
 #ifdef CONFIG_BATTERY_GOOD_DEVICE_COMP
   extern struct device_driver comp_batt_good_driver;
   device_register_driver(&comp_batt_good_driver);
+#endif
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
+  extern struct device_driver sensor_dummy_pressure_driver;
+  device_register_driver(&sensor_dummy_pressure_driver);
+#endif
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL
+  extern struct device_driver sensor_dummy_accel_driver;
+  device_register_driver(&sensor_dummy_accel_driver);
 #endif
 
 #endif
