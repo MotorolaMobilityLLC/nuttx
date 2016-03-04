@@ -34,6 +34,7 @@
 
 struct cdsi_config {
     /* Common */
+    uint32_t direction:1;  /* RX: 0 (CDSI -> UniPro), TX: 1 (UniPro -> CDSI) */
     uint32_t mode:1;       /* TSB_CDSI_MODE_DSI | TSB_CDSI_MODE_CSI */
     uint32_t rx_num_lanes:3;
     uint32_t tx_num_lanes:3;
@@ -54,10 +55,10 @@ struct cdsi_config {
     uint32_t blank_packet_enabled:1;
     uint32_t video_mode:1;
     uint32_t color_bar_enabled:1;
-    //uint32_t keep_alive;
-    //uint32_t clk_pre;
-    //uint32_t clk_post;
     uint32_t vss_control_payload;
+    uint8_t keep_alive;
+    uint8_t clk_pre;
+    uint8_t clk_post;
     /* CSI only */
     /* DSI only */
     uint8_t horizontal_front_porch;
@@ -73,7 +74,7 @@ struct cdsi_config {
     uint8_t vertical_bottom_border;
     /* Video Mode only */
     /* Command Mode only */
-    //uint32_t vsync_mode;
+    uint8_t vsync_mode;
 };
 
 void cdsi_modify(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t field);
