@@ -237,6 +237,10 @@ config GREYBUS_PTP_INT_RCV_MAX_V
 	depends on !GREYBUS_PTP_INT_RCV_NEVER
 endif
 
+menuconfig GREYBUS_SENSORS_EXT
+	bool "Sensors-Ext Protocol"
+	default n
+
 menuconfig GREYBUS_MODS
 	bool "Mods Protocol"
 	default n
