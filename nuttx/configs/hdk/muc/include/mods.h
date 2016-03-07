@@ -44,6 +44,8 @@
 #define GPIO_MODS_SL_BPLUS_EN    CALC_GPIO_NUM('A', 11)
 #define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  0)
 #define GPIO_MODS_SPI_CS_N       CALC_GPIO_NUM('B', 12)
+#define GPIO_MODS_SPI_TACK       CALC_GPIO_NUM('B', 14)
+#define GPIO_MODS_SPI_RACK       CALC_GPIO_NUM('B', 15)
 #define GPIO_MODS_RFR            CALC_GPIO_NUM('C',  2)
 #define GPIO_MODS_CHG_INT_N      CALC_GPIO_NUM('C',  4)
 #define GPIO_MODS_SL_BPLUS_AIN   CALC_GPIO_NUM('C',  5)
@@ -64,13 +66,12 @@
 #define GPIO_MODS_BASE_ATTACH    GPIO_MODS_SL_BPLUS_AIN
 
 /* Battery voltage comparator */
-#  define BATT_COMP              STM32_COMP2             /* Comparator */
-#  define BATT_COMP_INP          STM32_COMP_INP_PIN_1    /* Input plus */
-#  define BATT_COMP_INM          STM32_COMP_INM_VREF     /* Input minus */
-#  define BATT_COMP_HYST         STM32_COMP_HYST_HIGH    /* Hysteresis */
-#  define BATT_COMP_SPEED        STM32_COMP_SPEED_LOW    /* Speed */
-#  define BATT_COMP_INV          false                   /* Output not inverted */
-
+#define BATT_COMP                STM32_COMP2             /* Comparator */
+#define BATT_COMP_INP            STM32_COMP_INP_PIN_1    /* Input plus */
+#define BATT_COMP_INM            STM32_COMP_INM_VREF     /* Input minus */
+#define BATT_COMP_HYST           STM32_COMP_HYST_HIGH    /* Hysteresis */
+#define BATT_COMP_SPEED          STM32_COMP_SPEED_LOW    /* Speed */
+#define BATT_COMP_INV            false                   /* Output not inverted */
 
 static inline void mods_rfr_init(void)
 {
