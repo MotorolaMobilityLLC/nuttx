@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2016 Motorola Mobility, LLC.
  * Copyright (c) 2014-2015 Google Inc.
  * All rights reserved.
  *
@@ -240,4 +241,22 @@ int gpio_clear_interrupt(uint8_t which)
     if (chip->ops->clear_interrupt)
         return chip->ops->clear_interrupt(chip->driver_data, which);
     return -EINVAL;
+}
+
+gpio_cfg_t gpio_cfg_save(uint8_t which)
+{
+    struct gpio_chip_s *chip = get_gpio_chip(&which);
+
+    DEBUGASSERT(chip);
+    DEBUGASSERT(chip->ops->cfg_save);
+    return chip->ops->cfg_save(chip->driver_data, which);
+}
+
+void gpio_cfg_restore(uint8_t which, gpio_cfg_t cfg)
+{
+    struct gpio_chip_s *chip = get_gpio_chip(&which);
+
+    DEBUGASSERT(chip);
+    DEBUGASSERT(chip->ops->cfg_restore);
+    chip->ops->cfg_restore(chip->driver_data, which, cfg);
 }
