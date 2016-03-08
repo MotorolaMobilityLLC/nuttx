@@ -38,6 +38,7 @@
 #include <semaphore.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <nuttx/util.h>
 
 #define DEFAULT_BASE_INPUT_CURRENT  500 /* mA */
 
@@ -275,12 +276,19 @@ static void batt_ptp_set_battery_state(const struct batt_state_s *batt,
 
     if (state->chg_allowed) {
         if (batt->temp == BATTERY_TEMP_NORMAL) {
-            state->charge_current = CONFIG_GREYBUS_MODS_FULL_CHG_CURRENT;
+            if (batt->voltage == BATTERY_QUICK_CHARGE)
+                state->charge_current = CONFIG_GREYBUS_MODS_QUICK_CHG_CURRENT;
+            else
+                state->charge_current = CONFIG_GREYBUS_MODS_SLOW_CHG_CURRENT;
             state->charge_voltage = CONFIG_GREYBUS_MODS_FULL_CHG_VOLTAGE;
         } else {
-            state->charge_current = CONFIG_GREYBUS_MODS_REDUCED_CHG_CURRENT;
+            if (batt->voltage == BATTERY_QUICK_CHARGE)
+                state->charge_current = CONFIG_GREYBUS_MODS_REDUCED_CHG_CURRENT;
+            else
+                state->charge_current = MIN(CONFIG_GREYBUS_MODS_REDUCED_CHG_CURRENT,
+                                             CONFIG_GREYBUS_MODS_SLOW_CHG_CURRENT);
             state->charge_voltage = CONFIG_GREYBUS_MODS_REDUCED_CHG_VOLTAGE;
-        }
+          }
     }
 }
 
@@ -305,7 +313,9 @@ static void batt_ptp_battery_changed(void *arg,
         }
     }
 
-    if (current.temp == batt->temp && current.level == batt->level)
+    if (current.temp == batt->temp &&
+        current.level == batt->level &&
+        current.voltage == batt-> voltage)
         goto battery_done;
 
     current = *batt;
