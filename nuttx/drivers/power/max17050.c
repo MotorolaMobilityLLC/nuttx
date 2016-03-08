@@ -32,6 +32,7 @@
 #include <nuttx/device_battery_level.h>
 #include <nuttx/device_battery_temp.h>
 #include <nuttx/device_battery_good.h>
+#include <nuttx/device_battery_voltage.h>
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/kmalloc.h>
@@ -168,6 +169,13 @@ struct max17050_dev_s
     void *level_limits_arg;
     batt_level_available level_available_cb;
     void *level_available_arg;
+#endif
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+    sem_t battery_voltage_sem;
+    batt_voltage_limits voltage_limits_cb;
+    void *voltage_limits_arg;
+    batt_voltage_available voltage_available_cb;
+    void *voltage_available_arg;
 #endif
 };
 
@@ -773,6 +781,23 @@ static void max17050_do_level_limits_cb(FAR struct max17050_dev_s *priv, bool mi
 }
 #endif
 
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+static void max17050_do_voltage_limits_cb(FAR struct max17050_dev_s *priv, bool min)
+{
+    while (sem_wait(&priv->battery_voltage_sem) != OK) {
+
+        if (errno == EINVAL)
+            return;
+    }
+
+    if (priv->initialized && priv->voltage_limits_cb) {
+        priv->voltage_limits_cb(priv->voltage_limits_arg, min);
+    }
+
+    sem_post(&priv->battery_voltage_sem);
+}
+#endif
+
 static void max17050_queue_alrt_work(FAR struct max17050_dev_s *priv, int ms)
 {
     if (work_available(&priv->alrt_work))
@@ -791,26 +816,33 @@ static void max17050_alrt_worker(FAR void *arg)
         return;
 
     status = max17050_reg_read(priv, MAX17050_REG_STATUS);
+
     if (status >= 0) {
-        if (status & MAX17050_STATUS_VMX) {
+        if (!priv->initialized && priv->use_voltage_alrt) {
             max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
             pthread_create(&por_thread, NULL, max17050_por, priv);
             pthread_detach(por_thread);
-        }
-
+        } else if (priv->initialized) {
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+            if (status & MAX17050_STATUS_VMN)
+                max17050_do_voltage_limits_cb(priv, true);
+            else if (status & MAX17050_STATUS_VMX)
+                max17050_do_voltage_limits_cb(priv, false);
+#endif
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
-        if (status & MAX17050_STATUS_TMN)
-            max17050_do_temp_limits_cb(priv, true);
-        else if (status & MAX17050_STATUS_TMX)
-            max17050_do_temp_limits_cb(priv, false);
+            if (status & MAX17050_STATUS_TMN)
+                max17050_do_temp_limits_cb(priv, true);
+            else if (status & MAX17050_STATUS_TMX)
+                max17050_do_temp_limits_cb(priv, false);
 #endif
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
-        if (status & MAX17050_STATUS_SMN)
-            max17050_do_level_limits_cb(priv, true);
-        else if (status & MAX17050_STATUS_SMX)
-            max17050_do_level_limits_cb(priv, false);
+            if (status & MAX17050_STATUS_SMN)
+                max17050_do_level_limits_cb(priv, true);
+            else if (status & MAX17050_STATUS_SMX)
+                max17050_do_level_limits_cb(priv, false);
 #endif
-    }
+        }
+   }
 
     /* It takes up to 350 mS for the IC to de-assert the ALRT line after the
      * condition goes away. Run this worker again since ALRT line will remain
@@ -849,6 +881,19 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
         }
     }
 #endif
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+    while (sem_wait(&priv->battery_voltage_sem) != OK) {
+       if (errno == EINVAL) {
+       #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
+          sem_post(&priv->battery_temp_sem);
+       #endif
+       #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+          sem_post(&priv->battery_level_sem);
+       #endif
+           return;
+       }
+    }
+#endif
 
     priv->initialized = state;
 
@@ -872,8 +917,19 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
 
     sem_post(&priv->battery_level_sem);
 #endif
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+    if (priv->voltage_available_cb)
+        priv->voltage_available_cb(priv->voltage_available_arg, state);
 
-#if defined(CONFIG_BATTERY_TEMP_DEVICE_MAX17050) || defined (CONFIG_BATTERY_LEVEL_DEVICE_MAX17050)
+    if (!state) {
+        /* Disable */
+        max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
+    }
+
+    sem_post(&priv->battery_voltage_sem);
+#endif /* #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050 */
+
+#if defined(CONFIG_BATTERY_TEMP_DEVICE_MAX17050) || defined (CONFIG_BATTERY_LEVEL_DEVICE_MAX17050) || defined (CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050)
     if (state) {
         /* Make sure alerts are enabled and queue alert worker in case alert set
            in available callback is already active */
@@ -891,7 +947,7 @@ static bool max17050_new_config(FAR struct max17050_dev_s *priv)
     ret = max17050_reg_read(priv, MAX17050_REG_CONFIG_VER);
     if (ret < 0)
         return false;
-        
+
     return (max17050_cfg.version != ret);
 }
 
@@ -1008,6 +1064,10 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
 
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
         sem_init(&priv->battery_level_sem, 0, 1);
+#endif
+
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+        sem_init(&priv->battery_voltage_sem, 0, 1);
 #endif
 
         g_max17050_dev = priv;
@@ -1343,3 +1403,131 @@ struct device_driver max17050_battery_level_driver = {
     .ops = &max17050_battery_level_driver_ops,
 };
 #endif
+
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+static int max17050_battery_voltage_register_limits_cb(struct device *dev, batt_voltage_limits cb, void *arg)
+{
+    FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+    if (priv->voltage_limits_cb)
+        return -EEXIST;
+
+    while (sem_wait(&priv->battery_voltage_sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    priv->voltage_limits_cb  = cb;
+    priv->voltage_limits_arg = arg;
+
+    sem_post(&priv->battery_voltage_sem);
+
+    return 0;
+}
+
+static int max17050_battery_voltage_register_available_cb(struct device *dev,
+                                                batt_voltage_available cb,
+                                                void *arg) {
+
+    FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+    if (priv->voltage_available_cb){
+        return -EEXIST;
+    }
+    while (sem_wait(&priv->battery_voltage_sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+    priv->voltage_available_cb  = cb;
+    priv->voltage_available_arg = arg;
+    cb(arg, priv->initialized);
+    if (priv->initialized)
+        /* In case voltage alert set in available callback is already active */
+        max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
+    sem_post(&priv->battery_voltage_sem);
+    return 0;
+}
+
+static int max17050_battery_voltage_get_voltage(struct device *dev, int *voltage)
+{
+    struct battery_dev_s *battery_dev = device_get_private(dev);
+    b16_t v;
+    int ret;
+
+    ret = max17050_voltage(battery_dev, &v);
+    if (ret)
+        return ret;
+
+    /* Convert uV to mV */
+    *voltage = v / 1000;
+
+    return 0;
+}
+
+static int max17050_battery_voltage_set_limits(struct device *dev, int min, int max){
+
+    FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+    return max17050_set_voltage_alert(priv, min, max);
+}
+
+
+static int max17050_battery_voltage_open(struct device *dev)
+{
+    /* Make sure the core driver is initialized and ALRT line is used */
+    if (!g_max17050_dev || g_max17050_dev->alrt_gpio < 0)
+        return -ENODEV;
+
+    device_set_private(dev, g_max17050_dev);
+
+    return 0;
+}
+
+static void max17050_battery_voltage_close(struct device *dev)
+{
+    FAR struct max17050_dev_s *priv = device_get_private(dev);
+
+    while (sem_wait(&priv->battery_voltage_sem) != OK) {
+        if (errno == EINVAL) {
+            return;
+        }
+    }
+
+    /* Disable voltage alerts */
+    (void) max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
+
+    /* Unregister callbacks */
+    priv->voltage_limits_cb     = NULL;
+    priv->voltage_limits_arg    = NULL;
+    priv->voltage_available_cb  = NULL;
+    priv->voltage_available_arg = NULL;
+
+    device_set_private(dev, NULL);
+
+    sem_post(&priv->battery_voltage_sem);
+}
+
+static struct device_batt_voltage_type_ops max17050_battery_voltage_type_ops = {
+    .voltage_register_limits_cb = max17050_battery_voltage_register_limits_cb,
+    .voltage_register_available_cb = max17050_battery_voltage_register_available_cb,
+    .get_voltage = max17050_battery_voltage_get_voltage,
+    .set_voltage_limits =  max17050_battery_voltage_set_limits,
+};
+
+
+static struct device_driver_ops max17050_battery_voltage_driver_ops = {
+    .open = max17050_battery_voltage_open,
+    .close = max17050_battery_voltage_close,
+    .type_ops = &max17050_battery_voltage_type_ops,
+};
+
+
+struct device_driver max17050_battery_voltage_driver = {
+    .type = DEVICE_TYPE_BATTERY_VOLTAGE_HW,
+    .name = "max17050_battery_voltage",
+    .desc = "Battery voltage monitoring with MAX17050",
+    .ops = &max17050_battery_voltage_driver_ops,
+};
+#endif /* #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050 */
