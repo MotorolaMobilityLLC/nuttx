@@ -65,17 +65,6 @@
 #define KXTJ9_G_4G      (1 << 3)
 #define KXTJ9_G_8G      (1 << 4)
 
-/* DATA CONTROL REGISTER BITS */
-#define ODR3_125F       10
-#define ODR6_25F        11
-#define ODR12_5F        0
-#define ODR25F          1
-#define ODR50F          2
-#define ODR100F         3
-#define ODR200F         4
-#define ODR400F         5
-#define ODR800F         6
-
 /* INTERRUPT CONTROL REGISTER 1 BITS */
 /* Set these during probe if using irq mode */
 #define KXTJ9_IEL       (1 << 3)
@@ -186,7 +175,7 @@ init_done:
     return ret;
 }
 
-int kxtj9_configure(){
+int kxtj9_configure(uint8_t odr){
     uint8_t wbuf[0];
     int ret;
     do {
@@ -210,7 +199,7 @@ int kxtj9_configure(){
     g_data->ctrl_reg1 = KXTJ9_CTRL1_CONFIG;
     kxtj9_reg_write8(CTRL_REG1, g_data->ctrl_reg1);
 
-    g_data->data_ctrl = ODR3_125F;
+    g_data->data_ctrl = odr;
     kxtj9_reg_write8(DATA_CTRL, g_data->data_ctrl);
 
     /* In irq mode, populate INT_CTRL */
