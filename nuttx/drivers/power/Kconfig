@@ -5,7 +5,7 @@
 config BATTERY
 	bool "Battery support"
 	default n
-	
+
 config MAX1704X
 	bool "MAX1704X Battery charger support"
 	default n
@@ -175,6 +175,30 @@ if BATTERY_LEVEL
 choice
 	prompt "Select low level driver"
 config BATTERY_LEVEL_DEVICE_MAX17050
+	bool "Use MAX17050"
+	depends on BATTERY_MAX17050
+endchoice
+endif
+
+menuconfig BATTERY_VOLTAGE
+	bool "Battery voltage monitor"
+	depends on BATTERY_STATE
+	default n
+
+config BATTERY_VOLTAGE_QUICK_TO_SLOW
+	int "Battery voltage to transition from quick to slow charging (mV)"
+	depends on BATTERY_VOLTAGE
+	default 4100
+
+config BATTERY_VOLTAGE_SLOW_TO_QUICK_HYST
+	int "Battery voltage hysteresis to transition from Quick to Slow charging (mV)"
+	depends on BATTERY_VOLTAGE
+	default 100
+
+if BATTERY_VOLTAGE
+choice
+	prompt "Select low level driver"
+config BATTERY_VOLTAGE_DEVICE_MAX17050
 	bool "Use MAX17050"
 	depends on BATTERY_MAX17050
 endchoice
