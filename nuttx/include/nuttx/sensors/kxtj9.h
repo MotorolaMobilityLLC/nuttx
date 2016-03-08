@@ -31,6 +31,19 @@
 
 #include <stdint.h>
 
+/* DATA CONTROL REGISTER BITS */
+#define ODR0_781F       8
+#define ODR1_563F       9
+#define ODR3_125F       10
+#define ODR6_25F        11
+#define ODR12_5F        0
+#define ODR25F          1
+#define ODR50F          2
+#define ODR100F         3
+#define ODR200F         4
+#define ODR400F         5
+#define ODR800F         6
+
 struct kxtj9_sensor_data
 {
     uint16_t x;
@@ -39,7 +52,7 @@ struct kxtj9_sensor_data
 };
 
 int kxtj9_driver_init(void);
-int kxtj9_configure(void);
+int kxtj9_configure(uint8_t odr);
 int kxtj9_enable(bool on);
 int kxtj9_read_sensor_data(struct kxtj9_sensor_data *sensor_data);
 
