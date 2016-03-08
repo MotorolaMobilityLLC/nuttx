@@ -80,6 +80,9 @@
 /* Priority to report to PM framework when WAKE line asserted. */
 #define PM_ACTIVITY_WAKE 10
 
+/* The number of times to try sending a datagram before giving up */
+#define NUM_TRIES      (3)
+
 /* Macro to determine the payload size from the packet size */
 #define PL_SIZE(pkt_size)  (pkt_size - sizeof(struct spi_msg_hdr) - CRC_SIZE)
 
@@ -121,8 +124,10 @@ struct mods_spi_dl_s
   FAR struct work_s terr_work;
   sem_t sem;
 
-  struct ring_buf *txp_rb;       /* Producer ring buffer for TX */
-  struct ring_buf *txc_rb;       /* Consumer ring buffer for TX */
+  struct ring_buf *txp_rb;       /* Producer TX ring buffer */
+  struct ring_buf *txc_n2s_rb;   /* Consumer TX ring buffer (next to send) */
+  struct ring_buf *txc_fus_rb;   /* Consumer TX ring buffer (first unknown status) */
+  uint8_t tx_tries_remaining;    /* Send attempts remaining before giving up */
 
   __u8 *rx_buf;                  /* Buffer for received packets */
 
@@ -170,6 +175,24 @@ static inline void dl_work_queue(FAR struct work_s *work, worker_t worker,
       work_queue(HPWORK, work, worker, priv, 0);
 }
 
+static inline bool rb_n2s_is_xxx(FAR struct mods_spi_dl_s *priv,
+                                 uint16_t bitmask)
+{
+  struct spi_msg_hdr *hdr = ring_buf_get_data(priv->txc_n2s_rb);
+
+  return (le16_to_cpu(hdr->bitmask) & bitmask) != 0;
+}
+
+static inline bool rb_n2s_is_pkt1(FAR struct mods_spi_dl_s *priv)
+{
+  return rb_n2s_is_xxx(priv, HDR_BIT_PKT1);
+}
+
+static inline bool rb_n2s_is_valid(FAR struct mods_spi_dl_s *priv)
+{
+  return rb_n2s_is_xxx(priv, HDR_BIT_VALID);
+}
+
 static int alloc_callback(struct ring_buf *rb, void *arg)
 {
   int *header = ring_buf_get_buf(rb);
@@ -212,7 +235,7 @@ static void set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
       0 /* tailroom */, alloc_callback /* alloc_callback */,
       NULL /* free_callback */, &rb_num /* arg */);
   ASSERT(priv->txp_rb);
-  priv->txc_rb = priv->txp_rb;
+  priv->txc_n2s_rb = priv->txc_fus_rb = priv->txp_rb;
 
   /* Save new packet size */
   priv->pkt_size = pkt_size;
@@ -277,7 +300,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   struct ring_buf *rb;
   bool set_int = false;
 
-  rb = priv->txc_rb;
+  rb = priv->txc_n2s_rb;
 
   /* Verify not already setup to transceive packet */
   if (atomic_get(&priv->xfer))
@@ -320,14 +343,17 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   mods_host_int_set(set_int);
 }
 
-static void cleanup_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
+static void reset_txc_rb_entries(FAR struct mods_spi_dl_s *priv)
 {
-  vdbg("%d\n", *((int *)ring_buf_get_buf(priv->txc_rb)));
+  while (priv->txc_fus_rb != priv->txc_n2s_rb)
+    {
+      vdbg("%d\n", *((int *)ring_buf_get_buf(priv->txc_fus_rb)));
 
-  memset(ring_buf_get_data(priv->txc_rb), 0, priv->pkt_size);
-  ring_buf_reset(priv->txc_rb);
-  ring_buf_pass(priv->txc_rb);
-  priv->txc_rb = ring_buf_get_next(priv->txc_rb);
+      memset(ring_buf_get_data(priv->txc_fus_rb), 0, priv->pkt_size);
+      ring_buf_reset(priv->txc_fus_rb);
+      ring_buf_pass(priv->txc_fus_rb);
+      priv->txc_fus_rb = ring_buf_get_next(priv->txc_fus_rb);
+    }
 }
 
 static void attach_cb(FAR void *arg, enum base_attached_e state)
@@ -360,16 +386,15 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       work_cancel(HPWORK, &priv->terr_work);
 
       /* Cleanup any unsent messages */
-      while (ring_buf_is_consumers(priv->txc_rb))
-        {
-          cleanup_txc_rb_entry(priv);
-        }
+      priv->txc_n2s_rb = priv->txp_rb;
+      reset_txc_rb_entries(priv);
 
       /* Return packet size back to default */
       set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
 
       /* Reset state variables */
       priv->pkt1_supported = false;
+      priv->tx_tries_remaining = NUM_TRIES;
 #ifdef CONFIG_DEBUG
       priv->rfr_cnt = 0;
 #endif
@@ -392,7 +417,7 @@ static void txn_start_cb(void *v)
   mods_rfr_set(0);
 
   /* Deassert interrupt line if no more packets to be sent */
-  rb = ring_buf_get_next(priv->txc_rb);
+  rb = ring_buf_get_next(priv->txc_n2s_rb);
   mods_host_int_set(ring_buf_is_consumers(rb));
 }
 
@@ -423,8 +448,20 @@ static void txn_finished_worker(FAR void *arg)
       dbg("RFR still asserted: cnt=%d\n", ++(priv->rfr_cnt));
     }
 
-  /* Cleanup TX consumer ring buffer entry */
-  cleanup_txc_rb_entry(priv);
+  priv->txc_n2s_rb = ring_buf_get_next(priv->txc_n2s_rb);
+
+  if (ring_buf_is_producers(priv->txc_n2s_rb) || rb_n2s_is_pkt1(priv))
+    {
+      /* Reset TX consumer ring buffer entries known to be sent */
+      reset_txc_rb_entries(priv);
+
+      /* Reset number of tries counter due to success */
+      if (priv->tx_tries_remaining != NUM_TRIES)
+        {
+          priv->tx_tries_remaining = NUM_TRIES;
+          dbg("Retry successful\n");
+        }
+    }
 
   /* Clear transfer setup flag */
   atomic_dec(&priv->xfer);
@@ -434,7 +471,7 @@ static void txn_finished_worker(FAR void *arg)
       /* Received a dummy packet - no processing to do! */
 
       /* Only change packet size if TX buffer is empty */
-      if ((priv->new_pkt_size > 0) && (priv->txp_rb == priv->txc_rb))
+      if ((priv->new_pkt_size > 0) && (priv->txp_rb == priv->txc_fus_rb))
         {
           set_pkt_size(priv, priv->new_pkt_size);
           priv->new_pkt_size = 0;
@@ -546,6 +583,7 @@ static void txn_error_worker(FAR void *arg)
 {
   FAR struct mods_spi_dl_s *priv = arg;
   int ret;
+  bool is_valid;
 
   do
     {
@@ -553,8 +591,23 @@ static void txn_error_worker(FAR void *arg)
     }
   while (ret < 0 && errno == EINTR);
 
-  /* Cleanup TX consumer ring buffer entry */
-  cleanup_txc_rb_entry(priv);
+  is_valid = rb_n2s_is_valid(priv);
+  if (is_valid && --priv->tx_tries_remaining)
+    {
+      dbg("Retrying: tx_tries_remaining=%d\n",
+          priv->tx_tries_remaining);
+
+      priv->txc_n2s_rb = priv->txc_fus_rb;
+    }
+  else
+    {
+      if (is_valid)
+          dbg("Giving up\n");
+
+      priv->txc_n2s_rb = ring_buf_get_next(priv->txc_n2s_rb);
+      reset_txc_rb_entries(priv);
+      priv->tx_tries_remaining = NUM_TRIES;
+    }
 
   /* Ignore any received payload from previous packets */
   priv->rcvd_payload_idx = 0;
@@ -574,8 +627,6 @@ static void txn_error_worker(FAR void *arg)
 static void txn_error_cb(void *v)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
-
-  dbg("Transceive error\n");
 
   /* Deassert ready line to base */
   mods_rfr_set(0);
