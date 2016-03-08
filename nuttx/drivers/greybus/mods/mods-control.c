@@ -53,7 +53,13 @@
 
 /* Version of the Greybus control protocol we support */
 #define MB_CONTROL_VERSION_MAJOR              0x00
-#define MB_CONTROL_VERSION_MINOR              0x04
+#define MB_CONTROL_VERSION_MINOR              0x05
+
+/* Version of the Greybus control protocol to support
+ * send slave state
+ */
+#define MB_CONTROL_VERSION_SLAVE_STATE_MAJOR  0x00
+#define MB_CONTROL_VERSION_SLAVE_STATE_MINOR  0x05
 
 /* Greybus control request types */
 #define MB_CONTROL_TYPE_INVALID               0x00
@@ -65,6 +71,7 @@
 #define MB_CONTROL_TYPE_SLAVE_POWER           0x06
 #define MB_CONTROL_TYPE_GET_ROOT_VER          0x07
 #define MB_CONTROL_TYPE_RTC_SYNC              0x08
+#define MB_CONTROL_TYPE_SLAVE_STATE           0x09
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
@@ -137,13 +144,111 @@ struct mb_control_rtc_sync_request {
 struct mb_control_info {
     uint16_t cport;
     struct device *dev;
+    uint8_t host_major;
+    uint8_t host_minor;
 };
 
 static struct mb_control_info *ctrl_info;
 
+struct mb_control_slave_state_request {
+    __le32  slave_mask;
+    __le32  slave_state;
+} __packed;
+
+/**
+ * @brief send slave state
+ *
+ * @param slave_state: slave state is sent as part of gb message
+ * @return 0 on success, error code on failure.
+ */
+static int mb_control_send_slave_state(uint32_t slave_state)
+{
+    uint32_t slave_mask = 0;
+
+    gb_debug("%s()\n", __func__);
+    /* check protocol version to make sure AP supports this message
+     * before sending it.
+     */
+    if (ctrl_info->host_major < MB_CONTROL_VERSION_SLAVE_STATE_MAJOR) {
+        gb_error("%s() failed protocol version check!\n", __func__);
+        return -EINVAL;
+    }
+    if (ctrl_info->host_minor < MB_CONTROL_VERSION_SLAVE_STATE_MINOR &&
+          ctrl_info->host_major == MB_CONTROL_VERSION_SLAVE_STATE_MAJOR)
+    {
+        gb_error("%s() failed protocol minor version check!\n", __func__);
+        return -EINVAL;
+    }
+
+    if (ctrl_info->dev) {
+        int ret = device_slave_pwrctrl_get_mask(ctrl_info->dev, &slave_mask);
+        if (ret) {
+            gb_error("Failed to get pwrctrl mask\n");
+            return -EINVAL;
+        }
+    }
+
+    struct gb_operation *ss_operation =
+            gb_operation_create(MODS_VENDOR_CTRL_CPORT,
+                                MB_CONTROL_TYPE_SLAVE_STATE,
+                                sizeof(struct mb_control_slave_state_request));
+    if (!ss_operation) {
+        return -ENOMEM;
+    }
+
+    struct mb_control_slave_state_request *request =
+        gb_operation_get_request_payload(ss_operation);
+    request->slave_mask = cpu_to_le32(slave_mask);
+    request->slave_state = cpu_to_le32(slave_state);
+
+    int ret = gb_operation_send_request(ss_operation, NULL, false);
+    if (ret) {
+        gb_error("failed to send slave state\n");
+    }
+
+    gb_operation_destroy(ss_operation);
+
+    return ret;
+}
+
+/**
+ * @brief Callback for sending slave state
+ *
+ * @param dev Pointer to structure of device data.
+ * @param slave_state: slave state is sent as part of gb message
+ * @return 0 on success, error code on failure.
+ */
+static int mb_control_send_slave_state_cb(struct device *dev,
+                                uint32_t slave_state)
+{
+    gb_debug("%s\n", __func__);
+
+    /* return error if the device type is not
+     * DEVICE_TYPE_SLAVE_PWRCTRL_HW.
+     */
+    if (strncmp(dev->type, DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+                           sizeof(DEVICE_TYPE_SLAVE_PWRCTRL_HW))) {
+        gb_error("%s invalid device type \n", __func__);
+        return GB_OP_INVALID;
+    }
+
+    return mb_control_send_slave_state(slave_state);
+}
+
 static uint8_t gb_control_protocol_version(struct gb_operation *operation)
 {
-    struct gb_control_proto_version_response *response;
+    struct gb_control_proto_version_response *response =
+               gb_operation_get_request_payload(operation);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*response)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+    ctrl_info->host_major = response->major;
+    ctrl_info->host_minor = response->minor;
+
+    gb_debug("%s() host protocol major version %d\n", __func__, response->major);
+    gb_debug("%s() host protocol minor version %d\n", __func__, response->major);
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
@@ -386,7 +491,14 @@ static int mb_control_init(unsigned int cport)
     /* devices.  Not having one is not an error.                        */
     ctrl_info->dev = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, 0);
     if (!ctrl_info->dev) {
-        gb_info("Failed to open SLAVE Power Control\n");
+        gb_debug("Failed to open SLAVE Power Control\n");
+        return 0;
+    }
+
+    if (device_slave_pwrctrl_register_callback(ctrl_info->dev,
+                                       mb_control_send_slave_state_cb)) {
+        gb_debug("failed to register callback for %s device!\n",
+                DEVICE_TYPE_SLAVE_PWRCTRL_HW);
     }
 #endif
 
@@ -401,6 +513,7 @@ static void mb_control_exit(unsigned int cport)
 #ifdef CONFIG_DEVICE_CORE
     if (ctrl_info->dev) {
         device_close(ctrl_info->dev);
+        device_slave_pwrctrl_unregister_callback(ctrl_info->dev);
     }
 #endif
 
