@@ -34,6 +34,10 @@
 
 ifeq ($(CONFIG_MHB),y)
 
+ifeq ($(CONFIG_MHB_APBE_CTRL_DEVICE),y)
+CSRCS += apbe-ctrl.c
+endif
+
 DEPPATH += --dep-path mhb
 VPATH += :mhb
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)mhb}
