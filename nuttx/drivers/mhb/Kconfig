@@ -1,3 +1,10 @@
 # For a description of the syntax of this configuration file,
 # see misc/tools/kconfig-language.txt.
 #
+
+config MHB_APBE_CTRL_DEVICE
+	bool "APBE control device"
+	default n
+	depends on MHB
+	depends on GREYBUS_MODS
+	select DEVICE_CORE
