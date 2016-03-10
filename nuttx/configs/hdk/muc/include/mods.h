@@ -49,6 +49,10 @@
 #define GPIO_MODS_SL_BPLUS_AIN   CALC_GPIO_NUM('C',  5)
 #define GPIO_MODS_INT            CALC_GPIO_NUM('C', 13)
 #define GPIO_MODS_SYS_RST        CALC_GPIO_NUM('H',  0)
+#define GPIO_APBE_SPIBOOT_N      CALC_GPIO_NUM('A',  8)
+#define GPIO_APBE_WAKE           CALC_GPIO_NUM('B',  8)
+#define GPIO_APBE_RST_N          CALC_GPIO_NUM('H',  1)
+#define GPIO_APBE_PWR_EN         CALC_GPIO_NUM('G',  14)
 
 /*
  * On this board, the CHG_PG_N pin is not connected, so the BQ24292 driver
