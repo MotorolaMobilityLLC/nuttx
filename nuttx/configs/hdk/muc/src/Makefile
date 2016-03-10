@@ -69,10 +69,6 @@ ifeq ($(CONFIG_MAX17050_DEVICE),y)
 CSRCS += stm32_battery.c
 endif
 
-ifeq  ($(CONFIG_SLAVE_PWRCTRL_DEVICE),y)
-CSRCS += stm32_slave_pwrctrl.c
-endif
-
 ifeq ($(CONFIG_BATTERY_GOOD_DEVICE_COMP),y)
 CSRCS += stm32_battery_good.c
 endif

@@ -131,14 +131,6 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
-#ifdef CONFIG_SLAVE_PWRCTRL_DEVICE
-    {
-        .type = DEVICE_TYPE_SLAVE_PWRCTRL_HW,
-        .name = "slave_pwrctrl",
-        .desc = "slave power control",
-        .id   = 0,
-    },
-#endif
 #ifdef CONFIG_BATTERY_GOOD_DEVICE_COMP
     {
         .type = DEVICE_TYPE_BATTERY_GOOD_HW,
@@ -256,10 +248,6 @@ void board_initialize(void)
 #ifdef CONFIG_MAX17050_DEVICE
   extern struct device_driver batt_driver;
   device_register_driver(&batt_driver);
-#endif
-#ifdef CONFIG_SLAVE_PWRCTRL_DEVICE
-  extern struct device_driver slave_pwrctrl_driver;
-  device_register_driver(&slave_pwrctrl_driver);
 #endif
 #ifdef CONFIG_BATTERY_GOOD_DEVICE_COMP
   extern struct device_driver comp_batt_good_driver;
