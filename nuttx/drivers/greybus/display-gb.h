@@ -50,6 +50,7 @@
 
 #define GB_MODS_DISPLAY_CONFIG_TYPE_INVALID           0x00
 #define GB_MODS_DISPLAY_CONFIG_TYPE_EDID_1P3          0x01
+#define GB_MODS_DISPLAY_CONFIG_DSI                    0x02
 
 #define GB_MODS_DISPLAY_STATE_OFF                     0x00
 #define GB_MODS_DISPLAY_STATE_ON                      0x01
