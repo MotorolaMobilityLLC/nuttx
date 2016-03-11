@@ -455,12 +455,28 @@ EXTERN const uint32_t g_gpiobase[STM32_NGPIO_PORTS];
 EXTERN int stm32_configgpio(uint32_t cfgset);
 
 /************************************************************************************
+ * Name: stm32_getconfiggpio
+ *
+ * Description:
+ *   Read the current configuration of a GPIO pin from the chip. The read
+ *   configuration as a bit-encoded description of the pin is stored back into
+ *   the passed parameter.
+ *
+ * Returns:
+ *  OK on success
+ *  ERROR on invalid port
+ *
+ ************************************************************************************/
+
+EXTERN int stm32_getconfiggpio(uint32_t *cfgset);
+
+/************************************************************************************
  * Name: stm32_unconfiggpio
  *
  * Description:
  *   Unconfigure a GPIO pin based on bit-encoded description of the pin, set it
  *   into default HiZ state (and possibly mark it's unused) and unlock it whether
- *   it was previsouly selected as alternative function (GPIO_ALT|GPIO_CNF_AFPP|...).
+ *   it was previously selected as alternative function (GPIO_ALT|GPIO_CNF_AFPP|...).
  *
  *   This is a safety function and prevents hardware from schocks, as unexpected
  *   write to the Timer Channel Output GPIO to fixed '1' or '0' while it should

@@ -676,6 +676,226 @@ int stm32_configgpio(uint32_t cfgset)
   irqrestore(flags);
   return OK;
 }
+
+int stm32_getconfiggpio(uint32_t *cfgset)
+{
+  uintptr_t base;
+  uint32_t regval;
+  uint32_t setting;
+  unsigned int regoffset;
+  unsigned int port;
+  unsigned int pin;
+  unsigned int pos;
+  unsigned int pinmode;
+  irqstate_t flags;
+
+  DEBUGASSERT(cfgset);
+
+  /* Verify that this hardware supports the select GPIO port */
+
+  port = (*cfgset & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+  if (port >= STM32_NGPIO_PORTS)
+    {
+      return -EINVAL;
+    }
+
+  /* Get the port base address */
+
+  base = g_gpiobase[port];
+
+  /* Get the pin number and select the port configuration register for that
+   * pin
+   */
+
+  pin = (*cfgset & GPIO_PIN_MASK) >> GPIO_PIN_SHIFT;
+
+  /* Clear out cfgset before populating below */
+
+  *cfgset &= GPIO_PORT_MASK | GPIO_PIN_MASK;
+
+  /* Interrupts must be disabled from here on out so that we have mutually
+   * exclusive access to all of the GPIO configuration registers.
+   */
+
+  flags = irqsave();
+
+  /* Get the configuration from the mode register */
+
+  regval  = getreg32(base + STM32_GPIO_MODER_OFFSET);
+  regval &= GPIO_MODER_MASK(pin);
+  pinmode = regval >> GPIO_MODER_SHIFT(pin);
+
+  switch (pinmode)
+    {
+      case GPIO_MODER_ANALOG:     /* Analog mode */
+        *cfgset |= GPIO_ANALOG;
+        break;
+
+      case GPIO_MODER_ALT:        /* Alternate function mode */
+        *cfgset |= GPIO_ALT;
+        break;
+
+      case GPIO_MODER_OUTPUT:     /* General purpose output mode */
+        *cfgset |= GPIO_OUTPUT;
+        break;
+
+      case GPIO_MODER_INPUT:      /* Input mode */
+      default:
+        *cfgset |= GPIO_INPUT;
+        break;
+    }
+
+  /* Get the pull-up/pull-down configuration (all but analog pins) */
+
+  if (pinmode != GPIO_MODER_ANALOG)
+    {
+      regval  = getreg32(base + STM32_GPIO_PUPDR_OFFSET);
+      regval &= GPIO_PUPDR_MASK(pin);
+      setting = regval >> GPIO_PUPDR_SHIFT(pin);
+
+      switch (setting)
+        {
+          case GPIO_PUPDR_PULLDOWN:   /* Pull-down */
+            *cfgset |= GPIO_PULLDOWN;
+            break;
+
+          case GPIO_PUPDR_PULLUP:     /* Pull-up */
+            *cfgset |= GPIO_PULLUP;
+            break;
+
+          case GPIO_PUPDR_NONE:       /* No pull-up, pull-down */
+          default:
+            *cfgset |= GPIO_FLOAT;
+            break;
+        }
+    }
+
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+  /* Get the analog switch (analog mode only) */
+
+  if (pinmode == GPIO_MODER_ANALOG)
+    {
+      regval = getreg32(base + STM32_GPIO_ASCR_OFFSET);
+      regval &= GPIO_ASCR(pin);
+      if (regval)
+        {
+          *cfgset |= GPIO_ADC;
+        }
+    }
+#endif
+
+  /* Get the alternate function (Only alternate function pins) */
+
+  if (pinmode == GPIO_MODER_ALT)
+    {
+      if (pin < 8)
+        {
+          regoffset = STM32_GPIO_AFRL_OFFSET;
+          pos       = pin;
+        }
+      else
+        {
+          regoffset = STM32_GPIO_AFRH_OFFSET;
+          pos       = pin - 8;
+        }
+
+      regval  = getreg32(base + regoffset);
+      regval &= GPIO_AFR_MASK(pos);
+      *cfgset |= (regval >> GPIO_AFR_SHIFT(pos)) << GPIO_AF_SHIFT;
+    }
+
+  /* Get speed (Only outputs and alternate function pins) */
+
+  if (pinmode == GPIO_MODER_OUTPUT || pinmode == GPIO_MODER_ALT)
+    {
+      regval  = getreg32(base + STM32_GPIO_OSPEED_OFFSET);
+      regval &= GPIO_OSPEED_MASK(pin);
+      setting = regval >> GPIO_OSPEED_SHIFT(pin);
+
+      switch (setting)
+        {
+#if defined(CONFIG_STM32_STM32L15XX)
+          case GPIO_OSPEED_40MHz:   /* 40 MHz High speed ouput */
+            *cfgset |= GPIO_SPEED_40MHz;
+            break;
+
+          case GPIO_OSPEED_10MHz:   /* 10 MHz Medium speed ouput */
+            *cfgset |= GPIO_SPEED_10MHz;
+            break;
+
+          case GPIO_OSPEED_2MHz:    /* 2 MHz Low speed ouput */
+            *cfgset |= GPIO_SPEED_2MHz;
+            break;
+
+          case GPIO_OSPEED_400KHz:  /* 400 kHz Very low speed ouput */
+          default:
+            *cfgset |= GPIO_SPEED_400KHz;
+            break;
+#else
+#ifndef CONFIG_STM32_STM32F30XX
+          case GPIO_OSPEED_100MHz:  /* 100 MHz High speed output */
+            *cfgset |= GPIO_SPEED_100MHz;
+            break;
+#endif
+
+          case GPIO_OSPEED_50MHz:   /* 50 MHz Fast speed output */
+            *cfgset |= GPIO_SPEED_50MHz;
+            break;
+
+          case GPIO_OSPEED_25MHz:   /* 25 MHz Medium speed output */
+            *cfgset |= GPIO_SPEED_25MHz;
+            break;
+
+          case GPIO_OSPEED_2MHz:    /* 2 MHz Low speed output */
+          default:
+            *cfgset |= GPIO_SPEED_2MHz;
+            break;
+#endif
+        }
+    }
+
+  /* Get push-pull/open-drain (Only outputs and alternate function pins) */
+
+  if (pinmode == GPIO_MODER_OUTPUT || pinmode == GPIO_MODER_ALT)
+    {
+      regval  = getreg32(base + STM32_GPIO_OTYPER_OFFSET);
+      regval &= GPIO_OTYPER_OD(pin);
+      if (regval)
+        {
+          *cfgset |= GPIO_OPENDRAIN;
+        }
+    }
+
+  /* If it is an output... get the correct pin initial state. */
+
+  if (pinmode == GPIO_MODER_OUTPUT)
+    {
+      if (stm32_gpioread(*cfgset))
+        {
+          *cfgset |= GPIO_OUTPUT_SET;
+        }
+    }
+
+  /* Otherwise, it is an input pin. Is it configured as an EXTI interrupt? */
+
+  else
+    {
+      uint32_t regaddr;
+      int shift;
+
+      regaddr = STM32_SYSCFG_EXTICR(pin);
+      regval  = getreg32(regaddr);
+      shift   = SYSCFG_EXTICR_EXTI_SHIFT(pin);
+      regval  = (regval & SYSCFG_EXTICR_PORT_MASK) >> shift;
+      if (regval == port)
+        {
+          *cfgset |= GPIO_EXTI;
+        }
+    }
+
+  irqrestore(flags);
+  return OK;
+}
 #endif
 
 /****************************************************************************
