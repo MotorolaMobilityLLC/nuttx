@@ -35,6 +35,7 @@
 #include <debug.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <nuttx/gpio/stm32_gpio_chip.h>
 #include <nuttx/gpio.h>
@@ -83,7 +84,7 @@ static void stm32_gpio_set_direction_in(void *driver_data, uint8_t pin)
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return;
     }
 
@@ -106,7 +107,7 @@ static void stm32_gpio_set_direction_out(void *driver_data, uint8_t pin,
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return;
     }
 
@@ -138,7 +139,7 @@ static void stm32_gpio_set(void *driver_data, uint8_t pin, uint8_t val)
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return;
     }
 
@@ -154,7 +155,7 @@ static uint8_t stm32_gpio_get(void *driver_data, uint8_t pin)
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return -EINVAL;
     }
 
@@ -181,7 +182,7 @@ static void stm32_gpio_deactivate(void *driver_data, uint8_t pin)
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return;
     }
 
@@ -198,7 +199,7 @@ static int stm32_gpio_irqattach(void *driver_data, uint8_t pin, xcpt_t isr,
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return ret;
     }
 
@@ -229,7 +230,7 @@ static int stm32_gpio_irqattach_old(void *driver_data, uint8_t pin, xcpt_t isr,
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return ret;
     }
 
@@ -259,7 +260,7 @@ static int stm32_gpio_set_triggering(void *driver_data, uint8_t pin,
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return ret;
     }
 
@@ -307,7 +308,7 @@ static int stm32_gpio_mask_irq(void *driver_data, uint8_t pin)
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return ret;
     }
 
@@ -331,7 +332,7 @@ static int stm32_gpio_unmask_irq(void *driver_data, uint8_t pin)
 
     ret = map_pin_nr_to_cfgset(pin, &cfgset);
     if (ret) {
-        lldbg("%s: Invalid pin %hhu\n", pin);
+        lldbg("Invalid pin %hhu\n", pin);
         return ret;
     }
 
@@ -352,6 +353,39 @@ static int stm32_gpio_clear_interrupt(void *driver_data, uint8_t which)
     return 0;
 }
 
+static gpio_cfg_t stm32_gpio_cfg_save(void *driver_data, uint8_t pin)
+{
+    uint32_t *cfgset;
+    int ret;
+
+    cfgset = malloc(sizeof(uint32_t));
+    ASSERT(cfgset);
+
+    ret = map_pin_nr_to_cfgset(pin, cfgset);
+    if (ret) {
+        lldbg("Invalid pin %hhu\n", pin);
+        free(cfgset);
+        return NULL;
+    }
+
+    stm32_getconfiggpio(cfgset);
+
+    return cfgset;
+}
+
+static void stm32_gpio_cfg_restore(void *driver_data, uint8_t pin,
+                                   gpio_cfg_t cfg)
+{
+    uint32_t *cfgset = cfg;
+
+    if (!cfgset) return;
+
+    stm32_configgpio(*cfgset);
+
+    free(cfgset);
+    cfg = NULL;
+}
+
 static struct gpio_ops_s stm32_gpio_ops = {
     .direction_in =     stm32_gpio_set_direction_in,
     .direction_out =    stm32_gpio_set_direction_out,
@@ -367,6 +401,8 @@ static struct gpio_ops_s stm32_gpio_ops = {
     .mask_irq =         stm32_gpio_mask_irq,
     .unmask_irq =       stm32_gpio_unmask_irq,
     .clear_interrupt =  stm32_gpio_clear_interrupt,
+    .cfg_save =         stm32_gpio_cfg_save,
+    .cfg_restore =      stm32_gpio_cfg_restore,
 };
 
 /* Public functions */
