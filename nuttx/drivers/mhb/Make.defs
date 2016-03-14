@@ -42,4 +42,8 @@ DEPPATH += --dep-path mhb
 VPATH += :mhb
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)mhb}
 
+ifeq ($(CONFIG_MHB_UART),y)
+CSRCS += mhb_uart.c
+endif
+
 endif

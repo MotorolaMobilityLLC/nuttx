@@ -1,6 +1,36 @@
-# For a description of the syntax of this configuration file,
-# see misc/tools/kconfig-language.txt.
+############################################################################
 #
+#   Copyright (c) 2016 Motorola Mobility, LLC.
+#   All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+# 3. Neither the name NuttX nor the names of its contributors may be
+#    used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+# OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+# AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+############################################################################
 
 config MHB_APBE_CTRL_DEVICE
 	bool "APBE control device"
@@ -8,3 +38,48 @@ config MHB_APBE_CTRL_DEVICE
 	depends on MHB
 	depends on GREYBUS_MODS
 	select DEVICE_CORE
+
+config MHB_UART
+	bool "MHB UART Transport"
+	default n
+	depends on MHB
+	---help---
+		This selection enables the UART transport for the MHB.
+
+if MHB_UART
+config MHB_UART_BAUD
+	int "MHB UART0 BAUD"
+	default 115200
+	---help---
+		MHB UART baud rate.  Default: 115200
+
+config MHB_UART_RXBUFSIZE
+	int "MHB UART Rx buffer size"
+	default 2048
+	---help---
+		MHB UART Rx buffer size.  Default: 2048
+
+config MHB_UART_TXBUFSIZE
+	int "MHB UART Tx buffer size"
+	default 2048
+	---help---
+		MHB UART Tx buffer size.  Default: 2048
+
+config MHB_UART_FLOWCONTROL
+	bool "MHB UART CTS/RTS flow control"
+	default y
+	---help---
+		Enable MHB UART CTS/RTS flow control
+
+config MHB_UART_WAIT_FOR_SYNC
+	bool "MHB UART Wait for Sync"
+	default n
+	---help---
+		Wait for a sync pattern on start-up.
+
+config MHB_UART_SEND_SYNC
+	bool "MHB UART Send Sync"
+	default n
+	---help---
+		Send a sync pattern on start-up.
+endif
