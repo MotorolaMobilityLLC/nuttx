@@ -89,7 +89,8 @@ ifneq ($(CONFIG_DEBUG_NOOPT),y)
   ARCHOPTIMIZATION += $(MAXOPTIMIZATION) -fno-strict-aliasing -fno-strength-reduce -fomit-frame-pointer
 endif
 
-ARCHCFLAGS = -fno-builtin
+# TODO: remove -Wno-cpp when i2c fixes are complete
+ARCHCFLAGS = -fno-builtin -Werror -Wno-cpp
 ARCHCXXFLAGS = -fno-builtin -fno-exceptions -fno-rtti
 ARCHWARNINGS = -Wall -Wstrict-prototypes -Wshadow
 ARCHWARNINGSXX = -Wall -Wshadow
