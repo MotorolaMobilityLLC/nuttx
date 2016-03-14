@@ -140,14 +140,11 @@ void pm_activity(int priority)
       now = clock_systimer();
       if (now - g_pmglobals.stime >= TIME_SLICE_TICKS)
         {
-          int16_t tmp;
-
           /* Sample the count, reset the time and count, and assess the PM
            * state.  This is an atomic operation because interrupts are
            * still disabled.
            */
 
-          tmp               = g_pmglobals.accum;
           g_pmglobals.stime = now;
           g_pmglobals.accum = 0;
 
