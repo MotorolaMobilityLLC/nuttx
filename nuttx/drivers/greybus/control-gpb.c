@@ -69,7 +69,7 @@ static uint8_t gb_control_get_manifest_size(struct gb_operation *operation)
 static uint8_t gb_control_get_manifest(struct gb_operation *operation)
 {
     struct gb_control_get_manifest_response *response;
-    struct greybus_manifest_header *mh;
+    const struct greybus_manifest_header *mh;
     int size = get_signed_manifest_size();
 
     response = gb_operation_alloc_response(operation, size);
