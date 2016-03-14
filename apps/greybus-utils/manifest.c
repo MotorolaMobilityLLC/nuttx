@@ -365,10 +365,10 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
     return desc_size;
 }
 
-bool _manifest_parse(void *data, size_t size, int release)
+bool _manifest_parse(const void *data, size_t size, int release)
 {
-    struct greybus_manifest *manifest = data;
-    struct greybus_manifest_header *header = &manifest->header;
+    const struct greybus_manifest *manifest = data;
+    const struct greybus_manifest_header *header = &manifest->header;
     struct greybus_descriptor *desc;
     uint16_t manifest_size;
 
@@ -427,12 +427,12 @@ bool _manifest_parse(void *data, size_t size, int release)
  *
  * Returns true if parsing was successful, false otherwise.
  */
-bool manifest_parse(void *data, size_t size)
+bool manifest_parse(const void *data, size_t size)
 {
     return _manifest_parse(data, size, 0);
 }
 
-bool manifest_release(void *data, size_t size)
+bool manifest_release(const void *data, size_t size)
 {
     return _manifest_parse(data, size, 1);
 }
@@ -451,26 +451,26 @@ static int get_interface_id(char *fname)
     return iid;
 }
 
-void *get_manifest_blob(void)
+const void *get_manifest_blob(void)
 {
     return bridge_manifest;
 }
 
-void parse_manifest_blob(void *manifest)
+void parse_manifest_blob(const void *manifest)
 {
-    struct greybus_manifest_header *mh = manifest;
+    const struct greybus_manifest_header *mh = manifest;
 
     manifest_parse(mh, le16_to_cpu(mh->size));
 }
 
-void release_manifest_blob(void *manifest)
+void release_manifest_blob(const void *manifest)
 {
-    struct greybus_manifest_header *mh = manifest;
+    const struct greybus_manifest_header *mh = manifest;
 
     manifest_release(mh, le16_to_cpu(mh->size));
 }
 
-void enable_manifest(char *name, void *manifest, int device_id)
+void enable_manifest(char *name, const void *manifest, int device_id)
 {
     if (!manifest) {
         manifest = get_manifest_blob();
@@ -491,9 +491,8 @@ void enable_manifest(char *name, void *manifest, int device_id)
 
 void disable_manifest(char *name, void *priv, int device_id)
 {
-    void *manifest;
+    const void *manifest = get_manifest_blob();
 
-    manifest = get_manifest_blob();
     if (manifest) {
         release_manifest_blob(manifest);
     }
@@ -506,7 +505,7 @@ struct list_head *get_manifest_cports(void)
 
 int get_manifest_size(void)
 {
-    struct greybus_manifest_header *mh = get_manifest_blob();
+    const struct greybus_manifest_header *mh = get_manifest_blob();
 
     return mh ? le16_to_cpu(mh->size) : 0;
 }

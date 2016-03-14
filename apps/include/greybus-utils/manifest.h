@@ -41,11 +41,11 @@ typedef void (*manifest_handler)(unsigned char *manifest_file,
                                  int device_id, int manifest_number);
 void foreach_manifest(manifest_handler handler);
 void enable_cports(void);
-void *get_manifest_blob(void);
-void parse_manifest_blob(void *manifest);
-void enable_manifest(char *name, void *manifest, int device_id);
+const void *get_manifest_blob(void);
+void parse_manifest_blob(const void *manifest);
+void enable_manifest(char *name, const void *manifest, int device_id);
 void disable_manifest(char *name, void *priv, int device_id);
-void release_manifest_blob(void *manifest);
+void release_manifest_blob(const void *manifest);
 struct list_head *get_manifest_cports(void);
 int get_manifest_size(void);
 int get_signed_manifest_size(void);
