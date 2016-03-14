@@ -31,7 +31,8 @@
 
 #define DEVICE_TYPE_SENSORS_HW          "sensors_ext"
 
-typedef int (*sensors_ext_event_callback)(uint8_t se_id, struct report_info *rinfo);
+#include <stdint.h>
+
 
 #define SENSOR_EXT_FLAG_CONTINUOUS_MODE 0x00000000
 #define SENSOR_EXT_FLAG_NON_MASKABLE    0x00000001
@@ -95,7 +96,6 @@ struct sensor_info {
     uint8_t     string_type[256];
 };
 
-
 struct report_info {
     uint8_t    id;
     uint8_t    reserved;
@@ -103,6 +103,8 @@ struct report_info {
     uint8_t    reference_time[sizeof(uint64_t)];
     uint8_t    data_payload[SENSOR_DATA_PAYLOAD_SIZE];
 };
+
+typedef int (*sensors_ext_event_callback)(uint8_t se_id, struct report_info *rinfo);
 
 struct device_sensors_ext_type_ops {
     int (*get_sensor_count)(struct device *dev, uint8_t *count);
