@@ -1,0 +1,9 @@
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+config BACKLIGHT_ISL98611
+	bool "Intersil ISL98611 support"
+	default n
+	select I2C
+	---help---
+		Intersil ISL98611 backlight driver.
