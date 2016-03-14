@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
+#   Copyright (C) 2015-2016 Motorola Mobility, LLC. All rights reserved.
 #
 ############################################################################
 
@@ -9,6 +9,9 @@ CONFIGURED_APPS += mods/spi_reg
 endif
 ifeq ($(CONFIG_MODS_DIET),y)
 CONFIGURED_APPS += mods/diet
+endif
+ifeq ($(CONFIG_MODS_MHB_SERVER),y)
+CONFIGURED_APPS += mods/mhb_server
 endif
 ifeq ($(CONFIG_MODS_RAW),y)
 CONFIGURED_APPS += mods/raw

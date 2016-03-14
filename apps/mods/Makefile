@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
+#   Copyright (C) 2015-2016 Motorola Mobility, LLC. All rights reserved.
 #
 ############################################################################
 
@@ -8,7 +8,7 @@
 
 # Sub-directories
 
-SUBDIRS = diet spi_reg raw
+SUBDIRS = diet mhb_server raw spi_reg
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
 CNTXTDIRS = spi_reg raw
