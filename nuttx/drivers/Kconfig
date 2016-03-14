@@ -464,6 +464,16 @@ if LCD
 source drivers/lcd/Kconfig
 endif # LCD
 
+menuconfig MHB
+	bool "Mods High-Speed Bus (MHB) driver Support"
+	default n
+	---help---
+		Enable building of Mods High-Speed Bus (MHB) devices.
+
+if MHB
+source drivers/mhb/Kconfig
+endif # MHB
+
 menuconfig MMCSD
 	bool "MMC/SD Driver Support"
 	default n
