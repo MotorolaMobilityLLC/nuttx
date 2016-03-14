@@ -3790,3 +3790,10 @@ endif
 config GPIO_CHIP_STM32
 	bool "STM32 GPIO Chip support"
 	default n
+
+config STM32_UART_DEVICE
+	bool "STM32 UART device"
+	default n
+	depends on STM32_USART
+	---help---
+		Implement the device_uart interface based on the ttySx implementation.

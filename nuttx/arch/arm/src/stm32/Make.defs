@@ -293,3 +293,7 @@ endif
 ifeq ($(CONFIG_STM32_COMP),y)
 CHIP_CSRCS += stm32_comp.c stm32_exti_comp.c
 endif
+
+ifeq  ($(CONFIG_STM32_UART_DEVICE),y)
+CHIP_CSRCS += stm32_uart.c
+endif
