@@ -40,6 +40,114 @@ enum display_type {
 enum display_config_type {
     DISPLAY_CONFIG_TYPE_INVALID  = 0x00,
     DISPLAY_CONFIG_TYPE_EDID_1P3 = 0x01,
+    DISPLAY_CONFIG_TYPE_DSI      = 0x02,
+};
+
+enum display_config_dsi_mode {
+    DISPLAY_CONFIG_DSI_MODE_COMMAND = 0x00,
+    DISPLAY_CONFIG_DSI_MODE_VIDEO   = 0x01,
+};
+
+enum display_config_dsi_swap {
+    DISPLAY_CONFIG_DSI_SWAP_RGB_TO_RGB = 0x00,
+    DISPLAY_CONFIG_DSI_SWAP_RGB_TO_RBG = 0x01,
+    DISPLAY_CONFIG_DSI_SWAP_RGB_TO_BRG = 0x02,
+    DISPLAY_CONFIG_DSI_SWAP_RGB_TO_GRB = 0x03,
+    DISPLAY_CONFIG_DSI_SWAP_RGB_TO_GBR = 0x04,
+};
+
+enum display_config_dsi_continuous_clock {
+    DISPLAY_CONFIG_DSI_CONTINUOUS_CLOCK_DISABLED = 0x00,
+    DISPLAY_CONFIG_DSI_CONTINUOUS_CLOCK_ENABLED  = 0x01,
+};
+
+enum display_config_dsi_eot_mode {
+    DISPLAY_CONFIG_DSI_EOT_MODE_NONE   = 0x00,
+    DISPLAY_CONFIG_DSI_EOT_MODE_APPEND = 0x01,
+};
+
+enum display_config_dsi_vsync_mode {
+    DISPLAY_CONFIG_DSI_VSYNC_MODE_NONE = 0x00,
+    DISPLAY_CONFIG_DSI_VSYNC_MODE_GPIO = 0x01,
+    DISPLAY_CONFIG_DSI_VSYNC_MODE_DCS  = 0x02,
+};
+
+enum display_config_dsi_traffic_mode {
+    DISPLAY_CONFIG_DSI_TRAFFIC_MODE_NON_BURST_SYNC_PULSE = 0x00,
+    DISPLAY_CONFIG_DSI_TRAFFIC_MODE_NON_BURST_SYNC_EVENT = 0x01,
+    DISPLAY_CONFIG_DSI_TRAFFIC_MODE_BURST                = 0x02,
+};
+
+enum display_config_dsi_pixel_packing {
+    DISPLAY_CONFIG_DSI_PIXEL_PACKING_UNPACKED = 0x00,
+};
+
+struct display_dsi_config {
+    /* MIPI manufacturer ID (http://mid.mipi.org) */
+    uint16_t manufacturer_id;
+    /* display_config_dsi_mode */
+    uint8_t mode;
+    /* 1-4 lanes */
+    uint8_t num_lanes;
+
+    /* pixels */
+    uint16_t width;
+    /* pixels */
+    uint16_t height;
+
+    /* millimeters */
+    uint16_t physical_width_dim;
+    /* millimeters */
+    uint16_t physical_length_dim;
+
+    /* frames-per-second */
+    uint8_t framerate;
+    /* bits-per-pixel */
+    uint8_t bpp;
+    /* must be zero */
+    uint16_t reserved0;
+
+    /* Hz */
+    uint64_t clockrate;
+
+    /* nanoseconds */
+    uint16_t t_clk_pre;
+    /* nanoseconds */
+    uint16_t t_clk_post;
+
+    /* display_config_dsi_continuous_clock */
+    uint8_t continuous_clock;
+    /* display_config_dsi_eot_mode */
+    uint8_t eot_mode;
+    /* display_config_dsi_vsync_mode */
+    uint8_t vsync_mode;
+    /* display_config_dsi_traffic_mode */
+    uint8_t traffic_mode;
+
+    /* DSI virtual channel (VC) ID */
+    uint8_t virtual_channel_id;
+    /* display_config_dsi_swap */
+    uint8_t color_order;
+    /* display_config_dsi_pixel_packing* */
+    uint8_t pixel_packing;
+    /* must be zero */
+    uint8_t reserved1;
+
+    /* pixels */
+    uint16_t horizontal_front_porch;
+    uint16_t horizontal_sync_pulse_width;
+    uint16_t horizontal_sync_skew;
+    uint16_t horizontal_back_porch;
+    uint16_t horizontal_left_border;
+    uint16_t horizontal_right_border;
+
+    /* lines */
+    uint16_t vertical_front_porch;
+    uint16_t vertical_sync_pulse_width;
+    uint16_t vertical_back_porch;
+    uint16_t vertical_top_border;
+    uint16_t vertical_bottom_border;
+    uint16_t reserved2;
 };
 
 enum display_state {
