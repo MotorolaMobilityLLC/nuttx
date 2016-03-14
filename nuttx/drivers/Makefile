@@ -78,6 +78,7 @@ VPATH = .
 
 include analog$(DELIM)Make.defs
 include audio$(DELIM)Make.defs
+include backlight$(DELIM)Make.defs
 include bch$(DELIM)Make.defs
 include gpio$(DELIM)Make.defs
 include input$(DELIM)Make.defs

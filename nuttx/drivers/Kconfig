@@ -413,6 +413,16 @@ if AUDIO_DEVICES
 source drivers/audio/Kconfig
 endif # AUDIO_DEVICES
 
+menuconfig BACKLIGHT
+	bool "Backlight driver Support"
+	default n
+	---help---
+		Enable building of Backlight related devices.
+
+if BACKLIGHT
+source drivers/backlight/Kconfig
+endif # BACKLIGHT
+
 menuconfig BCH
 	bool "Block-to-Character (BCH) Support"
 	default n
