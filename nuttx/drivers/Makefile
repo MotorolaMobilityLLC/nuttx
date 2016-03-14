@@ -83,6 +83,7 @@ include bch$(DELIM)Make.defs
 include gpio$(DELIM)Make.defs
 include input$(DELIM)Make.defs
 include lcd$(DELIM)Make.defs
+include mhb$(DELIM)Make.defs
 include mmcsd$(DELIM)Make.defs
 include mtd$(DELIM)Make.defs
 include net$(DELIM)Make.defs
