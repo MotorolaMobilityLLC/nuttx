@@ -83,3 +83,9 @@ config MHB_UART_SEND_SYNC
 	---help---
 		Send a sync pattern on start-up.
 endif
+
+config MHB_DSI_DISPLAY
+	bool "MHB DSI Display"
+	default n
+	---help---
+		DSI display driven by an MHB server.

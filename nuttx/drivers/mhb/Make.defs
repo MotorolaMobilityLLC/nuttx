@@ -46,4 +46,8 @@ ifeq ($(CONFIG_MHB_UART),y)
 CSRCS += mhb_uart.c
 endif
 
+ifeq ($(CONFIG_MHB_DSI_DISPLAY),y)
+CSRCS += mhb_dsi_display.c
+endif
+
 endif
