@@ -1,0 +1,12 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config MODS_MHB_SERVER
+	bool "Mods MHB Server"
+	default n
+	depends on ARCH_CHIP_TSB
+	depends on MHB
+	---help---
+		Enable the Mods MHB Server
