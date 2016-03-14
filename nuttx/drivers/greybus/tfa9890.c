@@ -51,6 +51,10 @@
                     TFA9890_STATUS_CLKS | \
                     TFA9890_STATUS_VDDS | \
                     TFA9890_STATUS_ARFS | TFA9890_STATUS_MTPB)
+#define TFA9890_STATUS_UP  (TFA9890_STATUS_PLLS | \
+                    TFA9890_STATUS_CLKS | \
+                    TFA9890_STATUS_VDDS | \
+                    TFA9890_STATUS_ARFS )
 
 struct tfa9890_dev_s {
     struct audio_lowerhalf_s dev;
@@ -576,7 +580,7 @@ static int tfa9890_wait_pll_sync(struct tfa9890_dev_s *priv)
     do
     {
         val = tfa9890_reg_read(priv, TFA9890_REG_SYSTEM_STATUS);
-        if ((val & TFA9890_STATUS_UP_MASK) == TFA9890_STATUS_UP_MASK)
+        if ((val & TFA9890_STATUS_UP_MASK) == TFA9890_STATUS_UP)
             break;
          usleep(1000);
     } while ((++tries < 10));
