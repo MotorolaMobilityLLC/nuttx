@@ -523,6 +523,10 @@ static int adc_setup(FAR struct adc_dev_s *dev)
 
   DEBUGASSERT(priv->nchannels <= ADC_MAX_SAMPLES);
 
+#ifdef __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
   regval = adc_getreg(priv, STM32_ADC_SQR4_OFFSET);
   for (i = 14, offset = 0; i < priv->nchannels && i < 16; i++, offset += 6)
     {
@@ -554,6 +558,9 @@ static int adc_setup(FAR struct adc_dev_s *dev)
 
   regval |= (((uint32_t)priv->nchannels-1) << ADC_SQR1_L_SHIFT);
   adc_putreg(priv, STM32_ADC_SQR1_OFFSET, regval);
+#ifdef __GNUC__
+# pragma GCC diagnostic pop
+#endif
 
   /* Set the channel index of the first conversion */
 
