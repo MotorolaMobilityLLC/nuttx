@@ -34,6 +34,7 @@
 #include <arch/byteorder.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/clock.h>
 #include <nuttx/greybus/greybus.h>
 
 #ifdef CONFIG_RAMLOG_SYSLOG
@@ -43,7 +44,7 @@
 #include "vendor-moto-gb.h"
 
 #define GB_VENDOR_MOTO_VERSION_MAJOR     0
-#define GB_VENDOR_MOTO_VERSION_MINOR     2
+#define GB_VENDOR_MOTO_VERSION_MINOR     3
 
 static uint8_t gb_vendor_moto_protocol_version(struct gb_operation *operation)
 {
@@ -148,12 +149,26 @@ static uint8_t gb_vendor_moto_get_dmesg_size(struct gb_operation *operation)
 #endif
 }
 
+static uint8_t gb_vendor_moto_get_uptime(struct gb_operation *operation)
+{
+    struct gb_vendor_moto_get_uptime_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    response->secs = cpu_to_le32(TICK2SEC(clock_systimer()));
+
+    return GB_OP_SUCCESS;
+}
+
 static struct gb_operation_handler gb_vendor_moto_handlers[] = {
     GB_HANDLER(GB_VENDOR_MOTO_PROTOCOL_VERSION, gb_vendor_moto_protocol_version),
     GB_HANDLER(GB_VENDOR_MOTO_GET_DMESG, gb_vendor_moto_get_dmesg),
     GB_HANDLER(GB_VENDOR_MOTO_GET_LAST_DMESG, gb_vendor_moto_get_last_dmesg),
     GB_HANDLER(GB_VENDOR_MOTO_GET_PWR_UP_REASON, gb_vendor_moto_pwr_up_reason),
     GB_HANDLER(GB_VENDOR_MOTO_GET_DMESG_SIZE, gb_vendor_moto_get_dmesg_size),
+    GB_HANDLER(GB_VENDOR_MOTO_GET_UPTIME, gb_vendor_moto_get_uptime),
 };
 
 static struct gb_driver gb_vendor_moto_driver = {

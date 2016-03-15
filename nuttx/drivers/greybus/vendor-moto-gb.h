@@ -40,6 +40,7 @@
 #define GB_VENDOR_MOTO_GET_LAST_DMESG     0x03
 #define GB_VENDOR_MOTO_GET_PWR_UP_REASON  0x04
 #define GB_VENDOR_MOTO_GET_DMESG_SIZE     0x05
+#define GB_VENDOR_MOTO_GET_UPTIME         0x06
 
 #define GB_VENDOR_MOTO_DMESG_SIZE \
             MIN_SZ(CONFIG_RAMLOG_BUFSIZE, GB_MAX_PAYLOAD_SIZE)
@@ -66,5 +67,9 @@ struct gb_vendor_moto_get_dmesg_size_response {
     __le16  size;
 } __packed;
 #endif /* CONFIG_RAMLOG_SYSLOG */
+
+struct gb_vendor_moto_get_uptime_response {
+    __le32 secs;
+} __packed;
 
 #endif /* _GREYBUS_VENDOR_MOTO_H_ */
