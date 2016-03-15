@@ -34,15 +34,25 @@
 
 #define DEVICE_TYPE_SLAVE_PWRCTRL_HW          "slave_pwrctrl"
 
+typedef int (*slave_state_callback)(struct device *dev, uint32_t slave_state);
+
 enum slave_pwrctrl_mode {
     SLAVE_PWRCTRL_POWER_ON          = 0x01,
     SLAVE_PWRCTRL_POWER_OFF         = 0x02,
     SLAVE_PWRCTRL_POWER_FLASH_MODE  = 0x03,
 };
 
+enum {
+    SLAVE_STATE_DISABLED = 0,
+    SLAVE_STATE_ENABLED,
+};
+
 struct device_slave_pwrctrl_type_ops {
     int (*get_mask)(struct device *dev, uint32_t *mask);
     int (*set_mode)(struct device *dev, enum slave_pwrctrl_mode mode);
+    int (*register_slave_state_cb)(struct device *dev, slave_state_callback cb);
+    int (*unregister_slave_state_cb)(struct device *dev);
+    int (*send_slave_state)(struct device *dev, uint32_t slave_state);
 };
 
 /**
@@ -88,5 +98,72 @@ static inline int device_slave_pwrctrl_set_mode(struct device *dev,
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->set_mode(dev, mode);
+}
+
+/**
+ * @brief SLAVE Power register callback used to send slave state
+ *
+ * @param dev pointer to structure of device data
+ * @param mode to set
+ * @return 0 on success, negative errno on error
+ */
+static inline int device_slave_pwrctrl_register_callback(struct device *dev,
+                                       slave_state_callback send_slave_state_cb)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->register_slave_state_cb) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->register_slave_state_cb(dev,
+                                                    send_slave_state_cb);
+}
+
+/**
+ * @brief  SLAVE Power unregister callback used to send slave state
+ *
+ * @param dev pointer to structure of device data
+ * @return 0 on success, negative errno on error
+ */
+static inline int device_slave_pwrctrl_unregister_callback(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->unregister_slave_state_cb) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->unregister_slave_state_cb(dev);
+}
+
+/**
+ * @brief  SLAVE Power unregister callback used to send slave state
+ *
+ * @param dev pointer to structure of device data
+ * @return 0 on success, negative errno on error
+ */
+static inline int device_slave_pwrctrl_send_slave_state(struct device *dev,
+                                                              uint32_t slave_state)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->send_slave_state) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->send_slave_state(dev, slave_state);
 }
 #endif /* __DEVICE_SLAVE_PWRCTRL_H__ */
