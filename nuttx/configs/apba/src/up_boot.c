@@ -38,10 +38,45 @@
 #include <nuttx/device.h>
 #include <nuttx/device_table.h>
 
+#include <nuttx/mhb/device_mhb.h>
+
 #include <tsb_scm.h>
 
 #ifdef CONFIG_DEVICE_CORE
+#if CONFIG_MHB_UART
+static struct device_resource mhb_resources[] = {
+    {
+        .name   = "uart_dev_id",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 0,
+        .count  = 1,
+    },
+    {
+        .name   = "local_wake",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 5,
+        .count  = 1,
+    },
+    {
+        .name   = "peer_wake",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 6,
+        .count  = 1,
+    },
+};
+#endif
+
 static struct device mod_devices[] = {
+#if CONFIG_MHB_UART
+    {
+        .type = DEVICE_TYPE_MHB,
+        .name = "mhb",
+        .desc = "mhb",
+        .id   = 0,
+        .resources      = mhb_resources,
+        .resource_count = ARRAY_SIZE(mhb_resources),
+    },
+#endif
 };
 
 static struct device_table mod_device_table = {
@@ -88,5 +123,10 @@ void board_initialize(void) {
     if (mod_device_table.device_count > 0) {
         device_table_register(&mod_device_table);
     }
+
+#if CONFIG_MHB_UART
+   extern struct device_driver mhb_driver;
+   device_register_driver(&mhb_driver);
+#endif
 #endif
 }
