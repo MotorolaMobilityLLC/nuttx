@@ -90,7 +90,7 @@ ifneq ($(CONFIG_DEBUG_NOOPT),y)
 endif
 
 # TODO: remove -Wno-cpp when i2c fixes are complete
-ARCHCFLAGS = -fno-builtin -Werror -Wno-cpp
+ARCHCFLAGS = -fno-builtin -Werror -Wno-cpp -fno-short-enums
 ARCHCXXFLAGS = -fno-builtin -fno-exceptions -fno-rtti
 ARCHWARNINGS = -Wall -Wstrict-prototypes -Wshadow
 ARCHWARNINGSXX = -Wall -Wshadow
