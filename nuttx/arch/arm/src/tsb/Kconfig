@@ -286,25 +286,42 @@ config TSB_TRACE_DRIVESTRENGTH_MAX
 endchoice
 
 config UNIPRO_P2P
-        bool "Peer-to-peer UniPro connection"
-        default y
-        depends on ARCH_CHIP_TSB
-        ---help---
-                Enable a peer-to-peer UniPro connection
+	bool "Peer-to-peer UniPro connection"
+	default y
+	depends on ARCH_CHIP_TSB
+	---help---
+		Enable a peer-to-peer UniPro connection
+
+choice
+	prompt "Unipro P2P Master/Slave Role"
+	depends on ARCH_CHIP_TSB && UNIPRO_P2P
+
+config UNIPRO_P2P_APBA
+	bool "UniPro P2P APBA"
+	depends on ARCH_CHIP_TSB && UNIPRO_P2P
+	---help---
+		Configure as the APBA (master) of a P2P connection
+
+config UNIPRO_P2P_APBE
+	bool "UniPro P2P APBE"
+	depends on ARCH_CHIP_TSB && UNIPRO_P2P
+	---help---
+		Configure as the APBE (slave) of a P2P connection
+endchoice
 
 config UNIPRO_LOCAL_DEVICEID
-        hex "Unipro Local Device ID"
-        default 0x01
+	hex "Unipro Local Device ID"
+	default 0x01
 	depends on UNIPRO_P2P
-        ---help---
-                For UniPro P2P, the local device ID
+	---help---
+		For UniPro P2P, the local device ID
 
 config UNIPRO_REMOTE_DEVICEID
-        hex "Unipro Remote Device ID"
-        default 0x02
+	hex "Unipro Remote Device ID"
+	default 0x02
 	depends on UNIPRO_P2P
-        ---help---
-                For UniPro P2P, the remote device ID
+	---help---
+		For UniPro P2P, the remote device ID
 
 config ARCH_VIDCRYPT
 	bool "Support Video Encryption"
