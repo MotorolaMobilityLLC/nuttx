@@ -273,7 +273,7 @@ void unipro_p2p_reset_connection(unsigned int cport) {
     _unipro_reset_cport(cport);
 }
 
-#if defined(CONFIG_ICE_APBA)
+#if CONFIG_ICE_APBA || CONFIG_UNIPRO_P2P_APBA
 void unipro_p2p_peer_detected(void) {
     /* Enable the control cport. */
     svc_send_event(SVC_EVENT_MOD_DETECTED,
@@ -289,7 +289,6 @@ void unipro_p2p_peer_lost(struct p2p_link_err_reason *reason) {
         (void *)(unsigned int)0,
         (void *)(unsigned int)0);
 }
-
 #endif
 
 bool unipro_p2p_is_link_up(void) {

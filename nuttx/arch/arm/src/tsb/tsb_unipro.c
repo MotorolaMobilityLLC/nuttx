@@ -56,7 +56,7 @@
 #include <arch/chip/unipro_p2p.h>
 #endif
 
-#if defined(CONFIG_ICE_APBA)
+#if CONFIG_ICE_APBA || CONFIG_UNIPRO_P2P_APBA
 static struct p2p_link_err_reason last_link_err_reason;
 #endif
 
@@ -453,7 +453,7 @@ static int irq_rx_eom(int irq, void *context) {
     return 0;
 }
 
-#if defined(CONFIG_ICE_APBA)
+#if CONFIG_ICE_APBA || CONFIG_UNIPRO_P2P_APBA
 int irq_unipro(int irq, void *context) {
     uint32_t rc = 0;
     uint32_t val;
@@ -1232,7 +1232,7 @@ int tsb_unipro_mbox_send(uint32_t val) {
     return rc;
 }
 
-#if !defined(CONFIG_ICE_APBA)
+#if CONFIG_ICE_APBE || CONFIG_UNIPRO_P2P_APBE
 /**
  * Since the switch has no 32-bit MBOX_ACK_ATTR attribute, we need to repurpose
  * a 16-bit attribute, which means that received mbox values must fit inside a
