@@ -26,22 +26,42 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <debug.h>
 #include <stddef.h>
 #include <stdlib.h>
 
 #include <nuttx/gpio.h>
 
 static int16_t rst_gpio;
+static int16_t hpd_gpio = -1;  // not used in all hardware designs
 
-int anx7750_driver_init(int16_t rst)
+int anx7750_driver_init(int16_t rst, int16_t hpd)
 {
     rst_gpio = rst;
     gpio_direction_out(rst_gpio, 0);
+
+    if (hpd >= 0) {
+        hpd_gpio = hpd;
+        gpio_direction_out(hpd_gpio, 0);
+    }
+
     return 0;
 }
 
 int anx7750_power(bool on)
 {
     gpio_set_value(rst_gpio, on);
+    return 0;
+}
+
+int anx7750_hpd(bool enable)
+{
+    if (hpd_gpio < 0)
+        vdbg("HPD not configured\n");
+    else {
+        dbg("HPD enable: %d\n", enable);
+        gpio_set_value(hpd_gpio, enable);
+    }
+
     return 0;
 }
