@@ -263,7 +263,8 @@ static uint8_t gb_mods_display_notification(uint8_t event)
  * @param len buffer length.
  * @return None.
  */
-static int _display_notification_cb(struct device *dev, uint8_t event)
+static int _display_notification_cb(struct device *dev,
+    enum display_notification_event event)
 {
     return (int) gb_mods_display_notification(event);
 }
