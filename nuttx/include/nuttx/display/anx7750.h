@@ -31,7 +31,8 @@
 
 #include <stdint.h>
 
-int anx7750_driver_init(int16_t rst);
+int anx7750_driver_init(int16_t rst, int16_t hpd);
 int anx7750_power(bool);
+int anx7750_hpd(bool);
 
 #endif // __INCLUDE_NUTTX_DISPLAY_ANX7750_H
