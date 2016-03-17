@@ -137,7 +137,7 @@ static uint8_t gb_mods_display_get_config(struct gb_operation *operation)
 
     ret = device_display_get_config(display_info->dev, &display_type,
             &config_type, &config_size, &config_data);
-    if (ret || !config_size)
+    if (ret)
         return GB_OP_UNKNOWN_ERROR;
 
     response = gb_operation_alloc_response(operation,
