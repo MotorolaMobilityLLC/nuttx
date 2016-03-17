@@ -143,6 +143,10 @@ ifeq ($(CONFIG_GHOST_DISPLAY),y)
   CSRCS += ghost_display.c
 endif
 
+ifeq ($(CONFIG_HDMI_DISPLAY),y)
+  CSRCS += hdmi_display.c
+endif
+
 ifeq ($(CONFIG_CAMERA_IMX179), y)
     CSRCS += camera_ext_csi.c camera_ext-imx179.c
 endif
