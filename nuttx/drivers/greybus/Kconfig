@@ -117,10 +117,6 @@ config GREYBUS_TFA9890_MONO_I2C_ADDR
 	---help---
 		I2C addr to use to communicate with device (default 53).
 
-config GREYBUS_BACKLIGHT_EXT
-	bool "Backlight-Ext support"
-	default n
-
 config GREYBUS_MODS_DISPLAY
 	bool "Display support"
 	default n
