@@ -2,6 +2,25 @@
 # For a description of the syntax of this configuration file,
 # see misc/tools/kconfig-language.txt.
 #
+config PWR_LIMIT
+	bool "Implement Power Limit Interface"
+	default n
+	---help---
+		Interface does not require MODS_GREYBUS, but if you
+		are not building for MODS, you would most likely select no.
+		If you are building for mods select yes.
+
+if PWR_LIMIT
+choice
+	prompt "Select power limit driver"
+
+config PWR_LIMIT_DUMMY
+	bool "Use no-op sample skeleton"
+	select CONFIG_DEVICE_CORE
+		default y
+endchoice
+endif
+
 config BATTERY
 	bool "Battery support"
 	default n
