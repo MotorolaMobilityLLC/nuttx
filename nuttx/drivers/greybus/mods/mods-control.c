@@ -37,6 +37,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/bootmode.h>
 #include <nuttx/device_slave_pwrctrl.h>
+#include <nuttx/device_pwr_limit.h>
 #include <nuttx/progmem.h>
 #include <nuttx/rtc.h>
 #include <nuttx/time.h>
@@ -53,7 +54,7 @@
 
 /* Version of the Greybus control protocol we support */
 #define MB_CONTROL_VERSION_MAJOR              0x00
-#define MB_CONTROL_VERSION_MINOR              0x05
+#define MB_CONTROL_VERSION_MINOR              0x06
 
 /* Version of the Greybus control protocol to support
  * send slave state
@@ -72,6 +73,9 @@
 #define MB_CONTROL_TYPE_GET_ROOT_VER          0x07
 #define MB_CONTROL_TYPE_RTC_SYNC              0x08
 #define MB_CONTROL_TYPE_SLAVE_STATE           0x09
+
+#define MB_CONTROL_TYPE_SET_CURRENT_LIMIT     0x0a
+#define MB_CONTROL_TYPE_CAPABLITY_CHANGED     0x0b
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
@@ -141,9 +145,23 @@ struct mb_control_rtc_sync_request {
 } __packed;
 /* Control protocol RTC sync has no response */
 
+/* Control protocol current limit request */
+struct mb_control_current_limit_request {
+    __u8 limit;
+} __packed;
+/* Control protocol current limit response has no payload */
+
+struct mb_control_capability_change_request {
+    __u8 level;
+    __u8 reason;
+    __le16 vendor;
+} __packed;
+/* Control protocol capability change has no response */
+
 struct mb_control_info {
     uint16_t cport;
     struct device *slv_pwr_dev;
+    struct device *pwr_limit_dev;
     uint8_t host_major;
     uint8_t host_minor;
 };
@@ -478,6 +496,53 @@ static uint8_t mb_control_rtc_sync(struct gb_operation *operation)
 #endif
 }
 
+static uint8_t mb_control_set_current_limit(struct gb_operation *operation)
+{
+    /* if driver exists, call it to notify of current limit */
+    if (ctrl_info->pwr_limit_dev) {
+        struct mb_control_current_limit_request *request =
+                gb_operation_get_request_payload(operation);
+
+        return device_pwr_limit_set_pwr_limit(ctrl_info->pwr_limit_dev, request->limit);
+    }
+
+    return GB_OP_SUCCESS;
+}
+
+#if defined(CONFIG_DEVICE_CORE) && defined(CONFIG_PWR_LIMIT)
+static int mb_control_capability_change_cb(struct device *dev,
+        uint8_t level,
+        uint8_t reason,
+        uint16_t vendor)
+{
+    struct mb_control_capability_change_request *request;
+    struct gb_operation *operation;
+    int ret;
+
+    operation = gb_operation_create(ctrl_info->cport,
+            MB_CONTROL_TYPE_CAPABLITY_CHANGED, sizeof(*request));
+    if (!operation)
+        return -ENOMEM;
+
+    request = gb_operation_get_request_payload(operation);
+    if (!request) {
+        gb_operation_destroy(operation);
+        return -EINVAL;
+    }
+    request->level = level;
+    request->reason = reason;
+    request->vendor = cpu_to_le16(vendor);
+
+    ret = gb_operation_send_request(operation, NULL, false);
+    if (ret)
+        ret = -EIO;
+
+    gb_operation_destroy(operation);
+
+    return ret;
+}
+#endif
+
 static int mb_control_init(unsigned int cport)
 {
     ctrl_info = zalloc(sizeof(*ctrl_info));
@@ -506,6 +571,20 @@ static int mb_control_init(unsigned int cport)
     if (!ctrl_info->slv_pwr_dev) {
         gb_info("Failed to open SLAVE Power Control\n");
     }
+
+# ifdef CONFIG_PWR_LIMIT
+    ctrl_info->pwr_limit_dev = device_open(DEVICE_TYPE_PWR_LIMIT_HW, 0);
+    if (ctrl_info->pwr_limit_dev) {
+        int ret = device_pwr_limit_register_capability_change_cb(
+                ctrl_info->pwr_limit_dev, mb_control_capability_change_cb);
+        if (ret) {
+            gb_info("Failed to register callback for %s device!\n",
+                ctrl_info->pwr_limit_dev->name);
+        }
+    } else {
+        gb_info("Failed to open Power Limit Device\n");
+    }
+# endif
 #endif
 
     return 0;
@@ -521,6 +600,13 @@ static void mb_control_exit(unsigned int cport)
         device_close(ctrl_info->slv_pwr_dev);
         device_slave_pwrctrl_unregister_callback(ctrl_info->slv_pwr_dev);
     }
+# ifdef CONFIG_PWR_LIMIT
+    if (ctrl_info->pwr_limit_dev) {
+        (void)device_pwr_limit_unregister_capability_change_cb(
+                ctrl_info->pwr_limit_dev);
+        device_close(ctrl_info->pwr_limit_dev);
+    }
+# endif
 #endif
 
     free(ctrl_info);
@@ -536,6 +622,7 @@ static struct gb_operation_handler mb_control_handlers[] = {
     GB_HANDLER(MB_CONTROL_TYPE_SLAVE_POWER, mb_control_power_ctrl),
     GB_HANDLER(MB_CONTROL_TYPE_GET_ROOT_VER, mb_control_get_root_vers),
     GB_HANDLER(MB_CONTROL_TYPE_RTC_SYNC, mb_control_rtc_sync),
+    GB_HANDLER(MB_CONTROL_TYPE_SET_CURRENT_LIMIT, mb_control_set_current_limit),
 };
 
 struct gb_driver mb_control_driver = {
