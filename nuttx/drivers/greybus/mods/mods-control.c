@@ -143,7 +143,7 @@ struct mb_control_rtc_sync_request {
 
 struct mb_control_info {
     uint16_t cport;
-    struct device *dev;
+    struct device *slv_pwr_dev;
     uint8_t host_major;
     uint8_t host_minor;
 };
@@ -180,8 +180,9 @@ static int mb_control_send_slave_state(uint32_t slave_state)
         return -EINVAL;
     }
 
-    if (ctrl_info->dev) {
-        int ret = device_slave_pwrctrl_get_mask(ctrl_info->dev, &slave_mask);
+    if (ctrl_info->slv_pwr_dev) {
+        int ret = device_slave_pwrctrl_get_mask(ctrl_info->slv_pwr_dev,
+                &slave_mask);
         if (ret) {
             gb_error("Failed to get pwrctrl mask\n");
             return -EINVAL;
@@ -380,8 +381,8 @@ static uint8_t gb_control_get_ids(struct gb_operation *operation)
 #endif
 
     response->slave_mask = 0;
-    if (ctrl_info->dev) {
-        int ret = device_slave_pwrctrl_get_mask(ctrl_info->dev,
+    if (ctrl_info->slv_pwr_dev) {
+        int ret = device_slave_pwrctrl_get_mask(ctrl_info->slv_pwr_dev,
                 &response->slave_mask);
         if (ret)
             gb_error("Failed to get pwrctrl mask\n");
@@ -435,8 +436,8 @@ static uint8_t mb_control_power_ctrl(struct gb_operation *operation)
         return GB_OP_INVALID;
     }
 
-    if (ctrl_info->dev) {
-        ret = device_slave_pwrctrl_set_mode(ctrl_info->dev, request->mode);
+    if (ctrl_info->slv_pwr_dev) {
+        ret = device_slave_pwrctrl_set_mode(ctrl_info->slv_pwr_dev, request->mode);
     }
 
     return ret ? GB_OP_UNKNOWN_ERROR : GB_OP_SUCCESS;
@@ -489,16 +490,21 @@ static int mb_control_init(unsigned int cport)
 #ifdef CONFIG_DEVICE_CORE
     /* see if this device functions as the power control for additional */
     /* devices.  Not having one is not an error.                        */
-    ctrl_info->dev = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, 0);
-    if (!ctrl_info->dev) {
+    ctrl_info->slv_pwr_dev = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, 0);
+    if (!ctrl_info->slv_pwr_dev) {
         gb_debug("Failed to open SLAVE Power Control\n");
         return 0;
     }
 
-    if (device_slave_pwrctrl_register_callback(ctrl_info->dev,
+    if (device_slave_pwrctrl_register_callback(ctrl_info->slv_pwr_dev,
                                        mb_control_send_slave_state_cb)) {
         gb_debug("failed to register callback for %s device!\n",
                 DEVICE_TYPE_SLAVE_PWRCTRL_HW);
+    }
+
+    ctrl_info->slv_pwr_dev = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, 0);
+    if (!ctrl_info->slv_pwr_dev) {
+        gb_info("Failed to open SLAVE Power Control\n");
     }
 #endif
 
@@ -511,9 +517,9 @@ static void mb_control_exit(unsigned int cport)
         return;
 
 #ifdef CONFIG_DEVICE_CORE
-    if (ctrl_info->dev) {
-        device_close(ctrl_info->dev);
-        device_slave_pwrctrl_unregister_callback(ctrl_info->dev);
+    if (ctrl_info->slv_pwr_dev) {
+        device_close(ctrl_info->slv_pwr_dev);
+        device_slave_pwrctrl_unregister_callback(ctrl_info->slv_pwr_dev);
     }
 #endif
 
