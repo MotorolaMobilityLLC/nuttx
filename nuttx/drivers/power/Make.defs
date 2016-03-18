@@ -91,6 +91,10 @@ endif
 
 endif
 
+ifeq ($(CONFIG_PWR_LIMIT_DUMMY),y)
+CSRCS += pwr_limit_dummy.c
+endif
+
 ifeq ($(CONFIG_BATTERY_STATE),y)
 CSRCS += battery_state.c
 endif
