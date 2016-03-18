@@ -411,15 +411,9 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
  */
 static void txn_start_cb(void *v)
 {
-  FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
-  struct ring_buf *rb;
-
-  /* Deassert ready line to base */
+  /* Deassert signals to base */
   mods_rfr_set(0);
-
-  /* Deassert interrupt line if no more packets to be sent */
-  rb = ring_buf_get_next(priv->txc_n2s_rb);
-  mods_host_int_set(ring_buf_is_consumers(rb));
+  mods_host_int_set(false);
 }
 
 static void txn_finished_worker(FAR void *arg)
@@ -629,8 +623,9 @@ static void txn_error_cb(void *v)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
 
-  /* Deassert ready line to base */
+  /* Deassert signals to base */
   mods_rfr_set(0);
+  mods_host_int_set(false);
 
   dl_work_queue(&priv->terr_work, txn_error_worker, priv);
 }
