@@ -84,11 +84,15 @@ static int do_charge_base(struct device *chg, const struct ptp_state *state)
         return device_ptp_chg_send_wireless_pwr(chg);
     }
 #endif
+#ifndef GREYBUS_PTP_INT_SND_NEVER
     if (state->battery.dischg_allowed) {
         return device_ptp_chg_send_batt_pwr(chg);
     } else {
         return device_ptp_chg_off(chg);
     }
+#else
+    return device_ptp_chg_off(chg);
+#endif
 }
 
 /*
