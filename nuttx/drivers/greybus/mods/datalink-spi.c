@@ -35,7 +35,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include <arch/atomic.h>
 #include <arch/board/mods.h>
 #include <arch/byteorder.h>
 
@@ -114,7 +113,7 @@ struct mods_spi_dl_s
 
   struct mods_dl_cb_s *cb;       /* Callbacks to network layer */
   enum base_attached_e bstate;   /* Base state (attached/detached) */
-  atomic_t xfer;                 /* Flag to indicate transfer in progress */
+  bool xfer_setup;               /* Flag to indicate transfer in progress */
   size_t pkt_size;               /* Size of packet (hdr + pl + CRC) in bytes */
   size_t new_pkt_size;           /* Packet size to use next time TX queue empty */
   bool pkt1_supported;           /* Flag to indicate base sets pkt1 hdr bit */
@@ -304,7 +303,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   rb = priv->txc_n2s_rb;
 
   /* Verify not already setup to transceive packet */
-  if (atomic_get(&priv->xfer))
+  if (priv->xfer_setup)
     {
       vdbg("Already setup to transceive packet\n");
       return;
@@ -319,7 +318,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
     }
 
   /* Set flag to indicate a transfer is setup */
-  atomic_inc(&priv->xfer);
+  priv->xfer_setup = true;
 
   if (ring_buf_is_producers(rb))
     {
@@ -372,13 +371,13 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       mods_host_int_set(false);
       mods_rfr_set(0);
 
-      if (atomic_get(&priv->xfer))
+      if (priv->xfer_setup)
         {
           /* Cancel SPI transaction */
           SPI_SLAVE_DMA_CANCEL(priv->spi);
 
           /* Clear transfer setup flag */
-          atomic_dec(&priv->xfer);
+          priv->xfer_setup = false;
         }
 
       /* Ensure all work has stopped */
@@ -459,7 +458,7 @@ static void txn_finished_worker(FAR void *arg)
     }
 
   /* Clear transfer setup flag */
-  atomic_dec(&priv->xfer);
+  priv->xfer_setup = false;
 
   if (!(bitmask & HDR_BIT_VALID))
     {
@@ -609,7 +608,7 @@ static void txn_error_worker(FAR void *arg)
   priv->pkts_remaining = 0;
 
   /* Clear transfer setup flag */
-  atomic_dec(&priv->xfer);
+  priv->xfer_setup = false;
 
   xfer(priv);
 
@@ -799,7 +798,6 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
 
   mods_spi_dl.cb = cb;
   mods_spi_dl.spi = spi;
-  atomic_init(&mods_spi_dl.xfer, 0);
   sem_init(&mods_spi_dl.sem, 0, 0);
 
   set_pkt_size(&mods_spi_dl, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
