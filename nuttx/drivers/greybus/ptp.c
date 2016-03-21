@@ -123,6 +123,16 @@ static uint8_t gb_ptp_set_current_flow(struct gb_operation *operation)
     }
 
     request = gb_operation_get_request_payload(operation);
+
+#ifdef GREYBUS_PTP_INT_RCV_NEVER
+    if (request->direction == PTP_CURRENT_TO_MOD)
+        return GB_OP_INVALID;
+#endif
+#if defined(GREYBUS_PTP_INT_SND_NEVER) && defined(GREYBUS_PTP_EXT_NONE)
+    if (request->direction == PTP_CURRENT_FROM_MOD)
+        return GB_OP_INVALID;
+#endif
+
     ret = device_ptp_set_current_flow(ptp_info->dev, request->direction);
     if (ret)
         return GB_OP_UNKNOWN_ERROR;
