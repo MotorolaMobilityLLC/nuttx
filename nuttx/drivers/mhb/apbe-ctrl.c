@@ -26,17 +26,23 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <debug.h>
 #include <errno.h>
-#include <stdio.h>
+#include <semaphore.h>
 #include <unistd.h>
 
 #include <arch/board/mods.h>
+
 #include <nuttx/device.h>
-#include <nuttx/device_slave_pwrctrl.h>
-#include <nuttx/greybus/mods-ctrl.h>
-#include <nuttx/greybus/mods.h>
 #include <nuttx/gpio.h>
 
+#include <nuttx/device_slave_pwrctrl.h>
+
+#include <nuttx/greybus/mods-ctrl.h>
+#include <nuttx/greybus/mods.h>
+
+#include <nuttx/mhb/device_mhb.h>
+#include <nuttx/mhb/mhb_protocol.h>
 
 #define APBE_PWR_EN_DELAY (100 * 1000)
 #define APBE_RST_N_DELAY (100 * 1000)
@@ -44,9 +50,12 @@
 struct apbe_ctrl_info {
     sem_t apbe_pwrctrl_sem;
     slave_state_callback slave_state_cb;
+    uint32_t open_ref_cnt;
     uint32_t slave_state_ref_cnt;
     enum base_attached_e attached;
     bool is_initialized;
+    bool get_ids_complete;
+    struct device *mhb_dev;
 };
 
 static struct apbe_ctrl_info apbe_ctrl;
@@ -81,8 +90,21 @@ static void apbe_power_on_flash(void)
 
 static int apbe_pwrctrl_op_get_mask(struct device *dev, uint32_t *mask)
 {
-    if (mask)
-        *mask = MB_CONTROL_SLAVE_MASK_APBE;
+    struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
+
+    if (!ctrl_info)
+        return -EINVAL;
+
+    if (mask) {
+        if (ctrl_info->get_ids_complete) {
+            *mask = MB_CONTROL_SLAVE_MASK_APBE;
+        } else {
+            /* For backwards-compatibility, start with the mask 0.
+               This will ensure that the APBE is not powered up on attach. */
+            *mask = 0;
+            ctrl_info->get_ids_complete = true;
+        }
+    }
 
     lldbg("mask=0x%x\n", (mask ? *mask : 0));
     return OK;
@@ -93,6 +115,7 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
     lldbg("mode=%d\n", mode);
     switch (mode) {
     case SLAVE_PWRCTRL_POWER_ON:
+        // TODO: Reset the MHB UART driver.
         apbe_power_on_normal();
         break;
     case SLAVE_PWRCTRL_POWER_FLASH_MODE:
@@ -111,7 +134,7 @@ static void apbe_pwrctrl_attach_changed(FAR void *arg, enum base_attached_e stat
     struct apbe_ctrl_info *ctrl_info = arg;
 
     if (!ctrl_info) {
-        lldbg("ctrl info null \n");
+        lldbg("ctrl info null\n");
         return;
     }
 
@@ -123,6 +146,55 @@ static void apbe_pwrctrl_attach_changed(FAR void *arg, enum base_attached_e stat
 
     ctrl_info->attached = state;
     sem_post(&ctrl_info->apbe_pwrctrl_sem);
+}
+
+static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
+               uint8_t *payload, size_t payload_length)
+{
+    // TODO: Implement a listener for the APBE PM status.
+
+    return 0;
+}
+
+static int apbe_pwrctrl_open(struct device *dev)
+{
+    irqstate_t flags;
+    flags = irqsave();
+
+    /* Open the MHB device if it is not already opened. */
+    if (!apbe_ctrl.mhb_dev) {
+        apbe_ctrl.mhb_dev = device_open(DEVICE_TYPE_MHB, MHB_ADDR_PM);
+
+        device_mhb_register_receiver(dev, MHB_ADDR_PM, mhb_handle_pm);
+    }
+
+    if (!apbe_ctrl.mhb_dev) {
+        lldbg("failed to open MHB device.\n");
+        irqrestore(flags);
+        return -EAGAIN;
+    }
+
+    apbe_ctrl.open_ref_cnt++;
+
+    irqrestore(flags);
+    return 0;
+}
+
+static void apbe_pwrctrl_close(struct device *dev) {
+    irqstate_t flags;
+    flags = irqsave();
+
+    apbe_ctrl.open_ref_cnt--;
+
+    if (apbe_ctrl.open_ref_cnt == 0 && apbe_ctrl.mhb_dev) {
+        /* Close the MHB device. */
+        device_mhb_unregister_receiver(dev, MHB_ADDR_PM, mhb_handle_pm);
+
+        device_close(apbe_ctrl.mhb_dev);
+        apbe_ctrl.mhb_dev = NULL;
+    }
+
+    irqrestore(flags);
 }
 
 static int apbe_pwrctrl_probe(struct device *dev)
@@ -237,6 +309,8 @@ static struct device_slave_pwrctrl_type_ops apbe_pwrctrl_type_ops = {
 static struct device_driver_ops apbe_pwrctrl_driver_ops = {
     .probe    = &apbe_pwrctrl_probe,
     .remove   = &apbe_pwrctrl_remove,
+    .open     = apbe_pwrctrl_open,
+    .close    = apbe_pwrctrl_close,
     .type_ops = &apbe_pwrctrl_type_ops,
 };
 
