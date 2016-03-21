@@ -1810,9 +1810,7 @@ static int stm32_spi_ss_isr(struct stm32_spidev_s *priv, int nss_gpio)
   /* Check for end of frame before entire buffer is filled */
   else if (priv->xfering)
     {
-      priv->xfering = false;
-      spi_portreset(priv);
-      spi_portinitialize(priv);
+      spi_rxtxdmastop_slave((FAR struct spi_dev_s *)priv);
 
       spidbg("Early end of frame\n");
       CALL_CB_IF_SET(priv, txn_err);
