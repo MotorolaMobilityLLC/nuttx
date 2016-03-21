@@ -28,6 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Copyright (c) 2016 Motorola Mobility, LLC
  * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
@@ -90,7 +91,7 @@ void *bsearch(const void *key, const void *base, size_t nmemb, size_t size,
         p = base + (lim >> 1) * size;
         cmp = (*compar)(key, p);
         if (cmp == 0)
-            return *(void *const *)p;
+            return (void *)p;
         if (cmp > 0) {
             base = (const char *)p + size;
             lim--;
