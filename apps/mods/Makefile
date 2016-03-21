@@ -8,10 +8,10 @@
 
 # Sub-directories
 
-SUBDIRS = diet mhb_server raw spi_reg
+SUBDIRS = diet mhb_client mhb_server raw spi_reg
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
-CNTXTDIRS = spi_reg raw
+CNTXTDIRS = mhb_client spi_reg raw
 endif
 
 all: nothing
