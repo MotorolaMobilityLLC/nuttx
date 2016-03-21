@@ -48,8 +48,12 @@
 #include <nuttx/device_sensors_ext.h>
 #include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/device_table.h>
+#include <nuttx/device_uart.h>
+
 #include <nuttx/power/battery_state.h>
 #include <nuttx/util.h>
+
+#include <nuttx/mhb/device_mhb.h>
 
 #include <arch/board/board.h>
 #include <arch/board/mods.h>
@@ -82,6 +86,39 @@ typedef enum {
 #endif
     SENSORS_TOTAL,
 } sensor_type;
+
+#ifdef CONFIG_STM32_UART_DEVICE
+static struct device_resource stm32_uart_resources[] = {
+    {
+        .name   = "phy_id",
+        .type   = DEVICE_RESOURCE_TYPE_REGS,
+        .start  = 1, /* USART1 */
+        .count  = 1,
+    },
+};
+#endif
+
+#ifdef CONFIG_MHB_UART
+static struct device_resource mhb_resources[] = {
+    {
+        .name   = "uart_dev_id",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 1, /* Maps to the DEVICE_TYPE_UART_HW instance. */
+        .count  = 1,
+    },
+    {
+        .name   = "peer_wake",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 24, /* PB8 */
+        .count  = 1,
+    },
+};
+#endif
+
+#ifdef CONFIG_MHB_DSI_DISPLAY
+static struct device_resource dsi_display_resources[] = {
+};
+#endif
 
 static struct device devices[] = {
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
@@ -132,14 +169,28 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+
 #ifdef CONFIG_MHB_APBE_CTRL_DEVICE
+    /* For GB Mods Control Protocol */
     {
         .type = DEVICE_TYPE_SLAVE_PWRCTRL_HW,
         .name = "slave_pwrctrl",
         .desc = "slave power control",
         .id   = 0,
     },
+#ifdef CONFIG_MHB_UART
+    /* For APBE-Control */
+    {
+        .type = DEVICE_TYPE_MHB,
+        .name = "mhb",
+        .desc = "mhb",
+        .id   = MHB_ADDR_PM,
+        .resources = mhb_resources,
+        .resource_count = ARRAY_SIZE(mhb_resources),
+    },
 #endif
+#endif
+
 #ifdef CONFIG_BATTERY_GOOD_DEVICE_COMP
     {
         .type = DEVICE_TYPE_BATTERY_GOOD_HW,
@@ -155,6 +206,58 @@ static struct device devices[] = {
         .desc = "HDMI Display",
         .id   = 0,
     },
+#endif
+#ifdef CONFIG_STM32_UART_DEVICE
+    {
+        .type = DEVICE_TYPE_UART_HW,
+        .name = "stm32_uart",
+        .desc = "stm32 uart",
+        .id   = 1, /* /dev/ttyS1 */
+        .resources = stm32_uart_resources,
+        .resource_count = ARRAY_SIZE(stm32_uart_resources),
+    },
+#endif
+
+#ifdef CONFIG_MODS_MHB_CLIENT
+    {
+        .type = DEVICE_TYPE_MHB,
+        .name = "mhb",
+        .desc = "mhb",
+        .id   = MHB_ADDR_DIAG,
+        .resources = mhb_resources,
+        .resource_count = ARRAY_SIZE(mhb_resources),
+    },
+#endif
+
+#ifdef CONFIG_MHB_DSI_DISPLAY
+    {
+        .type = DEVICE_TYPE_DISPLAY_HW,
+        .name = "mhb_dsi_display",
+        .desc = "MHB DSI Display",
+        .id   = 0, /* Must match device_open() in gb_mods_display_init() */
+        .resources      = dsi_display_resources,
+        .resource_count = ARRAY_SIZE(dsi_display_resources),
+    },
+# ifdef CONFIG_MHB_UART
+    /* For DSI Display */
+    {
+        .type = DEVICE_TYPE_MHB,
+        .name = "mhb",
+        .desc = "mhb",
+        .id   = MHB_ADDR_CDSI0,
+        .resources = mhb_resources,
+        .resource_count = ARRAY_SIZE(mhb_resources),
+    },
+# endif
+# ifdef CONFIG_MHB_APBE_CTRL_DEVICE
+    /* For DSI Display */
+    {
+        .type = DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+        .name = "slave_pwrctrl",
+        .desc = "slave power control",
+        .id   = MHB_ADDR_CDSI0,
+    },
+# endif
 #endif
 
 };
@@ -286,7 +389,20 @@ void board_initialize(void)
    extern struct device_driver hdmi_display_driver;
    device_register_driver(&hdmi_display_driver);
 #endif
+#ifdef CONFIG_STM32_UART_DEVICE
+  extern struct device_driver stm32_uart_driver;
+  device_register_driver(&stm32_uart_driver);
+#endif
+#if CONFIG_MHB_UART
+   extern struct device_driver mhb_driver;
+   device_register_driver(&mhb_driver);
+#endif
+#ifdef CONFIG_MHB_DSI_DISPLAY
+   extern struct device_driver dsi_display_driver;
+   device_register_driver(&dsi_display_driver);
+#endif
 
 #endif
+
 }
 #endif
