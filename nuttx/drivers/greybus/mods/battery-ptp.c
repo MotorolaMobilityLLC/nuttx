@@ -60,6 +60,7 @@ struct ptp_state {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     bool docked; /* on a wireless dock ? */
 #endif
+    bool base_powered_off; /* flag to indicate base is powered off with AMP attached */
 };
 
 struct ptp_info {
@@ -85,7 +86,7 @@ static int do_charge_base(struct device *chg, const struct ptp_state *state)
     }
 #endif
 #ifndef GREYBUS_PTP_INT_SND_NEVER
-    if (state->battery.dischg_allowed) {
+    if (state->battery.dischg_allowed && !state->base_powered_off) {
         return device_ptp_chg_send_batt_pwr(chg);
     } else {
         return device_ptp_chg_off(chg);
@@ -174,6 +175,10 @@ static void batt_ptp_attach_changed(FAR void *arg, enum base_attached_e state)
     if (init) {
         init = false;
         info->state.attached = state;
+        if (state == BASE_ATTACHED_OFF)
+            info->state.base_powered_off = true;
+        else
+            info->state.base_powered_off = false;
         return;
     }
 
@@ -191,6 +196,11 @@ static void batt_ptp_attach_changed(FAR void *arg, enum base_attached_e state)
         info->state.direction = PTP_CURRENT_OFF;
         info->state.battery.input_current = DEFAULT_BASE_INPUT_CURRENT;
     }
+
+    if (state == BASE_ATTACHED_OFF && info->state.attached == BASE_ATTACHED)
+        info->state.base_powered_off = true;
+    else
+        info->state.base_powered_off = false;
 
     info->state.attached = state;
     batt_ptp_process(info->chg_dev, &info->state);
