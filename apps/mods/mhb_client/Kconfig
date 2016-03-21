@@ -1,0 +1,21 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config MODS_MHB_CLIENT
+	bool "Mods MHB Client"
+	default n
+	depends on MHB
+	depends on NSH_CONSOLE
+	---help---
+		Enable the Mods MHB Client for debugging
+
+if MODS_MHB_CLIENT
+config MODS_MHB_CLIENT_PROGNAME
+	string "Program name"
+	default "apbe"
+	---help---
+		Name of the MHB client app.
+
+endif

@@ -10,6 +10,9 @@ endif
 ifeq ($(CONFIG_MODS_DIET),y)
 CONFIGURED_APPS += mods/diet
 endif
+ifeq ($(CONFIG_MODS_MHB_CLIENT),y)
+CONFIGURED_APPS += mods/mhb_client
+endif
 ifeq ($(CONFIG_MODS_MHB_SERVER),y)
 CONFIGURED_APPS += mods/mhb_server
 endif
