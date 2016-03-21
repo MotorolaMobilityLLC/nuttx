@@ -1634,6 +1634,18 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       stm32_dmastop(priv->txdma);
       stm32_dmastop(priv->rxdma);
 
+#ifdef CONFIG_SPI_SLAVE
+      if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
+        {
+          uint32_t status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
+          if ((status & SPI_SR_RXNE) || !(status & SPI_SR_TXE))
+            {
+              spidbg("Invalid status: 0x%08x\n", status);
+              spi_rxtxdmastop_slave(dev);
+            }
+        }
+#endif
+
 #ifdef CONFIG_SPI_CRC16
       spi_modifycr1(priv, 0, SPI_CR1_CRCEN);
 
