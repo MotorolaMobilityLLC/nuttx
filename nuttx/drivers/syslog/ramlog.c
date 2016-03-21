@@ -67,6 +67,8 @@
 #ifdef CONFIG_RAMLOG_LAST_DMESG
 #define __ramlog           __attribute__((section(".ramlog")))
 #define RAMLOG_VALIDITY    (0x0F1E2D3C)
+#else
+#define __ramlog
 #endif
 
 /****************************************************************************
@@ -74,13 +76,12 @@
  ****************************************************************************/
 
 #ifdef CONFIG_RAMLOG_LAST_DMESG
-struct rl_ldev_s
+struct ramlog_ldev_s
 {
   int               rl_validity;     /* Allows check if ramlog is valid */
   uint16_t          rl_head;         /* The head index (where data is added) */
   uint16_t          rl_tail;         /* The tail index (where data is removed) */
   size_t            rl_bufsize;      /* Size of the RAM buffer */
-  FAR char         *rl_buffer;       /* Circular RAM buffer */
 };
 #endif
 
@@ -88,7 +89,6 @@ struct ramlog_dev_s
 {
 #ifdef CONFIG_RAMLOG_LAST_DMESG
   int               rl_validity;     /* Allows check if ramlog is valid */
-  struct rl_ldev_s *rl_last;         /* Last ramlog */
 #endif
 #ifndef CONFIG_RAMLOG_NONBLOCKING
   volatile uint8_t  rl_nwaiters;     /* Number of threads waiting for data */
@@ -167,12 +167,13 @@ static const struct file_operations g_lastramlogfops =
  */
 
 #if defined(CONFIG_RAMLOG_CONSOLE) || defined(CONFIG_RAMLOG_SYSLOG)
-static char g_sysbuffer[CONFIG_RAMLOG_BUFSIZE];
+static char g_sysbuffer[CONFIG_RAMLOG_BUFSIZE] __ramlog;
 
 #ifdef CONFIG_RAMLOG_LAST_DMESG
 static char g_syslastbuffer[CONFIG_RAMLOG_BUFSIZE] __ramlog;
-static struct rl_ldev_s g_syslastdev __ramlog;
-#endif
+static struct ramlog_ldev_s g_syslastdev __ramlog;
+static struct ramlog_dev_s g_sysdev __ramlog;
+#else
 
 /* This is the device structure for the console or syslogging function.  It
  * must be statically initialized because the RAMLOG syslog_putc function
@@ -181,10 +182,6 @@ static struct rl_ldev_s g_syslastdev __ramlog;
 
 static struct ramlog_dev_s g_sysdev =
 {
-#ifdef CONFIG_RAMLOG_LAST_DMESG
-  RAMLOG_VALIDITY,               /* rl_validity */
-  &g_syslastdev,                 /* rl_last */
-#endif
 #ifndef CONFIG_RAMLOG_NONBLOCKING
   0,                             /* rl_nwaiters */
 #endif
@@ -197,6 +194,7 @@ static struct ramlog_dev_s g_sysdev =
   CONFIG_RAMLOG_BUFSIZE,         /* rl_bufsize */
   g_sysbuffer                    /* rl_buffer */
 };
+#endif
 #endif
 
 /****************************************************************************
@@ -690,7 +688,7 @@ errout:
 static int ramlog_open_last(FAR struct file *filep)
 {
   struct inode *inode = filep->f_inode;
-  struct rl_ldev_s *priv;
+  struct ramlog_ldev_s *priv;
 
   /* Some sanity checking */
 
@@ -711,7 +709,7 @@ static ssize_t ramlog_read_last(FAR struct file *filep, FAR char *buffer,
                 size_t len)
 {
   struct inode *inode = filep->f_inode;
-  struct rl_ldev_s *priv;
+  struct ramlog_ldev_s *priv;
   ssize_t nread;
   char ch;
 
@@ -738,7 +736,7 @@ static ssize_t ramlog_read_last(FAR struct file *filep, FAR char *buffer,
            * position index.
            */
 
-          ch = priv->rl_buffer[filep->f_pos];
+          ch = g_syslastbuffer[filep->f_pos];
 
           /* Increment the position index */
 
@@ -845,7 +843,7 @@ int ramlog_sysloginit(void)
 #ifdef CONFIG_RAMLOG_LAST_DMESG
   /* If last ramlog is valid, register the last syslog character driver */
 
-  if (g_sysdev.rl_last->rl_validity == RAMLOG_VALIDITY)
+  if (g_syslastdev.rl_validity == RAMLOG_VALIDITY)
     {
       register_driver(CONFIG_SYSLOG_LAST_DEVPATH, &g_lastramlogfops, 0666,
                       &g_syslastdev);
@@ -875,20 +873,31 @@ void ramlog_preserve_last(void)
 
   /* Clear out the last ramlog buffer and structure*/
   memset(g_syslastbuffer, 0, CONFIG_RAMLOG_BUFSIZE);
-  memset(&g_syslastdev, 0, sizeof(struct rl_ldev_s));
+  memset(&g_syslastdev, 0, sizeof(struct ramlog_ldev_s));
 
   /* Check if ramlog from previous boot is still in RAM */
   if (priv->rl_validity == RAMLOG_VALIDITY)
     {
       /* Copy previous ramlog */
 
-      priv->rl_last->rl_validity = priv->rl_validity;
-      priv->rl_last->rl_head = priv->rl_head;
-      priv->rl_last->rl_tail = priv->rl_tail;
-      priv->rl_last->rl_bufsize = priv->rl_bufsize;
-      priv->rl_last->rl_buffer = g_syslastbuffer;
-      memcpy(priv->rl_last->rl_buffer, priv->rl_buffer, priv->rl_bufsize);
+      g_syslastdev.rl_validity = priv->rl_validity;
+      g_syslastdev.rl_head = priv->rl_head;
+      g_syslastdev.rl_tail = priv->rl_tail;
+      g_syslastdev.rl_bufsize = priv->rl_bufsize;
+      memcpy(g_syslastbuffer, priv->rl_buffer, priv->rl_bufsize);
     }
+
+  /* Must initialize g_sysdev here since it is not statically initialized */
+  priv->rl_validity = RAMLOG_VALIDITY;
+  priv->rl_head = 0;
+  priv->rl_tail = 0;
+  sem_init(&priv->rl_exclsem, 0, 1);
+  priv->rl_bufsize = CONFIG_RAMLOG_BUFSIZE;
+  priv->rl_buffer = g_sysbuffer;
+#ifndef CONFIG_RAMLOG_NONBLOCKING
+  priv->rl_nwaiters = 0;
+  sem_init(&priv->rl_waitsem, 0, 0);
+#endif
 }
 #endif
 
