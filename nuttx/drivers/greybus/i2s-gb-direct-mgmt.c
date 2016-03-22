@@ -45,7 +45,10 @@
 #include "i2s-gb.h"
 
 #define GB_I2S_MGMT_VERSION_MAJOR        0x00
-#define GB_I2S_MGMT_VERSION_MINOR        0x01
+#define GB_I2S_MGMT_VERSION_MINOR        0x02
+
+#define GB_I2S_MGMT_VERSION_CFG_MASK_MAJOR        0x00
+#define GB_I2S_MGMT_VERSION_CFG_MASK_MINOR        0x02
 
 #define CONFIG_COUNT_MAX   5
 
@@ -70,15 +73,29 @@ struct gb_i2s_direct_info {
     uint16_t            tx_cport;
     uint16_t            rx_cport;
     struct device       *dev;
+    uint8_t             host_major;
+    uint8_t             host_minor;
 };
 
 static struct gb_i2s_direct_info i2s_dev_info;
 
 static uint8_t gb_i2s_mgmt_protocol_version(struct gb_operation *operation)
 {
-    struct gb_i2s_proto_version_response *response;
+    struct gb_i2s_proto_version_response *response =
+                 gb_operation_get_request_payload(operation);
 
     gb_debug("%s()\n", __func__);
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*response)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+    i2s_dev_info.host_major = response->major;
+    i2s_dev_info.host_minor = response->minor;
+
+    gb_debug("%s() host protocol major version %d\n", __func__, response->major);
+    gb_debug("%s() host protocol minor version %d\n", __func__, response->minor);
+
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
@@ -115,20 +132,51 @@ void gb_i2s_set_tx_cport(int cport)
     i2s_dev_info.tx_cport = cport;
 }
 
-static uint8_t gb_i2s_mgmt_protocol_get_supported_cfgs(struct gb_operation *operation)
+static uint8_t gb_i2s_mgmt_protocol_get_cfg_masks(struct gb_operation *operation)
+{
+    struct gb_i2s_get_config_masks_response *response;
+    struct device_i2s_dai dev_dai_cfg;
+    struct device_i2s_pcm dev_pcm_cfg;
+    struct gb_i2s_config_masks *gb_cfg;
+    int ret;
+
+    gb_debug("%s()\n", __func__);
+
+    ret = device_i2s_get_caps(i2s_dev_info.dev, DEVICE_I2S_ROLE_SLAVE,
+                                   &dev_pcm_cfg, &dev_dai_cfg);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    gb_cfg = &response->config;
+    gb_cfg->sample_frequency = cpu_to_le32(dev_pcm_cfg.rate);
+    gb_cfg->num_channels = dev_pcm_cfg.channels;
+    gb_cfg->format = cpu_to_le32(dev_pcm_cfg.format);
+    gb_cfg->protocol = dev_dai_cfg.protocol;
+    gb_cfg->wclk_polarity = dev_dai_cfg.wclk_polarity;
+    gb_cfg->wclk_change_edge = dev_dai_cfg.wclk_change_edge;
+    gb_cfg->data_tx_edge = dev_dai_cfg.data_tx_edge;
+    gb_cfg->data_rx_edge = dev_dai_cfg.data_rx_edge;
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_i2s_mgmt_protocol_get_cfg_tables(struct gb_operation *operation)
 {
     struct gb_i2s_get_supported_configurations_response *response;
     const struct device_i2s_configuration *dev_cfg;
     struct gb_i2s_configuration *gb_cfg;
     uint16_t dev_cfg_cnt;
-    int ret;
-    int size;
     int i;
+    int size;
+    int ret;
 
     gb_debug("%s()\n", __func__);
-
     ret = device_i2s_get_supported_configurations(i2s_dev_info.dev, &dev_cfg_cnt,
-                                                  &dev_cfg);
+                                                 &dev_cfg);
     if (ret)
         return GB_OP_UNKNOWN_ERROR;
 
@@ -145,39 +193,89 @@ static uint8_t gb_i2s_mgmt_protocol_get_supported_cfgs(struct gb_operation *oper
 
     for (i = 0; i < dev_cfg_cnt; i++)
     {
-
-       gb_cfg->sample_frequency = cpu_to_le32(dev_cfg->sample_frequency);
-       gb_cfg->num_channels = dev_cfg->num_channels;
-       gb_cfg->bytes_per_channel = dev_cfg->bytes_per_channel;
-       gb_cfg->byte_order = dev_cfg->byte_order;
-       gb_cfg->spatial_locations = cpu_to_le32(dev_cfg->spatial_locations);
-       gb_cfg->ll_protocol = cpu_to_le32(dev_cfg->ll_protocol);
-       gb_cfg->ll_mclk_role = dev_cfg->ll_mclk_role;
-       gb_cfg->ll_bclk_role = dev_cfg->ll_bclk_role;
-       gb_cfg->ll_wclk_role = dev_cfg->ll_wclk_role;
-       gb_cfg->ll_wclk_polarity = dev_cfg->ll_wclk_polarity;
-       gb_cfg->ll_wclk_change_edge = dev_cfg->ll_wclk_change_edge;
-       gb_cfg->ll_data_tx_edge = dev_cfg->ll_data_tx_edge;
-       gb_cfg->ll_data_rx_edge = dev_cfg->ll_data_rx_edge;
-       gb_cfg->ll_data_offset = dev_cfg->ll_data_offset;
-       dev_cfg++;
-       gb_cfg++;
-   }
+        gb_cfg->sample_frequency = cpu_to_le32(dev_cfg->sample_frequency);
+        gb_cfg->num_channels = dev_cfg->num_channels;
+        gb_cfg->bytes_per_channel = dev_cfg->bytes_per_channel;
+        gb_cfg->byte_order = dev_cfg->byte_order;
+        gb_cfg->spatial_locations = cpu_to_le32(dev_cfg->spatial_locations);
+        gb_cfg->ll_protocol = cpu_to_le32(dev_cfg->ll_protocol);
+        gb_cfg->ll_mclk_role = dev_cfg->ll_mclk_role;
+        gb_cfg->ll_bclk_role = dev_cfg->ll_bclk_role;
+        gb_cfg->ll_wclk_role = dev_cfg->ll_wclk_role;
+        gb_cfg->ll_wclk_polarity = dev_cfg->ll_wclk_polarity;
+        gb_cfg->ll_wclk_change_edge = dev_cfg->ll_wclk_change_edge;
+        gb_cfg->ll_data_tx_edge = dev_cfg->ll_data_tx_edge;
+        gb_cfg->ll_data_rx_edge = dev_cfg->ll_data_rx_edge;
+        gb_cfg->ll_data_offset = dev_cfg->ll_data_offset;
+        dev_cfg++;
+        gb_cfg++;
+    }
 
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_i2s_mgmt_protocol_set_supported_cfgs(struct gb_operation *operation)
+static int gb_i2s_mgmt_supports_cfg_mask(struct gb_i2s_direct_info *i2s_info)
 {
-    struct gb_i2s_set_configuration_request *request =
-                gb_operation_get_request_payload(operation);
-    int ret;
-    struct device_i2s_configuration dev_cfg;
-    struct gb_i2s_configuration *gb_cfg = &request->config;
+    if (i2s_info->host_major < GB_I2S_MGMT_VERSION_CFG_MASK_MAJOR) {
+        gb_debug("%s() host does not support cfg masks !\n", __func__);
+        return 0;
+    }
+    if (i2s_info->host_minor < GB_I2S_MGMT_VERSION_CFG_MASK_MINOR &&
+          i2s_info->host_major == GB_I2S_MGMT_VERSION_CFG_MASK_MAJOR)
+    {
+        gb_debug("%s() host minor does not support cfg masks !\n", __func__);
+        return 0;
+    }
+    return 1;
+}
 
-
+static uint8_t gb_i2s_mgmt_protocol_get_supported_cfgs(struct gb_operation *operation)
+{
     gb_debug("%s()\n", __func__);
 
+    if (gb_i2s_mgmt_supports_cfg_mask(&i2s_dev_info)) {
+        return gb_i2s_mgmt_protocol_get_cfg_masks(operation);
+    } else {
+        return gb_i2s_mgmt_protocol_get_cfg_tables(operation);
+    }
+}
+
+static uint8_t gb_i2s_mgmt_protocol_set_cfg_mask(struct gb_operation *operation)
+{
+    struct device_i2s_dai dev_dai_cfg;
+    struct device_i2s_pcm dev_pcm_cfg;
+    int ret;
+    struct gb_i2s_set_config_masks_request *request =
+                gb_operation_get_request_payload(operation);
+    struct gb_i2s_config_masks *gb_cfg = &request->config;
+
+    gb_debug("%s()\n", __func__);
+    dev_pcm_cfg.rate = le32_to_cpu(gb_cfg->sample_frequency);
+    dev_pcm_cfg.channels = gb_cfg->num_channels;
+    dev_pcm_cfg.format = le32_to_cpu(gb_cfg->format);
+    dev_dai_cfg.protocol = gb_cfg->protocol;
+    dev_dai_cfg.wclk_polarity = gb_cfg->wclk_polarity;
+    dev_dai_cfg.wclk_change_edge = gb_cfg->wclk_change_edge;
+    dev_dai_cfg.data_tx_edge = gb_cfg->data_tx_edge;
+    dev_dai_cfg.data_rx_edge = gb_cfg->data_rx_edge;
+
+    ret = device_i2s_set_config_mask(i2s_dev_info.dev, DEVICE_I2S_ROLE_SLAVE,
+                                   &dev_pcm_cfg, &dev_dai_cfg);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_i2s_mgmt_protocol_set_cfg_table(struct gb_operation *operation)
+{
+    int ret;
+    struct device_i2s_configuration dev_cfg;
+    struct gb_i2s_set_configuration_request *request =
+                gb_operation_get_request_payload(operation);
+    struct gb_i2s_configuration *gb_cfg = &request->config;
+
+    gb_debug("%s()\n", __func__);
     dev_cfg.sample_frequency = le32_to_cpu(gb_cfg->sample_frequency);
     dev_cfg.num_channels = gb_cfg->num_channels;
     dev_cfg.bytes_per_channel = gb_cfg->bytes_per_channel;
@@ -200,6 +298,17 @@ static uint8_t gb_i2s_mgmt_protocol_set_supported_cfgs(struct gb_operation *oper
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_i2s_mgmt_protocol_set_supported_cfgs(struct gb_operation *operation)
+{
+    gb_debug("%s()\n", __func__);
+
+    if (gb_i2s_mgmt_supports_cfg_mask(&i2s_dev_info)) {
+        return gb_i2s_mgmt_protocol_set_cfg_mask(operation);
+    } else {
+        return gb_i2s_mgmt_protocol_set_cfg_table(operation);
+    }
+}
+
 static uint8_t gb_i2s_mgmt_protocol_samples_per_msg(struct gb_operation *operation)
 {
     gb_debug("%s()\n", __func__);
@@ -213,7 +322,6 @@ static uint8_t gb_i2s_mgmt_protocol_processing_delay(struct gb_operation *operat
     gb_debug("%s()\n", __func__);
 
     return GB_OP_SUCCESS;
-
 }
 
 static uint8_t gb_i2s_mgmt_protocol_start_delay(struct gb_operation *operation)
