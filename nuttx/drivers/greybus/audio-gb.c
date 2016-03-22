@@ -112,8 +112,8 @@ static uint8_t gb_aud_get_vol_range(struct gb_operation *operation)
     if (ret)
         return GB_OP_SUCCESS;
 
-    response->vol_range.min = gb_vol_range.min;
-    response->vol_range.step = gb_vol_range.step;
+    response->vol_range.min = cpu_to_le32(gb_vol_range.min);
+    response->vol_range.step = cpu_to_le32(gb_vol_range.step);
 
     return GB_OP_SUCCESS;
 }
@@ -157,10 +157,11 @@ static uint8_t gb_aud_protocol_set_volume(struct gb_operation *operation)
     struct gb_audio_set_volume_db_request *request =
                             gb_operation_get_request_payload(operation);
     int ret;
+    int32_t vol_step;
 
     gb_debug("%s()\n", __func__);
-
-    ret =  device_audio_set_volume(dev_info.dev, request->vol_step);
+    vol_step = le32_to_cpu(request->vol_step);
+    ret =  device_audio_set_volume(dev_info.dev, vol_step);
     if (ret)
         return -EIO;
 
@@ -172,10 +173,12 @@ static uint8_t gb_aud_protocol_set_sys_volume(struct gb_operation *operation)
     struct gb_audio_set_system_volume_db_request *request =
                             gb_operation_get_request_payload(operation);
     int ret;
+    int32_t vol_db;
 
     gb_debug("%s()\n", __func__);
 
-    ret =  device_audio_set_sys_volume(dev_info.dev, request->vol_db);
+    vol_db = le32_to_cpu(request->vol_db);
+    ret =  device_audio_set_sys_volume(dev_info.dev, vol_db);
     if (ret)
         return -EIO;
 
