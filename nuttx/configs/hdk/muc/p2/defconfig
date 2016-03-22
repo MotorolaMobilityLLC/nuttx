@@ -640,10 +640,12 @@ CONFIG_WATCHDOG_DEVPATH="/dev/watchdog0"
 # CONFIG_TIMER is not set
 # CONFIG_ANALOG is not set
 # CONFIG_AUDIO_DEVICES is not set
+# CONFIG_BACKLIGHT is not set
 # CONFIG_BCH is not set
 # CONFIG_INPUT is not set
 # CONFIG_LCD is not set
-# CONFIG_MHB is not set
+CONFIG_MHB=y
+CONFIG_MHB_APBE_CTRL_DEVICE=y
 # CONFIG_MMCSD is not set
 # CONFIG_MTD is not set
 # CONFIG_PIPES is not set
