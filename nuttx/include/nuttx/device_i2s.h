@@ -58,6 +58,39 @@
 #define DEVICE_I2S_PCM_RATE_176400              BIT(11)
 #define DEVICE_I2S_PCM_RATE_192000              BIT(12)
 
+#define DEVICE_I2S_BYTE_ORDER_NA                BIT(0)
+#define DEVICE_I2S_BYTE_ORDER_BE                BIT(1)
+#define DEVICE_I2S_BYTE_ORDER_LE                BIT(2)
+
+#define DEVICE_I2S_SPATIAL_LOCATION_FL          BIT(0)
+#define DEVICE_I2S_SPATIAL_LOCATION_FR          BIT(1)
+#define DEVICE_I2S_SPATIAL_LOCATION_FC          BIT(2)
+#define DEVICE_I2S_SPATIAL_LOCATION_LFE         BIT(3)
+#define DEVICE_I2S_SPATIAL_LOCATION_BL          BIT(4)
+#define DEVICE_I2S_SPATIAL_LOCATION_BR          BIT(5)
+#define DEVICE_I2S_SPATIAL_LOCATION_FLC         BIT(6)
+#define DEVICE_I2S_SPATIAL_LOCATION_FRC         BIT(7)
+#define DEVICE_I2S_SPATIAL_LOCATION_C           BIT(8) /* BC in USB Spec */
+#define DEVICE_I2S_SPATIAL_LOCATION_SL          BIT(9)
+#define DEVICE_I2S_SPATIAL_LOCATION_SR          BIT(10)
+#define DEVICE_I2S_SPATIAL_LOCATION_TC          BIT(11)
+#define DEVICE_I2S_SPATIAL_LOCATION_TFL         BIT(12)
+#define DEVICE_I2S_SPATIAL_LOCATION_TFC         BIT(13)
+#define DEVICE_I2S_SPATIAL_LOCATION_TFR         BIT(14)
+#define DEVICE_I2S_SPATIAL_LOCATION_TBL         BIT(15)
+#define DEVICE_I2S_SPATIAL_LOCATION_TBC         BIT(16)
+#define DEVICE_I2S_SPATIAL_LOCATION_TBR         BIT(17)
+#define DEVICE_I2S_SPATIAL_LOCATION_TFLC        BIT(18)
+#define DEVICE_I2S_SPATIAL_LOCATION_TFRC        BIT(19)
+#define DEVICE_I2S_SPATIAL_LOCATION_LLFE        BIT(20)
+#define DEVICE_I2S_SPATIAL_LOCATION_RLFE        BIT(21)
+#define DEVICE_I2S_SPATIAL_LOCATION_TSL         BIT(22)
+#define DEVICE_I2S_SPATIAL_LOCATION_TSR         BIT(23)
+#define DEVICE_I2S_SPATIAL_LOCATION_BC          BIT(24)
+#define DEVICE_I2S_SPATIAL_LOCATION_BLC         BIT(25)
+#define DEVICE_I2S_SPATIAL_LOCATION_BRC         BIT(26)
+#define DEVICE_I2S_SPATIAL_LOCATION_RD          BIT(31)
+
 #define DEVICE_I2S_PROTOCOL_PCM                 BIT(0)
 #define DEVICE_I2S_PROTOCOL_I2S                 BIT(1)
 #define DEVICE_I2S_PROTOCOL_LR_STEREO           BIT(2)
@@ -86,6 +119,25 @@ enum device_i2s_event {
 typedef void (*device_i2s_callback)(struct ring_buf *rb,
                                     enum device_i2s_event event, void *arg);
 
+struct device_i2s_configuration {
+    uint32_t    sample_frequency;
+    uint8_t     num_channels;
+    uint8_t     bytes_per_channel;
+    uint8_t     byte_order;
+    uint8_t     pad;
+    uint32_t    spatial_locations;
+    uint32_t    ll_protocol;
+    uint8_t     ll_mclk_role;
+    uint8_t     ll_bclk_role;
+    uint8_t     ll_wclk_role;
+    uint8_t     ll_wclk_polarity;
+    uint8_t     ll_wclk_change_edge;
+    uint8_t     ll_data_tx_edge;
+    uint8_t     ll_data_rx_edge;
+    uint8_t     ll_data_offset;
+    uint8_t     ll_pad;
+};
+
 struct device_i2s_pcm {
     uint32_t    format;     /* DEVICE_I2S_PCM_FMT_* */
     uint32_t    rate;       /* DEVICE_I2S_PCM_RATE_* */
@@ -111,6 +163,12 @@ struct device_i2s_type_ops {
                     struct device_i2s_pcm *pcm, struct device_i2s_dai *dai);
     int (*set_config)(struct device *dev, uint8_t clk_role,
                       struct device_i2s_pcm *pcm, struct device_i2s_dai *dai);
+    int (*get_supported_configurations)(struct device *dev,
+                                        uint16_t *configuration_count,
+                                        const struct device_i2s_configuration
+                                                             *configurations[]);
+    int (*set_configuration)(struct device *dev,
+                             struct device_i2s_configuration *configuration);
     int (*get_delay_receiver)(struct device *dev, uint32_t *delay);
     int (*prepare_receiver)(struct device *dev, struct ring_buf *rx_rb,
                             device_i2s_callback callback, void *arg);
@@ -154,6 +212,45 @@ static inline int device_i2s_get_caps(struct device *dev, uint8_t clk_role,
     return -ENOSYS;
 }
 
+static inline int device_i2s_get_supported_configurations(
+                        struct device *dev,
+                        uint16_t *configuration_count,
+                        const struct device_i2s_configuration *configurations[])
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->get_supported_configurations)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->get_supported_configurations(
+                                     dev, configuration_count, configurations);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Set supported configuration
+ * @param dev I2S device whose configuration is set
+ * @param configuration Address of configuration data
+ * @return 0: Configuration set successfully
+ *         -errno: Cause of failure
+ */
+static inline int device_i2s_set_configuration(struct device *dev,
+                                 struct device_i2s_configuration *configuration)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, i2s)->set_configuration)
+        return DEVICE_DRIVER_GET_OPS(dev, i2s)->set_configuration(dev,
+                                                                 configuration);
+
+    return -ENOSYS;
+}
+
 /**
  * @brief Set current PCM and DAI configuration
  * @param dev I2S device being set
@@ -163,7 +260,7 @@ static inline int device_i2s_get_caps(struct device *dev, uint8_t clk_role,
  * @return 0: Delay value returned successfully
  *         -errno: Cause of failure
  */
-static inline int device_i2s_set_config(struct device *dev, uint8_t clk_role,
+static inline int device_i2s_set_config_mask(struct device *dev, uint8_t clk_role,
                                         struct device_i2s_pcm *pcm,
                                         struct device_i2s_dai *dai)
 {

@@ -48,6 +48,26 @@
 #define GB_I2S_DATA_TYPE_PROTOCOL_VERSION               0x01
 #define GB_I2S_DATA_TYPE_SEND_DATA                      0x02
 
+#define GB_I2S_PCM_FMT_8                    BIT(0)
+#define GB_I2S_PCM_FMT_16                   BIT(1)
+#define GB_I2S_PCM_FMT_24                   BIT(2)
+#define GB_I2S_PCM_FMT_32                   BIT(3)
+#define GB_I2S_PCM_FMT_64                   BIT(4)
+
+#define GB_I2S_PCM_RATE_5512                BIT(0)
+#define GB_I2S_PCM_RATE_8000                BIT(1)
+#define GB_I2S_PCM_RATE_11025               BIT(2)
+#define GB_I2S_PCM_RATE_16000               BIT(3)
+#define GB_I2S_PCM_RATE_22050               BIT(4)
+#define GB_I2S_PCM_RATE_32000               BIT(5)
+#define GB_I2S_PCM_RATE_44100               BIT(6)
+#define GB_I2S_PCM_RATE_48000               BIT(7)
+#define GB_I2S_PCM_RATE_64000               BIT(8)
+#define GB_I2S_PCM_RATE_88200               BIT(9)
+#define GB_I2S_PCM_RATE_96000               BIT(10)
+#define GB_I2S_PCM_RATE_176400              BIT(11)
+#define GB_I2S_PCM_RATE_192000              BIT(12)
+
 #define GB_I2S_BYTE_ORDER_NA                        BIT(0)
 #define GB_I2S_BYTE_ORDER_BE                        BIT(1)
 #define GB_I2S_BYTE_ORDER_LE                        BIT(2)
@@ -94,16 +114,15 @@
 #define GB_I2S_EDGE_RISING                          BIT(0)
 #define GB_I2S_EDGE_FALLING                         BIT(1)
 
-#define GB_I2S_EVENT_UNSPECIFIED                    0x1
-#define GB_I2S_EVENT_HALT                           0x2
-#define GB_I2S_EVENT_INTERNAL_ERROR                 0x3
-#define GB_I2S_EVENT_PROTOCOL_ERROR                 0x4
-#define GB_I2S_EVENT_FAILURE                        0x5
-#define GB_I2S_EVENT_OUT_OF_SEQUENCE                0x6
-#define GB_I2S_EVENT_UNDERRUN                       0x7
-#define GB_I2S_EVENT_OVERRUN                        0x8
-#define GB_I2S_EVENT_CLOCKING                       0x9
-#define GB_I2S_EVENT_DATA_LEN                       0xa
+#define GB_I2S_EVENT_INVALID           0x1
+#define GB_I2S_EVENT_NONE              0x2
+#define GB_I2S_EVENT_UNSPECIFIED       0x3
+#define GB_I2S_EVENT_TX_COMPLETE       0x4
+#define GB_I2S_EVENT_RX_COMPLETE       0x5
+#define GB_I2S_EVENT_UNDERRUN          0x6
+#define GB_I2S_EVENT_OVERRUN           0x7
+#define GB_I2S_EVENT_CLOCKING          0x8
+#define GB_I2S_EVENT_DATA_LEN          0x9
 
 #define GB_I2S_MGMT_PORT_TYPE_RECEIVER              0x1
 #define GB_I2S_MGMT_PORT_TYPE_TRANSMITTER           0x2
@@ -126,52 +145,71 @@ struct gb_i2s_configuration {
     __u8    ll_data_offset;
 };
 
+struct gb_i2s_config_masks {
+    __le32  sample_frequency;
+    __u8    num_channels;
+    __le32  format;
+    __u8    protocol;
+    __u8    wclk_polarity;
+    __u8    wclk_change_edge;
+    __u8    data_tx_edge;
+    __u8    data_rx_edge;
+} __packed;
+
 /* version request has no payload */
 struct gb_i2s_proto_version_response {
     __u8    major;
     __u8    minor;
-};
+}__packed;
 
 /* get supported configurations request has no payload */
 struct gb_i2s_get_supported_configurations_response {
     __u8    config_count;
     __u8    pad[3];
     struct gb_i2s_configuration config[0];
-};
+}__packed;
 
 struct gb_i2s_set_configuration_request {
     struct gb_i2s_configuration config;
-};
+} __packed;
 /* set configuration response has no payload */
+
+struct gb_i2s_get_config_masks_response {
+    struct gb_i2s_config_masks config;
+}__packed;
+
+struct gb_i2s_set_config_masks_request {
+    struct gb_i2s_config_masks config;
+} __packed;
 
 struct gb_i2s_set_samples_per_message_request {
     __le16  samples_per_message;
-};
+} __packed;
 /* set samples per message response has no payload */
 
 /* get processing request delay has no payload */
 struct gb_i2s_get_processing_delay_response {
     __le32  microseconds;
-};
+} __packed;
 
 struct gb_i2s_set_start_delay_request {
     __le32  microseconds;
-};
+} __packed;
 /* set start delay response has no payload */
 
 struct gb_i2s_activate_cport_request {
     __le16  cport;
-};
+} __packed;
 /* activate cport response has no payload */
 
 struct gb_i2s_deactivate_cport_request {
     __le16  cport;
-};
+} __packed;
 /* deactivate cport response has no payload */
 
 struct gb_i2s_report_event_request {
     __u8    event;
-};
+} __packed;
 /* report event response has no payload */
 
 struct gb_i2s_activate_port_request {
@@ -188,7 +226,7 @@ struct gb_i2s_send_data_request {
     __le32  sample_number;
     __le32  size;
     __u8    data[0];
-};
+} __packed;
 /* send data has no response at all */
 
 #endif /* __I2S_GB_H__ */
