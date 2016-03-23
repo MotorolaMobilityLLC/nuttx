@@ -152,7 +152,7 @@ static inline useconds_t timespec_to_usec(const struct timespec *ts)
  ****************************************************************************/
 static inline uint64_t timespec_to_nsec(const struct timespec *ts)
 {
-	return ts->tv_sec * NSEC_PER_SEC + ts->tv_nsec;
+	return ((uint64_t)ts->tv_sec) * NSEC_PER_SEC + ts->tv_nsec;
 }
 
 /****************************************************************************
