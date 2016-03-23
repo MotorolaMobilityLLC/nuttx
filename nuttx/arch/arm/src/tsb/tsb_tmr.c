@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016 Motorola Mobility, LLC
  * Copyright (c) 2015 Google, Inc.
  * All rights reserved.
  *
@@ -41,18 +42,6 @@
 
 #define TSB_TMR_COUNTER_MAX             2880000000U
 #define TSB_TMR_CNT_MAX_USEC            (USEC_PER_SEC * 60)
-
-#define TSB_TMR_LOAD                    (0x0000)
-#define TSB_TMR_CNT                     (0x0004)
-#define TSB_TMR_CTRL                    (0x0008)
-#define TSB_TMR_ISR                     (0x000C)
-#define TSB_TMR_WDT                     (0x0040)
-#define TSB_TMR_RSR                     (0x0080)
-
-#define TSB_TMR1_OFF                    (0x0100)
-#define TSB_TMR2_OFF                    (0x0200)
-#define TSB_TMR3_OFF                    (0x0300)
-#define TSB_TMR4_OFF                    (0x0400)
 
 #define TSB_TMR_CLOCK_ENABLE_REG        (0x40000300)
 #define TSB_TMR_SOFT_RESET_REL_REG      (0x40000100)
@@ -213,7 +202,7 @@ void tsb_tmr_start(struct tsb_tmr_ctx *tmr)
 
     tsb_tmr_putreg32(tmr, 0x00, TSB_TMR_LOAD);
     tsb_tmr_putreg32(tmr, tmr->mode, TSB_TMR_CTRL);
-    tsb_tmr_putreg32(tmr, tsb_tmr_usec_to_freq(tmr->usec), TSB_TMR_LOAD);
+    tsb_tmr_putreg32(tmr, tmr->mode == TSB_TMR_MODE_FREERUN ? 0xffffffff : tsb_tmr_usec_to_freq(tmr->usec), TSB_TMR_LOAD);
     tsb_tmr_putreg32(tmr, TSB_TMR_CTRL_IRQ_ENABLE | tmr->mode, TSB_TMR_CTRL);
 
     irqrestore(flags);

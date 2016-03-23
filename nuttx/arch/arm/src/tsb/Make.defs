@@ -1,4 +1,5 @@
 #
+# Copyright (c) 2015-2016 Motorola Mobility, LLC
 # Copyright (c) 2014-2015 Google, Inc.
 # All rights reserved.
 #
@@ -74,6 +75,7 @@ CHIP_CSRCS += tsb_i2c.c
 CHIP_CSRCS += tsb_cdsi.c
 CHIP_CSRCS += tsb_unipro_allocator.c
 CHIP_CSRCS += tsb_tmr.c
+CHIP_CSRCS += tsb_fr_tmr.c
 
 ifeq ($(CONFIG_SCHED_TICKLESS),y)
 CHIP_CSRCS += tsb_tickless.c
