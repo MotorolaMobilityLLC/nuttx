@@ -40,6 +40,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_battery.h>
 #include <nuttx/device_battery_good.h>
+#include <nuttx/device_display.h>
 #include <nuttx/device_hid.h>
 #include <nuttx/device_ptp.h>
 #include <nuttx/device_ptp_chg.h>
@@ -144,6 +145,14 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_BATTERY_GOOD_HW,
         .name = "comp_batt_good",
         .desc = "Battery good detection with voltage comparator",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_HDMI_DISPLAY
+    {
+        .type = DEVICE_TYPE_DISPLAY_HW,
+        .name = "hdmi_display",
+        .desc = "HDMI Display",
         .id   = 0,
     },
 #endif
@@ -272,6 +281,10 @@ void board_initialize(void)
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL
   extern struct device_driver sensor_dummy_accel_driver;
   device_register_driver(&sensor_dummy_accel_driver);
+#endif
+#ifdef CONFIG_HDMI_DISPLAY
+   extern struct device_driver hdmi_display_driver;
+   device_register_driver(&hdmi_display_driver);
 #endif
 
 #endif
