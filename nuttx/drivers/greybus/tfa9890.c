@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Motorola Mobility, LLC.
+ * Copyright (c) 2016 Motorola Mobility, LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,8 @@ struct tfa9890_dev_s {
     int vol_step;
     int speaker_imp;
     int type;
+    int32_t sys_vol_db;
+    int preset_update_pending;
 };
 
 static int tfa9890_reg_read(FAR struct tfa9890_dev_s *priv, uint8_t reg);
@@ -103,25 +105,9 @@ static const struct audio_ops_s g_audioops =
     NULL                   /* release        */
 };
 
-struct preset_entry
-{
-    uint8_t data[TFA9890_PST_FW_SIZE];
-};
-
-struct preset
-{
-   const int cnt;
-   struct preset_entry *preset;
-};
-
-struct preset music_preset =
-{
-   .cnt = sizeof(tfa9890_music_table_preset) / sizeof(struct preset_entry),
-   .preset = (struct preset_entry *) tfa9890_music_table_preset,
-};
-
 static uint8_t chunk_buf[TFA9890_MAX_I2C_SIZE + 1];
 static sem_t bulk_write_lock = SEM_INITIALIZER(1);
+static sem_t preset_lock = SEM_INITIALIZER(1);
 
 #ifdef DEBUG
 static void tfa9890_dump_reg(FAR struct tfa9890_dev_s *priv, uint16_t reg)
@@ -431,6 +417,79 @@ out:
     return err;
 }
 
+static int tfa9890_get_preset_index(const int presets[],
+                           uint32_t steps, int32_t sys_vol_db)
+{
+    int index = steps - 1;
+    int i;
+
+    /* find preset index */
+    for (i = 0; i < steps - 1; i++) {
+        if ((sys_vol_db <= presets[i]) && (sys_vol_db >= presets[i+1])) {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+static int tfa9890_update_preset(FAR struct tfa9890_dev_s *priv)
+{
+    int32_t sys_vol_db;
+    int32_t use_case;
+    int preset_index;
+    const uint8_t *pst;
+    uint16_t val;
+    int ret;
+
+    sem_wait(&preset_lock);
+    sys_vol_db = priv->sys_vol_db;
+    use_case = priv->current_eq;
+
+    switch (use_case) {
+    case TFA9890_MUSIC:
+        pst = tfa9890_music_table_preset;
+        preset_index = tfa9890_get_preset_index(tfa9890_presets_music,
+                                                TFA9890_MUSIC_VOL_STEP, sys_vol_db);
+        break;
+    case TFA9890_VOICE:
+        pst = tfa9890_voice_table_preset;
+        preset_index = tfa9890_get_preset_index(tfa9890_presets_voice,
+                                                TFA9890_VOICE_VOL_STEP, sys_vol_db);
+        break;
+    case TFA9890_RINGTONE:
+        pst = tfa9890_ringtone_table_preset;
+        preset_index = tfa9890_get_preset_index(tfa9890_presets_ringtone,
+                                                TFA9890_RINGTONE_VOL_STEP, sys_vol_db);
+        break;
+    default:
+        preset_index = -1;
+        break;
+    }
+    if (preset_index < 0) {
+        ret = -EINVAL;
+        goto err;
+    }
+
+    val = tfa9890_reg_read(priv, TFA9890_REG_SYSTEM_STATUS);
+    if ((val & TFA9890_STATUS_UP_MASK) == TFA9890_STATUS_UP)
+    {
+         ret = tfa9890_dsp_transfer(priv, TFA9890_DSP_MOD_SPEAKERBOOST,
+                 TFA9890_PARAM_SET_PRESET, (pst + TFA9890_PST_FW_SIZE * preset_index),
+                 TFA9890_PST_FW_SIZE,
+                 TFA9890_DSP_WRITE, 0);
+    }
+    else
+    {
+         lldbg("preset update still pending \n");
+         ret = -EIO;
+    }
+
+err:
+    sem_post(&preset_lock);
+    return ret;
+}
+
 void tfa9890_powerup(FAR struct tfa9890_dev_s *priv, int on)
 {
     int tries = 0;
@@ -500,10 +559,7 @@ int tfa9890_load_config(FAR struct tfa9890_dev_s *priv)
          goto out;
     }
 
-    ret = tfa9890_dsp_transfer(priv, TFA9890_DSP_MOD_SPEAKERBOOST,
-                 TFA9890_PARAM_SET_PRESET, (const uint8_t *)&music_preset.preset[0],
-                   sizeof(struct preset_entry),
-                   TFA9890_DSP_WRITE, 0);
+    ret = tfa9890_update_preset(priv);
     if (ret)
     {
         lldbg("Failed to load preset!\n");
@@ -628,6 +684,11 @@ int tfa9890_start(FAR struct audio_lowerhalf_s *dev)
             }
         }
     }
+    if (priv->preset_update_pending) {
+        if (!tfa9890_update_preset(priv))
+            priv->preset_update_pending = 0;
+    }
+
     /* read speaker impedence*/
     priv->speaker_imp = tfa9890_read_spkr_imp(priv);
     lldbg("Calibration imp %d\n", priv->speaker_imp);
@@ -653,9 +714,7 @@ static int tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
                             FAR const struct audio_caps_s *caps)
 {
     struct tfa9890_dev_s *priv = dev->priv;
-
-    lldbg("audio feature: %d type: %d value: %d\n",
-             caps->ac_type, caps->ac_format.hw, caps->ac_controls.hw[0]);
+    uint16_t val;
 
     if(!priv || !caps)
         return -EINVAL;
@@ -685,7 +744,13 @@ static int tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
                      priv->current_eq = caps->ac_controls.hw[0];
                      break;
                 case AUDIO_FU_LOUDNESS:
-                     /* TODO map system volume to preset/eq profile */
+                     priv->sys_vol_db = (int) caps->ac_controls.w;
+                     val = tfa9890_reg_read(priv, TFA9890_REG_SYSTEM_STATUS);
+
+                     if (((val & TFA9890_STATUS_UP_MASK) == TFA9890_STATUS_UP) && priv->is_dsp_cfg_done) {
+                          tfa9890_update_preset(priv);
+                     } else
+                          priv->preset_update_pending = 1;
                      break;
                  default:
                      break;

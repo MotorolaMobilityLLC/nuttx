@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Motorola Mobility, LLC.
+ * Copyright (c) 2016 Motorola Mobility, LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -209,6 +209,13 @@ enum
     TFA9890_LEFT,
     TFA9890_RIGHT,
     TFA9890_MONO,
+};
+
+enum
+{
+    TFA9890_MUSIC,
+    TFA9890_VOICE,
+    TFA9890_RINGTONE,
 };
 
 #endif /* __INCLUDE_TFA9890_H */

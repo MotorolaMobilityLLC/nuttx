@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Motorola Mobility, LLC.
+ * Copyright (c) 2016 Motorola Mobility, LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -181,24 +181,48 @@ static int muc_aud_dev_get_vol_db_range(struct device *dev,
     return 0;
 }
 
+static int gb_to_tfa9890_use_case(uint32_t use_case)
+{
+    int ret;
+
+    switch (use_case) {
+    case GB_AUDIO_PLAYBACK_MUSIC_USE_CASE:
+        ret = TFA9890_MUSIC;
+        break;
+    case GB_AUDIO_PLAYBACK_VOICE_CALL_SPKR_USE_CASE:
+        ret = TFA9890_VOICE;
+        break;
+    case GB_AUDIO_PLAYBACK_NONE_USE_CASE:
+    case GB_AUDIO_PLAYBACK_RINGTONE_USE_CASE:
+    case GB_AUDIO_PLAYBACK_SONIFICATION_USE_CASE:
+        ret = TFA9890_RINGTONE;
+        break;
+    default:
+        ret = -EINVAL;
+    }
+
+    return ret;
+}
+
 static int muc_aud_dev_set_current_use_case(struct device *dev, uint32_t use_case)
 {
     struct audio_lowerhalf_s *aud_dev;
     FAR struct audio_caps_s caps;
     int ret;
     int i;
+    int tfa9890_use_case;
 
     gb_debug("%s()\n", __func__);
-
+    tfa9890_use_case = gb_to_tfa9890_use_case(use_case);
     /* if unsupported playback use case fallback to music don't return error*/
-    if (!(TFA9890_SUPPORTED_PLAYBACK_USE_CASES & use_case))
-        gb_aud.use_case = GB_AUDIO_PLAYBACK_MUSIC_USE_CASE;
+    if (tfa9890_use_case < 0)
+        gb_aud.use_case = TFA9890_MUSIC;
     else
-        gb_aud.use_case = use_case;
+        gb_aud.use_case = tfa9890_use_case;
 
     caps.ac_type = AUDIO_TYPE_FEATURE;
     caps.ac_format.hw = AUDIO_FU_EQUALIZER;
-    caps.ac_controls.hw[0] = use_case;
+    caps.ac_controls.hw[0] = tfa9890_use_case;
 
     for (i = 0; i < ARRAY_SIZE(tfa9890_devices); i++)
     {
@@ -242,7 +266,7 @@ static int muc_aud_dev_set_volume(struct device *dev, uint32_t vol_step)
     return 0;
 }
 
-static int muc_aud_dev_set_sys_volume(struct device *dev, int vol_db)
+static int muc_aud_dev_set_sys_volume(struct device *dev, int32_t vol_db)
 {
     struct audio_lowerhalf_s *aud_dev;
     struct audio_caps_s caps;
@@ -254,7 +278,7 @@ static int muc_aud_dev_set_sys_volume(struct device *dev, int vol_db)
     gb_aud.sys_vol_db = vol_db;
     caps.ac_type = AUDIO_TYPE_FEATURE;
     caps.ac_format.hw = AUDIO_FU_LOUDNESS;
-    caps.ac_controls.hw[0] = vol_db;
+    caps.ac_controls.w = vol_db;
 
     for (i = 0; i < ARRAY_SIZE(tfa9890_devices); i++)
     {
