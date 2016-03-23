@@ -567,11 +567,6 @@ static int mb_control_init(unsigned int cport)
                 DEVICE_TYPE_SLAVE_PWRCTRL_HW);
     }
 
-    ctrl_info->slv_pwr_dev = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, 0);
-    if (!ctrl_info->slv_pwr_dev) {
-        gb_info("Failed to open SLAVE Power Control\n");
-    }
-
 # ifdef CONFIG_PWR_LIMIT
     ctrl_info->pwr_limit_dev = device_open(DEVICE_TYPE_PWR_LIMIT_HW, 0);
     if (ctrl_info->pwr_limit_dev) {
