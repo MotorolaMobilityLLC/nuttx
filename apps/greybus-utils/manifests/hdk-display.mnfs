@@ -1,0 +1,92 @@
+;
+; HDK Manifest
+;
+
+[manifest-header]
+version-major = 0
+version-minor = 1
+
+[interface-descriptor]
+vendor-string-id = 1
+product-string-id = 2
+
+; Interface vendor string (id can't be 0)
+[string-descriptor 1]
+string = Motorola Mobility, LLC
+
+; Interface product string (id can't be 0)
+[string-descriptor 2]
+string = HDK
+
+; Control protocol on CPort 0
+[cport-descriptor 0]
+bundle = 0
+protocol = 0x00
+
+; Control protocol Bundle 0
+[bundle-descriptor 0]
+class = 0
+
+; Battery on CPort 1
+[cport-descriptor 1]
+bundle = 1
+protocol = 0x08
+
+; PTP on CPort 2
+[cport-descriptor 2]
+bundle = 1
+protocol = 0xef
+
+; Battery related Bundle 1
+[bundle-descriptor 1]
+class = 0x08
+
+; Motorola specific on CPort 3
+[cport-descriptor 3]
+bundle = 2
+protocol = 0xff
+
+; LOOPBACK protocol on CPort 4
+[cport-descriptor 4]
+bundle = 2
+protocol = 0x11
+
+; Debug related Bundle 2
+[bundle-descriptor 2]
+class = 0xff
+
+; GPIO Phy on CPort 5
+[cport-descriptor 5]
+bundle = 3
+protocol = 0x02
+
+; GPIO Bundle 3
+[bundle-descriptor 3]
+class = 0x02
+
+; RAW interface on CPort 6
+[cport-descriptor 6]
+bundle = 4
+protocol = 0xfe
+
+; RAW Bundle 4
+[bundle-descriptor 4]
+class = 0xfe
+
+; Sensors Ext on CPort 7
+[cport-descriptor 7]
+bundle = 5
+protocol = 0xeb
+
+; Sensors Ext Bundle 5
+[bundle-descriptor 5]
+class = 0xeb
+
+; Mods Display on CPort 8
+[cport-descriptor 8]
+bundle = 6
+protocol = 0xee
+
+; Display related Bundle 6
+[bundle-descriptor 6]
+class = 0xee
