@@ -89,6 +89,7 @@ include mtd$(DELIM)Make.defs
 include net$(DELIM)Make.defs
 include pipes$(DELIM)Make.defs
 include power$(DELIM)Make.defs
+include reglog$(DELIM)Make.defs
 include sensors$(DELIM)Make.defs
 include sercomm$(DELIM)Make.defs
 include serial$(DELIM)Make.defs
