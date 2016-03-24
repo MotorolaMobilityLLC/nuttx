@@ -207,8 +207,11 @@ static void set_pkt_size(FAR struct mods_spi_dl_s *priv, size_t pkt_size)
   int rb_num;
   unsigned int rb_entries;
 
-  /* Immediately return if packet size is not changing */
-  if (pkt_size == priv->pkt_size)
+  /*
+   * Immediately return if packet size is not changing and ring buffer is
+   * in a good state.
+   */
+  if ((pkt_size == priv->pkt_size) && (priv->txp_rb == priv->txc_rb))
       return;
 
   /* Free any existing RX buffer (if any) */
