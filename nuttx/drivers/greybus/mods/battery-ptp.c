@@ -27,6 +27,7 @@
  */
 
 #include <nuttx/device.h>
+#include <nuttx/device_ext_power.h>
 #include <nuttx/device_ptp.h>
 #include <nuttx/device_ptp_chg.h>
 #include <nuttx/greybus/mods.h>
@@ -58,7 +59,9 @@ struct ptp_state {
     enum ptp_current_flow direction; /* per command from base */
     struct batt_ptp battery; /* battery chg/dischg settings */
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    bool docked; /* on a wireless dock ? */
+    int wired_current; /* max ouput in mA */
+    int wrls_current; /* max output in mA */
+    int *ext_power; /* points to external power source or NULL*/
 #endif
     bool base_powered_off; /* flag to indicate base is powered off with AMP attached */
 };
@@ -69,21 +72,23 @@ struct ptp_info {
     struct device *batt_dev; /*battery temp and level notifications */
     struct device *chg_dev; /* current control */
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
+    struct device *wired_src_dev; /* ext power source device */
     ptp_ext_power_cb ext_power_changed_cb; /* callback to client*/
 #endif
     ptp_power_required_cb power_required_changed_cb; /* callback to client */
 };
 
 /*
- * Charge base with power from wireless receiver if docked, otherwise from a
+ * Charge base from an external power source if it is present, otherwise from a
  * battery if conditions permit
  */
 static int do_charge_base(struct device *chg, const struct ptp_state *state)
 {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    if (state->docked) {
+    if (state->ext_power == &state->wired_current)
+        return device_ptp_chg_send_wired_pwr(chg);
+    else if (state->ext_power == &state->wrls_current)
         return device_ptp_chg_send_wireless_pwr(chg);
-    }
 #endif
 #ifndef GREYBUS_PTP_INT_SND_NEVER
     if (state->battery.dischg_allowed && !state->base_powered_off) {
@@ -97,25 +102,26 @@ static int do_charge_base(struct device *chg, const struct ptp_state *state)
 }
 
 /*
- * Charge battery with power from wireless receiver if docked and conditions
- * permit
+ * Charge battery with power from an external power source if it is present and
+ * conditions permit
  */
-static int do_charge_battery_if_docked(struct device *chg,
-                                       const struct ptp_state *state)
+static int do_charge_battery_with_external_power(struct device *chg,
+                                                 const struct ptp_state *state)
 {
 #ifndef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     return device_ptp_chg_off(chg);
 #else
     struct ptp_chg cfg;
 
-    if (!state->battery.chg_allowed) {
-        return device_ptp_chg_off(chg);
-    } else if (state->docked) {
-        cfg.input_current_limit = CONFIG_GREYBUS_MODS_WIRELESS_INPUT_CURRENT;
+    if (state->battery.chg_allowed && state->ext_power) {
+        cfg.input_current_limit = *state->ext_power;
         cfg.input_voltage_limit = CONFIG_GREYBUS_MODS_INPUT_VOLTAGE;
         cfg.charge_current_limit = state->battery.charge_current;
         cfg.charge_voltage_limit = state->battery.charge_voltage;
-        return device_ptp_chg_receive_wireless_pwr(chg, &cfg);
+        if (state->ext_power == &state->wired_current)
+            return device_ptp_chg_receive_wired_pwr(chg, &cfg);
+        else
+            return device_ptp_chg_receive_wireless_pwr(chg, &cfg);
     } else {
         return device_ptp_chg_off(chg);
     }
@@ -149,7 +155,7 @@ static int batt_ptp_process(struct device *chg, const struct ptp_state *state)
     case BASE_ATTACHED:
         switch (state->direction) {
         case PTP_CURRENT_OFF:
-            return do_charge_battery_if_docked(chg, state);
+            return do_charge_battery_with_external_power(chg, state);
         case PTP_CURRENT_TO_MOD:
             return do_charge_battery_with_base_power(chg, state);
         case PTP_CURRENT_FROM_MOD:
@@ -159,7 +165,7 @@ static int batt_ptp_process(struct device *chg, const struct ptp_state *state)
             return -EINVAL;
         }
     case BASE_DETACHED:
-        return do_charge_battery_if_docked(chg, state);
+        return do_charge_battery_with_external_power(chg, state);
     case BASE_INVALID:
     default:
         device_ptp_chg_off(chg);
@@ -345,14 +351,43 @@ battery_done:
 }
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-static void batt_ptp_docked_changed(void *arg, bool docked)
+static void batt_ptp_choose_ext_power_source(struct ptp_state *state)
+{
+    /* Choose source that provides max output current */
+    if (state->wired_current == 0 && state->wrls_current == 0)
+        state->ext_power = NULL;
+    else if (state->wired_current >= state->wrls_current)
+        state->ext_power = &state->wired_current;
+    else
+        state->ext_power = &state->wrls_current;
+}
+
+static bool batt_ptp_ext_power_source_changed(struct ptp_state *state)
+{
+    int *old_src, *new_src;
+    int old_limit, new_limit;
+
+    /* Have source and/or limit changed? */
+    old_src = state->ext_power;
+    old_limit = state->ext_power ? *state->ext_power : 0;
+
+    batt_ptp_choose_ext_power_source(state);
+
+    new_src = state->ext_power;
+    new_limit = state->ext_power ? *state->ext_power : 0;
+
+    return (new_src != old_src || new_limit != old_limit);
+}
+
+static void batt_ptp_wireless_changed(void *arg, bool docked)
 {
     static bool init = true; /* first callback is to initialize */
     struct ptp_info *info = arg;
 
     if (init) {
         init = false;
-        info->state.docked = docked;
+        info->state.wrls_current = docked ?
+                                CONFIG_GREYBUS_MODS_WIRELESS_INPUT_CURRENT : 0;
         return;
     }
 
@@ -362,17 +397,50 @@ static void batt_ptp_docked_changed(void *arg, bool docked)
         }
     }
 
-    if (info->state.docked == docked)
+    info->state.wrls_current = docked ?
+                               CONFIG_GREYBUS_MODS_WIRELESS_INPUT_CURRENT : 0;
+
+    if (!batt_ptp_ext_power_source_changed(&info->state))
         goto docked_done;
 
     if (info->ext_power_changed_cb) {
         info->ext_power_changed_cb();
     }
 
-    info->state.docked = docked;
     batt_ptp_process(info->chg_dev, &info->state);
 
 docked_done:
+    sem_post(&info->sem);
+}
+
+static void batt_ptp_wired_changed(void *arg, int current)
+{
+    static bool init = true; /* first callback is to initialize */
+    struct ptp_info *info = arg;
+
+    if (init) {
+        init = false;
+        info->state.wired_current = current;
+        return;
+    }
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return;
+        }
+    }
+
+    if (info->state.wired_current == current ||
+        !batt_ptp_ext_power_source_changed(&info->state))
+        goto wired_done;
+
+    if (info->ext_power_changed_cb) {
+        info->ext_power_changed_cb();
+    }
+
+    batt_ptp_process(info->chg_dev, &info->state);
+
+wired_done:
     sem_post(&info->sem);
 }
 
@@ -410,8 +478,8 @@ static int batt_ptp_ext_power_present(struct device *dev, uint8_t *present)
         }
     }
 
-    *present = info->state.docked ? PTP_EXT_POWER_PRESENT :
-                                    PTP_EXT_POWER_NOT_PRESENT;
+    *present = info->state.ext_power ? PTP_EXT_POWER_PRESENT :
+                                       PTP_EXT_POWER_NOT_PRESENT;
 
     sem_post(&info->sem);
     return 0;
@@ -498,11 +566,33 @@ static int batt_ptp_open(struct device *dev)
     }
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    retval = pad_det_register_callback(batt_ptp_docked_changed, info);
+    bool wireless;
+    retval = pad_det_register_callback(batt_ptp_wireless_changed, info);
     if (retval) {
-        dbg("failed to register pad callback\n");
-        goto pad_err;
+        wireless = false;
+        dbg("wireless power source not supported\n");
+    } else
+        wireless = true;
+
+    info->wired_src_dev = device_open(DEVICE_TYPE_EXT_POWER_HW, 0);
+    if (!info->wired_src_dev) {
+        dbg("wired power source not supported\n");
+        if (!wireless) {
+            dbg("failed to find external power sources\n");
+            goto ext_err;
+        }
     }
+
+    if (info->wired_src_dev) {
+        retval = device_ext_power_register_callback(info->wired_src_dev, batt_ptp_wired_changed,
+                                                    info);
+        if (retval) {
+            dbg("failed to register ext power callback\n");
+            goto ext_err;
+        }
+    }
+
+    batt_ptp_choose_ext_power_source(&info->state);
 #endif
 
     retval = battery_state_register(batt_ptp_battery_changed, info);
@@ -525,7 +615,8 @@ static int batt_ptp_open(struct device *dev)
 atch_err:
 batt_err:
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-pad_err:
+ext_err:
+    device_close(info->wired_src_dev);
 #endif
     device_close(info->chg_dev);
 chg_err:
