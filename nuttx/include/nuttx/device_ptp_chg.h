@@ -46,7 +46,9 @@ struct ptp_chg {
 struct device_ptp_chg_type_ops {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     int (*send_wireless_pwr)(struct device *dev);
+    int (*send_wired_pwr)(struct device *dev);
     int (*receive_wireless_pwr)(struct device *dev, const struct ptp_chg *cfg);
+    int (*receive_wired_pwr)(struct device *dev, const struct ptp_chg *cfg);
 #endif
     int (*send_batt_pwr)(struct device *dev);
     int (*receive_base_pwr)(struct device *dev, const struct ptp_chg *cfg);
@@ -54,7 +56,7 @@ struct device_ptp_chg_type_ops {
 };
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-static int device_ptp_chg_send_wireless_pwr(struct device *dev)
+static inline int device_ptp_chg_send_wireless_pwr(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -69,8 +71,23 @@ static int device_ptp_chg_send_wireless_pwr(struct device *dev)
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->send_wireless_pwr(dev);
 }
 
-static int device_ptp_chg_receive_wireless_pwr(struct device *dev,
-                                               const struct ptp_chg *cfg)
+static inline int device_ptp_chg_send_wired_pwr(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->send_wired_pwr) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->send_wired_pwr(dev);
+}
+
+static inline int device_ptp_chg_receive_wireless_pwr(struct device *dev,
+                                               const struct charger_config *cfg)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -84,9 +101,25 @@ static int device_ptp_chg_receive_wireless_pwr(struct device *dev,
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_wireless_pwr(dev, cfg);
 }
+
+static inline int device_ptp_chg_receive_wired_pwr(struct device *dev,
+                                               const struct charger_config *cfg)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_wired_pwr) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_wired_pwr(dev, cfg);
+}
 #endif
 
-static int device_ptp_chg_send_batt_pwr(struct device *dev)
+static inline int device_ptp_chg_send_batt_pwr(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -101,8 +134,8 @@ static int device_ptp_chg_send_batt_pwr(struct device *dev)
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->send_batt_pwr(dev);
 }
 
-static int device_ptp_chg_receive_base_pwr(struct device *dev,
-                                              const struct ptp_chg *cfg)
+static inline int device_ptp_chg_receive_base_pwr(struct device *dev,
+                                              const struct charger_config *cfg)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -117,7 +150,7 @@ static int device_ptp_chg_receive_base_pwr(struct device *dev,
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_base_pwr(dev, cfg);
 }
 
-static int device_ptp_chg_off(struct device *dev)
+static inline int device_ptp_chg_off(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
