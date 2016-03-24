@@ -115,6 +115,10 @@ ifeq ($(CONFIG_GREYBUS_PTP_CHG_DEVICE_BQ24292),y)
 CSRCS += bq24292_ptp_chg.c
 endif
 
+ifeq ($(CONFIG_CHARGER_DEVICE_BQ24292),y)
+CSRCS += bq24292_charger.c
+endif
+
 ifeq ($(CONFIG_PAD_DETECT),y)
 CSRCS += pad_det.c
 endif
