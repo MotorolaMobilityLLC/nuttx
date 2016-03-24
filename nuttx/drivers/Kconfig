@@ -656,3 +656,7 @@ config PROGMEM
 	default n
 endif
 
+comment "Register logging to RAM Options"
+
+source drivers/reglog/Kconfig
+
