@@ -1,4 +1,5 @@
 /**
+ * Copyright (c) 2016 Motorola Mobility, LLC
  * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
@@ -969,10 +970,14 @@ static int gdmac_mem2io_transfer(struct device *dev,
                  pl330_code->burst_block_load = DMALD;
                  pl330_code->burst_block_store = store_instr.value;
 
-                 load_len = mem2io_chan->burst_block_size * 256 * count;
+                 /* Each loop through this part of the dma code will do 256 iterations
+                  * of burst_block_size.  This equates to
+                  * (burst_block_size.value+1)*(burst_block_count.value+1) or to
+                  * keep the math constant 256*(burst_block_count.value+1).
+                  */
+                 load_len = mem2io_chan->burst_block_size * 256 * (pl330_code->burst_block_count.value+1);
                  total_load_len -= load_len;
                  total_store_len -= load_len;
-                 count /= 256;
              } else {
                  pl330_code->burst_block_count.value = 0;
                  pl330_code->burst_block_size.value = 0;
@@ -980,7 +985,8 @@ static int gdmac_mem2io_transfer(struct device *dev,
                  pl330_code->burst_block_load = DMANOP;
                  pl330_code->burst_block_store = DMA_NO_PERIPHERALSTORE;
              }
-
+             /* Copy the bursts which could not be done as a multipe of 256. */
+             count = total_load_len / mem2io_chan->burst_block_size;
              if (count > 0 ) {
                  pl330_code->postburst_block_count.value = count - 1;
                  pl330_code->postburst_block_wait =
@@ -1011,7 +1017,7 @@ static int gdmac_mem2io_transfer(struct device *dev,
              pl330_code->postburst_block_store = DMA_NO_PERIPHERALSTORE;
          }
 
-         /* Do the last burst of data load and store with the burst length less
+         /* Do the last chunk of data load and store with the burst length less
           * than the channel's burst length.
           */
          count = total_load_len / mem2io_chan->burst_size;
@@ -1282,10 +1288,14 @@ static int gdmac_io2mem_transfer(struct device *dev,
                  pl330_code->burst_block_load = load_instr.value;
                  pl330_code->burst_block_store = DMAST;
 
-                 load_len = io2mem_chan->burst_block_size * 256 * count;
+                 /* Each loop through this part of the dma code will do 256 iterations
+                  * of burst_block_size.  This equates to
+                  * (burst_block_size.value+1)*(burst_block_count.value+1) or to
+                  * keep the math constant 256*(burst_block_count.value+1).
+                  */
+                 load_len = io2mem_chan->burst_block_size * 256 * (pl330_code->burst_block_count.value + 1);
                  total_load_len -= load_len;
                  total_store_len -= load_len;
-                 count /= 256;
              } else {
                  pl330_code->burst_block_count.value = 0;
                  pl330_code->burst_block_size.value = 0;
@@ -1293,7 +1303,8 @@ static int gdmac_io2mem_transfer(struct device *dev,
                  pl330_code->burst_block_load = DMA_NO_PERIPHERALLOAD;
                  pl330_code->burst_block_store = DMANOP;
              }
-
+             /* Copy the bursts which could not be done as a multipe of 256. */
+             count = total_load_len / io2mem_chan->burst_block_size;
              if (count > 0 ) {
                  pl330_code->postburst_block_count.value = count - 1;
                  pl330_code->postburst_block_wait =
@@ -1324,7 +1335,7 @@ static int gdmac_io2mem_transfer(struct device *dev,
              pl330_code->postburst_block_store = DMANOP;
          }
 
-         /* Do the last burst of data load and store with the burst length less
+         /* Do the last chunk of data load and store with the burst length less
           * than the channel's burst length.
           */
          count = total_load_len / io2mem_chan->burst_size;
@@ -1603,7 +1614,7 @@ int gdmac_irq_abort_handler(int irq, void *context)
 
     chan = gsmac_bit_to_pos(fsrc) & 0x07;
 
-    value = (DMAKILL << 16) | chan << 7 | 0x01;
+    value = (DMAKILL << 16) | chan << 8 | 0x01;
     putreg32(value, &dbg_regs->dbg_inst_0);
 
     /* Get going */
