@@ -1,4 +1,5 @@
 /**
+ * Copyright (c) 2016 Motorola Mobility, LLC
  * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
@@ -38,6 +39,10 @@
 
 #define TSB_DMA_SG_MAX				2
 
+#define TSB_DMA_REG_BASE            0x40014000
+#define TSB_DMA_REG_SAR0            0x00000400
+#define TSB_DMA_REG_DAR0            0x00000404
+
 struct gdmac_chan;
 
 /* structure for GDMAC channel information. */
@@ -47,6 +52,26 @@ struct tsb_dma_chan {
     struct list_head queue;
     struct device_dma_params chan_params;
 };
+
+/*
+ * Get the values of the source and destionation pointers for a channel.  The
+ * values may or may not be valid based on the channel status.
+ */
+static inline void tsb_dma_get_chan_addr(void *chan, void **src, void **dst)
+{
+    struct tsb_dma_chan *tsb_chan = (struct tsb_dma_chan *)chan;
+
+    if (tsb_chan != NULL)
+    {
+        *src = (void *)getreg32(TSB_DMA_REG_BASE+TSB_DMA_REG_SAR0+(tsb_chan->chan_id*0x20));
+        *dst = (void *)getreg32(TSB_DMA_REG_BASE+TSB_DMA_REG_DAR0+(tsb_chan->chan_id*0x20));
+    }
+    else
+    {
+        *src = NULL;
+        *dst = NULL;
+    }
+}
 
 extern int gdmac_max_number_of_channels(void);
 extern int gdmac_init_controller(struct device *);
@@ -62,4 +87,6 @@ extern int gdmac_chan_check_op_params(struct device *dev,
 
 extern int tsb_dma_callback(struct device *dev, struct tsb_dma_chan *tsb_chan,
         int event);
+extern void gdmac_abort_chan(struct device *dev, struct tsb_dma_chan *tsb_chan);
+
 #endif /* __TSB_DMA_GDMAC_H */

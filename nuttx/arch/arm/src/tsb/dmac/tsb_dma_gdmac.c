@@ -34,6 +34,7 @@
 #include <string.h>
 #include <semaphore.h>
 #include <errno.h>
+#include <arch/bitops.h>
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/device.h>
@@ -487,18 +488,12 @@ static const uint16_t do_mem_load_and_store = (DMALD | (DMAST << 8));
 
 static inline uint32_t gsmac_bit_to_pos(uint32_t value)
 {
-    uint32_t index = 0;
-
     if (value == 0) {
         lldbg("Error: value shouldn't be %x\n", value);
         return 0;
     }
 
-    for (index = 0; (value & 0x0001) == 0; index++){
-        value >>= 1;
-    }
-
-    return index;
+    return ffs(value)-1;
 }
 
 static inline int gdmac_allocate_event(struct gdmac_chan *chan, int event,
@@ -1597,15 +1592,32 @@ int gdmac_start_op(struct device *dev, struct tsb_dma_chan *tsb_chan,
     return retval;
 }
 
+static void gdmac_kill_chan(uint32_t chan)
+{
+    struct tsb_dma_gdmac_dbg_regs *dbg_regs =
+            (struct tsb_dma_gdmac_dbg_regs*) GDMAC_DBG_REGS_ADDRESS;
+    uint32_t value;
+
+    value = (DMAKILL << 16) | chan << 8 | 0x01;
+    putreg32(value, &dbg_regs->dbg_inst_0);
+    putreg32(0, &dbg_regs->dbg_inst_1);
+
+    /* Get going */
+    putreg32(0, &dbg_regs->dbg_cmd);
+}
+
+void gdmac_abort_chan(struct device *dev, struct tsb_dma_chan *tsb_chan)
+{
+    gdmac_kill_chan(tsb_chan->chan_id);
+    tsb_dma_callback(dev, tsb_chan, DEVICE_DMA_CALLBACK_EVENT_COMPLETE);
+}
+
 int gdmac_irq_abort_handler(int irq, void *context)
 {
     struct tsb_dma_gdmac_control_regs *control_regs =
             (struct tsb_dma_gdmac_control_regs*) GDMAC_CONTROL_REGS_ADDRESS;
-    struct tsb_dma_gdmac_dbg_regs *dbg_regs =
-            (struct tsb_dma_gdmac_dbg_regs*) GDMAC_DBG_REGS_ADDRESS;
     uint32_t fsrc = getreg32(&control_regs->fsrc);
     uint32_t chan, index;
-    uint32_t value;
 
     if (fsrc == 0) {
         lldbg("Unexpected FSRC value %x\n", fsrc);
@@ -1613,12 +1625,7 @@ int gdmac_irq_abort_handler(int irq, void *context)
     }
 
     chan = gsmac_bit_to_pos(fsrc) & 0x07;
-
-    value = (DMAKILL << 16) | chan << 8 | 0x01;
-    putreg32(value, &dbg_regs->dbg_inst_0);
-
-    /* Get going */
-    putreg32(0, &dbg_regs->dbg_cmd);
+    gdmac_kill_chan(chan);
 
     for (index = 0; index < GDMAC_NUMBER_OF_EVENTS; index++) {
         struct gdmac_chan *gdmac_chan;

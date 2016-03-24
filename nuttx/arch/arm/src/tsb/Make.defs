@@ -81,6 +81,10 @@ ifeq ($(CONFIG_REGLOG),y)
 CHIP_CSRCS += tsb_reglog.c
 endif
 
+ifeq ($(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL),y)
+CHIP_CSRCS += tsb_i2s_unipro.c
+endif
+
 ifeq ($(CONFIG_SCHED_TICKLESS),y)
 CHIP_CSRCS += tsb_tickless.c
 else

@@ -1,4 +1,5 @@
 /**
+ * Copyright (c) 2016 Motorola Mobility, LLC
  * Copyright (c) 2015 Google Inc.
  * All rights reserved.
  *
@@ -151,6 +152,10 @@ static void *tsb_dma_process_completed_op(void *arg)
             } else {
                 uint32_t callback_events = dma_op->op.callback_events;
 
+                /*
+                 * The dma_op->state '=' below is required for operation.  It was
+                 * not cleaned up, to keep the code common with ara.
+                 */
                 if ((callback_events & DEVICE_DMA_CALLBACK_EVENT_COMPLETE) &&
                     (dma_op->state = TSB_DMA_OP_STATE_COMPLETED)) {
                     dma_op->op.callback(dev, &dma_info->chans[chan_id],
@@ -570,7 +575,11 @@ static int tsb_dma_enqueue(struct device *dev, void *chan,
     flags = irqsave();
 
     /* Add the op to the queue on the channel */
-    if (dma_op->state == TSB_DMA_OP_STATE_IDLE) {
+    /* TODO: Update to add a requeue function or a realloc function to reset the state instead of
+     * checking for TSB_DMA_OP_STATE_COMPLETED.  Thoughts on the best way to handle this are
+     * welcome
+     */
+    if ((dma_op->state == TSB_DMA_OP_STATE_IDLE) || (dma_op->state == TSB_DMA_OP_STATE_COMPLETED)) {
         list_add(&dma_chan->queue, &dma_op->list_node);
         dma_op->state = TSB_DMA_OP_STATE_QUEUED;
         retval = OK;
