@@ -395,6 +395,13 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)arg;
   irqstate_t flags;
+  int ret;
+
+  do
+    {
+      ret = sem_wait(&priv->sem);
+    }
+  while (ret < 0 && errno == EINTR);
 
   flags = irqsave();
 
@@ -453,6 +460,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
   priv->bstate = state;
 
   irqrestore(flags);
+  sem_post(&priv->sem);
 }
 
 /*
@@ -914,6 +922,7 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
   gpio_direction_out(GPIO_MODS_CC_EN, 1);
 #endif
 
+  sem_post(&mods_spi_dl.sem);
   mods_attach_register(attach_cb, &mods_spi_dl);
 
 #ifdef CONFIG_PM
@@ -922,8 +931,6 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
       dbg("Failed register to power management!\n");
     }
 #endif
-
-  sem_post(&mods_spi_dl.sem);
 
   return (FAR struct mods_dl_s *)&mods_spi_dl;
 }
