@@ -111,7 +111,7 @@ static int do_charge_battery_with_external_power(struct device *chg,
 #ifndef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     return device_ptp_chg_off(chg);
 #else
-    struct ptp_chg cfg;
+    struct charger_config cfg;
 
     if (state->battery.chg_allowed && state->ext_power) {
         cfg.input_current_limit = *state->ext_power;
@@ -134,7 +134,7 @@ static int do_charge_battery_with_external_power(struct device *chg,
 static int do_charge_battery_with_base_power(struct device *chg,
                                                 const struct ptp_state *state)
 {
-    struct ptp_chg cfg;
+    struct charger_config cfg;
 
     if (!state->battery.chg_allowed) {
         return device_ptp_chg_off(chg);

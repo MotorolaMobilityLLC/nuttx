@@ -45,7 +45,7 @@
 /* Charger Settings */
 struct bq24292_chg_settings {
     enum chg chg; /* off, charge, otg */
-    struct ptp_chg cfg; /* limits */
+    struct charger_config cfg; /* limits */
 };
 
 struct bq24292_ptp_chg_info {
@@ -66,7 +66,7 @@ static void wireless_path(const struct bq24292_ptp_chg_info *info, bool state)
 #endif
 }
 
-static void set_bq24292_limits(const struct ptp_chg *cfg)
+static void set_bq24292_limits(const struct charger_config *cfg)
 {
     (void) bq24292_set_input_current_limit(cfg->input_current_limit);
     (void) bq24292_set_input_voltage_limit(cfg->input_voltage_limit);
@@ -75,7 +75,7 @@ static void set_bq24292_limits(const struct ptp_chg *cfg)
 }
 
 static void config_bq24292(struct bq24292_ptp_chg_info *info, enum chg chg,
-                           const struct ptp_chg *cfg)
+                           const struct charger_config *cfg)
 {
     /*
      * When battery is dead, charge IC is off until power is applied.
@@ -138,7 +138,7 @@ static int bq24292_ptp_chg_send_wireless_pwr(struct device *dev)
 }
 
 int bq24292_ptp_chg_receive_wireless_pwr(struct device *dev,
-                                         const struct ptp_chg *cfg)
+                                         const struct charger_config *cfg)
 {
     struct bq24292_ptp_chg_info *info = device_get_private(dev);
 
@@ -174,7 +174,7 @@ static int bq24292_ptp_chg_send_batt_pwr(struct device *dev)
 }
 
 static int bq24292_ptp_chg_receive_base_pwr(struct device *dev,
-                                               const struct ptp_chg *cfg)
+                                               const struct charger_config *cfg)
 {
     struct bq24292_ptp_chg_info *info = device_get_private(dev);
 
