@@ -30,28 +30,21 @@
 #define __INCLUDE_NUTTX_DEVICE_PTP_CHG_H
 
 #include <nuttx/device.h>
+#include <nuttx/device_charger.h>
 
 #include <errno.h>
 
 #define DEVICE_TYPE_PTP_CHG_HW  "ptp_chg"
 
-/* Limits are in mA and mV */
-struct ptp_chg {
-    int input_current_limit;
-    int input_voltage_limit;
-    int charge_current_limit;
-    int charge_voltage_limit;
-};
-
 struct device_ptp_chg_type_ops {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     int (*send_wireless_pwr)(struct device *dev);
     int (*send_wired_pwr)(struct device *dev);
-    int (*receive_wireless_pwr)(struct device *dev, const struct ptp_chg *cfg);
-    int (*receive_wired_pwr)(struct device *dev, const struct ptp_chg *cfg);
+    int (*receive_wireless_pwr)(struct device *dev, const struct charger_config *cfg);
+    int (*receive_wired_pwr)(struct device *dev, const struct charger_config *cfg);
 #endif
     int (*send_batt_pwr)(struct device *dev);
-    int (*receive_base_pwr)(struct device *dev, const struct ptp_chg *cfg);
+    int (*receive_base_pwr)(struct device *dev, const struct charger_config *cfg);
     int (*off)(struct device *dev);
 };
 
