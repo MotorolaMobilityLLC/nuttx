@@ -121,9 +121,9 @@ static int bplus_isr(int irq, void *context)
   pm_activity(PM_MODS_ACTIVITY);
 
   if (!work_available(&g_attach_work))
-      work_cancel(HPWORK, &g_attach_work);
+      work_cancel(LPWORK, &g_attach_work);
 
-  return work_queue(HPWORK, &g_attach_work, base_attach_worker, NULL, 0);
+  return work_queue(LPWORK, &g_attach_work, base_attach_worker, NULL, 0);
 }
 
 #ifdef GPIO_MODS_SPI_CS_N
@@ -143,14 +143,14 @@ static int cs_isr(int irq, void *context)
   cs_val = gpio_get_value(GPIO_MODS_SPI_CS_N);
 
   if (!work_available(&g_attach_work))
-      work_cancel(HPWORK, &g_attach_work);
+      work_cancel(LPWORK, &g_attach_work);
 
   /*
    * If chip select is asserted (active low), then wait for CS_ASSERT_TICKS
    * before running the worker. Else, run worker immediately to update the
    * state.
    */
-  return work_queue(HPWORK, &g_attach_work, base_attach_worker, NULL,
+  return work_queue(LPWORK, &g_attach_work, base_attach_worker, NULL,
                     cs_val ? 0 : CS_ASSERT_TICKS);
 }
 #endif
