@@ -64,7 +64,7 @@ config GREYBUS_MODS_ACK
 		latency or high throughput.
 endif
 
-config GREYBUS_MODS_PTP_DEVICE_BATTERY
+menuconfig GREYBUS_MODS_PTP_DEVICE_BATTERY
 	bool "PTP device with a battery and optional wireless charging"
 	select BATTERY_STATE
 	default n
@@ -100,6 +100,11 @@ config GREYBUS_MODS_INPUT_VOLTAGE
 	int "Input voltage limit in mV"
 	default 4500
 endif
+
+config GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
+	bool "PTP charger driver controlling power path through switches"
+	default n
+	depends on GREYBUS_MODS_PTP_DEVICE_BATTERY && GPIO
 
 if DEBUG
 config GREYBUS_SELF_DESTRUCT
