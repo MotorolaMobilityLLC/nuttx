@@ -26,6 +26,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -512,7 +513,7 @@ int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t
         i++;
         if (retries && (i > retries)) {
             /* retry timeout */
-            return -1;
+            return -ETIME;
         }
     }
 }
@@ -555,7 +556,17 @@ static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
 #endif
 
 int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
+    lldbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->rx_num_lanes, config->rx_mbits_per_lane);
+    lldbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
+    lldbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
+    lldbg("video_mode=%d\n", config->video_mode);
+    lldbg("bta_enabled=%d\n", config->bta_enabled);
+    lldbg("continuous_clock=%d\n", config->continuous_clock);
+    lldbg("color_bar_enabled=%d\n", config->color_bar_enabled);
+    lldbg("blank_packet_enabled=%d\n", config->blank_packet_enabled);
+
     const struct rx_table_row *rx_table = CDSI_LOOKUP_TABLE(rx_table, config->rx_mbits_per_lane);
+    int ret;
 
     cdsi_write(dev, CDSI_AL_RX_BRG_CSI_INFO_OFFS, 0);
     cdsi_write(dev, CDSI_AL_RX_BRG_CSI_DT0_OFFS, 0);
@@ -643,13 +654,22 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     cdsi_write(dev, CDSI_CDSIRX_PPI_DPHY_HSRX_ADJUST_OFFS, 0x2aa);
 
     /* Wait for auto-calibration to finish. */
-    CDSI_READ_UNTIL_SET(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT, AUTOCALDONE);
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT, AUTOCALDONE, 1000);
+    if (ret < 0) {
+        lldbg("ERROR: auto-calibration failed\n");
+        return ret;
+    }
 
     cdsi_write(dev, CDSI_CDSIRX_START_OFFS, 1);
     usleep(100000);
 
     /* Wait for line initialization to finish. */
-    CDSI_READ_UNTIL_SET(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT, LINEINITDONE);
+    CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT, LINEINITDONE, 1000);
+    if (ret < 0) {
+        lldbg("ERROR: line initialization failed\n");
+        return ret;
+    }
+
     CDSI_WRITE(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT, LINEINITDONE, 1);
 
     return 0;
