@@ -57,6 +57,10 @@ ifeq ($(CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY),y)
 CSRCS += battery-ptp.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH),y)
+CSRCS += switch-ptp-chg.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE),y)
 CSRCS += sensors-dummy-pressure.c
 endif
