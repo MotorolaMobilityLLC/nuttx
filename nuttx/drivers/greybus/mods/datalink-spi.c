@@ -377,6 +377,12 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
 
 static void reset_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
 {
+  if (priv->txp_rb == priv->txc_rb)
+    {
+      vdbg("skip\n");
+      return;
+    }
+
   vdbg("%d\n", *((int *)ring_buf_get_buf(priv->txc_rb)));
 
   memset(ring_buf_get_data(priv->txc_rb), 0, priv->pkt_size);
