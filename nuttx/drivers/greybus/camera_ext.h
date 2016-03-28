@@ -137,6 +137,7 @@ typedef union {
 #define CAM_EXT_CTRL_DATA_TYPE_INT64  3
 #define CAM_EXT_CTRL_DATA_TYPE_FLOAT  4
 #define CAM_EXT_CTRL_DATA_TYPE_DOUBLE 5
+#define CAM_EXT_CTRL_DATA_TYPE_STRING 6
 
 //control value config
 struct camera_ext_ctrl_val_cfg {

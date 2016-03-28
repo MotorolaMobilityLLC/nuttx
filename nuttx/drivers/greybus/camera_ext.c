@@ -844,6 +844,9 @@ static size_t get_local_ctrl_val_size(
     case CAM_EXT_CTRL_DATA_TYPE_DOUBLE:
         elem_size = sizeof(camera_ext_ctrl_double);
         break;
+    case CAM_EXT_CTRL_DATA_TYPE_STRING:
+        elem_size = sizeof(camera_ext_ctrl_string);
+        break;
     default:
         CAM_ERR("unsupported val type %d\n", val_cfg->elem_type);
         elem_size = 0;
@@ -895,6 +898,10 @@ static int ctrl_val_local_to_greybus(
             camera_ext_ctrl_double_set((camera_ext_ctrl_double *)gb_val,
                 is_array? local_val->p_val_d[i] : local_val->val_d);
             gb_val += sizeof(camera_ext_ctrl_double);
+            break;
+        case CAM_EXT_CTRL_DATA_TYPE_STRING:
+            memcpy(gb_val, &(local_val->p_val_8[i * sizeof(camera_ext_ctrl_string)]), sizeof(camera_ext_ctrl_string));
+            gb_val += sizeof(camera_ext_ctrl_string);
             break;
         default:
             CAM_ERR("unsupported val type %d\n", val_cfg->elem_type);
@@ -986,6 +993,9 @@ static int ctrl_val_greybus_to_local(uint8_t *ctrl_val, size_t ctrl_val_size,
             } else
                 local_val->val_d = camera_ext_ctrl_double_get(
                     (camera_ext_ctrl_double *)p);
+            break;
+        case CAM_EXT_CTRL_DATA_TYPE_STRING:
+            local_val->p_val_8 = p;
             break;
         default:
             CAM_ERR("unsupported data type %d\n", val_cfg->elem_type);
