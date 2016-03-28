@@ -76,6 +76,8 @@ config CAMERA_TC35874X
 	bool "TC35874X Camera Test Pattern generator"
 config CAMERA_TC35874X_PDISP
 	bool "TC35874X Display Parallel to CSI bridge"
+config CAMERA_S10P
+	bool "Altek Sunny 10P Camera"
 endchoice
 
 if CAMERA_TC35874X_PDISP
