@@ -79,6 +79,7 @@ struct reglog_s
     struct reglog_value_s log[REGLOG_DEPTH];
 };
 
+# if defined(CONFIG_REGLOG)
 extern struct reglog_s g_reglog;
 
 /**
@@ -100,5 +101,12 @@ extern void up_reglog_init(void);
 
 extern void reglog_log(uint32_t reg, uint32_t val);
 extern void reglog_initialize(void);
-
+# else
+/*
+ * If not enabled make sure the functions do nothing.   This allows reglog_log
+ * lines to remain in the code even when it is not configured.
+ */
+# define reglog_log(reg, val)
+# define reglog_initialize()
+# endif
 #endif
