@@ -192,6 +192,9 @@ struct camera_ext_streamparm {
 typedef char camera_ext_ctrl_float[CAM_EXT_CTRL_FLOAT_STR_LEN];
 typedef char camera_ext_ctrl_double[CAM_EXT_CTRL_DOUBLE_STR_LEN];
 
+#define CAM_EXT_CTRL_STRING_MAX_LEN 64
+typedef char camera_ext_ctrl_string[CAM_EXT_CTRL_STRING_MAX_LEN];
+
 struct camera_ext_predefined_ctrl_mod_req {
 	/* Phone access MOD control by index (0, 1, ...).
 	 */
