@@ -36,6 +36,7 @@
 #include <apps/ice/cdsi.h>
 #include <nuttx/config.h>
 #include <nuttx/device_cam_ext.h>
+#include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/math.h>
 
@@ -62,6 +63,10 @@
  */
 #define DEBUG_DUMP_REGISTER 1
 #define BRIDGE_RESET_DELAY 100000 /* us */
+
+#ifdef CONFIG_REDCARPET_APBE
+#define GPIO_CAMERA_INT3  8
+#endif
 
 #define S10P_I2C_ADDR 0x0D
 #define BRIDGE_I2C_ADDR 0x0E
@@ -580,6 +585,19 @@ static int _stream_off(struct device *dev)
     return 0;
 }
 
+#ifdef CONFIG_REDCARPET_APBE
+static int int3_irq_event(int irq, FAR void *context)
+{
+    static uint8_t keycode = 0x01;
+    uint8_t new_gpiostate = 0;
+    gpio_mask_irq(GPIO_CAMERA_INT3);
+    s10p_report_button(keycode);
+    keycode = 0x01 - keycode;
+    gpio_clear_interrupt(GPIO_CAMERA_INT3);
+    gpio_unmask_irq(GPIO_CAMERA_INT3);
+}
+#endif
+
 static int _dev_open(struct device *dev)
 {
     s_device.status = OFF;
@@ -617,6 +635,15 @@ static int _dev_open(struct device *dev)
 
     camera_ext_register_format_db(&_db);
     camera_ext_register_control_db(&s10p_ctrl_db);
+
+#ifdef CONFIG_REDCARPET_APBE
+    gpio_direction_in(GPIO_CAMERA_INT3);
+    gpio_mask_irq(GPIO_CAMERA_INT3);
+    set_gpio_triggering(GPIO_CAMERA_INT3, IRQ_TYPE_EDGE_RISING);
+    gpio_irqattach(GPIO_CAMERA_INT3, int3_irq_event);
+    gpio_clear_interrupt(GPIO_CAMERA_INT3);
+    gpio_unmask_irq(GPIO_CAMERA_INT3);
+#endif
 
     return 0;
 }
