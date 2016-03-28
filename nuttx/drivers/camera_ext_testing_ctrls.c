@@ -1297,6 +1297,127 @@ static const struct camera_ext_ctrl_cfg hot_pixel_map = {
     },
 };
 
+static const struct camera_ext_ctrl_cfg start_capture = {
+    .id = CAM_EXT_CID_START_CAPTURE,
+    .flags = 0,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg abort_capture = {
+    .id = CAM_EXT_CID_ABORT_CAPTURE,
+    .flags = 0,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg iso = {
+    .id = CAM_EXT_CID_ISO,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
+        | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg nd_filter = {
+    .id = CAM_EXT_CID_ND_FILTER,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
+        | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg jpeg_sharpness = {
+    .id = CAM_EXT_CID_JPEG_SHARPNESS,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg jpeg_contrast = {
+    .id = CAM_EXT_CID_JPEG_CONTRAST,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg jpeg_saturation = {
+    .id = CAM_EXT_CID_JPEG_SATURATION,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg time_sync = {
+    .id = CAM_EXT_CID_TIME_SYNC,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_MIN
+        | CAMERA_EXT_CTRL_FLAG_NEED_MAX
+        | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .min = 0,
+    .max = INT64_MAX,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT64,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg jpeg_gps_timestamp = {
+    .id = CAM_EXT_CID_JPEG_GPS_TIMESTAMP,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_MIN
+        | CAMERA_EXT_CTRL_FLAG_NEED_MAX
+        | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .min = 0,
+    .max = INT64_MAX,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT64,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg jpeg_gps_proc_method = {
+    .id = CAM_EXT_CID_JPEG_GPS_PROC_METHOD,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_STRING,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg face_detection = {
+    .id = CAM_EXT_CID_FACE_DETECTION,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
+        | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
 static const struct camera_ext_ctrl_cfg *testing_ctrls[] = {
     &color_correction_aberration_mode,
     &ae_antibanding_mode,
@@ -1389,6 +1510,17 @@ static const struct camera_ext_ctrl_cfg *testing_ctrls[] = {
     &sensor_preference_illuminant2,
     &statistics_hot_pixel_map_mode,
     &hot_pixel_map,
+    &start_capture,
+    &abort_capture,
+    &iso,
+    &nd_filter,
+    &jpeg_sharpness,
+    &jpeg_contrast,
+    &jpeg_saturation,
+    &time_sync,
+    &jpeg_gps_timestamp,
+    &jpeg_gps_proc_method,
+    &face_detection,
 };
 
 int camera_ext_tesing_ctrl_init(struct device *dev)
