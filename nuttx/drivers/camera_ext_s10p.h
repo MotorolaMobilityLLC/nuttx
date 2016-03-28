@@ -40,3 +40,5 @@ int s10p_write_reg1(struct s10p_i2c_dev_info *i2c, uint16_t regaddr, uint8_t dat
 int s10p_write_reg2(struct s10p_i2c_dev_info *i2c, uint16_t regaddr, uint16_t data);
 int s10p_write_reg4(struct s10p_i2c_dev_info *i2c, uint16_t regaddr, uint32_t data);
 void s10p_set_i2c(struct s10p_i2c_dev_info *i2c);
+
+int s10p_report_button(uint8_t);
