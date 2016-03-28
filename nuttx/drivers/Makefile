@@ -170,6 +170,10 @@ ifeq ($(CONFIG_CAMERA_TC35874X_PDISP), y)
   CSRCS += tc35874x_pdisp.c tc35874x-util.c
 endif
 
+ifeq ($(CONFIG_CAMERA_S10P), y)
+  CSRCS += camera_ext_s10p.c camera_ext_s10p_ctrl.c tc35874x-util.c
+endif
+
 ifeq ($(CONFIG_DEVICE_CORE),y)
   CSRCS += device.c device_resource.c device_table.c
 endif
