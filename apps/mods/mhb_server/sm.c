@@ -330,13 +330,8 @@ static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work 
 }
 
 static enum svc_state svc__test_mode(struct svc *svc, struct svc_work *work) {
-    // send ACK first because AP is waiting for it, and once we call
-    // factory main we might start UART loopback
 #if CONFIG_ICE_FACTORY
-    if (factory_mode_ack())
-        factory_mode((uint32_t)work->parameter0);
-    else
-        lldbg("Couldn't ACK\n");
+    factory_mode((uint32_t)work->parameter0);
 #endif
 
     return SVC_TEST_MODE;
