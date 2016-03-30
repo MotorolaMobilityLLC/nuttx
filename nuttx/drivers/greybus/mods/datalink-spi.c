@@ -87,7 +87,11 @@
 #define NUM_TRIES      (3)
 
 /* Workqueue to use by the datalink layer */
-#define DLWORK         LPWORK
+#ifdef CONFIG_GREYBUS_MODS_ACK
+# define DLWORK         LPWORK
+#else
+# define DLWORK         HPWORK
+#endif
 
 /* Maximum time to wait for an ACK from the base */
 #define ACK_TIMEOUT_US 100000       /* 100 milliseconds */
