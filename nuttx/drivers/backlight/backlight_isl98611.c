@@ -32,7 +32,7 @@
 #include <unistd.h>
 
 #include <nuttx/device.h>
-#include <nuttx/device_backlight.h>
+#include <nuttx/device_lights.h>
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/util.h>
@@ -78,9 +78,35 @@ static struct isl98611_backlight
     uint32_t i2c_addr;
     uint32_t gpio_power;
     uint32_t gpio_reset;
-    uint8_t mode;
-    uint8_t brightness;
+    struct light_info *light_info_array;
 } g_backlight;
+
+static struct channel_info isl98611_backlight_channel_info[] = {
+    {
+        .id = 0,
+        .cfg = {
+            .max_brightness = 255,
+            .flags = 0,
+            .color = 0,
+            .color_name = "",
+            .mode = LIGHTS_CHANNEL_MODE_VENDOR,
+            .mode_name = "backlight",
+        },
+    },
+};
+
+static struct light_info isl98611_light_info[] = {
+    {
+        .id = 0,
+        .cfg = {
+            .channel_count = 1,
+            .name = "mod_light0",
+        },
+        .channels = isl98611_backlight_channel_info,
+    },
+};
+
+#define ISL98611_NUM_LIGHTS (ARRAY_SIZE(isl98611_light_info))
 
 static void _isl98611_backlight_power_on(struct isl98611_backlight *backlight)
 {
@@ -135,87 +161,155 @@ _isl98611_backlight_set_brightness(struct isl98611_backlight *backlight,
 }
 
 /**
- * @brief Set mode.
- *
- * Set mode. Only manual mode is supported.
+ * @brief Get number of lights
  *
  * @param dev pointer to structure of device data
- * @param mode backlight mode to set
+ * @param lights pointer to the number of lights
  * @return 0 on success, negative errno on error
  */
-static int isl98611_backlight_set_mode(struct device *dev, uint8_t mode)
+static int isl98611_backlight_get_lights(struct device *dev, uint8_t *lights)
 {
-    struct isl98611_backlight *backlight = device_get_private(dev);
-    if (!backlight) {
-        return -ENOENT;
-    }
+    dbg("enter\n");
 
-    if (mode != GB_BACKLIGHT_EXT_MODE_MANUAL) {
-        dbg("ERROR: invalid mode: %d\n", mode);
-        return -ENOSYS;
-    }
+    *lights = ISL98611_NUM_LIGHTS;
 
-    backlight->mode = mode;
     return 0;
 }
 
 /**
- * @brief Get mode
+ * @brief Get light config
  *
  * @param dev pointer to structure of device data
- * @param mode returned backlight mode
+ * @param id light ID number
+ * @param cfg pointer to the light_config struct
  * @return 0 on success, negative errno on error
  */
-static int isl98611_backlight_get_mode(struct device *dev, uint8_t *mode)
+static int isl98611_backlight_get_light_config(struct device *dev, uint8_t id,
+                                               struct light_config *cfg)
 {
-    struct isl98611_backlight *backlight = device_get_private(dev);
-    if (!backlight) {
-        return -ENOENT;
-    }
+    struct isl98611_backlight *backlight;
+    struct light_info *info;
+    int ret = 0;
 
-    *mode = backlight->mode;
-    return 0;
+    dbg("enter id=%d\n", id);
+
+    if (!dev)
+	return -ENODEV;
+
+    backlight = device_get_private(dev);
+    if (!backlight)
+        return -ENOENT;
+
+    info = backlight->light_info_array;
+
+    if (id < ISL98611_NUM_LIGHTS)
+        *cfg = info[id].cfg;
+    else
+        ret = -EINVAL;
+
+    return ret;
+}
+
+/**
+ * @brief Get channel config
+ *
+ * @param dev pointer to structure of device data
+ * @param light_id light ID number
+ * @param channel_id channel ID number
+ * @param cfg pointer to the channel_config struct
+ * @return 0 on success, negative errno on error
+ */
+static int isl98611_backlight_get_channel_config(struct device *dev,
+                                                 uint8_t light_id,
+                                                 uint8_t channel_id,
+                                                 struct channel_config *cfg)
+{
+    struct isl98611_backlight *backlight;
+    struct light_info *info;
+    int ret = 0;
+
+    dbg("enter light_id=%d channel_id=%d\n", light_id, channel_id);
+
+    if (!dev)
+        return -ENODEV;
+
+    backlight = device_get_private(dev);
+    if (!backlight)
+        return -ENOENT;
+
+    info = backlight->light_info_array;
+
+    if (light_id < ISL98611_NUM_LIGHTS &&
+        channel_id < info[light_id].cfg.channel_count)
+        *cfg = info[light_id].channels[channel_id].cfg;
+    else
+        ret = -EINVAL;
+
+    return ret;
 }
 
 /**
  * @brief Set brightness
  *
  * @param dev pointer to structure of device data
+ * @param light_id light ID number
+ * @param channel_id channel ID number
  * @param brightness backlight brightness to set
  * @return 0 on success, negative errno on error
  */
-static int
-isl98611_backlight_set_brightness(struct device *dev, uint8_t brightness)
+static int isl98611_backlight_set_brightness(struct device *dev,
+                                             uint8_t light_id,
+                                             uint8_t channel_id,
+                                             uint8_t brightness)
 {
-    struct isl98611_backlight *backlight = device_get_private(dev);
-    if (!backlight) {
-        return -ENOENT;
-    }
+    struct isl98611_backlight *backlight;
+    struct light_info *info;
+    int ret = 0;
 
-    int ret = _isl98611_backlight_set_brightness(backlight, brightness);
-    if (!ret) {
-        backlight->brightness = brightness;
+    dbg("enter light_id=%d channel_id=%d brightness=%d\n",
+        light_id, channel_id, brightness);
+
+    if (!dev)
+	return -ENODEV;
+
+    backlight = device_get_private(dev);
+    if (!backlight)
+        return -ENOENT;
+
+     info = backlight->light_info_array;
+
+    if (light_id < ISL98611_NUM_LIGHTS &&
+        channel_id < info[light_id].cfg.channel_count) {
+
+        ret = _isl98611_backlight_set_brightness(backlight, brightness);
+    } else {
+        ret = -EINVAL;
     }
 
     return ret;
 }
 
 /**
- * @brief Get brightness
+ * @brief Register callback
  *
  * @param dev pointer to structure of device data
- * @param brightness returned backlight brightness
+ * @param callback pointer to event handler function
  * @return 0 on success, negative errno on error
  */
-static int
-isl98611_backlight_get_brightness(struct device *dev, uint8_t *brightness)
+static int isl98611_backlight_register_callback(struct device *dev,
+                                                 lights_event_callback callback)
 {
-    struct isl98611_backlight *backlight = device_get_private(dev);
-    if (!backlight) {
-        return -ENOENT;
-    }
+    return 0;
+}
 
-    *brightness = backlight->brightness;
+/**
+ * @brief Unregister callback
+ *
+ * @param dev pointer to structure of device data
+ * @return 0 on success, negative errno on error
+ */
+static int isl98611_backlight_unregister_callback(struct device *dev)
+{
     return 0;
 }
 
@@ -231,11 +325,14 @@ isl98611_backlight_get_brightness(struct device *dev, uint8_t *brightness)
 static int isl98611_backlight_dev_open(struct device *dev)
 {
     int i;
+    struct isl98611_backlight *backlight;
 
-    struct isl98611_backlight *backlight = device_get_private(dev);
-    if (!backlight) {
+    if (!dev)
+        return -ENODEV;
+
+    backlight = device_get_private(dev);
+    if (!backlight)
         return -ENOENT;
-    }
 
     /* Power on */
     _isl98611_backlight_power_on(backlight);
@@ -260,7 +357,8 @@ static int isl98611_backlight_dev_open(struct device *dev)
     }
 
     /* Set initial brightness */
-    _isl98611_backlight_set_brightness(backlight, backlight->brightness);
+    _isl98611_backlight_set_brightness(backlight,
+		                       ISL98611_BACKLIGHT_INITIAL_BRIGHTNESS);
 
     return 0;
 }
@@ -293,8 +391,6 @@ static int isl98611_backlight_probe(struct device *dev)
     struct isl98611_backlight *backlight = &g_backlight;
 
     backlight->self = dev;
-    backlight->mode = GB_BACKLIGHT_EXT_MODE_MANUAL;
-    backlight->brightness = ISL98611_BACKLIGHT_INITIAL_BRIGHTNESS;
 
     /* I2C bus */
     backlight->i2c_bus = ISL98611_INVALID_RESOURCE;
@@ -340,6 +436,9 @@ static int isl98611_backlight_probe(struct device *dev)
         backlight->i2c_bus, backlight->i2c_addr,
         backlight->gpio_power, backlight->gpio_reset);
 
+    /* add the light info array to the private data */
+    backlight->light_info_array = isl98611_light_info;
+
     device_set_private(dev, backlight);
     return 0;
 }
@@ -356,24 +455,26 @@ static void isl98611_backlight_remove(struct device *dev) {
     }
 }
 
-const static struct device_backlight_type_ops isl98611_backlight_ops = {
-    .set_mode = isl98611_backlight_set_mode,
-    .get_mode = isl98611_backlight_get_mode,
-    .set_brightness = isl98611_backlight_set_brightness,
-    .get_brightness = isl98611_backlight_get_brightness,
+const static struct device_lights_type_ops isl98611_backlight_ops = {
+    .get_lights          = isl98611_backlight_get_lights,
+    .get_light_config    = isl98611_backlight_get_light_config,
+    .get_channel_config  = isl98611_backlight_get_channel_config,
+    .set_brightness      = isl98611_backlight_set_brightness,
+    .register_callback   = isl98611_backlight_register_callback,
+    .unregister_callback = isl98611_backlight_unregister_callback,
 };
 
 const static struct device_driver_ops isl98611_backlight_driver_ops = {
-    .probe = isl98611_backlight_probe,
-    .remove = isl98611_backlight_remove,
-    .open = isl98611_backlight_dev_open,
-    .close = isl98611_backlight_dev_close,
-    .type_ops = (struct device_backlight_type_ops *)&isl98611_backlight_ops,
+    .probe    = isl98611_backlight_probe,
+    .remove   = isl98611_backlight_remove,
+    .open     = isl98611_backlight_dev_open,
+    .close    = isl98611_backlight_dev_close,
+    .type_ops = (struct device_light_type_ops *)&isl98611_backlight_ops,
 };
 
 const struct device_driver isl98611_backlight_driver = {
-    .type = DEVICE_TYPE_BACKLIGHT_HW,
+    .type = DEVICE_TYPE_LIGHTS_HW,
     .name = "isl98611_backlight",
     .desc = "ISL98611 Backlight",
-    .ops = (struct device_driver_ops *)&isl98611_backlight_driver_ops,
+    .ops  = (struct device_driver_ops *)&isl98611_backlight_driver_ops,
 };
