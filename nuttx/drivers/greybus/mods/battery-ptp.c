@@ -203,7 +203,9 @@ static void batt_ptp_attach_changed(FAR void *arg, enum base_attached_e state)
         info->state.battery.input_current = DEFAULT_BASE_INPUT_CURRENT;
     }
 
-    if (state == BASE_ATTACHED_OFF && info->state.attached == BASE_ATTACHED)
+    if (state == BASE_ATTACHED_OFF &&
+         info->state.attached == BASE_ATTACHED &&
+         info->state.direction == PTP_CURRENT_OFF)
         info->state.base_powered_off = true;
     else
         info->state.base_powered_off = false;
