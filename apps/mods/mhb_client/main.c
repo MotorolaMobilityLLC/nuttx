@@ -37,6 +37,7 @@
 #include <arch/byteorder.h>
 
 #include <nuttx/device.h>
+#include <nuttx/device_display.h>
 #include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/util.h>
 
@@ -47,6 +48,8 @@
 #include <nuttx/mhb/mhb_utils.h>
 
 #include <nuttx/unipro/unipro.h>
+
+static struct device *g_display;
 
 typedef int (*COMMAND_FP)(int argc, char *argv[], struct device *dev);
 struct command {
@@ -736,6 +739,47 @@ static int mhb_subcmd_diag(int argc, char *argv[], struct device *dev)
     return mhb_handle_sub_cmd(argc, argv, dev, "diag", pwr_cmd_tb, ARRAY_SIZE(pwr_cmd_tb));
 }
 
+static int display_on(int argc, char *argv[], struct device *dev)
+{
+    if (g_display) {
+        printf("ERROR: already open\n");
+        return -EBUSY;
+    }
+
+    g_display = device_open(DEVICE_TYPE_DISPLAY_HW, 0);
+    if (!g_display) {
+        printf("ERROR: failed to open\n");
+        return -EIO;
+    }
+
+    return device_display_set_state(g_display, DISPLAY_STATE_ON);
+}
+
+static int display_off(int argc, char *argv[], struct device *dev)
+{
+    if (!g_display) {
+        printf("ERROR: not opened\n");
+        return 0;
+    }
+
+    device_display_set_state(g_display, DISPLAY_STATE_OFF);
+
+    device_close(g_display);
+    g_display = NULL;
+
+    return 0;
+}
+
+static int mhb_subcmd_display(int argc, char *argv[], struct device *dev)
+{
+    static const struct command display_cmd_tb[] = {
+        { "on",   display_on  },
+        { "off",  display_off }
+    };
+
+    return mhb_handle_sub_cmd(argc, argv, dev, "display", display_cmd_tb, ARRAY_SIZE(display_cmd_tb));
+}
+
 int mhb_client_main(int argc, char *argv[])
 {
     const char *str;
@@ -752,7 +796,9 @@ int mhb_client_main(int argc, char *argv[])
         /* I2S */
         { "i2s",    mhb_subcmd_i2s },
         /* Power control. */
-        { "pwr",    mhb_subcmd_pwr }
+        { "pwr",    mhb_subcmd_pwr },
+        /* Display */
+        { "display", mhb_subcmd_display },
     };
 
 
