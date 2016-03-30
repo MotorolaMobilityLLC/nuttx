@@ -50,4 +50,8 @@ ifeq ($(CONFIG_MHB_DSI_DISPLAY),y)
 CSRCS += mhb_dsi_display.c
 endif
 
+ifeq ($(CONFIG_MHB_I2S_AUDIO),y)
+CSRCS += mhb_i2s_audio.c
+endif
+
 endif

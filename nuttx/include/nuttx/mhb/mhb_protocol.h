@@ -409,22 +409,33 @@ struct mhb_cdsi_write_cmds_rsp {
 } __attribute__((packed));
 
 /* I2S */
-#define MHB_I2S_DIRECTION_IS2_TO_UNIPRO 0
-#define MHB_I2S_DIRECTION_UNIPRO_TO_I2S 1
-
-#define MHB_I2S_ENCODING_PCM 0
+#define MHB_I2S_EDGE_RISING  0
+#define MHB_I2S_EDGE_FALLING 1
 
 #define MHB_I2S_EDGE_RISING  0
 #define MHB_I2S_EDGE_FALLING 1
 
+#define MHB_I2S_WCLK_POLARITY_NORMAL 0
+#define MHB_I2S_WCLK_POLARITY_REVERSE 1
+
+#define MHB_I2S_PROTOCOL_I2S  0
+#define MHB_I2S_PROTOCOL_PCM  1
+#define MHB_I2S_PROTOCOL_LR_STEREO 2
+
+#define MHB_I2S_ROLE_SLAVE  0
+#define MHB_I2S_ROLE_MASTER  1
+
 /* config */
 struct mhb_i2s_config {
 	uint32_t sample_rate; /* in Hz (e.g. 48000) */
-	uint8_t direction;    /* MHB_I2S_DIRECTION_* */
-	uint8_t encoding;     /* MHB_I2S_ENCODING_* */
 	uint8_t sample_size;  /* in bits (e.g. 8, 16) */
 	uint8_t num_channels; /* 1: mono, 2: stereo */
-	uint8_t edge;         /* MHB_I2S_EDGE_* */
+	uint8_t wclk_polarity; /* MHB_I2S_WCLK_POLARITY_* */
+	uint8_t protocol;      /* MHB_I2S_PROTOCOL_*/
+	uint8_t rx_edge;         /* MHB_I2S_EDGE_* */
+	uint8_t tx_edge;         /* MHB_I2S_EDGE_* */
+	uint8_t wclk_edge;       /* MHB_I2S_EDGE_* */
+	uint8_t clk_role;        /* MHB_I2S_ROLE_*/
 } __attribute__((packed));
 
 struct mhb_i2s_config_req {
@@ -434,13 +445,14 @@ struct mhb_i2s_config_req {
 /* control */
 enum {
 	MHB_I2S_COMMAND_NONE = 0,
-	MHB_I2S_COMMAND_STOP  = 1,
-	MHB_I2S_COMMAND_START = 2,
+	MHB_I2S_COMMAND_TX_STOP  = 1,
+	MHB_I2S_COMMAND_TX_START = 2,
+	MHB_I2S_COMMAND_RX_STOP  = 3,
+	MHB_I2S_COMMAND_RX_START = 4,
 };
 
 struct mhb_i2s_control_req {
-	uint8_t local_command;
-	uint8_t peer_command;
+	uint8_t command;
 } __attribute__((packed));
 
 /* HSIC */
