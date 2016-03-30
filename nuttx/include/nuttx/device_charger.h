@@ -44,12 +44,12 @@ struct charger_config {
 };
 
 struct device_charger_type_ops {
-    int (*send)(struct device *dev);
+    int (*send)(struct device *dev, int *current);
     int (*receive)(struct device *dev, const struct charger_config *cfg);
     int (*off)(struct device *dev);
 };
 
-static inline int device_charger_send(struct device *dev)
+static inline int device_charger_send(struct device *dev, int *current)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -61,7 +61,7 @@ static inline int device_charger_send(struct device *dev)
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, charger)->send(dev);
+    return DEVICE_DRIVER_GET_OPS(dev, charger)->send(dev, current);
 }
 
 static inline int device_charger_receive(struct device *dev, const struct charger_config *cfg)
