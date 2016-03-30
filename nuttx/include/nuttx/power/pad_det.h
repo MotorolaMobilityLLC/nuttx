@@ -49,6 +49,15 @@ typedef void (*pad_detect_callback_t)(void *arg, bool docked);
  *
  ****************************************************************************/
 
+#ifdef CONFIG_PAD_DETECT
 int pad_det_register_callback(pad_detect_callback_t callback, void *arg);
+#else
+static inline int pad_det_register_callback(pad_detect_callback_t callback, void *arg)
+{
+    (void)callback;
+    (void)arg;
+    return -ENODEV;
+}
+#endif
 
 #endif /* __INCLUDE_NUTTX_POWER_PAD_DET_H */
