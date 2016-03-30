@@ -159,7 +159,7 @@ static inline void base_path(const struct switch_ptp_chg_info *info, bool state)
 }
 #endif
 
-static int switch_ptp_chg_send_batt_pwr(struct device *dev)
+static int switch_ptp_chg_send_batt_pwr(struct device *dev, int *current)
 {
     int retval;
     struct switch_ptp_chg_info *info = device_get_private(dev);
@@ -167,7 +167,7 @@ static int switch_ptp_chg_send_batt_pwr(struct device *dev)
     wireless_path(info, false);
     wired_path(info, false);
 
-    retval = device_charger_send(info->chg_dev);
+    retval = device_charger_send(info->chg_dev, current);
     if (retval)
         return retval;
 
