@@ -35,6 +35,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#define MAX_OUTPUT_CURRENT_OTG  1300 /* mA */
+
 /* Charger Settings */
 struct bq24292_chg_settings {
     enum chg chg; /* off, charge, otg */
@@ -99,7 +101,7 @@ static void bq24292_pwr_good(void *arg)
     sem_post(&info->sem);
 }
 
-static int bq24292_charger_send(struct device *dev)
+static int bq24292_charger_send(struct device *dev, int *current)
 {
     struct bq24292_charger_info *info = device_get_private(dev);
 
@@ -109,6 +111,7 @@ static int bq24292_charger_send(struct device *dev)
         }
     }
 
+    *current = MAX_OUTPUT_CURRENT_OTG;
     config_bq24292(info, BQ24292_OTG_1300MA, NULL);
     sem_post(&info->sem);
 
