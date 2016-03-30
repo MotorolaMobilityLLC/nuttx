@@ -51,7 +51,7 @@ struct device_ptp_chg_type_ops {
     int (*receive_wireless_pwr)(struct device *dev, const struct charger_config *cfg);
     int (*receive_wired_pwr)(struct device *dev, const struct charger_config *cfg);
 #endif
-    int (*send_batt_pwr)(struct device *dev);
+    int (*send_batt_pwr)(struct device *dev, int *current);
     int (*receive_base_pwr)(struct device *dev, const struct charger_config *cfg);
     int (*off)(struct device *dev);
 };
@@ -120,7 +120,7 @@ static inline int device_ptp_chg_receive_wired_pwr(struct device *dev,
 }
 #endif
 
-static inline int device_ptp_chg_send_batt_pwr(struct device *dev)
+static inline int device_ptp_chg_send_batt_pwr(struct device *dev, int *current)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -132,7 +132,7 @@ static inline int device_ptp_chg_send_batt_pwr(struct device *dev)
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->send_batt_pwr(dev);
+    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->send_batt_pwr(dev, current);
 }
 
 static inline int device_ptp_chg_receive_base_pwr(struct device *dev,
