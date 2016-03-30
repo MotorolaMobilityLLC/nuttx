@@ -40,19 +40,31 @@
 #include "ptp-gb.h"
 
 #define GB_PTP_VERSION_MAJOR 0
-#define GB_PTP_VERSION_MINOR 1
+#define GB_PTP_VERSION_MINOR 2
 
 struct gb_ptp_info {
     unsigned int cport;
     struct device *dev;
     bool connected;
+    uint8_t host_major;
+    uint8_t host_minor;
 };
 
 static struct gb_ptp_info *ptp_info = NULL;
 
 static uint8_t gb_ptp_protocol_version(struct gb_operation *operation)
 {
+    struct gb_ptp_proto_version_request *request;
     struct gb_ptp_proto_version_response *response;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    request = gb_operation_get_request_payload(operation);
+    ptp_info->host_major = request->major;
+    ptp_info->host_minor = request->minor;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response) {
@@ -95,12 +107,6 @@ static uint8_t gp_ptp_get_functionality(struct gb_operation *operation)
     #error "define receive power capabilities"
 #endif
 
-#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
-    response->int_rcv_max_v = cpu_to_le32(CONFIG_GREYBUS_PTP_INT_RCV_MAX_V);
-#else
-    response->int_rcv_max_v = 0;
-#endif
-
 #if defined (CONFIG_GREYBUS_PTP_EXT_NONE)
     response->ext = PTP_EXT_NONE;
 #elif defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
@@ -108,6 +114,8 @@ static uint8_t gp_ptp_get_functionality(struct gb_operation *operation)
 #else
     #error "define external power sources capabilities"
 #endif
+
+    response->unused = 0;
 
     return GB_OP_SUCCESS;
 }
@@ -164,6 +172,27 @@ static uint8_t gb_ptp_set_max_input_current(struct gb_operation *operation)
 #endif
 }
 
+static uint8_t gb_ptp_get_max_output_current(struct gb_operation *operation)
+{
+    struct gb_ptp_get_max_output_current_response *response;
+    uint32_t current;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+    if (device_ptp_get_max_output_current(ptp_info->dev, &current))
+        return GB_OP_UNKNOWN_ERROR;
+#else
+    current = 0;
+#endif
+
+    response->current = cpu_to_le32(current);
+
+    return GB_OP_SUCCESS;
+}
+
 static uint8_t gb_ptp_ext_power_present(struct gb_operation *operation)
 {
     struct gb_ptp_ext_power_present_response *response;
@@ -175,39 +204,17 @@ static uint8_t gb_ptp_ext_power_present(struct gb_operation *operation)
 #if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
     if (device_ptp_ext_power_present(ptp_info->dev, &response->present))
         return GB_OP_UNKNOWN_ERROR;
+
+    if (ptp_info->host_major == PTP_EXT_POWER_PRESENT_LAST_SUPPORTED_MAJOR &&
+        ptp_info->host_minor <=  PTP_EXT_POWER_PRESENT_LAST_SUPPORTED_MINOR &&
+        response->present != PTP_EXT_POWER_NOT_PRESENT)
+        response->present = PTP_EXT_POWER_PRESENT;
 #else
     response->present = PTP_EXT_POWER_NOT_PRESENT;
 #endif
 
     return GB_OP_SUCCESS;
 }
-
-#if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
-static int gb_ptp_ext_power_changed(void)
-{
-    struct gb_operation *operation;
-    int ret;
-
-    /* Do not notify core until connected */
-    if (!ptp_info->connected)
-        return 0;
-
-    operation = gb_operation_create(ptp_info->cport,
-                                    GB_PTP_TYPE_EXT_POWER_CHANGED, 0);
-    if (!operation) {
-        gb_error("%s(): failed to create operation\n", __func__);
-        return -ENOMEM;
-    }
-
-    ret = gb_operation_send_request(operation, NULL, false);
-    if (ret)
-        gb_error("%s(): failed to send request\n", __func__);
-
-    gb_operation_destroy(operation);
-
-    return ret;
-}
-#endif
 
 static uint8_t gb_ptp_power_required(struct gb_operation *operation)
 {
@@ -221,24 +228,77 @@ static uint8_t gb_ptp_power_required(struct gb_operation *operation)
     if (device_ptp_power_required(ptp_info->dev, &response->required))
         return GB_OP_UNKNOWN_ERROR;
 #else
-        response->required = PTP_POWER_NOT_REQUIRED;
+    response->required = PTP_POWER_NOT_REQUIRED;
 #endif
 
     return GB_OP_SUCCESS;
 }
 
-#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
-static int gb_ptp_power_required_changed(void)
+static uint8_t gb_ptp_power_available(struct gb_operation *operation)
+{
+    struct gb_ptp_power_available_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+    if (device_ptp_power_available(ptp_info->dev, &response->available))
+        return GB_OP_UNKNOWN_ERROR;
+#else
+    response->available = PTP_POWER_AVAILABLE_NONE;
+#endif
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_ptp_power_source(struct gb_operation *operation)
+{
+    struct gb_ptp_power_source_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+    if (device_ptp_power_source(ptp_info->dev, &response->source))
+        return GB_OP_UNKNOWN_ERROR;
+#else
+    response->source = PTP_POWER_AVAILABLE_NONE;
+#endif
+
+    return GB_OP_SUCCESS;
+}
+
+
+static int gb_ptp_changed(enum ptp_change change)
 {
     struct gb_operation *operation;
+    uint8_t type;
     int ret;
 
    /* Do not notify core until connected */
     if (!ptp_info->connected)
         return 0;
 
-    operation = gb_operation_create(ptp_info->cport,
-                                    GB_PTP_TYPE_POWER_REQUIRED_CHANGED, 0);
+    switch(change) {
+    case POWER_PRESENT:
+        type = GB_PTP_TYPE_EXT_POWER_CHANGED;
+        break;
+    case POWER_REQUIRED:
+        type = GB_PTP_TYPE_POWER_REQUIRED_CHANGED;
+        break;
+    case POWER_AVAILABLE:
+        if (!GB_PTP_SUPPORTS(ptp_info->host_major, ptp_info->host_minor,
+            POWER_AVAILABLE_CHANGED))
+            return 0;
+        type = GB_PTP_TYPE_POWER_AVAILABLE_CHANGED;
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    operation = gb_operation_create(ptp_info->cport, type, 0);
     if (!operation) {
         gb_error("%s(): failed to create operation\n", __func__);
         return -ENOMEM;
@@ -252,7 +312,6 @@ static int gb_ptp_power_required_changed(void)
 
     return ret;
 }
-#endif
 
 static void gb_ptp_connected(unsigned int cport)
 {
@@ -281,32 +340,19 @@ static int gb_ptp_init(unsigned int cport)
     if (!ptp_info->dev) {
         gb_info("%s(): failed to open device\n", __func__);
         ret = -EIO;
-        goto dev_err;
+        goto err;
     }
 
-#if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
-    ret = device_ptp_register_ext_power_cb(ptp_info->dev,
-                                           gb_ptp_ext_power_changed);
+    ret = device_ptp_register_callback(ptp_info->dev, gb_ptp_changed);
     if (ret) {
-        gb_info("%s(): failed to register external power callback\n", __func__);
-        goto cb_err;
+        gb_info("%s(): failed to register ptp changed callback\n", __func__);
+        goto err;
     }
-#endif
-
-#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
-    ret = device_ptp_register_power_required_cb(ptp_info->dev,
-                                                gb_ptp_power_required_changed);
-    if (ret) {
-        gb_info("%s(): failed to register power required callback\n", __func__);
-        goto cb_err;
-    }
-#endif
 
     return 0;
 
-cb_err:
+err:
     device_close(ptp_info->dev);
-dev_err:
     free(ptp_info);
 done:
     return ret;
@@ -323,8 +369,11 @@ static struct gb_operation_handler gb_ptp_handlers[] = {
     GB_HANDLER(GB_PTP_TYPE_GET_FUNCTIONALITY, gp_ptp_get_functionality),
     GB_HANDLER(GB_PTP_TYPE_SET_CURRENT_FLOW, gb_ptp_set_current_flow),
     GB_HANDLER(GB_PTP_TYPE_SET_MAX_INPUT_CURRENT, gb_ptp_set_max_input_current),
+    GB_HANDLER(GB_PTP_TYPE_GET_MAX_OUTPUT_CURRENT, gb_ptp_get_max_output_current),
     GB_HANDLER(GB_PTP_TYPE_EXT_POWER_PRESENT, gb_ptp_ext_power_present),
     GB_HANDLER(GB_PTP_TYPE_POWER_REQUIRED, gb_ptp_power_required),
+    GB_HANDLER(GB_PTP_TYPE_POWER_AVAILABLE, gb_ptp_power_available),
+    GB_HANDLER(GB_PTP_TYPE_POWER_SOURCE, gb_ptp_power_source)
 };
 
 static struct gb_driver gb_ptp_driver = {
