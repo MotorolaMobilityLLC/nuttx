@@ -419,6 +419,7 @@ static void batt_ptp_wired_changed(void *arg, int current)
 {
     static bool init = true; /* first callback is to initialize */
     struct ptp_info *info = arg;
+    int old_current = info->state.wired_current;
 
     if (init) {
         init = false;
@@ -432,7 +433,8 @@ static void batt_ptp_wired_changed(void *arg, int current)
         }
     }
 
-    if (info->state.wired_current == current ||
+    info->state.wired_current = current;
+    if (old_current == current ||
         !batt_ptp_ext_power_source_changed(&info->state))
         goto wired_done;
 
