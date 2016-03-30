@@ -89,3 +89,9 @@ config MHB_DSI_DISPLAY
 	default n
 	---help---
 		DSI display driven by an MHB server.
+
+config MHB_I2S_AUDIO
+	bool "MHB I2S Audio"
+	default n
+	---help---
+		I2S Audio driven by an MHB server.
