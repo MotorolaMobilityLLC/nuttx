@@ -40,6 +40,8 @@
 
 #include <nuttx/mhb/device_mhb.h>
 
+#include <reglog.h>
+#include <tsb_fr_tmr.h>
 #include <tsb_scm.h>
 
 #ifdef CONFIG_DEVICE_CORE
@@ -81,6 +83,13 @@ void tsb_boardinitialize(void) {
 }
 
 void board_initialize(void) {
+    tsb_fr_tmr_init();
+    /*
+     * Initialize the register log.  (If not configured the function below
+     * will be defined to nothing, so it will not run.)
+     */
+    reglog_initialize();
+
 #if CONFIG_MM_BUFRAM_ALLOCATOR
     bufram_init();
 
@@ -96,9 +105,9 @@ void board_initialize(void) {
     tsb_gpio_register(0);
     tsb_gpio_initialize();
 
-#ifndef CONFIG_ARCH_CHIP_TSB_I2S
+#if (!defined(CONFIG_ARCH_CHIP_TSB_I2S) && !defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL))
     int ret = tsb_request_pinshare(TSB_PIN_ETM | TSB_PIN_GPIO16 | TSB_PIN_GPIO18 |
-                               TSB_PIN_GPIO19 | TSB_PIN_GPIO20);
+                                   TSB_PIN_GPIO19 | TSB_PIN_GPIO20);
     if (!ret) {
         tsb_clr_pinshare(TSB_PIN_ETM);
         tsb_set_pinshare(TSB_PIN_GPIO16);
