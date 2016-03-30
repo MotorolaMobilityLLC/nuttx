@@ -39,6 +39,25 @@
 #define GB_PTP_TYPE_EXT_POWER_PRESENT       0x06
 #define GB_PTP_TYPE_POWER_REQUIRED_CHANGED  0x07
 #define GB_PTP_TYPE_POWER_REQUIRED          0x08
+#define GB_PTP_TYPE_POWER_AVAILABLE_CHANGED 0x09    /* added in ver 00.02 */
+#define GB_PTP_TYPE_POWER_AVAILABLE         0x0A    /* added in ver 00.02 */
+#define GB_PTP_TYPE_POWER_SOURCE            0x0B    /* added in ver 00.02 */
+#define GB_PTP_TYPE_GET_MAX_OUTPUT_CURRENT  0x0C    /* added in ver 00.02 */
+
+/* Check for operation support */
+#define GB_PTP_SUPPORTS(major, minor, name) \
+    ((major > GB_PTP_SUPPORT_##name##_MAJOR) || \
+    (major == GB_PTP_SUPPORT_##name##_MAJOR && \
+    minor >= GB_PTP_SUPPORT_##name##_MINOR))
+
+/* Added in ver 00.02 */
+#define GB_PTP_SUPPORT_POWER_AVAILABLE_CHANGED_MAJOR    0x00
+#define GB_PTP_SUPPORT_POWER_AVAILABLE_CHANGED_MINOR    0x02
+
+struct gb_ptp_proto_version_request {
+    __u8 major;
+    __u8 minor;
+} __packed;
 
 struct gb_ptp_proto_version_response {
     __u8 major;
@@ -48,12 +67,16 @@ struct gb_ptp_proto_version_response {
 struct gb_ptp_get_functionality_response {
     __u8 int_snd;
     __u8 int_rcv;
-    __le32 int_rcv_max_v;
+    __le32 unused;
     __u8 ext;
 } __packed;
 
 struct gb_ptp_set_current_flow_request {
     __u8 direction;
+} __packed;
+
+struct gb_ptp_get_max_output_current_response {
+    __le32 current;
 } __packed;
 
 struct gb_ptp_set_max_input_current_request {
@@ -66,6 +89,14 @@ struct gb_ptp_ext_power_present_response {
 
 struct gb_ptp_power_required_response {
     __u8 required;
+} __packed;
+
+struct gb_ptp_power_available_response {
+    __u8 available;
+} __packed;
+
+struct gb_ptp_power_source_response {
+    __u8 source;
 } __packed;
 
 #endif /* __PTP_GB_H__ */

@@ -230,11 +230,6 @@ config GREYBUS_PTP_EXT_NONE
 config GREYBUS_PTP_EXT_SUPPORTED
 	bool "Supported"
 endchoice
-
-config GREYBUS_PTP_INT_RCV_MAX_V
-	int "Maximum possible input voltage in uV"
-	default 5000000
-	depends on !GREYBUS_PTP_INT_RCV_NEVER
 endif
 
 menuconfig GREYBUS_SENSORS_EXT
