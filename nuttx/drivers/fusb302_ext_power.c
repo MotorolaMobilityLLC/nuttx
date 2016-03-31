@@ -333,6 +333,7 @@ static inline int fusb302_reg_write(struct i2c_dev_s *i2c, uint8_t reg, uint8_t 
 
 static void fusb302_init(void)
 {
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_RESET_REG, FUSB302_RESET_SW_RES_MASK);                /* [0x0C]:0x01 */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, FUSB302_CONTROL2_TOGGLE_MASK);          /* [0x08]:0x01 */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_POWER_REG, FUSB302_POWER_PWR_INIT_MASK);              /* [0x0B]:0x07 */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL0_REG, FUSB302_CONTROL0_TX_START_MASK);        /* [0x06]:0x01 */
