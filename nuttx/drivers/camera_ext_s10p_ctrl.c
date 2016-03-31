@@ -768,6 +768,48 @@ static const struct camera_ext_ctrl_cfg face_detection = {
     .set_ctrl = ctrl_val_set,
 };
 
+/* has_uvc, vid, pid */
+static const unsigned int uvc_cfg[] = {
+    1, 0x143C, 0x7722
+};
+
+static const struct camera_ext_ctrl_cfg uvc_snapshot = {
+    .id = CAM_EXT_CID_MOD_CAPS_UVC_SNAPSHOT,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 3,
+    },
+    .def = {
+        .p_val = (unsigned int *)uvc_cfg,
+    },
+};
+
+static const struct camera_ext_ctrl_cfg meta_data_path = {
+    .id = CAM_EXT_CID_MOD_META_DATA_PATH,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .def = {
+        .val = CAM_EXT_CID_MOD_META_DATA_PATH_NONE,
+    },
+};
+
+/* line number * smallest frame width >= size of meta data */
+static const struct camera_ext_ctrl_cfg meta_data_size = {
+    .id = CAM_EXT_CID_MOD_META_DATA_SIZE,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .def = {
+        .val = 0, /* 0 line */
+    },
+};
+
 static const struct camera_ext_ctrl_cfg *_ctrls[] = {
     &ae_antibanding_mode,
     &ae_exposure_compensation,
@@ -800,6 +842,9 @@ static const struct camera_ext_ctrl_cfg *_ctrls[] = {
     &jpeg_gps_timestamp,
     &jpeg_gps_proc_method,
     &face_detection,
+    &uvc_snapshot,
+    &meta_data_path,
+    &meta_data_size,
 };
 
 struct camera_ext_ctrl_db s10p_ctrl_db = {
