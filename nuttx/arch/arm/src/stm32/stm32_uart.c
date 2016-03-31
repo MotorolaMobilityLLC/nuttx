@@ -252,7 +252,7 @@ stm32_uart_start_transmitter(struct device *dev, uint8_t *buffer, int length,
         ssize_t n = write(uart_info->fd, p, remaining);
         if (n < 0) {
             lldbg("ERROR: write failed: %d\n", n);
-            return n;
+            return -get_errno();
         } else if (sent) {
             *sent += n;
         }
@@ -310,6 +310,7 @@ stm32_uart_start_receiver(struct device *dev, uint8_t *buffer, int length,
     ssize_t n = read(uart_info->fd, buffer, length);
     if (n < 0) {
         lldbg("ERROR: read failed: %d\n", n);
+        return -get_errno();
     } else if (got) {
         *got = n;
     }
