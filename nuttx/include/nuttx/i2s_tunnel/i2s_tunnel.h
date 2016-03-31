@@ -75,7 +75,7 @@ struct i2s_tunnel_info_s
  * On the APBA messages are sent to the APBE to start things. so interface
  * functions are not required.
  */
-#  if defined(CONFIG_ICE_APBE)
+#  if defined(CONFIG_UNIPRO_P2P_APBE)
 int i2s_tunnel_enable(bool enable);
 int i2s_tunnel_i2s_config(unsigned int sample_rate,
                           uint8_t sample_size_bits,

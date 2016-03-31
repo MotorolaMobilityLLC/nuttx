@@ -981,7 +981,7 @@ static int tsb_i2s_unipro_i2s_tx_dma_callback(
 }
 
 #if !defined(CONFIG_I2S_TUNNEL_LOCAL_LOOPBACK)
-# if defined(CONFIG_ICE_APBE)
+# if defined(CONFIG_UNIPRO_P2P_APBE)
 /*
  * Send the command to start the APBA I2S.
  *
@@ -1138,7 +1138,7 @@ static int tsb_i2s_unipro_cmd_handle_i2s_start(
     size_t len,
     struct tsb_i2s_unipro_msg_s *rsp)
 {
-#if defined(CONFIG_ICE_APBA)
+#if defined(CONFIG_UNIPRO_P2P_APBA)
     /* Respond with the start APBE command on the APBA. */
     rsp->cmd = TSB_I2S_UNIPRO_CMD_I2S_START_APBE;
     i2s_unipro_tunnel_start(msg->data.start);
@@ -1643,7 +1643,7 @@ int i2s_unipro_tunnel_unipro_register(void)
     if (ret == 0)
     {
         /* Only one side needs to make the point to point connection. */
-#if defined(CONFIG_ICE_APBA)
+#if defined(CONFIG_UNIPRO_P2P_APBA)
         unipro_p2p_setup_connection(TSB_I2S_UNIPRO_TUNNEL_CPORTID);
 #endif
         g_i2s_unipro_tunnel.unipro_registered = true;
@@ -1765,7 +1765,7 @@ int i2s_unipro_tunnel_init(void)
     tsb_clk_disable(TSB_CLK_I2SSYS);
     tsb_clk_disable(TSB_CLK_I2SBIT);
 
-#if defined(CONFIG_ICE_APBE)
+#if defined(CONFIG_UNIPRO_P2P_APBE)
     error = i2s_unipro_tunnel_unipro_register();
     if (error != OK)
     {
