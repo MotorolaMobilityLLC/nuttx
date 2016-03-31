@@ -50,6 +50,8 @@
 #define MHB_UART_SYNC_FLAG   (0x7f)
 #define MHB_UART_SYNC_LENGTH (32)
 
+#define MHB_SIG_STOP (9)
+
 struct mhb_queue_item {
     sq_entry_t entry;
     size_t size;
@@ -285,7 +287,6 @@ static void mhb_handle_uart_config_req(uint8_t *payload, size_t payload_length)
 
     req->baud = le32_to_cpu(req->baud);
     if (req->baud != g_mhb->current_baud) {
-        // TODO: Verify the baud is supported on TSB and STM.
         g_mhb->new_baud = req->baud;
     }
 
@@ -427,7 +428,7 @@ static int mhb_callback(struct mhb_hdr *hdr,
 }
 
 #if CONFIG_MHB_UART_SEND_SYNC
-static int _mhb_send_sync(void)
+static int _mhb_send_sync_pattern(void)
 {
     struct mhb_queue_item *item;
     size_t length = MHB_UART_SYNC_LENGTH;
@@ -458,73 +459,55 @@ static int _mhb_send_sync(void)
 #endif
 
 #if CONFIG_MHB_UART_WAIT_FOR_SYNC
-static int _mhb_detect_sync(uint8_t *buf, size_t *length)
+static int _mhb_wait_for_sync_pattern(void)
 {
-    int sync_found = 0;
-    size_t sync_length = 0;
-    size_t i = 0;
+    int ret = 0;
+    size_t n = 0;
 
-    while (i < *length) {
-        if (buf[i] == MHB_UART_SYNC_FLAG) {
-            sync_length++;
-        } else {
-            if (sync_length >= MHB_UART_SYNC_LENGTH) {
-                /* We found a sync and now we have the first character after.*/
-                lldbg("sync found, length=%d\n", sync_length);
-                sync_found = 1;
-
-                /* Toss everything up to and including the sync. */
-                memmove(buf, buf+i, *length - i);
-                *length -= i;
-
-                /* It's unlikely, but there could be another sync in the
-                   buffer. Process the remaining bytes. */
-                sync_length = 0;
-                i = 0;
-                continue;
-            } else {
-                sync_length = 0;
+    while (!ret) {
+        uint8_t rx_buf[1];
+        int got = 0;
+        ret = device_uart_start_receiver(g_mhb->dev, rx_buf, sizeof(rx_buf),
+                      NULL /* dma */,
+                      &got, NULL /* blocking */);
+        if (ret || !got) {
+            if (ret != -EINTR) {
+                lldbg("FATAL: Failed to wait for sync: %d\n", ret);
             }
+            break;
         }
 
-        i++;
+        n = (rx_buf[0] == MHB_UART_SYNC_FLAG) ? n + 1 : 0;
+
+        if (n == MHB_UART_SYNC_LENGTH) {
+            /* sync found */
+            break;
+        }
     }
 
-    return sync_found;
+    return ret;
 }
 #endif
 
 static void *mhb_rx_thread(void *data)
 {
+    int ret = 0;
     static uint8_t rx_buf[CONFIG_MHB_UART_RXBUFSIZE];
     size_t rx_size = 0;
 
 #if CONFIG_MHB_UART_WAIT_FOR_SYNC
-    int sync_found = 0;
-
-    while (!sync_found) {
-        int got = 0;
-        int ret = device_uart_start_receiver(g_mhb->dev, rx_buf + rx_size,
-                      sizeof(rx_buf) - rx_size, NULL /* dma */,
-                      &got, NULL /* blocking */);
-        if (ret) {
-            lldbg("FATAL: Failed to start the receiver: %d\n", ret);
-            break;
-        }
-
-        rx_size += got;
-
-        sync_found = _mhb_detect_sync(rx_buf, &rx_size);
-    }
+    ret = _mhb_wait_for_sync_pattern();
 #endif
 
-    while (1) {
+    while (!ret) {
         int got = 0;
-        int ret = device_uart_start_receiver(g_mhb->dev, rx_buf + rx_size,
+        ret = device_uart_start_receiver(g_mhb->dev, rx_buf + rx_size,
                       sizeof(rx_buf) - rx_size, NULL /* dma */,
                       &got, NULL /* blocking */);
         if (ret) {
-            lldbg("FATAL: Failed to start the receiver: %d\n", ret);
+            if (ret != -EINTR) {
+                lldbg("FATAL: Failed to start the receiver: %d\n", ret);
+            }
             break;
         }
 
@@ -585,7 +568,8 @@ static void *mhb_rx_thread(void *data)
         }
     }
 
-    return NULL;
+    vdbg("done: ret=%d\n", ret);
+    return (void *)ret;
 }
 
 static int mhb_send(struct device *dev, struct mhb_hdr *hdr,
@@ -638,15 +622,37 @@ static int mhb_send(struct device *dev, struct mhb_hdr *hdr,
     return 0;
 }
 
+static void mhb_tx_flush(void)
+{
+    irqstate_t flags = irqsave();
+
+    while (!sq_empty(&g_mhb->tx_queue)) {
+        struct mhb_queue_item *item =
+                        (struct mhb_queue_item *)sq_remfirst(&g_mhb->tx_queue);
+        kmm_free(item);
+    }
+
+    irqrestore(flags);
+}
+
 static void *mhb_tx_thread(void *data)
 {
+    int ret = 0;
+
 #if CONFIG_MHB_UART_SEND_SYNC
-    _mhb_send_sync();
+    ret = _mhb_send_sync_pattern();
 #endif
 
-    while (1) {
+    while (!ret) {
         /* Block until a buffer is available */
-        sem_wait(&g_mhb->tx_sem);
+        ret = sem_wait(&g_mhb->tx_sem);
+        if (ret < 0) {
+            ret = -get_errno();
+            if (ret != -EINTR) {
+                lldbg("ERROR: sem wait failed: %d\n", ret);
+            }
+            break;
+        }
 
         /* Get the next buffer */
         irqstate_t flags = irqsave();
@@ -657,8 +663,6 @@ static void *mhb_tx_thread(void *data)
             continue;
         }
 
-        // TODO: Check if a baud change is in progress and hold off the tx.
-
         mhb_wake_peer();
 
         struct mhb_queue_item *item =
@@ -666,11 +670,13 @@ static void *mhb_tx_thread(void *data)
 
         /* Send the buffer */
         int sent = 0;
-        int ret = device_uart_start_transmitter(g_mhb->dev, item->buffer,
+        ret = device_uart_start_transmitter(g_mhb->dev, item->buffer,
                       item->size, NULL /* dma */, &sent,
                       NULL /* callback, blocking without callback */);
         if (ret) {
             lldbg("ERROR: failed to write: %d\n", ret);
+            kmm_free(item);
+            break;
         }
 
         /* Switch baud rates if requested. */
@@ -683,7 +689,72 @@ static void *mhb_tx_thread(void *data)
         kmm_free(item);
     }
 
-    return NULL;
+    mhb_tx_flush();
+
+    vdbg("done: ret=%d\n", ret);
+    return (void *)ret;
+}
+
+static int mhb_stop(void)
+{
+    pthread_addr_t join_value;
+
+    if (g_mhb->rx_thread) {
+        pthread_kill(g_mhb->rx_thread, MHB_SIG_STOP);
+        pthread_join(g_mhb->rx_thread, &join_value);
+        g_mhb->rx_thread = 0;
+    }
+
+    if (g_mhb->tx_thread) {
+        pthread_kill(g_mhb->tx_thread, MHB_SIG_STOP);
+        pthread_join(g_mhb->tx_thread, &join_value);
+        g_mhb->tx_thread = 0;
+    }
+
+    return 0;
+}
+
+static int mhb_start(void)
+{
+    int ret;
+
+    ret = pthread_create(&g_mhb->rx_thread, NULL, mhb_rx_thread, NULL);
+    if (ret) {
+        lldbg("ERROR: Failed to create rx thread: %s.\n", strerror(errno));
+        g_mhb->rx_thread = 0;
+        goto rx_thread_error;
+    }
+
+    ret = pthread_create(&g_mhb->tx_thread, NULL, mhb_tx_thread, NULL);
+    if (ret) {
+        lldbg("ERROR: Failed to create tx thread: %s.\n", strerror(errno));
+        g_mhb->tx_thread = 0;
+        goto tx_thread_error;
+    }
+
+rx_thread_error:
+done:
+    return ret;
+
+tx_thread_error:
+    mhb_stop();
+    goto done;
+}
+
+static int mhb_restart(struct device *dev)
+{
+    int ret;
+
+    if (!dev) {
+        return -ENODEV;
+    }
+
+    ret = mhb_stop();
+    if (!ret) {
+        ret = mhb_start();
+    }
+
+    return ret;
 }
 
 static int mhb_dev_open(struct device *dev)
@@ -721,29 +792,24 @@ static int mhb_dev_open(struct device *dev)
         goto config_error;
     }
 
-    ret = pthread_create(&g_mhb->rx_thread, NULL, mhb_rx_thread, NULL);
+    ret = mhb_start();
     if (ret) {
-        lldbg("ERROR: Failed to create tx thread: %s.\n", strerror(errno));
-        goto rx_thread_error;
+        goto start_error;
     }
 
-    ret = pthread_create(&g_mhb->tx_thread, NULL, mhb_tx_thread, NULL);
-    if (ret) {
-        lldbg("ERROR: Failed to create tx thread: %s.\n", strerror(errno));
-        goto tx_thread_error;
-    }
+err_irqrestore:
+    irqrestore(flags);
 
-    goto err_irqrestore;
+    return ret;
 
-tx_thread_error:
-    // TODO: Stop the RX the thread.
-rx_thread_error:
+start_error:
 config_error:
     device_close(g_mhb->dev);
     g_mhb->dev = NULL;
-err_irqrestore:
-    irqrestore(flags);
-    return ret;
+
+    atomic_dec(&g_mhb->ref_count);
+
+    goto err_irqrestore;
 }
 
 static void mhb_dev_close(struct device *dev) {
@@ -753,8 +819,7 @@ static void mhb_dev_close(struct device *dev) {
     uint32_t value = atomic_dec(&g_mhb->ref_count);
 
     if (value == 0) {
-        // TODO: Stop the RX and TX threads.
-
+        mhb_stop();
         device_close(g_mhb->dev);
         g_mhb->dev = NULL;
     }
@@ -845,6 +910,7 @@ const static struct device_mhb_type_ops mhb_type_ops = {
     .register_receiver = mhb_register_receiver,
     .unregister_receiver = mhb_unregister_receiver,
     .send = mhb_send,
+    .restart = mhb_restart,
 };
 
 const static struct device_driver_ops mhb_driver_ops = {
