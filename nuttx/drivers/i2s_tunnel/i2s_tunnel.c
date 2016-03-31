@@ -91,7 +91,7 @@ struct i2s_tunnel_ipc_rsp_s
 
 static struct i2s_tunnel_ipc_rsp_s g_i2s_tunnel_rsp;
 
-#if defined(CONFIG_ICE_APBE)
+#if defined(CONFIG_UNIPRO_P2P_APBE)
 struct i2s_tunnel_wq_s
 {
     struct work_s wq;
@@ -338,7 +338,7 @@ static int i2s_tunnel_ipc_svc_init(void)
 
 int i2s_tunnel_init(void)
 {
-#if defined(CONFIG_ICE_APBE)
+#if defined(CONFIG_UNIPRO_P2P_APBE)
     memset(&g_i2s_tunnel_wq, 0, sizeof(g_i2s_tunnel_wq));
 #else
     (void)i2s_tunnel_ipc_svc_init();
