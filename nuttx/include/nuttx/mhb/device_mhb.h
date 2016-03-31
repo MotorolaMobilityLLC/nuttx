@@ -43,6 +43,7 @@ struct device_mhb_type_ops {
         uint8_t addr, mhb_receiver receiver);
     int (*send)(struct device *dev,
         struct mhb_hdr *hdr, uint8_t *payload, size_t payload_length, int flags);
+    int (*restart)(struct device *dev);
 };
 
 /**
@@ -121,6 +122,27 @@ static inline int device_mhb_send(struct device *dev, struct mhb_hdr *hdr,
     if (DEVICE_DRIVER_GET_OPS(dev, mhb)->send)
         return DEVICE_DRIVER_GET_OPS(dev, mhb)->send(dev, hdr,
             payload, payload_length, flags);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief Restart
+ *
+ * Restart the RX and TX threads.  Send or wait for a sync if configured.
+ *
+ * @param dev MHB device
+ * @return 0 on success, negative errno on error
+ */
+static inline int device_mhb_restart(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, mhb)->restart)
+        return DEVICE_DRIVER_GET_OPS(dev, mhb)->restart(dev);
 
     return -ENOSYS;
 }
