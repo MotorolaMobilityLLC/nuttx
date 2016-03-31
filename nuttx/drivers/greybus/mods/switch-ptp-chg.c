@@ -35,43 +35,44 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-/* GPIO states to control a switch on a power path
- * TODO: Hard-coded to be on when gpio is low, should be configurable instead
-*/
-#define SWITCH_ON    (0)
-#define SWITCH_OFF   (1)
-
 
 struct switch_ptp_chg_info {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     int wls;  /* gpio to control switch on a path from wireless charger */
     int wrd;  /* gpio to control switch on a path from wired charger */
     int base; /* gpio to control switch on a path to base */
+    bool wls_active_low;
+    bool wrd_active_low;
+    bool base_active_low;
 #endif
     struct device *chg_dev; /* device to control current syncing and sourcing */
 };
 
 /* Set switch state */
-static inline void set_switch(int gpio, bool state)
+static inline void set_switch(int gpio, bool state, bool active_low)
 {
-    if (gpio >= 0)
-        gpio_set_value(gpio, state ? SWITCH_ON : SWITCH_OFF);
+    if (gpio >= 0) {
+        if (active_low)
+            gpio_set_value(gpio, (state) ? 0 : 1);
+        else
+            gpio_set_value(gpio, (state) ? 1 : 0);
+    }
 }
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
 static inline void wireless_path(const struct switch_ptp_chg_info *info, bool state)
 {
-    set_switch(info->wls, state);
+    set_switch(info->wls, state, info->wls_active_low);
 }
 
 static inline void wired_path(const struct switch_ptp_chg_info *info, bool state)
 {
-    set_switch(info->wrd, state);
+    set_switch(info->wrd, state, info->wrd_active_low);
 }
 
 static inline void base_path(const struct switch_ptp_chg_info *info, bool state)
 {
-    set_switch(info->base, state);
+    set_switch(info->base, state, info->base_active_low);
 }
 
 static int switch_ptp_chg_send_wireless_pwr(struct device *dev)
@@ -214,6 +215,18 @@ static int switch_ptp_chg_probe(struct device *dev)
     }
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
+    struct ptp_chg_init_data *init_data =
+            (struct ptp_chg_init_data *)device_get_init_data(dev);
+    if (init_data) {
+        info->wls_active_low = init_data->wls_active_low;
+        info->wrd_active_low = init_data->wrd_active_low;
+        info->base_active_low = init_data->base_active_low;
+    } else {
+        info->wls_active_low = true;
+        info->wrd_active_low = true;
+        info->base_active_low = true;
+    }
+
     struct device_resource *r;
 
    /* Find switches to control and set them to the h/w default states */
@@ -223,7 +236,8 @@ static int switch_ptp_chg_probe(struct device *dev)
         info->wls = -1;
     } else {
         info->wls = r->start;
-        gpio_direction_out(info->wls, SWITCH_ON);
+        /* enable wireless */
+        gpio_direction_out(info->wls, info->wls_active_low ? 0 : 1);
     }
 
     r = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "wrd_path");
@@ -232,7 +246,8 @@ static int switch_ptp_chg_probe(struct device *dev)
         info->wrd = -1;
     } else {
         info->wrd = r->start;
-        gpio_direction_out(info->wrd, SWITCH_ON);
+        /* enable wired */
+        gpio_direction_out(info->wrd, info->wrd_active_low ? 0 : 1);
     }
 
     r = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "base_path");
@@ -241,7 +256,8 @@ static int switch_ptp_chg_probe(struct device *dev)
         info->base = -1;
     } else {
         info->base = r->start;
-        gpio_direction_out(info->base, SWITCH_OFF);
+        /* disable base */
+        gpio_direction_out(info->base, info->base_active_low ? 1 : 0);
     }
 #endif
 

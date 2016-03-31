@@ -31,10 +31,18 @@
 
 #include <nuttx/device.h>
 #include <nuttx/device_charger.h>
-
+#include <stdbool.h>
 #include <errno.h>
 
 #define DEVICE_TYPE_PTP_CHG_HW  "ptp_chg"
+
+struct ptp_chg_init_data {
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
+    bool wls_active_low;
+    bool wrd_active_low;
+    bool base_active_low;
+#endif
+};
 
 struct device_ptp_chg_type_ops {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
