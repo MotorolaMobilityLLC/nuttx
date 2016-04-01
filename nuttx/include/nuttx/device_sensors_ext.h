@@ -32,7 +32,7 @@
 #define DEVICE_TYPE_SENSORS_HW          "sensors_ext"
 
 #include <stdint.h>
-
+#include <nuttx/greybus/types.h>
 
 #define SENSOR_EXT_FLAG_CONTINUOUS_MODE 0x00000000
 #define SENSOR_EXT_FLAG_NON_MASKABLE    0x00000001
@@ -73,7 +73,6 @@ enum {
 };
 
 struct sensor_info {
-    uint16_t    size;
     uint32_t    version;
     uint32_t    type;
     uint32_t    max_range;
@@ -83,10 +82,12 @@ struct sensor_info {
     uint32_t    max_delay;
     uint32_t    fifo_rec;
     uint32_t    fifo_mec;
-    uint32_t    flag;
-    uint32_t    scale;
-    uint32_t    offset;
-    uint8_t     reading_size;
+    uint32_t    flags;
+    uint32_t    scale_int;
+    uint32_t    scale_nano;
+    uint32_t    offset_int;
+    uint32_t    offset_nano;
+    uint8_t     channels;
     uint8_t     reserved[3];
     uint16_t    name_len;
     uint8_t     name[128];
@@ -98,20 +99,32 @@ struct sensor_info {
 
 struct report_info {
     uint8_t    id;
-    uint8_t    reserved;
+    uint8_t    flags;
     uint16_t   readings;
-    uint8_t    reference_time[sizeof(uint64_t)];
-    uint8_t    data_payload[SENSOR_DATA_PAYLOAD_SIZE];
-};
+    uint64_t   reference_time;
+    uint8_t    data_payload[];
+} __packed;
 
-typedef int (*sensors_ext_event_callback)(uint8_t se_id, struct report_info *rinfo);
+struct report_info_data {
+    uint8_t    num_sensors_reporting;
+    uint8_t    reserved;
+    struct report_info reportinfo[];
+} __packed;
+
+#define REPORT_INFO_FLAG_FLUSHING        0x01
+#define REPORT_INFO_FLAG_FLUSH_COMPLETE  0x02
+
+typedef int (*sensors_ext_event_callback)(uint8_t se_id,
+                    struct report_info_data *rinfo_data, uint16_t payload_size);
 
 struct device_sensors_ext_type_ops {
     int (*get_sensor_count)(struct device *dev, uint8_t *count);
-    int (*get_sensor_info)(struct device *dev, uint8_t sensor_id, struct sensor_info *sinfo);
-    int (*start_reporting)(struct device *dev, uint8_t sensor_id, uint64_t sampling_period,
-             uint64_t max_report_latency);
-    int (*get_report)(struct device *dev, uint8_t sensor_id, struct report_info *rinfo);
+    int (*get_sensor_info)(struct device *dev, uint8_t sensor_id,
+                            struct sensor_info *sinfo);
+    int (*start_reporting)(struct device *dev, uint8_t sensor_id,
+                            uint64_t sampling_period,
+                            uint64_t max_report_latency);
+    int (*flush)(struct device *dev, uint8_t sensor_id);
     int (*stop_reporting)(struct device *dev, uint8_t sensor_id);
     int (*time_sync)(struct device *dev, uint8_t *current_time,
              uint8_t *precesion, uint8_t *accuracy, uint8_t flags);
@@ -162,7 +175,8 @@ static inline int device_sensors_ext_get_sensor_info(struct device *dev,
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->get_sensor_info(dev, sensor_id, sinfo);
+    return DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->get_sensor_info(dev,
+                                 sensor_id, sinfo);
 }
 
 /**
@@ -186,7 +200,7 @@ static inline int device_sensors_ext_start_reporting(struct device *dev,
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->start_reporting(dev,
-        sensor_id, sampling_period, max_report_latency);
+                                 sensor_id, sampling_period, max_report_latency);
 }
 
 /**
@@ -196,7 +210,7 @@ static inline int device_sensors_ext_start_reporting(struct device *dev,
  * @param info, the number of sensor available
  * @return 0 on success, negative errno on error
  */
-static inline int device_sensors_ext_get_report(struct device *dev, uint8_t sensor_id, struct report_info *rinfo)
+static inline int device_sensors_ext_flush(struct device *dev, uint8_t sensor_id)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -204,11 +218,11 @@ static inline int device_sensors_ext_get_report(struct device *dev, uint8_t sens
         return -ENODEV;
     }
 
-    if (!DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->get_report) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->flush) {
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->get_report(dev, sensor_id, rinfo);
+    return DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->flush(dev, sensor_id);
 }
 
 /**
@@ -234,7 +248,8 @@ static inline int device_sensors_ext_stop_reporting(struct device *dev,
         sensor_id);
 }
 
-static inline int device_sensors_ext_register_callback(struct device *dev, uint8_t se_id,
+static inline int device_sensors_ext_register_callback(struct device *dev,
+                                    uint8_t se_id,
                                     sensors_ext_event_callback callback)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
@@ -243,7 +258,8 @@ static inline int device_sensors_ext_register_callback(struct device *dev, uint8
         return -ENODEV;
 
     if (DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->register_callback)
-        return DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->register_callback(dev, se_id, callback);
+        return DEVICE_DRIVER_GET_OPS(dev, sensors_ext)->register_callback(dev,
+                                     se_id, callback);
 
     return -ENOSYS;
 }

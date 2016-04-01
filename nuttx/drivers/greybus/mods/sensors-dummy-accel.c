@@ -29,6 +29,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
+#include <arch/atomic.h>
 #include <nuttx/clock.h>
 #include <nuttx/lib.h>
 #include <nuttx/util.h>
@@ -37,25 +38,29 @@
 #include <nuttx/device.h>
 #include <nuttx/device_sensors_ext.h>
 #include <nuttx/greybus/debug.h>
+#include <nuttx/power/pm.h>
 #include <nuttx/rtc.h>
 #include <nuttx/time.h>
 
 
 #define SENSOR_ACCEL_FLAG_OPEN       BIT(0)
 
-#define ACCEL_DEVICE_NAME  "ACCEL"
+#define ACCEL_DEVICE_NAME  "Accelerometer"
+#define ACCEL_VENDOR_NAME  "Moto"
+#define ACCEL_VERSION      2
 #define ACCEL_SAMPLE_RATE  100
-#define ACCEL_SCALE_INT    0
-#define ACCEL_SCALE_NANO   976563
+#define ACCEL_SCALE_INT    1
+#define ACCEL_SCALE_NANO   3
 #define ACCEL_OFFSET_INT    0
-#define ACCEL_OFFSET_NANO   0
-#define ACCEL_READING_SIZE  3
+#define ACCEL_OFFSET_NANO   4
+#define ACCEL_CHANNEL_SIZE  3
 #define ACCEL_MAX_RANGE     1024 * 16
 #define ACCEL_MIN_DELAY     1000
 #define ACCEL_MAX_DELAY     1000000
 #define ACCEL_FIFO_REC      0
 #define ACCEL_FIFO_MEC      0
 #define ACCEL_FLAGS        SENSOR_EXT_FLAG_CONTINUOUS_MODE
+#define REPORTING_SENSORS   1
 
 
 struct sensor_accel_info {
@@ -72,30 +77,42 @@ struct sensor_accel_info {
 */
 struct sensor_event_data {
     uint16_t    time_delta;
-    uint32_t    data_value[ACCEL_READING_SIZE];
-};
+    uint32_t    data_value[ACCEL_CHANNEL_SIZE];
+} __packed;
+
+#ifdef BATCH_PROCESS_ENABLED
+#define PRESSURE_READING_NUM 2
+#else
+#define PRESSURE_READING_NUM 1
+#endif
+
+static int data = 1000;
+static atomic_t txn;       /* Flag to indicate reporting in progress */
 
 static void accel_data_report_worker(void *arg)
 {
     struct sensor_accel_info *info;
     struct report_info *rinfo;
+    struct report_info_data *rinfo_data;
     struct sensor_event_data *event_data;
     struct timespec ts;
-    uint64_t time_ns;
+    uint16_t payload_size;
+
+    payload_size = (PRESSURE_READING_NUM * sizeof(struct sensor_event_data))
+                    + (REPORTING_SENSORS * sizeof(struct report_info));
 
     info = arg;
     if (info->callback) {
-        rinfo = malloc(sizeof(struct report_info));
-        if (!rinfo)
+        rinfo_data = malloc(sizeof(struct report_info_data) + payload_size);
+        if (!rinfo_data)
             goto out;
+        rinfo_data->num_sensors_reporting = REPORTING_SENSORS;
+        rinfo = rinfo_data->reportinfo;
         event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
 
         up_rtc_gettime(&ts);
+        rinfo->reference_time = timespec_to_nsec(&ts);
         gb_debug("[%u.%03u]\n", ts.tv_sec, (ts.tv_nsec / 1000000));
-        time_ns = timespec_to_nsec(&ts);
-        gb_debug("Time %u\n", time_ns);
-        memcpy((void *)&rinfo->reference_time, &time_ns, sizeof(uint64_t));
-
 #ifdef BATCH_PROCESS_ENABLED
         /*
          * Batch sensor data values and its time_deltas
@@ -103,15 +120,15 @@ static void accel_data_report_worker(void *arg)
         */
 #else
         /* Single sensor event data */
-        rinfo->readings = 1;
+        rinfo->readings = PRESSURE_READING_NUM;
         event_data->time_delta = 0;
-        event_data->data_value[0] = ts.tv_sec;
-        event_data->data_value[1] = 3;
-        event_data->data_value[2] = (uint32_t)ts.tv_nsec;
+        event_data->data_value[0] = data++;
+        event_data->data_value[1] = data++;
+        event_data->data_value[2] = data++;
 #endif
-        info->callback(info->sensor_id, rinfo);
+        info->callback(info->sensor_id, rinfo_data, payload_size);
 
-        free(rinfo);
+        free(rinfo_data);
     }
 
 out:
@@ -123,13 +140,14 @@ out:
 
     /* if not already scheduled, schedule start */
     if (work_available(&info->data_report_work))
-        work_queue(LPWORK, &info->data_report_work, accel_data_report_worker, info, MSEC2TICK(2000));
+        work_queue(LPWORK, &info->data_report_work, accel_data_report_worker, info, MSEC2TICK(1200));
 }
 
 static int sensor_accel_op_get_sensor_info(struct device *dev,
     uint8_t sensor_id, struct sensor_info *sinfo)
 {
     gb_debug("%s:\n", __func__);
+    sinfo->version = ACCEL_VERSION;
     sinfo->max_range = ACCEL_MAX_RANGE;
     sinfo->resolution = 1;
     sinfo->min_delay = ACCEL_MIN_DELAY;
@@ -140,18 +158,25 @@ static int sensor_accel_op_get_sensor_info(struct device *dev,
      * payload. Each event consists of time_delta and sensor data fields.
      * Reading size provides the number of sensor data fields reported.
     */
-    sinfo->fifo_rec = (SENSOR_DATA_PAYLOAD_SIZE / (sizeof(struct sensor_event_data)));
+    sinfo->fifo_rec = PRESSURE_READING_NUM;
     sinfo->fifo_mec = sinfo->fifo_rec;
 #else
     sinfo->fifo_rec = ACCEL_FIFO_REC;
     sinfo->fifo_mec = ACCEL_FIFO_MEC;
 #endif
-    sinfo->flag = ACCEL_FLAGS;
-    sinfo->scale = ACCEL_SCALE_NANO;
-    sinfo->offset = ACCEL_OFFSET_NANO;
-    sinfo->reading_size = ACCEL_READING_SIZE;
+    sinfo->flags = ACCEL_FLAGS;
+    sinfo->scale_int = ACCEL_SCALE_INT;
+    sinfo->scale_nano = ACCEL_SCALE_NANO;
+    sinfo->offset_int = ACCEL_OFFSET_INT;
+    sinfo->offset_nano = ACCEL_OFFSET_NANO;
+    sinfo->channels = ACCEL_CHANNEL_SIZE;
     sinfo->type = ACCELEROMETER_ID;
+    sinfo->name_len = sizeof(ACCEL_DEVICE_NAME);
     memcpy(&sinfo->name[0], ACCEL_DEVICE_NAME, sizeof(ACCEL_DEVICE_NAME));
+    sinfo->vendor_len = sizeof(ACCEL_VENDOR_NAME);
+    memcpy(&sinfo->vendor[0], ACCEL_VENDOR_NAME, sizeof(ACCEL_VENDOR_NAME));
+    sinfo->string_type_len = 0;
+
     return OK;
 }
 
@@ -171,35 +196,66 @@ static int sensor_accel_op_start_reporting(struct device *dev,
     if (!work_available(&info->data_report_work))
         work_cancel(LPWORK, &info->data_report_work);
 
+    data = 1000;
+
     /* if not already scheduled, schedule start */
     if (work_available(&info->data_report_work))
         work_queue(LPWORK, &info->data_report_work, accel_data_report_worker, info, 0);
 
+    atomic_inc(&txn);
+
     return OK;
 }
 
-static int sensor_accel_op_get_report(struct device *dev,
-    uint8_t id, struct report_info *rinfo)
+static int sensor_accel_op_flush(struct device *dev, uint8_t id)
 {
     struct sensor_event_data *event_data;
+    struct sensor_accel_info *info;
+    struct report_info_data *rinfo_data;
+    struct report_info *rinfo;
     struct timespec ts;
-    uint64_t time_ns;
+    uint16_t payload_size;
+
+    payload_size = (PRESSURE_READING_NUM * sizeof(struct sensor_event_data))
+                    + (REPORTING_SENSORS * sizeof(struct report_info));
+
     gb_debug("%s:\n", __func__);
 
-    if (!dev || !rinfo) {
+    if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
-    rinfo->readings = 1;
-    event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
-    up_rtc_gettime(&ts);
-    gb_debug("[%u.%03u]\n", ts.tv_sec, (ts.tv_nsec / 1000000));
-    time_ns = timespec_to_nsec(&ts);
-    gb_debug("Time %ju\n", time_ns);
-    memcpy((void *)&rinfo->reference_time, &time_ns, sizeof(uint64_t));
-    event_data->time_delta = 0;
-    event_data->data_value[0] = ts.tv_sec;
-    event_data->data_value[1] = 3;
-    event_data->data_value[2] = (uint32_t)ts.tv_nsec;
+    info = device_get_private(dev);
+
+    if (info->callback) {
+        rinfo_data = malloc(sizeof(struct report_info) + payload_size);
+        if (!rinfo_data)
+            return -ENOMEM;
+
+        rinfo_data->num_sensors_reporting = REPORTING_SENSORS;
+        rinfo = rinfo_data->reportinfo;
+        event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
+
+        up_rtc_gettime(&ts);
+        rinfo->reference_time = timespec_to_nsec(&ts);
+        gb_debug("[%u.%03u]\n", ts.tv_sec, (ts.tv_nsec / 1000000));
+        rinfo->flags = REPORT_INFO_FLAG_FLUSHING | REPORT_INFO_FLAG_FLUSH_COMPLETE;
+#ifdef BATCH_PROCESS_ENABLED
+        /*
+         * Batch sensor data values and its time_deltas
+         * until max fifo event count
+        */
+#else
+        /* Single sensor event data */
+        rinfo->readings = PRESSURE_READING_NUM;
+        event_data->time_delta = 0;
+        event_data->data_value[0] = data++;
+        event_data->data_value[1] = data++;
+        event_data->data_value[2] = data++;
+#endif
+        info->callback(info->sensor_id, rinfo_data, payload_size);
+
+        free(rinfo_data);
+    }
 
     return OK;
 }
@@ -219,6 +275,8 @@ static int sensor_accel_op_stop_reporting(struct device *dev,
     /* cancel any work and reset ourselves */
     if (!work_available(&info->data_report_work))
         work_cancel(LPWORK, &info->data_report_work);
+
+    atomic_dec(&txn);
 
     return OK;
 }
@@ -241,6 +299,23 @@ static int sensor_accel_op_register_callback(struct device *dev,
     return 0;
 }
 
+#ifdef CONFIG_PM
+static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
+{
+    /*
+    * Do not allow IDLE when work is scheduled
+    */
+    if ((state >= PM_IDLE) && (atomic_get(&txn)))
+        return -EIO;
+
+    return OK;
+}
+
+static struct pm_callback_s pm_callback =
+{
+  .prepare = pm_prepare,
+};
+#endif
 
 static int sensor_accel_dev_open(struct device *dev)
 {
@@ -300,6 +375,15 @@ static int sensor_accel_dev_probe(struct device *dev)
     info->dev = dev;
     device_set_private(dev, info);
 
+    atomic_init(&txn, 0);
+
+#ifdef CONFIG_PM
+    if (pm_register(&pm_callback) != OK)
+    {
+        dbg("Failed register to power management!\n");
+    }
+#endif
+
     return 0;
 }
 
@@ -326,7 +410,7 @@ static void sensor_accel_dev_remove(struct device *dev)
 static struct device_sensors_ext_type_ops sensor_accel_type_ops = {
     .get_sensor_info = sensor_accel_op_get_sensor_info,
     .start_reporting = sensor_accel_op_start_reporting,
-    .get_report = sensor_accel_op_get_report,
+    .flush = sensor_accel_op_flush,
     .stop_reporting = sensor_accel_op_stop_reporting,
     .register_callback = sensor_accel_op_register_callback,
 };
