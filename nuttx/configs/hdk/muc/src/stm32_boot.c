@@ -42,6 +42,7 @@
 #include <nuttx/device_battery_good.h>
 #include <nuttx/device_display.h>
 #include <nuttx/device_hid.h>
+#include <nuttx/device_lights.h>
 #include <nuttx/device_ptp.h>
 #include <nuttx/device_ptp_chg.h>
 #include <nuttx/device_raw.h>
@@ -260,6 +261,15 @@ static struct device devices[] = {
 # endif
 #endif
 
+#ifdef CONFIG_BACKLIGHT_ISL98611
+    {
+        .type = DEVICE_TYPE_LIGHTS_HW,
+        .name = "isl98611_backlight",
+        .desc = "ISL98611 Backlight",
+        .id   = 0,
+    },
+#endif
+
 };
 
 static struct device_table muc_device_table = {
@@ -400,6 +410,10 @@ void board_initialize(void)
 #ifdef CONFIG_MHB_DSI_DISPLAY
    extern struct device_driver dsi_display_driver;
    device_register_driver(&dsi_display_driver);
+#endif
+#ifdef CONFIG_BACKLIGHT_ISL98611
+   extern struct device_driver isl98611_backlight_driver;
+   device_register_driver(&isl98611_backlight_driver);
 #endif
 
 #endif
