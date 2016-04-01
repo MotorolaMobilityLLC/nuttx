@@ -30,32 +30,34 @@
 #
 
 config I2S_TUNNEL
-    bool "Enable I2S tunneling device driver support."
-    default n
+	bool "Enable I2S tunneling device driver support."
+	default n
 
 if I2S_TUNNEL
 
+choice
+	prompt "Select an I2S tunnel mode"
+
 config I2S_TUNNEL_LOCAL_LOOPBACK
-    bool "Define this if local loopback testing is desired."
-    depends on !I2S_TUNNEL_ROUNDTRIP_LOOPBACK
-    default n
-    ---help---
-        Local loopback testing enables a single device to loopback on I2S to itself.
-        To use this mode the TX and RX data lines must be shorted.  No transport is
-        used in this configuration.  It can be used for testing DMA as well as the
-        I2S hardware block.
+	bool "Define this if local loopback testing is desired."
+	---help---
+		Local loopback testing enables a single device to loopback on I2S to itself.
+		To use this mode the TX and RX data lines must be shorted.  No transport is
+		used in this configuration.  It can be used for testing DMA as well as the
+		I2S hardware block.
 
 config I2S_TUNNEL_ROUNDTRIP_LOOPBACK
-    bool "Define this if I2S loopback over the transport testing is desired."
-    depends on !I2S_TUNNEL_LOCAL_LOOPBACK
-    default n
-    ---help---
-        In this mode the APBA sends I2S data out it's I2S bus in master mode, then
-        receives the data it sent.  The received data is then sent over the transport
-        (currently Unipro) to the APBE.  The APBE in turn sends the data out it's
-        I2S bus in master mode.  The data the APBE receives is then send back to
-        the APBA and the cycle continues.  This is useful for testing the round
-        trip performance of the system.  For this to work the APBA RX and TX
-        lines must be shorted and the APBE RX and TX lines must be shorted.
+	bool "Define this if I2S loopback over the transport testing is desired."
+	---help---
+		In this mode the APBA sends I2S data out it's I2S bus in master mode, then
+		receives the data it sent.  The received data is then sent over the transport
+		(currently Unipro) to the APBE.  The APBE in turn sends the data out it's
+		I2S bus in master mode.  The data the APBE receives is then send back to
+		the APBA and the cycle continues.  This is useful for testing the round
+		trip performance of the system.  For this to work the APBA RX and TX
+		lines must be shorted and the APBE RX and TX lines must be shorted.
+
+endchoice
+
 
 endif
