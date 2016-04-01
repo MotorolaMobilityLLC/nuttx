@@ -118,6 +118,8 @@ enum device_i2s_event {
 
 typedef void (*device_i2s_callback)(struct ring_buf *rb,
                                     enum device_i2s_event event, void *arg);
+typedef int (*device_i2s_notification_callback)(struct device *dev,
+                                    enum device_i2s_event event);
 
 struct device_i2s_configuration {
     uint32_t    sample_frequency;
@@ -185,6 +187,8 @@ struct device_i2s_type_ops {
     int (*start_transmitter_port)(struct device *dev);
     int (*stop_transmitter_port)(struct device *dev);
     int (*shutdown_transmitter)(struct device *dev);
+    int (*register_callback)(struct device *dev, device_i2s_notification_callback cb);
+    int (*unregister_callback)(struct device *dev);
 };
 
 /**
@@ -574,4 +578,48 @@ static inline int device_i2s_shutdown_transmitter(struct device *dev)
     return -ENOSYS;
 }
 
+/**
+ * @brief i2s register_callback() wrap function
+ *
+ * @param dev pointer to structure of device data
+ * @param callback callback function for notify event
+ * @return 0 on success, negative errno on error
+ */
+static inline int device_i2s_register_callback(struct device *dev,
+        device_i2s_notification_callback cb)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, i2s)->register_callback) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, i2s)->register_callback(dev, cb);
+}
+
+
+/**
+ * @brief i2s unregister_callback() wrap function
+ *
+ * @param dev pointer to structure of device data
+ * @return 0 on success, negative errno on error
+ */
+static inline int device_i2s_unregister_callback(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, i2s)->unregister_callback) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, i2s)->unregister_callback(dev);
+}
 #endif /* __INCLUDE_NUTTX_DEVICE_I2S_H */
