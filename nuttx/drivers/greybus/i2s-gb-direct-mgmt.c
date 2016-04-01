@@ -106,6 +106,91 @@ static uint8_t gb_i2s_mgmt_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_i2s_mgmt_convert_gb_event(enum device_i2s_event event)
+{
+    uint8_t gb_event;
+
+    switch (event) {
+        case DEVICE_I2S_EVENT_INVALID:
+            gb_event = GB_I2S_EVENT_INVALID;
+            break;
+        case DEVICE_I2S_EVENT_NONE:
+            gb_event = GB_I2S_EVENT_NONE;
+            break;
+        case DEVICE_I2S_EVENT_UNSPECIFIED:
+            gb_event = GB_I2S_EVENT_UNSPECIFIED;
+            break;
+        case DEVICE_I2S_EVENT_TX_COMPLETE:
+            gb_event = GB_I2S_EVENT_TX_COMPLETE;
+            break;
+        case DEVICE_I2S_EVENT_RX_COMPLETE:
+            gb_event = GB_I2S_EVENT_RX_COMPLETE;
+            break;
+        case DEVICE_I2S_EVENT_UNDERRUN:
+            gb_event = GB_I2S_EVENT_UNDERRUN;
+            break;
+        case DEVICE_I2S_EVENT_OVERRUN:
+            gb_event = GB_I2S_EVENT_OVERRUN;
+            break;
+        case DEVICE_I2S_EVENT_CLOCKING:
+            gb_event = GB_I2S_EVENT_CLOCKING;
+            break;
+        case DEVICE_I2S_EVENT_DATA_LEN:
+            gb_event = GB_I2S_EVENT_DATA_LEN;
+            break;
+        default:
+            gb_event = GB_I2S_EVENT_UNSPECIFIED;
+    }
+
+    return gb_event;
+}
+
+static int gb_i2s_mgmt_report_event(uint8_t gb_event)
+{
+    struct gb_operation *op;
+    struct gb_i2s_report_event_request *request;
+    int ret;
+
+    op = gb_operation_create(i2s_dev_info.mgmt_cport,
+                                GB_I2S_MGMT_TYPE_REPORT_EVENT,
+                                sizeof(struct gb_i2s_report_event_request));
+    if (!op) {
+        return -ENOMEM;
+    }
+
+    request = gb_operation_get_request_payload(op);
+
+    request->event = gb_event;
+
+    ret = gb_operation_send_request(op, NULL, false);
+    if (ret) {
+        gb_error("failed to send i2s event\n");
+    }
+
+    gb_operation_destroy(op);
+
+    return ret;
+}
+
+static int gb_i2s_mgmt_notification_cb(struct device *dev, enum device_i2s_event  event)
+{
+    gb_debug("%s\n", __func__);
+    uint8_t gb_event;
+
+    /* return error if the device type is not
+     * DEVICE_TYPE_I2S_HW.
+     */
+    if (strncmp(dev->type, DEVICE_TYPE_I2S_HW,
+                           sizeof(DEVICE_TYPE_I2S_HW))) {
+        gb_error("%s invalid device type \n", __func__);
+        return GB_OP_INVALID;
+    }
+
+    gb_event = gb_i2s_mgmt_convert_gb_event(event);
+
+    return gb_i2s_mgmt_report_event(gb_event);
+}
+
 static int gb_i2s_mgmt_init(unsigned int cport)
 {
     gb_debug("%s()\n", __func__);
@@ -118,6 +203,8 @@ static int gb_i2s_mgmt_init(unsigned int cport)
         gb_debug("%s() failed init \n", __func__);
         return -EIO;
     }
+
+    device_i2s_register_callback(i2s_dev_info.dev, gb_i2s_mgmt_notification_cb);
 
     return 0;
 }
