@@ -282,6 +282,8 @@ static void stm32_tim_reset(FAR struct stm32_tim_dev_s *dev)
   stm32_tim_disable(dev);
 }
 
+#if defined(CONFIG_STM32_TIM1) || defined(CONFIG_STM32_TIM2) || defined(CONFIG_STM32_TIM3) || \
+    defined(CONFIG_STM32_TIM4) || defined(CONFIG_STM32_TIM5) || defined(CONFIG_STM32_TIM8)
 static void stm32_tim_gpioconfig(uint32_t cfg, stm32_tim_channel_t mode)
 {
   /* TODO: Add support for input capture and bipolar dual outputs for TIM8 */
@@ -295,7 +297,7 @@ static void stm32_tim_gpioconfig(uint32_t cfg, stm32_tim_channel_t mode)
       stm32_unconfiggpio(cfg);
     }
 }
-
+#endif
 /************************************************************************************
  * Basic Functions
  ************************************************************************************/
