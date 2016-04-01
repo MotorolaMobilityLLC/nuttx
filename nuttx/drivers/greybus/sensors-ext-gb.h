@@ -33,10 +33,10 @@
 
 #define GB_SENSORS_EXT_TYPE_INVALID             0x00
 #define GB_SENSORS_EXT_TYPE_PROTOCOL_VERSION    0x01
-#define GB_SENSORS_EXT_TYPE_SENSOR_ATTR         0x02
+#define GB_SENSORS_EXT_TYPE_SENSOR_COUNT        0x02
 #define GB_SENSORS_EXT_TYPE_SENSOR_INFO         0x03
 #define GB_SENSORS_EXT_TYPE_START_REPORTING     0x04
-#define GB_SENSORS_EXT_TYPE_REPORT              0x05
+#define GB_SENSORS_EXT_TYPE_FLUSH               0x05
 #define GB_SENSORS_EXT_TYPE_STOP_REPORTING      0x06
 #define GB_SENSORS_EXT_TYPE_EVENT               0x07
 
@@ -46,9 +46,8 @@ struct gb_sensors_ext_proto_version_response {
     __u8 minor;
 } __packed;
 
-struct gb_sensors_ext_sensor_attr_response {
-    __u8    count;
-    __le16   event_report_size;
+struct gb_sensors_ext_sensor_count_response {
+    __u8     count;
 } __packed;
 
 struct gb_sensors_ext_sensor_info_request {
@@ -56,7 +55,6 @@ struct gb_sensors_ext_sensor_info_request {
 } __packed;
 
 struct gb_sensors_ext_sensor_info_response {
-    __le16    size;
     __le32    version;
     __le32    type;
     __le32    max_range;
@@ -66,10 +64,12 @@ struct gb_sensors_ext_sensor_info_response {
     __le32    max_delay;
     __le32    fifo_rec;
     __le32    fifo_mec;
-    __le32    flag;
-    __le32    scale;
-    __le32    offset;
-    __u8      reading_size;
+    __le32    flags;
+    __le32    scale_int;
+    __le32    scale_nano;
+    __le32    offset_int;
+    __le32    offset_nano;
+    __u8      channels;
     __u8      reserved[3];
     __le16    name_len;
     __u8      name[128];
@@ -87,17 +87,24 @@ struct gb_sensors_ext_start_reporting_request {
     __le64  max_report_latency;
 } __packed;
 
-struct gb_sensors_ext_get_report_request {
+/* this request has no response payload */
+struct gb_sensors_ext_flush_request {
     __u8    id;
 } __packed;
 
-/* get_report response and event report request */
+/* flush response and event report request */
 struct gb_sensors_ext_event_report {
     __u8    id;
-    __u8    reserved;
+    __u8    flags;
     __le16  readings;
-    __u8    reference_time[sizeof(__le64)];
-    __u8    data_payload[SENSOR_DATA_PAYLOAD_SIZE];
+    __le64  reference_time;
+    __u8    data_payload[];
+} __packed;
+
+struct gb_sensors_ext_report_data {
+    __u8    num_sensors_reporting;
+    __u8    reserved;
+    struct gb_sensors_ext_event_report event_report[];
 } __packed;
 
 /* this request has no response payload */
