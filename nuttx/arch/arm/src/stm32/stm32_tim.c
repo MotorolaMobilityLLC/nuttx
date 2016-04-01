@@ -114,6 +114,16 @@
  *
  * In any of these cases, the timer will not be used by this timer module.
  */
+#if defined(CONFIG_STM32_STM32L4X6)
+    #define  STM32_RCC_APB1ENR         STM32_RCC_APB1ENR1
+    #define  STM32_RCC_APB1RSTR        STM32_RCC_APB1RSTR1
+    #define  RCC_APB1ENR_TIM2EN        RCC_APB1ENR1_TIM2EN
+    #define  RCC_APB1ENR_TIM3EN        RCC_APB1ENR1_TIM3EN
+    #define  RCC_APB1ENR_TIM4EN        RCC_APB1ENR1_TIM4EN
+    #define  RCC_APB1ENR_TIM5EN        RCC_APB1ENR1_TIM5EN
+    #define  RCC_APB1ENR_TIM6EN        RCC_APB1ENR1_TIM6EN
+    #define  RCC_APB1ENR_TIM7EN        RCC_APB1ENR1_TIM7EN
+#endif
 
 #if defined(CONFIG_STM32_TIM1_PWM) || defined (CONFIG_STM32_TIM1_ADC) || \
     defined(CONFIG_STM32_TIM1_DAC) || defined(CONFIG_STM32_TIM1_QE)
