@@ -48,5 +48,8 @@ CSRCS += anx7750.c
 
 endif
 
+ifeq ($(CONFIG_DISPLAY_TDI_546_1080P),y)
+CSRCS += tdi_546_1080p.c
 endif
 
+endif
