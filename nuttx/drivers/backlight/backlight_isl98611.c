@@ -79,6 +79,7 @@ static struct isl98611_backlight
     uint32_t gpio_power;
     uint32_t gpio_reset;
     struct light_info *light_info_array;
+    int on;
 } g_backlight;
 
 static struct channel_info isl98611_backlight_channel_info[] = {
@@ -108,26 +109,6 @@ static struct light_info isl98611_light_info[] = {
 
 #define ISL98611_NUM_LIGHTS (ARRAY_SIZE(isl98611_light_info))
 
-static void _isl98611_backlight_power_on(struct isl98611_backlight *backlight)
-{
-    if (backlight->gpio_power != ISL98611_INVALID_RESOURCE)
-        gpio_direction_out(backlight->gpio_power, 1);
-
-    usleep(ISL98611_BACKLIGHT_POWER_DELAY_US);
-
-    if (backlight->gpio_reset != ISL98611_INVALID_RESOURCE)
-        gpio_direction_out(backlight->gpio_reset, 1);
-}
-
-static void _isl98611_backlight_power_off(struct isl98611_backlight *backlight)
-{
-    if (backlight->gpio_reset != ISL98611_INVALID_RESOURCE)
-        gpio_direction_out(backlight->gpio_reset, 0);
-
-    if (backlight->gpio_power != ISL98611_INVALID_RESOURCE)
-        gpio_direction_out(backlight->gpio_power, 0);
-}
-
 static int _isl98611_backlight_i2c_write(struct i2c_dev_s *dev, uint16_t addr,
         uint8_t regaddr, uint8_t value)
 {
@@ -142,6 +123,51 @@ static int _isl98611_backlight_i2c_write(struct i2c_dev_s *dev, uint16_t addr,
 
     result = I2C_TRANSFER(dev, &msg, 1);
     return result;
+}
+
+static void _isl98611_backlight_power_on(struct isl98611_backlight *backlight)
+{
+    int i;
+
+    if (!backlight->i2c_dev) {
+        return;
+    }
+
+    if (backlight->gpio_power != ISL98611_INVALID_RESOURCE) {
+        gpio_direction_out(backlight->gpio_power, 1);
+
+        usleep(ISL98611_BACKLIGHT_POWER_DELAY_US);
+    }
+
+    if (backlight->gpio_reset != ISL98611_INVALID_RESOURCE) {
+        gpio_direction_out(backlight->gpio_reset, 1);
+
+        usleep(ISL98611_BACKLIGHT_POWER_DELAY_US);
+    }
+
+    /* Reset and delay */
+    _isl98611_backlight_i2c_write(backlight->i2c_dev, backlight->i2c_addr,
+        ISL98611_ENABLE, 0x3f);
+    usleep(ISL98611_BACKLIGHT_RESET_DELAY_US);
+
+    /* Initialize */
+    for (i = 0; i < ARRAY_SIZE(ISL98611_BACKLIGHT_INIT); i += 2) {
+        _isl98611_backlight_i2c_write(backlight->i2c_dev, backlight->i2c_addr,
+            ISL98611_BACKLIGHT_INIT[i], ISL98611_BACKLIGHT_INIT[i+1]);
+    }
+
+    backlight->on = 1;
+}
+
+static void _isl98611_backlight_power_off(struct isl98611_backlight *backlight)
+{
+    backlight->on = 0;
+
+    if (backlight->gpio_reset != ISL98611_INVALID_RESOURCE)
+        gpio_direction_out(backlight->gpio_reset, 0);
+
+    if (backlight->gpio_power != ISL98611_INVALID_RESOURCE)
+        gpio_direction_out(backlight->gpio_power, 0);
 }
 
 static int
@@ -169,8 +195,6 @@ _isl98611_backlight_set_brightness(struct isl98611_backlight *backlight,
  */
 static int isl98611_backlight_get_lights(struct device *dev, uint8_t *lights)
 {
-    dbg("enter\n");
-
     *lights = ISL98611_NUM_LIGHTS;
 
     return 0;
@@ -191,10 +215,8 @@ static int isl98611_backlight_get_light_config(struct device *dev, uint8_t id,
     struct light_info *info;
     int ret = 0;
 
-    dbg("enter id=%d\n", id);
-
     if (!dev)
-	return -ENODEV;
+        return -ENODEV;
 
     backlight = device_get_private(dev);
     if (!backlight)
@@ -227,8 +249,6 @@ static int isl98611_backlight_get_channel_config(struct device *dev,
     struct isl98611_backlight *backlight;
     struct light_info *info;
     int ret = 0;
-
-    dbg("enter light_id=%d channel_id=%d\n", light_id, channel_id);
 
     if (!dev)
         return -ENODEV;
@@ -266,24 +286,31 @@ static int isl98611_backlight_set_brightness(struct device *dev,
     struct light_info *info;
     int ret = 0;
 
-    dbg("enter light_id=%d channel_id=%d brightness=%d\n",
+    vdbg("light_id=%d channel_id=%d brightness=%d\n",
         light_id, channel_id, brightness);
 
     if (!dev)
-	return -ENODEV;
+        return -ENODEV;
 
     backlight = device_get_private(dev);
     if (!backlight)
         return -ENOENT;
 
-     info = backlight->light_info_array;
+    info = backlight->light_info_array;
 
-    if (light_id < ISL98611_NUM_LIGHTS &&
-        channel_id < info[light_id].cfg.channel_count) {
+    if (light_id >= ISL98611_NUM_LIGHTS ||
+        channel_id >= info[light_id].cfg.channel_count) {
+        return -EINVAL;
+    }
 
-        ret = _isl98611_backlight_set_brightness(backlight, brightness);
-    } else {
-        ret = -EINVAL;
+    if (!backlight->on) {
+        _isl98611_backlight_power_on(backlight);
+    }
+
+    ret = _isl98611_backlight_set_brightness(backlight, brightness);
+    if (!ret) {
+        /* Success, save value */
+        info[light_id].channels[channel_id].brightness = brightness;
     }
 
     return ret;
@@ -324,7 +351,6 @@ static int isl98611_backlight_unregister_callback(struct device *dev)
  */
 static int isl98611_backlight_dev_open(struct device *dev)
 {
-    int i;
     struct isl98611_backlight *backlight;
 
     if (!dev)
@@ -334,31 +360,12 @@ static int isl98611_backlight_dev_open(struct device *dev)
     if (!backlight)
         return -ENOENT;
 
-    /* Power on */
-    _isl98611_backlight_power_on(backlight);
-
     /* Open I2C */
     backlight->i2c_dev = up_i2cinitialize(backlight->i2c_bus);
     if (!backlight->i2c_dev) {
         dbg("ERROR: Failed to get bus %d\n", backlight->i2c_bus);
-        _isl98611_backlight_power_off(backlight);
         return -EIO;
     }
-
-    /* Reset and delay */
-    _isl98611_backlight_i2c_write(backlight->i2c_dev, backlight->i2c_addr,
-        ISL98611_ENABLE, 0x3f);
-    usleep(ISL98611_BACKLIGHT_RESET_DELAY_US);
-
-    /* Initialize */
-    for (i = 0; i < ARRAY_SIZE(ISL98611_BACKLIGHT_INIT); i += 2) {
-        _isl98611_backlight_i2c_write(backlight->i2c_dev, backlight->i2c_addr,
-            ISL98611_BACKLIGHT_INIT[i], ISL98611_BACKLIGHT_INIT[i+1]);
-    }
-
-    /* Set initial brightness */
-    _isl98611_backlight_set_brightness(backlight,
-		                       ISL98611_BACKLIGHT_INITIAL_BRIGHTNESS);
 
     return 0;
 }
@@ -367,7 +374,8 @@ static int isl98611_backlight_dev_open(struct device *dev)
  * @brief Close device
  * @param dev pointer to the UART device structure
  */
-static void isl98611_backlight_dev_close(struct device *dev) {
+static void isl98611_backlight_dev_close(struct device *dev)
+{
     struct isl98611_backlight *backlight = device_get_private(dev);
     if (!backlight) {
         return;
@@ -432,12 +440,13 @@ static int isl98611_backlight_probe(struct device *dev)
         gpio_direction_out(backlight->gpio_reset, 0);
     }
 
-    dbg("i2c: bus=%d, addr=%02x, gpio: pwr=%d, rst=%d\n",
+    vdbg("i2c: bus=%d, addr=%02x, gpio: pwr=%d, rst=%d\n",
         backlight->i2c_bus, backlight->i2c_addr,
         backlight->gpio_power, backlight->gpio_reset);
 
     /* add the light info array to the private data */
     backlight->light_info_array = isl98611_light_info;
+    backlight->on = 0;
 
     device_set_private(dev, backlight);
     return 0;
@@ -447,7 +456,8 @@ static int isl98611_backlight_probe(struct device *dev)
  * @brief remove device
  * @param dev pointer to the UART device structure
  */
-static void isl98611_backlight_remove(struct device *dev) {
+static void isl98611_backlight_remove(struct device *dev)
+{
     struct isl98611_backlight *backlight = device_get_private(dev);
     if (backlight) {
         device_set_private(dev, NULL);
