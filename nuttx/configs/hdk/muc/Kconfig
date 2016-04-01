@@ -29,18 +29,6 @@ config MAX17050_DEVICE
 	depends on BATTERY_MAX17050
 	select DEVICE_CORE
 
-config SLAVE_PWRCTRL_DEVICE
-        bool "Slave power control device"
-        default n
-        depends on GREYBUS_MODS
-        select DEVICE_CORE
-
-if SLAVE_PWRCTRL_DEVICE
-config SLAVE_PWRCTRL_FORCE_FLASH
-        bool "Slave power control force flash"
-        default n
-endif
-
 config BATTERY_GOOD_DEVICE_COMP
 	bool "Battery good detection with voltage comparator"
 	default n
