@@ -126,6 +126,42 @@ static struct device_resource mhb_resources[] = {
 
 #ifdef CONFIG_MHB_DSI_DISPLAY
 static struct device_resource dsi_display_resources[] = {
+    {
+        .name   = "pwr1_en",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 10, /* PA10 */
+        .count  = 1,
+    },
+    {
+        .name   = "pwr2_en",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 44, /* PC12 */
+        .count  = 1,
+    },
+    {
+        .name   = "pwr3_en",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 21, /* PB5 */
+        .count  = 1,
+    },
+    {
+        .name   = "disp_rst1_n",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 40, /* PC8 */
+        .count  = 1,
+    },
+    {
+        .name   = "touch_int_n",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 9, /* PA9 */
+        .count  = 1,
+    },
+    {
+        .name   = "touch_rst_n",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 41, /* PC9 */
+        .count  = 1,
+    },
 };
 #endif
 
