@@ -673,9 +673,6 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
         /* Cheat and re-use this transaction.  The unipro response (if any)
            will be in out_msg. */
 
-        /* Swap the I2S direction for the peer. */
-        req->cfg.direction = !req->cfg.direction;
-
         ret = mhb_unipro_send(transaction);
     }
 #endif
