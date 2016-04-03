@@ -57,6 +57,15 @@
 #define TFA9890_SUPPORTED_OUT_DEVICES    GB_AUDIO_DEVICE_OUT_LOUDSPEAKER
 #define TFA9890_SUPPORTED_IN_DEVICES    GB_AUDIO_DEVICE_IN_EC_REF
 
+#define TFA9890_I2S_RATE_MASK    DEVICE_I2S_PCM_RATE_48000
+#define TFA9890_I2S_PCM_FMT_MASK    DEVICE_I2S_PCM_FMT_16
+#define TFA9890_I2S_PROTOCOL_MASK    DEVICE_I2S_PROTOCOL_I2S
+#define TFA9890_I2S_WCLK_PALARITY_MASK    DEVICE_I2S_POLARITY_NORMAL
+#define TFA9890_I2S_WCLK_EDGE_MASK    DEVICE_I2S_EDGE_FALLING
+#define TFA9890_I2S_RXCLK_EDGE_MASK    DEVICE_I2S_EDGE_RISING
+#define TFA9890_I2S_TXCLK_EDGE_MASK    DEVICE_I2S_EDGE_FALLING
+
+
 extern struct audio_lowerhalf_s * tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
                                                    uint32_t i2c_addr,
                                                    uint32_t frequency,
@@ -97,6 +106,23 @@ struct gb_audio_s {
 };
 
 static struct gb_audio_s gb_aud;
+
+/* default I2S configuration for tfa9890, IC will operate in this config for all
+ * use cases
+ */
+static const struct device_i2s_pcm tfa9890_i2s_pcm = {
+    .rate       = TFA9890_I2S_RATE_MASK,
+    .channels   = 2,
+    .format     = TFA9890_I2S_PCM_FMT_MASK,
+};
+
+static const struct device_i2s_dai tfa9890_i2s_dai = {
+    .protocol            = TFA9890_I2S_PROTOCOL_MASK,
+    .wclk_polarity       = TFA9890_I2S_WCLK_PALARITY_MASK,
+    .wclk_change_edge    = TFA9890_I2S_WCLK_EDGE_MASK,
+    .data_tx_edge        = TFA9890_I2S_TXCLK_EDGE_MASK,
+    .data_rx_edge        = TFA9890_I2S_RXCLK_EDGE_MASK,
+};
 
 static const struct device_i2s_configuration tfa9890_i2s_config_table[] = {
     /* default I2S configuration for tfa9890, IC will operate in this config for all
@@ -316,6 +342,73 @@ static int muc_aud_dev_enable_devices(struct device *dev,
     return 0;
 }
 
+static int muc_i2s_tfa9890_direct_op_get_caps(struct device *dev, uint8_t clk_role,
+                           struct device_i2s_pcm *i2s_pcm,
+                           struct device_i2s_dai *i2s_dai)
+{
+    gb_debug("%s()\n", __func__);
+
+    if (clk_role != DEVICE_I2S_ROLE_SLAVE)
+        return -EINVAL;
+
+    memcpy(i2s_dai, &tfa9890_i2s_dai, sizeof(struct device_i2s_dai));
+    memcpy(i2s_pcm, &tfa9890_i2s_pcm, sizeof(struct device_i2s_pcm));
+
+    return 0;
+}
+
+static int muc_i2s_tfa9890_direct_op_set_config_masks(struct device *dev,
+                           uint8_t clk_role, struct device_i2s_pcm *i2s_pcm,
+                           struct device_i2s_dai *i2s_dai)
+{
+    gb_debug("%s()\n", __func__);
+
+    /*
+     * check if cfg is valid for now, as only one default
+     * configuration is supported.
+     */
+
+    if (!ONE_BIT_IS_SET(i2s_dai->protocol) ||
+          !ONE_BIT_IS_SET(i2s_dai->wclk_polarity) ||
+          !ONE_BIT_IS_SET(i2s_dai->wclk_change_edge) ||
+          !ONE_BIT_IS_SET(i2s_dai->data_rx_edge) ||
+          !ONE_BIT_IS_SET(i2s_dai->data_tx_edge) ||
+          !ONE_BIT_IS_SET(i2s_pcm->rate) ||
+          !ONE_BIT_IS_SET(i2s_pcm->format)) {
+         gb_error("%s() i2s configuration more than 1 bit set\n", __func__);
+         return -EINVAL;
+    }
+
+    if (i2s_pcm->channels < 0 || i2s_pcm->channels > 2) {
+         gb_error("%s() i2s channels configuration invalid\n", __func__);
+         return -ERANGE;
+    }
+
+     /* Check that bit field settings match our capabilities */
+    if (((i2s_dai->protocol & TFA9890_I2S_PROTOCOL_MASK) !=
+                                              TFA9890_I2S_PROTOCOL_MASK)||
+         ((i2s_dai->wclk_polarity & TFA9890_I2S_WCLK_PALARITY_MASK) !=
+                                              TFA9890_I2S_WCLK_PALARITY_MASK) ||
+         ((i2s_dai->wclk_change_edge & TFA9890_I2S_WCLK_EDGE_MASK) !=
+                                              TFA9890_I2S_WCLK_EDGE_MASK) ||
+         ((i2s_dai->data_rx_edge & TFA9890_I2S_RXCLK_EDGE_MASK) !=
+                                              TFA9890_I2S_RXCLK_EDGE_MASK) ||
+         ((i2s_dai->data_tx_edge & TFA9890_I2S_TXCLK_EDGE_MASK) !=
+                                              TFA9890_I2S_TXCLK_EDGE_MASK) ||
+         ((i2s_pcm->rate & TFA9890_I2S_RATE_MASK) !=
+                                              TFA9890_I2S_RATE_MASK) ||
+         ((i2s_pcm->format & TFA9890_I2S_PCM_FMT_MASK) !=
+                                              TFA9890_I2S_PCM_FMT_MASK)) {
+        gb_error("%s() failed matching tfa9890 capabilities\n", __func__);
+        return -EINVAL;
+    }
+
+    if (clk_role != DEVICE_I2S_ROLE_SLAVE)
+        return -EINVAL;
+
+    return 0;
+}
+
 static int muc_i2s_tfa9890_direct_op_get_supported_configurations(struct device *dev,
                            uint16_t *configuration_count,
                            const struct device_i2s_configuration
@@ -369,12 +462,12 @@ static int muc_i2s_tfa9890_direct_op_set_configuration(struct device *dev,
     return -EINVAL;
 }
 
-static int muc_i2s_tfa9890_direct_op_get_processing_delay(struct device *dev,
-                           uint32_t *processing_delay)
+static int muc_i2s_tfa9890_direct_op_get_delay_receiver(struct device *dev,
+                           uint32_t *delay)
 {
     gb_debug("%s()\n", __func__);
 
-    *processing_delay = 30000;  //30 ms will need to check for accuracy
+    *delay = 30000;  //30 ms
 
     return 0;
 }
@@ -475,9 +568,11 @@ struct device_driver muc_audio_dev_driver = {
 
 /* I2S PHY protocol driver and ops */
 static struct device_i2s_type_ops muc_i2s_tfa9890_direct_type_ops = {
-    .get_processing_delay         = muc_i2s_tfa9890_direct_op_get_processing_delay,
+    .get_delay_receiver         = muc_i2s_tfa9890_direct_op_get_delay_receiver,
     .get_supported_configurations = muc_i2s_tfa9890_direct_op_get_supported_configurations,
     .set_configuration            = muc_i2s_tfa9890_direct_op_set_configuration,
+    .get_caps                     = muc_i2s_tfa9890_direct_op_get_caps,
+    .set_config                   = muc_i2s_tfa9890_direct_op_set_config_masks,
     .start_transmitter_port       = muc_i2s_tfa9890_direct_op_start_transmitter,
     .start_receiver_port          = muc_i2s_tfa9890_direct_op_start_receiver,
     .stop_receiver_port           = muc_i2s_tfa9890_direct_op_stop_receiver,
