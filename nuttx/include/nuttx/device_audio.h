@@ -35,6 +35,8 @@
 #include <nuttx/device.h>
 
 #define DEVICE_TYPE_MUC_AUD_HW   "aud_dev"
+#define DEVICE_AUDIO_GB_ID    0
+#define DEVICE_AUDIO_MHB_ID    1
 
 struct device_aud_vol_range {
     int min;
@@ -51,6 +53,12 @@ struct device_aud_usecases {
     uint32_t capture_usecases;
 };
 
+struct device_aud_pcm_config {
+    uint32_t    format;     /* DEVICE_I2S_PCM_FMT_* */
+    uint32_t    rate;       /* DEVICE_I2S_PCM_RATE_* */
+    uint8_t     channels;
+};
+
 struct device_aud_data {
     void (*report_devices)(struct device *dev, struct device_aud_devices *devices);
 };
@@ -65,6 +73,7 @@ struct device_aud_dev_type_ops {
     int (*set_sys_volume)(struct device *dev, int vol_db);
     int (*get_supp_devices)(struct device *dev, struct device_aud_devices  *devices);
     int (*enable_devices)(struct device *dev, struct device_aud_devices  *devices);
+    int (*get_supp_pcm_config)(struct device *dev, struct device_aud_pcm_config  *config);
 };
 
 static inline int device_audio_get_volume_db_range(struct device *dev,
@@ -181,6 +190,20 @@ static inline int device_audio_enable_devices(struct device *dev,
 
     if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->enable_devices)
         return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->enable_devices(dev, devices);
+
+    return -ENOSYS;
+}
+
+static inline int device_audio_get_pcm_config(struct device *dev,
+                                           struct device_aud_pcm_config  *i2s_pcm)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supp_pcm_config)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supp_pcm_config(dev, i2s_pcm);
 
     return -ENOSYS;
 }
