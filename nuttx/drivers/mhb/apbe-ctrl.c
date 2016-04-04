@@ -34,9 +34,9 @@
 #include <arch/board/mods.h>
 
 #include <nuttx/device.h>
-#include <nuttx/gpio.h>
-
 #include <nuttx/device_slave_pwrctrl.h>
+#include <nuttx/gpio.h>
+#include <nuttx/util.h>
 
 #include <nuttx/greybus/mods-ctrl.h>
 #include <nuttx/greybus/mods.h>
@@ -50,6 +50,7 @@
 struct apbe_ctrl_info {
     sem_t apbe_pwrctrl_sem;
     slave_state_callback slave_state_cb;
+    slave_status_callback slave_status_cb[4];
     uint32_t open_ref_cnt;
     uint32_t slave_state_ref_cnt;
     enum base_attached_e attached;
@@ -112,10 +113,11 @@ static int apbe_pwrctrl_op_get_mask(struct device *dev, uint32_t *mask)
 
 static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode mode)
 {
+    struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
+
     lldbg("mode=%d\n", mode);
     switch (mode) {
     case SLAVE_PWRCTRL_POWER_ON:
-        // TODO: Reset the MHB UART driver.
         apbe_power_on_normal();
         break;
     case SLAVE_PWRCTRL_POWER_FLASH_MODE:
@@ -124,6 +126,11 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
     case SLAVE_PWRCTRL_POWER_OFF:
     default:
         apbe_power_off();
+
+        if (ctrl_info->mhb_dev) {
+            device_mhb_restart(ctrl_info->mhb_dev);
+        }
+
         break;
     }
 
@@ -151,7 +158,25 @@ static void apbe_pwrctrl_attach_changed(FAR void *arg, enum base_attached_e stat
 static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
                uint8_t *payload, size_t payload_length)
 {
-    // TODO: Implement a listener for the APBE PM status.
+    struct apbe_ctrl_info *ctrl_info = &apbe_ctrl;
+    struct mhb_pm_status_not *not = (struct mhb_pm_status_not *)payload;
+    size_t i;
+
+    if (hdr->type != MHB_TYPE_PM_STATUS_NOT) {
+        /* Ignore other messages */
+        return 0;
+    }
+
+    if (payload_length != sizeof(*not)) {
+        lldbg("ERROR: Invalid PM status notify\n");
+        return -EINVAL;
+    }
+
+    for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
+        if (ctrl_info->slave_status_cb[i]) {
+            ctrl_info->slave_status_cb[i](dev, not->status);
+        }
+    }
 
     return 0;
 }
@@ -165,7 +190,7 @@ static int apbe_pwrctrl_open(struct device *dev)
     if (!apbe_ctrl.mhb_dev) {
         apbe_ctrl.mhb_dev = device_open(DEVICE_TYPE_MHB, MHB_ADDR_PM);
 
-        device_mhb_register_receiver(dev, MHB_ADDR_PM, mhb_handle_pm);
+        device_mhb_register_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
     }
 
     if (!apbe_ctrl.mhb_dev) {
@@ -188,7 +213,7 @@ static void apbe_pwrctrl_close(struct device *dev) {
 
     if (apbe_ctrl.open_ref_cnt == 0 && apbe_ctrl.mhb_dev) {
         /* Close the MHB device. */
-        device_mhb_unregister_receiver(dev, MHB_ADDR_PM, mhb_handle_pm);
+        device_mhb_unregister_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
 
         device_close(apbe_ctrl.mhb_dev);
         apbe_ctrl.mhb_dev = NULL;
@@ -298,12 +323,58 @@ err:
     return ret;
 }
 
+static int apbe_pwrctrl_register_slave_status_cb(struct device *dev,
+                                                 slave_status_callback cb)
+{
+    size_t i;
+    struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
+
+    if (!ctrl_info) {
+        lldbg("ERROR: Invalid device\n");
+        return -ENODEV;
+    }
+
+    for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
+        if (!ctrl_info->slave_status_cb[i]) {
+            ctrl_info->slave_status_cb[i] = cb;
+            return 0;
+        }
+    }
+
+    lldbg("ERROR: Failed to register\n");
+    return -ENOMEM;
+}
+
+static int apbe_pwrctrl_unregister_slave_status_cb(struct device *dev,
+                                                   slave_status_callback cb)
+{
+    size_t i;
+    struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
+
+    if (!ctrl_info) {
+        lldbg("ERROR: Invalid device\n");
+        return -ENODEV;
+    }
+
+    for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
+        if (ctrl_info->slave_status_cb[i] == cb) {
+            ctrl_info->slave_status_cb[i] = NULL;
+            return 0;
+        }
+    }
+
+    lldbg("ERROR: Failed to unregister\n");
+    return -EINVAL;
+}
+
 static struct device_slave_pwrctrl_type_ops apbe_pwrctrl_type_ops = {
     .get_mask = apbe_pwrctrl_op_get_mask,
     .set_mode = apbe_pwrctrl_op_set_mode,
     .register_slave_state_cb = apbe_pwrctrl_register_slave_state_cb,
     .unregister_slave_state_cb = apbe_pwrctrl_unregister_slave_state_cb,
     .send_slave_state = apbe_pwrctrl_send_slave_state,
+    .register_slave_status_cb = apbe_pwrctrl_register_slave_status_cb,
+    .unregister_slave_status_cb = apbe_pwrctrl_unregister_slave_status_cb,
 };
 
 static struct device_driver_ops apbe_pwrctrl_driver_ops = {
