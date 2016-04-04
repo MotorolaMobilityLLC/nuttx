@@ -234,11 +234,6 @@ static int _mhb_dsi_display_send_config_req(struct mhb_dsi_display *display)
     const struct mhb_cdsi_config *cfg = NULL;
     size_t cfg_size = 0;
 
-    if (!_mhb_dsi_display_get_config) {
-        llldbg("ERROR: get config not defined.\n");
-        return -ENOSYS;
-    }
-
     ret = _mhb_dsi_display_get_config(display->cdsi_instance,
                 display->panel_info, &cfg, &cfg_size);
     if (ret || !cfg || !cfg_size) {
@@ -259,11 +254,6 @@ static int _mhb_dsi_display_send_display_on_req(struct mhb_dsi_display *display)
     struct mhb_hdr hdr;
     const struct mhb_cdsi_cmd *cmds = NULL;
     size_t cmds_size = 0;
-
-    if (!_mhb_dsi_display_get_on_commands) {
-        llldbg("ERROR: on commands not defined.\n");
-        return -ENOSYS;
-    }
 
     ret = _mhb_dsi_display_get_on_commands(display->cdsi_instance,
                 display->panel_info, &cmds, &cmds_size);
@@ -286,11 +276,6 @@ _mhb_dsi_display_send_display_off_req(struct mhb_dsi_display *display)
     struct mhb_hdr hdr;
     const struct mhb_cdsi_cmd *cmds = NULL;
     size_t cmds_size = 0;
-
-    if (!_mhb_dsi_display_get_off_commands) {
-        llldbg("ERROR: off commands not defined.\n");
-        return -ENOSYS;
-    }
 
     ret = _mhb_dsi_display_get_off_commands(display->cdsi_instance,
             display->panel_info, &cmds, &cmds_size);
@@ -483,11 +468,6 @@ static int mhb_dsi_display_get_config(struct device *dev, uint8_t *display_type,
     struct mhb_dsi_display *display = device_get_private(dev);
     if (!display) {
         return -ENODEV;
-    }
-
-    if (!_mhb_dsi_display_get_config) {
-        llldbg("ERROR: get config not defined.\n");
-        return -ENOSYS;
     }
 
     ret = _mhb_dsi_display_get_config(display->cdsi_instance,

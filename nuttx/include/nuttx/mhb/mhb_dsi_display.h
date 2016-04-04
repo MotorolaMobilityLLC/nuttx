@@ -39,17 +39,17 @@
  * can allow support for multiple panels in one target.
  */
 
-extern int weak_function _mhb_dsi_display_get_config(uint8_t instance,
+extern int _mhb_dsi_display_get_config(uint8_t instance,
     const struct mhb_dsi_panel_info *panel_info,
     const struct mhb_cdsi_config **cfg,
     size_t *size);
 
-extern int weak_function _mhb_dsi_display_get_on_commands(uint8_t instance,
+extern int _mhb_dsi_display_get_on_commands(uint8_t instance,
     const struct mhb_dsi_panel_info *panel_info,
     const struct mhb_cdsi_cmd **cmds,
     size_t *size);
 
-extern int weak_function _mhb_dsi_display_get_off_commands(uint8_t instance,
+extern int _mhb_dsi_display_get_off_commands(uint8_t instance,
     const struct mhb_dsi_panel_info *panel_info,
     const struct mhb_cdsi_cmd **cmds,
     size_t *size);
