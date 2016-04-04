@@ -35,6 +35,7 @@
 #define DEVICE_TYPE_SLAVE_PWRCTRL_HW          "slave_pwrctrl"
 
 typedef int (*slave_state_callback)(struct device *dev, uint32_t slave_state);
+typedef int (*slave_status_callback)(struct device *dev, uint32_t slave_status);
 
 enum slave_pwrctrl_mode {
     SLAVE_PWRCTRL_POWER_ON          = 0x01,
@@ -53,6 +54,8 @@ struct device_slave_pwrctrl_type_ops {
     int (*register_slave_state_cb)(struct device *dev, slave_state_callback cb);
     int (*unregister_slave_state_cb)(struct device *dev);
     int (*send_slave_state)(struct device *dev, uint32_t slave_state);
+    int (*register_slave_status_cb)(struct device *dev, slave_status_callback cb);
+    int (*unregister_slave_status_cb)(struct device *dev, slave_status_callback cb);
 };
 
 /**
@@ -165,5 +168,53 @@ static inline int device_slave_pwrctrl_send_slave_state(struct device *dev,
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->send_slave_state(dev, slave_state);
+}
+
+/**
+ * @brief Register a callback to receive status notifications about the APBE.
+ *
+ * @param dev pointer to structure of device data
+ * @param function pointer to the callback to register
+ * @return 0 on success, negative errno on error
+ */
+static inline int
+device_slave_pwrctrl_register_status_callback(struct device *dev,
+                                              slave_status_callback cb)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->register_slave_status_cb) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->register_slave_status_cb(dev, cb);
+}
+
+/**
+ * @brief  Unregister an existing status callback.
+ *
+ * @param dev pointer to structure of device data
+ * @param function pointer to the callback to unregister
+ * @return 0 on success, negative errno on error
+ */
+static inline int
+device_slave_pwrctrl_unregister_status_callback(struct device *dev,
+                                                slave_status_callback cb)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->unregister_slave_status_cb) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, slave_pwrctrl)->unregister_slave_status_cb(dev, cb);
 }
 #endif /* __DEVICE_SLAVE_PWRCTRL_H__ */
