@@ -52,6 +52,8 @@
 
 #define MHB_SIG_STOP (9)
 
+#define MHB_UART_TRACE (0)
+
 struct mhb_queue_item {
     sq_entry_t entry;
     size_t size;
@@ -392,10 +394,32 @@ err_irqrestore:
     return ret;
 }
 
+static int mhb_notify_callback(struct mhb_hdr *hdr,
+    uint8_t *payload, size_t payload_length)
+{
+    ssize_t index = _mhb_addr_to_index(hdr->addr);
+    if (index < 0) {
+       lldbg("ERROR: invalid addr=%d.\n", hdr->addr);
+       return index;
+    }
+
+    mhb_receiver receiver = g_mhb->receivers[index];
+    if (receiver) {
+        return receiver(g_mhb->self, hdr, payload, payload_length);
+    } else {
+       lldbg("WARNING: no receiver\n");
+       return -EINVAL;
+    }
+}
+
 static int mhb_callback(struct mhb_hdr *hdr,
     uint8_t *payload, size_t payload_length)
 {
     uint8_t funcid = (hdr->addr >> MHB_FUNC_SHIFT) & MHB_FUNC_BIT;
+
+#if MHB_UART_TRACE
+    lldbg("rx: addr=%x, type=%x, res=%x\n", hdr->addr, hdr->type, hdr->result);
+#endif
 
     if (hdr->rsvd != 0) {
         /* Require the reserved field to be 0. This provides the ability
@@ -409,21 +433,8 @@ static int mhb_callback(struct mhb_hdr *hdr,
         return mhb_handle_pm(hdr, payload, payload_length);
     case MHB_FUNC_UART:
         return mhb_handle_uart(hdr, payload, payload_length);
-    default: {
-            ssize_t index = _mhb_addr_to_index(hdr->addr);
-            if (index < 0) {
-                lldbg("ERROR: invalid addr=%d.\n", hdr->addr);
-                return index;
-            }
-
-            mhb_receiver receiver = g_mhb->receivers[index];
-            if (receiver) {
-                return receiver(g_mhb->self, hdr, payload, payload_length);
-            } else {
-                lldbg("WARNING: no receiver\n");
-                return -EINVAL;
-            }
-        }
+    default:
+        return mhb_notify_callback(hdr, payload, payload_length);
     }
 }
 
@@ -575,6 +586,10 @@ static void *mhb_rx_thread(void *data)
 static int mhb_send(struct device *dev, struct mhb_hdr *hdr,
     uint8_t *payload, size_t payload_length, int flags) {
     struct mhb_queue_item *item;
+
+#if MHB_UART_TRACE
+    lldbg("tx: addr=%x, type=%x, res=%x\n", hdr->addr, hdr->type, hdr->result);
+#endif
 
     /* Calculate the packet length */
     const size_t length = MHB_HDR_SIZE + payload_length + MHB_CRC_SIZE;
