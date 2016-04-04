@@ -49,7 +49,7 @@
 #define MHB_DSI_DISPLAY_INVALID_RESOURCE  0xffffffff
 
 #define MHB_DSI_DISPLAY_POWER_DELAY_US    100000
-#define MHB_DSI_DISPLAY_OP_TIMEOUT_MS     800
+#define MHB_DSI_DISPLAY_OP_TIMEOUT_MS     2000
 
 #define MHB_DSI_DISPLAY_CDSI_INSTANCE     0
 
@@ -68,6 +68,7 @@ static struct mhb_dsi_display
 {
     struct device *display_dev;
     struct device *mhb_dev;
+    struct device *slave_pwr_ctrl;
     uint32_t gpio_pwr1;
     uint32_t gpio_pwr2;
     uint32_t gpio_pwr3;
@@ -319,6 +320,9 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
         return -ENODEV;
     }
 
+    vdbg("addr=%x, type=%x, result=%x, old_state=%d\n",
+        hdr->addr, hdr->type, hdr->result, display->state);
+
     switch (hdr->type) {
     case MHB_TYPE_CDSI_CONFIG_RSP:
         if (display->state == MHB_DSI_DISPLAY_STATE_CONFIG_DSI) {
@@ -375,6 +379,8 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
         display->state = MHB_DSI_DISPLAY_STATE_ERROR;
         _mhb_dsi_display_signal_response(display);
     }
+
+    vdbg("new_state=%d\n", display->state);
 
     return 0;
 }
@@ -515,19 +521,89 @@ static int mhb_dsi_display_get_state(struct device *dev, uint8_t *state)
     return 0;
 }
 
-static int mhb_dsi_display_apbe_state(int state)
+static int mhb_slave_status_callback(struct device *dev, uint32_t slave_status)
 {
-    static struct device *slave_pwr_ctrl;
+    int result = -EFAULT;
+    struct mhb_dsi_display *display = &g_display;
 
-    slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, MHB_ADDR_CDSI0);
-    if (!slave_pwr_ctrl) {
-       lldbg("ERROR: Failed to open SLAVE Power Control\n");
+    vdbg("status=%d, old_state=%d\n", slave_status, display->state);
+
+    switch (slave_status) {
+    case MHB_PM_STATUS_PEER_CONNECTED:
+        if (display->state == MHB_DSI_DISPLAY_STATE_APBE_ON) {
+            /* Send the configuration to the APBE. */
+            result = _mhb_dsi_display_send_config_req(display);
+            if (result) {
+                lldbg("ERROR: send config failed: %d\n", result);
+                return result;
+            }
+
+            display->state = MHB_DSI_DISPLAY_STATE_CONFIG_DSI;
+        }
+    }
+
+    vdbg("new_state=%d\n", display->state);
+
+    return result;
+}
+
+static int _mhb_dsi_display_apbe_on(struct mhb_dsi_display *display)
+{
+    int ret;
+
+    if (display->slave_pwr_ctrl) {
+        lldbg("ERROR: Already open\n");
+        return -EBUSY;
+    }
+
+    display->slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+        MHB_ADDR_CDSI0);
+    if (!display->slave_pwr_ctrl) {
+       lldbg("ERROR: Failed to open\n");
        return -ENODEV;
     }
 
-    device_slave_pwrctrl_send_slave_state(slave_pwr_ctrl, state);
+    ret = device_slave_pwrctrl_register_status_callback(display->slave_pwr_ctrl,
+        mhb_slave_status_callback);
+    if (ret) {
+        lldbg("ERROR: Failed to register\n");
+        return ret;
+    }
 
-    device_close(slave_pwr_ctrl);
+    ret = device_slave_pwrctrl_send_slave_state(display->slave_pwr_ctrl,
+        SLAVE_STATE_ENABLED);
+    if (ret) {
+        lldbg("ERROR: Failed to send state\n");
+        return ret;
+    }
+
+    return 0;
+}
+
+static int _mhb_dsi_display_apbe_off(struct mhb_dsi_display *display)
+{
+    int ret;
+
+    if (!display->slave_pwr_ctrl) {
+        return -ENODEV;
+    }
+
+    ret = device_slave_pwrctrl_send_slave_state(display->slave_pwr_ctrl,
+        SLAVE_STATE_DISABLED);
+    if (ret) {
+        lldbg("ERROR: Failed to send state\n");
+    }
+
+    display->state = MHB_DSI_DISPLAY_STATE_APBE_OFF;
+
+    ret = device_slave_pwrctrl_unregister_status_callback(
+        display->slave_pwr_ctrl, mhb_slave_status_callback);
+    if (ret) {
+        lldbg("ERROR: Failed to unregister\n");
+    }
+
+    device_close(display->slave_pwr_ctrl);
+    display->slave_pwr_ctrl = NULL;
 
     return 0;
 }
@@ -537,20 +613,11 @@ static int _mhb_dsi_display_set_state_on(struct mhb_dsi_display *display)
     int result;
 
     /* Request APBE on. */
-    mhb_dsi_display_apbe_state(1);
-    sleep(2); // TODO: Register with apbe-ctrl listener.
+    _mhb_dsi_display_apbe_on(display);
+    display->state = MHB_DSI_DISPLAY_STATE_APBE_ON;
 
     /* Turn panel on. */
     _mhb_dsi_display_power_on(display);
-
-    /* Send the configuration to the APBE. */
-    result = _mhb_dsi_display_send_config_req(display);
-    if (result) {
-        lldbg("ERROR: send config failed: %d\n", result);
-        return result;
-    }
-
-    display->state = MHB_DSI_DISPLAY_STATE_CONFIG_DSI;
 
     result = _mhb_dsi_display_wait_for_response(display);
     if (result) {
@@ -580,7 +647,9 @@ static int _mhb_dsi_display_set_state_off(struct mhb_dsi_display *display)
     }
 
     /* Request APBE off. */
-    mhb_dsi_display_apbe_state(0);
+    _mhb_dsi_display_apbe_off(display);
+
+    display->state = MHB_DSI_DISPLAY_STATE_OFF;
 
     return result;
 }
@@ -684,6 +753,8 @@ static void mhb_dsi_display_dev_close(struct device *dev) {
     if (!display) {
         return;
     }
+
+    _mhb_dsi_display_apbe_off(display);
 
     if (display->mhb_dev) {
         device_mhb_unregister_receiver(display->mhb_dev, MHB_ADDR_CDSI0,
