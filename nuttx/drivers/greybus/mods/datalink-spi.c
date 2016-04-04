@@ -105,6 +105,13 @@
 /* Macro for checking if the provided number is a power of two. */
 #define IS_PWR_OF_TWO(x) (!(x & (x - 1)) && x)
 
+enum ack
+{
+  ACK_NEEDED,
+  ACK_NOT_NEEDED,
+  ACK_ERROR,
+};
+
 /*
  * Possible data link layer messages. Responses IDs should be the request ID
  * with the MSB set.
@@ -477,7 +484,7 @@ static void txn_start_cb(void *v)
   mods_host_int_set(false);
 }
 
-static bool ack_handler(FAR struct mods_spi_dl_s *priv, bool do_ack)
+static bool ack_handler(FAR struct mods_spi_dl_s *priv, enum ack ack_req)
 {
 #ifdef CONFIG_GREYBUS_MODS_ACK
   uint32_t start;
@@ -488,9 +495,9 @@ static bool ack_handler(FAR struct mods_spi_dl_s *priv, bool do_ack)
 
   start = hrt_getusec();
 
-  /* Send ACK to base */
+  /* Send ACK to base (if requested) */
   priv->tack_cfg = gpio_cfg_save(GPIO_MODS_SPI_TACK);
-  gpio_direction_out(GPIO_MODS_SPI_TACK, do_ack ? 1 : 0);
+  gpio_direction_out(GPIO_MODS_SPI_TACK, (ack_req == ACK_NEEDED) ? 1 : 0);
 
   /* Setup to receive ACK from base */
   priv->rack_cfg = gpio_cfg_save(GPIO_MODS_SPI_RACK);
@@ -504,7 +511,7 @@ static bool ack_handler(FAR struct mods_spi_dl_s *priv, bool do_ack)
              ((hrt_getusec() - start) < ACK_TIMEOUT_US));
       if (!ack && wake_n)
         {
-          if (!do_ack)
+          if (ack_req == ACK_ERROR)
             {
               /*
                * Since both TX and RX failed, need to spin longer to ensure
@@ -533,7 +540,7 @@ static bool ack_handler(FAR struct mods_spi_dl_s *priv, bool do_ack)
         }
     }
 
-  if (!do_ack)
+  if (ack_req == ACK_ERROR)
     {
       /* Must block long enough to ensure base does not see false ACK. */
       while ((wake_n = gpio_get_value(GPIO_MODS_WAKE_N)) &&
@@ -575,7 +582,7 @@ static void txn_finished_worker(FAR void *arg)
       dbg("RFR still asserted: cnt=%d\n", ++(priv->rfr_cnt));
     }
 
-  if (ack_handler(priv, true))
+  if (ack_handler(priv, (bitmask & HDR_BIT_VALID) ? ACK_NEEDED : ACK_NOT_NEEDED))
     {
       /* Reset TX consumer ring buffer entry */
       reset_txc_rb_entry(priv);
@@ -710,7 +717,7 @@ static void txn_error_worker(FAR void *arg)
 
   dbg("Transceive error\n");
 
-  if (ack_handler(priv, false))
+  if (ack_handler(priv, ACK_ERROR))
     {
       /* Reset TX consumer ring buffer entry */
       reset_txc_rb_entry(priv);
