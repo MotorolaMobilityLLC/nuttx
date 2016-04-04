@@ -430,7 +430,8 @@ static int mhb_callback(struct mhb_hdr *hdr,
 
     switch (funcid) {
     case MHB_FUNC_PM:
-        return mhb_handle_pm(hdr, payload, payload_length);
+        mhb_handle_pm(hdr, payload, payload_length);
+        return mhb_notify_callback(hdr, payload, payload_length);
     case MHB_FUNC_UART:
         return mhb_handle_uart(hdr, payload, payload_length);
     default:
