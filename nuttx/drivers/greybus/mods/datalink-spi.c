@@ -56,6 +56,20 @@
 #  error "CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE > MODS_DL_PAYLOAD_MAX_SZ"
 #endif
 
+/* Protocol version supported by this driver */
+#define PROTO_VER           (2)
+
+/* Protocol version change log */
+#define PROTO_VER_PKT1      (1)     /* Version that added PKT1 bit */
+#define PROTO_VER_ACK       (1)     /* Minimum version for ACK support */
+#define PROTO_VER_DUMMY     (2)     /* Version that added DUMMY bit */
+
+/*
+ * Protocol version support macro for checking if the requested feature (f)
+ * is supported by the attached MuC.
+ */
+#define BASE_SUPPORTS(d, f) (d->proto_ver >= PROTO_VER_##f)
+
 /* Default payload size of a SPI packet (in bytes) */
 #define DEFAULT_PAYLOAD_SZ (32)
 
@@ -66,8 +80,9 @@
 #define MAX_NUM_RB_ENTRIES (160)
 
 /* SPI packet header bit definitions */
+#define HDR_BIT_DUMMY  (0x01 << 9)  /* 1 = dummy packet */
 #define HDR_BIT_PKT1   (0x01 << 8)  /* 1 = first packet of message */
-#define HDR_BIT_VALID  (0x01 << 7)  /* 1 = valid packet, 0 = dummy packet */
+#define HDR_BIT_VALID  (0x01 << 7)  /* 1 = packet has valid payload */
 #define HDR_BIT_TYPE   (0x01 << 6)  /* SPI message type */
 #define HDR_BIT_PKTS   (0x3F << 0)  /* How many additional packets to expect */
 
@@ -96,11 +111,14 @@
 /* Maximum time to wait for an ACK from the base */
 #define ACK_TIMEOUT_US 100000       /* 100 milliseconds */
 
+/* Size of the header in bytes */
+#define HDR_SIZE       sizeof(struct spi_msg_hdr)
+
 /* Macro to determine the payload size from the packet size */
-#define PL_SIZE(pkt_size)  (pkt_size - sizeof(struct spi_msg_hdr) - CRC_SIZE)
+#define PL_SIZE(pkt_size)  (pkt_size - HDR_SIZE - CRC_SIZE)
 
 /* Macro to determine the packet size from the payload size */
-#define PKT_SIZE(pl_size)  (pl_size + sizeof(struct spi_msg_hdr) + CRC_SIZE)
+#define PKT_SIZE(pl_size)  (pl_size + HDR_SIZE + CRC_SIZE)
 
 /* Macro for checking if the provided number is a power of two. */
 #define IS_PWR_OF_TWO(x) (!(x & (x - 1)) && x)
@@ -137,7 +155,7 @@ struct mods_spi_dl_s
   bool xfer_setup;               /* Flag to indicate transfer in progress */
   size_t pkt_size;               /* Size of packet (hdr + pl + CRC) in bytes */
   size_t new_pkt_size;           /* Packet size to use next time TX queue empty */
-  bool pkt1_supported;           /* Flag to indicate base sets pkt1 hdr bit */
+  __u8 proto_ver;                /* Protocol version supported by base */
 
   FAR struct work_s wake_work;
   FAR struct work_s tend_work;
@@ -173,6 +191,7 @@ struct spi_dl_msg_bus_config_req
 {
   __le16 max_pl_size;            /* Maximum payload size supported by base */
   __u8   features;               /* See DL_BIT_* defines for values */
+  __u8   version;                /* SPI msg format version of base */
 } __packed;
 
 struct spi_dl_msg_bus_config_resp
@@ -180,6 +199,7 @@ struct spi_dl_msg_bus_config_resp
   __le32 max_speed;              /* Maximum bus speed supported by the mod */
   __le16 pl_size;                /* Payload size that mod has selected to use */
   __u8   features;               /* See DL_BIT_* defines for values */
+  __u8   version;                /* SPI msg format version supported by mod */
 } __packed;
 
 struct spi_dl_msg
@@ -284,6 +304,8 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
       return -EINVAL;
     }
 
+  priv->proto_ver = req.bus_req.version;
+
   resp.id = DL_MSG_ID_BUS_CFG_RESP;
   resp.bus_resp.max_speed = cpu_to_le32(CONFIG_GREYBUS_MODS_MAX_BUS_SPEED);
 
@@ -311,6 +333,7 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
     }
   resp.bus_resp.pl_size = cpu_to_le16(pl_size);
 
+  resp.bus_resp.version = PROTO_VER;
   resp.bus_resp.features = 0;
 
 #ifdef CONFIG_GREYBUS_MODS_ACK
@@ -318,12 +341,40 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
     {
       priv->ack_supported = true;
       resp.bus_resp.features |= DL_BIT_ACK;
+
+      /* Bases that support ACKing must use PROTO_VER_ACK or later */
+      if (!BASE_SUPPORTS(priv, ACK))
+        {
+          dbg("ACK requires newer protocol version\n");
+          priv->proto_ver = PROTO_VER_ACK;
+        }
     }
 
   vdbg("ack_supported = %d\n", priv->ack_supported);
 #endif
 
   return queue_data(priv, MSG_TYPE_DL, &resp, sizeof(resp));
+}
+
+/* Caller must hold semaphore before calling this function! */
+static inline void set_txp_hdr(FAR struct mods_spi_dl_s *priv, uint16_t bits)
+{
+  struct spi_msg_hdr *hdr = ring_buf_get_data(priv->txp_rb);
+  hdr->bitmask = cpu_to_le16(bits);
+}
+
+/* Caller must hold semaphore before calling this function! */
+static inline void next_txp(FAR struct mods_spi_dl_s *priv)
+{
+  ring_buf_pass(priv->txp_rb);
+  priv->txp_rb = ring_buf_get_next(priv->txp_rb);
+}
+
+/* Caller must hold semaphore before calling this function! */
+static inline void setup_for_dummy_tx(FAR struct mods_spi_dl_s *priv)
+{
+  set_txp_hdr(priv, HDR_BIT_DUMMY);
+  next_txp(priv);
 }
 
 /* Caller must hold semaphore before calling this function! */
@@ -355,10 +406,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
   if (ring_buf_is_producers(rb))
     {
       vdbg("%d RX\n", *((int *)ring_buf_get_buf(rb)));
-
-      /* Claim a ring buffer entry from the producer for the dummy packet */
-      ring_buf_pass(priv->txp_rb);
-      priv->txp_rb = ring_buf_get_next(priv->txp_rb);
+      setup_for_dummy_tx(priv);
     }
   else
     {
@@ -462,7 +510,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
 
       /* Reset state variables */
-      priv->pkt1_supported = false;
+      priv->proto_ver = 0;
 #ifdef CONFIG_DEBUG
       priv->rfr_cnt = 0;
 #endif
@@ -563,6 +611,7 @@ static void txn_finished_worker(FAR void *arg)
   size_t pl_size = PL_SIZE(priv->pkt_size);
   buf_t recv = priv->cb->recv;
   int ret;
+  enum ack ack_req;
 
   do
     {
@@ -582,7 +631,33 @@ static void txn_finished_worker(FAR void *arg)
       dbg("RFR still asserted: cnt=%d\n", ++(priv->rfr_cnt));
     }
 
-  if (ack_handler(priv, (bitmask & HDR_BIT_VALID) ? ACK_NEEDED : ACK_NOT_NEEDED))
+  if (BASE_SUPPORTS(priv, DUMMY))
+    {
+      switch (bitmask & (HDR_BIT_VALID | HDR_BIT_DUMMY))
+        {
+          case HDR_BIT_VALID:
+            ack_req = ACK_NEEDED;
+            break;
+
+          case HDR_BIT_DUMMY:
+            ack_req = ACK_NOT_NEEDED;
+            break;
+
+          /* If valid and dummy are equal (both 0 or both 1), the packet is
+           * garbage.
+           */
+          default:
+            dbg("garbage packet\n");
+            ack_req = ACK_ERROR;
+            break;
+        }
+    }
+  else
+    {
+      ack_req = (bitmask & HDR_BIT_VALID) ? ACK_NEEDED : ACK_NOT_NEEDED;
+    }
+
+  if (ack_handler(priv, ack_req))
     {
       /* Reset TX consumer ring buffer entry */
       reset_txc_rb_entry(priv);
@@ -591,9 +666,9 @@ static void txn_finished_worker(FAR void *arg)
   /* Clear transfer setup flag */
   priv->xfer_setup = false;
 
-  if (!(bitmask & HDR_BIT_VALID))
+  if (ack_req != ACK_NEEDED)
     {
-      /* Received a dummy packet - no processing to do! */
+      /* Received a dummy or garbage packet - no processing to do! */
 
       /* Only change packet size if TX buffer is empty */
       if ((priv->new_pkt_size > 0) && (priv->txp_rb == priv->txc_rb))
@@ -606,31 +681,21 @@ static void txn_finished_worker(FAR void *arg)
     }
 
   if ((bitmask & HDR_BIT_TYPE) == MSG_TYPE_DL)
-    {
       recv = dl_recv;
-
-      /*
-       * Check if base supports setting the first packet bit. Once set, it
-       * cannot be reset until next detach. This check is only performed on
-       * datalink packets since datalink packets happen first and are rare.
-       */
-      if (!priv->pkt1_supported)
-          priv->pkt1_supported = (bitmask & HDR_BIT_PKT1) != 0;
-    }
 
 #if CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE == MODS_DL_PAYLOAD_MAX_SZ
   /* Check if un-packetizing is not required */
   if (MODS_DL_PAYLOAD_MAX_SZ == pl_size)
     {
-      if (priv->pkt1_supported && (bitmask & HDR_BIT_PKT1))
-          recv(&priv->dl, &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
+      if (!BASE_SUPPORTS(priv, PKT1) || (bitmask & HDR_BIT_PKT1))
+          recv(&priv->dl, &priv->rx_buf[HDR_SIZE], pl_size);
       else
           dbg("1st pkt bit not set\n");
       goto done;
     }
 #endif
 
-  if (priv->pkt1_supported)
+  if (BASE_SUPPORTS(priv, PKT1))
     {
       if (bitmask & HDR_BIT_PKT1)
         {
@@ -675,7 +740,7 @@ static void txn_finished_worker(FAR void *arg)
     }
 
   memcpy(&priv->rcvd_payload[priv->rcvd_payload_idx],
-         &priv->rx_buf[sizeof(struct spi_msg_hdr)], pl_size);
+         &priv->rx_buf[HDR_SIZE], pl_size);
   priv->rcvd_payload_idx += pl_size;
 
   if (bitmask & HDR_BIT_PKTS)
@@ -778,7 +843,6 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
 
   while ((remaining > 0) && (packets > 0))
     {
-      struct spi_msg_hdr *hdr;
       uint16_t bitmask;
       __u8 *payload;
       int this_pl;
@@ -789,8 +853,7 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
           return -ENOMEM;
         }
 
-      hdr = ring_buf_get_data(priv->txp_rb);
-      payload = ((__u8 *)ring_buf_get_data(priv->txp_rb)) + sizeof(*hdr);
+      payload = ((__u8 *)ring_buf_get_data(priv->txp_rb)) + HDR_SIZE;
 
       /* Determine the payload size of this packet */
       this_pl = MIN(remaining, pl_size);
@@ -803,15 +866,14 @@ static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
           bitmask |= HDR_BIT_PKT1;
 
       /* Populate the SPI message */
-      hdr->bitmask = cpu_to_le16(bitmask);
+      set_txp_hdr(priv, bitmask);
       memcpy(payload, dbuf, this_pl);
 
       remaining -= this_pl;
       dbuf += this_pl;
 
       ring_buf_put(priv->txp_rb, priv->pkt_size);
-      ring_buf_pass(priv->txp_rb);
-      priv->txp_rb = ring_buf_get_next(priv->txp_rb);
+      next_txp(priv);
     }
 
   return OK;
