@@ -7,3 +7,17 @@ config BACKLIGHT_ISL98611
 	select I2C
 	---help---
 		Intersil ISL98611 backlight driver.
+
+if BACKLIGHT_ISL98611
+config BACKLIGHT_ISL98611_I2C_BUS
+	int "ISL98611 I2C bus"
+	default 3
+	---help---
+		ISL98611 I2C bus.  Default: 3
+
+config BACKLIGHT_ISL98611_I2C_ADDR
+	hex "ISL98611 I2C address"
+	default 0x29
+	---help---
+		ISL98611 I2C address.  Default: 0x29
+endif

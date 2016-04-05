@@ -400,31 +400,12 @@ static int isl98611_backlight_probe(struct device *dev)
 
     backlight->self = dev;
 
-    /* I2C bus */
-    backlight->i2c_bus = ISL98611_INVALID_RESOURCE;
-    struct device_resource *rsrc = device_resource_get_by_name(dev,
-        DEVICE_RESOURCE_TYPE_REGS, "i2c_bus");
-    if (rsrc) {
-        backlight->i2c_bus = rsrc->start;
-    } else {
-        dbg("ERROR: resource i2c_bus not found");
-        return -ENODEV;
-    }
-
-    /* I2C address */
-    backlight->i2c_addr = ISL98611_INVALID_RESOURCE;
-    rsrc = device_resource_get_by_name(dev,
-        DEVICE_RESOURCE_TYPE_REGS, "i2c_addr");
-    if (rsrc) {
-        backlight->i2c_addr = rsrc->start;
-    } else {
-        dbg("ERROR: resource i2c_addr not found");
-        return -ENODEV;
-    }
+    backlight->i2c_bus = CONFIG_BACKLIGHT_ISL98611_I2C_BUS;
+    backlight->i2c_addr = CONFIG_BACKLIGHT_ISL98611_I2C_ADDR;
 
     /* GPIO power (optional) */
     backlight->gpio_power = ISL98611_INVALID_RESOURCE;
-    rsrc = device_resource_get_by_name(dev,
+    struct device_resource *rsrc = device_resource_get_by_name(dev,
         DEVICE_RESOURCE_TYPE_GPIO, "gpio_power");
     if (rsrc) {
         backlight->gpio_power = rsrc->start;
