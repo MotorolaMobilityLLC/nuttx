@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <apps/ice/cdsi.h>
 #include <nuttx/config.h>
@@ -52,47 +53,84 @@
 #define CTRL_DBG
 #endif
 
-#define REG_JPEG_ORIEN_W      0x0000
-#define REG_JPEG_QUALITY_W    0x0001
-#define REG_JPEG_ORIEN_R      0x0004
-#define REG_JPEG_QUALITY_R    0x0005
-#define REG_TIME_SYNC_STEP1   0x0008
-#define REG_TIME_SYNC_STEP2   0x0010
+static const uint8_t s10_iso[] = {
+    ISO_AUTO,
+    ISO_AUTO,
+    ISO_100,
+    ISO_200,
+    ISO_400,
+    ISO_800,
+    ISO_1600,
+    ISO_3200,
+};
 
-#define REG_FLASH_MODE_W      0x1001
-#define REG_AE_LOCK_W         0x1002
-#define REG_ANTI_FLICK_W      0x1003
-#define REG_FLASH_MODE_R      0x1005
-#define REG_AE_LOCK_R         0x1006
-#define REG_ANTI_FLICK_R      0x1007
-#define REG_AE_REGION_STEP1   0x1008
-#define REG_AE_REGION_STEP2   0x1010
-#define REG_FOCUS_MODE_W      0x1014
-#define REG_AF_LOCK_W         0x1016
-#define REG_FOCUS_MODE_R      0x1018
-#define REG_AF_LOCK_R         0x101A
-#define REG_AF_REGION_STEP1   0x101C
-#define REG_AF_REGION_STEP2   0x1020
-#define REG_EV_COMP_W         0x1024
-#define REG_EV_COM__R         0x1028
+static const uint8_t s10_wb[] = {
+    WB_AUTO,
+    WB_AUTO,
+    WB_INCANDESCENT,
+    WB_FLUORESCENT,
+    WB_DAYLIGHT,
+    WB_CLOUDY_DAYLIGHT,
+    WB_TWILIGHT,
+    WB_SHADE,
+};
 
-#define REG_ISO_W             0x2000
-#define REG_WB_W              0x2001
-#define REG_COLOR_W           0x2002
-#define REG_ISO_R             0x2004
-#define REG_WB_R              0x2005
-#define REG_COLOR_R           0x2006
-#define REG_SHARPNESS_W       0x2008
-#define REG_CONTRAST_W        0x2009
-#define REG_SATURATION_W      0x200A
-#define REG_SHARPNESS_R       0x200C
-#define REG_CONTRAST_R        0x200D
-#define REG_SATURATION_R      0x200E
+static const uint8_t s10_effect[] = {
+    NONE,
+    MONO,
+    NEGATIVE,
+    SOLARIZE,
+    SEPIA,
+    POSTERIZE,
+    WHITEBOARD,
+    BLACKBOARD,
+    AQUA,
+};
 
-#define REG_CAPTURE_W         0x4008
-#define REG_VIDEO_W           0x4009
+static const uint8_t s10_sharpness[] = {
+    SHARPNESS_2M,
+    SHARPNESS_1M,
+    SHARPNESS_0,
+    SHARPNESS_1P,
+    SHARPNESS_2P,
+};
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+static const uint8_t s10_contrast[] = {
+    CONTRAST_2M,
+    CONTRAST_1M,
+    CONTRAST_0,
+    CONTRAST_1P,
+    CONTRAST_2P,
+};
+
+static const uint8_t s10_saturation[] = {
+    SATURATION_2M,
+    SATURATION_1M,
+    SATURATION_0,
+    SATURATION_1P,
+    SATURATION_2P,
+};
+
+static const uint8_t s10_scene[] = {
+    SCENE_AUTO,
+    SCENE_AUTO,
+    SCENE_ACTION,
+    SCENE_PORTRAIT,
+    SCENE_LANDSCAPE,
+    SCENE_NIGHT,
+    SCENE_NIGHT_PORTRAIT,
+    SCENE_THEATRE,
+    SCENE_BEACH,
+    SCENE_SNOW,
+    SCENE_SUNSET,
+    SCENE_STEADYPHOTO,
+    SCENE_FIREWORKS,
+    SCENE_SPORTS,
+    SCENE_PARTY,
+    SCENE_CANDLELIGHT,
+    SCENE_BARCODE,
+    SCENE_HDR,
+};
 
 static struct s10p_i2c_dev_info *i2c_info;
 
@@ -257,41 +295,67 @@ static int ctrl_val_set(struct device *dev,
         const camera_ext_ctrl_val_t *val)
 {
     int is_array;
+    uint8_t value_8;
+    int32_t value_s;
     size_t i;
     int retval = 0;
 
     is_array = self->val_cfg.nr_of_elem > 1;
     switch (self->id) {
         case CAM_EXT_CID_AE_ANTIBANDING_MODE:
-            s10p_write_reg1(i2c_info, REG_ANTI_FLICK_W, 0x00);  //mbing
             break;
         case CAM_EXT_CID_AE_EXPOSURE_COMPENSATION:
-            s10p_write_reg2(i2c_info, REG_EV_COMP_W, val->val & 0xFFFF);
             break;
         case CAM_EXT_CID_AE_LOCK:
-            s10p_write_reg1(i2c_info, REG_AE_LOCK_W, 0x00);   //mbing
             break;
         case CAM_EXT_CID_AE_MODE:
-            break;
-        case CAM_EXT_CID_AF_MODE:
+            value_8 = FLASH_AUTO;
+            if ((val->val & 0xFF) == CAM_EXT_AE_MODE_ON)
+            {
+                value_8 = FLASH_OFF;
+            }
+            else if ((val->val & 0xFF) == CAM_EXT_AE_MODE_ON_ALWAYS_FLASH)
+            {
+                value_8 = FLASH_ON;
+            }
+            s10p_write_reg1(i2c_info, REG_FLASH_MODE_W, value_8);
             break;
         case CAM_EXT_CID_AWB_MODE:
+            value_8 = val->val & 0xFF;
+            s10p_write_reg1(i2c_info, REG_WB_W, s10_wb[value_8]);
             break;
         case CAM_EXT_CID_EFFECT_MODE:
+            value_8 = val->val & 0xFF;
+            if (value_8 >= sizeof(s10_effect))
+                value_8 = CAM_EXT_EFFECT_MODE_OFF;
+            s10p_write_reg1(i2c_info, REG_COLOR_W, s10_effect[value_8]);
             break;
         case CAM_EXT_CID_CONTROL_MODE:
             break;
         case CAM_EXT_CID_SCENE_MODE:
+            value_8 = val->val & 0xFF;
+            s10p_write_reg1(i2c_info, REG_SCENEMODE_W, s10_scene[value_8]);
             break;
         case CAM_EXT_CID_VIDEO_STABILIZATION_MODE:
             break;
         case CAM_EXT_CID_JPEG_GPS_LOCATION:
             break;
         case CAM_EXT_CID_JPEG_ORIENTATION:
-            s10p_write_reg1(i2c_info, REG_JPEG_ORIEN_W, val->val & 0xFF);
-            CAM_DBG("wrote jpeg orientation %d\n", val->val);
+            value_8 =  JPEG_ORIENTATION_TOP_LEFT;
+            if ((val->val & 0x03) == 0)
+            {
+                value_8 = JPEG_ORIENTATION_TOP_RIGHT;
+            }
+            else if ((val->val & 0x03) == 2)
+            {
+                value_8 = JPEG_ORIENTATION_BOTTOM_LEFT;
+            }
+            s10p_write_reg1(i2c_info, REG_JPEG_ORIEN_W, value_8);
             break;
         case CAM_EXT_CID_JPEG_QUALITY:
+            value_8 = val->val & 0xFF;
+            if (value_8 > 100) value_8 = 100;
+            s10p_write_reg1(i2c_info, REG_JPEG_QUALITY_W, value_8);
             break;
         case CAM_EXT_CID_STATISTICS_FACE_DETECT_MODE:
             break;
@@ -303,26 +367,41 @@ static int ctrl_val_set(struct device *dev,
             break;
         case CAM_EXT_CID_AF_REGIONS:
             break;
-        case CAM_EXT_CID_START_CAPTURE:
-            if (val->val != 0)
-                s10p_write_reg1(i2c_info, REG_CAPTURE_W, val->val & 0xFF);
-            CAM_DBG("Capture Image %x\n", val->val);
-            break;
-        case CAM_EXT_CID_ABORT_CAPTURE:
-            break;
         case CAM_EXT_CID_ISO:
+            value_8 = val->val & 0xFF;
+            if (value_8 >= sizeof(s10_iso))
+                value_8 = CAM_EXT_ISO_AUTO;
+            s10p_write_reg1(i2c_info, REG_ISO_W, s10_iso[value_8]);
             break;
         case CAM_EXT_CID_ND_FILTER:
+            s10p_write_reg1(i2c_info, REG_ND_FILTER_W, val->val & 0x03);
             break;
         case CAM_EXT_CID_JPEG_SHARPNESS:
+            value_s = (int32_t)val->val;
+            value_s += sizeof(s10_sharpness)/2;
+            if ((value_s < 0) || value_s > (sizeof(s10_sharpness) -1))
+                value_s = sizeof(s10_sharpness)/2;
+            s10p_write_reg1(i2c_info, REG_SHARPNESS_W, s10_sharpness[value_s]);
             break;
         case CAM_EXT_CID_JPEG_CONTRAST:
+            value_s = (int32_t)val->val;
+            value_s += sizeof(s10_contrast)/2;
+            if ((value_s < 0) || value_s > (sizeof(s10_contrast) -1))
+                value_s = sizeof(s10_contrast)/2;
+            s10p_write_reg1(i2c_info, REG_CONTRAST_W, s10_contrast[value_s]);
             break;
         case CAM_EXT_CID_JPEG_SATURATION:
+            value_s = (int32_t)val->val;
+            value_s += sizeof(s10_saturation)/2;
+            if ((value_s < 0) || value_s > (sizeof(s10_saturation) -1))
+                value_s = sizeof(s10_saturation)/2;
+            s10p_write_reg1(i2c_info, REG_SATURATION_W, s10_saturation[value_s]);
             break;
-        case CAM_EXT_CID_TIME_SYNC:
-            break;
-        case CAM_EXT_CID_JPEG_GPS_TIMESTAMP:
+        case CAM_EXT_CID_FACE_DETECTION:
+            value_8 = 0;
+            if (val->val != CAM_EXT_STATISTICS_FACE_DETECT_MODE_OFF)
+                value_8 = 1;
+            s10p_write_reg1(i2c_info, REG_FACE_DET_W, value_8);
             break;
         default:
             break;
@@ -376,6 +455,115 @@ static int ctrl_val_set(struct device *dev,
     return retval;
 }
 
+static int ctrl_val_set_focus(struct device *dev,
+        const struct camera_ext_ctrl_cfg *self,
+        const camera_ext_ctrl_val_t *val)
+{
+    uint8_t value;
+    uint8_t value_8 = val->val & 0xFF;
+    if (self->id == CAM_EXT_CID_AF_MODE_EXT)
+    {
+        if (value_8 == CAM_EXT_AF_MODE_EXT_NULL)
+            return 0;
+        value_8 += CAM_EXT_AF_MODE_MAX;
+    }
+
+    if (value_8 == CAM_EXT_AF_MODE_OFF)
+    {
+        s10p_write_reg1(i2c_info, REG_FOCUS_MODE_W, FOCUS_MANUAL);
+    }
+    else
+    {
+        s10p_write_reg1(i2c_info, REG_FOCUS_MODE_W, FOCUS_AUTO);
+        if ((value_8 == CAM_EXT_AF_MODE_CONTINUOUS_VIDEO) ||
+            (value_8 == CAM_EXT_AF_MODE_CONTINUOUS_PICTURE))
+		{
+            s10p_write_reg1(i2c_info, REG_CONT_FOCUS_W, 1);
+        }
+        else
+        {
+            s10p_write_reg1(i2c_info, REG_CONT_FOCUS_W, 0);
+            value = FOCUS_RANGE_NORMAL;
+            if (value_8 == CAM_EXT_AF_MODE_MACRO) value = FOCUS_RANGE_MACRO;
+            if (value_8 == CAM_EXT_AF_MODE_MAX + CAM_EXT_AF_MODE_EXT_INFINITY)
+                value = FOCUS_RANGE_INFINITY;
+            if (value_8 == CAM_EXT_AF_MODE_MAX + CAM_EXT_AF_MODE_EXT_FIXED)
+                value = FOCUS_RANGE_HYPER_F;
+            s10p_write_reg1(i2c_info, REG_FOCUS_RANGE_W, value);
+        }
+    }
+
+    return 0;
+}
+
+static int ctrl_val_set_capture(struct device *dev,
+        const struct camera_ext_ctrl_cfg *self,
+        const camera_ext_ctrl_val_t *val)
+{
+    static uint32_t video_recording = 0;
+    uint32_t capture;
+    uint8_t value;
+
+    capture = val->val;
+    if ((capture & CAM_EXT_CID_CAPTURE_VIDEO_RECORD) != video_recording)
+    {
+        value = 0;
+        if (video_recording == 0)
+        {
+            video_recording = CAM_EXT_CID_CAPTURE_VIDEO_RECORD;
+            value = 1;
+        }
+        else
+        {
+            video_recording = 0;
+        }
+        s10p_write_reg1(i2c_info, REG_VIDEO_W, value);
+    }
+
+    if (((capture & CAM_EXT_CID_CAPTURE_STILL_CAPTURE)  |
+	     (capture & CAM_EXT_CID_CAPTURE_VIDEO_SNAPSHOT) |
+		 (capture & CAM_EXT_CID_CAPTURE_ZSL_CAPTURE)) != 0)
+    {
+        value = IMG_JPG;
+        if ((capture & CAM_EXT_CID_CAPTURE_RAW) != 0)
+        {
+            value = IMG_RAW;
+            if ((capture & CAM_EXT_CID_CAPTURE_JPG) != 0)
+                value = IMG_ALL;
+        }
+        s10p_write_reg1(i2c_info, REG_IMG_FORMAT_W, value);
+        s10p_write_reg1(i2c_info, REG_CAPTURE_W, 1);
+    }
+
+    CAM_DBG("Capture Image %x\n", val->val);
+	return 0;
+}
+
+static int ctrl_val_set_time_sync(struct device *dev,
+        const struct camera_ext_ctrl_cfg *self,
+        const camera_ext_ctrl_val_t *val)
+{
+    uint8_t value[8];
+    time_t time_in_sec;
+    FAR struct tm *time;
+
+    time_in_sec = (time_t)(val->val_64 / 1000000);
+    time = gmtime(&time_in_sec);
+
+    value[0] = REG_TIME_SYNC_STEP & 0xFF;
+    value[1] = (REG_TIME_SYNC_STEP >> 8) & 0xFF;
+    value[2] = (uint8_t)(time->tm_year - 80);
+    value[3] = (uint8_t)time->tm_mon;
+    value[4] = (uint8_t)time->tm_mday;
+    value[5] = (uint8_t)time->tm_hour;
+    value[6] = (uint8_t)time->tm_min;
+    value[7] = (uint8_t)time->tm_sec;
+
+    i2c_write(i2c_info, value, sizeof(value));
+
+    return 0;
+}
+
 static const struct camera_ext_ctrl_cfg ae_antibanding_mode = {
     .id = CAM_EXT_CID_AE_ANTIBANDING_MODE,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
@@ -424,6 +612,9 @@ static const struct camera_ext_ctrl_cfg ae_mode = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
+    .def = {
+        .val = CAM_EXT_AE_MODE_ON_AUTO_FLASH,
+    },
     .set_ctrl = ctrl_val_set,
 };
 
@@ -458,16 +649,20 @@ static const struct camera_ext_ctrl_cfg af_mode = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
-    .set_ctrl = ctrl_val_set,
+    .set_ctrl = ctrl_val_set_focus,
 };
 
 static const struct camera_ext_ctrl_cfg awb_mode = {
     .id = CAM_EXT_CID_AWB_MODE,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF
         | CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK,
+    .menu_skip_mask = 0x01,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
+    },
+    .def = {
+        .val = CAM_EXT_AWB_MODE_AUTO,
     },
     .set_ctrl = ctrl_val_set,
 };
@@ -498,6 +693,8 @@ static const struct camera_ext_ctrl_cfg scene_mode = {
     .id = CAM_EXT_CID_SCENE_MODE,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF
         | CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK,
+    .min = 0,
+    .menu_skip_mask = 0x02,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
@@ -530,10 +727,13 @@ static const struct camera_ext_ctrl_cfg jpeg_orientation = {
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF
         | CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK,
     .min = 0,
-    .max = 8,
+    .max = 3,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
+    },
+    .def = {
+        .val = 1,
     },
     .set_ctrl = ctrl_val_set,
 };
@@ -543,6 +743,21 @@ static const struct camera_ext_ctrl_cfg jpeg_quality = {
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
     .min = 0,
     .max = 100,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .def = {
+        .val = 85,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
+static const struct camera_ext_ctrl_cfg flash_mode = {
+    .id = CAM_EXT_CID_FLASH_MODE,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF
+        | CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK,
+    .menu_skip_mask = 0x2,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
@@ -593,7 +808,7 @@ static const struct camera_ext_ctrl_cfg statistics_info_max_face_count = {
         .nr_of_elem = 1,
     },
     .def = {
-        .val = 3,
+        .val = 8,
     },
 };
 
@@ -647,30 +862,32 @@ static const struct camera_ext_ctrl_cfg af_regions = {
     .set_ctrl = ctrl_val_set,
 };
 
-static const struct camera_ext_ctrl_cfg start_capture = {
-    .id = CAM_EXT_CID_START_CAPTURE,
+static const struct camera_ext_ctrl_cfg capture = {
+    .id = CAM_EXT_CID_CAPTURE,
     .flags = 0,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
-    .set_ctrl = ctrl_val_set,
+    .set_ctrl = ctrl_val_set_capture,
 };
 
-static const struct camera_ext_ctrl_cfg abort_capture = {
-    .id = CAM_EXT_CID_ABORT_CAPTURE,
-    .flags = 0,
+static const struct camera_ext_ctrl_cfg af_mode_ext = {
+    .id = CAM_EXT_CID_AF_MODE_EXT,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
+        | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
-    .set_ctrl = ctrl_val_set,
+    .set_ctrl = ctrl_val_set_focus,
 };
 
 static const struct camera_ext_ctrl_cfg iso = {
     .id = CAM_EXT_CID_ISO,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
         | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .menu_skip_mask = 2,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
@@ -682,6 +899,8 @@ static const struct camera_ext_ctrl_cfg nd_filter = {
     .id = CAM_EXT_CID_ND_FILTER,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
         | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .max = 2,
+    .step = 1,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
@@ -730,7 +949,7 @@ static const struct camera_ext_ctrl_cfg time_sync = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT64,
         .nr_of_elem = 1,
     },
-    .set_ctrl = ctrl_val_set,
+    .set_ctrl = ctrl_val_set_time_sync,
 };
 
 static const struct camera_ext_ctrl_cfg jpeg_gps_timestamp = {
@@ -825,14 +1044,15 @@ static const struct camera_ext_ctrl_cfg *_ctrls[] = {
     &jpeg_gps_location,
     &jpeg_orientation,
     &jpeg_quality,
+    &flash_mode,
     &focal_length,
     &statistics_face_detect_mode,
     &statistics_info_max_face_count,
     &sensor_exposure_time,
     &ae_regions,
     &af_regions,
-    &start_capture,
-    &abort_capture,
+    &capture,
+    &af_mode_ext,
     &iso,
     &nd_filter,
     &jpeg_sharpness,
