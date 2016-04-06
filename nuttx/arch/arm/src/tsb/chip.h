@@ -88,6 +88,9 @@
 #define HSIC_BASE       0x40040000
 #define HSIC_SIZE       0x1000
 
+#define ISAA_BASE       0x40084000
+#define ISAA_SIZE       0x1000
+
 #define VIDCRYPT_BASE   0x40085000
 #define VIDCRYPT_SIZE   0x100
 
