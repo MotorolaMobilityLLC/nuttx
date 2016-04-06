@@ -29,6 +29,7 @@
 #include <nuttx/config.h>
 #include <nuttx/init.h>
 #include <arch/board/board.h>
+#include <arch/tsb/isaa.h>
 #include "up_arch.h"
 #include "up_internal.h"
 #include "ram_vectors.h"
@@ -119,6 +120,10 @@ void tsb_start(void) {
     up_earlyserialinit();
 #endif
     dbg('D');
+
+#ifdef CONFIG_TSB_JTAG_ENABLE
+    tsb_isaa_enable_jtag();
+#endif
 
     tsb_boardinitialize();
 
