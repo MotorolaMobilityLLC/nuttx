@@ -107,10 +107,18 @@ static struct device_resource mhb_resources[] = {
         .start  = 1, /* Maps to the DEVICE_TYPE_UART_HW instance. */
         .count  = 1,
     },
+#ifdef GPIO_APBE_INT_N
+    {
+        .name   = "local_wake",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_APBE_INT_N,
+        .count  = 1,
+    },
+#endif
     {
         .name   = "peer_wake",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = 24, /* PB8 */
+        .start  = GPIO_APBE_WAKE,
         .count  = 1,
     },
 };

@@ -37,7 +37,7 @@
 #include <stdbool.h>
 #include <nuttx/gpio.h>
 
-#define BOARD_REVISION           (CONFIG_ARCH_BOARDID_PID & 0x0000FFFF)
+#define BOARD_REVISION           (CONFIG_ARCH_BOARDID_PID & 0x000000FF)
 
 #define CALC_GPIO_NUM(port, pin)  ((16 * (port - 'A')) + pin)
 
@@ -55,6 +55,11 @@
 #define GPIO_APBE_WAKE           CALC_GPIO_NUM('B',  8)
 #define GPIO_APBE_RST_N          CALC_GPIO_NUM('H',  1)
 #define GPIO_APBE_PWR_EN         CALC_GPIO_NUM('G',  14)
+
+/* Only present on HDK P2 and later */
+#if (BOARD_REVISION >= 2)
+# define GPIO_APBE_INT_N         CALC_GPIO_NUM('B',  5)
+#endif
 
 /*
  * On this board, the CHG_PG_N pin is not connected, so the BQ24292 driver
