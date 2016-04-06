@@ -46,6 +46,7 @@
 
 struct gpio_pad_detect_info {
     uint8_t gpio; /* gpio to detect docked state */
+    bool active_low; /* active when gpio is low */
     bool docked; /* current state */
     pad_detect cb; /* callback */
     void *arg; /*callback arg */
@@ -61,8 +62,9 @@ static struct gpio_pad_detect_info *g_info = NULL;
 
 static bool docked(void)
 {
-    /* TODO: Hard-coded to active low, should be configurable instead */
-    return !gpio_get_value(g_info->gpio);
+    uint8_t val;
+    val = gpio_get_value(g_info->gpio);
+    return (g_info->active_low) ? !val : val;
 }
 
 static void gpio_pad_detect_worker(FAR void *arg)
@@ -121,10 +123,15 @@ static int gpio_pad_detect_probe(struct device *dev)
 
     r = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "pad_det");
     if (!r) {
-        dbg("failed to get pad_det gpio\n");
-        retval = -EINVAL;
-        goto probe_err;
-    }
+        r = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "pad_det_n");
+        if (!r) {
+            dbg("failed to get pad det gpio\n");
+            retval = -EINVAL;
+            goto probe_err;
+        } else
+            g_info->active_low = true;
+    } else
+        g_info->active_low = false;
 
     g_info->gpio = r->start;
     gpio_direction_in(g_info->gpio);
