@@ -348,3 +348,9 @@ config ARCH_VIDCRYPT
 	default n
 	---help---
 		Adds video encryption.
+
+config TSB_JTAG_ENABLE
+	bool "Enable JTAG"
+	default n
+	---help---
+		Enable JTAG (if permitted).
