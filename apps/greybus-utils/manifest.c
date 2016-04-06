@@ -74,8 +74,6 @@ struct greybus g_greybus = {
 
 static const unsigned char bridge_manifest[] = {
 #include "manifest.inc"
-, 
-#include "signature.inc"
 };
 
 static void *alloc_cport(void)

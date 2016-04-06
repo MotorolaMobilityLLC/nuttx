@@ -131,15 +131,13 @@ $(COBJS): %$(OBJEXT): %.c
 	openssl dgst -sha256 -sign testkey_priv.key -out $@ $<
 
 ifneq ($(MANIFESTS),)
-signature.inc: $(MNSG)
-	echo signature.inc : $(MNSG) $(MANIFESTS)
-	xxd -i < $< > $@
-
-manifest.inc: $(MNFB)
+manifest.inc: $(MNFB) $(MNSG)
 	@echo manifest.inc : $(MNFB) $(MANIFESTS)
-	xxd -i < $< > $@
+	xxd -i < $(MNFB) > $@
+	echo "," >> $@
+	xxd -i < $(MNSG) >> $@
 
-MANIFEST_INCS := manifest.inc signature.inc
+MANIFEST_INCS := manifest.inc
 endif
 
 .built: $(OBJS)
