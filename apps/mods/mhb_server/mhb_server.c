@@ -694,21 +694,9 @@ static int mhb_handle_i2s_control_req(struct mhb_transaction *transaction)
     ret = 0;
 
 #if CONFIG_ICE_IPC_CLIENT
-    struct mhb_i2s_control_req *req =
-        (struct mhb_i2s_control_req *)transaction->in_msg.payload;
-
-    if (!ret) {
-        /* Cheat and re-use this transaction.  The unipro response (if any)
-           will be in out_msg. */
-
-        /* Move the peer command to local before sending. */
-        if (req->peer_command != MHB_CDSI_COMMAND_NONE) {
-            req->local_command = req->peer_command;
-            req->peer_command = MHB_CDSI_COMMAND_NONE;
-        }
-
-        ret = mhb_unipro_send(transaction);
-    }
+    /* Cheat and re-use this transaction.  The unipro response (if any)
+       will be in out_msg. */
+     ret = mhb_unipro_send(transaction);
 #endif
 
     transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
