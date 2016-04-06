@@ -89,6 +89,17 @@ ifeq ($(CONFIG_OOT_MANIFEST), y)
  MANIFESTS = $(subst .mnfs,,$(OOT_MANIFEST))
 endif
 
+ifdef EXT_MANIFEST_INC
+ ifneq ("$(wildcard $(EXT_MANIFEST_INC))","")
+  $(info "using externally signed manifest " $(EXT_MANIFEST_INC))
+  USE_EXT_MANIFEST_INC = y
+ else
+  $(error "EXT_MANIFEST_INC path invalid " $(EXT_MANIFEST_INC))
+ endif
+else
+  USE_EXT_MANIFEST_INC = n
+endif
+
 MANIFESTS ?= $(addprefix manifests/, $(MANIFEST))
 MNFS = $(addsuffix .mnfs, $(MANIFESTS))
 MNFB = $(addsuffix .mnfb, $(MANIFESTS))
@@ -124,6 +135,10 @@ $(AOBJS): %$(OBJEXT): %.S
 $(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
+ifeq ($(USE_EXT_MANIFEST_INC), y)
+manifest.inc: $(EXT_MANIFEST_INC)
+		cp $(EXT_MANIFEST_INC) $@
+else
 %.mnfb: %.mnfs
 	manifesto $<
 
@@ -136,8 +151,8 @@ manifest.inc: $(MNFB) $(MNSG)
 	xxd -i < $(MNFB) > $@
 	echo "," >> $@
 	xxd -i < $(MNSG) >> $@
+endif
 
-MANIFEST_INCS := manifest.inc
 endif
 
 .built: $(OBJS)
@@ -149,7 +164,7 @@ install:
 context:
 	@true
 
-.depend: Makefile $(SRCS) $(MANIFEST_INCS)
+.depend: Makefile $(SRCS) manifest.inc
 	@$(MKDEP) $(ROOTDEPPATH) "$(CC)" -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
@@ -160,7 +175,7 @@ clean:
 	$(call DELFILE, .built)
 	$(call CLEAN)
 	$(call DELFILE, manifest.inc $(ALL_MNFB))
-	$(call DELFILE, signature.inc $(ALL_MNSG))
+	$(call DELFILE, $(ALL_MNSG))
 
 distclean: clean
 	$(call DELFILE, Make.dep)
