@@ -41,8 +41,6 @@
 #include "up_arch.h"
 #include "tsb_scm.h"
 
-#define CDSI_DEFAULT_RETRIES (1000)
-
 static void *cdsi_lookup_table(const void *table, size_t row_size, uint32_t key) {
     uint8_t *curr = (uint8_t *)table;
 
@@ -515,6 +513,7 @@ int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t
             /* retry timeout */
             return -ETIME;
         }
+        usleep(1);
     }
 }
 
@@ -654,7 +653,8 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     cdsi_write(dev, CDSI_CDSIRX_PPI_DPHY_HSRX_ADJUST_OFFS, 0x2aa);
 
     /* Wait for auto-calibration to finish. */
-    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT, AUTOCALDONE, 1000);
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT,
+                    AUTOCALDONE, CDSI_DEFAULT_RETRIES);
     if (ret < 0) {
         lldbg("ERROR: auto-calibration failed\n");
         return ret;
@@ -664,7 +664,8 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     usleep(100000);
 
     /* Wait for line initialization to finish. */
-    CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT, LINEINITDONE, 1000);
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT,
+                    LINEINITDONE, CDSI_DEFAULT_RETRIES);
     if (ret < 0) {
         lldbg("ERROR: line initialization failed\n");
         return ret;
@@ -976,18 +977,39 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     /* Maximum line width (in bytes). */
     cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_15_OFFS, 0x1800);
 
-    CDSI_READ_UNTIL_SET(dev, CDSI_CDSITX_INTERRUPT_STATUS_00, INT_DPHY_LOCKUPDONE);
-    if (config->mode == TSB_CDSI_MODE_DSI) {
-        CDSI_READ_UNTIL_SET(dev, CDSI_CDSITX_INTERRUPT_STATUS_00, INT_DPHY_AUTOCALDONE);
+    int ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_00,
+                    INT_DPHY_LOCKUPDONE, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: DHPY lockup failed\n");
+        return ret;
     }
-    CDSI_READ_UNTIL_SET(dev, CDSI_CDSITX_INTERRUPT_STATUS_00, INT_DPHY_HSTXVREGRDY);
+
+    if (config->mode == TSB_CDSI_MODE_DSI) {
+        ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_00,
+                        INT_DPHY_AUTOCALDONE, CDSI_DEFAULT_RETRIES);
+        if (ret < 0) {
+            lldbg("ERROR: DPHY auto-cal failed\n");
+            return ret;
+        }
+    }
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_00,
+                    INT_DPHY_HSTXVREGRDY, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: DHPY HSTX VREG Ready failed\n");
+        return ret;
+    }
 
     CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_00, SBD_DPHY_MPM_CKEN, 1);
     CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_01, SBD_DPHY_MPM_PLLINTCKEN, 1);
     CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_02, SBD_DPHY_HSTXCLKENABLE, 1);
     CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_03, SBD_DPHY_STARTPPI, 1);
 
-    CDSI_READ_UNTIL_SET(dev, CDSI_CDSITX_INTERRUPT_STATUS_00, INT_DPHY_LINEINITDONE);
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_00,
+                    INT_DPHY_LINEINITDONE, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: DHPY line init failed\n");
+        return ret;
+    }
 
     cdsi_clear_tx_status(dev);
     cdsi_write(dev, CDSI_AL_TX_BRG_STATUS_OFFS, 0xffffffff);
@@ -1018,13 +1040,16 @@ int cdsi_tx_stop(struct cdsi_dev *dev) {
     CDSI_MODIFY(dev, CDSI_AL_TX_BRG_PIC_COM_START, AL_TX_BRG_REG_COM_START_A, 0);
 
     /* Wait until the VH (pixel) and packet interfaces are stopped. */
-    int result = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_SIDEBAND_STATUS_05, SBO_APF_VHIF_BUSY, CDSI_DEFAULT_RETRIES);
+    int result = CDSI_READ_UNTIL_CLR_RETRIES(dev,
+                    CDSI_CDSITX_SIDEBAND_STATUS_05, SBO_APF_VHIF_BUSY,
+                    CDSI_DEFAULT_RETRIES);
     if (result) {
         // This failure is OK if '!config->video_mode'.
         lldbg("WARNING: Failed to stop VHIF\n");
     }
 
-    result = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_SIDEBAND_STATUS_05, SBO_APF_PKTIF_BUSY, CDSI_DEFAULT_RETRIES);
+    result = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_SIDEBAND_STATUS_05,
+                    SBO_APF_PKTIF_BUSY, CDSI_DEFAULT_RETRIES);
     if (result) {
         lldbg("ERROR: Failed to stop PKTIF\n");
     }
