@@ -53,6 +53,8 @@
 #define CTRL_DBG
 #endif
 
+#define S10_I2C_RETRY  5
+
 static const uint8_t s10_iso[] = {
     ISO_AUTO,
     ISO_AUTO,
@@ -150,11 +152,17 @@ static int i2c_read(struct s10p_i2c_dev_info *i2c,
     msg[1].buffer = data;
     msg[1].length = data_len;
 
-    int ret = I2C_TRANSFER(i2c->i2c, &msg[0], 1);
-    if (ret != 0) {
+    int ret = S10_I2C_RETRY;
+    while (I2C_TRANSFER(i2c->i2c, &msg[0], 1) != 0)
+    {
+        usleep(1000 * 100);
+        if (--ret < 0) break;
+    }
+    if (ret < 0) {
         CAM_ERR("i2c read step 1 transfer failed %d\n", ret);
         return -1;
     }
+
     ret = I2C_TRANSFER(i2c->i2c, &msg[1], 1);
     if (ret != 0) {
         CAM_ERR("i2c read step 2 transfer failed %d\n", ret);
@@ -233,8 +241,13 @@ static int i2c_write(struct s10p_i2c_dev_info *i2c, uint8_t *addr, int addr_len)
     msg.buffer = addr;
     msg.length = addr_len;
 
-    int ret = I2C_TRANSFER(i2c->i2c, &msg, 1);
-    if (ret != 0) {
+    int ret = S10_I2C_RETRY;
+    while (I2C_TRANSFER(i2c->i2c, &msg, 1) != 0)
+    {
+        usleep(1000 * 100);
+        if (--ret < 0) break;
+    }
+    if (ret < 0) {
         CAM_ERR("i2c write transfer failed %d\n", ret);
         return -1;
     }
