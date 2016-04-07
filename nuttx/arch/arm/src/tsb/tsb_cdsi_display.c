@@ -49,9 +49,19 @@
 #define CDSI_NUM_LOOPS(n) (n / sizeof(uint32_t)) + (n % sizeof(uint32_t) ? 1 : 0)
 
 int dsi_write_cmd(struct cdsi_dev *dev, const struct dsi_cmd *cmd) {
+    int ret;
+
     /* Wait until APF is not busy. */
-    CDSI_READ_UNTIL_CLR(dev, CDSI_CDSITX_SIDEBAND_STATUS_05, APF_CMD_BUSY);
-    CDSI_READ_UNTIL_CLR(dev, CDSI_CDSITX_INTERRUPT_STATUS_06, INT_APF_CMD_DONE);
+    ret = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_SIDEBAND_STATUS_05,
+                APF_CMD_BUSY, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: APF command is busy\n");
+    }
+    ret = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_06,
+                INT_APF_CMD_DONE, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: APF command done not complete\n");
+    }
 
     /* Write APF command type */
     cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CMDIF_01_OFFS, cmd->ctype);
@@ -80,7 +90,11 @@ int dsi_write_cmd(struct cdsi_dev *dev, const struct dsi_cmd *cmd) {
     }
 
     /* Wait until APF command is done. */
-    CDSI_READ_UNTIL_SET(dev, CDSI_CDSITX_INTERRUPT_STATUS_06, INT_APF_CMD_DONE);
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_06,
+                INT_APF_CMD_DONE, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: APF command done not complete\n");
+    }
     /* Clear APF command done. */
     CDSI_WRITE(dev, CDSI_CDSITX_INTERRUPT_STATUS_06, INT_APF_CMD_DONE, 1);
 
@@ -106,16 +120,26 @@ int dsi_write_cmds(struct cdsi_dev *dev, const struct dsi_cmd *cmds, size_t num_
 
 static size_t _dsi_read_cmd(struct cdsi_dev *dev, uint8_t *buffer, size_t buffer_length) {
     size_t count = 0;
+    int ret;
 
     /* First send a command that starts a BTA and read operation. */
 
     /* Wait for RX BTA to complete. */
-    CDSI_READ_UNTIL_SET(dev, CDSI_CDSITX_INTERRUPT_STATUS_05, INT_DPHY_DIRECTION_RX);
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_05,
+                INT_DPHY_DIRECTION_RX, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: RX BTA is not complete\n");
+    }
+
     /* Clear the RX BTA interrupt status. */
     CDSI_WRITE(dev, CDSI_CDSITX_INTERRUPT_STATUS_05, INT_DPHY_DIRECTION_RX, 1);
 
     /* Wait for packet reception. */
-    CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_05, INT_APF_LPRX_PKTSTART, 100);
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_05,
+                INT_APF_LPRX_PKTSTART, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: Packet not received\n");
+    }
 
     uint8_t dt = CDSI_READ(dev, CDSI_CDSITX_SIDEBAND_LPRXIF_01, SBO_APF_LPRX_PKTID);
     lldbg("dt=%x\n", dt);
@@ -141,7 +165,11 @@ static size_t _dsi_read_cmd(struct cdsi_dev *dev, uint8_t *buffer, size_t buffer
         count = n;
     } else if (dt == DT_RSP_DCS_LONG_READ) {
         lldbg("long read\n");
-        CDSI_READ_UNTIL_SET(dev, CDSI_CDSITX_INTERRUPT_STATUS_05, INT_APF_LPRX_PKTEND);
+        ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_05,
+                INT_APF_LPRX_PKTEND, CDSI_DEFAULT_RETRIES);
+        if (ret < 0) {
+            lldbg("ERROR: RX packet end timed out\n");
+        }
         CDSI_WRITE(dev, CDSI_CDSITX_INTERRUPT_STATUS_05, INT_APF_LPRX_PKTEND, 1);
 
         // TODO: Are word_count and fifo_level set to the same value?
@@ -170,11 +198,31 @@ static size_t _dsi_read_cmd(struct cdsi_dev *dev, uint8_t *buffer, size_t buffer
     }
 
     /* Wait for TX BTA to complete. */
-    CDSI_READ_UNTIL_SET(dev, CDSI_CDSITX_INTERRUPT_STATUS_05, INT_DPHY_DIRECTION_TX);
-    CDSI_READ_UNTIL_CLR(dev, CDSI_CDSITX_INTERRUPT_STATUS_01, INT_DPHY_RXTRIGGERESC0);
-    CDSI_READ_UNTIL_CLR(dev, CDSI_CDSITX_INTERRUPT_STATUS_01, INT_DPHY_RXTRIGGERESC1);
-    CDSI_READ_UNTIL_CLR(dev, CDSI_CDSITX_INTERRUPT_STATUS_01, INT_DPHY_RXTRIGGERESC2);
-    CDSI_READ_UNTIL_CLR(dev, CDSI_CDSITX_INTERRUPT_STATUS_01, INT_DPHY_RXTRIGGERESC3);
+    ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_05,
+                    INT_DPHY_DIRECTION_TX, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: TX BTA not complete\n");
+    }
+    ret = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_01,
+                INT_DPHY_RXTRIGGERESC0, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: RX trigger ESC 0 timed out\n");
+    }
+    ret = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_01,
+                INT_DPHY_RXTRIGGERESC1, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: RX trigger ESC 1 timed out\n");
+    }
+    ret = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_01,
+                INT_DPHY_RXTRIGGERESC2, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: RX trigger ESC 2 timed out\n");
+    }
+    ret = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_01,
+                INT_DPHY_RXTRIGGERESC3, CDSI_DEFAULT_RETRIES);
+    if (ret < 0) {
+        lldbg("ERROR: RX trigger ESC 3 timed out\n");
+    }
 
     /* Clear the TX BTA interrupt status. */
     CDSI_WRITE(dev, CDSI_CDSITX_INTERRUPT_STATUS_05, INT_DPHY_DIRECTION_TX, 1);

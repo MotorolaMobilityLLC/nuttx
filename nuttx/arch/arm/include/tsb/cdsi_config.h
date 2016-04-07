@@ -100,8 +100,7 @@ int cdsi_tx_stop(struct cdsi_dev *dev);
 #define CDSI_READ_UNTIL_CLR_RETRIES(dev, name, field, retries) cdsi_read_until(dev, name##_OFFS, name##_##field##_MASK, 0, retries)
 #define CDSI_READ_UNTIL_SET_RETRIES(dev, name, field, retries) cdsi_read_until(dev, name##_OFFS, name##_##field##_MASK, name##_##field##_MASK, retries)
 
-#define CDSI_READ_UNTIL_CLR(dev, name, field) CDSI_READ_UNTIL_CLR_RETRIES(dev, name, field, 0)
-#define CDSI_READ_UNTIL_SET(dev, name, field) CDSI_READ_UNTIL_SET_RETRIES(dev, name, field, 0)
+#define CDSI_DEFAULT_RETRIES (100)
 
 /**
  * @brief           Read a field of a CDSI register.  Right-shift if necessary.
