@@ -175,6 +175,9 @@ enum MHB_ADDR {
 #define MHB_TYPE_CDSI_READ_PANEL_INFO_RSP \
     (MHB_RSP_MASK|MHB_TYPE_CDSI_READ_PANEL_INFO_REQ)
 
+#define MHB_TYPE_CDSI_UNCONFIG_REQ (6)
+#define MHB_TYPE_CDSI_UNCONFIG_RSP (MHB_RSP_MASK|MHB_TYPE_CDSI_UNCONFIG_REQ)
+
 /* I2S */
 #define MHB_TYPE_I2S_CONFIG_REQ (0)
 #define MHB_TYPE_I2S_CONFIG_RSP (MHB_RSP_MASK|MHB_TYPE_I2S_CONFIG_REQ)
@@ -345,8 +348,7 @@ enum {
 };
 
 struct mhb_cdsi_control_req {
-	uint8_t local_command;
-	uint8_t peer_command;
+	uint8_t command;
 } __attribute__((packed));
 
 /* DSI and DCS */
