@@ -61,8 +61,9 @@
 #define MHB_DSI_DISPLAY_STATE_ON           5
 #define MHB_DSI_DISPLAY_STATE_STOPPING     6
 #define MHB_DSI_DISPLAY_STATE_UNCONFIG_DCS 7
-#define MHB_DSI_DISPLAY_STATE_APBE_OFF     8
-#define MHB_DSI_DISPLAY_STATE_ERROR        9
+#define MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI 8
+#define MHB_DSI_DISPLAY_STATE_APBE_OFF     9
+#define MHB_DSI_DISPLAY_STATE_ERROR       10
 
 static struct mhb_dsi_display
 {
@@ -293,7 +294,7 @@ _mhb_dsi_display_send_display_off_req(struct mhb_dsi_display *display)
 }
 
 static int _mhb_dsi_display_send_control_req(struct mhb_dsi_display *display,
-                                    uint8_t local_command, uint8_t peer_command)
+                                             uint8_t command)
 {
     struct mhb_hdr hdr;
     struct mhb_cdsi_control_req req;
@@ -302,11 +303,21 @@ static int _mhb_dsi_display_send_control_req(struct mhb_dsi_display *display,
     hdr.addr = MHB_ADDR_CDSI0;
     hdr.type = MHB_TYPE_CDSI_CONTROL_REQ;
 
-    req.local_command = local_command;
-    req.peer_command = peer_command;
+    req.command = command;
 
     return device_mhb_send(display->mhb_dev, &hdr,
                            (uint8_t *)&req, sizeof(req), 0);
+}
+
+static int _mhb_dsi_display_send_unconfig_req(struct mhb_dsi_display *display)
+{
+    struct mhb_hdr hdr;
+
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_CDSI0;
+    hdr.type = MHB_TYPE_CDSI_UNCONFIG_REQ;
+
+    return device_mhb_send(display->mhb_dev, &hdr, NULL, 0, 0);
 }
 
 static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
@@ -336,17 +347,15 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
     case MHB_TYPE_CDSI_WRITE_CMDS_RSP:
         if (display->state == MHB_DSI_DISPLAY_STATE_CONFIG_DCS) {
             /* config-dcs -> starting */
-            _mhb_dsi_display_send_control_req(display,
-                MHB_CDSI_COMMAND_START, MHB_CDSI_COMMAND_START);
+            _mhb_dsi_display_send_control_req(display, MHB_CDSI_COMMAND_START);
 
             display->state = MHB_DSI_DISPLAY_STATE_STARTING;
             error = 0;
         } else if (display->state == MHB_DSI_DISPLAY_STATE_UNCONFIG_DCS) {
-            /* stopping -> off */
-            _mhb_dsi_display_power_off(display);
+            /* unconfig-dcs -> unconfig-dsi */
+            _mhb_dsi_display_send_unconfig_req(display);
 
-            display->state = MHB_DSI_DISPLAY_STATE_OFF;
-            _mhb_dsi_display_signal_response(display);
+            display->state = MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI;
             error = 0;
         }
         break;
@@ -367,6 +376,16 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
     case MHB_TYPE_CDSI_READ_CMDS_RSP:
     case MHB_TYPE_CDSI_STATUS_RSP:
         error = 0;
+        break;
+    case MHB_TYPE_CDSI_UNCONFIG_RSP:
+        if (display->state == MHB_DSI_DISPLAY_STATE_CONFIG_DSI) {
+            /* unconfig-dcs -> off */
+            _mhb_dsi_display_power_off(display);
+
+            display->state = MHB_DSI_DISPLAY_STATE_OFF;
+            _mhb_dsi_display_signal_response(display);
+            error = 0;
+        }
         break;
     default:
         break;
@@ -632,8 +651,7 @@ static int _mhb_dsi_display_set_state_off(struct mhb_dsi_display *display)
     int result;
 
     /* Stop the CDSI stream. */
-    result = _mhb_dsi_display_send_control_req(display, MHB_CDSI_COMMAND_STOP,
-                                                     MHB_CDSI_COMMAND_STOP);
+    result = _mhb_dsi_display_send_control_req(display, MHB_CDSI_COMMAND_STOP);
     if (result) {
         lldbg("ERROR: send control failed: %d\n", result);
         return result;
