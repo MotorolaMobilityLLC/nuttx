@@ -393,7 +393,7 @@ static int mhb_handle_cdsi_control_req(struct mhb_transaction *transaction)
 
     if (!ret) {
         if (cdsi->config.direction == TSB_CDSI_TX) {
-            switch (req->local_command) {
+            switch (req->command) {
                 case MHB_CDSI_COMMAND_NONE:
                     break;
                 case MHB_CDSI_COMMAND_START:
@@ -417,13 +417,6 @@ static int mhb_handle_cdsi_control_req(struct mhb_transaction *transaction)
     if (!ret) {
         /* Cheat and re-use this transaction.  The unipro response (if any)
            will be in out_msg. */
-
-        /* Move the peer command to local before sending. */
-        if (req->peer_command != MHB_CDSI_COMMAND_NONE) {
-            req->local_command = req->peer_command;
-            req->peer_command = MHB_CDSI_COMMAND_NONE;
-        }
-
         ret = mhb_unipro_send(transaction);
     }
 #endif
@@ -602,6 +595,37 @@ error:
     return 0;
 }
 
+static int mhb_handle_cdsi_unconfig_req(struct mhb_transaction *transaction)
+{
+    int ret;
+
+    uint8_t inst =
+      (transaction->in_msg.hdr->addr & MHB_INSTANCE_MASK) >> MHB_INSTANCE_SHIFT;
+
+    struct cdsi_block *cdsi = cdsi_from_inst(inst);
+    if (cdsi && cdsi->dev) {
+        cdsi_uninitialize(cdsi->dev);
+        cdsi->dev = NULL;
+        ret = 0;
+    } else {
+        ret = -ENODEV;
+    }
+
+#if CONFIG_ICE_IPC_CLIENT
+    /* Cheat and re-use this transaction.  The unipro response (if any)
+       will be in out_msg. */
+    ret = mhb_unipro_send(transaction);
+#endif
+
+    transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
+    transaction->out_msg.hdr->type = MHB_TYPE_CDSI_UNCONFIG_RSP;
+    transaction->out_msg.hdr->result =
+        ret ? MHB_RESULT_UNKNOWN_ERROR : MHB_RESULT_SUCCESS;
+    transaction->send_rsp = true;
+
+    return 0;
+}
+
 static int mhb_handle_cdsi(struct mhb_transaction *transaction)
 {
     switch (transaction->in_msg.hdr->type) {
@@ -615,6 +639,8 @@ static int mhb_handle_cdsi(struct mhb_transaction *transaction)
         return mhb_handle_cdsi_read_cmds_req(transaction);
     case MHB_TYPE_CDSI_WRITE_CMDS_REQ:
         return mhb_handle_cdsi_write_cmds_req(transaction);
+    case MHB_TYPE_CDSI_UNCONFIG_REQ:
+        return mhb_handle_cdsi_unconfig_req(transaction);
     default:
         lldbg("ERROR: unknown CDSI event\n");
         return -EINVAL;
