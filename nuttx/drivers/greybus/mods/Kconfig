@@ -4,8 +4,6 @@ config GREYBUS_MODS_SPI
 	bool "SPI"
 	depends on GPIO
 	depends on ARCH_HAVE_HIRES_TIMER
-	select SCHED_WORKQUEUE
-	select SCHED_LPWORK
 
 config GREYBUS_MODS_I2C
 	bool "I2C"

@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2015-2016 Motorola Mobility, LLC.
  * Copyright (c) 2014-2015 Google Inc.
+ * Copyright (C) 2009, 2011-2013 Gregory Nutt.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +30,7 @@
 
 #include <debug.h>
 #include <errno.h>
+#include <queue.h>
 #include <semaphore.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -43,6 +45,7 @@
 #include <nuttx/greybus/mods.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/hires_tmr.h>
+#include <nuttx/kthread.h>
 #include <nuttx/power/pm.h>
 #include <nuttx/ring_buf.h>
 #include <nuttx/spi/spi.h>
@@ -101,13 +104,6 @@
 /* The number of times to try sending a datagram before giving up */
 #define NUM_TRIES      (3)
 
-/* Workqueue to use by the datalink layer */
-#ifdef CONFIG_GREYBUS_MODS_ACK
-# define DLWORK         LPWORK
-#else
-# define DLWORK         HPWORK
-#endif
-
 /* Maximum time to wait for an ACK from the base */
 #define ACK_TIMEOUT_US 100000       /* 100 milliseconds */
 
@@ -145,6 +141,13 @@ struct spi_msg_hdr
   __le16 bitmask;                /* See HDR_BIT_* defines for values */
 } __packed;
 
+struct spi_work_s
+{
+  struct dq_entry_s dq;          /* Implements a doubly linked list */
+  worker_t worker;               /* Work callback */
+  FAR void *arg;                 /* Callback argument */
+};
+
 struct mods_spi_dl_s
 {
   struct mods_dl_s dl;           /* Externally visible part of the data link interface */
@@ -157,9 +160,11 @@ struct mods_spi_dl_s
   size_t new_pkt_size;           /* Packet size to use next time TX queue empty */
   __u8 proto_ver;                /* Protocol version supported by base */
 
-  FAR struct work_s wake_work;
-  FAR struct work_s tend_work;
-  FAR struct work_s terr_work;
+  pid_t pid;                     /* The task ID of the worker thread */
+  struct dq_queue_s q;           /* The queue of pending work */
+  struct spi_work_s wake_work;
+  struct spi_work_s tend_work;
+  struct spi_work_s terr_work;
   sem_t sem;
 
 #ifdef CONFIG_GREYBUS_MODS_ACK
@@ -215,11 +220,38 @@ struct spi_dl_msg
 static int queue_data(FAR struct mods_spi_dl_s *priv, __u8 msg_type,
                       const void *buf, size_t len);
 
-static inline void dl_work_queue(FAR struct work_s *work, worker_t worker,
-                                 FAR struct mods_spi_dl_s *priv)
+static void dl_work_queue(FAR struct mods_spi_dl_s *priv,
+                          struct spi_work_s *work, worker_t worker)
 {
+  irqstate_t flags;
+
   if (work_available(work))
-      work_queue(DLWORK, work, worker, priv, 0);
+    {
+      work->worker = worker;
+      work->arg = priv;
+
+      flags = irqsave();
+
+      dq_addlast((FAR dq_entry_t *)work, &priv->q);
+      kill(priv->pid, SIGWORK);  /* Wake up the worker thread */
+
+      irqrestore(flags);
+    }
+}
+
+/* Interrupts must be disabled when this function is called */
+static void dl_work_cancel(FAR struct mods_spi_dl_s *priv,
+                           struct spi_work_s *work)
+{
+  if (work->worker != NULL)
+    {
+      /* Remove the entry from the work queue and make sure that it is
+       * marked as available (i.e., the worker field is nullified).
+       */
+
+      dq_rem((FAR dq_entry_t *)work, &priv->q);
+      work->worker = NULL;
+    }
 }
 
 static inline bool txc_rb_is_valid(FAR struct mods_spi_dl_s *priv)
@@ -496,9 +528,9 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
         }
 
       /* Ensure all work has stopped */
-      work_cancel(DLWORK, &priv->wake_work);
-      work_cancel(DLWORK, &priv->tend_work);
-      work_cancel(DLWORK, &priv->terr_work);
+      dl_work_cancel(priv, &priv->wake_work);
+      dl_work_cancel(priv, &priv->tend_work);
+      dl_work_cancel(priv, &priv->terr_work);
 
       /* Cleanup any unsent messages */
       while (ring_buf_is_consumers(priv->txc_rb))
@@ -766,7 +798,7 @@ static void txn_finished_cb(void *v)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
 
-  dl_work_queue(&priv->tend_work, txn_finished_worker, priv);
+  dl_work_queue(priv, &priv->tend_work, txn_finished_worker);
 }
 
 static void txn_error_worker(FAR void *arg)
@@ -817,7 +849,7 @@ static void txn_error_cb(void *v)
   mods_rfr_set(0);
   mods_host_int_set(false);
 
-  dl_work_queue(&priv->terr_work, txn_error_worker, priv);
+  dl_work_queue(priv, &priv->terr_work, txn_error_worker);
 }
 
 static const struct spi_cb_ops_s cb_ops =
@@ -966,7 +998,72 @@ static int wake_isr(int irq, void *context)
   llvdbg("asserted\n");
 
   pm_activity(PM_ACTIVITY_WAKE);
-  dl_work_queue(&mods_spi_dl.wake_work, wake_worker, &mods_spi_dl);
+  dl_work_queue(&mods_spi_dl, &mods_spi_dl.wake_work, wake_worker);
+
+  return OK;
+}
+
+static int work_process_thread(int argc, char *argv[])
+{
+  FAR struct mods_spi_dl_s *priv = &mods_spi_dl;
+  volatile struct spi_work_s *work;
+  worker_t worker;
+  irqstate_t flags;
+  FAR void *arg;
+
+  /* Loop forever */
+  for (;;)
+    {
+      flags = irqsave();
+
+      work = (struct spi_work_s *)priv->q.head;
+      while (work)
+        {
+          /* Remove the work from the list */
+          (void)dq_rem((struct dq_entry_s *)work, &priv->q);
+
+          /* Extract the work description from the entry (in case the work
+           * instance by the re-used after it has been de-queued).
+           */
+          worker = work->worker;
+
+          /* Check for a race condition where the work may be nullified
+           * before it is removed from the queue.
+           */
+          if (worker != NULL)
+            {
+              /* Extract the work argument (before re-enabling interrupts) */
+              arg = work->arg;
+
+              /* Mark the work as no longer being queued */
+              work->worker = NULL;
+
+              /* Re-enable interrupts while the work is being performed. */
+              irqrestore(flags);
+
+              worker(arg);
+
+              /* Now, unfortunately, since we re-enabled interrupts we don't
+               * know the state of the work list and we will have to start
+               * back at the head of the list.
+               */
+              flags = irqsave();
+              work  = (struct spi_work_s *)priv->q.head;
+            }
+          else
+            {
+              /* Cancelled... Just move to the next work in the list with
+               * interrupts still disabled.
+               */
+              work = (struct spi_work_s *)work->dq.flink;
+            }
+        }
+
+      irqrestore(flags);
+
+      /* Wait "forever" until we are awakened by a signal */
+      sleep(10000000);
+    }
 
   return OK;
 }
@@ -975,18 +1072,21 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
 {
   FAR struct spi_dev_s *spi;
 
-  if (!cb)
-    return NULL;
+  DEBUGASSERT(cb);
 
   spi = up_spiinitialize(CONFIG_GREYBUS_MODS_PORT);
-  if (!spi)
-    return NULL;
+  DEBUGASSERT(spi);
 
   SPI_SLAVE_REGISTERCALLBACK(spi, &cb_ops, &mods_spi_dl);
 
   mods_spi_dl.cb = cb;
   mods_spi_dl.spi = spi;
   sem_init(&mods_spi_dl.sem, 0, 0);
+
+  mods_spi_dl.pid = kernel_thread("dl-spi", CONFIG_SCHED_WORKPRIORITY - 1,
+                                  CONFIG_SCHED_WORKSTACKSIZE,
+                                  work_process_thread, NULL);
+  DEBUGASSERT(mods_spi_dl.pid > 0);
 
   set_pkt_size(&mods_spi_dl, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
 
