@@ -217,6 +217,8 @@ static int mhb_send_read_attr_req(int argc, char *argv[], struct device *dev)
         goto usage;
     }
 
+    memset(&req, 0, sizeof(req));
+
     req.attribute = strtoul(argv[0], NULL, 16);
     argc--; argv++;
 
@@ -250,6 +252,8 @@ static int mhb_send_write_attr_req(int argc, char *argv[], struct device *dev)
         goto usage;
     }
 
+    memset(&req, 0, sizeof(req));
+
     req.attribute = strtoul(argv[0], NULL, 16);
     argc--; argv++;
 
@@ -259,7 +263,7 @@ static int mhb_send_write_attr_req(int argc, char *argv[], struct device *dev)
     if (argc) req.selector = strtoul(argv[0], NULL, 10);
     argc--; argv++;
 
-    if (argc) req.peer = strtoul(argv[0], NULL, 10);
+    if (argv[0][0]) req.peer = strtoul(argv[0], NULL, 10);
     argc--; argv++;
 
     printf("attribute=0x%04x value=0x%08x, selector=%d peer=%d\n",
