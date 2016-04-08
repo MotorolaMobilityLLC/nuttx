@@ -190,7 +190,9 @@ static int apbe_pwrctrl_open(struct device *dev)
     if (!apbe_ctrl.mhb_dev) {
         apbe_ctrl.mhb_dev = device_open(DEVICE_TYPE_MHB, MHB_ADDR_PM);
 
-        device_mhb_register_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
+        if (apbe_ctrl.mhb_dev) {
+            device_mhb_register_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
+        }
     }
 
     if (!apbe_ctrl.mhb_dev) {
