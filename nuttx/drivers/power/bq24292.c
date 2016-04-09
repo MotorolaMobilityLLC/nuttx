@@ -44,7 +44,7 @@
 
 struct notify_node
 {
-  bq24292_power_good_callback callback;
+  bq24292_callback callback;
   void *arg;
   struct list_head list;
 };
@@ -52,14 +52,20 @@ struct notify_node
 static LIST_DECLARE(notify_list);
 
 static sem_t sem = SEM_INITIALIZER(1);
-static struct work_s pg_work;
+static struct work_s isr_work;
 
 static FAR struct i2c_dev_s *i2c;
 
 #define BQ24292_I2C_ADDR            0x6B
 #define PG_OPS_DELAY                MSEC2TICK(500)
 
-int bq24292_power_good_register(bq24292_power_good_callback cb, void *arg)
+#define BQ24292_REG_STATUS          0x08
+#define BQ24292_REG_FAULT           0x09
+
+#define BQ24292_STATUS_PG           0x04
+#define BQ24292_FAULT_BOOST         0x40
+
+int bq24292_register_callback(bq24292_callback cb, void *arg)
 {
     struct notify_node *node;
 
@@ -76,40 +82,49 @@ int bq24292_power_good_register(bq24292_power_good_callback cb, void *arg)
     return 0;
 }
 
-static void pg_worker(FAR void *arg)
+static void isr_worker(FAR void *arg)
 {
     static int prev_pg;
     struct notify_node *node;
     struct list_head *iter;
     int regval;
 
-    /* Read the system status register (REG08) */
-    regval = bq24292_reg_read(0x08);
+    /* Boost fault */
+    regval = bq24292_reg_read(BQ24292_REG_FAULT);
+    if (regval > 0 && regval & BQ24292_FAULT_BOOST) {
+        list_foreach(&notify_list, iter) {
+            node = list_entry(iter, struct notify_node, list);
+            node->callback(BOOST_FAULT, node->arg);
+        }
+    }
+
+    /* Power good */
+    regval = bq24292_reg_read(BQ24292_REG_STATUS);
     if (regval < 0) {
         /* If unable to communicate with the IC, assume power is not good */
         regval = 0;
     }
 
-    /* Only interested in the power good bit (bit 2) */
-    regval &= 0x04;
+    /* Only interested in the power good bit */
+    regval &= BQ24292_STATUS_PG;
 
     /* Configure registers every time power is attached */
     if (regval && !prev_pg) {
         bq24292_configure();
         list_foreach(&notify_list, iter) {
             node = list_entry(iter, struct notify_node, list);
-            node->callback(node->arg);
+            node->callback(POWER_GOOD, node->arg);
         }
     }
 
     prev_pg = regval;
 }
 
-static int pg_isr(int irq, void *context)
+static int isr(int irq, void *context)
 {
     /* Make sure auto input source detection finished before PG worker is excuted */
-    if (work_available(&pg_work))
-        return work_queue(LPWORK, &pg_work, pg_worker, NULL, PG_OPS_DELAY);
+    if (work_available(&isr_work))
+        return work_queue(LPWORK, &isr_work, isr_worker, NULL, PG_OPS_DELAY);
     else
         return OK;
 }
@@ -314,7 +329,7 @@ int bq24292_configure(void)
     return ret;
 }
 
-int bq24292_driver_init(int16_t pg_n)
+int bq24292_driver_init(int16_t irq_gpio)
 {
     int ret;
 
@@ -342,16 +357,16 @@ int bq24292_driver_init(int16_t pg_n)
 
     I2C_SETFREQUENCY(i2c, CONFIG_CHARGER_BQ24292_I2C_BUS_SPEED);
 
-    if (pg_n < 0)
+    if (irq_gpio < 0)
         goto init_done;
 
-    ret = gpio_irqattach(pg_n, pg_isr);
+    ret = gpio_irqattach(irq_gpio, isr);
     if (ret) {
         dbg("failed to register for irq\n");
         goto init_done;
     }
 
-    ret = set_gpio_triggering(pg_n, IRQ_TYPE_EDGE_BOTH);
+    ret = set_gpio_triggering(irq_gpio, IRQ_TYPE_EDGE_BOTH);
     if (ret) {
         dbg("failed to set irq edge\n");
         goto init_done;
