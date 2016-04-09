@@ -54,6 +54,7 @@ struct device_ptp_chg_type_ops {
     int (*send_batt_pwr)(struct device *dev, int *current);
     int (*receive_base_pwr)(struct device *dev, const struct charger_config *cfg);
     int (*off)(struct device *dev);
+    int (*register_boost_fault_cb)(struct device *dev, charger_boost_fault cb, void *arg);
 };
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
@@ -164,5 +165,21 @@ static inline int device_ptp_chg_off(struct device *dev)
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->off(dev);
+}
+
+static inline int device_ptp_chg_register_boost_fault_cb(struct device *dev,
+                                              charger_boost_fault cb, void *arg)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->register_boost_fault_cb) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->register_boost_fault_cb(dev, cb, arg);
 }
 #endif
