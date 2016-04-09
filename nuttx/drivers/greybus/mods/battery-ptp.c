@@ -77,6 +77,7 @@ struct ptp_state {
     int *output_current; /* points either to battery, external power source or NULL */
     bool base_powered_off; /* flag to indicate base is powered off with AMP attached */
     struct ptp_reported report; /* what is repoted to the base */
+    bool boost_fault; /* flag to indicate fault in boost mode */
 };
 
 struct ptp_info {
@@ -102,6 +103,12 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
 
     state->output_current = NULL;
 
+    /* Disable base charging if fault in boost mode is detected */
+    if (state->boost_fault) {
+        retval = device_ptp_chg_off(chg);
+        goto done;
+    }
+
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     if (state->ext_power == &state->wired_current) {
         if ((retval = device_ptp_chg_send_wired_pwr(chg)) == 0)
@@ -125,7 +132,6 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
     retval = device_ptp_chg_off(chg);
 
 done:
-
     return retval;
 }
 
@@ -236,10 +242,13 @@ static void batt_ptp_attach_changed(FAR void *arg, enum base_attached_e state)
     if (info->state.attached == state)
         goto attach_done;
 
-    /* Once attached, set current direction and maximum input current to defaults */
+    /* Once attached, set current direction and maximum input current to
+       defaults. Once detached, reset boost fault flag */
     if (state == BASE_ATTACHED) {
         info->state.direction = PTP_CURRENT_OFF;
         info->state.battery.input_current = DEFAULT_BASE_INPUT_CURRENT;
+    } else if (state == BASE_DETACHED) {
+        info->state.boost_fault = false;
     }
 
     if (state == BASE_ATTACHED_OFF &&
@@ -331,6 +340,26 @@ static void batt_ptp_set_power_needs(struct ptp_info *info)
     /* Notify the change */
     if (info->changed_cb && (info->state.report.required != old_required))
         info->changed_cb(POWER_REQUIRED);
+}
+
+static void batt_ptp_boost_fault(void *arg)
+{
+    struct ptp_info *info = arg;
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return;
+        }
+    }
+
+    /* Fault while sourcing battery power to the base */
+    if (!info->state.boost_fault) {
+        info->state.boost_fault = true;
+        batt_ptp_process(info->chg_dev, &info->state);
+        dbg("fault detected while sourcing battery to the base\n");
+    }
+
+    sem_post(&info->sem);
 }
 
 static void batt_ptp_set_battery_state(const struct batt_state_s *batt,
@@ -721,6 +750,11 @@ static int batt_ptp_open(struct device *dev)
         retval = -EIO;
         goto chg_err;
     }
+
+    info->state.boost_fault = false;
+    retval = device_ptp_chg_register_boost_fault_cb(info->chg_dev, batt_ptp_boost_fault, info);
+    if (retval)
+        dbg("boost fault detection not supported\n");
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     bool wireless;
