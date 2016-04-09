@@ -68,4 +68,6 @@ void unipro_dump_cports(void);
 void unipro_dump_rx(void);
 void unipro_dump_tx(void);
 
+int unipro_test_command(unsigned int command);
+
 #endif

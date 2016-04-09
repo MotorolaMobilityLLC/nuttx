@@ -1127,3 +1127,263 @@ void unipro_dump_tx(void) {
         unipro_dump_register_index_array(CPORT_TX_REGISTERS, i);
     }
 }
+
+static int unipro_enter_test_mode(void) {
+    uint32_t v;
+
+    lldbg("Stop auto-link\n");
+    unipro_write(LUP_LINKSUP_STOP, 0x1);
+
+    v = unipro_read(LUP_LINKSUP_STOP);
+    if (v != 1) {
+        lldbg("FAIL: Auto-link: 0x%08x\n", v);
+        return -EFAULT;
+    }
+    lldbg("Auto-link is stopped\n");
+
+    lldbg("DME_ResetReq\n");
+    unipro_attr_write(TSB_DME_RESETREQ, 1, 0, 0);
+
+    unipro_attr_read(TSB_DME_RESETCNF, &v, 0, 0);
+    if (v != 1) {
+        lldbg("FAIL: DME_ResetCnf: 0x%08x\n", v);
+        return -EFAULT;
+    }
+    lldbg("DME_ResetCnf\n");
+
+    lldbg("DME_EnableReq\n");
+    unipro_attr_write(TSB_DME_LAYERENABLEREQ, 1, 0, 0);
+
+    unipro_attr_read(TSB_DME_LAYERENABLECNF, &v, 0, 0);
+    if (v != 0x1) {
+        lldbg("FAIL: DME_EnableCnf: 0x%08x\n", v);
+        return -EFAULT;
+    }
+    lldbg("DME_EnableCnf\n");
+
+    return 0;
+}
+
+static int unipro_test_mphy_source(uint8_t param0, uint8_t param1, uint8_t param2) {
+    int ret;
+
+    ret = unipro_enter_test_mode();
+    if (ret) {
+        return ret;
+    }
+
+    lldbg("UNIPRO_INT_EN\n");
+    unipro_write(UNIPRO_INT_EN, 1);
+
+    lldbg("TSB_InterruptEnable\n");
+    unipro_attr_write(TSB_INTERRUPTENABLE, TSB_INTERRUPTSTATUS_TESTMODEIND, 0, 0);
+
+    return 0;
+}
+
+static int unipro_test_mphy_load(uint8_t param0, uint8_t param1, uint8_t param2) {
+    int ret;
+    uint32_t v;
+
+    ret = unipro_enter_test_mode();
+    if (ret) {
+        return ret;
+    }
+
+    lldbg("TX_HIBERN8_CONTROL_TestMode\n");
+    unipro_attr_write(0x8000|TX_HIBERN8_CONTROL, 0, 0, 0);
+
+    lldbg("TSB_MPHYCFGUPDT\n");
+    unipro_attr_write(TSB_MPHYCFGUPDT, 0, 0, 0);
+
+    lldbg("DME_TestModeReq\n");
+    unipro_attr_write(TSB_DME_TESTMODEREQ, 1, 0, 0);
+
+    unipro_attr_read(TSB_DME_TESTMODECNF, &v, 0, 0);
+    if (v != 1) {
+        lldbg("TSB_DME_TESTMODECNF: 0x%08X\n", v);
+        return -EFAULT;
+    }
+    lldbg("TSB_DME_TESTMODECNF\n");
+
+    return 0;
+}
+
+static int unipro_test_start(uint8_t speed, uint8_t pattern, uint8_t burst) {
+    uint32_t v;
+
+    const uint32_t burstBit = (burst ? (1 << 0) : 0);
+    const uint32_t cfgReadyBit = (burst ? (1 << 1) : 0);
+    const uint32_t transmitBit = (burst ? (1 << 3) : 0);
+    const uint32_t patternBit = (pattern ? (1 << 4) : 0);
+
+    lldbg("TX_HIBERN8_CONTROL\n");
+    unipro_attr_write(TX_HIBERN8_CONTROL, 0, 0, 0);
+
+    v = cfgReadyBit;
+    lldbg("PA_PHYTESTCONTROL local\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 0);
+
+    v = burstBit;
+    lldbg("PA_PHYTESTCONTROL local\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 0);
+    lldbg("PA_PHYTESTCONTROL peer\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 1);
+
+    uint8_t gear;
+    uint8_t mode;
+    uint8_t series;
+    switch (speed) {
+    /* PWM */
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+    case 5:
+    case 6:
+    case 7:
+        mode = 1;
+        gear = speed;
+        series = 0;
+        break;
+
+    /* HS */
+    case 8:
+        mode = 2;
+        gear = 1;
+        series = UNIPRO_HS_SERIES_A;
+        break;
+    case 9:
+        mode = 2;
+        gear = 1;
+        series = UNIPRO_HS_SERIES_B;
+        break;
+    case 10:
+        mode = 2;
+        gear = 2;
+        series = UNIPRO_HS_SERIES_A;
+        break;
+    case 11:
+        mode = 2;
+        series = UNIPRO_HS_SERIES_B;
+        gear = 2;
+        break;
+    case 12:
+        mode = 2;
+        gear = 3;
+        series = UNIPRO_HS_SERIES_A;
+        break;
+    case 13:
+        mode = 2;
+        gear = 3;
+        series = UNIPRO_HS_SERIES_B;
+        break;
+    default:
+        lldbg("ERROR: Invalid speed\n");
+        return -EFAULT;
+    }
+
+    lldbg("PA_HSSERIES local\n");
+    unipro_attr_write(PA_HSSERIES, series, 0, 0);
+    lldbg("PA_HSSERIES peer\n");
+    unipro_attr_write(PA_HSSERIES, series, 0, 1);
+
+    lldbg("TX_MODE local\n");
+    unipro_attr_write(TX_MODE, mode, 0, 0);
+    lldbg("TX_HSGEAR local\n");
+    unipro_attr_write(TX_HSGEAR, gear, 0, 0);
+    lldbg("TX_HSRATE_SERIES local\n");
+    unipro_attr_write(TX_HSRATE_SERIES, series, 0, 0);
+    lldbg("TX_PWMGEAR local\n");
+    unipro_attr_write(TX_PWMGEAR, gear, 0, 0);
+
+    lldbg("RX_MODE local\n");
+    unipro_attr_write(RX_MODE, mode, 4, 0);
+    lldbg("RX_HSGEAR local\n");
+    unipro_attr_write(RX_HSGEAR, gear, 4, 0);
+    lldbg("RX_HSRATE_SERIES local\n");
+    unipro_attr_write(RX_HSRATE_SERIES, series, 4, 0);
+    lldbg("RX_PWMGEAR local\n");
+    unipro_attr_write(RX_PWMGEAR, gear, 4, 0);
+
+
+    lldbg("TX_MODE peer\n");
+    unipro_attr_write(TX_MODE, mode, 0, 1);
+    lldbg("TX_HSGEAR peer\n");
+    unipro_attr_write(TX_HSGEAR, gear, 0, 1);
+    lldbg("TX_HSRATE_SERIES peer\n");
+    unipro_attr_write(TX_HSRATE_SERIES, series, 0, 1);
+    lldbg("TX_PWMGEAR peer\n");
+    unipro_attr_write(TX_PWMGEAR, gear, 0, 1);
+
+    lldbg("RX_MODE peer\n");
+    unipro_attr_write(RX_MODE, mode, 4, 1);
+    lldbg("RX_HSGEAR peer\n");
+    unipro_attr_write(RX_HSGEAR, gear, 4, 1);
+    lldbg("RX_HSRATE_SERIES peer\n");
+    unipro_attr_write(RX_HSRATE_SERIES, series, 4, 1);
+    lldbg("RX_PWMGEAR peer\n");
+    unipro_attr_write(RX_PWMGEAR, gear, 4, 1);
+
+    v = burstBit|cfgReadyBit;
+    lldbg("PA_PHYTESTCONTROL local\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 0);
+    lldbg("PA_PHYTESTCONTROL peer\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 1);
+
+    usleep(5000000);
+
+    v = 0;
+    lldbg("PA_PHYTESTCONTROL peer\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 1);
+    lldbg("PA_PHYTESTCONTROL local\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 0);
+
+    lldbg("DL_TC0REPLAYTIMEOUTVAL\n");
+    unipro_attr_write(DL_TC0REPLAYTIMEOUTVAL, 0x07ff, 0, 1);
+    unipro_attr_read(DL_TC0REPLAYTIMEOUTVAL, &v, 0, 1);
+    if (v != 0x7ff) {
+        lldbg("DL_TC0REPLAYTIMEOUTVAL: 0x%08X\n", v);
+    } else {
+        lldbg("DL_TC0REPLAYTIMEOUTVAL correct\n");
+    }
+
+    lldbg("PA_PACPFRAMECOUNT local\n");
+    unipro_attr_write(PA_PACPFRAMECOUNT, 0, 0, 0);
+    lldbg("PA_PACPERRORCOUNT local\n");
+    unipro_attr_write(PA_PACPERRORCOUNT, 0, 0, 0);
+    lldbg("PA_PACPFRAMECOUNT peer\n");
+    unipro_attr_write(PA_PACPFRAMECOUNT, 0, 0, 1);
+    lldbg("PA_PACPERRORCOUNT peer\n");
+    unipro_attr_write(PA_PACPERRORCOUNT, 0, 0, 1);
+
+    v = burstBit|patternBit|transmitBit;
+    lldbg("PA_PHYTESTCONTROL peer\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 1);
+    lldbg("PA_PHYTESTCONTROL local\n");
+    unipro_attr_write(PA_PHYTESTCONTROL, v, 0, 0);
+
+    return 0;
+}
+
+int unipro_test_command(unsigned int command_mask) {
+    uint8_t command = (command_mask >> 0) & 0xff;
+    uint8_t param0 = (command_mask >>  8) & 0xff;
+    uint8_t param1 = (command_mask >> 16) & 0xff;
+    uint8_t param2 = (command_mask >> 24) & 0xff;
+
+    lldbg("cmd=0x%02x, param0=0x%02x, param1=0x%02x, param2=0x%02x\n",
+        command, param0, param1, param2);
+
+    switch (command) {
+    case 0:
+        return unipro_test_mphy_load(param0, param1, param2);
+    case 1:
+        return unipro_test_mphy_source(param0, param1, param2);
+    case 2:
+        return unipro_test_start(param0, param1, param2);
+    default:
+        return -EINVAL;
+    }
+}
