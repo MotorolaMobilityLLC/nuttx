@@ -205,6 +205,14 @@ static int switch_ptp_chg_off(struct device *dev)
     return device_charger_off(info->chg_dev);
 }
 
+static int switch_ptp_chg_register_boost_fault_cb(struct device *dev,
+                                            charger_boost_fault cb, void *arg)
+{
+    struct switch_ptp_chg_info *info = device_get_private(dev);
+
+    return device_charger_register_boost_fault_cb(info->chg_dev, cb, arg);
+}
+
 static int switch_ptp_chg_probe(struct device *dev)
 {
     struct switch_ptp_chg_info *info = zalloc(sizeof(*info));
@@ -302,6 +310,7 @@ static struct device_ptp_chg_type_ops switch_ptp_chg_type_ops = {
     .send_batt_pwr = switch_ptp_chg_send_batt_pwr,
     .receive_base_pwr = switch_ptp_chg_receive_base_pwr,
     .off = switch_ptp_chg_off,
+    .register_boost_fault_cb = switch_ptp_chg_register_boost_fault_cb,
 };
 
 static struct device_driver_ops driver_ops = {
