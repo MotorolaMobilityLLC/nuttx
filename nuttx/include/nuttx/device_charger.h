@@ -35,6 +35,9 @@
 
 #define DEVICE_TYPE_CHARGER_HW  "charger"
 
+/* The type of the charger fault in boost mode callback function */
+typedef void (*charger_boost_fault)(void *arg);
+
 /* Limits are in mA and mV */
 struct charger_config {
     int input_current_limit;
@@ -47,6 +50,7 @@ struct device_charger_type_ops {
     int (*send)(struct device *dev, int *current);
     int (*receive)(struct device *dev, const struct charger_config *cfg);
     int (*off)(struct device *dev);
+    int (*register_boost_fault_cb)(struct device *dev, charger_boost_fault cb, void *arg);
 };
 
 static inline int device_charger_send(struct device *dev, int *current)
@@ -92,5 +96,21 @@ static inline int device_charger_off(struct device *dev)
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, charger)->off(dev);
+}
+
+static inline int device_charger_register_boost_fault_cb(struct device *dev,
+                                              charger_boost_fault cb, void *arg)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, charger)->register_boost_fault_cb) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, charger)->register_boost_fault_cb(dev, cb, arg);
 }
 #endif
