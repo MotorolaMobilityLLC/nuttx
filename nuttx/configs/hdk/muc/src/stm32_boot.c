@@ -272,6 +272,13 @@ static struct device devices[] = {
         .resources = mhb_resources,
         .resource_count = ARRAY_SIZE(mhb_resources),
     },
+    /* Add a power device to allow the client to power the apbe on and off. */
+    {
+        .type = DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+        .name = "slave_pwrctrl",
+        .desc = "slave power control",
+        .id   = MHB_ADDR_DIAG,
+    },
 #endif
 
 #ifdef CONFIG_MHB_DSI_DISPLAY
