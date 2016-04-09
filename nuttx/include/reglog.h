@@ -88,6 +88,8 @@ extern struct reglog_s g_reglog;
  * This function can be used to overload the default get time function in order
  * to provide a higher resolution timer.  A default function will be installed
  * upon init of this driver, so it is not necessary to call this.
+ *
+ * @param reglog_get_time_fcn The time function to register.
  */
 static inline void reglog_register(uint32_t (*reglog_get_time_fcn)(void))
 {
@@ -98,8 +100,10 @@ static inline void reglog_register(uint32_t (*reglog_get_time_fcn)(void))
  * @brief Function provided by the low level driver to initialize itself.
  */
 extern void up_reglog_init(void);
-
 extern void reglog_log(uint32_t reg, uint32_t val);
+extern unsigned int reglog_advance_tail(void);
+extern size_t reglog_get_entries(struct reglog_value_s *entries, size_t n);
+extern void reglog_set_mode(REGLOG_MODE_T mode);
 extern void reglog_initialize(void);
 # else
 /*
@@ -107,6 +111,9 @@ extern void reglog_initialize(void);
  * lines to remain in the code even when it is not configured.
  */
 # define reglog_log(reg, val)
+# define reglog_advance_tail() 0
+# define reglog_get_entries(p, n) 0
+# define reglog_set_mode() 0
 # define reglog_initialize()
 # endif
 #endif

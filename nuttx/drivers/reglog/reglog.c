@@ -118,13 +118,13 @@ static ssize_t reglog_write(FAR struct file *filep, FAR const char *buffer, size
             case 'F':
             case 'f':
                 /* Swtich to fifo mode. */
-                g_reglog.mode = REGLOG_MODE_FIFO;
+                reglog_set_mode(REGLOG_MODE_FIFO);
                 break;
 
             case 'S':
             case 's':
                 /* Switch to statck mode. */
-                g_reglog.mode = REGLOG_MODE_STACK;
+                reglog_set_mode(REGLOG_MODE_STACK);
                 break;
 
             default:
@@ -185,6 +185,69 @@ void reglog_log(uint32_t reg, uint32_t val)
     reglog_p->time = g_reglog.get_time_fcn();
     reglog_p->addr = reg;
     reglog_p->val = val;
+}
+
+/**
+ * @brief Advance the tail past the duplicate data.
+ *
+ * Since the head and tail continue past the end of the buffer it may be necessary
+ * to advance the tail to the latest data.  This may be desirable when reading
+ * the data over a low speed interface.
+ *
+ * @return The number of bytes which were missed due to buffer overflow.
+ */
+unsigned int reglog_advance_tail(void)
+{
+    unsigned int old_tail;
+
+    old_tail = g_reglog.tail;
+    if (g_reglog.tail+REGLOG_DEPTH < g_reglog.head)
+    {
+        g_reglog.tail = g_reglog.head-REGLOG_DEPTH;
+    }
+    return g_reglog.tail-old_tail;
+}
+
+/**
+ * @brief Read a number of entries from the register log and return them.
+ *
+ * Copies log entries into a buffer provided.  The copy is necessary to allow the
+ * entries to be reused once the tail is advanced.
+ *
+ * @param entries Pointer to the memory in which to place the log entries.
+ * @param n       The maximum number of log entries to copy.
+ *
+ * @return The number of entries read.
+ */
+size_t reglog_get_entries(struct reglog_value_s *entries, size_t n)
+{
+    size_t i = 0;
+
+    while ((g_reglog.head != g_reglog.tail) && (n > i))
+    {
+        memcpy(entries++, &g_reglog.log[(g_reglog.tail++)&(REGLOG_DEPTH-1)], sizeof(g_reglog.log[0]));
+        i++;
+    }
+    return i;
+}
+
+/**
+ * @brief Set the mode of logging to stack or FIFO.
+ *
+ * @param mode The mode to set the log to.  See REGLOG_MODE_T for more details.
+ */
+void reglog_set_mode(REGLOG_MODE_T mode)
+{
+    irqstate_t flags;
+
+    if (g_reglog.mode != mode)
+    {
+        flags = irqsave();
+        g_reglog.head = 0;
+        g_reglog.tail = 0;
+        g_reglog.mode = mode;
+        irqrestore(flags);
+    }
 }
 
 /**
