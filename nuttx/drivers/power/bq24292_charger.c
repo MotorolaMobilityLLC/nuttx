@@ -45,7 +45,11 @@ struct bq24292_chg_settings {
 
 struct bq24292_charger_info {
     struct bq24292_chg_settings settings; /* as per last last request */
-    sem_t sem; /* mutex to set and read chg settings */
+    sem_t chg_sem; /* mutex to set and read chg settings */
+    /* callback to notify faults in boost mode */
+    charger_boost_fault boost_fault_cb;
+    void *boost_fault_arg;
+    sem_t boost_fault_sem; /* mutex to register and run callback */
 };
 
 static void set_bq24292_limits(const struct charger_config *cfg)
@@ -72,11 +76,9 @@ static void config_bq24292(struct bq24292_charger_info *info, enum chg chg,
     (void) bq24292_set_chg(chg);
 }
 
-static void bq24292_pwr_good(void *arg)
+static void bq24292_pwr_good(struct bq24292_charger_info *info)
 {
-    struct bq24292_charger_info *info = arg;
-
-    while (sem_wait(&info->sem) != OK) {
+    while (sem_wait(&info->chg_sem) != OK) {
         if (errno == EINVAL) {
             return;
         }
@@ -98,14 +100,46 @@ static void bq24292_pwr_good(void *arg)
         break;
     }
 
-    sem_post(&info->sem);
+    sem_post(&info->chg_sem);
+}
+
+static void bq24292_boost_fault(struct bq24292_charger_info *info)
+{
+    while (sem_wait(&info->boost_fault_sem) != OK) {
+        if (errno == EINVAL) {
+            return;
+        }
+    }
+
+    if (info->boost_fault_cb) {
+        info->boost_fault_cb(info->boost_fault_arg);
+    }
+
+    sem_post(&info->boost_fault_sem);
+}
+
+static void bq24292_charger_callback(enum bq24292_event event, void *arg)
+{
+    struct bq24292_charger_info *info = arg;
+
+    switch(event) {
+    case POWER_GOOD:
+        bq24292_pwr_good(info);
+        break;
+    case BOOST_FAULT:
+        bq24292_boost_fault(info);
+        break;
+    default:
+        /* Should never be here */
+        break;
+    }
 }
 
 static int bq24292_charger_send(struct device *dev, int *current)
 {
     struct bq24292_charger_info *info = device_get_private(dev);
 
-    while (sem_wait(&info->sem) != OK) {
+    while (sem_wait(&info->chg_sem) != OK) {
         if (errno == EINVAL) {
             return -EINVAL;
         }
@@ -113,7 +147,7 @@ static int bq24292_charger_send(struct device *dev, int *current)
 
     *current = MAX_OUTPUT_CURRENT_OTG;
     config_bq24292(info, BQ24292_OTG_1300MA, NULL);
-    sem_post(&info->sem);
+    sem_post(&info->chg_sem);
 
     return 0;
 }
@@ -122,14 +156,14 @@ static int bq24292_charger_receive(struct device *dev, const struct charger_conf
 {
     struct bq24292_charger_info *info = device_get_private(dev);
 
-    while (sem_wait(&info->sem) != OK) {
+    while (sem_wait(&info->chg_sem) != OK) {
         if (errno == EINVAL) {
             return -EINVAL;
         }
     }
 
     config_bq24292(info, BQ24292_CHG_BATTERY, cfg);
-    sem_post(&info->sem);
+    sem_post(&info->chg_sem);
 
     return 0;
 }
@@ -138,14 +172,32 @@ static int bq24292_charger_off(struct device *dev)
 {
     struct bq24292_charger_info *info = device_get_private(dev);
 
-    while (sem_wait(&info->sem) != OK) {
+    while (sem_wait(&info->chg_sem) != OK) {
         if (errno == EINVAL) {
             return -EINVAL;
         }
     }
 
     config_bq24292(info, BQ24292_CHG_OFF, NULL);
-    sem_post(&info->sem);
+    sem_post(&info->chg_sem);
+
+    return 0;
+}
+
+static int bq24292_charger_register_boost_fault_cb(struct device *dev,
+                                             charger_boost_fault cb, void *arg)
+{
+    struct bq24292_charger_info *info = device_get_private(dev);
+
+    while (sem_wait(&info->boost_fault_sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    info->boost_fault_cb = cb;
+    info->boost_fault_arg = arg;
+    sem_post(&info->boost_fault_sem);
 
     return 0;
 }
@@ -177,19 +229,26 @@ static int bq24292_charger_open(struct device *dev)
     struct bq24292_charger_info *info = device_get_private(dev);
     int retval;
 
-    retval = sem_init(&info->sem, 0, 1);
+    retval = sem_init(&info->chg_sem, 0, 1);
     if (retval) {
-        dbg("failed to init semaphore\n");
+        dbg("failed to init chg semaphore\n");
+        return retval;
+    }
+
+    retval = sem_init(&info->boost_fault_sem, 0, 1);
+    if (retval) {
+        dbg("failed to init boost fault semaphore\n");
         return retval;
     }
 
     /* No charging by default */
     config_bq24292(info, BQ24292_CHG_OFF, NULL);
 
-    retval = bq24292_power_good_register(bq24292_pwr_good, info);
+    retval = bq24292_register_callback(bq24292_charger_callback, info);
     if (retval) {
-        dbg("failed to register power good callback\n");
-        sem_destroy(&info->sem);
+        dbg("failed to register callback\n");
+        sem_destroy(&info->chg_sem);
+        sem_destroy(&info->boost_fault_sem);
         return retval;
     }
 
@@ -200,13 +259,15 @@ static void bq24292_charger_close(struct device *dev)
 {
     struct bq24292_charger_info *info = device_get_private(dev);
 
-    sem_destroy(&info->sem);
+    sem_destroy(&info->chg_sem);
+    sem_destroy(&info->boost_fault_sem);
 }
 
 static struct device_charger_type_ops bq24292_charger_type_ops = {
     .send = bq24292_charger_send,
     .receive = bq24292_charger_receive,
     .off = bq24292_charger_off,
+    .register_boost_fault_cb = bq24292_charger_register_boost_fault_cb,
 };
 
 static struct device_driver_ops driver_ops = {
