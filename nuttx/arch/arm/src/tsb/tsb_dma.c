@@ -582,6 +582,7 @@ static int tsb_dma_enqueue(struct device *dev, void *chan,
     if ((dma_op->state == TSB_DMA_OP_STATE_IDLE) || (dma_op->state == TSB_DMA_OP_STATE_COMPLETED)) {
         list_add(&dma_chan->queue, &dma_op->list_node);
         dma_op->state = TSB_DMA_OP_STATE_QUEUED;
+        dma_op->chan_id = dma_chan->chan_id;
         retval = OK;
     }
 
