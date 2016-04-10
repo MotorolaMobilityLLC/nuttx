@@ -445,7 +445,7 @@ struct mhb_i2s_control_req {
 
 /* Diag */
 struct mhb_diag_mode_req {
-	uint8_t mode;
+	uint32_t mode;
 } __attribute__((packed));
 
 #endif
