@@ -223,11 +223,6 @@ config BATTERY_VOLTAGE_DEVICE_MAX17050
 endchoice
 endif
 
-config GREYBUS_PTP_CHG_DEVICE_BQ24292
-	bool "BQ24292 PTP charger device driver"
-	default n
-	depends on GREYBUS_MODS_PTP_DEVICE_BATTERY && CHARGER_BQ24292 && GPIO
-
 config CHARGER_DEVICE_BQ24292
 	bool "BQ24292 charger device driver"
 	default n
