@@ -111,10 +111,6 @@ ifeq ($(CONFIG_BATTERY_VOLTAGE),y)
 CSRCS += battery_voltage.c
 endif
 
-ifeq ($(CONFIG_GREYBUS_PTP_CHG_DEVICE_BQ24292),y)
-CSRCS += bq24292_ptp_chg.c
-endif
-
 ifeq ($(CONFIG_CHARGER_DEVICE_BQ24292),y)
 CSRCS += bq24292_charger.c
 endif
