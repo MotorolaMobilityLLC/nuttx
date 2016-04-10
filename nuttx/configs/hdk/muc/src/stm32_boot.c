@@ -198,11 +198,19 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
-#ifdef CONFIG_GREYBUS_PTP_CHG_DEVICE_BQ24292
+#ifdef CONFIG_CHARGER_DEVICE_BQ24292
+    {
+        .type = DEVICE_TYPE_CHARGER_HW,
+        .name = "bq2429_charger",
+        .desc = "Charger driver for TI bq24292 IC",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
     {
         .type = DEVICE_TYPE_PTP_CHG_HW,
-        .name = "bq2429_ptp_chg",
-        .desc = "BQ24292 based charger driver for power transfer protocol",
+        .name = "switch_ptp_chg",
+        .desc = "Charger driver with switches for power transfer protocol",
         .id   = 0,
     },
 #endif
@@ -422,9 +430,13 @@ void board_initialize(void)
   extern struct device_driver batt_ptp_driver;
   device_register_driver(&batt_ptp_driver);
 #endif
-#ifdef CONFIG_GREYBUS_PTP_CHG_DEVICE_BQ24292
-  extern struct device_driver bq24292_ptp_chg_driver;
-  device_register_driver(&bq24292_ptp_chg_driver);
+#ifdef CONFIG_CHARGER_DEVICE_BQ24292
+  extern struct device_driver bq24292_charger_driver;
+  device_register_driver(&bq24292_charger_driver);
+#endif
+#ifdef CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
+  extern struct device_driver switch_ptp_chg_driver;
+  device_register_driver(&switch_ptp_chg_driver);
 #endif
 #ifdef CONFIG_MAX17050_DEVICE
   extern struct device_driver batt_driver;
