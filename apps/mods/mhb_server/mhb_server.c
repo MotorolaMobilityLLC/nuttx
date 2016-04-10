@@ -823,10 +823,13 @@ done:
 
 static int mhb_handle_diag_mode_req(struct mhb_transaction *transaction)
 {
+    uint32_t mode;
+
     struct mhb_diag_mode_req *req =
         (struct mhb_diag_mode_req *)transaction->in_msg.payload;
 
-    svc_send_event(SVC_EVENT_TEST_MODE_STARTED, (void *)(uint32_t)req->mode, 0, 0);
+    mode = le32_to_cpu(req->mode);
+    svc_send_event(SVC_EVENT_TEST_MODE_STARTED, (void *)mode, 0, 0);
 
     transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
     transaction->out_msg.hdr->type = MHB_TYPE_DIAG_MODE_RSP;
