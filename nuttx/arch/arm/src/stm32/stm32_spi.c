@@ -163,6 +163,11 @@
         priv->cb_ops->func(priv->cb_v);      \
       }
 
+/* The number of error prints before sleeping the prints. A success will reset
+ * the count.
+ */
+#define ERR_CNT_ZZZ 5
+
 /* Debug ****************************************************************************/
 /* Check if (non-standard) SPI debug is enabled */
 
@@ -218,7 +223,8 @@ struct stm32_spidev_s
 #ifdef CONFIG_SPI_SLAVE
   uint8_t          xfering;    /* Flag indicating transfer in progress */
   const struct spi_cb_ops_s *cb_ops; /* spi dev callbacks */
-  void *cb_v;                  /* Data pointer for spi dev callbacks */
+  void            *cb_v;       /* Data pointer for spi dev callbacks */
+  uint32_t         err_cnt;    /* Count of errors seen since last success */
 #endif
 };
 
@@ -883,7 +889,12 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
           /* clear the CRCERR bit */
           status &= ~SPI_SR_CRCERR;
           spi_putreg(priv, STM32_SPI_SR_OFFSET, status);
-          spidbg("CRC error on read: %X\n", status);
+
+          if (priv->err_cnt++ < ERR_CNT_ZZZ)
+            {
+              spidbg("CRC ERR: 0x%X%s\n", status,
+                     priv->err_cnt >= ERR_CNT_ZZZ ? " (zzz)" : "");
+            }
 
           spi_portreset(priv);
           spi_portinitialize(priv);
@@ -893,6 +904,9 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
       else
 #endif
         {
+          /* On success, reset the error count */
+          priv->err_cnt = 0;
+
           CALL_CB_IF_SET(priv, txn_end);
         }
     }
@@ -1824,7 +1838,10 @@ static int stm32_spi_ss_isr(struct stm32_spidev_s *priv, int nss_gpio)
     {
       spi_rxtxdmastop_slave((FAR struct spi_dev_s *)priv);
 
-      spidbg("Early end of frame\n");
+      if (priv->err_cnt++ < ERR_CNT_ZZZ)
+        {
+          spidbg("Early EOF%s\n", priv->err_cnt >= ERR_CNT_ZZZ ? " (zzz)" : "");
+        }
       CALL_CB_IF_SET(priv, txn_err);
     }
 
