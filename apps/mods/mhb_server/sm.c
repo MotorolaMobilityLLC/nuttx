@@ -275,6 +275,16 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
     lldbg("setup cport=%d\n", CONFIG_ICE_IPC_CPORT_ID);
     unipro_p2p_setup_connection(CONFIG_ICE_IPC_CPORT_ID);
 #endif
+#if CONFIG_UNIPRO_TEST_0_CPORT_ID
+    lldbg("setup cport=%d\n", CONFIG_UNIPRO_TEST_0_CPORT_ID);
+    unipro_p2p_setup_test_connection(CONFIG_UNIPRO_TEST_0_CPORT_ID,
+        0 /* test port */, 1 /* APBA to ABPE */, 1 /* E2EFC */);
+#endif
+#if CONFIG_UNIPRO_TEST_1_CPORT_ID
+    lldbg("setup cport=%d\n", CONFIG_UNIPRO_TEST_1_CPORT_ID);
+    unipro_p2p_setup_test_connection(CONFIG_UNIPRO_TEST_1_CPORT_ID,
+        1 /* test port */, 0 /* APBE to APBA */, 1 /* E2EFC */);
+#endif
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
     return SVC_CONNECTED;
