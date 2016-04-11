@@ -291,6 +291,35 @@ static int mhb_send_log_req(int argc, char *argv[], struct device *dev)
     return device_mhb_send(dev, &hdr, NULL, 0, 0);
 }
 
+static int mhb_send_mode_req(int argc, char *argv[], struct device *dev)
+{
+    struct mhb_hdr hdr;
+    struct mhb_diag_mode_req req;
+
+    if (argc < 1) {
+        goto usage;
+    }
+
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_DIAG;
+    hdr.type = MHB_TYPE_DIAG_MODE_REQ;
+
+    req.mode = strtoul(argv[0], NULL, 10);
+    argc--; argv++;
+
+    printf("mode=%d (0x%08x)\n", req.mode, req.mode);
+
+    req.mode = cpu_to_le32(req.mode);
+
+    return device_mhb_send(dev, &hdr, NULL, 0, 0);
+
+usage:
+    printf("ERROR: usage: "
+        CONFIG_MODS_MHB_CLIENT_PROGNAME " write <mode (dec)>\n");
+    return -EINVAL;
+
+}
+
 const static struct command COMMANDS[] = { \
     /* UniPro */
     { "gear", mhb_send_gear_req },
@@ -299,6 +328,7 @@ const static struct command COMMANDS[] = { \
     { "write", mhb_send_write_attr_req },
     /* Diag */
     { "log", mhb_send_log_req },
+    { "mode", mhb_send_mode_req },
 };
 
 static void usage(char *argv0)
