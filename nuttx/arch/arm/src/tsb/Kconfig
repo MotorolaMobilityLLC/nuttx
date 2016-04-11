@@ -312,6 +312,7 @@ config UNIPRO_P2P
 	---help---
 		Enable a peer-to-peer UniPro connection
 
+if UNIPRO_P2P
 choice
 	prompt "Unipro P2P Master/Slave Role"
 	depends on ARCH_CHIP_TSB && UNIPRO_P2P
@@ -342,6 +343,17 @@ config UNIPRO_REMOTE_DEVICEID
 	depends on UNIPRO_P2P
 	---help---
 		For UniPro P2P, the remote device ID
+
+config UNIPRO_TEST_0_CPORT_ID
+	int "Unipro Test 0 CPORT"
+	default 0
+	depends on UNIPRO_P2P
+
+config UNIPRO_TEST_1_CPORT_ID
+	int "Unipro Test 1 CPORT"
+	default 1
+	depends on UNIPRO_P2P
+endif
 
 config ARCH_VIDCRYPT
 	bool "Support Video Encryption"
