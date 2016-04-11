@@ -214,6 +214,15 @@ enum MHB_ADDR {
 #define MHB_TYPE_DIAG_LOOP_REQ (3)
 #define MHB_TYPE_DIAG_LOOP_RSP (MHB_RSP_MASK|MHB_TYPE_DIAG_LOOP_REQ)
 
+#define MHB_TYPE_DIAG_CONTROL_REQ (4)
+#define MHB_TYPE_DIAG_CONTROL_RSP (MHB_RSP_MASK|MHB_TYPE_DIAG_COMMAND_REQ)
+
+#define MHB_TYPE_DIAG_REG_LOG_APBE_REQ (5)
+#define MHB_TYPE_DIAG_REG_LOG_APBE_RSP (MHB_RSP_MASK|MHB_TYPE_DIAG_REG_LOG_APBE_REQ)
+
+#define MHB_TYPE_DIAG_REG_LOG_APBA_REQ (6)
+#define MHB_TYPE_DIAG_REG_LOG_APBA_RSP (MHB_RSP_MASK|MHB_TYPE_DIAG_REG_LOG_APBA_REQ)
+
 /* result */
 enum MHB_RESULT {
 	MHB_RESULT_SUCCESS       = 0x00,
@@ -427,11 +436,11 @@ struct mhb_cdsi_write_cmds_rsp {
 
 /* config */
 struct mhb_i2s_config {
-	uint32_t sample_rate; /* in Hz (e.g. 48000) */
-	uint8_t sample_size;  /* in bits (e.g. 8, 16) */
-	uint8_t num_channels; /* 1: mono, 2: stereo */
-	uint8_t wclk_polarity; /* MHB_I2S_WCLK_POLARITY_* */
-	uint8_t protocol;      /* MHB_I2S_PROTOCOL_*/
+	uint32_t sample_rate;    /* in Hz (e.g. 48000) */
+	uint8_t sample_size;     /* in bits (e.g. 8, 16) */
+	uint8_t num_channels;    /* 1: mono, 2: stereo */
+	uint8_t wclk_polarity;   /* MHB_I2S_WCLK_POLARITY_* */
+	uint8_t protocol;        /* MHB_I2S_PROTOCOL_*/
 	uint8_t rx_edge;         /* MHB_I2S_EDGE_* */
 	uint8_t tx_edge;         /* MHB_I2S_EDGE_* */
 	uint8_t wclk_edge;       /* MHB_I2S_EDGE_* */
@@ -443,13 +452,27 @@ struct mhb_i2s_config_req {
 } __attribute__((packed));
 
 /* control */
-enum {
-	MHB_I2S_COMMAND_NONE = 0,
-	MHB_I2S_COMMAND_TX_STOP  = 1,
-	MHB_I2S_COMMAND_TX_START = 2,
-	MHB_I2S_COMMAND_RX_STOP  = 3,
-	MHB_I2S_COMMAND_RX_START = 4,
-};
+#define MHB_I2S_COMMAND_NONE      0
+/*
+ * The following commands are used in normal operation to start and stop
+ * I2S tunneling.
+ */
+#define MHB_I2S_COMMAND_TX_STOP   1  /* Stop transmit and shutdown all clocks. */
+#define MHB_I2S_COMMAND_TX_START  2  /* Enable, Arm, and start transmit. */
+#define MHB_I2S_COMMAND_RX_STOP   3  /* Stop receive and shutdown all clocks. */
+#define MHB_I2S_COMMAND_RX_START  4  /* Enable, Arm, and start receive. */
+/*
+ * The following commands are used in test modes to verify I2S tunneling is
+ * operating as expected on hardware.  They do not need to be used in normal
+ * operation.
+ */
+#define MHB_I2S_COMMAND_ENABLE    5  /* Enable the clock to the module, thus power will be drawn. */
+#define MHB_I2S_COMMAND_DISABLE   6  /* Disable the clock to the module, thus power will be reduced. */
+#define MHB_I2S_COMMAND_ARM       7  /* Arm the system which starts the PLL and it will start
+										 on the first packet or MANUAL_START. */
+#define MHB_I2S_COMMAND_DISARM    8  /* Disarm the system which stops transmitting/receiving and
+										 shuts down the PLL. */
+#define MHB_I2S_COMMAND_TRIGGER   9  /* Starts the system after it has been armed. */
 
 struct mhb_i2s_control_req {
 	uint8_t command;
@@ -461,5 +484,13 @@ struct mhb_i2s_control_req {
 struct mhb_diag_mode_req {
 	uint32_t mode;
 } __attribute__((packed));
+
+struct mhb_diag_control_req {
+	uint8_t command;
+} __attribute__((packed));
+
+#define MHB_DIAG_CONTROL_NONE           0
+#define MHB_DIAG_CONTROL_REGLOG_FIFO    1  /* Set the reglog mode to FIFO. */
+#define MHB_DIAG_CONTROL_REGLOG_STACK   2  /* Set the reglog mode to stack. */
 
 #endif
