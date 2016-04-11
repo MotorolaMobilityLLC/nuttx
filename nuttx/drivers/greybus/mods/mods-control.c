@@ -54,13 +54,19 @@
 
 /* Version of the Greybus control protocol we support */
 #define MB_CONTROL_VERSION_MAJOR              0x00
-#define MB_CONTROL_VERSION_MINOR              0x06
+#define MB_CONTROL_VERSION_MINOR              0x07
 
 /* Version of the Greybus control protocol to support
  * send slave state
  */
 #define MB_CONTROL_VERSION_SLAVE_STATE_MAJOR  0x00
 #define MB_CONTROL_VERSION_SLAVE_STATE_MINOR  0x05
+
+/* Version of the Greybus control protocol to support
+ * send powerup reason
+ */
+#define MB_CONTROL_VERSION_PWRUP_REASON_MAJOR 0x00
+#define MB_CONTROL_VERSION_PWRUP_REASON_MINOR 0x07
 
 /* Greybus control request types */
 #define MB_CONTROL_TYPE_INVALID               0x00
@@ -76,6 +82,7 @@
 
 #define MB_CONTROL_TYPE_SET_CURRENT_LIMIT     0x0a
 #define MB_CONTROL_TYPE_CAPABLITY_CHANGED     0x0b
+#define MB_CONTROL_TYPE_GET_PWRUP_REASON      0x0c
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
@@ -94,6 +101,10 @@
 #ifndef CONFIG_GREYBUS_MODS_HW_ROOT_VERSION
 #define CONFIG_GREYBUS_MODS_HW_ROOT_VERSION MB_CONTROL_ROOT_VER_NOT_APPLICABLE
 #endif
+
+/* Only the bootloader has something interesting to
+ * say at this point. */
+#define PWRUP_REASON_NORMAL                      0
 
 /* version request has no payload */
 struct gb_control_proto_version_response {
@@ -171,6 +182,10 @@ static struct mb_control_info *ctrl_info;
 struct mb_control_slave_state_request {
     __le32  slave_mask;
     __le32  slave_state;
+} __packed;
+
+struct mb_control_get_pwrup_response {
+    __le32 reason;
 } __packed;
 
 /**
@@ -496,6 +511,30 @@ static uint8_t mb_control_rtc_sync(struct gb_operation *operation)
 #endif
 }
 
+static uint8_t mb_control_get_pwrup_reason(struct gb_operation *operation)
+{
+    struct mb_control_get_pwrup_response *response;
+
+    if (ctrl_info->host_major < MB_CONTROL_VERSION_PWRUP_REASON_MAJOR) {
+        gb_error("%s() failed protocol version check!\n", __func__);
+        return GB_OP_PROTOCOL_BAD;
+    }
+    if (ctrl_info->host_minor < MB_CONTROL_VERSION_PWRUP_REASON_MINOR &&
+          ctrl_info->host_major == MB_CONTROL_VERSION_PWRUP_REASON_MAJOR)
+    {
+        gb_error("%s() failed protocol minor version check!\n", __func__);
+        return GB_OP_PROTOCOL_BAD;
+    }
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    response->reason = cpu_to_le32(PWRUP_REASON_NORMAL);
+
+    return GB_OP_SUCCESS;
+}
+
 static uint8_t mb_control_set_current_limit(struct gb_operation *operation)
 {
     /* if driver exists, call it to notify of current limit */
@@ -618,6 +657,7 @@ static struct gb_operation_handler mb_control_handlers[] = {
     GB_HANDLER(MB_CONTROL_TYPE_GET_ROOT_VER, mb_control_get_root_vers),
     GB_HANDLER(MB_CONTROL_TYPE_RTC_SYNC, mb_control_rtc_sync),
     GB_HANDLER(MB_CONTROL_TYPE_SET_CURRENT_LIMIT, mb_control_set_current_limit),
+    GB_HANDLER(MB_CONTROL_TYPE_GET_PWRUP_REASON, mb_control_get_pwrup_reason),
 };
 
 struct gb_driver mb_control_driver = {
