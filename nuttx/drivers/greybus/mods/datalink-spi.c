@@ -780,7 +780,13 @@ static void txn_error_worker(FAR void *arg)
     }
   while (ret < 0 && errno == EINTR);
 
+  /*
+   * To reduce log spam, only log here if SPI debugging is disabled. When
+   * enabled, the lower level SPI driver logs more details of the error.
+   */
+#ifndef CONFIG_DEBUG_SPI
   dbg("Transceive error\n");
+#endif
 
   if (ack_handler(priv, ACK_ERROR))
     {
