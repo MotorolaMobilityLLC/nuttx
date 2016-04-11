@@ -40,6 +40,7 @@
 #include <nuttx/wqueue.h>
 
 #include <nuttx/greybus/tsb_unipro.h>
+#include <nuttx/i2s_tunnel/i2s_unipro.h>
 #include <nuttx/mhb/mhb_protocol.h>
 
 #include <apps/greybus-utils/utils.h>
@@ -230,6 +231,9 @@ static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_w
 #if CONFIG_ICE_IPC_SERVER || CONFIG_ICE_IPC_CLIENT
     ipc_register_unipro();
 #endif
+#if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
+    (void)i2s_unipro_tunnel_unipro_register();
+#endif
 
     return SVC_CONNECTED;
 }
@@ -270,6 +274,9 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
 
 #if CONFIG_ICE_IPC_SERVER || CONFIG_ICE_IPC_CLIENT
     ipc_register_unipro();
+#endif
+#if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
+    (void)i2s_unipro_tunnel_unipro_register();
 #endif
 #if CONFIG_ICE_IPC_SERVER
     lldbg("setup cport=%d\n", CONFIG_ICE_IPC_CPORT_ID);

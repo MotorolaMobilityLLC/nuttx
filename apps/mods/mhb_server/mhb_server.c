@@ -31,6 +31,7 @@
 #include <debug.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <reglog.h>
 #include <stddef.h>
 #include <string.h>
 #include <unistd.h>
@@ -47,11 +48,14 @@
 #include <nuttx/device.h>
 #include <nuttx/util.h>
 
+#include <nuttx/i2s_tunnel/i2s_tunnel.h>
+#include <nuttx/i2s_tunnel/i2s_unipro.h>
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
+#include <nuttx/mhb/mhb_utils.h>
 
 #ifdef CONFIG_RAMLOG_SYSLOG
-    #include <nuttx/syslog/ramlog.h>
+# include <nuttx/syslog/ramlog.h>
 #endif
 
 #include <nuttx/unipro/unipro.h>
@@ -68,10 +72,15 @@
 #define CDSI_INST_TO_CPORT(x) (x + CDSI0_CPORT)
 #define CDSI_CPORT_TO_INST(x) (x - CDSI0_CPORT)
 
-#define I2S_CPORT (18)
+#if defined(CONFIG_I2S_TUNNEL)
+# define I2S_CPORT CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL_CPORT_ID
 
-#define I2S_INST_TO_CPORT(x) (I2S_CPORT)
-#define I2S_CPORT_TO_INST(x) (I2S_CPORT)
+# define I2S_INST_TO_CPORT(x) (I2S_CPORT)
+# define I2S_CPORT_TO_INST(x) (I2S_CPORT)
+
+# define MHB_I2S_TUNNEL_RX 0x01
+# define MHB_I2S_TUNNEL_TX 0x02
+#endif
 
 #define MHB_IPC_TIMEOUT (500)
 
@@ -650,72 +659,191 @@ static int mhb_handle_cdsi(struct mhb_transaction *transaction)
 /* I2S */
 static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
 {
+#if defined(CONFIG_I2S_TUNNEL)
     int ret;
     struct mhb_i2s_config_req *req =
         (struct mhb_i2s_config_req *)transaction->in_msg.payload;
-
     struct mhb_i2s_config *cfg = &req->cfg;
+    uint8_t flags;
 
-    cfg->sample_rate = le32_to_cpu(cfg->sample_rate);
+    ret = i2s_unipro_tunnel_enable(true);
+    if (ret == 0) {
+        FROM_LE(cfg->sample_rate);
+        flags  = (cfg->tx_edge == MHB_I2S_EDGE_RISING ? I2S_TUNNEL_I2S_FLAGS_TX_EDGE_RISING :
+                                                        I2S_TUNNEL_I2S_FLAGS_TX_EDGE_FALLING);
+        flags |= (cfg->rx_edge == MHB_I2S_EDGE_RISING ? I2S_TUNNEL_I2S_FLAGS_RX_EDGE_RISING :
+                                                        I2S_TUNNEL_I2S_FLAGS_RX_EDGE_FALLING);
+        flags |= (cfg->wclk_edge == MHB_I2S_EDGE_RISING ? I2S_TUNNEL_I2S_FLAGS_LR_EDGE_RISING :
+                                                          I2S_TUNNEL_I2S_FLAGS_LR_EDGE_FALLING);
+        flags |= (cfg->clk_role == MHB_I2S_ROLE_MASTER ? I2S_TUNNEL_I2S_FLAGS_MASTER :
+                                                         I2S_TUNNEL_I2S_FLAGS_SLAVE);
+        ret = i2s_unipro_tunnel_i2s_config(cfg->sample_rate,
+                                           cfg->num_channels == 1 ? I2S_TUNNEL_I2S_MODE_PCM_MONO :
+                                                                    I2S_TUNNEL_I2S_MODE_LR_STEREO,
+                                           cfg->sample_size,
+                                           flags);
+    }
 
-    lldbg("reset cport=%d\n", I2S_INST_TO_CPORT(inst));
-    unipro_p2p_reset_connection(I2S_INST_TO_CPORT(inst));
-#if CONFIG_ICE_IPC_SERVER
-    lldbg("setup cport=%d\n", I2S_INST_TO_CPORT(inst));
-    unipro_p2p_setup_connection(I2S_INST_TO_CPORT(inst));
-#endif
-
-    // TODO: Implement
-    ret = 0;
-
-#if CONFIG_ICE_IPC_CLIENT
+# if CONFIG_ICE_IPC_CLIENT
     if (!ret) {
         /* Cheat and re-use this transaction.  The unipro response (if any)
            will be in out_msg. */
 
+        /* Swap the I2S direction for the peer if not in loopback mode. */
+#  if !defined(CONFIG_I2S_TUNNEL_ROUNDTRIP_LOOPBACK)
+        req->cfg.clk_role = (cfg->clk_role == MHB_I2S_ROLE_MASTER ? MHB_I2S_ROLE_SLAVE :
+                                                                    MHB_I2S_ROLE_MASTER);
+#  endif
+
         ret = mhb_unipro_send(transaction);
     }
-#endif
-
-    transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
+# endif
+    transaction->out_msg.hdr->addr = MHB_ADDR_I2S;
     transaction->out_msg.hdr->type = MHB_TYPE_I2S_CONFIG_RSP;
     transaction->out_msg.hdr->result =
         ret ? MHB_RESULT_UNKNOWN_ERROR : MHB_RESULT_SUCCESS;
     transaction->send_rsp = true;
-
+#else
+    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
+#endif
     return 0;
 }
 
-static int mhb_handle_i2s_control_req(struct mhb_transaction *transaction)
+#if defined(CONFIG_I2S_TUNNEL)
+static int mhb_i2s_tunnel_enable_disable(uint8_t status, bool enable)
 {
-    int ret;
+    int ret = OK;
 
-    // TODO: Implement
-    ret = 0;
-
-#if CONFIG_ICE_IPC_CLIENT
-    /* Cheat and re-use this transaction.  The unipro response (if any)
-       will be in out_msg. */
-     ret = mhb_unipro_send(transaction);
+    /*
+     * Update the arm and enable functions if status is a 0 and enable is false
+     * or status is non zero and enable is true.
+     */
+    if (((status == 0) ^ (enable == false)) == 0)
+    {
+        ret = i2s_unipro_tunnel_arm(enable);
+        if (ret == OK)
+        {
+            ret = i2s_unipro_tunnel_enable(enable);
+        }
+    }
+    return ret;
+}
 #endif
 
-    transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
+static int mhb_handle_i2s_control_req(struct mhb_transaction *transaction)
+{
+#if defined(CONFIG_I2S_TUNNEL)
+    static uint8_t tx_rx_status = 0;
+
+    int ret = OK;
+    struct mhb_i2s_control_req *req =
+        (struct mhb_i2s_control_req *)transaction->in_msg.payload;
+
+# if CONFIG_ICE_IPC_CLIENT
+    /*
+     * Send the same request to the APBA as soon as possible.   This is done to
+     * keep the two sides as in sync as possible.  In this case the local command
+     * and peer command are the same.  Please note, the Trigger command must only
+     * go to the APBE.  It will handle the timing of starting the APBA in sync with
+     * the APBE.
+     */
+    if (req->command != MHB_I2S_COMMAND_TRIGGER)
+    {
+        (void)mhb_unipro_send(transaction);
+    }
+# endif
+    switch (req->command) {
+        case MHB_I2S_COMMAND_RX_STOP:
+            tx_rx_status &= ~MHB_I2S_TUNNEL_RX;
+            ret = mhb_i2s_tunnel_enable_disable(tx_rx_status, false);
+            break;
+        case MHB_I2S_COMMAND_TX_STOP:
+            tx_rx_status &= ~MHB_I2S_TUNNEL_TX;
+            ret = mhb_i2s_tunnel_enable_disable(tx_rx_status, false);
+            break;
+        case MHB_I2S_COMMAND_RX_START:
+            tx_rx_status |= MHB_I2S_TUNNEL_RX;
+            ret = mhb_i2s_tunnel_enable_disable(tx_rx_status, true);
+            break;
+        case MHB_I2S_COMMAND_TX_START:
+            tx_rx_status |= MHB_I2S_TUNNEL_RX;
+            ret = mhb_i2s_tunnel_enable_disable(tx_rx_status, true);
+            break;
+        case MHB_I2S_COMMAND_ENABLE:
+            ret = i2s_unipro_tunnel_enable(true);
+            break;
+        case MHB_I2S_COMMAND_DISABLE:
+            ret = i2s_unipro_tunnel_enable(false);
+            break;
+        case MHB_I2S_COMMAND_ARM:
+            ret = i2s_unipro_tunnel_arm(true);
+            break;
+        case MHB_I2S_COMMAND_DISARM:
+            ret = i2s_unipro_tunnel_arm(false);
+            break;
+        case MHB_I2S_COMMAND_TRIGGER:
+            i2s_unipro_tunnel_start(true);
+            break;
+        default:
+            ret = -ENODEV;
+            break;
+    }
+    transaction->send_rsp = true;
+    transaction->out_msg.hdr->addr = MHB_ADDR_I2S;
     transaction->out_msg.hdr->type = MHB_TYPE_I2S_CONTROL_RSP;
     transaction->out_msg.hdr->result =
         ret ? MHB_RESULT_UNKNOWN_ERROR : MHB_RESULT_SUCCESS;
-    transaction->send_rsp = true;
+#else
+    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
+#endif
     return 0;
 }
 
 static int mhb_handle_i2s_status_req(struct mhb_transaction *transaction)
 {
-    // TODO: Implement
+#if defined(CONFIG_I2S_TUNNEL)
+    struct i2s_tunnel_info_s *info;
+    int ret;
 
-    transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
-    transaction->out_msg.hdr->type = MHB_TYPE_I2S_STATUS_RSP;
-    transaction->out_msg.hdr->result = MHB_RESULT_SUCCESS;
-    transaction->send_rsp = true;
+    /* Allow space for both the APBA and ABPE data. */
+    transaction->out_msg.payload_length = sizeof(struct i2s_tunnel_info_s)*2;
+    if (transaction->out_msg.payload_length < transaction->out_msg.payload_max) {
+# if CONFIG_ICE_IPC_CLIENT
+        /* Forward the request on to the APBA. */
+        mhb_unipro_send(transaction);
 
+        /* Place the APBE data after the APBA data. */
+        info = (struct i2s_tunnel_info_s *)&transaction->out_msg.payload[sizeof(struct i2s_tunnel_info_s)];
+# else
+        /* Place the APBA data before the APBE data. */
+        info = (struct i2s_tunnel_info_s *)&transaction->out_msg.payload[0];
+# endif
+        ret = i2s_unipro_tunnel_info(info);
+
+        if (ret == OK) {
+            TO_LE(info->enabled);
+            TO_LE(info->is_master);
+            TO_LE(info->bclk_rate);
+            TO_LE(info->bytes_per_sample);
+            TO_LE(info->roundtrip_timer_ticks);
+            TO_LE(info->timer_offset);
+            TO_LE(info->i2s_tunnel_rx_packets);
+            TO_LE(info->i2s_tunnel_packet_size);
+            TO_LE(info->i2s_tx_samples_dropped);
+            TO_LE(info->i2s_tx_samples_retransmitted);
+            TO_LE(info->i2s_tx_buffers_dropped);
+
+            transaction->out_msg.hdr->addr = MHB_ADDR_I2S;
+            transaction->out_msg.hdr->type = MHB_TYPE_I2S_STATUS_RSP;
+            transaction->out_msg.hdr->result = MHB_RESULT_SUCCESS;
+            transaction->send_rsp = true;
+            return 0;
+        }
+    }
+    transaction->out_msg.hdr->result = MHB_RESULT_NO_MEMORY;
+#else
+    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
+#endif
     return 0;
 }
 
@@ -758,6 +886,74 @@ static int _mhb_send_diag_local_log_not(struct device *dev)
 int mhb_send_diag_local_log_not(void)
 {
     return _mhb_send_diag_local_log_not(g_uart_dev);
+}
+
+static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
+{
+#if defined(CONFIG_REGLOG)
+    static size_t entries_left = REGLOG_DEPTH;
+    size_t max_bytes;
+    size_t bytes_read;
+    struct reglog_value_s *log_entry;
+
+    transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
+# if defined(CONFIG_ICE_IPC_CLIENT)
+    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBE_RSP;
+# else
+    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBA_RSP;
+# endif
+    transaction->send_rsp = true;
+
+    /* If the first time through, advance past the duplicate entries. */
+    if (entries_left == REGLOG_DEPTH) {
+        (void)reglog_advance_tail();
+    }
+    /*
+     * Limit the data to the max payload for MHB or IPC.  The header and CRC are
+     * sent as part of the transaction, but it's size must be rounded up to the
+     * next 32 bit boundary.
+     */
+    max_bytes = ipc_get_sync_data_sz() - MHB_HDR_SIZE - MHB_CRC_SIZE;
+    if (transaction->out_msg.payload_max < max_bytes) {
+        max_bytes = transaction->out_msg.payload_max;
+    }
+    /* Update max_bytes to be an even number of log packets. */
+    max_bytes = (max_bytes/sizeof(struct reglog_value_s)*sizeof(struct reglog_value_s));
+    /* Copy the data into the MHB buffer. */
+    bytes_read = 0;
+    log_entry = (struct reglog_value_s *)transaction->out_msg.payload;
+    do {
+        if (reglog_get_entries(log_entry, 1) == 0)
+        {
+            entries_left = REGLOG_DEPTH;
+            break;
+        }
+        TO_LE(log_entry->time);
+        TO_LE(log_entry->addr);
+        TO_LE(log_entry->val);
+        log_entry++;
+        bytes_read += sizeof(struct reglog_value_s);
+    } while ((--entries_left) &&
+             (max_bytes > bytes_read));
+    transaction->out_msg.payload_length = bytes_read;
+    transaction->out_msg.hdr->result = MHB_RESULT_SUCCESS;
+#else
+    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
+#endif
+    return 0;
+}
+
+static int mhb_handle_diag_reg_log_apba_req(struct mhb_transaction *transaction)
+{
+#if defined(CONFIG_ICE_IPC_CLIENT)
+    /* Send the request off to the APBA as an APBE request. */
+    transaction->in_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBE_REQ;
+    transaction->send_rsp = true;
+    return mhb_unipro_send(transaction);
+#else
+    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
+    return 0;
+#endif
 }
 
 static int mhb_handle_diag_log_req(struct mhb_transaction *transaction)
@@ -861,6 +1057,42 @@ static int mhb_handle_diag_loop_req(struct mhb_transaction *transaction)
     return 0;
 }
 
+static int mhb_handle_diag_control_req(struct mhb_transaction *transaction)
+{
+    struct mhb_diag_control_req *req =
+        (struct mhb_diag_control_req *)transaction->in_msg.payload;
+
+    transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
+    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_MODE_RSP;
+    transaction->out_msg.hdr->result = MHB_RESULT_SUCCESS;
+    switch(req->command) {
+#if defined(CONFIG_REGLOG)
+        case MHB_DIAG_CONTROL_REGLOG_FIFO:
+            reglog_set_mode(REGLOG_MODE_FIFO);
+# if defined(CONFIG_ICE_IPC_CLIENT)
+            /* Forward the request on to the APBA. */
+            mhb_unipro_send(transaction);
+# endif
+            break;
+
+        case MHB_DIAG_CONTROL_REGLOG_STACK:
+            reglog_set_mode(REGLOG_MODE_STACK);
+# if defined(CONFIG_ICE_IPC_CLIENT)
+            /* Forward the request on to the APBA. */
+            mhb_unipro_send(transaction);
+# endif
+            break;
+#endif
+        default:
+            lldbg("Error: Unknown diag control: %d\n", req->command);
+            transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
+            break;
+    }
+
+    transaction->send_rsp = true;
+    return 0;
+}
+
 /* All */
 static int mhb_handle_diag(struct mhb_transaction *transaction)
 {
@@ -873,8 +1105,14 @@ static int mhb_handle_diag(struct mhb_transaction *transaction)
         return mhb_handle_diag_mode_req(transaction);
     case MHB_TYPE_DIAG_LOOP_REQ:
         return mhb_handle_diag_loop_req(transaction);
+    case MHB_TYPE_DIAG_CONTROL_REQ:
+        return mhb_handle_diag_control_req(transaction);
+    case MHB_TYPE_DIAG_REG_LOG_APBE_REQ:
+        return mhb_handle_diag_reg_log_req(transaction);
+    case MHB_TYPE_DIAG_REG_LOG_APBA_REQ:
+        return mhb_handle_diag_reg_log_apba_req(transaction);
     default:
-        lldbg("ERROR: unknown diag event\n");
+        lldbg("ERROR: unknown server diag event: %d\n", transaction->in_msg.hdr->type);
         return -EINVAL;
     }
 }
@@ -1020,6 +1258,7 @@ static int mhb_unipro_send(struct mhb_transaction *transaction)
             p = out_param;
             memcpy(transaction->out_msg.hdr, p, sizeof(*transaction->out_msg.hdr));
             memcpy(transaction->out_msg.payload, p + sizeof(*transaction->out_msg.hdr), out_len);
+            transaction->out_msg.payload_length = out_len;
         } else {
             lldbg("ERROR: IPC response payload too big.\n");
         }
@@ -1040,6 +1279,8 @@ int mhb_unipro_init(void)
 #elif CONFIG_ICE_IPC_CLIENT
     ipc_init();
 #endif
-
+#if defined(CONFIG_I2S_TUNNEL)
+    (void)i2s_tunnel_init();
+#endif
     return 0;
 }
