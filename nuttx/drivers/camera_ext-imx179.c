@@ -241,6 +241,8 @@ static const struct camera_ext_input_node imx179_inputs[] = {
         .name = "csi-imx179",
         .type = CAM_EXT_INPUT_TYPE_CAMERA,
         .status = CAM_EXT_IN_ST_HFLIP,
+        .capabilities = CAMERA_EXT_STREAM_CAP_PREVIEW
+            | CAMERA_EXT_STREAM_CAP_VIDEO,
         .num_formats = ARRAY_SIZE(imx179_cam_formats),
         .format_nodes = imx179_cam_formats,
     },

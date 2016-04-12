@@ -45,12 +45,17 @@
 
 #define __packed    __attribute__((packed))
 
+#define CAMERA_EXT_STREAM_CAP_PREVIEW   (1 << 0)
+#define CAMERA_EXT_STREAM_CAP_VIDEO     (1 << 1)
+#define CAMERA_EXT_STREAM_CAP_SNAPSHOT  (1 << 2)
+
 /* from v4l2_input */
 struct camera_ext_input {
     __le32 index;
     char name[32];
     __le32 type;
     __le32 status;
+    __le32 capabilities;
 } __packed;
 
 /* from v4l2_fmtdesc */

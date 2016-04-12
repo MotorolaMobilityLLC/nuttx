@@ -198,6 +198,8 @@ static const struct camera_ext_input_node _inputs[] = {
         .name = "TC35874X",
         .type = CAM_EXT_INPUT_TYPE_CAMERA,
         .status = 0,
+        .capabilities = CAMERA_EXT_STREAM_CAP_PREVIEW
+            | CAMERA_EXT_STREAM_CAP_VIDEO,
         .num_formats = ARRAY_SIZE(_formats),
         .format_nodes = _formats,
     },

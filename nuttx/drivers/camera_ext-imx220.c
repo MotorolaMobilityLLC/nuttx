@@ -1027,6 +1027,8 @@ static const struct camera_ext_format_node imx220_cam_formats[] = {
         .name = "BGGR10",
         .fourcc = V4L2_PIX_FMT_SBGGR10,
         .depth = 10,
+        .capabilities = CAMERA_EXT_STREAM_CAP_PREVIEW
+            | CAMERA_EXT_STREAM_CAP_VIDEO,
         .num_frmsizes = ARRAY_SIZE(imx220_cam_frmsizes),
         .frmsize_nodes = imx220_cam_frmsizes,
     },
