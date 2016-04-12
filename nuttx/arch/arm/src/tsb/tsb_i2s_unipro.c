@@ -61,6 +61,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <reglog.h>
 #include <up_arch.h>
 
 #include <arch/chip/unipro_p2p.h>
@@ -130,6 +131,9 @@
  * interrupt it relies on the fact that the number of buffers is a power of two.
  */
 #define TSB_I2S_UNIPRO_TUNNEL_NEXT_BUF(buf) ((buf + 1) & (TSB_I2S_UNIPRO_TUNNEL_BUF_NUM - 1))
+
+/** @brief Value used to show that the system has been initialized. */
+#define TSB_I2S_UNIPRO_TUNNEL_INIT 0xa5
 
 /**
  * @brief Define a type used to index the ping pong buffers.
@@ -242,6 +246,14 @@ struct tsb_i2s_unipro_tunnel_s
      */
     unsigned int running:1;
     /**
+     * @brief Set when the clocks are initialized, but the I2S hardware has yet to
+     *        be enabled.
+     *
+     * This state is necessary to allow start to enable the I2S hardware as quickly
+     * as possible.
+     */
+    unsigned int armed:1;
+    /**
       * @brief Will be set while data reception is in process.
       *
       * It will be cleared on the next RX DMA interrupt after running is cleared.
@@ -260,7 +272,8 @@ struct tsb_i2s_unipro_tunnel_s
     unsigned int unipro_registered:1;
     /** @brief Set when configured as a master device, clear when a slave. */
     unsigned int is_master:1;
-
+    /** @brief Set to TSB_I2S_UNIPRO_TUNNEL_INIT once the system has been initialized. */
+    uint8_t initialized;
     /** @brief The number of bytes per sample.
      *
      * For mono data this is 1 for 8 bit data, 2 for 16 bit data, 4 for 24 or 32
@@ -315,7 +328,7 @@ struct tsb_i2s_unipro_tunnel_s
      */
     struct tsb_i2s_unipro_tunnel_buf_s i2s_tx_unipro_rx_buf[TSB_I2S_UNIPRO_TUNNEL_BUF_NUM];
     /** @brief Index of the next RX buffer to be sent to the APBA/APBE. */
-    TSB_I2S_UNIPRO_TUNNEL_BUF_T next_unipro_rx_buf;
+    TSB_I2S_UNIPRO_TUNNEL_BUF_T i2s_tx_buf;
     /**
      * @brief The number of APBE 48MHz timer ticks it takes to send a unipro
      *        message to the APBA and back.
@@ -474,7 +487,7 @@ static int tsb_i2s_unipro_start_i2s_rx_dma(void)
     int error;
     struct tsb_i2s_unipro_tunnel_buf_s *buf_p;
 
-    g_i2s_unipro_tunnel.next_unipro_rx_buf = TSB_I2S_UNIPRO_TUNNEL_BUF_PONG;
+    g_i2s_unipro_tunnel.i2s_tx_buf = TSB_I2S_UNIPRO_TUNNEL_BUF_PING;
 
     buf_p = &g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[TSB_I2S_UNIPRO_TUNNEL_BUF_PING];
     buf_p->len = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ;
@@ -605,7 +618,7 @@ static void tsb_i2s_unipro_tunnel_stop_i2s_dma(void)
     putreg32(TSB_I2S_REG_INT_ERROR_MASK | TSB_I2S_REG_INT_INT | TSB_I2S_REG_INT_DMACMSK,
              TSB_I2S_REG_SI_BASE + TSB_I2S_REG_INTMASK);
 
-    /* Disable the clock. */
+    /* Disable the clock . */
     error = device_pll_stop(g_i2s_unipro_tunnel.pll_dev);
     if (error != OK)
     {
@@ -613,6 +626,47 @@ static void tsb_i2s_unipro_tunnel_stop_i2s_dma(void)
     }
     tsb_clk_disable(TSB_CLK_I2SBIT);
     g_i2s_unipro_tunnel.running = false;
+}
+
+/*
+ * Start the TSB I2S hardware.
+ */
+void tsb_i2s_unipro_tunnel_start_i2s(void)
+{
+    reglog_log(0xb8, (uint32_t)g_i2s_unipro_tunnel.running);
+    if (!g_i2s_unipro_tunnel.running)
+    {
+        /*
+         * Enable the RX DMA request and error interrupts and enable the RX
+         * interrupt if in slave mode.
+         */
+        putreg32(g_i2s_unipro_tunnel.is_master ? TSB_I2S_REG_INT_INT : 0,
+                 TSB_I2S_REG_SI_BASE+TSB_I2S_REG_INTMASK);
+
+        putreg32(TSB_I2S_REG_START_START, TSB_I2S_REG_SC_BASE+TSB_I2S_REG_START);
+
+        putreg32(TSB_I2S_REG_START_START, TSB_I2S_REG_SI_BASE+TSB_I2S_REG_START);
+        putreg32(TSB_I2S_REG_MUTE_MUTEN, TSB_I2S_REG_SI_BASE+TSB_I2S_REG_MUTE);
+        putreg32(TSB_I2S_REG_START_SPK_MIC_START, TSB_I2S_REG_SI_BASE+TSB_I2S_REG_START);
+
+        putreg32(TSB_I2S_REG_START_START, TSB_I2S_REG_SO_BASE+TSB_I2S_REG_START);
+        putreg32(TSB_I2S_REG_MUTE_MUTEN, TSB_I2S_REG_SO_BASE+TSB_I2S_REG_MUTE);
+        putreg32(TSB_I2S_REG_START_SPK_MIC_START, TSB_I2S_REG_SO_BASE+TSB_I2S_REG_START);
+        g_i2s_unipro_tunnel.running = true;
+    }
+}
+
+/*
+ * Send the command to start the APBE.  This version can be called from an
+ * interrupt context.
+ */
+static int tsb_i2s_unipro_send_start_cmd(TSB_I2S_UNIPRO_CMD_T cmd, bool enable)
+{
+    struct tsb_i2s_unipro_msg_s msg;
+
+    msg.cmd = cmd;
+    msg.data.start = enable;
+    return unipro_send(TSB_I2S_UNIPRO_TUNNEL_CPORTID, &msg, sizeof(msg));
 }
 
 /*
@@ -629,6 +683,7 @@ static int tsb_i2s_unipro_i2s_out_error_handler(int irq, void *context)
     (void)context;
 
     reg_intstat = getreg32(TSB_I2S_REG_SO_BASE + TSB_I2S_REG_INTSTAT);
+    reglog_log(0x02, reg_intstat);
     if (reg_intstat & TSB_I2S_REG_INT_LRCK)
     {
         /* Do nothing, this should only happen in slave mode. */
@@ -648,6 +703,7 @@ static int tsb_i2s_unipro_i2s_out_error_handler(int irq, void *context)
         tsb_i2s_unipro_i2s_restart(TSB_I2S_REG_SO_BASE);
     }
     putreg32(TSB_I2S_REG_INT_ERROR_MASK, TSB_I2S_REG_SO_BASE + TSB_I2S_REG_INTCLR);
+    reglog_log(0x2, 0xff);
     return OK;
 }
 
@@ -665,6 +721,7 @@ static int tsb_i2s_unipro_i2s_in_error_handler(int irq, void *context)
     (void)context;
 
     reg_intstat = getreg32(TSB_I2S_REG_SI_BASE + TSB_I2S_REG_INTSTAT);
+    reglog_log(0x01, reg_intstat);
     if (reg_intstat & TSB_I2S_REG_INT_LRCK)
     {
         /* TODO: Do nothing, no idea under which cases this would happen. */
@@ -681,6 +738,31 @@ static int tsb_i2s_unipro_i2s_in_error_handler(int irq, void *context)
         tsb_i2s_unipro_i2s_restart(TSB_I2S_REG_SI_BASE);
     }
     putreg32(TSB_I2S_REG_INT_ERROR_MASK, TSB_I2S_REG_SI_BASE + TSB_I2S_REG_INTCLR);
+    reglog_log(0x01, 0xFF);
+   return OK;
+}
+
+/*
+ * Trigger the master portion of the tunnel.  This is done on the first character
+ * received to minimize the delay until valid input data is flowing.
+ *
+ * irq     The interrupt number.
+ * context The standard nuttx interrupt context (register store).
+ */
+static int tsb_i2s_unipro_i2s_in_data(int irq, void *context)
+{
+    (void)irq;
+    (void)context;
+
+    reglog_log(0x03, 0);
+    /* Disable the interrupt. */
+    putreg32(TSB_I2S_REG_INT_INT, TSB_I2S_REG_SI_BASE+TSB_I2S_REG_INTMASK);
+    /* Trigger the other size. */
+#if defined(CONFIG_UNIPRO_P2P_APBA)
+    tsb_i2s_unipro_send_start_cmd(TSB_I2S_UNIPRO_CMD_I2S_START_APBE, true);
+#else
+    tsb_i2s_unipro_send_start_cmd(TSB_I2S_UNIPRO_CMD_I2S_START_APBA, true);
+#endif
     return OK;
 }
 
@@ -711,11 +793,12 @@ static int tsb_i2s_unipro_cmd_handle_data(
     void *dma_dst;
     void *dma_src;
     size_t prev_bytes_sent;
-    struct tsb_i2s_unipro_tunnel_buf_s *next_buf_p =
-        &g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[g_i2s_unipro_tunnel.next_unipro_rx_buf];
-    struct tsb_i2s_unipro_tunnel_buf_s *prev_buf_p =
-        &g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[TSB_I2S_UNIPRO_TUNNEL_NEXT_BUF(g_i2s_unipro_tunnel.next_unipro_rx_buf)];
+    struct tsb_i2s_unipro_tunnel_buf_s *i2s_tx_buf_p =
+        &g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[g_i2s_unipro_tunnel.i2s_tx_buf];
+    struct tsb_i2s_unipro_tunnel_buf_s *unipro_rx_buf_p =
+        &g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[TSB_I2S_UNIPRO_TUNNEL_NEXT_BUF(g_i2s_unipro_tunnel.i2s_tx_buf)];
 
+    reglog_log(0x30, len);
     /* Do not send a response to the data command. */
     rsp->cmd = TSB_I2S_UNIPRO_CMD_END;
     len -= offsetof(struct tsb_i2s_unipro_msg_s, data.buf);
@@ -727,7 +810,7 @@ static int tsb_i2s_unipro_cmd_handle_data(
      */
     if (len == TSB_I2S_UNIPRO_TUNNEL_BUF_SZ)
     {
-        if (next_buf_p->msg != NULL)
+        if (unipro_rx_buf_p->msg != NULL)
         {
             /*
              * All buffers are are full, so all that can be done is to take note
@@ -740,27 +823,38 @@ static int tsb_i2s_unipro_cmd_handle_data(
              * toss one when 3 are on the stack.  However, this should be a
              * rare event if the thresholds below are good.
              */
+            reglog_log(0x3e, g_i2s_unipro_tunnel.i2s_tx_buf);
             unipro_rxbuf_free(TSB_I2S_UNIPRO_TUNNEL_CPORTID, msg);
             g_i2s_unipro_tunnel.i2s_tx_buffers_dropped++;
             return 0;
         }
-        next_buf_p->msg = msg;
-        next_buf_p->len = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ;
-        next_buf_p->unipro_allocated = true;
-        tsb_dma_get_chan_addr(g_i2s_unipro_tunnel.i2s_tx_dma_channel, &dma_src, &dma_dst);
-        prev_bytes_sent = (size_t)((uint8_t *)dma_src - prev_buf_p->msg->data.buf);
+        unipro_rx_buf_p->msg = msg;
+        unipro_rx_buf_p->len = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ;
+        unipro_rx_buf_p->unipro_allocated = true;
+        prev_bytes_sent = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ;
+        /*
+         * If still transmitting, then figure out how many characters have gone out.
+         */
+        if (i2s_tx_buf_p->msg != NULL)
+        {
+            tsb_dma_get_chan_addr(g_i2s_unipro_tunnel.i2s_tx_dma_channel, &dma_src, &dma_dst);
+            prev_bytes_sent = (size_t)((uint8_t *)dma_src - i2s_tx_buf_p->msg->data.buf);
+            /* Adjust for the case when the length has been adjusted for repeated samples. */
+            prev_bytes_sent += TSB_I2S_UNIPRO_TUNNEL_BUF_SZ - i2s_tx_buf_p->len;
+            reglog_log(0x31, (uint32_t)prev_bytes_sent);
+        }
         /*
          * If the number of samples sent so far is greater than the threshold,
          * insert a sample from the data which will be sent out.
          */
-        if ((prev_buf_p->msg != NULL) &&
-            (prev_bytes_sent > TSB_I2S_UNIPRO_TUNNEL_BUF_SZ - TSB_I2S_UNIPRO_TUNNEL_BUF_ADJUST_THRESHOLD))
+        if (prev_bytes_sent > TSB_I2S_UNIPRO_TUNNEL_BUF_SZ - TSB_I2S_UNIPRO_TUNNEL_BUF_ADJUST_THRESHOLD)
         {
-            memcpy(&next_buf_p->msg->data.buf[next_buf_p->len],
-                   &next_buf_p->msg->data.buf[next_buf_p->len-g_i2s_unipro_tunnel.bytes_per_sample],
+            memcpy(&unipro_rx_buf_p->msg->data.buf[unipro_rx_buf_p->len],
+                   &unipro_rx_buf_p->msg->data.buf[unipro_rx_buf_p->len-g_i2s_unipro_tunnel.bytes_per_sample],
                    g_i2s_unipro_tunnel.bytes_per_sample);
-            next_buf_p->len = next_buf_p->len + g_i2s_unipro_tunnel.bytes_per_sample;
+            unipro_rx_buf_p->len = unipro_rx_buf_p->len + g_i2s_unipro_tunnel.bytes_per_sample;
             g_i2s_unipro_tunnel.i2s_tx_samples_retransmitted++;
+            reglog_log(0x32, unipro_rx_buf_p->len);
         }
         /*
          * If the number of samples left in the previous buffer is not within the
@@ -768,17 +862,18 @@ static int tsb_i2s_unipro_cmd_handle_data(
          * samples is starting.  Leave one sample off of the packet to allow the
          * backlog to dissipate.
          */
-        else if ((prev_buf_p->msg == NULL) ||
-                 (prev_bytes_sent < TSB_I2S_UNIPRO_TUNNEL_BUF_ADJUST_THRESHOLD))
+        else if (prev_bytes_sent < TSB_I2S_UNIPRO_TUNNEL_BUF_ADJUST_THRESHOLD)
         {
-            next_buf_p->len -= g_i2s_unipro_tunnel.bytes_per_sample;
+            unipro_rx_buf_p->len -= g_i2s_unipro_tunnel.bytes_per_sample;
             g_i2s_unipro_tunnel.i2s_tx_samples_dropped++;
+            reglog_log(0x33, unipro_rx_buf_p->len);
         }
     }
     else
     {
         lldbg("Error: Incorrect size (%d) received from Unipro.\n", len);
     }
+    reglog_log(0x3F, g_i2s_unipro_tunnel.i2s_tx_buf);
     return len;
 }
 #endif
@@ -821,7 +916,8 @@ static int tsb_i2s_unipro_i2s_rx_dma_callback(
     (void)op;
     (void)event;
 
-    if (g_i2s_unipro_tunnel.running)
+    reglog_log(0x10, curr_buf);
+    if (g_i2s_unipro_tunnel.armed)
     {
         /* Restart DMA. */
         flags = irqsave();
@@ -832,6 +928,7 @@ static int tsb_i2s_unipro_i2s_rx_dma_callback(
                                    g_i2s_unipro_tunnel.i2s_rx_dma_channel,
                                    next_buf_p->dma_op);
         irqrestore(flags);
+        reglog_log(0x11, error);
 #if defined(CONFIG_I2S_TUNNEL_LOCAL_LOOPBACK)
         /*
          * In local I2S loopback mode simply copy the received data to the next
@@ -854,6 +951,7 @@ static int tsb_i2s_unipro_i2s_rx_dma_callback(
                             curr_buf_p->msg,
                             curr_buf_p->len+offsetof(struct tsb_i2s_unipro_msg_s, data.buf));
 # endif
+        reglog_log(0x12, error);
 #endif
     }
     else
@@ -865,6 +963,7 @@ static int tsb_i2s_unipro_i2s_rx_dma_callback(
         /* All may well now stop, this should not happen. */
         lldbg("Error: %d received in RX DMA interrupt.\n", error);
     }
+    reglog_log(0x1F, curr_buf);
     return OK;
 }
 
@@ -916,16 +1015,18 @@ static int tsb_i2s_unipro_i2s_tx_dma_callback(
      * If the next buffer has not yet been received, resend the last character
      * which was transmitted.  It if has been received send the next buffer.
      */
+    reglog_log(0x20, curr_buf);
     free_buf = curr_buf_p->unipro_allocated;
-    if (g_i2s_unipro_tunnel.running)
+    if (g_i2s_unipro_tunnel.armed)
     {
         flags = irqsave();
         if (next_buf_p->len != 0)
         {
+            reglog_log(0x21, (uint32_t)next_buf_p->len);
             next_buf_p->dma_op->sg[0].src_addr = (off_t)next_buf_p->msg->data.buf;
             next_buf_p->dma_op->callback_arg = (void *)next_buf;
             next_buf_p->dma_op->sg[0].len = next_buf_p->len;
-            g_i2s_unipro_tunnel.next_unipro_rx_buf = curr_buf;
+            g_i2s_unipro_tunnel.i2s_tx_buf = next_buf;
             error = device_dma_enqueue(g_i2s_unipro_tunnel.dma_dev,
                                        g_i2s_unipro_tunnel.i2s_tx_dma_channel,
                                        next_buf_p->dma_op);
@@ -945,24 +1046,28 @@ static int tsb_i2s_unipro_i2s_tx_dma_callback(
              * consumption of the samples in the FIFO and the entire system may
              * halt.
              */
+            /* TODO: Update to repeat the last n samples based on the time it takes
+             * to send a sample. */
             memcpy(curr_buf_p->msg->data.buf,
                    &curr_buf_p->msg->data.buf[curr_buf_p->len-g_i2s_unipro_tunnel.bytes_per_sample],
-                   g_i2s_unipro_tunnel.bytes_per_sample);
+                   g_i2s_unipro_tunnel.bytes_per_sample*10);
             /*
              * The src_addr and callback_arg should already be set, so they are
              * not reset here to save execution time.
              */
-            curr_buf_p->dma_op->sg[0].len = g_i2s_unipro_tunnel.bytes_per_sample;
+            curr_buf_p->dma_op->sg[0].len = g_i2s_unipro_tunnel.bytes_per_sample*10;
             error = device_dma_enqueue(g_i2s_unipro_tunnel.dma_dev,
                                        g_i2s_unipro_tunnel.i2s_tx_dma_channel,
                                        curr_buf_p->dma_op);
             free_buf = false;
-            g_i2s_unipro_tunnel.i2s_tx_samples_retransmitted++;
-            irqrestore(flags);
+            g_i2s_unipro_tunnel.i2s_tx_samples_retransmitted += 10;
+            reglog_log(0x2e, (uint32_t)curr_buf_p->msg);
         }
+        irqrestore(flags);
     }
     else
     {
+        reglog_log(0x22, 0);
         g_i2s_unipro_tunnel.transmitting = false;
     }
     if (free_buf)
@@ -977,24 +1082,58 @@ static int tsb_i2s_unipro_i2s_tx_dma_callback(
         /* All will now stop, this should not happen. */
         lldbg("Error: %d in tx DMA handler.\n", error);
     }
+    reglog_log(0x2F, curr_buf);
     return OK;
 }
 
 #if !defined(CONFIG_I2S_TUNNEL_LOCAL_LOOPBACK)
 # if defined(CONFIG_UNIPRO_P2P_APBE)
+
+#  if defined(CONFIG_I2S_TUNNEL_ROUNDTRIP_LOOPBACK)
+/*
+ * Wait for the number of ticks to elapse before returning.
+ *
+ * ticks The number of ticks to wait.
+ *
+ * returns 0 upon success non zero if the timeout did not happen.
+ */
+static int tsb_i2s_unipro_wait_ticks(uint32_t ticks)
+{
+    unsigned int failsafe;
+    uint32_t curr_tick;
+
+    curr_tick= tsb_fr_tmr_get();
+    failsafe = ticks;
+    while (((tsb_fr_tmr_get() - curr_tick) < ticks) &&
+           (failsafe-- > 0));
+    return failsafe != 0;
+}
+
 /*
  * Send the command to start the APBA I2S.
  *
  * enable True when I2S should be started and false to stop.
  */
-static int tsb_i2s_unipro_cmd_i2s_start_apba(bool enable)
+static int tsb_i2s_unipro_cmd_i2s_start_loopback(bool enable)
 {
-    struct tsb_i2s_unipro_msg_s msg;
-    int ret;
-    uint32_t curr_time;
+    tsb_i2s_unipro_send_start_cmd(TSB_I2S_UNIPRO_CMD_I2S_START_APBA, true);
+    /* Wait half of the roundtrip time to allow the message to get to the APBA. */
+    tsb_i2s_unipro_wait_ticks(g_i2s_unipro_tunnel.roundtrip_timer_ticks / 2);
+    return OK;
+}
+#  else
+#   define tsb_i2s_unipro_cmd_i2s_start_loopback(enable) (0)
+#  endif
+
+/*
+ * Wait for the measurement process to complete before returning.
+ *
+ * returns 0 upon the measurement process completing and non zero upon timeout.
+ */
+static int tsb_i2s_unipro_wait_for_measruement(void)
+{
     unsigned int failsafe;
 
-    ret = -EAGAIN;
     /* Wait for the measurement to be done, before starting. */
     failsafe = 1000;
     while (((volatile uint32_t)g_i2s_unipro_tunnel.roundtrip_timer_ticks == 0) &&
@@ -1002,19 +1141,12 @@ static int tsb_i2s_unipro_cmd_i2s_start_apba(bool enable)
     {
         usleep(1000);
     }
-    /* If a roundtrip time has been established, start the APBA. */
+    /* If a roundtrip time has been established retrun OK. */
     if (g_i2s_unipro_tunnel.roundtrip_timer_ticks > 0)
     {
-        msg.cmd = TSB_I2S_UNIPRO_CMD_I2S_START_APBA;
-        msg.data.start = enable;
-        ret = unipro_send(TSB_I2S_UNIPRO_TUNNEL_CPORTID, &msg, sizeof(msg));
-        /* Wait half of the roundtrip time to allow the message to get to the APBA. */
-        curr_time = tsb_fr_tmr_get();
-        failsafe = g_i2s_unipro_tunnel.roundtrip_timer_ticks;
-        while (((tsb_fr_tmr_get() - curr_time) < g_i2s_unipro_tunnel.roundtrip_timer_ticks / 2) &&
-               (failsafe-- > 0));
+        return OK;
     }
-    return ret;
+    return -EAGAIN;
 }
 
 /*
@@ -1031,8 +1163,8 @@ static int tsb_i2s_unipro_cmd_measure_start(void)
     return unipro_send(TSB_I2S_UNIPRO_TUNNEL_CPORTID, &msg, sizeof(msg));
 }
 # else
-#  define tsb_i2s_unipro_cmd_i2s_start_apba(enable) (0)
-#  define tsb_i2s_unipro_cmd_measure_start()        (0)
+#  define tsb_i2s_unipro_wait_for_measruement()         (0)
+#  define tsb_i2s_unipro_cmd_measure_start()            (0)
 # endif
 
 
@@ -1122,9 +1254,7 @@ static int tsb_i2s_unipro_cmd_handle_measure_apba_ack(
 }
 
 /*
- * Handle the I2S start command.  For the APBA this will begin the transmit
- * of I2S data.  The APBE will handle this in i2s_unipro_tunnel_start(), so
- * nothing is done in this function at this time on the APBE.
+ * Handle the I2S start apba command.
  *
  * cportid  The cport id for which the command was received on.
  * msg      The full message received.
@@ -1132,20 +1262,40 @@ static int tsb_i2s_unipro_cmd_handle_measure_apba_ack(
  * rsp      Pointer to the response which will be sent by
  *          tsb_i2s_unipro_tunnel_unipro_rx().
  */
-static int tsb_i2s_unipro_cmd_handle_i2s_start(
+static int tsb_i2s_unipro_cmd_handle_i2s_start_apba(
     unsigned int cportid,
     struct tsb_i2s_unipro_msg_s *msg,
     size_t len,
     struct tsb_i2s_unipro_msg_s *rsp)
 {
-#if defined(CONFIG_UNIPRO_P2P_APBA)
-    /* Respond with the start APBE command on the APBA. */
-    rsp->cmd = TSB_I2S_UNIPRO_CMD_I2S_START_APBE;
-    i2s_unipro_tunnel_start(msg->data.start);
+    tsb_i2s_unipro_tunnel_start_i2s();
+    /* Respond with the start APBE if not in loopback mode. */
+#if defined(CONFIG_I2S_TUNNEL_ROUNDTRIP_LOOPBACK)
+    rsp->cmd = TSB_I2S_UNIPRO_CMD_I2S_END;
 #else
-    /* No respone on the APBE and the APBA already sent the response. */
-    rsp->cmd = TSB_I2S_UNIPRO_CMD_END;
+    rsp->cmd = TSB_I2S_UNIPRO_CMD_I2S_START_APBE;
 #endif
+    return OK;
+}
+
+/*
+ * Handle the I2S start APBE command.
+ *
+ * cportid  The cport id for which the command was received on.
+ * msg      The full message received.
+ * len      The length of the message.
+ * rsp      Pointer to the response which will be sent by
+ *          tsb_i2s_unipro_tunnel_unipro_rx().
+ */
+static int tsb_i2s_unipro_cmd_handle_i2s_start_apbe(
+    unsigned int cportid,
+    struct tsb_i2s_unipro_msg_s *msg,
+    size_t len,
+    struct tsb_i2s_unipro_msg_s *rsp)
+{
+    tsb_i2s_unipro_tunnel_start_i2s();
+    /* No respone on the APBE since the APBA sent the command. */
+    rsp->cmd = TSB_I2S_UNIPRO_CMD_END;
     return OK;
 }
 /*
@@ -1168,8 +1318,8 @@ static int tsb_i2s_unipro_tunnel_unipro_rx(
         tsb_i2s_unipro_cmd_handle_measure_apba,     /* TSB_I2S_UNIPRO_CMD_MEASURE_APBA     */
         tsb_i2s_unipro_cmd_handle_measure_apbe,     /* TSB_I2S_UNIPRO_CMD_MEASURE_APBE     */
         tsb_i2s_unipro_cmd_handle_measure_apba_ack, /* TSB_I2S_UNIPRO_CMD_MEASURE_APBA_ACK */
-        tsb_i2s_unipro_cmd_handle_i2s_start,        /* TSB_I2S_UNIPRO_CMD_I2S_START_APBA   */
-        tsb_i2s_unipro_cmd_handle_i2s_start,        /* TSB_I2S_UNIPRO_CMD_I2S_START_APBE   */
+        tsb_i2s_unipro_cmd_handle_i2s_start_apba,   /* TSB_I2S_UNIPRO_CMD_I2S_START_APBA   */
+        tsb_i2s_unipro_cmd_handle_i2s_start_apbe,   /* TSB_I2S_UNIPRO_CMD_I2S_START_APBE   */
         tsb_i2s_unipro_cmd_handle_data              /* TSB_I2S_UNIPRO_CMD_I2S_DATA         */
     };
     struct tsb_i2s_unipro_msg_s *msg;
@@ -1178,6 +1328,7 @@ static int tsb_i2s_unipro_tunnel_unipro_rx(
 
     /* Assume command is not recognized. */
     msg = (struct tsb_i2s_unipro_msg_s *)data;
+    reglog_log(0xa0, (uint32_t)msg->cmd);
     rsp.cmd = TSB_I2S_UNIPRO_CMD_END;
     ret = OK;
     if (len < sizeof(struct tsb_i2s_unipro_msg_s))
@@ -1198,6 +1349,7 @@ static int tsb_i2s_unipro_tunnel_unipro_rx(
     {
         unipro_send(cportid, &rsp, sizeof(rsp));
     }
+    reglog_log(0xaf, (uint32_t)rsp.cmd);
     return ret;
 }
 #endif
@@ -1255,16 +1407,14 @@ static int tsb_i2s_unipro_cmp_uint(const void *pv_key, const void *pv_element)
   *                         The currently supported rates are: 8000, 16000, 44100, 48000.
   * @param sample_size_bits The number of bits per sample.  Supported sizes are: 16, 24 and 32.
   * @param mode             The type of transfer.  See 2S_UNIPRO_I2S_MODE_T for details.
-  * @param edge             The edge to latch the data on see I2S_UNIPRO_I2S_EDGE_T for details.
-  * @param master           Non zero when the port is to be configured as a master, 0 for a slave
-  *                         configuration.
+  * @param flags            The edge information for TX, RX, Word Clock and
+  *                         master/slave.  See I2S_TUNNEL_I2S_FLAGS_* for more information.
   */
 int i2s_unipro_tunnel_i2s_config(
     unsigned int sample_rate,
-    uint8_t sample_size_bits,
     I2S_TUNNEL_I2S_MODE_T mode,
-    I2S_TUNNEL_I2S_EDGE_T edge,
-    bool master)
+    uint8_t sample_size_bits,
+    uint8_t flags)
 {
     const unsigned int rate_validation_tb[] =
     {
@@ -1311,22 +1461,25 @@ int i2s_unipro_tunnel_i2s_config(
     p = TSB_I2S_TSB_FIND_ELEMENT(&sample_rate, rate_validation_tb, tsb_i2s_unipro_cmp_uint);
     if (p == NULL)
     {
+        lldbg("Invalid sample rate: %d\n", sample_rate);
         return -EINVAL;
     }
     /* Validate and find the bit size. */
     p = TSB_I2S_TSB_FIND_ELEMENT(&sample_size_bits, size_to_reg_tb, tsb_i2s_unipro_cmp_uint8);
     if (p == NULL)
     {
+        lldbg("Invalid bit size: %d\n", sample_size_bits);
         return -EINVAL;
     }
     bytes_per_sample = ((struct tsb_i2s_unipro_bits_to_reg_s *)p)->bytes_per_sample;
     reg_audioset = ((struct tsb_i2s_unipro_bits_to_reg_s *)p)->reg_audioset_wordlen <<
                    TSB_I2S_REG_AUDIOSET_WORDLEN_POS;
     reg_audioset |= (bytes_per_sample == 2 ? 0 : 1) << TSB_I2S_REG_AUDIOSET_SCLKTOWS_POS;
-    reg_audioset |= (edge == I2S_TUNNEL_I2S_EDGE_RISING) ? TSB_I2S_REG_AUDIOSET_EDGE : 0;
+    reg_audioset |= (flags & I2S_TUNNEL_I2S_FLAGS_LR_EDGE_RISING) ? TSB_I2S_REG_AUDIOSET_EDGE : 0;
     /* Validate the mode. */
     if (mode >= I2S_TUNNEL_I2S_MODE_END)
     {
+        lldbg("Invalid mode: %d\n", mode);
         return -EINVAL;
     }
     reg_modeset = mode_to_reg_ws_tb[mode].reg_modeset_ws;
@@ -1337,7 +1490,7 @@ int i2s_unipro_tunnel_i2s_config(
     bytes_per_sample *= mode_to_reg_ws_tb[mode].num_channels;
     g_i2s_unipro_tunnel.bytes_per_sample = bytes_per_sample;
     g_i2s_unipro_tunnel.bclk_rate = sample_rate*bytes_per_sample * 8;
-    g_i2s_unipro_tunnel.is_master = (master != false);
+    g_i2s_unipro_tunnel.is_master = ((flags & I2S_TUNNEL_I2S_FLAGS_MASTER) == I2S_TUNNEL_I2S_FLAGS_MASTER);
 
     tsb_i2s_unipro_i2s_wait_clear(TSB_I2S_REG_SC_BASE + TSB_I2S_REG_BUSY,
                                   TSB_I2S_REG_REGBUSY_AUDIOSETBUSY);
@@ -1345,10 +1498,12 @@ int i2s_unipro_tunnel_i2s_config(
              TSB_I2S_REG_SC_BASE + TSB_I2S_REG_AUDIOSET);
     tsb_i2s_unipro_i2s_wait_clear(TSB_I2S_REG_SO_BASE + TSB_I2S_REG_BUSY,
                                   TSB_I2S_REG_REGBUSY_AUDIOSETBUSY);
-    putreg32(reg_audioset, TSB_I2S_REG_SO_BASE + TSB_I2S_REG_AUDIOSET);
+    putreg32(reg_audioset| ((flags & I2S_TUNNEL_I2S_FLAGS_TX_EDGE_RISING) ? TSB_I2S_REG_AUDIOSET_SDEDGE : 0),
+             TSB_I2S_REG_SO_BASE + TSB_I2S_REG_AUDIOSET);
     tsb_i2s_unipro_i2s_wait_clear(TSB_I2S_REG_SI_BASE + TSB_I2S_REG_BUSY,
                                   TSB_I2S_REG_REGBUSY_AUDIOSETBUSY);
-    putreg32(reg_audioset, TSB_I2S_REG_SI_BASE + TSB_I2S_REG_AUDIOSET);
+    putreg32(reg_audioset | ((flags & I2S_TUNNEL_I2S_FLAGS_RX_EDGE_RISING) ? TSB_I2S_REG_AUDIOSET_SDEDGE : 0),
+             TSB_I2S_REG_SI_BASE + TSB_I2S_REG_AUDIOSET);
 
     tsb_i2s_unipro_i2s_wait_clear(TSB_I2S_REG_SC_BASE + TSB_I2S_REG_BUSY,
                                   TSB_I2S_REG_REGBUSY_MODESETBUSY);
@@ -1370,28 +1525,24 @@ int i2s_unipro_tunnel_i2s_config(
  */
 void i2s_unipro_tunnel_start(bool start)
 {
+    reglog_log(0xb0, (uint32_t)start);
     if (start)
     {
-        /* Tell the APBA to start.  This should only run on the APBE. */
-        (void)tsb_i2s_unipro_cmd_i2s_start_apba(start);
-
-        /* Enable the RX DMA request and error interrupts. */
-        putreg32(TSB_I2S_REG_INT_INT, TSB_I2S_REG_SI_BASE + TSB_I2S_REG_INTMASK);
-
-        putreg32(TSB_I2S_REG_START_START, TSB_I2S_REG_SC_BASE + TSB_I2S_REG_START);
-
-        putreg32(TSB_I2S_REG_START_START, TSB_I2S_REG_SI_BASE + TSB_I2S_REG_START);
-        putreg32(TSB_I2S_REG_MUTE_MUTEN, TSB_I2S_REG_SI_BASE + TSB_I2S_REG_MUTE);
-        putreg32(TSB_I2S_REG_START_SPK_MIC_START, TSB_I2S_REG_SI_BASE + TSB_I2S_REG_START);
-
-        putreg32(TSB_I2S_REG_START_START, TSB_I2S_REG_SO_BASE + TSB_I2S_REG_START);
-        putreg32(TSB_I2S_REG_MUTE_MUTEN, TSB_I2S_REG_SO_BASE + TSB_I2S_REG_MUTE);
-        putreg32(TSB_I2S_REG_START_SPK_MIC_START, TSB_I2S_REG_SO_BASE + TSB_I2S_REG_START);
+        /*
+         * Start the process if in loopback mode.  If in normal mode the slave will be started
+         * in the arm function and the master will be started when the first packet is received.
+         */
+#if defined(CONFIG_I2S_TUNNEL_ROUNDTRIP_LOOPBACK)
+        (void)tsb_i2s_unipro_cmd_i2s_start_loopback(start);
+        reglog_log(0xb1, 0);
+        tsb_i2s_unipro_tunnel_start_i2s();
+#endif
     }
     else
     {
-        /* Disarm should be called in this case. */
+        g_i2s_unipro_tunnel.running = false;
     }
+    reglog_log(0xbf, 0);
 }
 
 
@@ -1406,22 +1557,19 @@ int i2s_unipro_tunnel_arm(bool enable)
     unsigned int i;
     uint32_t reg_clk_sel;
 
+    reglog_log(0x50, (uint32_t)enable);
     if ((!g_i2s_unipro_tunnel.enabled) || (!g_i2s_unipro_tunnel.bclk_rate))
     {
         return -EIO;
     }
     /* If the state is not changing exit. */
-    if ((enable ^ g_i2s_unipro_tunnel.running) == false)
+    if ((enable ^ g_i2s_unipro_tunnel.armed) == false)
     {
         return OK;
     }
     if (enable)
     {
-        /* If already running do nothing additional. */
-        if (g_i2s_unipro_tunnel.running)
-        {
-            return 0;
-        }
+        reglog_log(0x51, (uint32_t)g_i2s_unipro_tunnel.armed);
         /* Reset the statistics. */
         g_i2s_unipro_tunnel.i2s_unipro_rx_packets = 0;
         g_i2s_unipro_tunnel.i2s_tx_samples_retransmitted = 0;
@@ -1455,6 +1603,7 @@ int i2s_unipro_tunnel_arm(bool enable)
                        TSB_I2S_UNIPRO_TUNNEL_BUF_SZ + offsetof(struct tsb_i2s_unipro_msg_s, data.buf));
                 g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[i].unipro_allocated = true;
                 g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[i].len = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ;
+                reglog_log(0x52, (uint32_t)g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[i].msg);
             }
             else
             {
@@ -1481,27 +1630,27 @@ int i2s_unipro_tunnel_arm(bool enable)
         * Setup the clock.  The I2S controller always divides MCLK by four and optionally
         * by two again to get the BCLK.
         */
-        if (g_i2s_unipro_tunnel.is_master)
+        /*
+         * TODO: Need to update the PLL code to handle an offset for clock
+         * differences between the APBA and the APBE.
+         */
+        error = device_pll_set_frequency(g_i2s_unipro_tunnel.pll_dev,
+                                         g_i2s_unipro_tunnel.bclk_rate * 4);
+        if (!error)
+        {
+            error = device_pll_start(g_i2s_unipro_tunnel.pll_dev);
+        }
+        if (error)
+        {
+            return error;
+        }
+        if (!g_i2s_unipro_tunnel.is_master)
         {
             /*
-             * TODO: Need to update the PLL code to handle an offset for clock
-             * differences between the APBA and the APBE.
+             * The MCLK is not currently externally connected, thus the internal
+             * clock must be used.  This may change on other hardware.
              */
-            error = device_pll_set_frequency(g_i2s_unipro_tunnel.pll_dev,
-                                             g_i2s_unipro_tunnel.bclk_rate * 4);
-            if (!error)
-            {
-                error = device_pll_start(g_i2s_unipro_tunnel.pll_dev);
-            }
-            if (error)
-            {
-                return error;
-            }
-        }
-        else
-        {
-            reg_clk_sel = TSB_CG_BRIDGE_I2S_CLOCK_SELECTOR_MASTER_CLOCK_SEL |
-                          TSB_CG_BRIDGE_I2S_CLOCK_SELECTOR_LR_BCLK_SEL;
+            reg_clk_sel = TSB_CG_BRIDGE_I2S_CLOCK_SELECTOR_LR_BCLK_SEL;
         }
         putreg32(reg_clk_sel, TSB_SYSCTL_BASE + TSB_CG_BRIDGE_I2S_CLOCK_SELECTOR);
 
@@ -1516,7 +1665,7 @@ int i2s_unipro_tunnel_arm(bool enable)
         tsb_clk_enable(TSB_CLK_I2SBIT);
         tsb_reset(TSB_RST_I2SBIT);
 
-        g_i2s_unipro_tunnel.running = true;
+        g_i2s_unipro_tunnel.armed = true;
         error = tsb_i2s_unipro_start_i2s_tx_dma(128);
 
         /* Enable the TX DMA request and error interrupts. */
@@ -1524,16 +1673,34 @@ int i2s_unipro_tunnel_arm(bool enable)
 
         /* Setup RX DMA. */
         (void)tsb_i2s_unipro_start_i2s_rx_dma();
+
+        /* Wait for the measurement process to complete. */
+        (void)tsb_i2s_unipro_wait_for_measruement();
+
+        /*
+         * If in slave mode, go ahead and start the I2S hardware, since nothing
+         * will happen until a clock is received.
+         */
+        if (!g_i2s_unipro_tunnel.is_master)
+        {
+            tsb_i2s_unipro_tunnel_start_i2s();
+        }
     }
     else
     {
-        /*
-         * Clear the running bit and let the TX DMA interrupt shut things down once
-         * it fires.
-         */
-        g_i2s_unipro_tunnel.running = false;
-        tsb_i2s_unipro_tunnel_stop_i2s_dma();
+        reglog_log(0x5e, 0);
+        g_i2s_unipro_tunnel.armed = false;
+        /* If running stop. */
+        if (g_i2s_unipro_tunnel.running)
+        {
+            /*
+             * Clear the armed bit and let the TX DMA interrupt shut things down once
+             * it fires.
+             */
+            tsb_i2s_unipro_tunnel_stop_i2s_dma();
+        }
     }
+    reglog_log(0x5f, 0);
     return error;
 }
 
@@ -1550,6 +1717,7 @@ int i2s_unipro_tunnel_enable(bool enable)
 {
     int error;
 
+    reglog_log(0xc0, (uint32_t)enable|(g_i2s_unipro_tunnel.enabled<<1));
     /* If the state has not changed, do nothing. */
     if ((enable ^ g_i2s_unipro_tunnel.enabled) == 0)
     {
@@ -1560,12 +1728,17 @@ int i2s_unipro_tunnel_enable(bool enable)
         /* Make sure Unipro has been registered. */
         if (!g_i2s_unipro_tunnel.unipro_registered)
         {
+            reglog_log(0xc2, 0);
+            lldbg("Unipro not registered.\n");
             return -EIO;
         }
         /* Open the PLL. */
+        reglog_log(0xc3, 0);
         g_i2s_unipro_tunnel.pll_dev = device_open(DEVICE_TYPE_PLL_HW, TSB_I2S_PLLA_ID);
         if (!g_i2s_unipro_tunnel.pll_dev)
         {
+            reglog_log(0xc4, 0);
+            lldbg("Unable to open audio pll.\n");
             return -EIO;
         }
         /* Enable the free running timer for use by the measurement code. */
@@ -1584,12 +1757,15 @@ int i2s_unipro_tunnel_enable(bool enable)
         }
 
         /* Enable the system clock. */
+        reglog_log(0xc5, (uint32_t)g_i2s_unipro_tunnel.pll_dev);
         tsb_clk_enable(TSB_CLK_I2SSYS);
         tsb_reset(TSB_RST_I2SSYS);
 
         /* Enable the interrupt handlers. */
+        reglog_log(0xc6, 0);
         up_enable_irq(TSB_IRQ_I2SOERR);
         up_enable_irq(TSB_IRQ_I2SIERR);
+        up_enable_irq(TSB_IRQ_I2SI);
 
         g_i2s_unipro_tunnel.enabled = true;
     }
@@ -1598,6 +1774,7 @@ int i2s_unipro_tunnel_enable(bool enable)
         /* Disable all I2S interrupts. */
         up_disable_irq(TSB_IRQ_I2SOERR);
         up_disable_irq(TSB_IRQ_I2SIERR);
+        up_disable_irq(TSB_IRQ_I2SI);
 
         /* Close the PLL. */
         device_close(g_i2s_unipro_tunnel.pll_dev);
@@ -1614,6 +1791,7 @@ int i2s_unipro_tunnel_enable(bool enable)
 
         g_i2s_unipro_tunnel.enabled = false;
     }
+    reglog_log(0xcf, 0);
     return OK;
 }
 
@@ -1711,6 +1889,53 @@ int i2s_unipro_tunnel_info(struct i2s_tunnel_info_s *info)
 }
 
 /**
+ * @brief Cleans up and releases the resources assigned in i2s_unipro_tunnel_init().
+ */
+void i2s_unipro_tunnel_deinit(void)
+{
+    size_t i;
+
+    if (g_i2s_unipro_tunnel.initialized == TSB_I2S_UNIPRO_TUNNEL_INIT)
+    {
+        //(void)unipro_driver_unregister(TSB_I2S_UNIPRO_TUNNEL_CPORTID);
+
+        for (i = 0; i < TSB_I2S_UNIPRO_TUNNEL_BUF_NUM; i++)
+        {
+            if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg)
+            {
+                free(g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg);
+            }
+            if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].dma_op)
+            {
+                device_dma_op_free(g_i2s_unipro_tunnel.dma_dev,
+                                   g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].dma_op);
+            }
+            if (g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[i].dma_op)
+            {
+                device_dma_op_free(g_i2s_unipro_tunnel.dma_dev,
+                                   g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[i].dma_op);
+            }
+        }
+        if (g_i2s_unipro_tunnel.i2s_rx_dma_channel)
+        {
+            device_dma_chan_free(g_i2s_unipro_tunnel.dma_dev,
+                                 &g_i2s_unipro_tunnel.i2s_rx_dma_channel);
+        }
+        if (g_i2s_unipro_tunnel.i2s_tx_dma_channel)
+        {
+            device_dma_chan_free(g_i2s_unipro_tunnel.dma_dev,
+                                 &g_i2s_unipro_tunnel.i2s_tx_dma_channel);
+        }
+        (void)irq_detach(TSB_IRQ_I2SOERR);
+        (void)irq_detach(TSB_IRQ_I2SIERR);
+        (void)irq_detach(TSB_IRQ_I2SI);
+        (void)tsb_release_pinshare(TSB_PIN_ETM | TSB_PIN_GPIO16 | TSB_PIN_GPIO18 |
+                                   TSB_PIN_GPIO19 | TSB_PIN_GPIO20);
+        g_i2s_unipro_tunnel.initialized = 0;
+    }
+}
+
+/**
  * @brief Initialize the I2S Unipro tunneling driver.
  *
  * This must be called at startup to allocate and initialize the necessary buffers
@@ -1756,124 +1981,101 @@ int i2s_unipro_tunnel_init(void)
         .swap = DEVICE_DMA_SWAP_SIZE_NONE,
     };
 
-    memset(&g_i2s_unipro_tunnel, 0, sizeof(g_i2s_unipro_tunnel));
-
-    /*
-     * Disable the clock in case it was on from startup.  This is required to
-     * make sure RX and TX stay in sync.
-     */
-    tsb_clk_disable(TSB_CLK_I2SSYS);
-    tsb_clk_disable(TSB_CLK_I2SBIT);
-
-#if defined(CONFIG_UNIPRO_P2P_APBE)
-    error = i2s_unipro_tunnel_unipro_register();
-    if (error != OK)
+    if (g_i2s_unipro_tunnel.initialized != TSB_I2S_UNIPRO_TUNNEL_INIT)
     {
-        lldbg("I2S Unipro Tunnel: Unable to register Unipro driver: %d\n", error);
-        goto i2s_tunnel_init_error;
-    }
-#endif
-    for (i = 0; i < TSB_I2S_UNIPRO_TUNNEL_BUF_NUM; i++)
-    {
+        memset(&g_i2s_unipro_tunnel, 0, sizeof(g_i2s_unipro_tunnel));
+        g_i2s_unipro_tunnel.initialized = TSB_I2S_UNIPRO_TUNNEL_INIT;
+
         /*
-         * Allocate the Unipro RX buffers.  The TX buffers are allocated from
-         * Unipro memory when the transfer is started since they are freed after
-         * each packet is transmitted, unlike the receive buffers which are kept.
+         * Disable the clock in case it was on from startup.  This is required to
+         * make sure RX and TX stay in sync.
          */
-        g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg =
-           (struct tsb_i2s_unipro_msg_s *)zalloc(TSB_I2S_UNIPRO_TUNNEL_BUF_SZ +
-                                                  offsetof(struct tsb_i2s_unipro_msg_s, data.buf));
-        g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].len = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ;
-        if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg == NULL)
+        tsb_clk_disable(TSB_CLK_I2SSYS);
+        tsb_clk_disable(TSB_CLK_I2SBIT);
+
+        for (i = 0; i < TSB_I2S_UNIPRO_TUNNEL_BUF_NUM; i++)
         {
-            lldbg("I2S Unipro Tunnel: Insufficient memory to allocate buffers.\n");
-            error = -ENOMEM;
+            /*
+             * Allocate the Unipro RX buffers.  The TX buffers are allocated from
+             * Unipro memory when the transfer is started since they are freed after
+             * each packet is transmitted, unlike the receive buffers which are kept.
+             */
+            g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg =
+                (struct tsb_i2s_unipro_msg_s *)zalloc(TSB_I2S_UNIPRO_TUNNEL_BUF_SZ +
+                                                      offsetof(struct tsb_i2s_unipro_msg_s, data.buf));
+            g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].len = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ;
+            if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg == NULL)
+            {
+                lldbg("I2S Unipro Tunnel: Insufficient memory to allocate buffers.\n");
+                error = -ENOMEM;
+                goto i2s_tunnel_init_error;
+            }
+        }
+
+        /* Allocate the I2S DMA channels. */
+        g_i2s_unipro_tunnel.dma_dev = device_open(DEVICE_TYPE_DMA_HW, 0);
+        if (!g_i2s_unipro_tunnel.dma_dev)
+        {
+            lldbg("I2S Unipro Tunnel: Unable to open DMA device.\n");
+            error = -ENODEV;
             goto i2s_tunnel_init_error;
         }
-    }
+        device_dma_chan_alloc(g_i2s_unipro_tunnel.dma_dev,
+                              (struct device_dma_params *)&i2s_rx_dma_params,
+                              &g_i2s_unipro_tunnel.i2s_rx_dma_channel);
+        device_dma_chan_alloc(g_i2s_unipro_tunnel.dma_dev,
+                              (struct device_dma_params *)&i2s_tx_dma_params,
+                              &g_i2s_unipro_tunnel.i2s_tx_dma_channel);
+        if (((uint32_t)g_i2s_unipro_tunnel.i2s_rx_dma_channel &
+            (uint32_t)g_i2s_unipro_tunnel.i2s_tx_dma_channel) == (uint32_t)NULL)
+        {
+            lldbg("I2S Unipro Tunnel: Unable to allocate I2S DMA channels.\n");
+            error = -ENODEV;
+            goto i2s_tunnel_init_error;
+        }
 
-    /* Allocate the I2S DMA channels. */
-    g_i2s_unipro_tunnel.dma_dev = device_open(DEVICE_TYPE_DMA_HW, 0);
-    if (!g_i2s_unipro_tunnel.dma_dev)
-    {
-        lldbg("I2S Unipro Tunnel: Unable to open DMA device.\n");
-        error = -ENODEV;
-        goto i2s_tunnel_init_error;
-    }
-    device_dma_chan_alloc(g_i2s_unipro_tunnel.dma_dev,
-                          (struct device_dma_params *)&i2s_rx_dma_params,
-                          &g_i2s_unipro_tunnel.i2s_rx_dma_channel);
-    device_dma_chan_alloc(g_i2s_unipro_tunnel.dma_dev,
-                          (struct device_dma_params *)&i2s_tx_dma_params,
-                          &g_i2s_unipro_tunnel.i2s_tx_dma_channel);
-    if (((uint32_t)g_i2s_unipro_tunnel.i2s_rx_dma_channel &
-         (uint32_t)g_i2s_unipro_tunnel.i2s_tx_dma_channel) == (uint32_t)NULL)
-    {
-        lldbg("I2S Unipro Tunnel: Unable to allocate I2S DMA channels.\n");
-        error = -ENODEV;
-        goto i2s_tunnel_init_error;
-    }
+        /* Allocate the I2S DMA ops. */
+        error = 0;
+        for (i = 0; i < TSB_I2S_UNIPRO_TUNNEL_BUF_NUM; i++)
+        {
+            error |= tsb_i2s_unipro_tunnel_dma_op_alloc(&g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i],
+                                                        false);
+            error |= tsb_i2s_unipro_tunnel_dma_op_alloc(&g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[i],
+                                                        true);
+        }
+        if (error != OK)
+        {
+            goto i2s_tunnel_init_error;
+        }
 
-    /* Allocate the I2S DMA ops. */
-    error = 0;
-    for (i = 0; i < TSB_I2S_UNIPRO_TUNNEL_BUF_NUM; i++)
-    {
-        error |= tsb_i2s_unipro_tunnel_dma_op_alloc(&g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i],
-                                                    false);
-        error |= tsb_i2s_unipro_tunnel_dma_op_alloc(&g_i2s_unipro_tunnel.i2s_tx_unipro_rx_buf[i],
-                                                    true);
-    }
-    if (error != OK)
-    {
-        goto i2s_tunnel_init_error;
-    }
+        /* Register the error handlers. */
+        error = irq_attach(TSB_IRQ_I2SOERR, tsb_i2s_unipro_i2s_out_error_handler);
+        error |= irq_attach(TSB_IRQ_I2SIERR, tsb_i2s_unipro_i2s_in_error_handler);
+        error |= irq_attach(TSB_IRQ_I2SI, tsb_i2s_unipro_i2s_in_data);
+        if (error != OK)
+        {
+            lldbg("I2S Unipro Tunnel: Unable to register I2S error handlers.\n");
+            goto i2s_tunnel_init_error;
+        }
 
-    /* Register the error handlers. */
-    error = irq_attach(TSB_IRQ_I2SOERR, tsb_i2s_unipro_i2s_out_error_handler);
-    error |= irq_attach(TSB_IRQ_I2SIERR, tsb_i2s_unipro_i2s_in_error_handler);
-    if (error != OK)
-    {
-        lldbg("I2S Unipro Tunnel: Unable to register I2S error handlers.\n");
-        goto i2s_tunnel_init_error;
+        /* Assign the correct pins to I2S. */
+        error = tsb_request_pinshare(TSB_PIN_ETM | TSB_PIN_GPIO16 | TSB_PIN_GPIO18 |
+                                     TSB_PIN_GPIO19 | TSB_PIN_GPIO20);
+        if (error)
+        {
+            lldbg("I2S Unipro Tunnel: Unable to gain ownership of I2S pins.\n");
+            goto i2s_tunnel_init_error;
+        }
+        tsb_clr_pinshare(TSB_PIN_ETM);
+        tsb_clr_pinshare(TSB_PIN_GPIO16);
+        tsb_clr_pinshare(TSB_PIN_GPIO18);
+        tsb_clr_pinshare(TSB_PIN_GPIO19);
+        tsb_clr_pinshare(TSB_PIN_GPIO20);
+        lldbg("I2S Unipro Tunnel Initialized\n");
     }
-
-    /* Assign the correct pins to I2S. */
-    error = tsb_request_pinshare(TSB_PIN_ETM | TSB_PIN_GPIO16 | TSB_PIN_GPIO18 |
-                                 TSB_PIN_GPIO19 | TSB_PIN_GPIO20);
-    if (error)
-    {
-        lldbg("I2S Unipro Tunnel: Unable to gain ownership of I2S pins.\n");
-        goto i2s_tunnel_init_error;
-    }
-    tsb_clr_pinshare(TSB_PIN_ETM);
-    tsb_clr_pinshare(TSB_PIN_GPIO16);
-    tsb_clr_pinshare(TSB_PIN_GPIO18);
-    tsb_clr_pinshare(TSB_PIN_GPIO19);
-    tsb_clr_pinshare(TSB_PIN_GPIO20);
     return OK;
 
 i2s_tunnel_init_error:
-    for (i = 0; i < TSB_I2S_UNIPRO_TUNNEL_BUF_NUM; i++)
-    {
-        if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg)
-        {
-            free(g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg);
-        }
-        if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].dma_op)
-        {
-            device_dma_op_free(g_i2s_unipro_tunnel.dma_dev,
-                               g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].dma_op);
-        }
-    }
-    if (g_i2s_unipro_tunnel.i2s_rx_dma_channel)
-    {
-        device_dma_chan_free(g_i2s_unipro_tunnel.dma_dev,
-                             &g_i2s_unipro_tunnel.i2s_rx_dma_channel);
-    }
-    if (g_i2s_unipro_tunnel.i2s_tx_dma_channel)
-    {
-        device_dma_chan_free(g_i2s_unipro_tunnel.dma_dev,
-                             &g_i2s_unipro_tunnel.i2s_tx_dma_channel);
-    }
+    i2s_unipro_tunnel_deinit();
     return error;
 }
