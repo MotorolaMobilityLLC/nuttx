@@ -37,7 +37,6 @@
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/camera_ext_defs.h>
 
-#define DEBUG
 #include "camera_ext_dbg.h"
 
 #define CAMERA_UNIPRO_CPORT 16

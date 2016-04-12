@@ -315,7 +315,7 @@ static int apbe_pwrctrl_send_slave_state(struct device *dev, uint32_t slave_stat
 
     if ((ctrl_info->slave_state_ref_cnt <= 1) &&
                       (curr_ref_cnt <= 1)) {
-            lldbg("update slave state\n");
+            lldbg("update slave state %s\n", (slave_state == SLAVE_STATE_ENABLED)?"Enabled":"Disabled");
             ret = ctrl_info->slave_state_cb(dev, slave_state);
     }
 
