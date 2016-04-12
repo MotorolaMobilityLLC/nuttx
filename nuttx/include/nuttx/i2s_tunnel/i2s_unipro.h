@@ -35,13 +35,13 @@
 
 # if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
 int i2s_unipro_tunnel_init(void);
+void i2s_unipro_tunnel_deinit(void);
 int i2s_unipro_tunnel_unipro_register(void);
 int i2s_unipro_tunnel_enable(bool enable);
 int i2s_unipro_tunnel_i2s_config(unsigned int sample_rate,
-                                 uint8_t sample_size_bits,
                                  I2S_TUNNEL_I2S_MODE_T mode,
-                                 I2S_TUNNEL_I2S_EDGE_T edge,
-                                 bool master);
+                                 uint8_t sample_size_bits,
+                                 uint8_t flags);
 int i2s_unipro_tunnel_arm(bool enable);
 void i2s_unipro_tunnel_start(bool start);
 int i2s_unipro_tunnel_info(struct i2s_tunnel_info_s *info);
