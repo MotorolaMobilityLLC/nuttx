@@ -39,18 +39,9 @@
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/math.h>
-
 #include "greybus/v4l2_camera_ext_ctrls.h"
-
 #include "camera_ext.h"
-
 #include "camera_ext_s10p.h"
-
-#ifdef CONFIG_NSH_CONSOLE
-#define CTRL_DBG printf
-#else
-#define CTRL_DBG
-#endif
 
 #define S10_I2C_RETRY  5
 
@@ -186,6 +177,8 @@ uint8_t s10p_read_reg1(struct s10p_i2c_dev_info* i2c, uint16_t regaddr)
     if (i2c_read(i2c, addr, sizeof(addr), data, sizeof(data)) == 0) {
         value = data[0];
         CAM_DBG("read: 0x%04x -> 0x%02x\n", regaddr, value);
+    } else {
+        CAM_ERR("Failed i2c read 0x%04x\n",regaddr);
     }
 
     return value;
@@ -206,6 +199,8 @@ uint16_t s10p_read_reg2(struct s10p_i2c_dev_info* i2c, uint16_t regaddr)
     if (i2c_read(i2c, addr, sizeof(addr), data, sizeof(data)) == 0) {
         value = (data[1] << 8) + data[0];
         CAM_DBG("read: 0x%04x -> 0x%04x\n", regaddr, value);
+    } else {
+        CAM_ERR("Failed i2c read 0x%04x\n",regaddr);
     }
 
     return value;
@@ -226,6 +221,8 @@ uint32_t s10p_read_reg4(struct s10p_i2c_dev_info* i2c, uint16_t regaddr)
     if (i2c_read(i2c, addr, sizeof(addr), data, sizeof(data)) == 0) {
         value = (data[3] << 24) + (data[2] << 16) + (data[1] << 8) + data[0];
         CAM_DBG("read: 0x%04x -> 0x%08x\n", regaddr, value);
+    } else {
+        CAM_ERR("Failed i2c read 0x%04x\n",regaddr);
     }
 
     return value;
@@ -264,7 +261,12 @@ int s10p_write_reg1(struct s10p_i2c_dev_info *i2c, uint16_t regaddr, uint8_t dat
     addr[1] = (regaddr >> 8) & 0xFF;
     addr[2] = data & 0xFF;
 
-    return i2c_write(i2c, addr, sizeof(addr));
+    int ret = i2c_write(i2c, addr, sizeof(addr));
+    if (ret != 0) {
+        CAM_ERR("Failed i2c write 0x%02x to addr 0x%04x err %d\n", data, regaddr, ret);
+    }
+
+    return ret;
 }
 
 /* 2 bytes value register write */
@@ -278,7 +280,12 @@ int s10p_write_reg2(struct s10p_i2c_dev_info *i2c, uint16_t regaddr, uint16_t da
     addr[2] = data & 0xFF;
     addr[3] = (data >> 8) & 0xFF;
 
-    return i2c_write(i2c, addr, sizeof(addr));
+    int ret = i2c_write(i2c, addr, sizeof(addr));
+    if (ret != 0) {
+        CAM_ERR("Failed i2c write 0x%04x to addr 0x%04x err %d\n", data, regaddr, ret);
+    }
+
+    return ret;
 }
 
 /* 4 bytes value register write */
@@ -294,7 +301,12 @@ int s10p_write_reg4(struct s10p_i2c_dev_info *i2c, uint16_t regaddr, uint32_t da
     addr[4] = (data >> 16) & 0xFF;
     addr[5] = (data >> 24) & 0xFF;
 
-    return i2c_write(i2c, addr, sizeof(addr));
+    int ret = i2c_write(i2c, addr, sizeof(addr));
+    if (ret != 0) {
+        CAM_ERR("Failed i2c write 0x%08x to addr 0x%04x err %d\n", data, regaddr, ret);
+    }
+
+    return ret;
 }
 
 void s10p_set_i2c(struct s10p_i2c_dev_info *i2c)
@@ -419,7 +431,7 @@ static int ctrl_val_set(struct device *dev,
             break;
     }
 
-    CAM_DBG("id %x\n", self->id);
+    CTRL_DBG("id %x\n", self->id);
 
     for (i = 0; i < self->val_cfg.nr_of_elem && retval == 0; i++) {
         switch (self->val_cfg.elem_type) {
@@ -454,7 +466,7 @@ static int ctrl_val_set(struct device *dev,
             break;
         case CAM_EXT_CTRL_DATA_TYPE_STRING:
             if (!is_array) {
-                CAM_DBG("%s ", val->p_val_8);
+                CTRL_DBG("%s ", val->p_val_8);
             }
             break;
         default:

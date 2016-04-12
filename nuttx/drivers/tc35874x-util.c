@@ -39,7 +39,6 @@
 #include <nuttx/list.h>
 
 #include <arch/byteorder.h>
-
 #include "tc35874x-util.h"
 #include "camera_ext_dbg.h"
 
@@ -70,13 +69,7 @@ static int i2c_read(struct tc35874x_i2c_dev_info *i2c,
     msg[1].buffer = data;
     msg[1].length = data_len;
 
-    int ret = I2C_TRANSFER(i2c->i2c, msg, 2);
-    if (ret != 0) {
-        CAM_ERR("i2c read transfer failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
+    return I2C_TRANSFER(i2c->i2c, msg, 2);
 }
 
 /* 2 bytes value register read */
@@ -91,9 +84,12 @@ uint16_t tc35874x_read_reg2(struct tc35874x_i2c_dev_info* i2c, uint16_t regaddr)
 
     memset(data, 0, sizeof(data));
 
-    if (i2c_read(i2c, addr, sizeof(addr), data, sizeof(data)) == 0) {
+    int ret = i2c_read(i2c, addr, sizeof(addr), data, sizeof(data));
+    if (ret == 0) {
         value = (data[0] << 8) + data[1];
         CAM_DBG("Read: 0x%04x -> 0x%04x\n", regaddr, value);
+    } else {
+        CAM_ERR("Failed i2c read 0x%04x err %d\n", regaddr, ret);
     }
 
     return value;
@@ -111,9 +107,12 @@ uint32_t tc35874x_read_reg4(struct tc35874x_i2c_dev_info* i2c, uint16_t regaddr)
 
     memset(data, 0, sizeof(data));
 
-    if (i2c_read(i2c, addr, sizeof(addr), data, sizeof(data)) == 0) {
+    int ret = i2c_read(i2c, addr, sizeof(addr), data, sizeof(data));
+    if (ret == 0) {
         value = (data[0] << 8) + data[1] + (data[2] << 24) + (data[3] << 16);
         CAM_DBG("Read: 0x%04x -> 0x%08x\n", regaddr, value);
+    } else {
+        CAM_ERR("Failed i2c read 0x%04x err %d\n", regaddr, ret);
     }
 
     return value;
@@ -128,13 +127,7 @@ static int i2c_write(struct tc35874x_i2c_dev_info *i2c, uint8_t *addr, int addr_
     msg.buffer = addr;
     msg.length = addr_len;
 
-    int ret = I2C_TRANSFER(i2c->i2c, &msg, 1);
-    if (ret != 0) {
-        CAM_ERR("i2c write transfer failed %d\n", ret);
-        return -1;
-    }
-
-    return 0;
+    return I2C_TRANSFER(i2c->i2c, &msg, 1);
 }
 
 /* 2 bytes value register write */
@@ -142,13 +135,17 @@ int tc35874x_write_reg2(struct tc35874x_i2c_dev_info* i2c, uint16_t regaddr, uin
 {
     uint8_t addr[4];
 
-    lldbg("write 0x%04x to addr 0x%04x\n", data, regaddr);
+    CAM_DBG("write 0x%04x to addr 0x%04x\n", data, regaddr);
     addr[0] = (regaddr >> 8) & 0xFF;
     addr[1] = regaddr & 0xFF;
     addr[2] = (data >> 8) & 0xFF;
     addr[3] = data & 0xFF;
 
-    return i2c_write(i2c, addr, sizeof(addr));
+    int ret = i2c_write(i2c, addr, sizeof(addr));
+    if (ret != 0) {
+        CAM_ERR("Failed i2c write 0x%04x to addr 0x%04x err %d\n", data, regaddr, ret);
+    }
+    return ret;
 }
 
 /* 4 bytes value register write */
@@ -156,7 +153,7 @@ int tc35874x_write_reg4(struct tc35874x_i2c_dev_info* i2c, uint16_t regaddr, uin
 {
     uint8_t addr[6];
 
-    lldbg("write 0x%08x to addr 0x%08x\n", data, regaddr);
+    CAM_DBG("write 0x%08x to addr 0x%08x\n", data, regaddr);
     addr[0] = (regaddr >> 8) & 0xFF;
     addr[1] = regaddr & 0xFF;
     addr[2] = (data >> 8) & 0xFF;
@@ -164,7 +161,11 @@ int tc35874x_write_reg4(struct tc35874x_i2c_dev_info* i2c, uint16_t regaddr, uin
     addr[4] = (data >> 24) & 0xFF;
     addr[5] = (data >> 16) & 0xFF;
 
-    return i2c_write(i2c, addr, sizeof(addr));
+    int ret = i2c_write(i2c, addr, sizeof(addr));
+    if (ret != 0) {
+        CAM_ERR("Failed i2c write 0x%08x to addr 0x%04x err %d\n", data, regaddr, ret);
+    }
+    return ret;
 }
 
 /*

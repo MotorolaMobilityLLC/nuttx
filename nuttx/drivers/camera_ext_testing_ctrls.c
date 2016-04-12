@@ -4,12 +4,6 @@
 #include "greybus/v4l2_camera_ext_ctrls.h"
 #include "greybus/camera_ext_dbg.h"
 
-/* Common function for set control value. Just dump the value. */
-#ifdef CONFIG_NSH_CONSOLE
-#define CTRL_DBG printf
-#else
-#define CTRL_DBG
-#endif
 static int ctrl_val_set(struct device *dev,
         const struct camera_ext_ctrl_cfg *self,
         const camera_ext_ctrl_val_t *val)

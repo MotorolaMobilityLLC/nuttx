@@ -32,7 +32,7 @@
 #include <stdio.h>
 
 #ifdef DEBUG
-    #ifdef CONFIG_NSH_CONSOLE
+    #ifndef DEBUG_DMESG
         #define CAM_DBG(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
     #else
         #define CAM_DBG lldbg
@@ -41,7 +41,18 @@
     #define CAM_DBG(x...)
 #endif
 
-#ifdef CONFIG_NSH_CONSOLE
+#ifdef DEBUG_CTRL
+    #ifndef DEBUG_DMESG
+        #define CTRL_DBG(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
+    #else
+        #define CTRL_DBG lldbg
+    #endif
+#else
+    #define CTRL_DBG(x...)
+#endif
+
+
+#ifndef DEBUG_DMESG
     #define CAM_ERR(fmt, ...) printf("%s" fmt, __func__, ##__VA_ARGS__)
 #else
     #define CAM_ERR lldbg
