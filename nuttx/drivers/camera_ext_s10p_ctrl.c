@@ -34,7 +34,6 @@
 #include <string.h>
 #include <time.h>
 
-#include <apps/ice/cdsi.h>
 #include <nuttx/config.h>
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/gpio.h>

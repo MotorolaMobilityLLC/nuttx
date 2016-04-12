@@ -42,6 +42,7 @@
 
 #include <arch/chip/cdsi.h>
 #include <arch/chip/cdsi_config.h>
+#include <nuttx/device.h>
 
 #include "greybus/v4l2_camera_ext_ctrls.h"
 
@@ -51,98 +52,35 @@
 #include "camera_ext_s10p.h"
 
 /*
- * This is the reference greybus driver for Toshiba Paral to CSI-2 bridge
- * chip (TC35874X series).
+ * This is the reference greybus camera extension driver for
+ * S10 Imager + Toshiba Parallel to CSI-2 bridge chip (TC35874X series).
  *
- * Driver is implemented to work with Toshiba's evaluation board. GPIOs
- * and regulators control for the chip is done by eval board itself so
- * those are not implemented in this driver.
- *
- * The parameters used in this driver are to work with Raspberry Pi2
- * parallel display output.
  */
 #define DEBUG_DUMP_REGISTER 1
 #define BRIDGE_RESET_DELAY 100000 /* us */
 
-#ifdef CONFIG_REDCARPET_APBE
-#define GPIO_CAMERA_INT3  8
-#endif
-
-#define S10P_I2C_ADDR 0x0D
-#define BRIDGE_I2C_ADDR 0x0E
-
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 typedef enum {
-    OFF = 0,
-    ON,
-    STREAMING
-} dev_status_t;
+    CAMERA_S10_STATE_OFF = 0,
+    CAMERA_S10_STATE_ON,
+    CAMERA_S10_STATE_STREAMING,
+} dev_state_t;
 
 struct dev_private_s
 {
-    dev_status_t status;
+    dev_state_t state;
     struct tc35874x_i2c_dev_info tc_i2c_info;
     struct s10p_i2c_dev_info s10_i2c_info;
+    uint8_t cam_int0;
+    uint8_t cam_int1;
+    uint8_t cam_int2;
+
 };
 
 //static allocate the singleton instance
 static struct dev_private_s s_device;
 /////////////////////////////////////////////////////////////////////
-#ifdef CONFIG_MODS_REDC
-static void ensure_s10_i2c_open(void)
-{
-    /* Only initialize I2C once in life */
-    if (s_device.s10_i2c_info.i2c == NULL) {
-        /* initialize once */
-        s_device.s10_i2c_info.i2c = up_i2cinitialize(0);
-
-        if (s_device.s10_i2c_info.i2c == NULL) {
-            CAM_ERR("Failed to initialize I2C\n");
-            return;
-        }
-        s_device.s10_i2c_info.i2c_addr = S10P_I2C_ADDR;
-    }
-}
-
-uint8_t s10p_read_reg1_(uint16_t regaddr)
-{
-    ensure_s10_i2c_open();
-    return s10p_read_reg1(&s_device.s10_i2c_info, regaddr);
-}
-
-uint16_t s10p_read_reg2_(uint16_t regaddr)
-{
-    ensure_s10_i2c_open();
-    return s10p_read_reg2(&s_device.s10_i2c_info, regaddr);
-}
-
-uint32_t s10p_read_reg4_(uint16_t regaddr)
-{
-    ensure_s10_i2c_open();
-    return s10p_read_reg4(&s_device.s10_i2c_info, regaddr);
-}
-
-int s10p_write_reg1_(uint16_t regaddr, uint8_t data)
-{
-    ensure_s10_i2c_open();
-    return s10p_write_reg1(&s_device.s10_i2c_info, regaddr, data);
-}
-
-int s10p_write_reg2_(uint16_t regaddr, uint16_t data)
-{
-    ensure_s10_i2c_open();
-    return s10p_write_reg2(&s_device.s10_i2c_info, regaddr, data);
-}
-
-int s10p_write_reg4_(uint16_t regaddr, uint32_t data)
-{
-    ensure_s10_i2c_open();
-    return s10p_write_reg4(&s_device.s10_i2c_info, regaddr, data);
-}
-#endif
-
-/////////////////////////////////////////////////////////////////////////////////////
 #define DEV_TO_PRIVATE(dev_ptr, priv_ptr) struct dev_private_s *priv_ptr =\
         (struct dev_private_s *)device_driver_get_private(dev_ptr)
 
@@ -432,19 +370,18 @@ const static struct camera_sensor generic_sensor = {
 static int _power_on(struct device *dev)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
+    CAM_DBG("camera_ext_s10 state %d\n", dev_priv->state);
 
-    if (dev_priv->status == OFF) {
+    if (dev_priv->state == CAMERA_S10_STATE_OFF) {
         if (tc35874x_run_command(&bridge_on, NULL) != 0) {
             CAM_ERR("Failed to run bridge_on commands\n");
-        } else {
-            dev_priv->status = ON;
-            return 0;
-        }
-    } else {
-        CAM_DBG("%s: status %d\n", __func__, dev_priv->status);
+            return -1;
     }
-
-    return -1;
+    else {
+        CAM_DBG("camera already on %d\n", dev_priv->state);
+    }
+    dev_priv->state = CAMERA_S10_STATE_ON;
+    return 0;
 }
 
 static int _stream_off(struct device *dev);
@@ -452,21 +389,21 @@ static int _stream_off(struct device *dev);
 static int _power_off(struct device *dev)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
+    CAM_DBG(" state %d\n", dev_priv->state);
 
-    if (dev_priv->status == STREAMING) {
+    if (dev_priv->state == CAMERA_S10_STATE_STREAMING) {
         CAM_DBG("stop streaming before powering off\n");
         _stream_off(dev);
     }
 
-    if (dev_priv->status == OFF) {
-        CAM_DBG("camera already off\n");
-        return 0;
+    if (dev_priv->state == CAMERA_S10_STATE_OFF) {
+        CAM_ERR("Camera already off\n");
     }
-    if (tc35874x_run_command(&bridge_off, NULL) != 0) {
+    else if (tc35874x_run_command(&bridge_off, NULL) != 0) {
         CAM_ERR("Failed to run bridge_off commands\n");
         return -1;
     }
-    dev_priv->status = OFF;
+    dev_priv->state = CAMERA_S10_STATE_OFF;
 
     return 0;
 }
@@ -474,8 +411,9 @@ static int _power_off(struct device *dev)
 static int _stream_on(struct device *dev)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
+    CAM_DBG(" state %d\n", dev_priv->state);
 
-    if (dev_priv->status != ON)
+    if (dev_priv->state != CAMERA_S10_STATE_ON)
         return -1;
 
     const struct camera_ext_format_db *db = camera_ext_get_format_db();
@@ -550,7 +488,7 @@ static int _stream_on(struct device *dev)
         CAM_ERR("Failed to run setup & start commands\n");
         goto stop_csi_tx;
     }
-    dev_priv->status = STREAMING;
+    dev_priv->state = CAMERA_S10_STATE_STREAMING;
 
     return 0;
 
@@ -563,14 +501,14 @@ stop_csi_tx:
 static int _stream_off(struct device *dev)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
+    CAM_DBG(" state %d\n", dev_priv->state);
 
-    if (dev_priv->status != STREAMING)
+    if (dev_priv->state != CAMERA_S10_STATE_STREAMING)
         return -1;
 
     if (tc35874x_run_command(&bridge_stop, NULL) != 0)
         return -1;
 
-    dev_priv->status = ON;
     cdsi_apba_cam_tx_stop();
 
     if (g_cdsi_dev) {
@@ -582,53 +520,57 @@ static int _stream_off(struct device *dev)
     _power_off(dev);
     _power_on(dev);
 
+    dev_priv->state = CAMERA_S10_STATE_ON;
     return 0;
 }
 
-#ifdef CONFIG_REDCARPET_APBE
-static int int3_irq_event(int irq, FAR void *context)
+static int int2_irq_event(int irq, FAR void *context)
 {
     static uint8_t keycode = 0x01;
-    uint8_t new_gpiostate = 0;
-    gpio_mask_irq(GPIO_CAMERA_INT3);
+    gpio_mask_irq(s_device.cam_int2);
     s10p_report_button(keycode);
     keycode = 0x01 - keycode;
-    gpio_clear_interrupt(GPIO_CAMERA_INT3);
-    gpio_unmask_irq(GPIO_CAMERA_INT3);
+    gpio_clear_interrupt(s_device.cam_int2);
+    gpio_unmask_irq(s_device.cam_int2);
+    return 0;
 }
-#endif
 
 static int _dev_open(struct device *dev)
 {
-    s_device.status = OFF;
+    struct device_resource *res;
+    CAM_DBG("camera_ext_s10\n");
 
     /* Only initialize I2C once in life */
     if (s_device.tc_i2c_info.i2c == NULL) {
         /* initialize once */
-        s_device.tc_i2c_info.i2c = up_i2cinitialize(0);
+        s_device.tc_i2c_info.i2c = up_i2cinitialize(CONFIG_CAMERA_I2C_BUS);
 
         if (s_device.tc_i2c_info.i2c == NULL) {
             CAM_ERR("Failed to initialize I2C\n");
             return -1;
         }
-        s_device.tc_i2c_info.i2c_addr = BRIDGE_I2C_ADDR;
+        s_device.tc_i2c_info.i2c_addr = CONFIG_CAMERA_TC35874X_I2C_ADDR;
 
         if (tc35874x_start_i2c_control_thread(&s_device.tc_i2c_info) != 0) {
+            CAM_ERR("Failed to start tc35874x i2c ctrl thread\n");
             up_i2cuninitialize(s_device.tc_i2c_info.i2c);
             s_device.tc_i2c_info.i2c = NULL;
+            return -1;
         }
     }
 
     if (s_device.s10_i2c_info.i2c == NULL) {
         /* initialize once */
-        s_device.s10_i2c_info.i2c = up_i2cinitialize(0);
+        s_device.s10_i2c_info.i2c = up_i2cinitialize(CONFIG_CAMERA_I2C_BUS);
 
         if (s_device.s10_i2c_info.i2c == NULL) {
             CAM_ERR("Failed to initialize I2C\n");
             return -1;
         }
-        s_device.s10_i2c_info.i2c_addr = S10P_I2C_ADDR;
-		s10p_set_i2c(&s_device.s10_i2c_info);
+        s_device.s10_i2c_info.i2c_addr = CONFIG_CAMERA_S10_I2C_ADDR;
+        s10p_set_i2c(&s_device.s10_i2c_info);
+
+        s_device.state = CAMERA_S10_STATE_OFF;
     }
 
     device_driver_set_private(dev, (void*)&s_device);
@@ -636,14 +578,36 @@ static int _dev_open(struct device *dev)
     camera_ext_register_format_db(&_db);
     camera_ext_register_control_db(&s10p_ctrl_db);
 
-#ifdef CONFIG_REDCARPET_APBE
-    gpio_direction_in(GPIO_CAMERA_INT3);
-    gpio_mask_irq(GPIO_CAMERA_INT3);
-    set_gpio_triggering(GPIO_CAMERA_INT3, IRQ_TYPE_EDGE_RISING);
-    gpio_irqattach(GPIO_CAMERA_INT3, int3_irq_event);
-    gpio_clear_interrupt(GPIO_CAMERA_INT3);
-    gpio_unmask_irq(GPIO_CAMERA_INT3);
-#endif
+
+    res = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "CAM_INT2");
+    if (!res) {
+        CAM_ERR("failed to get cam_int2 gpio\n");
+        return -EINVAL;
+    }
+    s_device.cam_int2 = res->start;
+
+    res = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "CAM_INT1");
+    if (!res) {
+        CAM_ERR("failed to get cam_int2 gpio\n");
+        s_device.cam_int1 = -1;
+    } else {
+        s_device.cam_int1 = res->start;
+    }
+
+    res = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "CAM_INT0");
+    if (!res) {
+        CAM_ERR("failed to get cam_int2 gpio\n");
+    } else {
+        s_device.cam_int0 = -1;
+        s_device.cam_int0 = res->start;
+    }
+
+    gpio_direction_in(s_device.cam_int2);
+    gpio_mask_irq(s_device.cam_int2);
+    set_gpio_triggering(s_device.cam_int2, IRQ_TYPE_EDGE_RISING);
+    gpio_irqattach(s_device.cam_int2, int2_irq_event);
+    gpio_clear_interrupt(s_device.cam_int2);
+    gpio_unmask_irq(s_device.cam_int2);
 
     return 0;
 }
@@ -651,17 +615,19 @@ static int _dev_open(struct device *dev)
 static void _dev_close(struct device *dev)
 {
     //ensure power off camera
+    CAM_DBG(" camera_ext_s10");
     struct dev_private_s *dev_priv = (struct dev_private_s *)
         device_driver_get_private(dev);
-    if (dev_priv->status == STREAMING) {
+    if (dev_priv->state == CAMERA_S10_STATE_STREAMING) {
         CAM_DBG("stop streaming before close\n");
         _stream_off(dev);
     }
-    if (dev_priv->status == ON) {
+    if (dev_priv->state == CAMERA_S10_STATE_ON) {
         CAM_DBG("power off before close\n");
         _power_off(dev);
     }
 }
+
 
 static struct device_camera_ext_dev_type_ops _camera_ext_type_ops = {
     .register_event_cb = camera_ext_register_event_cb,

@@ -91,6 +91,21 @@ endchoice
 
 endif
 
+config CAMERA_I2C_BUS
+	int "CAMERA I2C BUS"
+	default n
+	depends on CAMERA_S10P
+
+config CAMERA_S10_I2C_ADDR
+	int "S10 CAMERA I2C ADDR"
+	default 0x0D
+	depends on CAMERA_S10P
+
+config CAMERA_TC35874X_I2C_ADDR
+	int "TC358746 Parallel to CSI Bridge I2C ADDR"
+	default 0x0E
+	depends on CAMERA_S10P
+
 config CAMERA_EXT_TEST_CTRLS
 	bool "Define test V4L2 control on camera_ext driver"
 	default n
