@@ -112,6 +112,7 @@ struct camera_ext_input_node {
     const char *name;
     uint32_t type;
     uint32_t status;
+    uint32_t capabilities;
 
     int num_formats;
     struct camera_ext_format_node const *format_nodes;

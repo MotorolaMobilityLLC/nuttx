@@ -335,6 +335,7 @@ int camera_ext_fill_gb_input(struct camera_ext_format_db const *db, uint32_t ind
     strncat(input->name, inode->name, 31);
     input->type = cpu_to_le32(inode->type);
     input->status = cpu_to_le32(inode->status);
+    input->capabilities = cpu_to_le32(inode->capabilities);
     return 0;
 }
 
