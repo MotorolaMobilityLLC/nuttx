@@ -32,6 +32,24 @@
 # include <stdbool.h>
 # include <errno.h>
 
+/* Flags used to control I2S hardware. */
+/** @brief Set the TX data latch edge to falling. */
+# define I2S_TUNNEL_I2S_FLAGS_TX_EDGE_FALLING  0x00
+/** @brief Set the TX data latch edge to rising. */
+# define I2S_TUNNEL_I2S_FLAGS_TX_EDGE_RISING   0x01
+/** @brief Set the RX data latch edge to falling. */
+# define I2S_TUNNEL_I2S_FLAGS_RX_EDGE_FALLING  0x00
+/** @brief Set the RX data latch edge to rising. */
+# define I2S_TUNNEL_I2S_FLAGS_RX_EDGE_RISING   0x02
+/** @brief Set the Left Right data latch edge to falling. */
+# define I2S_TUNNEL_I2S_FLAGS_LR_EDGE_FALLING  0x00
+/** @brief Set the Left Right data latch edge to rising. */
+# define I2S_TUNNEL_I2S_FLAGS_LR_EDGE_RISING   0x04
+/** @brief Set I2S to Slave mode. */
+# define I2S_TUNNEL_I2S_FLAGS_SLAVE            0x00
+/** @brief Set I2S to Master mode. */
+# define I2S_TUNNEL_I2S_FLAGS_MASTER           0x08
+
 /**
  * @brief Modes supported by the i2s tunneling over uart driver.
  */
@@ -44,16 +62,6 @@ typedef enum
     I2S_TUNNEL_I2S_MODE_LR_STEREO_REV,
     I2S_TUNNEL_I2S_MODE_END
 } I2S_TUNNEL_I2S_MODE_T;
-
-/**
- * @brief Edges supported by the I2S hardware.
- */
-typedef enum
-{
-    I2S_TUNNEL_I2S_EDGE_RISING,
-    I2S_TUNNEL_I2S_EDGE_FALLING,
-    I2S_TUNNEL_I2S_EDGE_END,
-} I2S_TUNNEL_I2S_EDGE_T;
 
 struct i2s_tunnel_info_s
 {
@@ -75,13 +83,13 @@ struct i2s_tunnel_info_s
  * On the APBA messages are sent to the APBE to start things. so interface
  * functions are not required.
  */
+
 #  if defined(CONFIG_UNIPRO_P2P_APBE)
 int i2s_tunnel_enable(bool enable);
 int i2s_tunnel_i2s_config(unsigned int sample_rate,
-                          uint8_t sample_size_bits,
                           I2S_TUNNEL_I2S_MODE_T mode,
-                          I2S_TUNNEL_I2S_EDGE_T edge,
-                          bool master);
+                          uint8_t sample_size_bits,
+                          uint8_t flags);
 int i2s_tunnel_arm(bool enable);
 void i2s_tunnel_start(bool start);
 int i2s_tunnel_get_info(struct i2s_tunnel_info_s *local, struct i2s_tunnel_info_s *remote);
@@ -90,7 +98,7 @@ int i2s_tunnel_init(void);
 # else
 #  define i2s_tunnel_init()            (-ENODEV)
 #  define i2s_tunnel_enable(enable)    (-ENODEV)
-#  define i2s_i2s_config(sample_rate, sample_size_bits, mode, edge, master) (-ENODEV)
+#  define i2s_tunnel_i2s_config(sample_rate, mode, sample_size_bits, flags) (-ENODEV)
 #  define i2s_tunnel_arm(enable)       (-EMODEV)
 #  define i2s_tunnel_start(enable)
 #  define i2s_tunnel_get_info()        (-ENODEV)
