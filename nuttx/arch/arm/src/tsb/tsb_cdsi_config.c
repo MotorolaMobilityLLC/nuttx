@@ -955,21 +955,204 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
     cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_10_OFFS, 0);
 
-    /* Horizontal blank width */
-    // TODO: Add calculation algorithm.
+    /* If we're in CSI mode both SIDEBAND_CONFIG_11 and
+     * SIDEBAND_CONFIG_12 simply get set to 0
+     */
     if (config->mode == TSB_CDSI_MODE_CSI) {
         cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_11_OFFS, 0);
+        cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12_OFFS, 0);
+        lldbg("Setting SIDEBAND_CONFIG_11 and 12 both to 0\n");
     } else {
-        cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_11_OFFS, 0x36);
+
+        /* Otherwise, we need to do some calculations. We start with
+         * TLPX and LPS_period since these variables are used for both
+         * SIDEBAND_CONFIG_11 and SIDEBAND_CONFIG_12
+         */
+
+        /* calculate TLPX */
+        uint32_t tlpx;
+        if (config->bta_enabled) {
+            tlpx = (1 + tx_table_row->lp_tx_time_cnt_bta) *
+                sys_cld_tclk_table_row->sys_cld_tclk_div;
+        } else {
+            tlpx = (1 + tx_table_row->lp_tx_time_cnt) *
+                sys_cld_tclk_table_row->sys_cld_tclk_div;
+        }
+        lldbg("tlpx: %d\n", tlpx);
+
+        uint32_t ths_prepare = (ths_prepare_cnt_table_row->ths_prepare_cnt + 1) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div;
+        lldbg("ths_prepare: %d\n", ths_prepare);
+
+        uint32_t ths_pre_zero_m;
+        switch (sys_cld_tclk_table_row->sys_cld_tclk_sel) {
+        default:
+        case 0:
+            ths_pre_zero_m = 1;
+            break;
+        case 1:
+            ths_pre_zero_m = 2;
+            break;
+        case 2:
+            ths_pre_zero_m = 4;
+            break;
+        }
+        lldbg("ths_pre_zero_m: %d\n", ths_pre_zero_m);
+        uint32_t ths_pre_zero =
+            (ths_pre_zero_cnt_table_row->ths_pre_zero_cnt + 1 + ths_pre_zero_m) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div + 43;
+        lldbg("ths_pre_zero: %d\n", ths_pre_zero);
+        uint32_t ths_trail = (ths_trail_cnt_table_row->ths_trail_cnt + 2) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div - 11;
+        lldbg("ths_trail: %d\n", ths_trail);
+        uint32_t ths_exit = (ths_exit_cnt_table_row->ths_exit_cnt + 3) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div;
+        lldbg("ths_exit: %d\n", ths_exit);
+
+        uint32_t tclk_post;
+        if (config->continuous_clock) {
+            tclk_post =
+                (tclk_post_cnt_table_row->tclk_post_cnt_continuous + 2) *
+                sys_cld_tclk_table_row->sys_cld_tclk_div + 2;
+        } else {
+            tclk_post = (tclk_post_cnt_table_row->tclk_post_cnt + 2) *
+                sys_cld_tclk_table_row->sys_cld_tclk_div + 2;
+        }
+        lldbg("tclk_post: %d\n", tclk_post);
+        uint32_t tclk_trail = (tclk_trail_cnt_table_row->tclk_trail_cnt + 3) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div - 2;
+        lldbg("tclk_trail: %d\n", tclk_trail);
+        uint32_t tclk_exit = (tclk_exit_cnt_table_row->tclk_exit_cnt + 2) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div;
+        lldbg("tclk_exit: %d\n", tclk_exit);
+        uint32_t tclk_prepare =
+            (tclk_prepare_cnt_table_row->tclk_prepare_cnt + 1) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div;
+        lldbg("tclk_prepare: %d\n", tclk_prepare);
+        uint32_t tclk_pre_zero =
+            (tclk_pre_zero_cnt_table_row->tclk_pre_zero_cnt + 2) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div + 3;
+        lldbg("tclk_pre_zero: %d\n", tclk_pre_zero);
+        uint32_t tclk_pre = (tclk_pre_cnt_table_row->tclk_pre_cnt + 4) *
+            sys_cld_tclk_table_row->sys_cld_tclk_div - 4;
+        lldbg("tclk_pre: %d\n", tclk_pre);
+
+        /* calculate LPS_period */
+        uint32_t lps_period;
+        if (config->continuous_clock) {
+            lps_period = ths_trail + ths_exit + tlpx + ths_pre_zero + 8;
+        } else {
+            lps_period = ths_trail + tclk_post + tclk_trail + tclk_exit +
+                tlpx + tclk_pre_zero + tclk_pre + tlpx + ths_pre_zero + 8;
+        }
+        lldbg("lps_period: %d\n", lps_period);
+
+        /* SIDEBAND_CONFIG_11 - Horizontal blank width */
+        const uint32_t hsa = (uint32_t) (100 * hsck / 1000 + 0.9);
+        lldbg("hsa: %d\n", hsa);
+
+        uint32_t hsa_cnt_dsi;
+        if (config->blank_packet_enabled) {
+            uint32_t hsa_blapkt_size = (uint32_t) (hsa * config->tx_num_lanes /
+                    8 + 0.9);
+            lldbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
+
+            if (hsa_blapkt_size < 7) {
+                hsa_blapkt_size = 7;
+                lldbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
+            }
+            if (hsa_blapkt_size % 4) {
+                hsa_blapkt_size = hsa_blapkt_size + 4 - (hsa_blapkt_size % 4);
+                lldbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
+            }
+            if ((hsa_blapkt_size - 6) == 0) {
+                hsa_cnt_dsi = 1;
+            } else {
+                hsa_cnt_dsi = hsa_blapkt_size - 6;
+            }
+
+            uint32_t hsa_blk = (uint32_t) (hsa_blapkt_size * 8 /
+                config->tx_num_lanes + 0.9);
+            lldbg("hsa_blk=%d\n", hsa_blk);
+        } else {
+            const int32_t hsa_cnt_hs =
+                (uint32_t) (((hsa + 32 / config->tx_num_lanes) / 8 + 0.9) - 3);
+            lldbg("hsa_cnt_hs: %d\n", hsa_cnt_hs);
+
+            const int32_t hsa_cnt_lp =
+                (uint32_t) (((lps_period + 32 / config->tx_num_lanes) /
+                        8 + 0.9) - 3);
+            lldbg("hsa_cnt_lp: %d\n", hsa_cnt_lp);
+
+            int32_t hsa_cnt_max = MAX(hsa_cnt_hs, hsa_cnt_lp);
+            lldbg("hsa_cnt_max: %d\n", hsa_cnt_max);
+
+            if (hsa_cnt_max == 0) {
+                hsa_cnt_dsi = 1;
+            } else {
+                hsa_cnt_dsi = hsa_cnt_max;
+            }
+        }
+
+        lldbg("hsa_cnt_dsi: %d\n", hsa_cnt_dsi);
+        CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_CONFIG_11,
+            SBS_APF_DSI_HSA_CNT, hsa_cnt_dsi);
+
+        /* SIDEBAND_CONFIG_12 - Horizontal back porch */
+        const uint32_t hbp = (uint32_t) (config->horizontal_back_porch * hsck /
+                1000 + 0.9);
+        lldbg("hbp: %d\n", hbp);
+
+        const uint32_t hbp_cnt_hs =
+            (uint32_t) (((hbp + 32 / config->tx_num_lanes) / 8 + 0.9) - 3);
+        lldbg("hbp_cnt_hs: %d\n", hbp_cnt_hs);
+
+        const uint32_t hbp_cnt_lp =
+            (uint32_t) (((lps_period + 32 / config->tx_num_lanes) /
+                    8 + 0.9) - 3);
+        lldbg("hbp_cnt_lp: %d\n", hbp_cnt_lp);
+
+        uint32_t hbp_cnt_max = MAX(hbp_cnt_hs, hbp_cnt_lp);
+        lldbg("hbp_cnt_max: %d\n", hbp_cnt_max);
+
+        uint32_t hbp_cnt_dsi;
+        if (config->blank_packet_enabled) {
+            uint32_t hbp_blapkt_size = (uint32_t) (hbp * config->tx_num_lanes /
+                    8 + 0.9);
+            lldbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
+
+            if (hbp_blapkt_size < 7) {
+                hbp_blapkt_size = 7;
+                lldbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
+            }
+
+            if (hbp_blapkt_size % 4) {
+                hbp_blapkt_size = hbp_blapkt_size + 4 - (hbp_blapkt_size % 4);
+                lldbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
+            }
+
+            if ((hbp_blapkt_size - 6) == 0) {
+                hbp_cnt_dsi = 1;
+            } else {
+                hbp_cnt_dsi = hbp_blapkt_size - 6;
+            }
+
+            uint32_t hbp_blk = (uint32_t) (hbp_blapkt_size * 8 /
+                config->tx_num_lanes + 0.9);
+            lldbg("hbp_blk=%d\n", hbp_blk);
+        } else {
+            if (hbp_cnt_max == 0) {
+                hbp_cnt_dsi = 1;
+            } else {
+                hbp_cnt_dsi = hbp_cnt_max;
+            }
+        }
+
+        lldbg("hbp_cnt_dsi=%d\n", hbp_cnt_dsi);
+        CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12,
+            SBS_APF_DSI_HBP_CNT, hbp_cnt_dsi);
     }
 
-    /* Horizontal back porch */
-    // TODO: Add calculation algorithm.
-    if (config->mode == TSB_CDSI_MODE_CSI) {
-        cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12_OFFS, 0);
-    } else {
-        cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12_OFFS, 0x36);
-    }
 
     cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_13_OFFS, 0);
     cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_14_OFFS, 0);
