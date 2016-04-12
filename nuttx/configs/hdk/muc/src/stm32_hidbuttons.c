@@ -43,7 +43,7 @@
 #define HID_BUTTONS_PID          0xffff
 #define HID_BUTTONS_VID          0x22b8
 
-static char gReportDescriptor[26] = {
+static const char gReportDescriptor[26] = {
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
     0x09, 0x05,                    // USAGE (Game Pad)
     0xa1, 0x01,                    // COLLECTION (Application)
