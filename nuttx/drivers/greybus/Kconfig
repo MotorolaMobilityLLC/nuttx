@@ -59,12 +59,8 @@ config GREYBUS_BATTERY
 	bool "Battery support"
 	default n
 
-config GREYBUS_I2S_MGMT_PHY
-	bool "Audio support"
-	default n
-
-config GREYBUS_I2S_TX_PHY
-	bool "Audio support"
+config GREYBUS_MODS_I2S_PHY
+	bool "Mods I2S support"
 	default n
 
 config GREYBUS_I2S_AUDIO
@@ -72,7 +68,7 @@ config GREYBUS_I2S_AUDIO
 	default n
 
 config GREYBUS_MODS_AUDIO
-	bool "Audio support"
+	bool "Mods Audio support"
 	default n
 
 if GREYBUS_MODS_AUDIO
@@ -82,6 +78,13 @@ config GREYBUS_MODS_AUDIO_TFA9890
   bool "TFA9890"
 endchoice
 endif
+
+config GREYBUS_TFA9890_I2C_BUS
+    int "TFA9890 I2C Bus Number"
+    default 1
+    depends on GREYBUS_MODS_AUDIO_TFA9890
+    ---help---
+       I2C bus to use to communicate with device (default 1).
 
 if GREYBUS_BATTERY
 choice
