@@ -31,7 +31,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arch/byteorder.h>
-#include <apps/ice/cdsi.h>
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/gpio.h>
