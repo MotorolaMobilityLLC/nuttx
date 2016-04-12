@@ -301,5 +301,4 @@ endif
 
 config GREYBUS_CAMERA_EXT
 	bool "Camera Extension"
-	depends on UNIPRO_P2P && ICE_CDSI
 	default n
