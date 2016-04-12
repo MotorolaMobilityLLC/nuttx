@@ -47,9 +47,9 @@
  * mode mode.  If in normal operation the APBA and APBE must be in opposite modes.
  */
 #if defined(CONFIG_I2S_TUNNEL_ROUNDTRIP_LOOPBACK)
-# define APBA_MASTER(master) (master)
+# define APBA_MASTER(flags) (flags)
 #else
-# define APBA_MASTER(master) (!master)
+# define APBA_MASTER(flags) (flags^I2S_TUNNEL_I2S_FLAGS_MASTER)
 #endif
 
 typedef enum
@@ -71,10 +71,9 @@ struct i2s_tunnel_ipc_msg_s
         struct i2s_tunnel_ipc_msg_config_s
         {
             unsigned int sample_rate;
-            uint8_t sample_size_bits;
             I2S_TUNNEL_I2S_MODE_T mode;
-            I2S_TUNNEL_I2S_EDGE_T edge;
-            bool master;
+            uint8_t sample_size_bits;
+            uint8_t flags;
         } config;
     } data;
 };
@@ -162,18 +161,16 @@ static int i2s_tunnel_send_msg_bool(I2S_TUNNEL_IPC_MSG_T type, bool val)
 }
 
 static int i2s_tunnel_send_msg_config(unsigned int sample_rate,
-                                      uint8_t sample_size_bits,
                                       I2S_TUNNEL_I2S_MODE_T mode,
-                                      I2S_TUNNEL_I2S_EDGE_T edge,
-                                      bool master)
+                                      uint8_t sample_size_bits,
+                                      uint8_t flags)
 {
     g_i2s_tunnel_wq.cmd_done = false;
     g_i2s_tunnel_wq.msg.type = I2S_TUNNEL_IPC_MSG_CONFIG;
     g_i2s_tunnel_wq.msg.data.config.sample_rate = sample_rate;
-    g_i2s_tunnel_wq.msg.data.config.sample_size_bits = sample_size_bits;
     g_i2s_tunnel_wq.msg.data.config.mode = mode;
-    g_i2s_tunnel_wq.msg.data.config.edge = edge;
-    g_i2s_tunnel_wq.msg.data.config.master = master;
+    g_i2s_tunnel_wq.msg.data.config.sample_size_bits = sample_size_bits;
+    g_i2s_tunnel_wq.msg.data.config.flags = flags;
     return work_queue(HPWORK, &g_i2s_tunnel_wq.wq, i2s_tunnel_wq_send_msg,
                       (void *)&g_i2s_tunnel_wq, 0);
 }
@@ -202,25 +199,22 @@ int i2s_tunnel_enable(bool enable)
 
 int i2s_tunnel_i2s_config(
     unsigned int sample_rate,
-    uint8_t sample_size_bits,
     I2S_TUNNEL_I2S_MODE_T mode,
-    I2S_TUNNEL_I2S_EDGE_T edge,
-    bool master)
+    uint8_t sample_size_bits,
+    uint8_t flags)
 {
     int error;
 
     error = i2s_tunnel_send_msg_config(sample_rate,
-                                       sample_size_bits,
                                        mode,
-                                       edge,
-                                       APBA_MASTER(master));
+                                       sample_size_bits,
+                                       APBA_MASTER(flags));
     if (!error)
     {
         error = i2s_unipro_tunnel_i2s_config(sample_rate,
-                                             sample_size_bits,
                                              mode,
-                                             edge,
-                                             master);
+                                             sample_size_bits,
+                                             flags);
         (void)i2s_tunnel_wq_wait_for_complete();
     }
     return error;
@@ -305,10 +299,9 @@ static uint32_t i2s_tunnel_ipc_handler(void *in,
             case I2S_TUNNEL_IPC_MSG_CONFIG:
                 g_i2s_tunnel_rsp.ret =
                     i2s_unipro_tunnel_i2s_config(i2s_tunnel_msg->data.config.sample_rate,
-                                                 i2s_tunnel_msg->data.config.sample_size_bits,
                                                  i2s_tunnel_msg->data.config.mode,
-                                                 i2s_tunnel_msg->data.config.edge,
-                                                 i2s_tunnel_msg->data.config.master);
+                                                 i2s_tunnel_msg->data.config.sample_size_bits,
+                                                 i2s_tunnel_msg->data.config.flags);
                 break;
 
             case I2S_TUNNEL_IPC_MSG_ARM:
