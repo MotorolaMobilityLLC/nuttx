@@ -293,7 +293,7 @@ static int decode_cc_termination(void)
 {
     int termination = 0;   /*  By default set it to nothing */
 
-    if ((fusb302_regs.status0 & FUSB302_STATUS0_COMP_MASK) == 0) {     /* If COMP is high, the BC_LVL's don't matter */
+    if (fusb302_regs.status0 & FUSB302_STATUS0_VBUSOK_MASK) {   /* VBUS Valid  */
        switch (fusb302_regs.status0 & FUSB302_STATUS0_BC_LVL_MASK) {   /* Determine which level */
             case 0b00:   /* If BC_LVL is lowest... it's an vRa */
                  termination = 0;;
@@ -304,8 +304,9 @@ static int decode_cc_termination(void)
             case 0b10:   /* If BC_LVL is 2, it's vRd1p5 */
                  termination = 1500;
                  break;
-            case 0b11:   /* If BC_LVL is 2, it's vRd3p0 */
-                 termination = 3000;
+            case 0b11:   /* If BC_LVL is 2 and COMP is 0, it's vRd3p0 */
+                 if ((fusb302_regs.status0 & FUSB302_STATUS0_COMP_MASK) == 0)
+                     termination = 3000;
                  break;
         }
     }
@@ -519,10 +520,8 @@ static void fusb302_toggle_measure(void)
 static void fusb302_worker(FAR void *arg)
 {
     fusb302_toggle_measure();
-    if (fusb302_regs.status0 & FUSB302_STATUS0_VBUSOK_MASK)
+    if (fusb302_info->power_changed_cb)
         fusb302_info->power_changed_cb(fusb302_info->fusb302_available_arg, decode_cc_termination());
-    else
-        fusb302_info->power_changed_cb(fusb302_info->fusb302_available_arg, 0);
 }
 
 static int fusb302_isr(int irq, void *context)
@@ -542,9 +541,21 @@ static int fusb302_register_callback(struct device *dev, ext_power_changed cb, v
         return 0;
     }
 
-    info->power_changed_cb = cb;
-    info->fusb302_available_arg = arg;
+    if (info->power_changed_cb) {
+        dbg("already registered\n");
+        return -EINVAL;
+    }
 
+    if (!cb) {
+        dbg("invalid parameter\n");
+        return -EINVAL;
+    }
+    info->fusb302_available_arg = arg;
+    info->power_changed_cb = cb;
+    /* first call to initialize client */
+    cb(arg, 0);
+    /* reset and initialize chipset */
+    fusb302_init();
     return 0;
 }
 
@@ -553,17 +564,8 @@ struct reg_value {
     uint8_t val;
 };
 
-static int fusb302_reset(struct device *dev)
-{
-    fusb302_init();
-
-    return 0;
-}
-
 static int fusb302_open(struct device *dev)
 {
-    fusb302_reset(dev);
-
     return 0;
 }
 
