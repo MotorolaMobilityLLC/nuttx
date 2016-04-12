@@ -33,16 +33,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <apps/ice/cdsi.h>
 #include <nuttx/config.h>
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/math.h>
 
+#ifdef CONFIG_REDCARPET_APBE
+#include <apps/ice/cdsi.h>
 #include <arch/chip/cdsi.h>
 #include <arch/chip/cdsi_config.h>
+#endif
+
+#include <nuttx/time.h>
 #include <nuttx/device.h>
+#include <nuttx/unipro/unipro.h>
+#include <nuttx/device_slave_pwrctrl.h>
+#include <nuttx/mhb/device_mhb.h>
+#include <nuttx/mhb/mhb_protocol.h>
 
 #include "greybus/v4l2_camera_ext_ctrls.h"
 
@@ -56,6 +64,10 @@
  * S10 Imager + Toshiba Parallel to CSI-2 bridge chip (TC35874X series).
  *
  */
+
+#define MHB_CDSI_OP_TIMEOUT_MS 800
+#define MHB_CDSI_CAM_INSTANCE 0
+
 #define DEBUG_DUMP_REGISTER 1
 #define BRIDGE_RESET_DELAY 100000 /* us */
 
@@ -72,10 +84,16 @@ struct dev_private_s
     dev_state_t state;
     struct tc35874x_i2c_dev_info tc_i2c_info;
     struct s10p_i2c_dev_info s10_i2c_info;
+    struct device *mhb_device;
+    struct device *slave_pwr_ctrl;
+    uint8_t cdsi_instance;
+    uint8_t bridge_enable;
+    uint8_t cam_enable;
     uint8_t cam_int0;
     uint8_t cam_int1;
     uint8_t cam_int2;
-
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
 };
 
 //static allocate the singleton instance
@@ -326,14 +344,17 @@ static int bridge_stop(struct tc35874x_i2c_dev_info *i2c, void *data)
     return 0;
 }
 
-/* APBA IPC Utility functions */
-static struct cdsi_dev *g_cdsi_dev;
-
-static struct cdsi_config CDSI_CONFIG = {
+#ifdef CONFIG_REDCARPET_APBE
+static struct cdsi_config CDSI_CONFIG =
+#else
+static struct mhb_cdsi_config CDSI_CONFIG =
+#endif
+{
     /* Common */
-    .mode = TSB_CDSI_MODE_CSI,
+    .direction = 0,
+    .mode = 0x01,            /* TSB_CDSI_MODE_CSI */
     .tx_num_lanes = 4,
-    .rx_num_lanes = 0,        /* variable */
+    .rx_num_lanes = 0,       /* variable */
     .tx_mbits_per_lane = 0,  /* variable */
     .rx_mbits_per_lane = 0,  /* variable */
     /* RX only */
@@ -357,6 +378,10 @@ static struct cdsi_config CDSI_CONFIG = {
     /* Command Mode only */
 };
 
+#ifdef CONFIG_REDCARPET_APBE
+/* APBA IPC Utility functions */
+static struct cdsi_dev *g_cdsi_dev;
+
 static void generic_csi_init(struct cdsi_dev *dev)
 {
     cdsi_initialize_rx(dev, &CDSI_CONFIG);
@@ -365,20 +390,243 @@ static void generic_csi_init(struct cdsi_dev *dev)
 const static struct camera_sensor generic_sensor = {
     .cdsi_sensor_init = generic_csi_init,
 };
+#else
+
+/* MHB Ops */
+static int _mhb_cdsi_cam_apbe_state(int state)
+{
+    static struct device *slave_pwr_ctrl;
+
+    slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, MHB_ADDR_CDSI1);
+    if (!slave_pwr_ctrl) {
+       CAM_ERR("ERROR: Failed to open SLAVE Power Control\n");
+       return -ENODEV;
+    }
+
+    device_slave_pwrctrl_send_slave_state(slave_pwr_ctrl, state);
+    device_close(slave_pwr_ctrl);
+
+    return 0;
+}
+
+static int _mhb_cdsi_camera_wait_for_response(struct dev_private_s *cam_device)
+{
+    int result = -1;
+    struct timespec expires;
+
+    if (clock_gettime(CLOCK_REALTIME, &expires)) {
+        return -EBADF;
+    }
+
+    uint64_t new_ns = timespec_to_nsec(&expires);
+    new_ns += MHB_CDSI_OP_TIMEOUT_MS * NSEC_PER_MSEC;
+    nsec_to_timespec(new_ns, &expires);
+
+    pthread_mutex_lock(&cam_device->mutex);
+    result = pthread_cond_timedwait(&cam_device->cond, &cam_device->mutex, &expires);
+    pthread_mutex_unlock(&cam_device->mutex);
+
+    if (result) {
+        /* timeout or other erros */
+        CAM_ERR("ERROR: wait error %d\n", result);
+        return -ETIME;
+    }
+
+    return result;
+}
+
+static int _mhb_cdsi_send_unipro_cam_mode_req(struct dev_private_s *cam_device,
+                                             uint8_t fastmode)
+{
+    int result = -1;
+    struct mhb_hdr hdr;
+    struct mhb_unipro_control_req req;
+
+    if (fastmode) {
+        req.gear.tx = 2;
+        req.gear.rx = 2;
+        req.gear.pwrmode = (UNIPRO_FAST_MODE << 4)|UNIPRO_FAST_MODE;
+        req.gear.series = UNIPRO_HS_SERIES_A;
+    } else {
+        req.gear.tx = 1;
+        req.gear.rx = 1;
+        req.gear.pwrmode = (UNIPRO_SLOW_MODE << 4)|UNIPRO_SLOW_MODE;
+        req.gear.series = UNIPRO_HS_SERIES_A;
+    }
+
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_UNIPRO;
+    hdr.type = MHB_TYPE_UNIPRO_CONTROL_REQ;
+
+    result = device_mhb_send(cam_device->mhb_device, &hdr, (uint8_t *)&req, sizeof(req), 0);
+    if (result) {
+        CAM_ERR("ERROR: failed to send unipro %d req. result %d\n", fastmode, result);
+        return result;
+    }
+
+    result = _mhb_cdsi_camera_wait_for_response(cam_device);
+    if (result) {
+        CAM_ERR("ERROR: failed waiting for config response result %d\n", result);
+    }
+
+    return result;
+
+
+}
+
+static int _mhb_cdsi_send_config_wait_req(struct dev_private_s *cam_device,
+                                          uint8_t *cfg, size_t cfg_size)
+{
+    struct mhb_hdr hdr;
+    int result = -1;
+
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_CDSI1;
+    hdr.type = MHB_TYPE_CDSI_CONFIG_REQ;
+
+    result = device_mhb_send(cam_device->mhb_device, &hdr, (uint8_t *)cfg, cfg_size, 0);
+    if (result) {
+        CAM_ERR("ERROR: failed to send mhb config req. result %d\n", result);
+        return result;
+    }
+
+    result = _mhb_cdsi_camera_wait_for_response(cam_device);
+    if (result) {
+        CAM_ERR("ERROR: failed waiting for config response result %d\n", result);
+    }
+
+    return result;
+}
+
+static int _mhb_cdsi_send_unconfig_wait_req(struct dev_private_s *cam_device)
+{
+    struct mhb_hdr hdr;
+    int result = 0;
+
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_CDSI1;
+    hdr.type = MHB_TYPE_CDSI_UNCONFIG_REQ;
+
+    result = device_mhb_send(cam_device->mhb_device, &hdr, NULL, 0, 0);
+    if (result) {
+        CAM_ERR("ERROR: failed to send mhb unconfig req. result %d\n", result);
+        return result;
+    }
+
+    result = _mhb_cdsi_camera_wait_for_response(cam_device);
+    if (result) {
+        CAM_ERR("ERROR: failed waiting for unconfig response result %d\n", result);
+    }
+
+    return result;
+}
+
+
+static int _mhb_cdsi_control_wait_req(struct dev_private_s *cam_device,
+                                    uint8_t command)
+{
+    struct mhb_hdr hdr;
+    struct mhb_cdsi_control_req req;
+    int result = 0;
+
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_CDSI1;
+    hdr.type = MHB_TYPE_CDSI_CONTROL_REQ;
+
+    req.command = command;
+
+    result = device_mhb_send(cam_device->mhb_device, &hdr, (uint8_t *)&req, sizeof(req), 0);
+    if (result) {
+        CAM_ERR("ERROR: failed to send mhb ctrl cmd %d result %d\n", command, result);
+        return result;
+    }
+
+    result = _mhb_cdsi_camera_wait_for_response(cam_device);
+    if (result) {
+        CAM_ERR("ERROR: failed waiting for ctrl response cmd %d result %d\n", command, result);
+    }
+
+    return result;
+}
+
+static void _mhb_cdsi_camera_signal_response(struct dev_private_s *cam_device)
+{
+    pthread_mutex_lock(&cam_device->mutex);
+    pthread_cond_signal(&cam_device->cond);
+    pthread_mutex_unlock(&cam_device->mutex);
+}
+
+static int _mhb_cdsi_camera_handle_msg(struct device *dev,
+    struct mhb_hdr *hdr, uint8_t *payload, size_t payload_length)
+{
+    /* Assume an error */
+    int error = -1;
+    CAM_DBG("addr=0x%02x, type=0x%02x, result=0x%02x\n",
+            hdr->addr, hdr->type, hdr->result);
+
+    struct dev_private_s *cam_device = &s_device;
+    if (!cam_device) {
+        return -ENODEV;
+    }
+
+    switch (hdr->addr) {
+    case MHB_ADDR_UNIPRO:
+        switch (hdr->type) {
+        case MHB_TYPE_UNIPRO_CONTROL_RSP:
+            _mhb_cdsi_camera_signal_response(cam_device);
+            error = 0;
+            break;
+        }
+        break;
+    case MHB_ADDR_CDSI1:
+        switch (hdr->type) {
+        case MHB_TYPE_CDSI_UNCONFIG_RSP:
+        case MHB_TYPE_CDSI_CONFIG_RSP:
+        case MHB_TYPE_CDSI_CONTROL_RSP:
+            _mhb_cdsi_camera_signal_response(cam_device);
+            error = 0;
+            break;
+        case MHB_TYPE_CDSI_WRITE_CMDS_RSP:
+        case MHB_TYPE_CDSI_READ_CMDS_RSP:
+        case MHB_TYPE_CDSI_STATUS_RSP:
+            error = 0;
+        }
+        break;
+    }
+
+    if (error) {
+        CAM_ERR("ERROR: unexpected rsp: addr=%d type=%d state=%d\n",
+                hdr->addr, hdr->type, cam_device->state);
+    }
+
+    return 0;
+}
+#endif
 
 /* CAMERA_EXT operations */
 static int _power_on(struct device *dev)
 {
     DEV_TO_PRIVATE(dev, dev_priv);
+
     CAM_DBG("camera_ext_s10 state %d\n", dev_priv->state);
 
     if (dev_priv->state == CAMERA_S10_STATE_OFF) {
-        if (tc35874x_run_command(&bridge_on, NULL) != 0) {
-            CAM_ERR("Failed to run bridge_on commands\n");
-            return -1;
-    }
-    else {
+#ifndef CONFIG_REDCARPET_APBE
+        /* P1 Config */
+        /* Request APBE on. */
+        _mhb_cdsi_cam_apbe_state(1);
+        usleep(300000); // TODO: Register with apbe-ctrl listener.
+        gpio_direction_out(dev_priv->cam_enable, 1);
+        gpio_direction_out(dev_priv->bridge_enable, 1);
+        usleep(300000);
+#endif
+    } else {
         CAM_DBG("camera already on %d\n", dev_priv->state);
+    }
+
+    if (tc35874x_run_command(&bridge_on, NULL) != 0) {
+        CAM_ERR("Failed to run bridge_on commands\n");
+        return -1;
     }
     dev_priv->state = CAMERA_S10_STATE_ON;
     return 0;
@@ -396,13 +644,24 @@ static int _power_off(struct device *dev)
         _stream_off(dev);
     }
 
+    /* TODO: REMOVE :Ignore power off for now */
+    return 0;
+
     if (dev_priv->state == CAMERA_S10_STATE_OFF) {
-        CAM_ERR("Camera already off\n");
+        CAM_ERR("camera already off\n");
     }
     else if (tc35874x_run_command(&bridge_off, NULL) != 0) {
         CAM_ERR("Failed to run bridge_off commands\n");
         return -1;
     }
+
+#ifndef CONFIG_REDCARPET_APBE
+    gpio_direction_out(dev_priv->cam_enable, 0);
+    gpio_direction_out(dev_priv->bridge_enable, 0);
+    /* Request APBE off. */
+    _mhb_cdsi_cam_apbe_state(0);
+#endif
+
     dev_priv->state = CAMERA_S10_STATE_OFF;
 
     return 0;
@@ -471,6 +730,7 @@ static int _stream_on(struct device *dev)
         CDSI_CONFIG.bpp = 16;
     }
 
+#ifdef CONFIG_REDCARPET_APBE
     /* start CSI TX on APBA */
     if (cdsi_apba_cam_tx_start(&CDSI_CONFIG) != 0) {
         CAM_ERR("Failed to configure CDSI on APBA\n");
@@ -482,7 +742,22 @@ static int _stream_on(struct device *dev)
         CAM_ERR("failed to initialize CSI RX\n");
         goto stop_csi_tx;
     }
+#else
+    /* Send the configuration to the APBE. */
+    if (_mhb_cdsi_send_config_wait_req(dev_priv, (uint8_t*)&CDSI_CONFIG, sizeof(CDSI_CONFIG))) {
+        CAM_ERR("ERROR: send config failed\n");
+        goto stop_csi_tx;
+    }
+    if (_mhb_cdsi_control_wait_req(dev_priv, MHB_CDSI_COMMAND_START)) {
+        CAM_ERR("ERROR: start failed\n");
+        goto stop_csi_tx;
+    }
 
+    if (_mhb_cdsi_send_unipro_cam_mode_req(dev_priv, 1)) {
+            lldbg("ERROR: unipro gear cam req failed\n");
+            goto stop_csi_tx;
+    }
+#endif
     /* setup the bridge chip and start streaming data */
     if (tc35874x_run_command(&bridge_setup_and_start, (void *)cfg) != 0) {
         CAM_ERR("Failed to run setup & start commands\n");
@@ -493,7 +768,13 @@ static int _stream_on(struct device *dev)
     return 0;
 
 stop_csi_tx:
+#ifdef CONFIG_REDCARPET_APBE
     cdsi_apba_cam_tx_stop();
+#else
+    _mhb_cdsi_send_unipro_cam_mode_req(dev_priv, 0);
+    _mhb_cdsi_control_wait_req(dev_priv, MHB_CDSI_COMMAND_STOP);
+    _mhb_cdsi_send_unconfig_wait_req(dev_priv);
+#endif
 
     return -1;
 }
@@ -509,12 +790,18 @@ static int _stream_off(struct device *dev)
     if (tc35874x_run_command(&bridge_stop, NULL) != 0)
         return -1;
 
+#ifdef CONFIG_REDCARPET_APBE
     cdsi_apba_cam_tx_stop();
 
     if (g_cdsi_dev) {
         csi_uninitialize(g_cdsi_dev);
         g_cdsi_dev = NULL;
     }
+#else
+    _mhb_cdsi_control_wait_req(dev_priv, MHB_CDSI_COMMAND_STOP);
+    _mhb_cdsi_send_unconfig_wait_req(dev_priv);
+    _mhb_cdsi_send_unipro_cam_mode_req(dev_priv, 0);
+#endif
 
     /* Ling Long's temp fix for stream on/off stuck */
     _power_off(dev);
@@ -571,6 +858,9 @@ static int _dev_open(struct device *dev)
         s10p_set_i2c(&s_device.s10_i2c_info);
 
         s_device.state = CAMERA_S10_STATE_OFF;
+        s_device.cdsi_instance = MHB_CDSI_CAM_INSTANCE;
+        pthread_mutex_init(&s_device.mutex, NULL);
+        pthread_cond_init(&s_device.cond, NULL);
     }
 
     device_driver_set_private(dev, (void*)&s_device);
@@ -578,6 +868,21 @@ static int _dev_open(struct device *dev)
     camera_ext_register_format_db(&_db);
     camera_ext_register_control_db(&s10p_ctrl_db);
 
+#ifndef CONFIG_REDCARPET_APBE
+    res = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "CAM_ENABLE");
+    if (!res) {
+        CAM_ERR("failed to get cam_enable gpio\n");
+        return -EINVAL;
+    }
+    s_device.cam_enable = res->start;
+
+    res = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "BRIDGE_ENABLE");
+    if (!res) {
+        CAM_ERR("failed to get bridge_enable gpio\n");
+        return -EINVAL;
+    }
+    s_device.bridge_enable = res->start;
+#endif
 
     res = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "CAM_INT2");
     if (!res) {
@@ -609,6 +914,26 @@ static int _dev_open(struct device *dev)
     gpio_clear_interrupt(s_device.cam_int2);
     gpio_unmask_irq(s_device.cam_int2);
 
+#ifndef CONFIG_REDCARPET_APBE
+    if (s_device.mhb_device) {
+        CAM_ERR("ERROR: already opened.\n");
+        return 0;
+    }
+
+    s_device.mhb_device = device_open(DEVICE_TYPE_MHB, MHB_ADDR_CDSI1);
+    if (!s_device.mhb_device) {
+        CAM_ERR("ERROR: failed to open MHB device.\n");
+        return -ENOENT;
+    }
+
+    device_mhb_register_receiver(s_device.mhb_device, MHB_ADDR_CDSI1,
+                                 _mhb_cdsi_camera_handle_msg);
+
+    device_mhb_register_receiver(s_device.mhb_device, MHB_ADDR_UNIPRO,
+                                 _mhb_cdsi_camera_handle_msg);
+
+#endif
+
     return 0;
 }
 
@@ -626,6 +951,16 @@ static void _dev_close(struct device *dev)
         CAM_DBG("power off before close\n");
         _power_off(dev);
     }
+
+#ifndef CONFIG_REDCARPET_APBE
+    if (dev_priv->mhb_device) {
+        device_mhb_unregister_receiver(dev_priv->mhb_device, MHB_ADDR_CDSI1,
+                                       _mhb_cdsi_camera_handle_msg);
+    }
+
+    device_close(dev_priv->mhb_device);
+    dev_priv->mhb_device = NULL;
+#endif
 }
 
 
