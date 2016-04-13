@@ -35,6 +35,11 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+/* Ext power sources path state */
+enum ext_pwr_sources {
+    EXT_PWR_SOURCES_OFF,
+    EXT_PWR_SOURCES_ON,
+};
 
 struct switch_ptp_chg_info {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
@@ -44,6 +49,7 @@ struct switch_ptp_chg_info {
     bool wls_active_low;
     bool wrd_active_low;
     bool base_active_low;
+    enum ext_pwr_sources off_state;
 #endif
     struct device *chg_dev; /* device to control current syncing and sourcing */
 };
@@ -198,8 +204,22 @@ static int switch_ptp_chg_off(struct device *dev)
 {
     struct switch_ptp_chg_info *info = device_get_private(dev);
 
-    wireless_path(info, false);
-    wired_path(info, false);
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
+    switch(info->off_state) {
+    case EXT_PWR_SOURCES_OFF:
+        wireless_path(info, false);
+        wired_path(info, false);
+        break;
+    case EXT_PWR_SOURCES_ON:
+        wireless_path(info, true);
+        wired_path(info, true);
+        break;
+    default:
+        /* Should never be here! */
+        return -EINVAL;
+    }
+#endif
+
     base_path(info, false);
 
     return device_charger_off(info->chg_dev);
@@ -267,6 +287,20 @@ static int switch_ptp_chg_probe(struct device *dev)
         /* disable base */
         gpio_direction_out(info->base, info->base_active_low ? 1 : 0);
     }
+
+    /*
+     * When one external charging source is supported, keep the path to it on
+     * to avoid possibility of cutting the power to the system in a dead/no
+     * battery case. If both, wireless and wired charging sources are supported,
+     * the paths must be kept off, otherwise both sources could be supplying
+     * power simulteniously. It is assumed that power to the system could be
+     * delivered through non-charging path in this case.
+     */
+
+    if (info->wls != -1 && info->wrd != -1)
+        info->off_state = EXT_PWR_SOURCES_OFF;
+    else
+        info->off_state = EXT_PWR_SOURCES_ON;
 #endif
 
     device_set_private(dev, info);
