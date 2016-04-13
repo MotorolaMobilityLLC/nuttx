@@ -65,6 +65,7 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
     /* CSI only */
     /* DSI only */
     .vss_control_payload = 0x0000,
+    .horizontal_back_porch = 100,
     /* Video Mode only */
     /* Command Mode only */
 };
