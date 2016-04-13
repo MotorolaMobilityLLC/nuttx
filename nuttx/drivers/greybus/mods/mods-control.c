@@ -320,7 +320,7 @@ static uint8_t gb_control_reboot_reset(struct gb_operation *operation)
     return GB_OP_INVALID;
 }
 
-#ifdef GREYBUS_SELF_DESTRUCT
+#ifdef CONFIG_GREYBUS_SELF_DESTRUCT
 /**
  * @brief Self destruct so we go into blank flash
  */
@@ -332,11 +332,11 @@ static uint8_t mb_control_self_destruct(void)
     size_t page_size;
     ssize_t size_erased;
 
-    page_start = up_progmem_getpage(GREYBUS_SELF_DESTRUCT_START);
+    page_start = up_progmem_getpage(CONFIG_GREYBUS_SELF_DESTRUCT_START);
     if (page_start < 0)
         return GB_OP_INVALID;
 
-    page_end = up_progmem_getpage(GREYBUS_SELF_DESTRUCT_END);
+    page_end = up_progmem_getpage(CONFIG_GREYBUS_SELF_DESTRUCT_END);
     if (page_end < 0)
         return GB_OP_INVALID;
 
@@ -377,7 +377,7 @@ static uint8_t gb_control_reboot(struct gb_operation *operation)
         return gb_control_reboot_flash(operation);
     case MB_CONTROL_REBOOT_MODE_RESET:
         return gb_control_reboot_reset(operation);
-#ifdef GREYBUS_SELF_DESTRUCT
+#ifdef CONFIG_GREYBUS_SELF_DESTRUCT
     case MB_CONTROL_REBOOT_MODE_SELF_DESTRUCT:
         return mb_control_self_destruct();
 #endif
