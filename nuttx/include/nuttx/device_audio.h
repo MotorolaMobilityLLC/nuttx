@@ -59,6 +59,29 @@ struct device_aud_pcm_config {
     uint8_t     channels;
 };
 
+struct device_aud_i2s_config {
+    uint32_t    mclk_freq;          /* mclk frequency generated/required */
+    uint8_t     protocol;           /* DEVICE_I2S_PROTOCOL_* */
+    uint8_t     wclk_polarity;      /* DEVICE_I2S_POLARITY_* */
+    uint8_t     wclk_change_edge;   /* DEVICE_I2S_EDGE_* */
+    uint8_t     data_rx_edge;       /* DEVICE_I2S_EDGE_* */
+    uint8_t     data_tx_edge;       /* DEVICE_I2S_EDGE_* */
+};
+
+/* Add new dai config structures here when we
+ * support more than just I2S.
+ */
+typedef enum {
+    DEVICE_AUDIO_DAI_I2S_TYPE,
+} device_audio_dai_type;
+
+struct device_aud_dai_config {
+    device_audio_dai_type dai_type;
+    union dai_config {
+        struct device_aud_i2s_config i2s_dai;
+    } config;
+};
+
 struct device_aud_data {
     void (*report_devices)(struct device *dev, struct device_aud_devices *devices);
 };
@@ -73,7 +96,10 @@ struct device_aud_dev_type_ops {
     int (*set_sys_volume)(struct device *dev, int vol_db);
     int (*get_supp_devices)(struct device *dev, struct device_aud_devices  *devices);
     int (*enable_devices)(struct device *dev, struct device_aud_devices  *devices);
-    int (*get_supp_pcm_config)(struct device *dev, struct device_aud_pcm_config  *config);
+    int (*get_supp_config)(struct device *dev, struct device_aud_pcm_config *pcm,
+                           struct device_aud_dai_config *dai);
+    int (*set_config)(struct device *dev, struct device_aud_pcm_config *pcm,
+                           struct device_aud_dai_config *dai);
 };
 
 static inline int device_audio_get_volume_db_range(struct device *dev,
@@ -194,17 +220,34 @@ static inline int device_audio_enable_devices(struct device *dev,
     return -ENOSYS;
 }
 
-static inline int device_audio_get_pcm_config(struct device *dev,
-                                           struct device_aud_pcm_config  *i2s_pcm)
+static inline int device_audio_get_config(struct device *dev,
+                                           struct device_aud_pcm_config *pcm,
+                                           struct device_aud_dai_config *dai)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
     if (!device_is_open(dev))
         return -ENODEV;
 
-    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supp_pcm_config)
-        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supp_pcm_config(dev, i2s_pcm);
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supp_config)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_supp_config(dev, pcm, dai);
 
     return -ENOSYS;
 }
+
+static inline int device_audio_set_config(struct device *dev,
+                                           struct device_aud_pcm_config *pcm,
+                                           struct device_aud_dai_config *dai)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_config)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->set_config(dev, pcm, dai);
+
+    return -ENOSYS;
+}
+
 #endif
