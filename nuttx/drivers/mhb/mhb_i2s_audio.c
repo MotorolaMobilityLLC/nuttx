@@ -499,6 +499,9 @@ static int mhb_i2s_op_start_receiver(struct device *dev)
     if (rsp->hdr.type == MHB_TYPE_I2S_CONTROL_RSP &&
                         rsp->hdr.result == MHB_RESULT_SUCCESS) {
         i2s->i2s_status |= MHB_I2S_RX_ACTIVE;
+        /* trigger audio codec to start receiving */
+        if (i2s->audio_dev)
+            device_audio_rx_dai_start(i2s->audio_dev);
     }
 
     return 0;
@@ -533,6 +536,9 @@ static int mhb_i2s_op_start_transmitter(struct device *dev)
     if (rsp->hdr.type == MHB_TYPE_I2S_CONTROL_RSP &&
                         rsp->hdr.result == MHB_RESULT_SUCCESS) {
         i2s->i2s_status |= MHB_I2S_TX_ACTIVE;
+        /* trigger audio codec to start transmitting */
+        if (i2s->audio_dev)
+            device_audio_tx_dai_start(i2s->audio_dev);
     }
 
     return 0;
@@ -549,6 +555,10 @@ static int mhb_i2s_op_stop_transmitter(struct device *dev)
 
     if (!(i2s->i2s_status & MHB_I2S_TX_ACTIVE))
         return 0;
+
+   /* trigger audio codec to stop transmitting */
+   if (i2s->audio_dev)
+        device_audio_tx_dai_stop(i2s->audio_dev);
 
     result = mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_TX_STOP);
     if (result) {
@@ -580,6 +590,10 @@ static int mhb_i2s_op_stop_receiver(struct device *dev)
 
     if (!(i2s->i2s_status & MHB_I2S_RX_ACTIVE))
         return 0;
+
+   /* trigger audio codec to stop receiving */
+   if (i2s->audio_dev)
+        device_audio_rx_dai_stop(i2s->audio_dev);
 
     result = mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_RX_STOP);
     if (result) {
