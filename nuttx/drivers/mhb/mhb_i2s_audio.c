@@ -58,6 +58,7 @@ struct mhb_i2s_audio {
     struct device *audio_dev;
     struct device *mhb_dev;
     struct device_i2s_pcm common_pcm_cfg;
+    struct device_i2s_dai common_dai_cfg;
     uint8_t i2s_status;
     bool is_configured;
     pthread_mutex_t mutex;
@@ -75,8 +76,9 @@ static struct mhb_i2s_audio mhb_i2s;
  * to get supported configurations
  */
 static const struct device_i2s_pcm tsb_i2s_pcm = {
-    .rate = DEVICE_I2S_PCM_RATE_16000 | DEVICE_I2S_PCM_RATE_96000 |
-                            DEVICE_I2S_PCM_RATE_192000,
+    .rate = (DEVICE_I2S_PCM_RATE_16000 | DEVICE_I2S_PCM_RATE_96000 |
+                            DEVICE_I2S_PCM_RATE_48000 |
+                            DEVICE_I2S_PCM_RATE_192000),
     .format = DEVICE_I2S_PCM_FMT_16 | DEVICE_I2S_PCM_FMT_24,
     .channels = 2,
 };
@@ -280,10 +282,10 @@ static int mhb_i2s_convert_gb_clk_role(uint8_t gb_clk_role, uint8_t *mhb_clk_rol
     int ret = 0;
 
     switch (gb_clk_role) {
-        case MHB_I2S_ROLE_SLAVE:
+        case DEVICE_I2S_ROLE_SLAVE:
             *mhb_clk_role = MHB_I2S_ROLE_SLAVE;
             break;
-        case MHB_I2S_ROLE_MASTER:
+        case DEVICE_I2S_ROLE_MASTER:
             *mhb_clk_role = MHB_I2S_ROLE_MASTER;
             break;
         default:
@@ -358,6 +360,7 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
     int result;
 
     if (!i2s) {
+        lldbg("error no dev\n");
         result = -ENODEV;
         goto err;
     }
@@ -382,20 +385,20 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
     }
 
      /* Check that bit field settings match our capabilities */
-    if (((i2s_dai->protocol & tsb_i2s_dai.protocol) !=
-                                              tsb_i2s_dai.protocol)||
-         ((i2s_dai->wclk_polarity & tsb_i2s_dai.wclk_polarity) !=
-                                              tsb_i2s_dai.wclk_polarity) ||
-         ((i2s_dai->wclk_change_edge & tsb_i2s_dai.wclk_change_edge) !=
-                                               tsb_i2s_dai.wclk_change_edge) ||
-         ((i2s_dai->data_rx_edge & tsb_i2s_dai.data_rx_edge) !=
-                                               tsb_i2s_dai.data_rx_edge) ||
-         ((i2s_dai->data_tx_edge & tsb_i2s_dai.data_tx_edge) !=
-                                               tsb_i2s_dai.data_tx_edge) ||
+    if (((i2s_dai->protocol & i2s->common_dai_cfg.protocol) !=
+                                              i2s_dai->protocol)||
+         ((i2s_dai->wclk_polarity & i2s->common_dai_cfg.wclk_polarity) !=
+                                              i2s_dai->wclk_polarity) ||
+         ((i2s_dai->wclk_change_edge & i2s->common_dai_cfg.wclk_change_edge) !=
+                                              i2s_dai->wclk_change_edge) ||
+         ((i2s_dai->data_rx_edge & i2s->common_dai_cfg.data_rx_edge) !=
+                                              i2s_dai->data_rx_edge) ||
+         ((i2s_dai->data_tx_edge & i2s->common_dai_cfg.data_tx_edge) !=
+                                              i2s_dai->data_tx_edge ) ||
          ((i2s_pcm->rate & i2s->common_pcm_cfg.rate) !=
-                                              i2s->common_pcm_cfg.rate) ||
+                                              i2s_pcm->rate) ||
          ((i2s_pcm->format & i2s->common_pcm_cfg.format) !=
-                                             i2s->common_pcm_cfg.format)) {
+                                             i2s_pcm->format)) {
          lldbg("%s() failed unsupported i2s config", __func__);
          result = -EINVAL;
          goto err;
@@ -424,6 +427,28 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
             i2s->is_configured = true;
     }
 
+    /* set pcm and dai config to audio codec */
+    if (i2s->audio_dev) {
+        struct device_aud_pcm_config pcm_cfg;
+        struct device_aud_dai_config dai_cfg;
+
+        memset(&dai_cfg, 0, sizeof(&dai_cfg));
+        pcm_cfg.rate = i2s_pcm->rate;
+        pcm_cfg.format = i2s_pcm->format;
+        pcm_cfg.channels = i2s_pcm->channels;
+        dai_cfg.dai_type = DEVICE_AUDIO_DAI_I2S_TYPE;
+        dai_cfg.config.i2s_dai.wclk_polarity = i2s_dai->wclk_polarity;
+        dai_cfg.config.i2s_dai.wclk_change_edge = i2s_dai->wclk_change_edge;
+        dai_cfg.config.i2s_dai.data_rx_edge = i2s_dai->data_rx_edge;
+        dai_cfg.config.i2s_dai.data_tx_edge = i2s_dai->data_tx_edge;
+
+        result = device_audio_set_config(i2s->audio_dev, &pcm_cfg, &dai_cfg);
+        if (result) {
+            lldbg("ERROR: failed configuring audio codec\n");
+            goto err;
+        }
+    }
+
     return 0;
 err:
     i2s->is_configured = false;
@@ -439,9 +464,8 @@ static int mhb_i2s_op_get_capabilties(struct device *dev, uint8_t role,
     if (!i2s)
         return -ENODEV;
 
-    memcpy(i2s_dai, &tsb_i2s_dai, sizeof(*i2s_dai));
-
-    memcpy(i2s_pcm, &i2s->common_pcm_cfg, sizeof(*i2s_pcm));
+    memcpy(i2s_dai, &i2s->common_dai_cfg, sizeof(struct device_i2s_dai));
+    memcpy(i2s_pcm, &i2s->common_pcm_cfg, sizeof(struct device_i2s_pcm));
 
     return 0;
 }
@@ -642,6 +666,7 @@ static int mhb_i2s_dev_open(struct device *dev)
     struct mhb_i2s_audio *i2s = device_get_private(dev);
     int result;
     struct device_aud_pcm_config aud_dev_pcm;
+    struct device_aud_dai_config aud_dev_dai;
 
     if (!i2s) {
         result = -ENODEV;
@@ -665,15 +690,23 @@ static int mhb_i2s_dev_open(struct device *dev)
                                  _mhb_i2s_handle_msg);
 
     memcpy(&i2s->common_pcm_cfg, &tsb_i2s_pcm, sizeof(struct device_i2s_pcm));
+    memcpy(&i2s->common_dai_cfg, &tsb_i2s_dai, sizeof(struct device_i2s_dai));
     i2s->audio_dev = device_open(DEVICE_TYPE_MUC_AUD_HW, DEVICE_AUDIO_MHB_ID);
     if (i2s->audio_dev) {
         /* get supported pcm config from audio device */
-        result = device_audio_get_pcm_config(i2s->audio_dev, &aud_dev_pcm);
+        aud_dev_dai.dai_type = DEVICE_AUDIO_DAI_I2S_TYPE;
+        result = device_audio_get_config(i2s->audio_dev, &aud_dev_pcm,
+                                          &aud_dev_dai);
         if (!result) {
-            /* update common supported pcm configuration */
+            /* update common supported pcm and dai configuration */
             i2s->common_pcm_cfg.rate &= aud_dev_pcm.rate;
             i2s->common_pcm_cfg.format &= aud_dev_pcm.format;
             i2s->common_pcm_cfg.channels = MIN(aud_dev_pcm.channels, i2s->common_pcm_cfg.channels);
+            i2s->common_dai_cfg.data_rx_edge &= aud_dev_dai.config.i2s_dai.data_rx_edge;
+            i2s->common_dai_cfg.data_tx_edge &= aud_dev_dai.config.i2s_dai.data_tx_edge;
+            i2s->common_dai_cfg.protocol &= aud_dev_dai.config.i2s_dai.protocol;
+            i2s->common_dai_cfg.wclk_polarity &= aud_dev_dai.config.i2s_dai.wclk_polarity;
+            i2s->common_dai_cfg.wclk_change_edge &= aud_dev_dai.config.i2s_dai.wclk_change_edge;
         }
     } else {
         lldbg("WARN: failed to open audio device.\n");
