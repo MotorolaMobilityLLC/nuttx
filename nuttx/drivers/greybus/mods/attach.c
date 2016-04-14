@@ -49,8 +49,14 @@
 #define PM_MODS_ACTIVITY 10
 
 /*
+ * The base must be gone for 50 milliseconds before we can declare mod is
+ * detached.
+ */
+#define BASE_GONE_TICKS  MSEC2TICK(50)
+
+/*
  * The chip select line must be asserted for 1 second before we can declare mod
- * is attached to a dead/off phone.
+ * is attached to a dead/off base.
  */
 #define CS_ASSERT_TICKS  MSEC2TICK(1000)
 
@@ -118,12 +124,18 @@ static void base_attach_worker(FAR void *arg)
 
 static int bplus_isr(int irq, void *context)
 {
+  uint8_t base;
+
   pm_activity(PM_MODS_ACTIVITY);
+  base = gpio_get_value(GPIO_MODS_BASE_ATTACH);
+
+  llvdbg("base=%d\n", base);
 
   if (!work_available(&g_attach_work))
       work_cancel(LPWORK, &g_attach_work);
 
-  return work_queue(LPWORK, &g_attach_work, base_attach_worker, NULL, 0);
+  return work_queue(LPWORK, &g_attach_work, base_attach_worker, NULL,
+                    base ? 0 : BASE_GONE_TICKS);
 }
 
 #ifdef GPIO_MODS_SPI_CS_N
