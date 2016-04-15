@@ -28,7 +28,7 @@
 
 
 #include <nuttx/device.h>
-#include <nuttx/device_pad_det.h>
+#include <nuttx/device_ext_power.h>
 #include <nuttx/gpio.h>
 #include <nuttx/power/pm.h>
 #include <nuttx/wqueue.h>
@@ -47,8 +47,7 @@
 struct gpio_pad_detect_info {
     uint8_t gpio; /* gpio to detect docked state */
     bool active_low; /* active when gpio is low */
-    bool docked; /* current state */
-    pad_detect cb; /* callback */
+    device_ext_power_notification cb; /* callback */
     void *arg; /*callback arg */
     struct work_s work; /* isr work */
 };
@@ -59,7 +58,6 @@ struct gpio_pad_detect_info {
  */
 static struct gpio_pad_detect_info *g_info = NULL;
 
-
 static bool docked(void)
 {
     uint8_t val;
@@ -69,12 +67,8 @@ static bool docked(void)
 
 static void gpio_pad_detect_worker(FAR void *arg)
 {
-    if (g_info->docked == docked())
-        return;
-
-    g_info->docked = !g_info->docked;
-    /* Call back with current state */
-    g_info->cb(g_info->arg, g_info->docked);
+    /* Run callback */
+    g_info->cb(g_info->arg);
 }
 
 static int gpio_pad_detect_isr(int irq, void *context)
@@ -88,24 +82,27 @@ static int gpio_pad_detect_isr(int irq, void *context)
 }
 
 static int gpio_pad_detect_register_callback(struct device *dev,
-                                             pad_detect cb, void *arg)
+                                    device_ext_power_notification cb, void *arg)
 {
     if (g_info->cb)
         return -EEXIST;
 
     g_info->cb = cb;
     g_info->arg = arg;
-    g_info->docked = docked();
-    /* Immediately call back with current state */
-    g_info->cb(g_info->arg, g_info->docked);
 
     /* Enable IRQ */
     gpio_irqattach(g_info->gpio, gpio_pad_detect_isr);
     set_gpio_triggering(g_info->gpio, IRQ_TYPE_EDGE_BOTH);
 
-    /* In case state changed before IRQ was enabled */
-    if (work_available(&g_info->work))
-        work_queue(HPWORK, &g_info->work, gpio_pad_detect_worker, NULL, 0);
+    return 0;
+}
+
+static int gpio_pad_detect_get_current(struct device *dev, int *current)
+{
+    if (!current)
+        return -EINVAL;
+
+   *current = docked() ? CONFIG_PAD_DETECT_DEVICE_GPIO_MAX_OUTPUT_CURRENT : 0;
 
     return 0;
 }
@@ -143,8 +140,9 @@ probe_err:
     return retval;
 }
 
-static struct device_pad_det_type_ops gpio_pad_detect_type_ops = {
+static struct device_ext_power_type_ops gpio_pad_detect_type_ops = {
     .register_callback = gpio_pad_detect_register_callback,
+    .get_current = gpio_pad_detect_get_current,
 };
 
 static struct device_driver_ops gpio_pad_detect_driver_ops = {
@@ -153,7 +151,7 @@ static struct device_driver_ops gpio_pad_detect_driver_ops = {
 };
 
 struct device_driver gpio_pad_detect_driver = {
-    .type = DEVICE_TYPE_PAD_DET_HW,
+    .type = DEVICE_TYPE_EXT_POWER_HW,
     .name = "gpio_pad_detect",
     .desc = "Wireless pad detect with gpio",
     .ops = &gpio_pad_detect_driver_ops,

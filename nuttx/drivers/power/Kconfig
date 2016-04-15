@@ -232,11 +232,15 @@ config PAD_DETECT
 	bool "Wireless charger pad state notifier"
 	default n
 
-config PAD_DETECT_DEVICE_GPIO
+menuconfig PAD_DETECT_DEVICE_GPIO
 	bool "Wireless pad detection through GPIO state"
-	depends on PAD_DETECT
 	default n
 	select GPIO
+
+config PAD_DETECT_DEVICE_GPIO_MAX_OUTPUT_CURRENT
+	int "Maximum output current in mA"
+	depends on PAD_DETECT_DEVICE_GPIO
+	default 1000
 
 config WRLS_COIL_ADC
 	bool "Wireless coil temperature monitoring via ADC"
