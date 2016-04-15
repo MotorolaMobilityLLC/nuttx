@@ -228,10 +228,6 @@ config CHARGER_DEVICE_BQ24292
 	default n
 	depends on CHARGER_BQ24292
 
-config PAD_DETECT
-	bool "Wireless charger pad state notifier"
-	default n
-
 config EXT_POWER
 	bool "External charging power sources notifier"
 	default n
