@@ -232,6 +232,10 @@ config PAD_DETECT
 	bool "Wireless charger pad state notifier"
 	default n
 
+config EXT_POWER
+	bool "External charging power sources notifier"
+	default n
+
 menuconfig PAD_DETECT_DEVICE_GPIO
 	bool "Wireless pad detection through GPIO state"
 	default n
