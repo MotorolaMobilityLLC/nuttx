@@ -27,38 +27,38 @@ protocol = 0x00
 [bundle-descriptor 0]
 class = 0
 
-; Battery on CPort 5
-[cport-descriptor 5]
+; Battery on CPort 1
+[cport-descriptor 1]
 bundle = 1
 protocol = 0x08
 
-; Motorola specific on CPort 6
-[cport-descriptor 6]
+; Motorola specific on CPort 2
+[cport-descriptor 2]
 bundle = 1
 protocol = 0xff
 
-; GPIO Phy on CPort 7
-[cport-descriptor 7]
+; GPIO Phy on CPort 3
+[cport-descriptor 3]
 bundle = 1
 protocol = 0x02
 
-; HID on CPort 8
-[cport-descriptor 8]
+; HID on CPort 4
+[cport-descriptor 4]
 bundle = 1
 protocol = 0x05
 
-; LOOPBACK protocol on CPort 9
-[cport-descriptor 9]
+; LOOPBACK protocol on CPort 5
+[cport-descriptor 5]
 bundle = 1
 protocol = 0x11
 
-; RAW interface on CPort 10
-[cport-descriptor 10]
+; RAW interface on CPort 6
+[cport-descriptor 6]
 bundle = 1
 protocol = 0xfe
 
-; PTP on CPort 11
-[cport-descriptor 11]
+; PTP on CPort 7
+[cport-descriptor 7]
 bundle = 1
 protocol = 0xef
 
