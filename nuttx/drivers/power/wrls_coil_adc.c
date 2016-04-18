@@ -37,8 +37,9 @@
 
 #include <nuttx/analog/adc.h>
 #include <nuttx/device.h>
+#include <nuttx/device_ext_power.h>
 #include <nuttx/device_wrls_tx.h>
-#include <nuttx/power/pad_det.h>
+#include <nuttx/power/ext_power.h>
 #include <nuttx/power/wrls_coil_adc.h>
 
 #include <sys/ioctl.h>
@@ -51,10 +52,21 @@
 /* FIFO to pass docked state to task */
 static const char *fifo_name = "/dev/wrls_coil_adc_docked_state_fifo";
 
-void wrls_coil_adc_pad_detect(void *arg, bool docked)
+static bool wrls_coil_adc_docked(struct device *dev)
+{
+    int current;
+
+    if (dev && !device_ext_power_get_current(dev, &current))
+        return current != 0;
+    else
+        return false;
+}
+
+void wrls_coil_adc_pad_detect(void *arg, struct device *const dev[])
 {
     int fd;
     ssize_t nbytes;
+    bool docked =  wrls_coil_adc_docked(dev[EXT_POWER_WIRELESS]);
 
     fd = open(fifo_name, O_WRONLY);
     if (fd == -1) {
@@ -122,9 +134,9 @@ static int wrls_coil_adc_task(int argc, char *argv[])
     fds[DOCKED].events = POLLIN;
     fds[ADC].events = POLLIN;
 
-    ret = pad_det_register_callback(wrls_coil_adc_pad_detect, NULL);
+    ret = ext_power_register_callback(wrls_coil_adc_pad_detect, NULL);
     if (ret) {
-        dbg("pad_det_register_callback() failed: %d\n", ret);
+        dbg("register_ext_power_callback() failed: %d\n", ret);
         goto err;
     }
 
