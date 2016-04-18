@@ -64,6 +64,18 @@
 # define GPIO_APBE_INT_N         CALC_GPIO_NUM('B',  5)
 #endif
 
+#define GPIO_DISPLAY_PWR1_EN     CALC_GPIO_NUM('A', 10)
+#define GPIO_DISPLAY_PWR2_EN     CALC_GPIO_NUM('C', 12)
+#if (BOARD_REVISION < 2)
+# define GPIO_DISPLAY_PWR3_EN    CALC_GPIO_NUM('B', 5)
+#else
+# define GPIO_DISPLAY_PWR3_EN    CALC_GPIO_NUM('A', 0)
+#endif
+#define GPIO_DISPLAY_RST1_N      CALC_GPIO_NUM('C', 8)
+
+#define GPIO_TOUCH_INT_N         CALC_GPIO_NUM('A', 9)
+#define GPIO_TOUCH_RST_N         CALC_GPIO_NUM('C', 9)
+
 /*
  * On this board, the CHG_PG_N pin is not connected, so the BQ24292 driver
  * needs to use the CHG_INT_N line for power good.
