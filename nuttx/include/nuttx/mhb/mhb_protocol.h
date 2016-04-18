@@ -421,17 +421,14 @@ struct mhb_cdsi_write_cmds_rsp {
 #define MHB_I2S_EDGE_RISING  0
 #define MHB_I2S_EDGE_FALLING 1
 
-#define MHB_I2S_EDGE_RISING  0
-#define MHB_I2S_EDGE_FALLING 1
-
-#define MHB_I2S_WCLK_POLARITY_NORMAL 0
+#define MHB_I2S_WCLK_POLARITY_NORMAL  0
 #define MHB_I2S_WCLK_POLARITY_REVERSE 1
 
-#define MHB_I2S_PROTOCOL_I2S  0
-#define MHB_I2S_PROTOCOL_PCM  1
+#define MHB_I2S_PROTOCOL_I2S       0
+#define MHB_I2S_PROTOCOL_PCM       1
 #define MHB_I2S_PROTOCOL_LR_STEREO 2
 
-#define MHB_I2S_ROLE_SLAVE  0
+#define MHB_I2S_ROLE_SLAVE   0
 #define MHB_I2S_ROLE_MASTER  1
 
 /* config */
