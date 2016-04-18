@@ -32,7 +32,7 @@
 #include <nuttx/device_ptp_chg.h>
 #include <nuttx/greybus/mods.h>
 #include <nuttx/power/battery_state.h>
-#include <nuttx/power/pad_det.h>
+#include <nuttx/power/ext_power.h>
 
 #include <debug.h>
 #include <errno.h>
@@ -496,52 +496,29 @@ static bool batt_ptp_ext_power_source_changed(struct ptp_state *state)
     return (new_src != old_src || new_limit != old_limit);
 }
 
-static void batt_ptp_wireless_changed(void *arg, bool docked)
+static int batt_ptp_get_ext_power_current(struct device *dev)
 {
-    static bool init = true; /* first callback is to initialize */
-    struct ptp_info *info = arg;
     int current;
 
-    if (init) {
-        init = false;
-        info->state.wrls_current = docked ?
-                                CONFIG_GREYBUS_MODS_WIRELESS_INPUT_CURRENT : 0;
-        return;
-    }
-
-    while (sem_wait(&info->sem) != OK) {
-        if (errno == EINVAL) {
-            return;
-        }
-    }
-
-    current = docked ? CONFIG_GREYBUS_MODS_WIRELESS_INPUT_CURRENT : 0;
-    if (current == info->state.wrls_current)
-        goto docked_done;
-
-    info->state.wrls_current = current;
-
-    batt_ptp_set_ext_power_presence(info);
-
-    if (!batt_ptp_ext_power_source_changed(&info->state))
-        goto docked_done;
-
-    batt_ptp_set_power_availability(info);
-
-    batt_ptp_process(info->chg_dev, &info->state);
-
-docked_done:
-    sem_post(&info->sem);
+    if (dev && !device_ext_power_get_current(dev, &current))
+        return current;
+    else
+        return 0;
 }
 
-static void batt_ptp_wired_changed(void *arg, int current)
+static void batt_ptp_ext_power_changed(void *arg, struct device *const dev[])
 {
     static bool init = true; /* first callback is to initialize */
     struct ptp_info *info = arg;
+    int wired_current =  batt_ptp_get_ext_power_current(dev[EXT_POWER_WIRED]);
+    int wrls_current = batt_ptp_get_ext_power_current(dev[EXT_POWER_WIRELESS]);
 
     if (init) {
         init = false;
-        info->state.wired_current = current;
+        info->state.wired_current = wired_current;
+        info->state.wrls_current = wrls_current;
+        batt_ptp_set_ext_power_presence(info);
+        batt_ptp_choose_ext_power_source(&info->state);
         return;
     }
 
@@ -551,21 +528,22 @@ static void batt_ptp_wired_changed(void *arg, int current)
         }
     }
 
-    if (info->state.wired_current == current)
-        goto wired_done;
+    if (info->state.wired_current == wired_current && info->state.wrls_current == wrls_current)
+        goto done;
 
-    info->state.wired_current = current;
+    info->state.wired_current = wired_current;
+    info->state.wrls_current = wrls_current;
 
     batt_ptp_set_ext_power_presence(info);
 
     if (!batt_ptp_ext_power_source_changed(&info->state))
-        goto wired_done;
+        goto done;
 
     batt_ptp_set_power_availability(info);
 
     batt_ptp_process(info->chg_dev, &info->state);
 
-wired_done:
+done:
     sem_post(&info->sem);
 }
 #endif
@@ -759,34 +737,11 @@ static int batt_ptp_open(struct device *dev)
         dbg("boost fault detection not supported\n");
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    bool wireless;
-    retval = pad_det_register_callback(batt_ptp_wireless_changed, info);
+    retval = ext_power_register_callback(batt_ptp_ext_power_changed, info);
     if (retval) {
-        wireless = false;
-        dbg("wireless power source not supported\n");
-    } else
-        wireless = true;
-
-    info->wired_src_dev = device_open(DEVICE_TYPE_EXT_POWER_HW, 0);
-    if (!info->wired_src_dev) {
-        dbg("wired power source not supported\n");
-        if (!wireless) {
-            dbg("failed to find external power sources\n");
-            goto ext_err;
-        }
+        dbg("failed to register ext power callback\n");
+        goto ext_err;
     }
-
-    if (info->wired_src_dev) {
-        retval = device_ext_power_register_callback(info->wired_src_dev, batt_ptp_wired_changed,
-                                                    info);
-        if (retval) {
-            dbg("failed to register ext power callback\n");
-            goto ext_err;
-        }
-    }
-
-    batt_ptp_set_ext_power_presence(info);
-    batt_ptp_choose_ext_power_source(&info->state);
 #endif
 
     retval = battery_state_register(batt_ptp_battery_changed, info);
@@ -813,7 +768,6 @@ atch_err:
 batt_err:
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
 ext_err:
-    device_close(info->wired_src_dev);
 #endif
     device_close(info->chg_dev);
 chg_err:
