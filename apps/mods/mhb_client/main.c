@@ -532,11 +532,11 @@ static int mhb_send_i2s_config(int argc, char *argv[], struct device *dev)
     hdr.result = 0;
     /* Set the defaults. */
     i2s_config.sample_rate  = 48000;
-    i2s_config.protocol     = MHB_I2S_PROTOCOL_LR_STEREO;
+    i2s_config.protocol     = MHB_I2S_PROTOCOL_I2S;
     i2s_config.sample_size  = 16;
     i2s_config.num_channels = 2;
-    i2s_config.tx_edge      = MHB_I2S_EDGE_RISING;
-    i2s_config.rx_edge      = MHB_I2S_EDGE_FALLING;
+    i2s_config.tx_edge      = MHB_I2S_EDGE_FALLING;
+    i2s_config.rx_edge      = MHB_I2S_EDGE_RISING;
     i2s_config.wclk_edge    = MHB_I2S_EDGE_RISING;
     i2s_config.clk_role     = MHB_I2S_ROLE_MASTER;
     switch (argc) {
@@ -544,10 +544,10 @@ static int mhb_send_i2s_config(int argc, char *argv[], struct device *dev)
             if (strcmp(argv[7], "falling") == 0)
                 i2s_config.wclk_edge = MHB_I2S_EDGE_FALLING;
         case 7:
-            if (strcmp(argv[6], "rising") == 0)
+            if (strcmp(argv[6], "falling") == 0)
                 i2s_config.rx_edge = MHB_I2S_EDGE_RISING;
         case 6:
-            if (strcmp(argv[5], "falling") == 0)
+            if (strcmp(argv[5], "rising") == 0)
                 i2s_config.tx_edge = MHB_I2S_EDGE_FALLING;
         case 5:
             i2s_config.num_channels = atoi(argv[3]);
@@ -556,12 +556,15 @@ static int mhb_send_i2s_config(int argc, char *argv[], struct device *dev)
         case 3:
             if (strcmp(argv[2], "mono") == 0)
                 i2s_config.protocol = MHB_I2S_PROTOCOL_PCM;
+            else if (strcmp(argv[2], "lr_stereo") == 0)
+                i2s_config.protocol = MHB_I2S_PROTOCOL_LR_STEREO;
+
         case 2:
             if (strcmp(argv[1], "slave") == 0)
                  i2s_config.clk_role = MHB_I2S_ROLE_SLAVE;
         case 1:
             if (strcmp(argv[0], "help") == 0) {
-                printf("config <rate> <direction (master|slave)> <protocol (lr_stereo|mono)> <size bits> "
+                printf("config <rate> <direction (master|slave)> <protocol (i2s_stereo|lr_stereo|mono)> <size bits> "
                        "<channels (1|2)> tx edge (rising|fallinb)> <rx edge (rising|falling)> "
                        "<lr edge (rising|falling)>\n"
                        "Options can stop at any point if the detaults are acceptable for the rest of"
