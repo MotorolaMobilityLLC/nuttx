@@ -286,7 +286,8 @@ struct fusb302_dev_s {
     int int_n;
     struct work_s work;
     sem_t fusb302_sem;
-    ext_power_changed power_changed_cb;
+    int current;
+    device_ext_power_notification power_changed_cb;
     void *fusb302_available_arg;
 };
 
@@ -522,21 +523,24 @@ static void fusb302_toggle_measure(void)
 
 static void fusb302_worker(FAR void *arg)
 {
+    struct fusb302_dev_s *info = arg;
+
     fusb302_toggle_measure();
+    info->current = decode_cc_termination();
     if (fusb302_info->power_changed_cb)
-        fusb302_info->power_changed_cb(fusb302_info->fusb302_available_arg, decode_cc_termination());
+        fusb302_info->power_changed_cb(fusb302_info->fusb302_available_arg);
 }
 
 static int fusb302_isr(int irq, void *context)
 {
     pm_activity(PM_USBC_ACTIVITY);
     if (fusb302_info && work_available(&fusb302_info->work))
-        work_queue(LPWORK, &fusb302_info->work, fusb302_worker, NULL, 0);
+        work_queue(LPWORK, &fusb302_info->work, fusb302_worker, fusb302_info, 0);
 
     return OK;
 }
 
-static int fusb302_register_callback(struct device *dev, ext_power_changed cb, void *arg)
+static int fusb302_register_callback(struct device *dev, device_ext_power_notification cb, void *arg)
 {
     struct fusb302_dev_s *info = device_get_private(dev);
 
@@ -556,20 +560,31 @@ static int fusb302_register_callback(struct device *dev, ext_power_changed cb, v
     }
     info->fusb302_available_arg = arg;
     info->power_changed_cb = cb;
-    /* first call to initialize client */
-    cb(arg, 0);
-    /* reset and initialize chipset */
-    fusb302_init();
+
     return 0;
 }
 
-struct reg_value {
-    uint8_t reg;
-    uint8_t val;
-};
+static int fusb302_get_current(struct device *dev, int *current)
+{
+    struct fusb302_dev_s *info = device_get_private(dev);
+
+    if (!current) {
+        dbg("invalid parameter\n");
+        return -EINVAL;
+    }
+
+    *current = info->current;
+
+    return 0;
+}
 
 static int fusb302_open(struct device *dev)
 {
+    struct fusb302_dev_s *info = device_get_private(dev);
+
+    info->current = 0;
+    /* reset and initialize chipset */
+    fusb302_init();
     return 0;
 }
 
@@ -656,6 +671,7 @@ void fusb302_remove(struct device *dev)
 
 static struct device_ext_power_type_ops fusb302_type_ops  = {
     .register_callback = fusb302_register_callback,
+    .get_current = fusb302_get_current,
 };
 
 static struct device_driver_ops fusb302_driver_ops = {
