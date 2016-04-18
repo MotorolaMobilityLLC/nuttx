@@ -53,6 +53,7 @@
 #include <nuttx/device_uart.h>
 
 #include <nuttx/power/battery_state.h>
+#include <nuttx/power/ext_power.h>
 #include <nuttx/util.h>
 
 #include <nuttx/mhb/device_mhb.h>
@@ -371,7 +372,7 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_EXT_POWER_HW,
         .name = "fusb302",
         .desc = "fusb302",
-        .id   = 0,
+        .id   = EXT_POWER_WIRED,
         .resources = fusb302_resources,
         .resource_count = ARRAY_SIZE(fusb302_resources),
     },
