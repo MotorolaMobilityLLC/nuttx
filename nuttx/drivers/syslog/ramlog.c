@@ -65,6 +65,7 @@
 #ifdef CONFIG_RAMLOG
 
 #ifdef CONFIG_RAMLOG_LAST_DMESG
+#define __ramlog_dev       __attribute__((section(".ramlog_dev")))
 #define __ramlog           __attribute__((section(".ramlog")))
 #define RAMLOG_VALIDITY    (0x0F1E2D3C)
 #else
@@ -172,7 +173,7 @@ static char g_sysbuffer[CONFIG_RAMLOG_BUFSIZE] __ramlog;
 #ifdef CONFIG_RAMLOG_LAST_DMESG
 static char g_syslastbuffer[CONFIG_RAMLOG_BUFSIZE] __ramlog;
 static struct ramlog_ldev_s g_syslastdev __ramlog;
-static struct ramlog_dev_s g_sysdev __ramlog;
+static struct ramlog_dev_s g_sysdev __ramlog_dev;
 #else
 
 /* This is the device structure for the console or syslogging function.  It
