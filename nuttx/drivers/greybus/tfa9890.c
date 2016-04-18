@@ -67,6 +67,7 @@ struct tfa9890_dev_s {
     int type;
     int32_t sys_vol_db;
     int preset_update_pending;
+    sem_t preset_lock;
 };
 
 static int tfa9890_reg_read(FAR struct tfa9890_dev_s *priv, uint8_t reg);
@@ -74,6 +75,7 @@ static int tfa9890_reg_write(FAR struct tfa9890_dev_s *priv, uint8_t reg,
                 uint16_t val);
 static int tfa9890_modify(FAR struct tfa9890_dev_s *priv, uint16_t reg,
                 uint16_t mask, uint16_t s, uint16_t offset);
+static int tfa9890_wait_pll_sync(struct tfa9890_dev_s *priv);
 
 /* lower half ops */
 static int      tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
@@ -107,7 +109,6 @@ static const struct audio_ops_s g_audioops =
 
 static uint8_t chunk_buf[TFA9890_MAX_I2C_SIZE + 1];
 static sem_t bulk_write_lock = SEM_INITIALIZER(1);
-static sem_t preset_lock = SEM_INITIALIZER(1);
 
 #ifdef DEBUG
 static void tfa9890_dump_reg(FAR struct tfa9890_dev_s *priv, uint16_t reg)
@@ -439,10 +440,12 @@ static int tfa9890_update_preset(FAR struct tfa9890_dev_s *priv)
     int32_t use_case;
     int preset_index;
     const uint8_t *pst;
-    uint16_t val;
     int ret;
 
-    sem_wait(&preset_lock);
+    ret = tfa9890_wait_pll_sync(priv);
+    if (ret) {
+        goto err;
+    }
     sys_vol_db = priv->sys_vol_db;
     use_case = priv->current_eq;
 
@@ -470,23 +473,14 @@ static int tfa9890_update_preset(FAR struct tfa9890_dev_s *priv)
         ret = -EINVAL;
         goto err;
     }
-
-    val = tfa9890_reg_read(priv, TFA9890_REG_SYSTEM_STATUS);
-    if ((val & TFA9890_STATUS_UP_MASK) == TFA9890_STATUS_UP)
-    {
-         ret = tfa9890_dsp_transfer(priv, TFA9890_DSP_MOD_SPEAKERBOOST,
-                 TFA9890_PARAM_SET_PRESET, (pst + TFA9890_PST_FW_SIZE * preset_index),
-                 TFA9890_PST_FW_SIZE,
-                 TFA9890_DSP_WRITE, 0);
-    }
-    else
-    {
-         lldbg("preset update still pending \n");
-         ret = -EIO;
-    }
-
+    ret = tfa9890_dsp_transfer(priv, TFA9890_DSP_MOD_SPEAKERBOOST,
+                               TFA9890_PARAM_SET_PRESET, (pst + TFA9890_PST_FW_SIZE * preset_index),
+                               TFA9890_PST_FW_SIZE,
+                               TFA9890_DSP_WRITE, 0);
+    priv->preset_update_pending = 0;
+    return 0;
 err:
-    sem_post(&preset_lock);
+    priv->preset_update_pending = 1;
     return ret;
 }
 
@@ -660,6 +654,11 @@ int tfa9890_start(FAR struct audio_lowerhalf_s *dev)
     lldbg("activating 0X%x\n", priv->i2c_addr);
     tfa9890_powerup(priv, 1);
     tfa9890_wait_pll_sync(priv);
+    while (sem_wait(&priv->preset_lock) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
     if (!priv->is_dsp_cfg_done)
     {
        ret = tfa9890_load_config(priv);
@@ -683,10 +682,8 @@ int tfa9890_start(FAR struct audio_lowerhalf_s *dev)
                 tfa9890_reg_write(priv, TFA9890_REG_VOLUME_CTRL, val);
             }
         }
-    }
-    if (priv->preset_update_pending) {
-        if (!tfa9890_update_preset(priv))
-            priv->preset_update_pending = 0;
+    } else if (priv->preset_update_pending) {
+            tfa9890_update_preset(priv);
     }
 
     /* read speaker impedence*/
@@ -695,6 +692,7 @@ int tfa9890_start(FAR struct audio_lowerhalf_s *dev)
 #ifdef DEBUG
     tfa9890_dump_regs(priv);
 #endif
+    sem_post(&priv->preset_lock);
 
     return ret;
 }
@@ -714,11 +712,15 @@ static int tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
                             FAR const struct audio_caps_s *caps)
 {
     struct tfa9890_dev_s *priv = dev->priv;
-    uint16_t val;
 
     if(!priv || !caps)
         return -EINVAL;
 
+    while (sem_wait(&priv->preset_lock) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
     switch (caps->ac_type)
     {
         case AUDIO_TYPE_FEATURE:
@@ -738,20 +740,23 @@ static int tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
 
                     break;
                 case AUDIO_FU_EQUALIZER:
-                     /* TODO load use case based eq and preset to dsp here
-                      * and update current eq profile .
-                      */
-                     priv->current_eq = caps->ac_controls.hw[0];
-                     break;
+                    if (priv->current_eq == caps->ac_controls.hw[0]) {
+                        break;
+                    }
+                    priv->current_eq = caps->ac_controls.hw[0];
+                    if (priv->is_dsp_cfg_done) {
+                        tfa9890_update_preset(priv);
+                    }
+                    break;
                 case AUDIO_FU_LOUDNESS:
-                     priv->sys_vol_db = (int) caps->ac_controls.w;
-                     val = tfa9890_reg_read(priv, TFA9890_REG_SYSTEM_STATUS);
-
-                     if (((val & TFA9890_STATUS_UP_MASK) == TFA9890_STATUS_UP) && priv->is_dsp_cfg_done) {
-                          tfa9890_update_preset(priv);
-                     } else
-                          priv->preset_update_pending = 1;
-                     break;
+                    if (priv->sys_vol_db == (int) caps->ac_controls.w) {
+                        break;
+                    }
+                    priv->sys_vol_db = (int) caps->ac_controls.w;
+                    if (priv->is_dsp_cfg_done) {
+                        tfa9890_update_preset(priv);
+                    }
+                    break;
                  default:
                      break;
              }
@@ -759,7 +764,7 @@ static int tfa9890_configure(FAR struct audio_lowerhalf_s *dev,
         default:
             break;
     }
-
+    sem_post(&priv->preset_lock);
     return 0;
 }
 
@@ -844,7 +849,7 @@ FAR struct audio_lowerhalf_s *tfa9890_driver_init(FAR struct i2c_dev_s *i2c,
     tfa9890_modify(priv, TFA9890_REG_SYSTEM_CTRL_1, 1, 1, TFA9890_RESET_OFFSET);
 
     tfa9890_init_registers(priv);
-
+    sem_init(&priv->preset_lock, 0, 1);
 #if defined (CONFIG_GREYBUS_MODS_AUDIO_TFA9890_STEREO)
     tfa9890_driver_stereo_setup(priv, type);
 #endif
