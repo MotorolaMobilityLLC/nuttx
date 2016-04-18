@@ -105,6 +105,7 @@ SECTIONS
 	} > sram
 
 	.ramlog : {
+		*(.ramlog_dev)
 		*(.ramlog)
 	} > sramlog
 
