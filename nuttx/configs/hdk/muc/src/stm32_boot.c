@@ -131,37 +131,37 @@ static struct device_resource dsi_display_resources[] = {
     {
         .name   = "pwr1_en",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = 10, /* PA10 */
+        .start  = GPIO_DISPLAY_PWR1_EN,
         .count  = 1,
     },
     {
         .name   = "pwr2_en",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = 44, /* PC12 */
+        .start  = GPIO_DISPLAY_PWR2_EN,
         .count  = 1,
     },
     {
         .name   = "pwr3_en",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = 21, /* PB5 */
+        .start  = GPIO_DISPLAY_PWR3_EN,
         .count  = 1,
     },
     {
         .name   = "disp_rst1_n",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = 40, /* PC8 */
+        .start  = GPIO_DISPLAY_RST1_N,
         .count  = 1,
     },
     {
         .name   = "touch_int_n",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = 9, /* PA9 */
+        .start  = GPIO_TOUCH_INT_N,
         .count  = 1,
     },
     {
         .name   = "touch_rst_n",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = 41, /* PC9 */
+        .start  = GPIO_TOUCH_RST_N,
         .count  = 1,
     },
 };
