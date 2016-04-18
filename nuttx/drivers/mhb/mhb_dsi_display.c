@@ -53,17 +53,20 @@
 
 #define MHB_DSI_DISPLAY_CDSI_INSTANCE     0
 
-#define MHB_DSI_DISPLAY_STATE_OFF          0
-#define MHB_DSI_DISPLAY_STATE_APBE_ON      1
-#define MHB_DSI_DISPLAY_STATE_CONFIG_DSI   2
-#define MHB_DSI_DISPLAY_STATE_CONFIG_DCS   3
-#define MHB_DSI_DISPLAY_STATE_STARTING     4
-#define MHB_DSI_DISPLAY_STATE_ON           5
-#define MHB_DSI_DISPLAY_STATE_STOPPING     6
-#define MHB_DSI_DISPLAY_STATE_UNCONFIG_DCS 7
-#define MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI 8
-#define MHB_DSI_DISPLAY_STATE_APBE_OFF     9
-#define MHB_DSI_DISPLAY_STATE_ERROR       10
+enum {
+    MHB_DSI_DISPLAY_STATE_OFF = 0,
+    MHB_DSI_DISPLAY_STATE_APBE_ON,
+    MHB_DSI_DISPLAY_STATE_CONFIG_DSI,
+    MHB_DSI_DISPLAY_STATE_PANEL_INFO,
+    MHB_DSI_DISPLAY_STATE_CONFIG_DCS,
+    MHB_DSI_DISPLAY_STATE_STARTING,
+    MHB_DSI_DISPLAY_STATE_ON,
+    MHB_DSI_DISPLAY_STATE_STOPPING,
+    MHB_DSI_DISPLAY_STATE_UNCONFIG_DCS,
+    MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI,
+    MHB_DSI_DISPLAY_STATE_APBE_OFF,
+    MHB_DSI_DISPLAY_STATE_ERROR,
+};
 
 static struct mhb_dsi_display
 {
@@ -76,13 +79,24 @@ static struct mhb_dsi_display
     uint32_t gpio_rst1;
     uint32_t gpio_rst2;
     atomic_t host_ready;
-    struct mhb_dsi_panel_info *panel_info; // TODO: Read info.
+    struct mhb_dsi_panel_info panel_info;
     display_notification_cb callback;
     uint8_t cdsi_instance;
     uint8_t state;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
 } g_display;
+
+const static struct mhb_cdsi_cmd GET_SUPPLIER_ID[] = {
+    { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_READ0, .length = 2,
+        .u = { .spdata = 0x00a1 }, .delay = 10 }, /* supplier_id */
+    { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_READ0, .length = 1,
+    .u = { .spdata = 0x00da }, .delay = 10 }, /* id0 */
+    { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_READ0, .length = 1,
+        .u = { .spdata = 0x00db }, .delay = 10 }, /* id1 */
+    { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_READ0, .length = 1,
+        .u = { .spdata = 0x00dc }, .delay = 10 }, /* id2 */
+};
 
 /* operation signaling */
 static void _mhb_dsi_display_signal_response(struct mhb_dsi_display *display)
@@ -237,7 +251,7 @@ static int _mhb_dsi_display_send_config_req(struct mhb_dsi_display *display)
     size_t cfg_size = 0;
 
     ret = _mhb_dsi_display_get_config(display->cdsi_instance,
-                display->panel_info, &cfg, &cfg_size);
+                &display->panel_info, &cfg, &cfg_size);
     if (ret || !cfg || !cfg_size) {
         lldbg("ERROR: failed to send config.\n");
         return ret;
@@ -250,6 +264,17 @@ static int _mhb_dsi_display_send_config_req(struct mhb_dsi_display *display)
     return device_mhb_send(display->mhb_dev, &hdr, (uint8_t *)cfg, cfg_size, 0);
 }
 
+static int _mhb_dsi_display_send_read_panel_info_req(struct mhb_dsi_display *display)
+{
+    struct mhb_hdr hdr;
+
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_CDSI0;
+    hdr.type = MHB_TYPE_CDSI_READ_CMDS_REQ;
+
+    return device_mhb_send(g_display.mhb_dev, &hdr, (uint8_t *)GET_SUPPLIER_ID, sizeof(GET_SUPPLIER_ID), 0);
+}
+
 static int _mhb_dsi_display_send_display_on_req(struct mhb_dsi_display *display)
 {
     int ret;
@@ -258,7 +283,7 @@ static int _mhb_dsi_display_send_display_on_req(struct mhb_dsi_display *display)
     size_t cmds_size = 0;
 
     ret = _mhb_dsi_display_get_on_commands(display->cdsi_instance,
-                display->panel_info, &cmds, &cmds_size);
+                &display->panel_info, &cmds, &cmds_size);
     if (ret || !cmds || !cmds_size) {
         lldbg("ERROR: failed to get display on.\n");
         return ret;
@@ -280,7 +305,7 @@ _mhb_dsi_display_send_display_off_req(struct mhb_dsi_display *display)
     size_t cmds_size = 0;
 
     ret = _mhb_dsi_display_get_off_commands(display->cdsi_instance,
-            display->panel_info, &cmds, &cmds_size);
+            &display->panel_info, &cmds, &cmds_size);
     if (ret || !cmds || !cmds_size) {
         lldbg("ERROR: failed to get display on.\n");
         return ret;
@@ -331,16 +356,17 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
         return -ENODEV;
     }
 
-    vdbg("addr=%x, type=%x, result=%x, old_state=%d\n",
-        hdr->addr, hdr->type, hdr->result, display->state);
+    vdbg("addr=%x, type=%x, result=%x, payload=%p, length=%zd, old_state=%d\n",
+        hdr->addr, hdr->type, hdr->result, payload, payload_length,
+        display->state);
 
     switch (hdr->type) {
     case MHB_TYPE_CDSI_CONFIG_RSP:
         if (display->state == MHB_DSI_DISPLAY_STATE_CONFIG_DSI) {
-            /* config-dsi -> config-dcs */
-            _mhb_dsi_display_send_display_on_req(display);
+            /* config-dsi -> panel-info */
+            _mhb_dsi_display_send_read_panel_info_req(display);
 
-            display->state = MHB_DSI_DISPLAY_STATE_CONFIG_DCS;
+            display->state = MHB_DSI_DISPLAY_STATE_PANEL_INFO;
             error = 0;
         }
         break;
@@ -373,7 +399,6 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
             error = 0;
         }
         break;
-    case MHB_TYPE_CDSI_READ_CMDS_RSP:
     case MHB_TYPE_CDSI_STATUS_RSP:
         error = 0;
         break;
@@ -387,6 +412,34 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
             error = 0;
         }
         break;
+    case MHB_TYPE_CDSI_READ_CMDS_RSP: {
+        if (display->state == MHB_DSI_DISPLAY_STATE_PANEL_INFO) {
+            /* panel-info -> config-dcs */
+            _mhb_dsi_display_send_display_on_req(display);
+
+            memset(&display->panel_info, 0, sizeof(display->panel_info));
+            if (hdr->result == MHB_RESULT_SUCCESS &&
+                payload_length == sizeof(display->panel_info)) {
+                struct mhb_dsi_panel_info *info =
+                    (struct mhb_dsi_panel_info *)payload;
+
+                /* Save panel info. */
+                display->panel_info.supplier_id = info->supplier_id;
+                display->panel_info.id0 = info->id0;
+                display->panel_info.id1 = info->id1;
+                display->panel_info.id2 = info->id2;
+                dbg("panel_info: 0x%x %x %x %x\n",
+                    display->panel_info.supplier_id, display->panel_info.id0,
+                    display->panel_info.id1, display->panel_info.id2);
+            } else {
+                dbg("ERROR: DCS read failed.\n");
+            }
+
+            display->state = MHB_DSI_DISPLAY_STATE_CONFIG_DCS;
+            error = 0;
+        }
+        break;
+    }
     default:
         break;
     }
@@ -439,8 +492,7 @@ static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
 {
     memset(dst, 0, sizeof(*dst));
 
-    dst->manufacturer_id =
-        display->panel_info ? display->panel_info->supplier_id : 0;
+    dst->manufacturer_id = display->panel_info.supplier_id;
 
     dst->mode = src->video_mode;
     dst->num_lanes = src->tx_num_lanes;
@@ -496,7 +548,7 @@ static int mhb_dsi_display_get_config(struct device *dev, uint8_t *display_type,
     }
 
     ret = _mhb_dsi_display_get_config(display->cdsi_instance,
-                display->panel_info, &cfg, &cfg_size);
+                &display->panel_info, &cfg, &cfg_size);
     if (ret || !cfg || !cfg_size) {
         lldbg("ERROR: failed to get config.\n");
         return -EINVAL;
