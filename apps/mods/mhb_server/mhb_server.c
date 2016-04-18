@@ -665,6 +665,12 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
         (struct mhb_i2s_config_req *)transaction->in_msg.payload;
     struct mhb_i2s_config *cfg = &req->cfg;
     uint8_t flags;
+    static const I2S_TUNNEL_I2S_MODE_T mhb_to_tunnel_protocol_tb[] =
+    {
+        I2S_TUNNEL_I2S_MODE_I2S_STEREO, /* MHB_I2S_PROTOCOL_I2S       */
+        I2S_TUNNEL_I2S_MODE_PCM_MONO,   /* MHB_I2S_PROTOCOL_PCM       */
+        I2S_TUNNEL_I2S_MODE_LR_STEREO   /* MHB_I2S_PROTOCOL_LR_STEREO */
+    };
 
     ret = i2s_unipro_tunnel_enable(true);
     if (ret == 0) {
@@ -677,9 +683,16 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
                                                           I2S_TUNNEL_I2S_FLAGS_LR_EDGE_FALLING);
         flags |= (cfg->clk_role == MHB_I2S_ROLE_MASTER ? I2S_TUNNEL_I2S_FLAGS_MASTER :
                                                          I2S_TUNNEL_I2S_FLAGS_SLAVE);
+        /* Overload the protocol if only one channel is specified. */
+        if (cfg->num_channels == 1) {
+            cfg->protocol = MHB_I2S_PROTOCOL_PCM;
+        }
+        if (cfg->protocol >= ARRAY_SIZE(mhb_to_tunnel_protocol_tb)) {
+            lldbg("Warning: I2S Protocol %d not supported defaulting to I2S Stereo.\n");
+            cfg->protocol = I2S_TUNNEL_I2S_MODE_I2S_STEREO;
+        }
         ret = i2s_unipro_tunnel_i2s_config(cfg->sample_rate,
-                                           cfg->num_channels == 1 ? I2S_TUNNEL_I2S_MODE_PCM_MONO :
-                                                                    I2S_TUNNEL_I2S_MODE_LR_STEREO,
+                                           mhb_to_tunnel_protocol_tb[cfg->protocol],
                                            cfg->sample_size,
                                            flags);
     }
