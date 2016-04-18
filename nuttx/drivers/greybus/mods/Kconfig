@@ -63,7 +63,7 @@ config GREYBUS_MODS_ACK
 endif
 
 menuconfig GREYBUS_MODS_PTP_DEVICE_BATTERY
-	bool "PTP device with a battery and optional wireless charging"
+	bool "PTP device with a battery and charging from external power sources"
 	select BATTERY_STATE
 	default n
 	depends on GREYBUS_PTP && (!GREYBUS_PTP_INT_RCV_NEVER || !GREYBUS_PTP_INT_SND_NEVER)
@@ -87,11 +87,6 @@ config GREYBUS_MODS_REDUCED_CHG_VOLTAGE
 
 config GREYBUS_MODS_SLOW_CHG_CURRENT
 	int "Slow charging current limit in mA"
-	default 1000
-
-config GREYBUS_MODS_WIRELESS_INPUT_CURRENT
-	int "Input current limit from wireless in mA"
-	depends on GREYBUS_PTP_EXT_SUPPORTED
 	default 1000
 
 config GREYBUS_MODS_INPUT_VOLTAGE
