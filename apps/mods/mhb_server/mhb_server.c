@@ -482,7 +482,7 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
         struct dsi_cmd dsi_cmd;
         struct mhb_cdsi_cmd *src = &req->cmds[i];
 
-        lldbg("[src] i=%d, ct=%d, dt=%d, l=%d, sd=%04x, ld=%08x %08x, l=%d\n",
+        lldbg("[src] i=%d, ct=%d, dt=%d, l=%d, sd=%04x, ld=%08x %08x, d=%d\n",
               i, src->ctype, src->dtype, src->length,
               src->u.spdata, src->u.lpdata[0], src->u.lpdata[1], src->delay);
 
@@ -507,7 +507,7 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
 
         count = dsi_read_cmd(cdsi->dev, &dsi_cmd, p, l);
         if (count < 0) {
-            lldbg("ERROR: Failed to write command\n");
+            lldbg("ERROR: Failed to read command\n");
             ret = count;
             break;
         }
