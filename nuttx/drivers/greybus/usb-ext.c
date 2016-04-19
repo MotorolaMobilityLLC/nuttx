@@ -28,7 +28,8 @@
  */
 
 #include <arch/byteorder.h>
-#include <nuttx/clock.h>
+#include <nuttx/device.h>
+#include <nuttx/device_usb_ext.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/wqueue.h>
@@ -56,8 +57,6 @@
 #define GB_USB_EXT_REMOTE_DEVICE          0x00
 #define GB_USB_EXT_REMOTE_HOST            0x01
 
-#define GB_USB_EXT_ATTACH_DELAY_MS        1000
-
 struct gb_usb_ext_proto_version_response {
     __u8 major;
     __u8 minor;
@@ -70,7 +69,13 @@ struct gb_usb_ext_attach_request {
     __u8 remote_type;   /* host or device */
 } __packed;
 
-static struct work_s send_wq;
+struct gb_usb_ext_info {
+    struct work_s wq;
+    unsigned int  cport;
+    struct device *dev;
+};
+
+static struct gb_usb_ext_info usb_ext_info;
 
 static uint8_t gb_usb_ext_protocol_version(struct gb_operation *operation)
 {
@@ -160,14 +165,42 @@ static void gb_usb_ext_attach_worker(void *arg)
     (void)gb_usb_ext_send_attach(cport);
 }
 
+static void gb_usb_ext_detach_worker(void *arg)
+{
+    unsigned int cport = (unsigned int)arg;
+
+    (void)gb_usb_ext_send_detach(cport);
+}
+
+static int event_callback(bool attached)
+{
+    if (!work_available(&usb_ext_info.wq))
+        work_cancel(LPWORK, &usb_ext_info.wq);
+
+    worker_t worker = attached ? gb_usb_ext_attach_worker : gb_usb_ext_detach_worker;
+    work_queue(LPWORK, &usb_ext_info.wq, worker, (void *)usb_ext_info.cport, 0);
+    return 0;
+}
+
 static uint8_t gb_usb_ext_ap_ready(struct gb_operation *operation)
 {
-    if (!work_available(&send_wq))
-        work_cancel(LPWORK, &send_wq);
+    int ret;
 
-    work_queue(LPWORK, &send_wq,
-            gb_usb_ext_attach_worker, (void *)operation->cport,
-            MSEC2TICK(GB_USB_EXT_ATTACH_DELAY_MS));
+    memset(&usb_ext_info, 0, sizeof(usb_ext_info));
+
+    usb_ext_info.dev = device_open(DEVICE_TYPE_USB_EXT_HW, 0);
+    if (!usb_ext_info.dev) {
+        return -EIO;
+    }
+
+    usb_ext_info.cport = operation->cport;
+
+    ret = device_usb_ext_register_callback(usb_ext_info.dev, event_callback);
+    if (ret) {
+        device_close(usb_ext_info.dev);
+        memset(&usb_ext_info, 0, sizeof(usb_ext_info));
+        return ret;
+    }
 
     return 0;
 }
