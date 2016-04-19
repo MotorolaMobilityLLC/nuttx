@@ -183,6 +183,10 @@ ifeq ($(CONFIG_FUSB302),y)
   CSRCS += fusb302_ext_power.c
 endif
 
+ifeq ($(CONFIG_USB_EXT_CTRL), y)
+  CSRCS += usb_ext_ctrl.c
+endif
+
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
