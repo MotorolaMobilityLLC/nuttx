@@ -64,6 +64,10 @@ ifeq ($(CONFIG_GREYBUS_MODS_AUDIO),y)
 CSRCS +=  audio-gb.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_MODS_AUDIO_DUMMY),y)
+CSRCS +=  audio-dummy.c
+endif
+
 ifeq ($(CONFIG_GREYBUS_MODS_AUDIO_TFA9890),y)
 CSRCS +=  audio-tfa9890.c tfa9890.c
 endif
