@@ -694,6 +694,13 @@ config PROGMEM
 	default n
 endif
 
+if GREYBUS_USB_EXT
+config USB_EXT_CTRL
+	bool "USB-EXT Control"
+	default n
+	depends on DEVICE_CORE
+endif
+
 comment "Register logging to RAM Options"
 
 source drivers/reglog/Kconfig
