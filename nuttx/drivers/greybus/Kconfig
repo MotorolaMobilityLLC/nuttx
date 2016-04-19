@@ -76,6 +76,8 @@ choice
 	prompt "Select a audio dev driver"
 config GREYBUS_MODS_AUDIO_TFA9890
 	bool "TFA9890"
+config GREYBUS_MODS_AUDIO_DUMMY
+	bool "DUMMY"
 endchoice
 endif
 
