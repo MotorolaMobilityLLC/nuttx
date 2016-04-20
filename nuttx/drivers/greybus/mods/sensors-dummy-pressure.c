@@ -97,11 +97,20 @@ static void pressure_data_report_worker(void *arg)
     struct sensor_event_data *event_data;
     struct timespec ts;
     uint16_t payload_size;
-
-    payload_size = (PRESSURE_READING_NUM * sizeof(struct sensor_event_data))
-                    + (REPORTING_SENSORS * sizeof(struct report_info));
+    uint16_t readings_count = PRESSURE_READING_NUM;
 
     info = arg;
+
+#ifdef BATCH_PROCESS_ENABLED
+    if (info->max_report_latency > 0) {
+        readings_count = PRESSURE_READING_NUM;
+    } else {
+        readings_count = 1;
+    }
+#endif
+    payload_size = (readings_count * sizeof(struct sensor_event_data))
+                    + (REPORTING_SENSORS * sizeof(struct report_info));
+
     if (info->callback) {
         rinfo_data = malloc(sizeof(struct report_info) + payload_size);
         if (!rinfo_data)
@@ -109,9 +118,12 @@ static void pressure_data_report_worker(void *arg)
 
         rinfo_data->num_sensors_reporting = REPORTING_SENSORS;
         rinfo = rinfo_data->reportinfo;
+        rinfo->id = info->sensor_id;
+        rinfo->flags = 0;
         event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
         up_rtc_gettime(&ts);
         rinfo->reference_time = timespec_to_nsec(&ts);
+        rinfo->readings = readings_count;
         gb_debug("[%u.%03u]\n", ts.tv_sec, (ts.tv_nsec / 1000000));
 #ifdef BATCH_PROCESS_ENABLED
         /*
@@ -120,7 +132,6 @@ static void pressure_data_report_worker(void *arg)
         */
         if (info->max_report_latency > 0) {
             /* Multiple sensor event data */
-            rinfo->readings = PRESSURE_READING_NUM;
             event_data->time_delta = 0;
             event_data->data_value[0] = data++;
 
@@ -129,24 +140,22 @@ static void pressure_data_report_worker(void *arg)
             event_data->data_value[0] = data++;
         } else {
             /* Single sensor event data */
-            rinfo->readings = 1;
             event_data->time_delta = 0;
             event_data->data_value[0] = data++;
         }
 #else
         /* Single sensor event data */
-        rinfo->readings = PRESSURE_READING_NUM;
         event_data->num_sensors_reporting = 1;
         event_data->time_delta = 0;
         event_data->data_value[0] = data++;
 #endif
 
+        gb_debug("report sensor: %d\n", rinfo->id);
         info->callback(info->sensor_id, rinfo_data, payload_size);
 
         free(rinfo_data);
     }
 out:
-    gb_debug("report DATA\n");
 
      /* cancel any work and reset ourselves */
     if (!work_available(&info->data_report_work))
@@ -160,7 +169,16 @@ out:
 static int sensor_pressure_op_get_sensor_info(struct device *dev,
     uint8_t sensor_id, struct sensor_info *sinfo)
 {
-    gb_debug("%s:\n", __func__);
+    struct sensor_pressure_info *info = NULL;
+
+    gb_debug("%s: %d\n",__func__, sensor_id);
+    if (!dev || !device_get_private(dev)) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    info->sensor_id = sensor_id;
+
     sinfo->version = PRESSURE_VERSION;
     sinfo->max_range = PRESSURE_MAX_RANGE;
     sinfo->resolution = 1;
@@ -231,9 +249,7 @@ static int sensor_pressure_op_flush(struct device *dev, uint8_t id)
     struct report_info *rinfo;
     struct timespec ts;
     uint16_t payload_size;
-
-    payload_size = (PRESSURE_READING_NUM * sizeof(struct sensor_event_data))
-                    + (REPORTING_SENSORS * sizeof(struct report_info));
+    uint16_t readings_count = PRESSURE_READING_NUM;
 
     gb_debug("%s:\n", __func__);
 
@@ -243,6 +259,16 @@ static int sensor_pressure_op_flush(struct device *dev, uint8_t id)
 
     info = device_get_private(dev);
 
+#ifdef BATCH_PROCESS_ENABLED
+    if (info->max_report_latency > 0) {
+        readings_count = PRESSURE_READING_NUM;
+    } else {
+        readings_count = 1;
+    }
+#endif
+    payload_size = (readings_count * sizeof(struct sensor_event_data))
+                    + (REPORTING_SENSORS * sizeof(struct report_info));
+
     if (info->callback) {
         rinfo_data = malloc(sizeof(struct report_info) + payload_size);
         if (!rinfo_data)
@@ -250,12 +276,14 @@ static int sensor_pressure_op_flush(struct device *dev, uint8_t id)
 
         rinfo_data->num_sensors_reporting = REPORTING_SENSORS;
         rinfo = rinfo_data->reportinfo;
+        rinfo->id = info->sensor_id;
         event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
 
         up_rtc_gettime(&ts);
         rinfo->reference_time = timespec_to_nsec(&ts);
         gb_debug("[%u.%03u]\n", ts.tv_sec, (ts.tv_nsec / 1000000));
         rinfo->flags = REPORT_INFO_FLAG_FLUSHING | REPORT_INFO_FLAG_FLUSH_COMPLETE;
+        rinfo->readings = readings_count;
 #ifdef BATCH_PROCESS_ENABLED
         /*
          * Batch sensor data values and its time_deltas
@@ -263,7 +291,6 @@ static int sensor_pressure_op_flush(struct device *dev, uint8_t id)
         */
         if (info->max_report_latency > 0) {
             /* Multiple sensor event data */
-            rinfo->readings = PRESSURE_READING_NUM;
             event_data->time_delta = 0;
             event_data->data_value[0] = data++;
 
@@ -272,13 +299,11 @@ static int sensor_pressure_op_flush(struct device *dev, uint8_t id)
             event_data->data_value[0] = data++;
         } else {
             /* Single sensor event data */
-            rinfo->readings = 1;
             event_data->time_delta = 0;
             event_data->data_value[0] = data++;
         }
 #else
         /* Single sensor event data */
-        rinfo->readings = PRESSURE_READING_NUM;
         event_data->time_delta = 0;
         event_data->data_value[0] = data++;
 #endif
