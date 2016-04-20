@@ -100,6 +100,10 @@ struct device_aud_dev_type_ops {
                            struct device_aud_dai_config *dai);
     int (*set_config)(struct device *dev, struct device_aud_pcm_config *pcm,
                            struct device_aud_dai_config *dai);
+    int (*rx_dai_start)(struct device *dev);
+    int (*tx_dai_start)(struct device *dev);
+    int (*rx_dai_stop)(struct device *dev);
+    int (*tx_dai_stop)(struct device *dev);
 };
 
 static inline int device_audio_get_volume_db_range(struct device *dev,
@@ -250,4 +254,55 @@ static inline int device_audio_set_config(struct device *dev,
     return -ENOSYS;
 }
 
+static inline int device_audio_rx_dai_start(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->rx_dai_start)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->rx_dai_start(dev);
+
+    return -ENOSYS;
+}
+
+static inline int device_audio_tx_dai_start(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->tx_dai_start)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->tx_dai_start(dev);
+
+    return -ENOSYS;
+}
+
+static inline int device_audio_rx_dai_stop(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->rx_dai_stop)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->rx_dai_stop(dev);
+
+    return -ENOSYS;
+}
+
+static inline int device_audio_tx_dai_stop(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->tx_dai_stop)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->tx_dai_stop(dev);
+
+    return -ENOSYS;
+}
 #endif
