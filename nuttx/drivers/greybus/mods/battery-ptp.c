@@ -71,7 +71,7 @@ struct ptp_state {
     int wrls_current; /* max output in mA */
     int *ext_power; /* points to external power source or NULL*/
 #endif
-#ifndef GREYBUS_PTP_INT_SND_NEVER
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
     int batt_current; /* max output in mA */
 #endif
     int *output_current; /* points either to battery, external power source or NULL */
@@ -109,6 +109,7 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
         goto done;
     }
 
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     if (state->ext_power == &state->wired_current) {
         if ((retval = device_ptp_chg_send_wired_pwr(chg)) == 0)
@@ -121,7 +122,6 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
     }
 #endif
 
-#ifndef GREYBUS_PTP_INT_SND_NEVER
     if (state->battery.dischg_allowed && !state->base_powered_off) {
         if ((retval = device_ptp_chg_send_batt_pwr(chg, &state->batt_current)) == 0)
             state->output_current = &state->batt_current;
@@ -311,7 +311,7 @@ static void batt_ptp_set_power_availability(struct ptp_info *info)
     }
 #endif
 
-#ifndef GREYBUS_PTP_INT_SND_NEVER
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
     if (info->state.battery.dischg_allowed) {
         info->state.report.available = PTP_POWER_AVAILABLE_INT;
         goto done;
@@ -621,7 +621,7 @@ static int batt_ptp_power_source(struct device *dev, uint8_t *source)
     }
 #endif
 
-#ifndef GREYBUS_PTP_INT_SND_NEVER
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
     if(info->state.output_current == &info->state.batt_current) {
         *source = PTP_POWER_SOURCE_BATTERY;
         goto done;
