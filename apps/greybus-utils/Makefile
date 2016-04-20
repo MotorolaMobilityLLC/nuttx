@@ -151,6 +151,8 @@ manifest.inc: $(MNFB) $(MNSG)
 	xxd -i < $(MNFB) > $@
 	echo "," >> $@
 	xxd -i < $(MNSG) >> $@
+else
+manifest.inc: ;
 endif
 
 endif
