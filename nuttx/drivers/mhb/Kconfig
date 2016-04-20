@@ -95,3 +95,5 @@ config MHB_I2S_AUDIO
 	default n
 	---help---
 		I2S Audio driven by an MHB server.
+
+source drivers/mhb/ipc/Kconfig
