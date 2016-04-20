@@ -31,10 +31,13 @@
 #include <nuttx/gpio.h>
 #include <nuttx/i2c.h>
 #include <nuttx/kmalloc.h>
+#include <nuttx/power/pm.h>
 #include <nuttx/util.h>
 #include <nuttx/wqueue.h>
 
 #include <nuttx/device_ext_power.h>
+
+#define PM_USBC_ACTIVITY 10
 
 #define FUSB302_I2C_ADDR 0x22
 
@@ -526,6 +529,7 @@ static void fusb302_worker(FAR void *arg)
 
 static int fusb302_isr(int irq, void *context)
 {
+    pm_activity(PM_USBC_ACTIVITY);
     if (fusb302_info && work_available(&fusb302_info->work))
         work_queue(LPWORK, &fusb302_info->work, fusb302_worker, NULL, 0);
 
