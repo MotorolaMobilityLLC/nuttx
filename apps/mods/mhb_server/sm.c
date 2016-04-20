@@ -41,6 +41,7 @@
 #include <arch/chip/unipro_p2p.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/util.h>
 #include <nuttx/wqueue.h>
 
 #include <nuttx/greybus/tsb_unipro.h>
@@ -48,11 +49,9 @@
 # include <nuttx/i2s_tunnel/i2s_unipro.h>
 #endif
 
+#include <nuttx/mhb/ipc.h>
 #include <nuttx/mhb/mhb_protocol.h>
-
-#include <apps/greybus-utils/utils.h>
-#include <apps/ice/ipc.h>
-#include <apps/ice/utils.h>
+#include <nuttx/mhb/mhb_utils.h>
 
 #include "mhb_server.h"
 #include "sm.h"
@@ -234,7 +233,7 @@ static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_w
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
 
-#if CONFIG_ICE_IPC_SERVER || CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_register_unipro();
 #endif
 #if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
@@ -278,15 +277,15 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
     svc_delete_timer(g_svc.mod_detect_tid);
     g_svc.mod_detect_tid = SVC_TIMER_INVALID;
 
-#if CONFIG_ICE_IPC_SERVER || CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_register_unipro();
 #endif
 #if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
     (void)i2s_unipro_tunnel_unipro_register();
 #endif
-#if CONFIG_ICE_IPC_SERVER
-    lldbg("setup cport=%d\n", CONFIG_ICE_IPC_CPORT_ID);
-    unipro_p2p_setup_connection(CONFIG_ICE_IPC_CPORT_ID);
+#if CONFIG_MHB_IPC_SERVER
+    lldbg("setup cport=%d\n", CONFIG_MHB_IPC_CPORT_ID);
+    unipro_p2p_setup_connection(CONFIG_MHB_IPC_CPORT_ID);
 #endif
 #if CONFIG_UNIPRO_TEST_0_CPORT_ID
     lldbg("setup cport=%d\n", CONFIG_UNIPRO_TEST_0_CPORT_ID);
@@ -344,7 +343,7 @@ static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work 
         }
     }
 
-#if CONFIG_ICE_IPC_SERVER || CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_unregister_unipro();
 #endif
 

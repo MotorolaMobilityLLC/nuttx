@@ -52,6 +52,7 @@
 # include <nuttx/i2s_tunnel/i2s_unipro.h>
 #endif
 #include <nuttx/mhb/device_mhb.h>
+#include <nuttx/mhb/ipc.h>
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_utils.h>
 
@@ -60,8 +61,6 @@
 #endif
 
 #include <nuttx/unipro/unipro.h>
-
-#include <apps/ice/ipc.h>
 
 #include "sm.h"
 
@@ -108,7 +107,7 @@ struct cdsi_block {
 
 static struct cdsi_block g_cdsi_blocks[CDSI_MAX_INST];
 
-#if CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_CLIENT
 static int mhb_unipro_send(struct mhb_transaction *transaction);
 #endif
 
@@ -351,12 +350,12 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
 
     lldbg("reset cport=%d\n", CDSI_INST_TO_CPORT(inst));
     unipro_p2p_reset_connection(CDSI_INST_TO_CPORT(inst));
-#if CONFIG_ICE_IPC_SERVER
+#if CONFIG_MHB_IPC_SERVER
     lldbg("setup cport=%d\n", CDSI_INST_TO_CPORT(inst));
     unipro_p2p_setup_connection(CDSI_INST_TO_CPORT(inst));
 #endif
 
-#if CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_CLIENT
     if (!ret) {
         /* Cheat and re-use this transaction.  The unipro response (if any)
            will be in out_msg. */
@@ -423,7 +422,7 @@ static int mhb_handle_cdsi_control_req(struct mhb_transaction *transaction)
         }
     }
 
-#if CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_CLIENT
     if (!ret) {
         /* Cheat and re-use this transaction.  The unipro response (if any)
            will be in out_msg. */
@@ -621,7 +620,7 @@ static int mhb_handle_cdsi_unconfig_req(struct mhb_transaction *transaction)
         ret = -ENODEV;
     }
 
-#if CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_CLIENT
     /* Cheat and re-use this transaction.  The unipro response (if any)
        will be in out_msg. */
     ret = mhb_unipro_send(transaction);
@@ -698,7 +697,7 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
                                            flags);
     }
 
-# if CONFIG_ICE_IPC_CLIENT
+# if CONFIG_MHB_IPC_CLIENT
     if (!ret) {
         /* Cheat and re-use this transaction.  The unipro response (if any)
            will be in out_msg. */
@@ -761,7 +760,7 @@ static int mhb_handle_i2s_control_req(struct mhb_transaction *transaction)
     struct mhb_i2s_control_req *req =
         (struct mhb_i2s_control_req *)transaction->in_msg.payload;
 
-# if CONFIG_ICE_IPC_CLIENT
+# if CONFIG_MHB_IPC_CLIENT
     /*
      * Send the same request to the APBA as soon as possible.   This is done to
      * keep the two sides as in sync as possible.  In this case the local command
@@ -830,7 +829,7 @@ static int mhb_handle_i2s_status_req(struct mhb_transaction *transaction)
     /* Allow space for both the APBA and ABPE data. */
     transaction->out_msg.payload_length = sizeof(struct i2s_tunnel_info_s)*2;
     if (transaction->out_msg.payload_length < transaction->out_msg.payload_max) {
-# if CONFIG_ICE_IPC_CLIENT
+# if CONFIG_MHB_IPC_CLIENT
         /* Forward the request on to the APBA. */
         mhb_unipro_send(transaction);
 
@@ -887,7 +886,7 @@ static int mhb_handle_i2s(struct mhb_transaction *transaction)
 /* HSIC */
 static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
 {
-#if CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_CLIENT
     /* Configure APBA side first */
     int ret = mhb_unipro_send(transaction);
 
@@ -953,7 +952,7 @@ static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
     struct reglog_value_s *log_entry;
 
     transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
-# if defined(CONFIG_ICE_IPC_CLIENT)
+# if defined(CONFIG_MHB_IPC_CLIENT)
     transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBE_RSP;
 # else
     transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBA_RSP;
@@ -1001,7 +1000,7 @@ static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
 
 static int mhb_handle_diag_reg_log_apba_req(struct mhb_transaction *transaction)
 {
-#if defined(CONFIG_ICE_IPC_CLIENT)
+#if defined(CONFIG_MHB_IPC_CLIENT)
     /* Send the request off to the APBA as an APBE request. */
     transaction->in_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBE_REQ;
     transaction->send_rsp = true;
@@ -1125,7 +1124,7 @@ static int mhb_handle_diag_control_req(struct mhb_transaction *transaction)
 #if defined(CONFIG_REGLOG)
         case MHB_DIAG_CONTROL_REGLOG_FIFO:
             reglog_set_mode(REGLOG_MODE_FIFO);
-# if defined(CONFIG_ICE_IPC_CLIENT)
+# if defined(CONFIG_MHB_IPC_CLIENT)
             /* Forward the request on to the APBA. */
             mhb_unipro_send(transaction);
 # endif
@@ -1133,7 +1132,7 @@ static int mhb_handle_diag_control_req(struct mhb_transaction *transaction)
 
         case MHB_DIAG_CONTROL_REGLOG_STACK:
             reglog_set_mode(REGLOG_MODE_STACK);
-# if defined(CONFIG_ICE_IPC_CLIENT)
+# if defined(CONFIG_MHB_IPC_CLIENT)
             /* Forward the request on to the APBA. */
             mhb_unipro_send(transaction);
 # endif
@@ -1242,7 +1241,7 @@ int mhb_uart_init(void)
 /* UniPro transport */
 #define IPC_APP_ID_MHB IPC_FOURCC('m', 'h', 'b', '0')
 
-#if CONFIG_ICE_IPC_SERVER
+#if CONFIG_MHB_IPC_SERVER
 static uint32_t mhb_unipro_handle_msg(void *in_data, uint32_t in_data_len,
                                       void **out_data, uint32_t *out_data_len)
 {
@@ -1289,7 +1288,7 @@ static uint32_t mhb_unipro_handle_msg(void *in_data, uint32_t in_data_len,
 }
 #endif
 
-#if CONFIG_ICE_IPC_CLIENT
+#if CONFIG_MHB_IPC_CLIENT
 
 static uint8_t mhb_unipro_tx_buf[MHB_MAX_MSG_SIZE];
 
@@ -1329,10 +1328,10 @@ static int mhb_unipro_send(struct mhb_transaction *transaction)
 
 int mhb_unipro_init(void)
 {
-#if CONFIG_ICE_IPC_SERVER
+#if CONFIG_MHB_IPC_SERVER
     ipc_init();
     register_ipc_handler(IPC_APP_ID_MHB, mhb_unipro_handle_msg, NULL);
-#elif CONFIG_ICE_IPC_CLIENT
+#elif CONFIG_MHB_IPC_CLIENT
     ipc_init();
 #endif
 #if defined(CONFIG_I2S_TUNNEL)
