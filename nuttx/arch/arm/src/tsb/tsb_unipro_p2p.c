@@ -45,8 +45,6 @@
 #include <arch/chip/irq.h>
 #include <arch/chip/unipro_p2p.h>
 
-#include <apps/ice/svc.h>
-
 #include "debug.h"
 #include "up_arch.h"
 #include "tsb_scm.h"
@@ -272,24 +270,6 @@ void unipro_p2p_setup_connection(unsigned int cport) {
 void unipro_p2p_reset_connection(unsigned int cport) {
     _unipro_reset_cport(cport);
 }
-
-#if CONFIG_ICE_APBA || CONFIG_UNIPRO_P2P_APBA
-void unipro_p2p_peer_detected(void) {
-    /* Enable the control cport. */
-    svc_send_event(SVC_EVENT_MOD_DETECTED,
-        (void *)(unsigned int)0,
-        (void *)(unsigned int)0,
-        (void *)(unsigned int)0);
-}
-
-void unipro_p2p_peer_lost(struct p2p_link_err_reason *reason) {
-    /* Enable the control cport. */
-    svc_send_event(SVC_EVENT_UNIPRO_LINK_DOWN,
-        reason,
-        (void *)(unsigned int)0,
-        (void *)(unsigned int)0);
-}
-#endif
 
 bool unipro_p2p_is_link_up(void) {
     return unipro_read(LUP_INT_BEF) & 0x1;
