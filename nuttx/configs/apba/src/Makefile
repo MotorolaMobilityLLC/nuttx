@@ -6,6 +6,7 @@ ASRCS		=
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= up_boot.c
+CSRCS		+= factory.c
 
 ifeq ($(CONFIG_NSH_ARCHINIT),y)
 endif
