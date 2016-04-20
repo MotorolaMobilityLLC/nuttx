@@ -1,0 +1,21 @@
+config MHB_IPC_CLIENT
+	bool "MHB IPC Client"
+	default n
+	depends on ARCH_CHIP_TSB
+	---help---
+		Enable the IPC client interface.
+
+config MHB_IPC_SERVER
+	bool "MHB IPC Server"
+	default n
+	depends on ARCH_CHIP_TSB
+	---help---
+		Enable the IPC server interface.
+
+if MHB_IPC_CLIENT || MHB_IPC_SERVER
+config MHB_IPC_CPORT_ID
+	int "MHB IPC cport"
+	default 15
+	---help---
+		MHB IPC cport.  Default: 15
+endif

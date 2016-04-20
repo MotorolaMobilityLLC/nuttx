@@ -1,6 +1,6 @@
 ############################################################################
 #
-#   Copyright (c) 2016 Motorola Mobility, LLC.
+#   Copyright (c) 2015 Motorola Mobility, LLC.
 #   All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,30 +32,14 @@
 #
 ############################################################################
 
-ifeq ($(CONFIG_MHB),y)
-
-ifeq ($(CONFIG_MHB_APBE_CTRL_DEVICE),y)
-CSRCS += apbe-ctrl.c
-endif
-
-DEPPATH += --dep-path mhb
-VPATH += :mhb
-CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)mhb}
-
-ifeq ($(CONFIG_MHB_UART),y)
-CSRCS += mhb_uart.c
-endif
-
-ifeq ($(CONFIG_MHB_DSI_DISPLAY),y)
-CSRCS += mhb_dsi_display.c
-endif
-
-ifeq ($(CONFIG_MHB_I2S_AUDIO),y)
-CSRCS += mhb_i2s_audio.c
-endif
-
 ifeq ($(CONFIG_MHB_IPC),y)
-include ipc$(DELIM)Make.defs
-endif
+
+DEPPATH += --dep-path display
+VPATH += :ipc
+CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)mhb$(DELIM)ipc}
+
+CSRCS += client_transport.c
+CSRCS += server_transport.c
+CSRCS += transport.c
 
 endif
