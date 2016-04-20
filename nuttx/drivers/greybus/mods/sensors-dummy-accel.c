@@ -108,6 +108,8 @@ static void accel_data_report_worker(void *arg)
             goto out;
         rinfo_data->num_sensors_reporting = REPORTING_SENSORS;
         rinfo = rinfo_data->reportinfo;
+        rinfo->id = info->sensor_id;
+        rinfo->flags = 0;
         event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
 
         up_rtc_gettime(&ts);
@@ -126,13 +128,13 @@ static void accel_data_report_worker(void *arg)
         event_data->data_value[1] = data++;
         event_data->data_value[2] = data++;
 #endif
+        gb_debug("report sensor: %d\n", rinfo->id);
         info->callback(info->sensor_id, rinfo_data, payload_size);
 
         free(rinfo_data);
     }
 
 out:
-    gb_debug("report DATA\n");
 
      /* cancel any work and reset ourselves */
     if (!work_available(&info->data_report_work))
@@ -146,7 +148,16 @@ out:
 static int sensor_accel_op_get_sensor_info(struct device *dev,
     uint8_t sensor_id, struct sensor_info *sinfo)
 {
-    gb_debug("%s:\n", __func__);
+    struct sensor_accel_info *info = NULL;
+
+    gb_debug("%s: %d\n",__func__, sensor_id);
+    if (!dev || !device_get_private(dev)) {
+        return -EINVAL;
+    }
+
+    info = device_get_private(dev);
+    info->sensor_id = sensor_id;
+
     sinfo->version = ACCEL_VERSION;
     sinfo->max_range = ACCEL_MAX_RANGE;
     sinfo->resolution = 1;
@@ -233,6 +244,7 @@ static int sensor_accel_op_flush(struct device *dev, uint8_t id)
 
         rinfo_data->num_sensors_reporting = REPORTING_SENSORS;
         rinfo = rinfo_data->reportinfo;
+        rinfo->id = info->sensor_id;
         event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
 
         up_rtc_gettime(&ts);
