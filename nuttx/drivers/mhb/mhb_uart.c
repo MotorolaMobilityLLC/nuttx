@@ -407,7 +407,7 @@ static int mhb_notify_callback(struct mhb_hdr *hdr,
     if (receiver) {
         return receiver(g_mhb->self, hdr, payload, payload_length);
     } else {
-       lldbg("WARNING: no receiver\n");
+       vdbg("no receiver\n");
        return -EINVAL;
     }
 }
