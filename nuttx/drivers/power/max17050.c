@@ -280,6 +280,7 @@ static int max17050_voltage(struct battery_dev_s *dev, b16_t *voltage)
 static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
 {
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
+    b16_t value;
     int ret;
 
     if (!priv->initialized)
@@ -289,7 +290,14 @@ static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
     if (ret < 0)
         return -ENODEV;
 
-    *capacity = ret >> 8;
+    /* high byte with a resolution of 1.0% */
+    value = ret >> 8;
+
+    /* count in low byte, round to the nearest integer */
+    if (ret & 0x80)
+        *capacity = value + 1;
+    else
+        *capacity = value;
 
     return OK;
 }
