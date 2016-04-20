@@ -34,6 +34,10 @@
 
 #include <arch/byteorder.h>
 
+#if CONFIG_ARCH_BOARD_APBA
+#include <arch/board/factory.h>
+#endif
+
 #include <arch/chip/unipro_p2p.h>
 
 #include <nuttx/kmalloc.h>
@@ -44,7 +48,6 @@
 #include <nuttx/mhb/mhb_protocol.h>
 
 #include <apps/greybus-utils/utils.h>
-#include <apps/ice/factory.h>
 #include <apps/ice/ipc.h>
 #include <apps/ice/utils.h>
 
@@ -347,7 +350,7 @@ static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work 
 }
 
 static enum svc_state svc__test_mode(struct svc *svc, struct svc_work *work) {
-#if CONFIG_ICE_FACTORY
+#if CONFIG_ARCH_BOARD_APBA
     factory_mode((uint32_t)work->parameter0);
 #endif
 
