@@ -885,9 +885,43 @@ static int mhb_handle_i2s(struct mhb_transaction *transaction)
 }
 
 /* HSIC */
+static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
+{
+#if CONFIG_ICE_IPC_CLIENT
+    /* Configure APBA side first */
+    int ret = mhb_unipro_send(transaction);
+
+    if (ret) {
+        lldbg("ERROR: Control transaction failure at remote.\n");
+        return ret;
+    }
+#endif
+
+    struct mhb_hsic_control_req *req =
+        (struct mhb_hsic_control_req *)transaction->in_msg.payload;
+
+    switch (req->command) {
+    case MHB_HSIC_COMMAND_START:
+        /* TODO: real stuff comes later */
+        lldbg("HSIC start\n");
+        break;
+    case MHB_HSIC_COMMAND_STOP:
+        /* TODO: real stuff comes later */
+        lldbg("HSIC stop\n");
+        break;
+    default:
+        lldbg("ERROR: unknown HSIC event\n");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static int mhb_handle_hsic(struct mhb_transaction *transaction)
 {
     switch (transaction->in_msg.hdr->type) {
+    case MHB_TYPE_HSIC_CONTROL_REQ:
+        return mhb_handle_hsic_control_req(transaction);
     default:
         lldbg("ERROR: unknown HSIC event\n");
         return -EINVAL;
