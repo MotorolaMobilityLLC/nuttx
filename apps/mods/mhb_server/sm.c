@@ -44,7 +44,10 @@
 #include <nuttx/wqueue.h>
 
 #include <nuttx/greybus/tsb_unipro.h>
-#include <nuttx/i2s_tunnel/i2s_unipro.h>
+#if defined(CONFIG_I2S_TUNNEL)
+# include <nuttx/i2s_tunnel/i2s_unipro.h>
+#endif
+
 #include <nuttx/mhb/mhb_protocol.h>
 
 #include <apps/greybus-utils/utils.h>

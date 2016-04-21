@@ -48,8 +48,9 @@
 #include <nuttx/device.h>
 #include <nuttx/util.h>
 
-#include <nuttx/i2s_tunnel/i2s_tunnel.h>
-#include <nuttx/i2s_tunnel/i2s_unipro.h>
+#if defined(CONFIG_I2S_TUNNEL)
+# include <nuttx/i2s_tunnel/i2s_unipro.h>
+#endif
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_utils.h>
@@ -733,10 +734,18 @@ static int mhb_i2s_tunnel_enable_disable(uint8_t status, bool enable)
      */
     if (((status == 0) ^ (enable == false)) == 0)
     {
-        ret = i2s_unipro_tunnel_arm(enable);
-        if (ret == OK)
-        {
+        /*
+         * When enabling enable, then arm.
+         * When disabling disarm, then disable.
+         */
+        if (enable) {
             ret = i2s_unipro_tunnel_enable(enable);
+        }
+        if (ret == OK) {
+            ret = i2s_unipro_tunnel_arm(enable);
+            if ((ret == OK) && (!enable)) {
+                ret = i2s_unipro_tunnel_enable(enable);
+            }
         }
     }
     return ret;
@@ -1293,7 +1302,7 @@ int mhb_unipro_init(void)
     ipc_init();
 #endif
 #if defined(CONFIG_I2S_TUNNEL)
-    (void)i2s_tunnel_init();
+    (void)i2s_unipro_tunnel_init();
 #endif
     return 0;
 }
