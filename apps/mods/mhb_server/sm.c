@@ -537,3 +537,19 @@ int svc_init(void) {
 
     return 0;
 }
+
+void unipro_p2p_peer_detected(void) {
+    /* Enable the control cport. */
+    svc_send_event(SVC_EVENT_MOD_DETECTED,
+        (void *)(unsigned int)0,
+        (void *)(unsigned int)0,
+        (void *)(unsigned int)0);
+}
+
+void unipro_p2p_peer_lost(struct p2p_link_err_reason *reason) {
+    /* Enable the control cport. */
+    svc_send_event(SVC_EVENT_UNIPRO_LINK_DOWN,
+        reason,
+        (void *)(unsigned int)0,
+        (void *)(unsigned int)0);
+}
