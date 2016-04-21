@@ -320,7 +320,9 @@ static void batt_ptp_set_power_availability(struct ptp_info *info)
 
    info->state.report.available = PTP_POWER_AVAILABLE_NONE;
 
+#if defined(CONFIG_GREYBUS_PTP_EXT_SUPPORTED) || !defined(CONFIG_GREYBUS_PTP_INT_SND_NEVER)
 done:
+#endif
     /* Notify the change */
     if (info->changed_cb && (info->state.report.available != old_available))
         info->changed_cb(POWER_AVAILABLE);
