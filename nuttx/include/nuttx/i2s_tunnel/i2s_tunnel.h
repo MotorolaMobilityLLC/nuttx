@@ -78,29 +78,4 @@ struct i2s_tunnel_info_s
     unsigned int i2s_tx_buffers_dropped;
 };
 
-# if defined(CONFIG_I2S_TUNNEL)
-/*
- * On the APBA messages are sent to the APBE to start things. so interface
- * functions are not required.
- */
-
-#  if defined(CONFIG_UNIPRO_P2P_APBE)
-int i2s_tunnel_enable(bool enable);
-int i2s_tunnel_i2s_config(unsigned int sample_rate,
-                          I2S_TUNNEL_I2S_MODE_T mode,
-                          uint8_t sample_size_bits,
-                          uint8_t flags);
-int i2s_tunnel_arm(bool enable);
-void i2s_tunnel_start(bool start);
-int i2s_tunnel_get_info(struct i2s_tunnel_info_s *local, struct i2s_tunnel_info_s *remote);
-#  endif
-int i2s_tunnel_init(void);
-# else
-#  define i2s_tunnel_init()            (-ENODEV)
-#  define i2s_tunnel_enable(enable)    (-ENODEV)
-#  define i2s_tunnel_i2s_config(sample_rate, mode, sample_size_bits, flags) (-ENODEV)
-#  define i2s_tunnel_arm(enable)       (-EMODEV)
-#  define i2s_tunnel_start(enable)
-#  define i2s_tunnel_get_info()        (-ENODEV)
-# endif
 #endif
