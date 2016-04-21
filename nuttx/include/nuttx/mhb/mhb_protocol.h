@@ -477,6 +477,14 @@ struct mhb_i2s_control_req {
 
 /* HSIC */
 
+#define MHB_HSIC_COMMAND_NONE     0
+#define MHB_HSIC_COMMAND_STOP     1  /* Stop USB tunneling over HSIC */
+#define MHB_HSIC_COMMAND_START    2  /* Start USB tunneling over HSIC */
+
+struct mhb_hsic_control_req {
+	uint8_t command;
+} __attribute__((packed));
+
 /* Diag */
 struct mhb_diag_mode_req {
 	uint32_t mode;
