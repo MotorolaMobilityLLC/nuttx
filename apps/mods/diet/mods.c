@@ -66,11 +66,12 @@ int mods_main(int argc, char *argv[])
 
     enable_manifest("IID-1", NULL, MANIFEST_DEVICE_ID);
     mods_network_init();
-    mods_attach_init(); /* Must be after network init */
     srvmgr_start(services);
     enable_cports();
-
     mb_control_register(MODS_VENDOR_CTRL_CPORT);
+
+    /* Must be after network init and after the cport registrations. */
+    mods_attach_init();
 
 #ifdef CONFIG_EXAMPLES_NSH
     printf("Calling NSH\n");
