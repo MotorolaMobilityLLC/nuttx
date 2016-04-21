@@ -780,6 +780,46 @@ static int mhb_subcmd_display(int argc, char *argv[], struct device *dev)
     return mhb_handle_sub_cmd(argc, argv, dev, "display", display_cmd_tb, ARRAY_SIZE(display_cmd_tb));
 }
 
+static int usbtun_on(int argc, char *argv[], struct device *dev)
+{
+    struct mhb_hdr hdr;
+    struct mhb_hsic_control_req req;
+
+    (void)argc;
+    (void)argv;
+
+    hdr.addr = MHB_ADDR_HSIC;
+    hdr.type = MHB_TYPE_HSIC_CONTROL_REQ;
+    hdr.result = 0;
+    req.command = MHB_HSIC_COMMAND_START;
+    return device_mhb_send(dev, &hdr, (const uint8_t *)&req, sizeof(req), 0);
+}
+
+static int usbtun_off(int argc, char *argv[], struct device *dev)
+{
+    struct mhb_hdr hdr;
+    struct mhb_hsic_control_req req;
+
+    (void)argc;
+    (void)argv;
+
+    hdr.addr = MHB_ADDR_HSIC;
+    hdr.type = MHB_TYPE_HSIC_CONTROL_REQ;
+    hdr.result = 0;
+    req.command = MHB_HSIC_COMMAND_STOP;
+    return device_mhb_send(dev, &hdr, (const uint8_t *)&req, sizeof(req), 0);
+}
+
+static int mhb_subcmd_hsic(int argc, char *argv[], struct device *dev)
+{
+    static const struct command hsic_cmd_tb[] = {
+        { "on",   usbtun_on  },
+        { "off",  usbtun_off }
+    };
+
+    return mhb_handle_sub_cmd(argc, argv, dev, "hsic", hsic_cmd_tb, ARRAY_SIZE(hsic_cmd_tb));
+}
+
 int mhb_client_main(int argc, char *argv[])
 {
     const char *str;
@@ -799,6 +839,8 @@ int mhb_client_main(int argc, char *argv[])
         { "pwr",    mhb_subcmd_pwr },
         /* Display */
         { "display", mhb_subcmd_display },
+        /* hsic */
+        { "hsic",   mhb_subcmd_hsic },
     };
 
 
