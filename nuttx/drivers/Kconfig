@@ -704,7 +704,3 @@ endif
 comment "Register logging to RAM Options"
 
 source drivers/reglog/Kconfig
-
-comment "I2S Tunneling"
-
-source drivers/i2s_tunnel/Kconfig
