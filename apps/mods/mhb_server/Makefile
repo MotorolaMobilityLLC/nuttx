@@ -35,7 +35,7 @@ STACKSIZE = 2048
 
 ASRCS =
 CSRCS =
-MAINSRC = main.c mhb_server.c sm.c sm_timer.c
+MAINSRC = gearbox.c main.c mhb_server.c sm.c sm_timer.c
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))

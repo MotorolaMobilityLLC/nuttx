@@ -11,6 +11,14 @@ config MODS_MHB_SERVER
 	---help---
 		Enable the Mods MHB Server
 
+if MODS_MHB_SERVER
+config MODS_MHB_SERVER_GEARBOX
+	bool "Mods MHB Server Gearbox"
+	default n
+	---help---
+		Enable the MHB Server to shift gears
+endif
+
 config I2S_TUNNEL
 	bool "Enable I2S tunneling device driver support."
 	default n

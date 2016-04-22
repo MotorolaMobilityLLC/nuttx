@@ -71,6 +71,7 @@
 
 
 #include "sm.h"
+#include "gearbox.h"
 
 #define CDSI0_CPORT (16)
 #define CDSI1_CPORT (17)
@@ -93,6 +94,13 @@
 #define MHB_IPC_TIMEOUT (500)
 
 static struct device *g_uart_dev;
+
+static struct gearbox *g_gearbox;
+static int g_gearbox_cdsi0;
+static int g_gearbox_cdsi1;
+static int g_gearbox_hsic;
+static int g_gearbox_i2s;
+static int g_gearbox_diag;
 
 struct mhb_msg {
     struct mhb_hdr *hdr;
@@ -160,8 +168,6 @@ static int mhb_handle_unipro_control_req(struct mhb_transaction *transaction)
     if (transaction->in_msg.payload_length != sizeof(*req)) {
         return -EINVAL;
     }
-
-    // TODO: Add gear-voting logic.
 
     uint8_t termination = 1;
     unipro_powermode_change(req->gear.tx, req->gear.rx, req->gear.pwrmode,
@@ -380,6 +386,44 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
     }
 #endif
 
+    /* If gearbox is present, initiate a gear shift request. */
+    if (g_gearbox) {
+        const int id = (inst == 0) ? g_gearbox_cdsi0 : g_gearbox_cdsi1;
+
+        struct gear_request request;
+        const int _auto = cdsi->config.mode == TSB_CDSI_MODE_DSI && !cdsi->config.video_mode;
+
+        /* TSB_CDSI_RX, rx_mbits_per_lane, rx_num_lanes, tx_mbits_per_lane, and
+         * tx_num_lanes are all from the perspective of the CDSI interface.
+         *
+         * While rx_max_mbps, rx_auto, tx_max_mbps, and tx_auto are from the
+         * perspective of UniPro.
+         *
+         * Furthermore, the gear shift is initiated by the APBE so CDSI and
+         * UniPro are from the APBE's perspective.
+         *
+         * Therefore:
+         *   Display on CDSI0: CDSI TX and UniPro RX
+         *   Camera on CDSI1: CDSI RX and UniPro TX
+         *
+         */
+        if (cdsi->config.direction == TSB_CDSI_TX) {
+            /* Display on CDSI0 */
+            request.rx_max_mbps = cdsi->config.tx_mbits_per_lane / 1000000 * cdsi->config.tx_num_lanes;
+            request.rx_auto = _auto;
+            request.tx_max_mbps = GEARBOX_HS_MIN;
+            request.tx_auto = _auto;
+        } else {
+            /* Camera on CDSI1 */
+            request.rx_max_mbps = GEARBOX_HS_MIN;
+            request.rx_auto = _auto;
+            request.tx_max_mbps = cdsi->config.rx_mbits_per_lane / 1000000 * cdsi->config.rx_num_lanes;
+            request.tx_auto = _auto;
+        }
+
+        gearbox_request(g_gearbox, id, &request);
+    }
+
 done:
     transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
     transaction->out_msg.hdr->type = MHB_TYPE_CDSI_CONFIG_RSP;
@@ -494,7 +538,7 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
         struct dsi_cmd dsi_cmd;
         struct mhb_cdsi_cmd *src = &req->cmds[i];
 
-        lldbg("[src] i=%d, ct=%d, dt=%d, l=%d, sd=%04x, ld=%08x %08x, d=%d\n",
+        vdbg("[src] i=%d, ct=%d, dt=%d, l=%d, sd=%04x, ld=%08x %08x, d=%d\n",
               i, src->ctype, src->dtype, src->length,
               src->u.spdata, src->u.lpdata[0], src->u.lpdata[1], src->delay);
 
@@ -513,7 +557,7 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
             dsi_cmd.u.sp.data = src->u.spdata;
         }
 
-        lldbg("[dst] ct=%d, dt=%d, l=%d, sd=%04x ld=%08x %08x\n",
+        vdbg("[dst] ct=%d, dt=%d, l=%d, sd=%04x ld=%08x %08x\n",
               dsi_cmd.ctype, dsi_cmd.dt, dsi_cmd.u.lp.length,
               dsi_cmd.u.sp.data, dsi_cmd.u.lp.data[0], dsi_cmd.u.lp.data[1]);
 
@@ -640,6 +684,12 @@ static int mhb_handle_cdsi_unconfig_req(struct mhb_transaction *transaction)
        will be in out_msg. */
     ret = mhb_unipro_send(transaction);
 #endif
+
+    /* If gearbox is present, release the current gear request. */
+    if (g_gearbox) {
+        const int id = (inst == 0) ? g_gearbox_cdsi0 : g_gearbox_cdsi1;
+        gearbox_request(g_gearbox, id, NULL);
+    }
 
     transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
     transaction->out_msg.hdr->type = MHB_TYPE_CDSI_UNCONFIG_RSP;
@@ -1351,8 +1401,19 @@ static int mhb_unipro_send(struct mhb_transaction *transaction)
 
 #endif
 
-int mhb_unipro_init(void)
+int mhb_unipro_init(struct gearbox *gearbox)
 {
+#if CONFIG_MODS_MHB_SERVER_GEARBOX
+    g_gearbox = gearbox;
+#endif
+    if (g_gearbox) {
+        g_gearbox_cdsi0 = gearbox_register(g_gearbox);
+        g_gearbox_cdsi1 = gearbox_register(g_gearbox);
+        g_gearbox_hsic = gearbox_register(g_gearbox);
+        g_gearbox_i2s = gearbox_register(g_gearbox);
+        g_gearbox_diag = gearbox_register(g_gearbox);
+    }
+
 #if CONFIG_MHB_IPC_SERVER
     ipc_init();
     register_ipc_handler(IPC_APP_ID_MHB, mhb_unipro_handle_msg, NULL);
