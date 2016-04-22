@@ -118,8 +118,14 @@ CMN_CSRCS += up_copyarmstate.c
 endif
 endif
 
+ifeq ($(CONFIG_ARCH_MODSID),y)
+# up_getboardid reads from flash
+CMN_CSRCS += up_getmodsid.c
+else
 ifeq ($(CONFIG_ARCH_BOARDID),y)
+# up_getboardid reads from config
 CMN_CSRCS += up_getboardid.c
+endif
 endif
 
 CHIP_ASRCS  =
