@@ -55,7 +55,7 @@ CSRCS += mhb_i2s_audio.c
 endif
 
 ifeq ($(CONFIG_MHB_IPC),y)
-include ipc$(DELIM)Make.defs
+include mhb$(DELIM)ipc$(DELIM)Make.defs
 endif
 
 endif

@@ -51,7 +51,7 @@
  * client side calls ipc_request_sync to send ipc request
  */
 
-#ifdef CONFIG_ICE_IPC_SERVER
+#ifdef CONFIG_MHB_IPC_SERVER
 /*
  * IPC service callback. return value will be sent to client. out_response_param
  * to client is optional.
@@ -80,7 +80,7 @@ int register_ipc_handler(int my_app_id, ipc_handler_t handler,
 int unregister_ipc_handler(int my_app_id, ipc_handler_t handler);
 #endif
 
-#ifdef CONFIG_ICE_IPC_CLIENT
+#ifdef CONFIG_MHB_IPC_CLIENT
 /*
  * in_param will be passed to the remote service handler.
  * out_param will be filled by transport if any.

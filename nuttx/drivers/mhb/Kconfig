@@ -96,4 +96,13 @@ config MHB_I2S_AUDIO
 	---help---
 		I2S Audio driven by an MHB server.
 
+config MHB_IPC
+	bool "MHB IPC"
+	default n
+	depends on ARCH_CHIP_TSB
+	---help---
+		Enable the MHB IPC interface.
+
+if MHB_IPC
 source drivers/mhb/ipc/Kconfig
+endif
