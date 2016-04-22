@@ -55,6 +55,7 @@ struct apbe_ctrl_info {
     uint32_t slave_state_ref_cnt;
     enum base_attached_e attached;
     bool is_initialized;
+    bool get_ids_complete;
     struct device *mhb_dev;
 };
 
@@ -96,7 +97,14 @@ static int apbe_pwrctrl_op_get_mask(struct device *dev, uint32_t *mask)
         return -EINVAL;
 
     if (mask) {
-        *mask = MB_CONTROL_SLAVE_MASK_APBE;
+        if (ctrl_info->get_ids_complete) {
+            *mask = MB_CONTROL_SLAVE_MASK_APBE;
+        } else {
+            /* For backwards-compatibility, start with the mask 0.
+               This will ensure that the APBE is not powered up on attach. */
+            *mask = 0;
+            ctrl_info->get_ids_complete = true;
+        }
     }
 
     lldbg("mask=0x%x\n", (mask ? *mask : 0));
