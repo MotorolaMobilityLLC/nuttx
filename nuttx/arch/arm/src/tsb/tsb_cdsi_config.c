@@ -505,12 +505,14 @@ int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t
         uint32_t value = cdsi_read(dev, addr);
         if ((value & mask) == desired_value) {
             /* success */
+            vdbg("wait: %x %x\n", addr, value);
             return 0;
         }
 
         i++;
         if (retries && (i > retries)) {
             /* retry timeout */
+            dbg("wait timeout: addr=0x%x, value=0x%x\n", addr, value);
             return -ETIME;
         }
         usleep(1);
@@ -519,6 +521,7 @@ int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t
 
 #if 0
 static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
+    vdbg("\n");
     cdsi_write(dev, CDSI_CDSIRX_DSI_RXTRIG_INT_MASK_OFFS, 0xffffffff);
 
     cdsi_write(dev, CDSI_CDSIRX_RXERR_INT_MASK_OFFS, 0xffffffff);
@@ -555,6 +558,7 @@ static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
 #endif
 
 int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
+    vdbg("\n");
     lldbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->rx_num_lanes, config->rx_mbits_per_lane);
     lldbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
     lldbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
@@ -677,6 +681,7 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 }
 
 static void cdsi_clear_tx_status(struct cdsi_dev *dev) {
+    vdbg("\n");
     cdsi_write(dev, CDSI_CDSITX_INTERRUPT_STATUS_00_OFFS, 0xffffffff);
     cdsi_write(dev, CDSI_CDSITX_INTERRUPT_STATUS_01_OFFS, 0xffffffff);
     cdsi_write(dev, CDSI_CDSITX_INTERRUPT_STATUS_02_OFFS, 0xffffffff);
@@ -688,6 +693,7 @@ static void cdsi_clear_tx_status(struct cdsi_dev *dev) {
 }
 
 int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
+    vdbg("\n");
     lldbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->tx_num_lanes, config->tx_mbits_per_lane);
     lldbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
     lldbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
@@ -1213,12 +1219,16 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 }
 
 int cdsi_tx_start(struct cdsi_dev *dev) {
+    vdbg("\n");
+
     CDSI_WRITE(dev, CDSI_AL_TX_BRG_PIC_COM_START, AL_TX_BRG_REG_COM_START_A, 1);
 
     return 0;
 }
 
 int cdsi_tx_stop(struct cdsi_dev *dev) {
+    vdbg("\n");
+
     /* Stop the pixel interface. */
     CDSI_MODIFY(dev, CDSI_AL_TX_BRG_PIC_COM_START, AL_TX_BRG_REG_COM_START_A, 0);
 
