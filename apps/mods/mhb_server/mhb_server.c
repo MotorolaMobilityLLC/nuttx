@@ -482,9 +482,13 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
         goto error;
     }
 
+    /* Stop the TX first since it uses the same HW resources. */
+    cdsi_tx_stop(cdsi->dev);
+
     n = transaction->in_msg.payload_length / sizeof(req->cmds[0]);
     p = transaction->out_msg.payload;
     l = transaction->out_msg.payload_length;
+    transaction->out_msg.payload_length = 0;
 
     for (i = 0; i < n; i++) {
         struct dsi_cmd dsi_cmd;
@@ -513,7 +517,7 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
               dsi_cmd.ctype, dsi_cmd.dt, dsi_cmd.u.lp.length,
               dsi_cmd.u.sp.data, dsi_cmd.u.lp.data[0], dsi_cmd.u.lp.data[1]);
 
-        count = dsi_read_cmd(cdsi->dev, &dsi_cmd, p, l);
+        count = dsi_read_cmd(cdsi->dev, &dsi_cmd, p, src->length);
         if (count < 0) {
             lldbg("ERROR: Failed to read command\n");
             ret = count;
@@ -522,12 +526,15 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
 
         p += count;
         l -= count;
+        transaction->out_msg.payload_length += count;
 
         /* Wait, if requested */
         if (src->delay) {
             usleep(src->delay);
         }
     }
+
+    ret = 0;
 
 error:
     transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
