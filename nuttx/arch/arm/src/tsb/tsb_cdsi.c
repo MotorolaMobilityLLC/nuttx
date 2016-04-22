@@ -38,6 +38,7 @@
 
 void cdsi_write(struct cdsi_dev *dev, uint32_t addr, uint32_t v)
 {
+    vdbg("addr=0x%x, value=0x%x\n", addr, v);
     putreg32(v, dev->base + addr);
 }
 
