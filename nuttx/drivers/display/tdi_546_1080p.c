@@ -39,6 +39,18 @@
 
 #define CONFIG_DSI_DISPLAY_TE (0)
 
+#define DISPLAY_SUPPLIER_ID (0x6001)
+#define DISPLAY_ID0 (0x05)
+#define DISPLAY_ID1 (0x03)
+#define DISPLAY_ID2 (0x01)
+
+static bool _is_valid_panel_info(const struct mhb_dsi_panel_info *panel_info) {
+    return panel_info->supplier_id == DISPLAY_SUPPLIER_ID &&
+           panel_info->id0 == DISPLAY_ID0 &&
+           panel_info->id1 == DISPLAY_ID1 &&
+           panel_info->id2 == DISPLAY_ID2;
+}
+
 const static struct mhb_cdsi_config DISPLAY_CONFIG = {
     /* Common */
     .direction = 1, /* TX */
@@ -90,6 +102,13 @@ int _mhb_dsi_display_get_config(uint8_t instance,
     const struct mhb_cdsi_config **cfg,
     size_t *size)
 {
+    if (panel_info) {
+        bool valid = _is_valid_panel_info(panel_info);
+        if (!valid) {
+            vdbg("panel info does not match\n");
+        }
+    }
+
     if (cfg) {
         *cfg = &DISPLAY_CONFIG;
     }
