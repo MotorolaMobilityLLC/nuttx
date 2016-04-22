@@ -123,7 +123,7 @@ int main(int argc, FAR char *argv[])
 int bq24292_main(int argc, char *argv[])
 #endif
 {
-    int ret = bq24292_driver_init(-1);
+    int ret = bq24292_driver_init(-1, -1);
 
     if(ret) {
         printf("bq24292 device is NOT available, err=%d\n", ret);
