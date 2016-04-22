@@ -29,6 +29,7 @@
 #include <debug.h>
 #include <errno.h>
 #include <semaphore.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -52,12 +53,15 @@ struct notify_node
 static LIST_DECLARE(notify_list);
 
 static sem_t sem = SEM_INITIALIZER(1);
-static struct work_s isr_work;
+static struct work_s int_work;
+static struct work_s pg_work;
+
+static bool pg_n_connected;
 
 static FAR struct i2c_dev_s *i2c;
 
 #define BQ24292_I2C_ADDR            0x6B
-#define PG_OPS_DELAY                MSEC2TICK(500)
+#define BQ24292_PG_DELAY            MSEC2TICK(500)
 
 #define BQ24292_REG_STATUS          0x08
 #define BQ24292_REG_FAULT           0x09
@@ -82,9 +86,22 @@ int bq24292_register_callback(bq24292_callback cb, void *arg)
     return 0;
 }
 
-static void isr_worker(FAR void *arg)
+static void pg_worker(FAR void *arg)
 {
-    static int prev_pg;
+    struct notify_node *node;
+    struct list_head *iter;
+
+    // Configure registers every time power is attached
+    bq24292_configure();
+
+    list_foreach(&notify_list, iter) {
+        node = list_entry(iter, struct notify_node, list);
+        node->callback(POWER_GOOD, node->arg);
+    }
+}
+
+static void int_worker(FAR void *arg)
+{
     struct notify_node *node;
     struct list_head *iter;
     int regval;
@@ -98,35 +115,47 @@ static void isr_worker(FAR void *arg)
         }
     }
 
-    /* Power good */
+    /* Use status reg to detect power good unless pg_n line is connected */
+    if (pg_n_connected)
+        return;
+
+    /*
+     * Interrupt may not go off if battery is completely depleted and input
+     * power source is removed, thus current state cannot be compared with the
+     * previous one to detect when power becomes good, so notify the detection
+     * of a good power source when the power good bit is asserted.
+     */
     regval = bq24292_reg_read(BQ24292_REG_STATUS);
-    if (regval < 0) {
+    if (regval < 0)
         /* If unable to communicate with the IC, assume power is not good */
-        regval = 0;
-    }
+        return;
 
     /* Only interested in the power good bit */
-    regval &= BQ24292_STATUS_PG;
+    if (regval &= BQ24292_STATUS_PG) {
+        /* Ensure input source detection is finished before PG worker runs */
+        if (!work_available(&pg_work))
+            work_cancel(LPWORK, &pg_work);
 
-    /* Configure registers every time power is attached */
-    if (regval && !prev_pg) {
-        bq24292_configure();
-        list_foreach(&notify_list, iter) {
-            node = list_entry(iter, struct notify_node, list);
-            node->callback(POWER_GOOD, node->arg);
-        }
+        work_queue(LPWORK, &pg_work, pg_worker, NULL, BQ24292_PG_DELAY);
     }
-
-    prev_pg = regval;
 }
 
-static int isr(int irq, void *context)
+static int int_isr(int irq, void *context)
 {
-    /* Make sure auto input source detection finished before PG worker is excuted */
-    if (work_available(&isr_work))
-        return work_queue(LPWORK, &isr_work, isr_worker, NULL, PG_OPS_DELAY);
+
+    if (work_available(&int_work))
+        return work_queue(LPWORK, &int_work, int_worker, NULL, 0);
     else
         return OK;
+}
+
+static int pg_isr(int irq, void *context)
+{
+    /* Ensure input source detection is finished before PG worker runs */
+    if (!work_available(&pg_work))
+        work_cancel(LPWORK, &pg_work);
+
+    return work_queue(LPWORK, &pg_work, pg_worker, NULL, BQ24292_PG_DELAY);
 }
 
 static int reg_read(uint8_t reg)
@@ -329,7 +358,7 @@ int bq24292_configure(void)
     return ret;
 }
 
-int bq24292_driver_init(int16_t irq_gpio)
+int bq24292_driver_init(int16_t int_n, int16_t pg_n)
 {
     int ret;
 
@@ -357,19 +386,34 @@ int bq24292_driver_init(int16_t irq_gpio)
 
     I2C_SETFREQUENCY(i2c, CONFIG_CHARGER_BQ24292_I2C_BUS_SPEED);
 
-    if (irq_gpio < 0)
-        goto init_done;
+    if (pg_n >= 0) {
+        ret = gpio_irqattach(pg_n, pg_isr);
+        if (ret) {
+            dbg("failed to register for pg irq\n");
+            goto init_done;
+        }
 
-    ret = gpio_irqattach(irq_gpio, isr);
-    if (ret) {
-        dbg("failed to register for irq\n");
-        goto init_done;
+        ret = set_gpio_triggering(pg_n, IRQ_TYPE_EDGE_FALLING);
+        if (ret) {
+            dbg("failed to set pg irq edge\n");
+            goto init_done;
+        }
+
+        pg_n_connected = true;
     }
 
-    ret = set_gpio_triggering(irq_gpio, IRQ_TYPE_EDGE_BOTH);
-    if (ret) {
-        dbg("failed to set irq edge\n");
-        goto init_done;
+    if (int_n >= 0) {
+        ret = gpio_irqattach(int_n, int_isr);
+        if (ret) {
+            dbg("failed to register for int irq\n");
+            goto init_done;
+        }
+
+        ret = set_gpio_triggering(int_n, IRQ_TYPE_EDGE_FALLING);
+        if (ret) {
+            dbg("failed to set int irq edge\n");
+            goto init_done;
+        }
     }
 
     /* Perform initial configuration */
