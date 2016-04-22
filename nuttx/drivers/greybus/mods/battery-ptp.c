@@ -559,7 +559,8 @@ static int batt_ptp_get_max_output_current(struct device *dev, uint32_t *current
         }
     }
 
-    *current = info->state.output_current ? *info->state.output_current : 0;
+    /* Convert mA to uA */
+    *current = (info->state.output_current ? *info->state.output_current : 0) * 1000;
 
     sem_post(&info->sem);
     return 0;
