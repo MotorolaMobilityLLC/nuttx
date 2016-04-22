@@ -121,6 +121,7 @@ config GREYBUS_TFA9890_MONO_I2C_ADDR
 
 config GREYBUS_MODS_DISPLAY
 	bool "Display support"
+	select DEVICE_CORE
 	default n
 
 config GREYBUS_LOOPBACK
