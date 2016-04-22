@@ -188,6 +188,7 @@ struct mb_control_get_pwrup_response {
     __le32 reason;
 } __packed;
 
+#ifdef CONFIG_DEVICE_CORE
 /**
  * @brief send slave state
  *
@@ -268,6 +269,7 @@ static int mb_control_send_slave_state_cb(struct device *dev,
 
     return mb_control_send_slave_state(slave_state);
 }
+#endif
 
 static uint8_t gb_control_protocol_version(struct gb_operation *operation)
 {
