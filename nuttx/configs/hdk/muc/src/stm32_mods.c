@@ -50,7 +50,7 @@ int mods_user_init(void)
 {
     int ret = 0;
 #if defined(CONFIG_CHARGER_BQ24292)
-    ret = bq24292_driver_init(GPIO_MODS_CHG_PG_N);
+    ret = bq24292_driver_init(GPIO_MODS_CHG_INT_N, GPIO_MODS_CHG_PG_N);
     if (ret)
         return ret;
 #endif

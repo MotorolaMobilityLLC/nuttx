@@ -76,11 +76,7 @@
 #define GPIO_TOUCH_INT_N         CALC_GPIO_NUM('A', 9)
 #define GPIO_TOUCH_RST_N         CALC_GPIO_NUM('C', 9)
 
-/*
- * On this board, the CHG_PG_N pin is not connected, so the BQ24292 driver
- * needs to use the CHG_INT_N line for power good.
- */
-#define GPIO_MODS_CHG_PG_N       GPIO_MODS_CHG_INT_N
+#define GPIO_MODS_CHG_PG_N       (-1)
 
 /* Select the SL_BPLUS_AIN pin for base attach */
 #define GPIO_MODS_BASE_ATTACH    GPIO_MODS_SL_BPLUS_AIN
