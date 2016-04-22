@@ -44,7 +44,6 @@
 #include <nuttx/mhb/ipc.h>
 
 #include "transport.h"
-#include "tsb_unipro.h"
 
 /* need a ring buffer and a thread to switch from interrupt context to thread
  * context to further process the response or request.
@@ -167,7 +166,6 @@ static int unipro_rx_irq_handler(unsigned int cport, void *data, size_t size)
         }
     }
 
-    unipro_unpause_rx(cport);
     return 0;
 }
 
