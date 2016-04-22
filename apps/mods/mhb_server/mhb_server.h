@@ -29,8 +29,10 @@
 #if !defined(app_mods_mhb_server_h)
 #define app_mods_mhb_server_h
 
+struct gearbox;
+
 int mhb_uart_init(void);
-int mhb_unipro_init(void);
+int mhb_unipro_init(struct gearbox *gearbox);
 
 int mhb_send_pm_status_not(uint8_t status);
 int mhb_send_diag_local_log_not(void);

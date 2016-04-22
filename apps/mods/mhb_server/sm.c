@@ -53,6 +53,7 @@
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_utils.h>
 
+#include "gearbox.h"
 #include "mhb_server.h"
 #include "sm.h"
 #include "sm_timer.h"
@@ -66,6 +67,7 @@ const static char *SVC_EVENT_STRINGS[] = {
     TO_STR(SVC_EVENT_MOD_TIMEOUT),
     TO_STR(SVC_EVENT_UNIPRO_LINK_UP),
     TO_STR(SVC_EVENT_UNIPRO_LINK_DOWN),
+    TO_STR(SVC_EVENT_GEAR_SHIFT_DONE),
 };
 
 enum svc_state {
@@ -95,6 +97,7 @@ struct svc {
     svc_timer_t mod_detect_tid;
     svc_timer_t linkup_poll_tid;
     uint32_t mod_detect_retry;
+    struct gearbox *gearbox;
 };
 
 struct svc_work {
@@ -115,14 +118,151 @@ static struct svc g_svc;
 #define SVC_MOD_DETECT_RETRY 5
 
 /* Helpers */
-static void _pb_unipro_evt_handler(enum unipro_event event)
+
+/* IMPORTANT:
+ * The UniPro event handler callback runs in the context of the UniPro IRQ. */
+static void unipro_evt_handler(enum unipro_event evt)
 {
-    switch (event) {
+    uint32_t rc;
+    uint32_t v = 0;
+    int err;
+
+    llvdbg("event=%d\n", evt);
+
+    switch (evt) {
     case UNIPRO_EVT_LUP_DONE:
-        lldbg("cb start\n");
         svc_send_event(SVC_EVENT_UNIPRO_LINK_UP, 0, 0, 0);
-        lldbg("cb done\n");
         break;
+    case UNIPRO_EVT_LINK_LOST:
+        rc = unipro_attr_local_read(TSB_DME_LINKLOSTIND, &v, 0);
+        llvdbg("rc=%d, lost_ind=%x\n", rc, v);
+
+        if (v & 0x1) {
+            svc_send_event(SVC_EVENT_UNIPRO_LINK_DOWN,
+                (void *)(unsigned int)0,
+                (void *)(unsigned int)0,
+                (void *)(unsigned int)0);
+        }
+
+        break;
+    case UNIPRO_EVT_PWRMODE:
+        if (g_svc.gearbox) {
+            uint32_t pmi_val0 = 0;
+            rc = unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val0, 0, 0);
+            llvdbg("rc=%d, pmi0=%x\n", rc, pmi_val0);
+
+            uint32_t pmi_val1 = 0;
+            rc = unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val1, 0, 1);
+            llvdbg("rc=%d, pmi1=%x\n", rc, pmi_val1);
+
+            if (pmi_val0 == 2 && pmi_val1 == 4) {
+                llvdbg("Powermode change successful\n");
+                err = 0;
+            } else {
+                llvdbg("Powermode change failed\n");
+                err = -1;
+            }
+
+            svc_send_event(SVC_EVENT_GEAR_SHIFT_DONE,
+                (void *)(unsigned int)err,
+                (void *)(unsigned int)0,
+                (void *)(unsigned int)0);
+        }
+        break;
+    case UNIPRO_EVT_PHY_ERROR:
+        rc = unipro_attr_local_read(TSB_DME_ERRORPHYIND, &v, 0);
+        v &= 1;
+        if (v) {
+            llvdbg("rc=%d, phy err=%x\n", rc, v);
+        }
+        break;
+    case UNIPRO_EVT_PA_ERROR:
+        rc = unipro_attr_local_read(TSB_DME_ERRORPAIND, &v, 0);
+        v &= 0x3;
+        if (v) {
+            llvdbg("rc=%d, pa err=%x\n", rc, v);
+        }
+        break;
+    case UNIPRO_EVT_D_ERROR:
+        rc = unipro_attr_local_read(TSB_DME_ERRORDIND, &v, 0);
+        v &= 0x3fff;
+        if (v) {
+            llvdbg("rc=%d, d err=%x\n", rc, v);
+        }
+        break;
+    case UNIPRO_EVT_N_ERROR:
+        rc = unipro_attr_local_read(TSB_DME_ERRORNIND, &v, 0);
+        v &= 0x7;
+        if (v) {
+            llvdbg("rc=%d, n err=%x\n", rc, v);
+        }
+        break;
+    case UNIPRO_EVT_T_ERROR:
+        rc = unipro_attr_local_read(TSB_DME_ERRORTIND, &v, 0);
+        v &= 0x7f;
+        if (v) {
+            llvdbg("rc=%d, t err=%x\n", rc, v);
+        }
+        break;
+    case UNIPRO_EVT_PAINIT_ERROR: {
+        bool lost = false;
+
+        rc = unipro_attr_local_read(TSB_DME_ERRORPHYIND, &v, 0);
+        v &= 0x1;
+        if (v) {
+            llvdbg("rc=%d, phy err=%x\n", rc, v);
+            lost = true;
+        }
+
+        rc = unipro_attr_local_read(TSB_DME_ERRORPAIND, &v, 0);
+        v &= 0x3;
+        if (v) {
+            llvdbg("rc=%d, pa err=%x\n", rc, v);
+            lost = true;
+        }
+
+        rc = unipro_attr_local_read(TSB_DME_ERRORDIND, &v, 0);
+        v &= 0x3fff;
+        if (v) {
+            llvdbg("rc=%d, d err=%x\n", rc, v);
+            lost = true;
+        }
+
+        if (lost) {
+            llvdbg("Link lost\n");
+            svc_send_event(SVC_EVENT_UNIPRO_LINK_DOWN,
+                (void *)(unsigned int)0,
+                (void *)(unsigned int)0,
+                (void *)(unsigned int)0);
+        }
+
+        break;
+    }
+    case UNIPRO_EVT_MAILBOX: {
+        v = TSB_MAIL_RESET;
+        rc = unipro_attr_local_read(TSB_MAILBOX, &v, 0);
+        llvdbg("rc=%d, mbox_val=%d\n", rc, v);
+
+        if (rc) {
+        }
+
+#if CONFIG_UNIPRO_P2P_APBA
+        if (v == TSB_MAIL_READY_OTHER) {
+            llvdbg("Mod detected\n");
+            svc_send_event(SVC_EVENT_MOD_DETECTED,
+                (void *)(unsigned int)0,
+                (void *)(unsigned int)0,
+                (void *)(unsigned int)0);
+        } else {
+            // TODO: Handle error case.
+            llvdbg("Mod NOT detected\n");
+        }
+#elif CONFIG_UNIPRO_P2P_APBE
+        llvdbg("Connected cport %d\n", v-1);
+#endif
+
+        break;
+    }
     default:
         break;
     }
@@ -222,16 +362,19 @@ static enum svc_state svc_initial__slave_started(struct svc *svc, struct svc_wor
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_ON);
 
-    unipro_init_with_event_handler(_pb_unipro_evt_handler);
+    unipro_init_with_event_handler(unipro_evt_handler);
 
     return SVC_SLAVE_WAIT_FOR_UNIPRO;
 }
 
 static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_work *work) {
+    unipro_p2p_detect_linkloss();
     tsb_unipro_set_init_status(INIT_STATUS_OPERATING);
     tsb_unipro_mbox_send(TSB_MAIL_READY_OTHER);
 
-    mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
+    if (g_svc.gearbox) {
+        gearbox_link_up(g_svc.gearbox);
+    }
 
 #if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_register_unipro();
@@ -240,12 +383,13 @@ static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_w
     (void)i2s_unipro_tunnel_unipro_register();
 #endif
 
+    mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
     return SVC_CONNECTED;
 }
 
 static enum svc_state svc_wf_unipro__link_up(struct svc *svc, struct svc_work *work) {
     /* Unipro link is up. Starting "unipro_init" stuff now */
-    unipro_init();
+    unipro_init_with_event_handler(unipro_evt_handler);
     unipro_p2p_detect_linkloss();
     return SVC_WAIT_FOR_MOD;
 }
@@ -276,6 +420,10 @@ static enum svc_state svc_wf_unipro__mod_timeout(struct svc *svc, struct svc_wor
 static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work *work) {
     svc_delete_timer(g_svc.mod_detect_tid);
     g_svc.mod_detect_tid = SVC_TIMER_INVALID;
+
+    if (g_svc.gearbox) {
+        gearbox_link_up(g_svc.gearbox);
+    }
 
 #if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_register_unipro();
@@ -321,34 +469,22 @@ static enum svc_state svc_wf_mod__mod_timeout(struct svc *svc, struct svc_work *
 }
 
 static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work *work) {
-    if (work->parameter0) {
-        struct p2p_link_err_reason* reason = (struct p2p_link_err_reason *)work->parameter0;
-        if (reason->link_lost_ind) {
-            lldbg("Link Lost - 0x%x\n", reason->link_lost_ind);
-        }
-        if (reason->phy_ind) {
-            lldbg("Phy Error - 0x%x\n", reason->phy_ind);
-        }
-        if (reason->pa_ind) {
-            lldbg("PA Error - 0x%x\n", reason->pa_ind);
-        }
-        if (reason->d_ind) {
-            lldbg("D Error - 0x%x\n", reason->d_ind);
-        }
-        if (reason->n_ind) {
-            lldbg("N Error - 0x%x\n", reason->n_ind);
-        }
-        if (reason->t_ind) {
-            lldbg("T Error - 0x%x\n", reason->t_ind);
-        }
-    }
-
 #if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_unregister_unipro();
 #endif
 
+    if (g_svc.gearbox) {
+        gearbox_link_down(g_svc.gearbox);
+    }
+
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_DISCONNECTED);
     return SVC_DISCONNECTED;
+}
+
+static enum svc_state svc_connected__gear_shifted(struct svc *svc, struct svc_work *work) {
+    int err = (int)work->parameter0;
+    gearbox_shift_complete(g_svc.gearbox, err);
+    return SVC_CONNECTED;
 }
 
 static enum svc_state svc__test_mode(struct svc *svc, struct svc_work *work) {
@@ -372,6 +508,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_MOD_TIMEOUT */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
     },
     /* SVC_SLAVE_WAIT_FOR_UNIPRO */
     {
@@ -383,6 +520,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_MOD_TIMEOUT */
         svc_wf_slave_unipro__link_up,/* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
     },
     /* SVC_WAIT_FOR_UNIPRO */
     {
@@ -394,6 +532,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         svc_wf_unipro__mod_timeout,  /* SVC_EVENT_MOD_TIMEOUT */
         svc_wf_unipro__link_up,      /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
     },
     /* SVC_WAIT_FOR_MOD */
     {
@@ -405,6 +544,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         svc_wf_mod__mod_timeout,     /* SVC_EVENT_MOD_TIMEOUT */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
     },
     /* SVC_CONNECTED */
     {
@@ -416,6 +556,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_MOD_TIMEOUT */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         svc_connected__link_down,    /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        svc_connected__gear_shifted, /* SVC_EVENT_GEAR_SHIFT_DONE */
     },
     /* SVC_DISCONNECTED */
     {
@@ -427,6 +568,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_MOD_TIMEOUT */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
     },
     /* SVC_TEST_MODE */
     {
@@ -438,6 +580,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_MOD_TIMEOUT */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
     },
 };
 
@@ -531,24 +674,12 @@ int svc_init(void) {
     g_svc.linkup_poll_tid = SVC_TIMER_INVALID;
     g_svc.mod_detect_retry = 0;
 
+#if CONFIG_MODS_MHB_SERVER_GEARBOX
+    g_svc.gearbox = gearbox_initialize();
+#endif
+
     mhb_uart_init();
-    mhb_unipro_init();
+    mhb_unipro_init(g_svc.gearbox);
 
     return 0;
-}
-
-void unipro_p2p_peer_detected(void) {
-    /* Enable the control cport. */
-    svc_send_event(SVC_EVENT_MOD_DETECTED,
-        (void *)(unsigned int)0,
-        (void *)(unsigned int)0,
-        (void *)(unsigned int)0);
-}
-
-void unipro_p2p_peer_lost(struct p2p_link_err_reason *reason) {
-    /* Enable the control cport. */
-    svc_send_event(SVC_EVENT_UNIPRO_LINK_DOWN,
-        reason,
-        (void *)(unsigned int)0,
-        (void *)(unsigned int)0);
 }
