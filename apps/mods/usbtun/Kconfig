@@ -1,0 +1,18 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config MODS_USB_HCD_ROUTER
+	bool "USB tunneling over HSIC @ Host"
+	default n
+	depends on ARCH_CHIP_USB_HCD
+	---help---
+		Enable the Mods USB tunneling at HSIC Host
+
+config MODS_USB_PCD_ROUTER
+	bool "USB tunneling over HSIC @ Device"
+	default n
+	depends on ARCH_CHIP_USB_PCD
+	---help---
+		Enable the Mods USB tunneling at HSIC Device
