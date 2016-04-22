@@ -3797,3 +3797,7 @@ config STM32_UART_DEVICE
 	depends on STM32_USART
 	---help---
 		Implement the device_uart interface based on the ttySx implementation.
+
+config ARCH_MODSID
+	bool "Read Board IDs from FLASH"
+	default n
