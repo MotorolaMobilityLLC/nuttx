@@ -30,6 +30,11 @@
 # define _MHB_UTIL_
 # include <arch/byteorder.h>
 
+#if !defined(TO_STR_HELPER) && !defined(TO_STR)
+# define TO_STR_HELPER(x) #x
+# define TO_STR(x) TO_STR_HELPER(x)
+#endif
+
 /*
  * These can be used on types with an unknown size.  The compiler will optimize
  * them down to the correct macro during compile.
