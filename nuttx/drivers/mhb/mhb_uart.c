@@ -47,6 +47,8 @@
 
 #include <nuttx/mhb/device_mhb.h>
 
+#include <nuttx/power/pm.h>
+
 #define MHB_UART_SYNC_FLAG   (0x7f)
 #define MHB_UART_SYNC_LENGTH (32)
 
@@ -173,7 +175,8 @@ static void mhb_handle_pm_status_not(struct mhb_hdr *hdr,
 }
 
 static int mhb_local_wake_irq(int irq, FAR void *context) {
-    gpio_clear_interrupt(irq);
+    pm_activity(9);
+    gpio_clear_interrupt(g_mhb->local_wake);
     mhb_handle_pm_wake_req();
     return 0;
 }
@@ -227,6 +230,7 @@ static void mhb_wake_peer(void)
 
     if (!mhb_wait_or_timeout(PM_HANDSHAKE_TIMEOUT)) {
         lldbg("ERROR: Timed out for Wake Handshake\n");
+        mhb_assert_peer_wake_ack();
     }
 
     pthread_mutex_unlock(&g_mhb->mutex);
