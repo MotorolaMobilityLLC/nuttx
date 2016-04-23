@@ -55,13 +55,13 @@
 #define GPIO_MODS_FUSB302_INT_N  CALC_GPIO_NUM('G', 13)
 #define GPIO_MODS_SYS_RST        CALC_GPIO_NUM('H',  0)
 #define GPIO_APBE_SPIBOOT_N      CALC_GPIO_NUM('A',  8)
-#define GPIO_APBE_WAKE           CALC_GPIO_NUM('B',  8)
+#define GPIO_APBE_INT_N          CALC_GPIO_NUM('B',  8)
 #define GPIO_APBE_RST_N          CALC_GPIO_NUM('H',  1)
 #define GPIO_APBE_PWR_EN         CALC_GPIO_NUM('G', 14)
 
 /* Only present on HDK P2 and later */
 #if (BOARD_REVISION >= 2)
-# define GPIO_APBE_INT_N         CALC_GPIO_NUM('B',  5)
+# define GPIO_APBE_WAKE          CALC_GPIO_NUM('B',  5)
 #endif
 
 #define GPIO_DISPLAY_PWR1_EN     CALC_GPIO_NUM('A', 10)

@@ -118,12 +118,14 @@ static struct device_resource mhb_resources[] = {
         .count  = 1,
     },
 #endif
+#ifdef GPIO_APBE_WAKE
     {
         .name   = "peer_wake",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
         .start  = GPIO_APBE_WAKE,
         .count  = 1,
     },
+#endif
 };
 #endif
 
