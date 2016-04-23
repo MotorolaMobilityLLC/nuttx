@@ -55,6 +55,12 @@ static struct device_resource mhb_resources[] = {
     {
         .name   = "local_wake",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 23,
+        .count  = 1,
+    },
+    {
+        .name   = "peer_wake",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
         .start  = 5,
         .count  = 1,
     },
