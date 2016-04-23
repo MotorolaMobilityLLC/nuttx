@@ -49,7 +49,7 @@
 #define MHB_DSI_DISPLAY_INVALID_RESOURCE  0xffffffff
 
 #define MHB_DSI_DISPLAY_POWER_DELAY_US    100000
-#define MHB_DSI_DISPLAY_OP_TIMEOUT_MS     2000
+#define MHB_DSI_DISPLAY_OP_TIMEOUT_NS     2000000000LL /* 2 seconds in ns */
 
 #define MHB_DSI_DISPLAY_CDSI_INSTANCE     0
 
@@ -116,8 +116,10 @@ static int _mhb_dsi_display_wait_for_response(struct mhb_dsi_display *display)
     }
 
     uint64_t new_ns = timespec_to_nsec(&expires);
-    new_ns += MHB_DSI_DISPLAY_OP_TIMEOUT_MS * NSEC_PER_MSEC;
+    new_ns += MHB_DSI_DISPLAY_OP_TIMEOUT_NS;
     nsec_to_timespec(new_ns, &expires);
+
+    vdbg("wait start\n");
 
     pthread_mutex_lock(&display->mutex);
     ret = pthread_cond_timedwait(&display->cond, &display->mutex, &expires);
@@ -125,9 +127,11 @@ static int _mhb_dsi_display_wait_for_response(struct mhb_dsi_display *display)
 
     if (ret) {
         /* timeout or other erros */
-        lldbg("ERROR: wait error %d\n", ret);
-        return -ETIME;
+        lldbg("ERROR: wait error %d\n", -ret);
+        return -ETIMEDOUT;
     }
+
+    vdbg("wait complete\n");
 
     return 0;
 }
