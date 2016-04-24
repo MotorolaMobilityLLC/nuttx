@@ -1034,7 +1034,7 @@ static int mhb_handle_diag_log_req(struct mhb_transaction *transaction)
     int fd;
     int ret;
 
-    size_t n = MIN(transaction->out_msg.payload_max, CONFIG_RAMLOG_BUFSIZE);
+    size_t n = MIN(transaction->out_msg.payload_max - 1 , CONFIG_RAMLOG_BUFSIZE);
 
     fd = open(CONFIG_SYSLOG_DEVPATH, O_RDONLY);
     if (fd < 0)
@@ -1048,7 +1048,8 @@ static int mhb_handle_diag_log_req(struct mhb_transaction *transaction)
 
     close(fd);
 
-    transaction->out_msg.payload_length = ret;
+    transaction->out_msg.payload[ret] = '\0';
+    transaction->out_msg.payload_length = ret + 1;
     transaction->out_msg.hdr->result = MHB_RESULT_SUCCESS;
 
 done:
