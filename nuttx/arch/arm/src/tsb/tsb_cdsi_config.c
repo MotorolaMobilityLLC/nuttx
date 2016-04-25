@@ -559,14 +559,14 @@ static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
 
 int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     vdbg("\n");
-    lldbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->rx_num_lanes, config->rx_mbits_per_lane);
-    lldbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
-    lldbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
-    lldbg("video_mode=%d\n", config->video_mode);
-    lldbg("bta_enabled=%d\n", config->bta_enabled);
-    lldbg("continuous_clock=%d\n", config->continuous_clock);
-    lldbg("color_bar_enabled=%d\n", config->color_bar_enabled);
-    lldbg("blank_packet_enabled=%d\n", config->blank_packet_enabled);
+    vdbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->rx_num_lanes, config->rx_mbits_per_lane);
+    vdbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
+    vdbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
+    vdbg("video_mode=%d\n", config->video_mode);
+    vdbg("bta_enabled=%d\n", config->bta_enabled);
+    vdbg("continuous_clock=%d\n", config->continuous_clock);
+    vdbg("color_bar_enabled=%d\n", config->color_bar_enabled);
+    vdbg("blank_packet_enabled=%d\n", config->blank_packet_enabled);
 
     const struct rx_table_row *rx_table = CDSI_LOOKUP_TABLE(rx_table, config->rx_mbits_per_lane);
     int ret;
@@ -660,7 +660,7 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT,
                     AUTOCALDONE, CDSI_DEFAULT_RETRIES);
     if (ret < 0) {
-        lldbg("ERROR: auto-calibration failed\n");
+        dbg("ERROR: auto-calibration failed\n");
         return ret;
     }
 
@@ -671,7 +671,7 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT,
                     LINEINITDONE, CDSI_DEFAULT_RETRIES);
     if (ret < 0) {
-        lldbg("ERROR: line initialization failed\n");
+        dbg("ERROR: line initialization failed\n");
         return ret;
     }
 
@@ -694,35 +694,35 @@ static void cdsi_clear_tx_status(struct cdsi_dev *dev) {
 
 int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     vdbg("\n");
-    lldbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->tx_num_lanes, config->tx_mbits_per_lane);
-    lldbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
-    lldbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
-    lldbg("video_mode=%d\n", config->video_mode);
-    lldbg("bta_enabled=%d\n", config->bta_enabled);
-    lldbg("continuous_clock=%d\n", config->continuous_clock);
-    lldbg("color_bar_enabled=%d\n", config->color_bar_enabled);
-    lldbg("blank_packet_enabled=%d\n", config->blank_packet_enabled);
+    vdbg("mode=%d, num_lanes=%d, mbits_per_lane=%d\n", config->mode, config->tx_num_lanes, config->tx_mbits_per_lane);
+    vdbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
+    vdbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
+    vdbg("video_mode=%d\n", config->video_mode);
+    vdbg("bta_enabled=%d\n", config->bta_enabled);
+    vdbg("continuous_clock=%d\n", config->continuous_clock);
+    vdbg("color_bar_enabled=%d\n", config->color_bar_enabled);
+    vdbg("blank_packet_enabled=%d\n", config->blank_packet_enabled);
 
     const int32_t pll_vco = 2 * 19.2 * (config->pll_fbd + 1) / (config->pll_prd + 1);
-    lldbg("pll_vco=%d\n", pll_vco);
+    vdbg("pll_vco=%d\n", pll_vco);
     if (pll_vco < 1000 || pll_vco >= 2000) {
-        lldbg("ERROR: pll_vco invalid: %d\n", pll_vco);
+        dbg("ERROR: pll_vco invalid: %d\n", pll_vco);
     }
 
     const int32_t hsck = pll_vco / (1 << (config->pll_frs + 1));
-    lldbg("hsck=%d\n", hsck);
+    vdbg("hsck=%d\n", hsck);
     if (hsck < 80 || hsck >= 1000) {
-        lldbg("ERROR: hsck invalid: %d\n", hsck);
+        dbg("ERROR: hsck invalid: %d\n", hsck);
     }
 
     const int32_t delta = (config->tx_mbits_per_lane / 1000 / 1000) - hsck;
-    lldbg("delta=%d\n", delta);
+    vdbg("delta=%d\n", delta);
     if (delta > 0) {
-        lldbg("ERROR: delta invalid: %d\n", delta);
+        dbg("ERROR: delta invalid: %d\n", delta);
     }
 
     const uint32_t horz_period_ns = 1000*1000*1000 / config->framerate / config->height;
-    lldbg("horz_period_ns=%d\n", horz_period_ns);
+    vdbg("horz_period_ns=%d\n", horz_period_ns);
 
     const struct sys_cld_tclk_table_row *sys_cld_tclk_table_row = CDSI_LOOKUP_TABLE(sys_cld_tclk_table, config->tx_mbits_per_lane);
     const struct tx_table_row *tx_table_row = CDSI_LOOKUP_TABLE(tx_table, config->tx_mbits_per_lane);
@@ -790,14 +790,14 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
         }
     }
 
-    lldbg("brg_mode=0x%08x\n", brg_mode);
-    lldbg("sel1_set=0x%08x\n", sel1_set);
-    lldbg("sel2_set=0x%08x\n", sel2_set);
-    lldbg("mask1=0x%08x\n", mask1);
-    lldbg("mask2=0x%08x\n", mask2);
-    lldbg("csi2dsi_sel=0x%08x\n", csi2dsi_sel);
-    lldbg("vdelay_start=0x%08x\n", vdelay_start);
-    lldbg("vdelay_end=0x%08x\n", vdelay_end);
+    vdbg("brg_mode=0x%08x\n", brg_mode);
+    vdbg("sel1_set=0x%08x\n", sel1_set);
+    vdbg("sel2_set=0x%08x\n", sel2_set);
+    vdbg("mask1=0x%08x\n", mask1);
+    vdbg("mask2=0x%08x\n", mask2);
+    vdbg("csi2dsi_sel=0x%08x\n", csi2dsi_sel);
+    vdbg("vdelay_start=0x%08x\n", vdelay_start);
+    vdbg("vdelay_end=0x%08x\n", vdelay_end);
 
     brg_mode |= CDSI_AL_TX_BRG_MODE_AL_TX_BRG_MASTER_SYNC_MODE_MASK;
     brg_mode |= CDSI_AL_TX_BRG_MODE_AL_TX_BRG_WAIT_INTERVAL_MODE_MASK;
@@ -967,7 +967,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     if (config->mode == TSB_CDSI_MODE_CSI) {
         cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_11_OFFS, 0);
         cdsi_write(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12_OFFS, 0);
-        lldbg("Setting SIDEBAND_CONFIG_11 and 12 both to 0\n");
+        vdbg("Setting SIDEBAND_CONFIG_11 and 12 both to 0\n");
     } else {
 
         /* Otherwise, we need to do some calculations. We start with
@@ -984,11 +984,13 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             tlpx = (1 + tx_table_row->lp_tx_time_cnt) *
                 sys_cld_tclk_table_row->sys_cld_tclk_div;
         }
-        lldbg("tlpx: %d\n", tlpx);
+        vdbg("tlpx: %d\n", tlpx);
 
+#if CONFIG_DEBUG_VERBOSE
         uint32_t ths_prepare = (ths_prepare_cnt_table_row->ths_prepare_cnt + 1) *
             sys_cld_tclk_table_row->sys_cld_tclk_div;
-        lldbg("ths_prepare: %d\n", ths_prepare);
+        vdbg("ths_prepare: %d\n", ths_prepare);
+#endif
 
         uint32_t ths_pre_zero_m;
         switch (sys_cld_tclk_table_row->sys_cld_tclk_sel) {
@@ -1003,17 +1005,17 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             ths_pre_zero_m = 4;
             break;
         }
-        lldbg("ths_pre_zero_m: %d\n", ths_pre_zero_m);
+        vdbg("ths_pre_zero_m: %d\n", ths_pre_zero_m);
         uint32_t ths_pre_zero =
             (ths_pre_zero_cnt_table_row->ths_pre_zero_cnt + 1 + ths_pre_zero_m) *
             sys_cld_tclk_table_row->sys_cld_tclk_div + 43;
-        lldbg("ths_pre_zero: %d\n", ths_pre_zero);
+        vdbg("ths_pre_zero: %d\n", ths_pre_zero);
         uint32_t ths_trail = (ths_trail_cnt_table_row->ths_trail_cnt + 2) *
             sys_cld_tclk_table_row->sys_cld_tclk_div - 11;
-        lldbg("ths_trail: %d\n", ths_trail);
+        vdbg("ths_trail: %d\n", ths_trail);
         uint32_t ths_exit = (ths_exit_cnt_table_row->ths_exit_cnt + 3) *
             sys_cld_tclk_table_row->sys_cld_tclk_div;
-        lldbg("ths_exit: %d\n", ths_exit);
+        vdbg("ths_exit: %d\n", ths_exit);
 
         uint32_t tclk_post;
         if (config->continuous_clock) {
@@ -1024,24 +1026,26 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             tclk_post = (tclk_post_cnt_table_row->tclk_post_cnt + 2) *
                 sys_cld_tclk_table_row->sys_cld_tclk_div + 2;
         }
-        lldbg("tclk_post: %d\n", tclk_post);
+        vdbg("tclk_post: %d\n", tclk_post);
         uint32_t tclk_trail = (tclk_trail_cnt_table_row->tclk_trail_cnt + 3) *
             sys_cld_tclk_table_row->sys_cld_tclk_div - 2;
-        lldbg("tclk_trail: %d\n", tclk_trail);
+        vdbg("tclk_trail: %d\n", tclk_trail);
         uint32_t tclk_exit = (tclk_exit_cnt_table_row->tclk_exit_cnt + 2) *
             sys_cld_tclk_table_row->sys_cld_tclk_div;
-        lldbg("tclk_exit: %d\n", tclk_exit);
+        vdbg("tclk_exit: %d\n", tclk_exit);
+#if CONFIG_DEBUG_VERBOSE
         uint32_t tclk_prepare =
             (tclk_prepare_cnt_table_row->tclk_prepare_cnt + 1) *
             sys_cld_tclk_table_row->sys_cld_tclk_div;
-        lldbg("tclk_prepare: %d\n", tclk_prepare);
+        vdbg("tclk_prepare: %d\n", tclk_prepare);
+#endif
         uint32_t tclk_pre_zero =
             (tclk_pre_zero_cnt_table_row->tclk_pre_zero_cnt + 2) *
             sys_cld_tclk_table_row->sys_cld_tclk_div + 3;
-        lldbg("tclk_pre_zero: %d\n", tclk_pre_zero);
+        vdbg("tclk_pre_zero: %d\n", tclk_pre_zero);
         uint32_t tclk_pre = (tclk_pre_cnt_table_row->tclk_pre_cnt + 4) *
             sys_cld_tclk_table_row->sys_cld_tclk_div - 4;
-        lldbg("tclk_pre: %d\n", tclk_pre);
+        vdbg("tclk_pre: %d\n", tclk_pre);
 
         /* calculate LPS_period */
         uint32_t lps_period;
@@ -1051,25 +1055,25 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             lps_period = ths_trail + tclk_post + tclk_trail + tclk_exit +
                 tlpx + tclk_pre_zero + tclk_pre + tlpx + ths_pre_zero + 8;
         }
-        lldbg("lps_period: %d\n", lps_period);
+        vdbg("lps_period: %d\n", lps_period);
 
         /* SIDEBAND_CONFIG_11 - Horizontal blank width */
         const uint32_t hsa = (uint32_t) (100 * hsck / 1000 + 0.9);
-        lldbg("hsa: %d\n", hsa);
+        vdbg("hsa: %d\n", hsa);
 
         uint32_t hsa_cnt_dsi;
         if (config->blank_packet_enabled) {
             uint32_t hsa_blapkt_size = (uint32_t) (hsa * config->tx_num_lanes /
                     8 + 0.9);
-            lldbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
+            vdbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
 
             if (hsa_blapkt_size < 7) {
                 hsa_blapkt_size = 7;
-                lldbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
+                vdbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
             }
             if (hsa_blapkt_size % 4) {
                 hsa_blapkt_size = hsa_blapkt_size + 4 - (hsa_blapkt_size % 4);
-                lldbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
+                vdbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
             }
             if ((hsa_blapkt_size - 6) == 0) {
                 hsa_cnt_dsi = 1;
@@ -1077,21 +1081,23 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
                 hsa_cnt_dsi = hsa_blapkt_size - 6;
             }
 
+#if CONFIG_DEBUG_VERBOSE
             uint32_t hsa_blk = (uint32_t) (hsa_blapkt_size * 8 /
                 config->tx_num_lanes + 0.9);
-            lldbg("hsa_blk=%d\n", hsa_blk);
+            vdbg("hsa_blk=%d\n", hsa_blk);
+#endif
         } else {
             const int32_t hsa_cnt_hs =
                 (uint32_t) (((hsa + 32 / config->tx_num_lanes) / 8 + 0.9) - 3);
-            lldbg("hsa_cnt_hs: %d\n", hsa_cnt_hs);
+            vdbg("hsa_cnt_hs: %d\n", hsa_cnt_hs);
 
             const int32_t hsa_cnt_lp =
                 (uint32_t) (((lps_period + 32 / config->tx_num_lanes) /
                         8 + 0.9) - 3);
-            lldbg("hsa_cnt_lp: %d\n", hsa_cnt_lp);
+            vdbg("hsa_cnt_lp: %d\n", hsa_cnt_lp);
 
             int32_t hsa_cnt_max = MAX(hsa_cnt_hs, hsa_cnt_lp);
-            lldbg("hsa_cnt_max: %d\n", hsa_cnt_max);
+            vdbg("hsa_cnt_max: %d\n", hsa_cnt_max);
 
             if (hsa_cnt_max == 0) {
                 hsa_cnt_dsi = 1;
@@ -1100,41 +1106,41 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             }
         }
 
-        lldbg("hsa_cnt_dsi: %d\n", hsa_cnt_dsi);
+        vdbg("hsa_cnt_dsi: %d\n", hsa_cnt_dsi);
         CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_CONFIG_11,
             SBS_APF_DSI_HSA_CNT, hsa_cnt_dsi);
 
         /* SIDEBAND_CONFIG_12 - Horizontal back porch */
         const uint32_t hbp = (uint32_t) (config->horizontal_back_porch * hsck /
                 1000 + 0.9);
-        lldbg("hbp: %d\n", hbp);
+        vdbg("hbp: %d\n", hbp);
 
         const uint32_t hbp_cnt_hs =
             (uint32_t) (((hbp + 32 / config->tx_num_lanes) / 8 + 0.9) - 3);
-        lldbg("hbp_cnt_hs: %d\n", hbp_cnt_hs);
+        vdbg("hbp_cnt_hs: %d\n", hbp_cnt_hs);
 
         const uint32_t hbp_cnt_lp =
             (uint32_t) (((lps_period + 32 / config->tx_num_lanes) /
                     8 + 0.9) - 3);
-        lldbg("hbp_cnt_lp: %d\n", hbp_cnt_lp);
+        vdbg("hbp_cnt_lp: %d\n", hbp_cnt_lp);
 
         uint32_t hbp_cnt_max = MAX(hbp_cnt_hs, hbp_cnt_lp);
-        lldbg("hbp_cnt_max: %d\n", hbp_cnt_max);
+        vdbg("hbp_cnt_max: %d\n", hbp_cnt_max);
 
         uint32_t hbp_cnt_dsi;
         if (config->blank_packet_enabled) {
             uint32_t hbp_blapkt_size = (uint32_t) (hbp * config->tx_num_lanes /
                     8 + 0.9);
-            lldbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
+            vdbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
 
             if (hbp_blapkt_size < 7) {
                 hbp_blapkt_size = 7;
-                lldbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
+                vdbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
             }
 
             if (hbp_blapkt_size % 4) {
                 hbp_blapkt_size = hbp_blapkt_size + 4 - (hbp_blapkt_size % 4);
-                lldbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
+                vdbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
             }
 
             if ((hbp_blapkt_size - 6) == 0) {
@@ -1143,9 +1149,11 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
                 hbp_cnt_dsi = hbp_blapkt_size - 6;
             }
 
+#if CONFIG_DEBUG_VERBOSE
             uint32_t hbp_blk = (uint32_t) (hbp_blapkt_size * 8 /
                 config->tx_num_lanes + 0.9);
-            lldbg("hbp_blk=%d\n", hbp_blk);
+            vdbg("hbp_blk=%d\n", hbp_blk);
+#endif
         } else {
             if (hbp_cnt_max == 0) {
                 hbp_cnt_dsi = 1;
@@ -1154,7 +1162,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             }
         }
 
-        lldbg("hbp_cnt_dsi=%d\n", hbp_cnt_dsi);
+        vdbg("hbp_cnt_dsi=%d\n", hbp_cnt_dsi);
         CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_CONFIG_12,
             SBS_APF_DSI_HBP_CNT, hbp_cnt_dsi);
     }
@@ -1169,7 +1177,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     int ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_00,
                     INT_DPHY_LOCKUPDONE, CDSI_DEFAULT_RETRIES);
     if (ret < 0) {
-        lldbg("ERROR: DHPY lockup failed\n");
+        dbg("ERROR: DHPY lockup failed\n");
         return ret;
     }
 
@@ -1177,14 +1185,14 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
         ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_00,
                         INT_DPHY_AUTOCALDONE, CDSI_DEFAULT_RETRIES);
         if (ret < 0) {
-            lldbg("ERROR: DPHY auto-cal failed\n");
+            dbg("ERROR: DPHY auto-cal failed\n");
             return ret;
         }
     }
     ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_00,
                     INT_DPHY_HSTXVREGRDY, CDSI_DEFAULT_RETRIES);
     if (ret < 0) {
-        lldbg("ERROR: DHPY HSTX VREG Ready failed\n");
+        dbg("ERROR: DHPY HSTX VREG Ready failed\n");
         return ret;
     }
 
@@ -1196,7 +1204,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_INTERRUPT_STATUS_00,
                     INT_DPHY_LINEINITDONE, CDSI_DEFAULT_RETRIES);
     if (ret < 0) {
-        lldbg("ERROR: DHPY line init failed\n");
+        dbg("ERROR: DHPY line init failed\n");
         return ret;
     }
 
@@ -1238,13 +1246,13 @@ int cdsi_tx_stop(struct cdsi_dev *dev) {
                     CDSI_DEFAULT_RETRIES);
     if (result) {
         // This failure is OK if '!config->video_mode'.
-        lldbg("WARNING: Failed to stop VHIF\n");
+        dbg("WARNING: Failed to stop VHIF\n");
     }
 
     result = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_CDSITX_SIDEBAND_STATUS_05,
                     SBO_APF_PKTIF_BUSY, CDSI_DEFAULT_RETRIES);
     if (result) {
-        lldbg("ERROR: Failed to stop PKTIF\n");
+        dbg("ERROR: Failed to stop PKTIF\n");
     }
 
     /* Reset APF. */
