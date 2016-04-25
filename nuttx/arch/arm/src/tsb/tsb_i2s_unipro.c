@@ -66,6 +66,7 @@
 
 #include <arch/chip/unipro_p2p.h>
 #include <nuttx/arch.h>
+#include <nuttx/bufram.h>
 #include <nuttx/device_dma.h>
 #include <nuttx/device_pll.h>
 #include <nuttx/irq.h>
@@ -1903,7 +1904,7 @@ void i2s_unipro_tunnel_deinit(void)
         {
             if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg)
             {
-                free(g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg);
+                bufram_free(g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg);
             }
             if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].dma_op)
             {
@@ -2000,9 +2001,12 @@ int i2s_unipro_tunnel_init(void)
              * Unipro memory when the transfer is started since they are freed after
              * each packet is transmitted, unlike the receive buffers which are kept.
              */
+            size_t alloc_size = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ +
+                offsetof(struct tsb_i2s_unipro_msg_s, data.buf);
+
             g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg =
-                (struct tsb_i2s_unipro_msg_s *)zalloc(TSB_I2S_UNIPRO_TUNNEL_BUF_SZ +
-                                                      offsetof(struct tsb_i2s_unipro_msg_s, data.buf));
+                (struct tsb_i2s_unipro_msg_s *)bufram_alloc(alloc_size);
+
             g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].len = TSB_I2S_UNIPRO_TUNNEL_BUF_SZ;
             if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg == NULL)
             {
@@ -2010,6 +2014,7 @@ int i2s_unipro_tunnel_init(void)
                 error = -ENOMEM;
                 goto i2s_tunnel_init_error;
             }
+            memset(g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg, 0, alloc_size);
         }
 
         /* Allocate the I2S DMA channels. */
