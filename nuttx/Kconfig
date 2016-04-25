@@ -276,6 +276,12 @@ menuconfig UBOOT_UIMAGE
 	---help---
 		Create the uImage binary used with U-Boot.
 
+menuconfig TFTF_IMAGE
+	bool "TFTF format for Mods"
+	default n
+	---help---
+		Create the TFTF image used for updating mods firmware.
+
 if UBOOT_UIMAGE
 
 config UIMAGE_LOAD_ADDRESS
@@ -287,6 +293,71 @@ config UIMAGE_ENTRY_POINT
 	default 0x0
 
 endif
+
+if TFTF_IMAGE
+
+config TFTF_STAGE
+	int "Flashing Stage for image"
+	default 3
+	---help---
+		Stage 2 for a TSB APBE image and Stage 3 for MuC Image
+
+if ! ARCH_CHIP_TSB
+
+config CHIP_MFG_ID
+	hex "Unique Manufacturer ID for chip"
+	default 0x00000104
+	---help---
+		Chip Vendor ID.  For example STM's ID is 00000104
+
+config CHIP_PRODUCT_ID
+	hex "Unique Product ID for chip"
+	default 0x00006435
+	---help---
+		Chip Product ID returned by chip.
+
+endif
+
+if UNIPRO_P2P_APBE
+config WRAP_CHIP_MFG_ID
+	hex "Unique Manufacturer ID for MuC Chip"
+	default 0x00000104
+	---help---
+		For the APBE, the base tftf file is wrapped in
+		a tftf file associated with the muc.  This wrapped file
+		is used during updates. This is the CHIP_MFG_ID of
+		the MuC.
+
+config WRAP_CHIP_PRODUCT_ID
+	hex "Unique Product ID for MuC Chip"
+	default 0x00006435
+	---help---
+		For the APBE, the base tftf file is wrapped in
+		a tftf file associated with the muc.  This wrapped file
+		is used during updates. This is the CHIP_PRODUCT_ID of
+		the MuC.
+
+config WRAP_ARCH_BOARDID_VID
+	hex "Vendor ID of the MuC"
+	default 00000000
+	---help---
+		For the APBE, the base tftf file is wrapped in
+		a tftf file associated with the muc.  This wrapped file
+		is used during updates. This is the ARCH_BOARDID_VID of
+		the MuC.
+
+config WRAP_ARCH_BOARDID_PID
+	hex "Product ID of the MuC"
+	default 00000000
+	---help---
+		For the APBE, the base tftf file is wrapped in
+		a tftf file associated with the muc.  This wrapped file
+		is used during updates. This is the ARCH_BOARDID_PID of
+		the MuC.
+
+endif
+endif
+
 endmenu # Binary Output Formats
 
 menu "Customize Header Files"
