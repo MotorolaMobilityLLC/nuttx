@@ -64,7 +64,6 @@ static struct apbe_ctrl_info apbe_ctrl;
 static void apbe_power_off(void)
 {
     gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
-    gpio_set_value(GPIO_APBE_WAKE, 0);
     gpio_set_value(GPIO_APBE_PWR_EN, 0);
     gpio_set_value(GPIO_APBE_RST_N, 0);
 }
@@ -72,7 +71,6 @@ static void apbe_power_off(void)
 static void apbe_power_on_normal(void)
 {
     gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
-    gpio_set_value(GPIO_APBE_WAKE, 0);
     gpio_set_value(GPIO_APBE_PWR_EN, 1);
     usleep(APBE_PWR_EN_DELAY);
     gpio_set_value(GPIO_APBE_RST_N, 1);
@@ -82,7 +80,6 @@ static void apbe_power_on_normal(void)
 static void apbe_power_on_flash(void)
 {
     gpio_set_value(GPIO_APBE_SPIBOOT_N, 1);
-    gpio_set_value(GPIO_APBE_WAKE, 1);
     gpio_set_value(GPIO_APBE_PWR_EN, 1);
     usleep(APBE_PWR_EN_DELAY);
     gpio_set_value(GPIO_APBE_RST_N, 1);
@@ -235,7 +232,6 @@ static int apbe_pwrctrl_probe(struct device *dev)
 
     sem_init(&apbe_ctrl.apbe_pwrctrl_sem, 0, 1);
     gpio_direction_out(GPIO_APBE_SPIBOOT_N, 0);
-    gpio_direction_out(GPIO_APBE_WAKE, 0);
     gpio_direction_out(GPIO_APBE_PWR_EN, 0);
     gpio_direction_out(GPIO_APBE_RST_N, 0);
     apbe_ctrl.attached = BASE_DETACHED;
