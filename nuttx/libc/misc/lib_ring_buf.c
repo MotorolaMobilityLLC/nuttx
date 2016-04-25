@@ -32,6 +32,11 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/ring_buf.h>
 
+#if defined(CONFIG_MHB) && defined(CONFIG_MM_BUFRAM_ALLOCATOR)
+#include <string.h>
+#include <nuttx/bufram.h>
+#endif
+
 /**
  * Initialize the data pointers of a ring buffer entry.
  * It is assumed that the 'rb' was allocated using ring_buf_alloc() or
@@ -70,9 +75,17 @@ struct ring_buf *ring_buf_alloc(unsigned int headroom, unsigned int data_len,
 
     buf_len = headroom + data_len + tailroom;
 
+#if defined(CONFIG_MHB) && defined(CONFIG_MM_BUFRAM_ALLOCATOR)
+    chunk = bufram_alloc(sizeof(*rb) + buf_len);
+#else
     chunk = zalloc(sizeof(*rb) + buf_len);
+#endif
     if (!chunk)
         return NULL;
+
+#if defined(CONFIG_MHB) && defined(CONFIG_MM_BUFRAM_ALLOCATOR)
+    memset(chunk, 0, sizeof(*rb) + buf_len);
+#endif
 
     rb = chunk;
 
@@ -90,7 +103,11 @@ struct ring_buf *ring_buf_alloc(unsigned int headroom, unsigned int data_len,
  */
 void ring_buf_free(struct ring_buf *rb)
 {
+#if defined(CONFIG_MHB) && defined(CONFIG_MM_BUFRAM_ALLOCATOR)
+    bufram_free(rb);
+#else
     free(rb);
+#endif
 }
 
 /**
