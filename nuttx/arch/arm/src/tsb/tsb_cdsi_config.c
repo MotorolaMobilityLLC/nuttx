@@ -68,7 +68,7 @@ struct rx_table_row {
     uint8_t dt_hs_exit_count;
     uint8_t dt_clr_sipo_count;
     uint8_t cl_settle_count;
-};
+} __attribute__((packed));
 
 const static struct rx_table_row g_rx_table[] = {
    {   80000000, 0, 0,  0, 0 },
@@ -105,7 +105,7 @@ struct sys_cld_tclk_table_row {
     uint32_t key;
     uint8_t sys_cld_tclk_sel;
     uint8_t sys_cld_tclk_div;
-};
+} __attribute__((packed));
 
 const static struct sys_cld_tclk_table_row g_sys_cld_tclk_table[] = {
     {   80000000, 0, 0 },
@@ -122,7 +122,7 @@ struct tx_table_row {
     uint16_t twakeup_cnt_bta;
     uint16_t twakeup_cnt;
     uint8_t rx_ta_sure_cnt;
-};
+} __attribute__((packed));
 
 const static struct tx_table_row g_tx_table[] = {
     {   80000000,  0, 0,    0,    0,  0 },
@@ -146,7 +146,7 @@ const static struct tx_table_row g_tx_table[] = {
 struct tclk_pre_zero_cnt_table_row {
     uint32_t key;
     uint8_t tclk_pre_zero_cnt;
-};
+} __attribute__((packed));
 
 const static struct tclk_pre_zero_cnt_table_row g_tclk_pre_zero_cnt_table[] = {
     {   80000000,  0 },
@@ -215,7 +215,7 @@ const static struct tclk_pre_zero_cnt_table_row g_tclk_pre_zero_cnt_table[] = {
 struct tclk_pre_cnt_table_row {
     uint32_t key;
     uint8_t tclk_pre_cnt;
-};
+} __attribute__((packed));
 
 const static struct tclk_pre_cnt_table_row g_tclk_pre_cnt_table[] = {
     {   80000000, 0 },
@@ -230,7 +230,7 @@ const static struct tclk_pre_cnt_table_row g_tclk_pre_cnt_table[] = {
 struct tclk_prepare_cnt_table_row {
     uint32_t key;
     uint8_t tclk_prepare_cnt;
-};
+} __attribute__((packed));
 
 const static struct tclk_prepare_cnt_table_row g_tclk_prepare_cnt_table[] = {
     {   80000000, 0 },
@@ -257,7 +257,7 @@ const static struct tclk_prepare_cnt_table_row g_tclk_prepare_cnt_table[] = {
 struct tclk_exit_cnt_table_row {
     uint32_t key;
     uint8_t tclk_exit_cnt;
-};
+} __attribute__((packed));
 
 const static struct tclk_exit_cnt_table_row g_tclk_exit_cnt_table[] = {
     {   80000000,  0 },
@@ -297,7 +297,7 @@ const static struct tclk_exit_cnt_table_row g_tclk_exit_cnt_table[] = {
 struct tclk_trail_cnt_table_row {
     uint32_t key;
     uint8_t tclk_trail_cnt;
-};
+} __attribute__((packed));
 
 const static struct tclk_trail_cnt_table_row g_tclk_trail_cnt_table[] = {
     {   80000000, 0 },
@@ -321,7 +321,7 @@ const static struct tclk_trail_cnt_table_row g_tclk_trail_cnt_table[] = {
 struct ths_pre_zero_cnt_table_row {
     uint32_t key;
     uint8_t ths_pre_zero_cnt;
-};
+} __attribute__((packed));
 
 const static struct ths_pre_zero_cnt_table_row g_ths_pre_zero_cnt_table[] = {
     {   80000000,  0 },
@@ -354,7 +354,7 @@ const static struct ths_pre_zero_cnt_table_row g_ths_pre_zero_cnt_table[] = {
 struct ths_prepare_cnt_table_row {
     uint32_t key;
     uint8_t ths_prepare_cnt;
-};
+} __attribute__((packed));
 
 const static struct ths_prepare_cnt_table_row g_ths_prepare_cnt_table[] = {
     {   80000000,  0 },
@@ -381,7 +381,7 @@ const static struct ths_prepare_cnt_table_row g_ths_prepare_cnt_table[] = {
 struct ths_exit_cnt_table_row {
     uint32_t key;
     uint8_t ths_exit_cnt;
-};
+} __attribute__((packed));
 
 const static struct ths_exit_cnt_table_row g_ths_exit_cnt_table[] = {
     {   80000000,  0 },
@@ -421,7 +421,7 @@ const static struct ths_exit_cnt_table_row g_ths_exit_cnt_table[] = {
 struct ths_trail_cnt_table_row {
     uint32_t key;
     uint8_t ths_trail_cnt;
-};
+} __attribute__((packed));
 
 const static struct ths_trail_cnt_table_row g_ths_trail_cnt_table[] = {
     {   80000000,  0 },
@@ -447,7 +447,7 @@ struct tclk_post_cnt_table_row {
     uint32_t key;
     uint8_t tclk_post_cnt_continuous;
     uint8_t tclk_post_cnt;
-};
+} __attribute__((packed));
 
 const static struct tclk_post_cnt_table_row g_tclk_post_cnt_table[] = {
     {   80000000,  0,  0 },
