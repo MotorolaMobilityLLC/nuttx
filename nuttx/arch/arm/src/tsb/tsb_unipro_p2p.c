@@ -1264,10 +1264,10 @@ static int unipro_test_start(uint8_t speed, uint8_t pattern, uint8_t burst) {
         return -EFAULT;
     }
 
-    lldbg("PA_HSSERIES local\n");
-    unipro_attr_write(PA_HSSERIES, series, 0, 0);
     lldbg("PA_HSSERIES peer\n");
     unipro_attr_write(PA_HSSERIES, series, 0, 1);
+    lldbg("PA_HSSERIES local\n");
+    unipro_attr_write(PA_HSSERIES, series, 0, 0);
 
     lldbg("TX_MODE local\n");
     unipro_attr_write(TX_MODE, mode, 0, 0);
@@ -1283,7 +1283,7 @@ static int unipro_test_start(uint8_t speed, uint8_t pattern, uint8_t burst) {
     lldbg("RX_HSGEAR local\n");
     unipro_attr_write(RX_HSGEAR, gear, 4, 0);
     lldbg("RX_HSRATE_SERIES local\n");
-    unipro_attr_write(RX_HSRATE_SERIES, series, 4, 0);
+    unipro_attr_write(RX_HSRATE_SERIES, series, 0, 0);
     lldbg("RX_PWMGEAR local\n");
     unipro_attr_write(RX_PWMGEAR, gear, 4, 0);
 
@@ -1302,7 +1302,7 @@ static int unipro_test_start(uint8_t speed, uint8_t pattern, uint8_t burst) {
     lldbg("RX_HSGEAR peer\n");
     unipro_attr_write(RX_HSGEAR, gear, 4, 1);
     lldbg("RX_HSRATE_SERIES peer\n");
-    unipro_attr_write(RX_HSRATE_SERIES, series, 4, 1);
+    unipro_attr_write(RX_HSRATE_SERIES, series, 0, 1);
     lldbg("RX_PWMGEAR peer\n");
     unipro_attr_write(RX_PWMGEAR, gear, 4, 1);
 
