@@ -488,7 +488,7 @@ static int mhb_send_diag_mode_req(int argc, char *argv[], struct device *dev)
 
     req.mode = cpu_to_le32(req.mode);
 
-    return device_mhb_send(dev, &hdr, NULL, 0, 0);
+    return device_mhb_send(dev, &hdr, (const uint8_t *)&req, sizeof(req), 0);
 
 usage:
     printf("ERROR: usage: "
