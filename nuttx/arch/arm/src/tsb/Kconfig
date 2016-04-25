@@ -169,7 +169,7 @@ config ARCH_CHIP_TSB_I2S_TUNNEL
 if ARCH_CHIP_TSB_I2S_TUNNEL
 config ARCH_CHIP_TSB_I2S_TUNNEL_CPORT_ID
 	int "cport to be used with I2S tunneling over unipro."
-	default 18
+	default 14
 	---help---
 		TSB I2S tunneling over Unipro cport number.  It has a default of 18.
 
