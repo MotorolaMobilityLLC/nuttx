@@ -37,6 +37,9 @@
 #include <arch/atomic.h>
 #include <arch/byteorder.h>
 
+#ifdef CONFIG_MM_BUFRAM_ALLOCATOR
+#include <nuttx/bufram.h>
+#endif
 #include <nuttx/util.h>
 #include <nuttx/clock.h>
 #include <nuttx/device.h>
@@ -450,7 +453,11 @@ static int _mhb_send_sync_pattern(void)
     size_t length = MHB_UART_SYNC_LENGTH;
 
     /* Allocate an item */
+#ifdef CONFIG_MM_BUFRAM_ALLOCATOR
+    uint8_t *buf = bufram_alloc(sizeof(*item) + length);
+#else
     uint8_t *buf = kmm_zalloc(sizeof(*item) + length);
+#endif
     if (!buf) {
         return -ENOMEM;
     }
@@ -604,7 +611,11 @@ static int mhb_send(struct device *dev, struct mhb_hdr *hdr,
 
     /* Allocate an item */
     // TODO: Use buffer-pool.
+#ifdef CONFIG_MM_BUFRAM_ALLOCATOR
+    uint8_t *buf = bufram_alloc(sizeof(*item) + CONFIG_MHB_UART_TXBUFSIZE);
+#else
     uint8_t *buf = kmm_zalloc(sizeof(*item) + CONFIG_MHB_UART_TXBUFSIZE);
+#endif
     if (!buf) {
         return -ENOMEM;
     }
@@ -649,7 +660,11 @@ static void mhb_tx_flush(void)
     while (!sq_empty(&g_mhb->tx_queue)) {
         struct mhb_queue_item *item =
                         (struct mhb_queue_item *)sq_remfirst(&g_mhb->tx_queue);
+#ifdef CONFIG_MM_BUFRAM_ALLOCATOR
+        bufram_free(item);
+#else
         kmm_free(item);
+#endif
     }
 
     irqrestore(flags);
@@ -695,7 +710,11 @@ static void *mhb_tx_thread(void *data)
                       NULL /* callback, blocking without callback */);
         if (ret) {
             lldbg("ERROR: failed to write: %d\n", ret);
+#ifdef CONFIG_MM_BUFRAM_ALLOCATOR
+            bufram_free(item);
+#else
             kmm_free(item);
+#endif
             break;
         }
 
@@ -706,7 +725,11 @@ static void *mhb_tx_thread(void *data)
         }
 
         /* Free the item and buffer */
+#ifdef CONFIG_MM_BUFRAM_ALLOCATOR
+        bufram_free(item);
+#else
         kmm_free(item);
+#endif
     }
 
     mhb_tx_flush();
