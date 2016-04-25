@@ -252,12 +252,25 @@ void __DWC_DMA_FREE(void *dma_ctx, uint32_t size, void *virt_addr,
 
 void *__DWC_ALLOC(void *mem_ctx, uint32_t size)
 {
+#ifdef CONFIG_DWC_USE_BUFRAM
+    void *buf = bufram_alloc(size);
+
+    if (buf)
+        memset(buf, 0, size);
+
+    return buf;
+#else
     return zalloc(size);
+#endif
 }
 
 void __DWC_FREE(void *mem_ctx, void *addr)
 {
+#ifdef CONFIG_DWC_USE_BUFRAM
+    bufram_free(addr);
+#else
     free(addr);
+#endif
 }
 
 /* Byte Ordering Conversions */
