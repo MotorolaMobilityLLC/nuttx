@@ -52,21 +52,9 @@ bool unipro_p2p_is_link_up(void);
 void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination);
 
 void unipro_stop(void);
-void unipro_restart(void);
 void unipro_reset(void);
 
 void unipro_p2p_setup_test_connection(unsigned int cport, unsigned int test_port, unsigned int src_from_local, unsigned int enable_e2efc);
-void unipro_p2p_test_start(unsigned int cport);
-void unipro_p2p_test_stop(unsigned int cport);
-void unipro_p2p_test_stats(void);
-
-void unipro_dump_attributes(int peer);
-void unipro_dump_cport_attributes(size_t start, size_t end, int peer);
-void unipro_dump_status(void);
-void unipro_dump_ints(void);
-void unipro_dump_cports(void);
-void unipro_dump_rx(void);
-void unipro_dump_tx(void);
 
 int unipro_test_command(unsigned int command);
 
