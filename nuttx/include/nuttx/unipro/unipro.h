@@ -39,8 +39,16 @@
 #define INFINITE_MAX_INFLIGHT_BUFCOUNT      0
 
 enum unipro_event {
-    UNIPRO_EVT_MAILBOX,
     UNIPRO_EVT_LUP_DONE,
+    UNIPRO_EVT_LINK_LOST,
+    UNIPRO_EVT_PWRMODE,
+    UNIPRO_EVT_PHY_ERROR,
+    UNIPRO_EVT_PA_ERROR,
+    UNIPRO_EVT_D_ERROR,
+    UNIPRO_EVT_N_ERROR,
+    UNIPRO_EVT_T_ERROR,
+    UNIPRO_EVT_PAINIT_ERROR,
+    UNIPRO_EVT_MAILBOX,
 };
 
 typedef int (*unipro_send_completion_t)(int status, const void *buf,
