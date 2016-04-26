@@ -56,34 +56,14 @@
 #include <arch/chip/unipro_p2p.h>
 #endif
 
-#if CONFIG_ICE_APBA || CONFIG_UNIPRO_P2P_APBA
-static struct p2p_link_err_reason last_link_err_reason;
-#endif
-
-// See ENG-436
-#define MBOX_RACE_HACK_DELAY    100000
-
+#define TRANSFER_MODE_2_CTRL_0 (0xAAAAAAAA) // Transfer mode 2 for CPorts 0-15
 /*
  * CPorts 16-43 are present on the AP Bridge only.  CPorts 16 and 17 are
  * reserved for camera and display use, and we leave their transfer mode
  * at the power-on default of Mode 1.
  */
-
-#define TRANSFER_MODE_0_CTRL_0 (0x00000000) // Transfer mode 0 for CPorts 0-15
-#define TRANSFER_MODE_0_CTRL_1 (0x00000005) // Transfer mode 0 for CPorts 18-31
-#define TRANSFER_MODE_0_CTRL_2 (0x00000000) // Transfer mode 0 for CPorts 32-43
-
-#define TRANSFER_MODE_1_CTRL_0 (0x55555555) // Transfer mode 1 for CPorts 0-15
-#define TRANSFER_MODE_1_CTRL_1 (0x55555555) // Transfer mode 1 for CPorts 18-31
-#define TRANSFER_MODE_1_CTRL_2 (0x00555555) // Transfer mode 1 for CPorts 32-43
-
-#define TRANSFER_MODE_2_CTRL_0 (0xAAAAAAAA) // Transfer mode 2 for CPorts 0-15
 #define TRANSFER_MODE_2_CTRL_1 (0xAAAAAAA5) // Transfer mode 2 for CPorts 18-31
 #define TRANSFER_MODE_2_CTRL_2 (0x00AAAAAA) // Transfer mode 2 for CPorts 32-43
-
-#define TRANSFER_MODE_3_CTRL_0 (0xFFFFFFFF) // Transfer mode 3 for CPorts 0-15
-#define TRANSFER_MODE_3_CTRL_1 (0xFFFFFFF5) // Transfer mode 3 for CPorts 18-31
-#define TRANSFER_MODE_3_CTRL_2 (0x00FFFFFF) // Transfer mode 3 for CPorts 32-43
 
 #define CPORT_SW_RESET_BITS 3
 
@@ -379,12 +359,6 @@ static int irq_rx_eom(int irq, void *context) {
                 cport->driver->name, transferred_size,
                 data);
 
-    if (TRANSFER_MODE == 0) {
-        /* Remove the transfer header */
-        data += (2 * sizeof(uint32_t));
-        transferred_size -= (2 * sizeof(uint32_t));
-    }
-
     if (cport->driver->rx_handler) {
         newbuf = unipro_rxbuf_alloc(cport->cportid);
         if (newbuf) {
@@ -401,99 +375,6 @@ static int irq_rx_eom(int irq, void *context) {
     return 0;
 }
 
-#if CONFIG_ICE_APBA || CONFIG_UNIPRO_P2P_APBA
-int irq_unipro(int irq, void *context) {
-    uint32_t rc = 0;
-    uint32_t val;
-
-    /* UniPro interrupt */
-    val = unipro_read(UNIPRO_INT_AFT);
-    if (val) {
-        uint32_t isr_val = 0;
-        unipro_attr_read(TSB_INTERRUPTSTATUS, &isr_val, 0, 0);
-
-        if (isr_val & TSB_INTERRUPTSTATUS_POWERMODIND) {
-            uint32_t pmi_val0 = 0;
-            unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val0, 0, 0);
-
-            uint32_t pmi_val1 = 0;
-            unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val1, 0, 1);
-
-            if (pmi_val0 == 2 && pmi_val1 == 4) {
-                DBG_UNIPRO("Powermode change successful\n");
-            } else {
-                // TODO: Handle error case
-            }
-        }
-
-        if (isr_val & TSB_INTERRUPTSTATUS_MAILBOX) {
-            uint32_t mbox_val = TSB_MAIL_RESET;
-            rc = unipro_attr_local_read(TSB_MAILBOX, &mbox_val, 0);
-            if (rc) {
-                goto done;
-            }
-
-            if (mbox_val == TSB_MAIL_READY_OTHER) {
-                unipro_p2p_peer_detected();
-            } else {
-                // TODO: Handle error case
-            }
-        }
-
-        if (isr_val & TSB_INTERRUPTSTATUS_LINKLOSTIND) {
-            uint32_t lost_ind = 0;
-
-            memset(&last_link_err_reason, 0, sizeof(last_link_err_reason));
-            rc = unipro_attr_local_read(TSB_DME_LINKLOSTIND, &lost_ind, 0);
-            if (lost_ind & 0x1) {
-                last_link_err_reason.link_lost_ind = lost_ind & 0x1;
-                unipro_p2p_peer_lost(&last_link_err_reason);
-            }
-        }
-
-        if (isr_val & TSB_INTERRUPTSTATUS_PAINITERR) {
-            uint32_t err_status;
-            bool lost = false;
-
-            memset(&last_link_err_reason, 0, sizeof(last_link_err_reason));
-            /* clean any pending errors*/
-            rc = unipro_attr_local_read(TSB_DME_ERRORPHYIND, &err_status, 0);
-            if (err_status & 0xF) {
-                last_link_err_reason.phy_ind = err_status & 0xF;
-                lost = true;
-            }
-            rc = unipro_attr_local_read(TSB_DME_ERRORPAIND, &err_status, 0);
-            if (err_status & 0x3) {
-                last_link_err_reason.pa_ind = err_status & 0x3;
-                lost = true;
-            }
-            rc = unipro_attr_local_read(TSB_DME_ERRORDIND, &err_status, 0);
-            if (err_status & 0x3FFF) {
-                last_link_err_reason.d_ind = err_status & 0x3FFF;
-                lost = true;
-            }
-            if (lost) {
-                unipro_p2p_peer_lost(&last_link_err_reason);
-            }
-        }
-done:
-        unipro_write(UNIPRO_INT_BEF, val);
-    }
-
-    /* Link interrupt */
-    val = unipro_read(LUP_INT_AFT);
-    if (val) {
-        if (val & 0x1) {
-            /* Link up */
-        }
-
-        unipro_write(LUP_INT_BEF, val);
-    }
-
-    tsb_irq_clear_pending(TSB_IRQ_UNIPRO);
-    return rc;
-}
-#else
 static int tsb_unipro_mbox_ack(uint16_t val);
 
 /**
@@ -603,7 +484,6 @@ static int irq_unipro(int irq, void *context) {
 done:
     return 0;
 }
-#endif
 
 int unipro_unpause_rx(unsigned int cportid)
 {
@@ -626,32 +506,11 @@ static void configure_transfer_mode(int mode) {
      * Set transfer mode 2
      */
     switch (mode) {
-    case 0:
-        unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_0_CTRL_0);
-        if (tsb_get_product_id() == tsb_pid_apbridge) {
-            unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_0_CTRL_1);
-            unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_0_CTRL_2);
-        }
-        break;
-    case 1:
-        unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_1_CTRL_0);
-        if (tsb_get_product_id() == tsb_pid_apbridge) {
-            unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_1_CTRL_1);
-            unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_1_CTRL_2);
-        }
-        break;
     case 2:
         unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_2_CTRL_0);
         if (tsb_get_product_id() == tsb_pid_apbridge) {
             unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_2_CTRL_1);
             unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_2_CTRL_2);
-        }
-        break;
-    case 3:
-        unipro_write(AHM_MODE_CTRL_0, TRANSFER_MODE_3_CTRL_0);
-        if (tsb_get_product_id() == tsb_pid_apbridge) {
-            unipro_write(AHM_MODE_CTRL_1, TRANSFER_MODE_3_CTRL_1);
-            unipro_write(AHM_MODE_CTRL_2, TRANSFER_MODE_3_CTRL_2);
         }
         break;
     default:
@@ -930,6 +789,7 @@ void unipro_init(void)
      * Header is delivered transparently to receiver (and used to carry the first eight
      * L4 payload bytes)
      */
+    DEBUGASSERT(TRANSFER_MODE == 2);
     configure_transfer_mode(TRANSFER_MODE);
 
     /*
@@ -1175,7 +1035,6 @@ int tsb_unipro_mbox_send(uint32_t val) {
     return rc;
 }
 
-#if CONFIG_ICE_APBE || CONFIG_UNIPRO_P2P_APBE
 /**
  * Since the switch has no 32-bit MBOX_ACK_ATTR attribute, we need to repurpose
  * a 16-bit attribute, which means that received mbox values must fit inside a
@@ -1192,6 +1051,5 @@ static int tsb_unipro_mbox_ack(uint16_t val) {
 
     return 0;
 }
-#endif
 
 

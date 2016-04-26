@@ -253,6 +253,8 @@ int unipro_send_async(unsigned int cportid, const void *buf, size_t len,
         return -EPIPE;
     }
 
+    DEBUGASSERT(TRANSFER_MODE == 2);
+
     buffer = zalloc(sizeof(*buffer));
     if (!buffer) {
         return -ENOMEM;
@@ -343,6 +345,8 @@ static int unipro_send_sync(unsigned int cportid,
         return -EPIPE;
     }
 
+    DEBUGASSERT(TRANSFER_MODE == 2);
+
     /*
      * If this is not the start of a new message,
      * message data must be written to first address of CPort Tx Buffer + 1.
@@ -350,16 +354,7 @@ static int unipro_send_sync(unsigned int cportid,
     if (!som) {
         tx_buf = cport->tx_buf + sizeof(uint32_t);
     } else {
-        if (TRANSFER_MODE == 0 || TRANSFER_MODE == 1) {
-            /* Write the destination address and reserved field. */
-            putreg32((uint32_t)CPORT_RX_BUF(cportid), &cport->tx_buf[0]);
-            putreg32(0x00000000, &cport->tx_buf[4]);
-
-            /* Jump ahead one word to avoid writing the SOM a second time. */
-            tx_buf = cport->tx_buf + sizeof(uint32_t);
-        } else {
-            tx_buf = cport->tx_buf;
-        }
+        tx_buf = cport->tx_buf;
     }
 
     count = unipro_get_tx_free_buffer_space(cport);
