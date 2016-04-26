@@ -78,6 +78,7 @@ static const struct board_gpio_cfg_s board_gpio_cfgs[] =
   { GPIO_MODS_FUSB302_INT_N, (GPIO_INPUT|GPIO_FLOAT)      },
   { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT)      },
   { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)              },
+  { GPIO_MODS_LED_DRV_1,     (GPIO_OPENDRAIN)             },
 };
 
 #ifdef CONFIG_DEVICE_CORE
@@ -224,6 +225,14 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_RAW_HW,
         .name = "mods_raw",
         .desc = "Reference Raw Interface",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_MODS_RAW_BLINKY
+    {
+        .type = DEVICE_TYPE_RAW_HW,
+        .name = "mods_raw_blinky",
+        .desc = "Blinky LED Raw Interface",
         .id   = 0,
     },
 #endif
@@ -479,6 +488,10 @@ void board_initialize(void)
 #ifdef CONFIG_MODS_RAW
   extern struct device_driver mods_raw_driver;
   device_register_driver(&mods_raw_driver);
+#endif
+#ifdef CONFIG_MODS_RAW_BLINKY
+  extern struct device_driver mods_raw_blinky_driver;
+  device_register_driver(&mods_raw_blinky_driver);
 #endif
 #ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY
   extern struct device_driver batt_ptp_driver;
