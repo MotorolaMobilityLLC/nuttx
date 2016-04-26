@@ -16,12 +16,21 @@ config PM_STANDBYENTER_COUNT
 	depends on PM
 
 config MODS_RAW
-	bool "Mods Raw support"
+	bool "Generic Mods Raw support"
 	default n
 	depends on GREYBUS_RAW
 	select DEVICE_CORE
 	---help---
 		Enable Generic Raw support
+
+config MODS_RAW_BLINKY
+	bool "Blinky LED Mods Raw support"
+	default n
+	depends on GREYBUS_RAW
+	select DEVICE_CORE
+	select STM32_TIM6
+	---help---
+		Enable Blinky LED Raw support
 
 config MAX17050_DEVICE
 	bool "MAX17050 battery device"
