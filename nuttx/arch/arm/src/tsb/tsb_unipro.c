@@ -38,8 +38,6 @@
 #include <nuttx/unipro/unipro.h>
 #include <nuttx/greybus/tsb_unipro.h>
 
-#include <arch/chip/unipro_p2p.h>
-
 #include <arch/tsb/irq.h>
 #include <errno.h>
 
@@ -375,6 +373,7 @@ static int irq_rx_eom(int irq, void *context) {
     return 0;
 }
 
+#if !CONFIG_UNIPRO_P2P_APBA
 static int tsb_unipro_mbox_ack(uint16_t val);
 
 /**
@@ -436,6 +435,7 @@ static int mailbox_evt(void)
 
     return 0;
 }
+#endif
 
 static void unipro_evt_handler(enum unipro_event evt)
 {
@@ -443,13 +443,17 @@ static void unipro_evt_handler(enum unipro_event evt)
 
     switch (evt) {
     case UNIPRO_EVT_MAILBOX:
+#if !CONFIG_UNIPRO_P2P_APBA
         mailbox_evt();
+#endif
         break;
 
     case UNIPRO_EVT_LUP_DONE:
 #if defined(CONFIG_TSB_CHIP_REV_ES2) && !defined(CONFIG_UNIPRO_P2P)
         es2_apply_mphy_fixup();
 #endif
+        break;
+    default:
         break;
     }
 
@@ -475,6 +479,38 @@ static int irq_unipro(int irq, void *context) {
     rc = unipro_attr_local_read(TSB_INTERRUPTSTATUS, &val, 0);
     if (rc) {
         goto done;
+    }
+
+    if (val & TSB_INTERRUPTSTATUS_LINKLOSTIND) {
+        unipro_evt_handler(UNIPRO_EVT_LINK_LOST);
+    }
+
+    if (val & TSB_INTERRUPTSTATUS_POWERMODIND) {
+        unipro_evt_handler(UNIPRO_EVT_PWRMODE);
+    }
+
+    if (val & TSB_INTERRUPTSTATUS_ERRORPHYIND) {
+        unipro_evt_handler(UNIPRO_EVT_PHY_ERROR);
+    }
+
+    if (val & TSB_INTERRUPTSTATUS_ERRORPAIND) {
+        unipro_evt_handler(UNIPRO_EVT_PA_ERROR);
+    }
+
+    if (val & TSB_INTERRUPTSTATUS_ERRORDIND) {
+        unipro_evt_handler(UNIPRO_EVT_D_ERROR);
+    }
+
+    if (val & TSB_INTERRUPTSTATUS_ERRORNIND) {
+        unipro_evt_handler(UNIPRO_EVT_N_ERROR);
+    }
+
+    if (val & TSB_INTERRUPTSTATUS_ERRORTIND) {
+        unipro_evt_handler(UNIPRO_EVT_T_ERROR);
+    }
+
+    if (val & TSB_INTERRUPTSTATUS_PAINITERR) {
+        unipro_evt_handler(UNIPRO_EVT_PAINIT_ERROR);
     }
 
     if (val & TSB_INTERRUPTSTATUS_MAILBOX) {
@@ -1035,6 +1071,7 @@ int tsb_unipro_mbox_send(uint32_t val) {
     return rc;
 }
 
+#if !CONFIG_UNIPRO_P2P_APBA
 /**
  * Since the switch has no 32-bit MBOX_ACK_ATTR attribute, we need to repurpose
  * a 16-bit attribute, which means that received mbox values must fit inside a
@@ -1051,5 +1088,5 @@ static int tsb_unipro_mbox_ack(uint16_t val) {
 
     return 0;
 }
-
+#endif
 
