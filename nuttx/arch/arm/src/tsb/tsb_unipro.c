@@ -115,6 +115,9 @@ static unipro_event_handler_t evt_handler;
 static unsigned int cport_count = 0;
 
 unsigned int unipro_cport_count(void) {
+#ifdef CONFIG_MHB
+    return CPORTID_CDSI1 + 1;
+#else
     /*
      * Reduce the run-time CPort count to what's available on the
      * GPBridges, unless we can determine that we're running on an
@@ -122,6 +125,7 @@ unsigned int unipro_cport_count(void) {
      */
     return ((tsb_get_product_id() == tsb_pid_apbridge) ?
             APBRIDGE_CPORT_MAX : GPBRIDGE_CPORT_MAX);
+#endif
 }
 
 struct cport *cport_handle(unsigned int cportid) {
