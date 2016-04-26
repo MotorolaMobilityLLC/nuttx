@@ -62,10 +62,10 @@
 
 #include <nuttx/unipro/unipro.h>
 
-#ifdef MODS_USB_HCD_ROUTER
+#ifdef CONFIG_MODS_USB_HCD_ROUTER
 #include <nuttx/usbtun/usbtun_hcd_router.h>
 #endif
-#ifdef MODS_USB_PCD_ROUTER
+#ifdef CONFIG_MODS_USB_PCD_ROUTER
 #include <nuttx/usbtun/usbtun_pcd_router.h>
 #endif
 
@@ -915,17 +915,19 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
         (struct mhb_hsic_control_req *)transaction->in_msg.payload;
 
     switch (req->command) {
-#ifdef MODS_USB_HCD_ROUTER
+#ifdef CONFIG_MODS_USB_HCD_ROUTER
     case MHB_HSIC_COMMAND_START:
         return usbtun_hcd_router_init();
     case MHB_HSIC_COMMAND_STOP:
-        return usbtun_hcd_router_uninit();
+        usbtun_hcd_router_uninit();
+        return 0;
 #endif
-#ifdef MODS_USB_PCD_ROUTER
+#ifdef CONFIG_MODS_USB_PCD_ROUTER
     case MHB_HSIC_COMMAND_START:
         return usbtun_pcd_router_init();
     case MHB_HSIC_COMMAND_STOP:
-        return usbtun_pcd_router_uninit();
+        usbtun_pcd_router_uninit();
+        return 0;
 #endif
     default:
         lldbg("ERROR: HSIC event %d not handled\n", req->command);
