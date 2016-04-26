@@ -159,6 +159,7 @@ config GREYBUS_SDIO_PHY
 
 config GREYBUS_RAW
 	bool "Vendor Raw Support"
+	select DEVICE_CORE
 	default n
 
 config GREYBUS_VENDOR
