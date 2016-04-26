@@ -573,12 +573,12 @@ static int mailbox_evt(void)
     if (rc) {
         return rc;
     }
+    cportid--;
     if (cportid >= cport_count) {
         DBG_UNIPRO("cportid %d in mailbox exceeds count of cports %d\n",
                    cportid, cport_count);
         return -EINVAL;
     }
-    cportid--;
 
     rc = unipro_attr_local_read(T_CPORTFLAGS, &val, cportid);
     if (rc) {
