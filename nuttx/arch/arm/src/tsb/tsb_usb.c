@@ -440,8 +440,13 @@ static int urb_enqueue(struct device *dev, struct urb *urb)
 
     dwc_otg_hcd_urb_set_params(dwc_urb, urb, urb->buffer,
                                (dwc_dma_t) urb->buffer, urb->length,
+#ifdef CONFIG_MODS_USB_HCD_ROUTER
+                               urb->setup_packet,
+                               (dwc_dma_t) urb->setup_packet,
+#else
                                &urb->setup_packet,
                                (dwc_dma_t) &urb->setup_packet,
+#endif
                                urb->flags, urb->interval);
 
     retval = dwc_otg_hcd_urb_enqueue(g_dev->hcd, dwc_urb, &urb->hcpriv_ep, 0);
