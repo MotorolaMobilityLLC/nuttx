@@ -472,9 +472,8 @@ ifeq ($(CONFIG_UBOOT_UIMAGE),y)
 	fi
 endif
 ifeq ($(CONFIG_TFTF_IMAGE),y)
-	@echo "MKTFTF: "
-	$(call generate-tftf)
-	bash ./tools/tftf.sh $(BIN)
+	@echo "MKTFTF"
+	bash ./tools/tftf.sh $(BIN).bin $(BIN)
 endif
 
 # $(BIN)
