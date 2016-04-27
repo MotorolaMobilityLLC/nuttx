@@ -154,6 +154,10 @@ enum MHB_ADDR {
 #define MHB_TYPE_UNIPRO_WRITE_ATTR_RSP \
 	(MHB_RSP_MASK|MHB_TYPE_UNIPRO_WRITE_ATTR_REQ)
 
+#define MHB_TYPE_UNIPRO_STATS_REQ (5)
+#define MHB_TYPE_UNIPRO_STATS_RSP (MHB_RSP_MASK|MHB_TYPE_UNIPRO_STATS_REQ)
+#define MHB_TYPE_UNIPRO_STATS_NOT (MHB_NOT_MASK|MHB_TYPE_UNIPRO_STATS_REQ)
+
 /* CDSI */
 #define MHB_TYPE_CDSI_CONFIG_REQ (0)
 #define MHB_TYPE_CDSI_CONFIG_RSP (MHB_RSP_MASK|MHB_TYPE_CDSI_CONFIG_REQ)
@@ -297,6 +301,50 @@ struct mhb_unipro_write_attr_req {
 	uint16_t selector;
 	uint8_t peer;
 	uint32_t value;
+} __attribute__((packed));
+
+struct mhb_unipro_stats {
+	/* L1 */
+	uint32_t phy_lane_err;
+	/* L1.5 */
+	uint32_t pa_lane_reset_tx;
+	uint32_t pa_lane_reset_rx;
+	/* L2 */
+	uint32_t d_nac_received;
+	uint32_t d_tcx_replay_timer_expired;
+	uint32_t d_afcx_request_timer_expired;
+	uint32_t d_fcx_protectiong_timer_expired;
+	uint32_t d_crc_error;
+	uint32_t d_rx_buffer_overflow;
+	uint32_t d_max_frame_length_exceeded;
+	uint32_t d_wrong_sequence_number;
+	uint32_t d_afc_frame_syntax_error;
+	uint32_t d_nac_frame_syntax_error;
+	uint32_t d_eof_syntax_error;
+	uint32_t d_frame_syntax_error;
+	uint32_t d_bad_control_symbol_type;
+	uint32_t d_pa_init_error;
+	uint32_t d_pa_error_ind_received;
+	/* L3 */
+	uint32_t n_unsupported_header_type;
+	uint32_t n_bad_device_id_encoding;
+	uint32_t n_lhdr_trap_packet_dropping;
+	/* L4 */
+	uint32_t t_unsupported_header_type;
+	uint32_t t_unknown_cport_id;
+	uint32_t t_no_connection_rx;
+	uint32_t t_controlled_segment_dropping;
+	uint32_t t_bad_tc;
+	uint32_t t_e2e_credit_overflow;
+	uint32_t t_safety_valve_dropping;
+} __attribute__((packed));
+
+struct mhb_unipro_stats_rsp {
+	struct mhb_unipro_stats stats;
+} __attribute__((packed));
+
+struct mhb_unipro_stats_not {
+	struct mhb_unipro_stats stats;
 } __attribute__((packed));
 
 /* CDSI */
