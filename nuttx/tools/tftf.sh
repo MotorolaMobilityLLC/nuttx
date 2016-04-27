@@ -27,7 +27,6 @@
 source .version
 source .config
 
-ELF=$1
 
 MAJOR=$(grep CONFIG_VERSION_MAJOR .version | cut -f2 -d"=" )
 MINOR=$(grep CONFIG_VERSION_MINOR .version | cut -f2 -d"=" )
@@ -35,8 +34,12 @@ printf -v VERSION  '%08x' $(($(($(grep CONFIG_VERSION_MAJOR .version | cut -f2 -
 
 function tftf_apbe()
 {
+    CHP_MFG=${CONFIG_WRAP_CHIP_MFG_ID##0x}
+    CHP_PID=${CONFIG_WRAP_CHIP_PRODUCT_ID##0x}
+    BRD_VID=${CONFIG_WRAP_ARCH_BOARDID_VID##0x}
+    BRD_PID=${CONFIG_WRAP_ARCH_BOARDID_PID##0x}
     TFTF_FILENAME="upd-00000126-00001001-fed70128-ffff0002-02.tftf"
-    WRAP_FILENAME="upd-${CONFIG_WRAP_CHIP_MFG_ID}-${CONFIG_WRAP_CHIP_PRODUCT_ID}-${CONFIG_WRAP_ARCH_BOARDID_VID}-${CONFIG_WRAP_ARCH_BOARDID_PID}-02.tftf"
+    WRAP_FILENAME="upd-${CHP_MFG}-${CHP_PID}-${BRD_VID}-${BRD_PID}-02.tftf"
     start_address="$(grep Reset_Handler System.map | cut -d\  -f1)"
 
     echo Create base ${TFTF_FILENAME}
@@ -80,12 +83,18 @@ function tftf_apba()
 
 function tftf_muc()
 {
-    TFTF_FILENAME="upd-${CONFIG_CHIP_MFG_ID}-${CONFIG_CHIP_PRODUCT_ID}-${CONFIG_ARCH_BOARDID_VID}-${CONFIG_ARCH_BOARDID_PID}-${CONFIG_TFTF_STAGE}.tftf"
+    CHP_MFG=${CONFIG_CHIP_MFG_ID##0x}
+    CHP_PID=${CONFIG_CHIP_PRODUCT_ID##0x}
+    BRD_VID=${CONFIG_ARCH_BOARDID_VID##0x}
+    BRD_PID=${CONFIG_ARCH_BOARDID_PID##0x}
+    TFTF_FILENAME="upd-${CHP_MFG}-${CHP_PID}-${BRD_VID}-${BRD_PID}-03.tftf"
+    load_address="$(grep _vectors System.map | cut -d\  -f1)"
     start_address="$(grep __start System.map  | cut -d\  -f1)"
 
-    create-tftf -v --elf ${ELF} \
+    create-tftf -v --code ${BIN} \
           --out ${TFTF_FILENAME} \
           --start "0x${start_address}" \
+          --load "0x${load_address}" \
           --unipro-mfg ${CONFIG_CHIP_MFG_ID} \
           --unipro-pid ${CONFIG_CHIP_PRODUCT_ID} \
           --ara-vid ${CONFIG_ARCH_BOARDID_VID}\
@@ -94,7 +103,10 @@ function tftf_muc()
           --ara-reserved-tftf 0x${VERSION}
 }
 
+BIN=$1
+ELF=$2
 
+echo $MFG_ID
 if [ "${CONFIG_UNIPRO_P2P_APBE}"x != "x" ]; then
     echo "APBE"
     tftf_apbe ${ELF}
@@ -103,5 +115,5 @@ elif [ "${CONFIG_UNIPRO_P2P_APBA}"x != "x" ]; then
     tftf_apba ${ELF}
 else
     echo "MuC"
-    tftf_muc ${ELF}
+    tftf_muc ${BIN}
 fi
