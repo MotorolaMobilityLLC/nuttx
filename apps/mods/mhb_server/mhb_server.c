@@ -909,6 +909,9 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
         lldbg("ERROR: Control transaction failure at remote.\n");
         return ret;
     }
+
+    /* TODO: Will be changed to use common API to set gear */
+    unipro_powermode_change(2, 2, 0x11, 1, 1);
 #endif
 
     struct mhb_hsic_control_req *req =
