@@ -84,7 +84,11 @@ struct urb {
     int interval;
     unsigned int flags;
 
+#ifdef CONFIG_MODS_USB_HCD_ROUTER
+    void *setup_packet;
+#else
     uint8_t setup_packet[8];
+#endif
     void *buffer;
 
     void *hcpriv;
