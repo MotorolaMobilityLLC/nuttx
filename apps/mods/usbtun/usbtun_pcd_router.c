@@ -30,17 +30,39 @@
 #include <pthread.h>
 #include <string.h>
 
+#include <nuttx/bufram.h>
 #include <nuttx/device.h>
+#include <nuttx/time.h>
 #include <nuttx/usb_device.h>
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbdev.h>
 
+#include "usbtun.h"
 #include "nuttx/usbtun/usbtun_pcd_router.h"
+
+/* number of pre-allocate requests */
+#define NUM_CTRL_REQS 5
+#define NUM_IN_REQS 30
+#define NUM_OUT_REQS 1
+
+#define ROUTER_READY_WAIT_NS 200000000LL
+
+typedef struct {
+    sq_entry_t entry;
+    uint8_t ep;
+    struct usbdev_req_s *dev_req;
+    usbtun_buf_t setup;
+    usbtun_buf_t data;
+} pcd_req_t;
 
 struct pcd_router_data_s {
     struct device *pcddev;
     struct usbdev_s *usbdev;
+    bool pcd_ready;
+    bool hcd_ready;
     struct usbdevclass_driver_s driver;
+    struct usb_epdesc_s ep_list[MAX_ENDPOINTS];
+    struct usbdev_ep_s *ep[MAX_ENDPOINTS];
 };
 
 struct pcd_router_data_s s_data;
@@ -50,21 +72,205 @@ static pthread_mutex_t run_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t run_cond = PTHREAD_COND_INITIALIZER;
 static bool do_run = false;
 
+static void _unconfigure_ep(uint8_t epno);
+static void req_ctrl_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *req);
+static void req_in_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *req);
+static void req_out_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *req);
+typedef void (*usb_callback)(struct usbdev_ep_s *ep, struct usbdev_req_s *req);
+
+static usbtun_data_res_t handle_data_body(usbtun_buf_t *buf, uint8_t ep, uint8_t type);
+
+static void pcd_req_mem_free(pcd_req_t *req) {
+    if (req) {
+        usbtun_clean_mem(&req->setup);
+        usbtun_clean_mem(&req->data);
+    }
+}
+
+static struct usbdev_req_s *alloc_request(struct usbdev_ep_s *ep,
+                                          usb_callback callback, void *priv) {
+    struct usbdev_req_s *req;
+
+    req = EP_ALLOCREQ(ep);
+
+    if (!req) {
+        lldbg("Failed to allocate EP request\n");
+        return NULL;
+    }
+
+    req->priv = priv;
+    req->callback = callback;
+
+    return req;
+}
+
+static void ep0_out_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *dev_req) {
+    if (ep == NULL || dev_req == NULL) {
+        return;
+    }
+
+    pcd_req_t *req = dev_req->priv;
+
+    int ret = unipro_send_tunnel_cmd(0, PCD_SETUP, 0, req->setup.ptr, req->setup.size);
+
+    if (ret) {
+        lldbg("Failed to send ep0 out\n");
+
+        ret = EP_STALL(s_data.usbdev->ep0);
+        if (ret) {
+            lldbg("Failed to stall ep0 (%d)\n", ret);
+        }
+    }
+
+    pcd_req_mem_free(req);
+    if (req->dev_req)
+        EP_FREEREQ(ep, req->dev_req);
+
+    free(req);
+}
+
+static pcd_req_t *alloc_setup_req(size_t dlen) {
+    pcd_req_t *req = zalloc(sizeof(*req));
+    uint8_t *setup_ptr = NULL;
+
+    if (req) {
+        size_t buf_size;
+
+        if (dlen) {
+            /* Allocate single memory so OUT data follows on SETUP content  */
+            buf_size = sizeof(struct usb_ctrlreq_s) + dlen;
+            setup_ptr = bufram_alloc(buf_size);
+            if (!setup_ptr)
+                goto alloc_failure;
+
+            struct usbdev_req_s *dev_req;
+            dev_req = alloc_request(s_data.usbdev->ep0, &ep0_out_callback, req);
+            if (!dev_req)
+                goto alloc_failure;
+
+            req->dev_req = dev_req;
+            dev_req->buf = setup_ptr + sizeof(struct usb_ctrlreq_s);
+            dev_req->len = dlen;
+        } else {
+            buf_size = sizeof(struct usb_ctrlreq_s);
+            setup_ptr = bufram_alloc(buf_size);
+            if (!setup_ptr)
+                goto alloc_failure;
+        }
+
+        req->ep = 0;
+        req->setup.type = USBTUN_MEM_BUFRAM;
+        req->setup.ptr = setup_ptr;
+        req->setup.size = buf_size;
+    }
+
+    return req;
+
+alloc_failure:
+    if (setup_ptr)
+        bufram_free(setup_ptr);
+
+    if (req)
+        free(req);
+
+    return NULL;
+}
+
 static int _usbclass_bind(struct usbdevclass_driver_s *driver, struct usbdev_s *dev) {
     s_data.usbdev = dev;
     DEV_SETSELFPOWERED(dev);
 
-    return 0;
+    /* preallocate ep_req_s items for control endpoints */
+    int i;
+    for(i = 0; i < NUM_CTRL_REQS; i++) {
+        pcd_req_t *req = zalloc(sizeof(*req));
+        if (req) {
+            void *ptr = bufram_alloc(sizeof(struct usb_ctrlreq_s));
+            if (!ptr)
+                continue;
+
+            req->setup.type = USBTUN_MEM_BUFRAM;
+            req->setup.ptr = ptr;
+            req->setup.size = sizeof(struct usb_ctrlreq_s);
+
+            req->ep = 0;
+            struct usbdev_req_s *dev_req;
+            dev_req = alloc_request(s_data.usbdev->ep0, &req_ctrl_callback, req);
+            if (dev_req) {
+                req->dev_req = dev_req;
+                usbtun_req_q(0, &req->entry);
+            } else {
+                pcd_req_mem_free(req);
+                free(req);
+            }
+        }
+    }
+
+    lldbg("Prepared EP0 requests\n");
+
+    return OK;
 }
 
 static void _usbclass_unbind(struct usbdevclass_driver_s *driver, struct usbdev_s *dev) {
-    s_data.usbdev = NULL;
+    lldbg("class unbind\n");
+
+    int i;
+    for (i = 1; i < MAX_ENDPOINTS; i++) {
+        if (s_data.ep_list[i].len) {
+            _unconfigure_ep(i);
+        }
+    }
+
+    _unconfigure_ep(0);
+
+    memcpy(s_data.ep_list, 0, sizeof(s_data.ep_list));
 }
 
 static int _usbclass_setup(struct usbdevclass_driver_s *driver, struct usbdev_s *dev,
                            const struct usb_ctrlreq_s *ctrl, uint8_t * dataout, size_t outlen) {
-    /* TODO: To be filled in */
-    return 0;
+
+    uint16_t len = GETUINT16(ctrl->len);
+#ifdef USBTUN_DEBUG
+    if (USBTUN_DEBUG_EP == 0) {
+        uint16_t val = GETUINT16(ctrl->value);
+        uint16_t idx = GETUINT16(ctrl->index);
+
+        lldbg("setup %p(type=%x, req=%x, val=%x, idx=%x, len=%d)\n", ctrl,
+              ctrl->type, ctrl->req, val, idx, len);
+    }
+#endif
+    size_t data_size = 0;
+    if (USB_REQ_ISOUT(ctrl->type) && len) {
+        /* Need to wait for incoming data in data phase */
+        data_size = len;
+    }
+
+    pcd_req_t *req = alloc_setup_req(data_size);
+
+    if (!req) {
+        lldbg("No memory available to send SETUP\n");
+        return -ENOMEM;
+    }
+
+    memcpy(req->setup.ptr, ctrl, sizeof(*ctrl));
+
+    int ret;
+
+    if (data_size == 0) {
+        /* No data phase. Send it right away */
+        ret = unipro_send_tunnel_cmd(0, PCD_SETUP, 0, req->setup.ptr, sizeof(*ctrl));
+
+        if (ret) {
+            lldbg("Failed to send SETUP request\n");
+        }
+        pcd_req_mem_free(req);
+    } else {
+        ret = EP_SUBMIT(s_data.usbdev->ep0, req->dev_req);
+        if (ret)
+            lldbg("Failed sumit data phase request\n");
+    }
+
+    return ret;
 }
 static void _usbclass_disconnect(struct usbdevclass_driver_s *driver, struct usbdev_s *dev) {
     /* Perform the soft connect function so that we can be re-enumerated. */
@@ -80,6 +286,381 @@ static const struct usbdevclass_driverops_s s_driverops = {
     NULL,                       /* suspend */
     NULL,                       /* resume */
 };
+
+static void _connect(void) {
+    lldbg("Connect to hub\n");
+    DEV_CONNECT(s_data.usbdev);
+}
+
+static int _configure_ep(struct usb_epdesc_s *desc) {
+    int in;
+    uint8_t epno;
+    uint8_t orig;
+    struct usbdev_ep_s *ep;
+    int ret;
+
+    in = desc->addr & USB_DIR_IN ? 1 : 0;
+    epno = desc->addr & USB_EPNO_MASK;
+
+    ep = DEV_ALLOCEP(s_data.usbdev, epno, in, desc->type);
+    if (!ep) {
+        lldbg("Failed to allocate EP %d\n", orig);
+        return -ENODEV;
+    }
+    ep->priv = desc;
+
+    ret = EP_CONFIGURE(ep, desc, false);
+    if (ret) {
+        lldbg("Failed to configure EP %d - ret %d\n", orig, ret);
+        goto failout;
+    }
+
+    s_data.ep[epno] = ep;
+
+    lldbg("EP :%d - configured - eqlog = %d\n", epno, ep->eplog);
+
+    return 0;
+failout:
+    DEV_FREEEP(s_data.usbdev, ep);
+    return ret;
+}
+
+static void _prepare_in_ep(uint8_t epno) {
+
+    int i;
+    pcd_req_t *req;
+    struct usbdev_req_s * dev_req;
+
+    for (i = 0; i < NUM_IN_REQS; i++) {
+        req = zalloc(sizeof(*req));
+        if (req) {
+            req->ep = epno;
+            dev_req = alloc_request(s_data.ep[epno], &req_in_callback, req);
+
+            if (dev_req) {
+                req->dev_req = dev_req;
+                usbtun_req_q(epno, &req->entry);
+            } else {
+                free(req);
+            }
+        }
+    }
+    lldbg("EP IN %d - prepared buffer\n", epno);
+}
+
+
+static void _prepare_out_ep(uint8_t epno) {
+
+    int i;
+    pcd_req_t *req;
+    struct usbdev_req_s * dev_req;
+    void *ptr;
+
+    for (i = 0; i < NUM_OUT_REQS; i++) {
+        req = zalloc(sizeof(*req));
+        if (req) {
+            req->ep = epno;
+            dev_req = alloc_request(s_data.ep[epno], &req_out_callback, req);
+
+            if (!dev_req) {
+                free(req);
+                continue;
+            }
+
+            ptr = bufram_alloc(1024);
+            if (!ptr) {
+                lldbg("Failed to allocate bufram for EP %d\n", epno);
+                EP_FREEREQ(s_data.ep[epno], dev_req);
+                free(req);
+                continue;
+            }
+            req->data.type = USBTUN_MEM_BUFRAM;
+            req->data.ptr = ptr;
+            req->data.size = 1024;
+            dev_req->buf = ptr;
+            dev_req->len = 1024;
+            req->dev_req = dev_req;
+
+            if (EP_SUBMIT(s_data.ep[epno], dev_req)) {
+                lldbg("Failed to allocate URB for EP %d\n", epno);
+                pcd_req_mem_free(req);
+                EP_FREEREQ(s_data.ep[epno], dev_req);
+                free(req);
+                continue;
+            }
+        }
+    }
+    lldbg("EP OUT %d - prepared buffer\n", epno);
+}
+
+static void _unconfigure_ep(uint8_t epno) {
+    EP_DISABLE(s_data.ep[epno]);
+
+    pcd_req_t *req;
+    while ((req = (pcd_req_t *)usbtun_req_dq_usb(epno)) != NULL) {
+        EP_CANCEL(s_data.ep[epno], req->dev_req);
+        EP_FREEREQ(s_data.ep[epno], req->dev_req);
+        pcd_req_mem_free(req);
+        free(req);
+    }
+    while ((req = (pcd_req_t *)usbtun_req_dq(epno)) != NULL) {
+        EP_FREEREQ(s_data.ep[epno], req->dev_req);
+        pcd_req_mem_free(req);
+        free(req);
+    }
+
+    if (epno != 0)
+        DEV_FREEEP(s_data.usbdev, s_data.ep[epno]);
+}
+
+static void _handle_ep_list(void *list, size_t len) {
+    if (len == sizeof(s_data.ep_list)) {
+        int i;
+        struct usb_epdesc_s *ep_list = list;
+        for (i = 0; i < MAX_ENDPOINTS; i++) {
+            if (ep_list[i].len) {
+                lldbg("EP %d, addr = %02x, attr=%02x, max=%d, int=%02x\n",
+                      i,
+                      ep_list[i].addr,
+                      ep_list[i].attr,
+                      GETUINT16(ep_list[i].mxpacketsize),
+                      ep_list[i].interval);
+            }
+
+            if (s_data.ep_list[i].len) {
+                if (ep_list[i].len)
+                    continue;
+
+                /* TODO: need to unprepare EP */
+            } else {
+                if (!ep_list[i].len)
+                    continue;
+
+                if (_configure_ep(&ep_list[i]) == 0) {
+                    if ((ep_list[i].addr & USB_DIR_MASK) == USB_DIR_OUT)
+                        _prepare_out_ep(i);
+                    else
+                        _prepare_in_ep(i);
+                }
+            }
+        }
+        memcpy(s_data.ep_list, ep_list, len);
+    } else {
+        lldbg("Received invalid EP List\n");
+    }
+}
+
+static void req_ctrl_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *dev_req) {
+    if (ep == NULL || dev_req == NULL) {
+        return;
+    }
+
+#ifdef USBTUN_DEBUG
+    if (USBTUN_DEBUG_EP == 0) {
+        lldbg("EP %d xfrd: status=%d xfrd=%d, buf=%p\n",
+              ep->eplog, dev_req->result, dev_req->xfrd, dev_req->buf);
+    }
+#endif
+    pcd_req_t *req = dev_req->priv;
+    /* keep setup memory untouched */
+    usbtun_clean_mem(&req->data);
+    usbtun_req_from_usb(ep->eplog, &req->entry);
+    usbtun_req_q(ep->eplog, &req->entry);
+}
+
+static void req_in_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *dev_req) {
+    if (ep == NULL || dev_req == NULL) {
+        return;
+    }
+#ifdef USBTUN_DEBUG
+    if (USBTUN_DEBUG_EP == ep->eplog) {
+        if (ep->eplog != 0) {
+            lldbg("EP %d xfrd: status=%d xfrd=%d, buf=%p\n",
+                  ep->eplog, dev_req->result, dev_req->xfrd, dev_req->buf);
+        }
+    }
+#endif
+    pcd_req_t *req = dev_req->priv;
+
+    pcd_req_mem_free(req);
+    usbtun_req_from_usb(ep->eplog, &req->entry);
+    usbtun_req_q(ep->eplog, &req->entry);
+}
+
+static void req_out_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *dev_req) {
+    if (ep == NULL || dev_req == NULL) {
+        return;
+    }
+
+    pcd_req_t *req = dev_req->priv;
+
+#ifdef USBTUN_DEBUG
+    if (USBTUN_DEBUG_EP == ep->eplog) {
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+
+        lldbg("[%u:%03ld] EP %d OUT status=%d xfrd=%d, buf=%p, ep_req=%p\n",
+              ts.tv_sec, ts.tv_nsec / 1000000,
+              ep->eplog, dev_req->result, dev_req->xfrd, dev_req->buf, req);
+    }
+#endif
+
+    if (dev_req->xfrd)
+        unipro_send_tunnel_cmd(ep->eplog, 0, 0, dev_req->buf, dev_req->xfrd);
+
+    req->dev_req->xfrd = 0;
+    req->dev_req->result = 0;
+    if (EP_SUBMIT(ep, dev_req)) {
+        lldbg("Failed to re-queue URB for EP %d\n", ep->eplog);
+        usbtun_req_from_usb(req->ep, &req->entry);
+        usbtun_req_q(ep->eplog, &req->entry);
+    }
+}
+
+static usbtun_hdr_res_t handle_hdr(uint8_t ep, uint8_t type, int16_t code, size_t len) {
+    if (!s_data.pcd_ready)
+        return USBTUN_NO_DATA;
+
+    if (ep == 0) {
+        switch (type) {
+        case HCD_ROUTER_READY:
+            lldbg("hcd router ready\n");
+            s_data.hcd_ready = true;
+            _connect();
+            return USBTUN_NO_DATA;
+        case HCD_SETUP_RESP:
+            if (code != 0) {
+                int ret = EP_STALL(s_data.usbdev->ep0);
+                if (ret) {
+                    lldbg("Failed to stall ep0 (%d)\n", ret);
+                } else {
+                    lldbg("USB request failure (%d)\n", code);
+                }
+                return USBTUN_NO_DATA;
+            } else if (len == 0) {
+                usbtun_buf_t null_buf;
+                null_buf.type = USBTUN_MEM_NONE;
+                null_buf.ptr = NULL;
+                null_buf.size = 0;
+                handle_data_body(&null_buf, 0, type);
+                return USBTUN_NO_DATA;
+            }
+            break;
+        }
+    } else if (len == 0) {
+        /* zero length non-control packet */
+        usbtun_buf_t null_buf;
+        null_buf.type = USBTUN_MEM_NONE;
+        null_buf.ptr = NULL;
+        null_buf.size = 0;
+        handle_data_body(&null_buf, ep, 0);
+        return USBTUN_NO_DATA;
+    }
+
+    return USBTUN_WAIT_DATA;
+}
+
+#ifdef USBTUN_DEBUG
+static int counter = 1;
+#endif
+
+static usbtun_data_res_t handle_data_body(usbtun_buf_t *buf, uint8_t ep, uint8_t type) {
+    int ret;
+    pcd_req_t *req;
+
+    if (!s_data.pcd_ready)
+        return USBTUN_FREE_BUF;
+
+    if (ep == 0) {
+        switch (type) {
+        case HCD_SETUP_RESP: {
+#ifdef USBTUN_DEBUG
+            if (USBTUN_DEBUG_EP == 0)
+                lldbg("setup respose packet len = %d\n", buf->size);
+#endif
+            req = (pcd_req_t *)usbtun_req_dq(0);
+
+            if (req) {
+                req->data = *buf;
+                req->dev_req->buf = buf->ptr;
+                req->dev_req->len = buf->size;
+                req->dev_req->xfrd = 0;
+                req->dev_req->result = 0;
+                req->dev_req->flags = USBDEV_REQFLAGS_NULLPKT;
+                usbtun_req_to_usb(0, &req->entry);
+                ret = EP_SUBMIT(s_data.usbdev->ep0, req->dev_req);
+                if (ret) {
+                    usbtun_req_from_usb(0, &req->entry);
+                    usbtun_req_q(0, &req->entry);
+                    lldbg("Failed to submit USB data\n");
+                } else {
+                    return USBTUN_KEEP_BUF;
+                }
+            } else {
+                lldbg("Failed to allocate ep_req_s\n");
+            }
+            break;
+        }
+        case HCD_ENDPOINTS: {
+            _handle_ep_list(buf->ptr, buf->size);
+            break;
+        }
+        default:
+            lldbg("Unknow data type to handle\n");
+        }
+    } else {
+        /* must be incoming data for IN indpoint. */
+
+        /* Only allow one request is queued at a time if the endpoint is INTERRUPT. */
+        /* TODO: Need to investigate further to see if this worksaround can be removed. */
+        if ((s_data.ep_list[ep].attr & USB_EP_ATTR_XFERTYPE_MASK) == USB_EP_ATTR_XFER_INT &&
+            !usbtun_req_is_usb_empry(ep)) {
+#ifdef USBTUN_DEBUG
+            if (USBTUN_DEBUG_EP == ep) {
+                struct timespec ts;
+                clock_gettime(CLOCK_REALTIME, &ts);
+
+                lldbg("[%u:%03ld][%d] pend EP %d packet\n",
+                      ts.tv_sec, ts.tv_nsec / 1000000, counter++, ep);
+            }
+#endif
+            return USBTUN_FREE_BUF;;
+        }
+
+        req = (pcd_req_t *)usbtun_req_dq(ep);
+
+        if (req) {
+#ifdef USBTUN_DEBUG
+            if (USBTUN_DEBUG_EP == ep) {
+                struct timespec ts;
+                clock_gettime(CLOCK_REALTIME, &ts);
+
+                lldbg("[%u:%03ld][%d] EP %d packet len = %d, ep_req=%p\n",
+                      ts.tv_sec, ts.tv_nsec / 1000000, counter++, ep, buf->size, req);
+            }
+#endif
+            req->data = *buf;
+            req->dev_req->buf = buf->ptr;
+            req->dev_req->len = buf->size;
+            req->dev_req->xfrd = 0;
+            req->dev_req->result = 0;
+
+            usbtun_req_to_usb(ep, &req->entry);
+            ret = EP_SUBMIT(s_data.ep[ep], req->dev_req);
+            if (ret) {
+                lldbg("Failed to submit USB data\n");
+                usbtun_req_from_usb(ep, &req->entry);
+                usbtun_req_q(ep, &req->entry);
+            } else {
+                return USBTUN_KEEP_BUF;
+            }
+        } else {
+            //lldbg("No USB request (ep %d)\n", ep);
+        }
+    }
+
+    return USBTUN_FREE_BUF;
+}
 
 static void *pcd_router_startup(void *arg) {
     int ret;
@@ -97,10 +678,13 @@ static void *pcd_router_startup(void *arg) {
 
     memset(&s_data, 0, sizeof(s_data));
 
+    if (init_router_common(&handle_hdr, &handle_data_body))
+        return NULL;
+
     s_data.pcddev = device_open(DEVICE_TYPE_USB_PCD, 0);
     if (!s_data.pcddev) {
         lldbg("Faied to open PCD device\n");
-        return NULL;
+        goto common_uninit;
     }
 
     s_data.driver.speed = USB_SPEED_HIGH;
@@ -112,7 +696,26 @@ static void *pcd_router_startup(void *arg) {
         goto devclose;
     }
 
+    s_data.pcd_ready = true;
     lldbg("PCD router started\n");
+
+    /* Handshaking with HCD router */
+    while(!s_data.hcd_ready && do_run) {
+        ret = unipro_send_tunnel_cmd(0, PCD_ROUTER_READY, 0, NULL, 0);
+        if (ret) {
+            lldbg("Failed to send ROUTER READY\n");
+            goto unreg_gadget;
+        }
+        struct timespec expires;
+        clock_gettime(CLOCK_REALTIME, &expires);
+        uint64_t new_ns = timespec_to_nsec(&expires);
+        new_ns += ROUTER_READY_WAIT_NS;
+        nsec_to_timespec(new_ns, &expires);
+
+        pthread_mutex_lock(&run_lock);
+        pthread_cond_timedwait(&run_cond, &run_lock, &expires);
+        pthread_mutex_unlock(&run_lock);
+    }
 
     pthread_mutex_lock(&run_lock);
     if (!do_run) {
@@ -125,12 +728,18 @@ static void *pcd_router_startup(void *arg) {
     pthread_mutex_unlock(&run_lock);
 
 unreg_gadget:
-    lldbg("PCD router stopped\n");
+    s_data.pcd_ready = false;
+    lldbg("Stopping PCD router\n");
+
     device_usbdev_unregister_gadget(s_data.pcddev, &s_data.driver);
 
 devclose:
     device_close(s_data.pcddev);
     s_data.pcddev = NULL;
+
+common_uninit:
+    uninit_router_common();
+    lldbg("PCD router stopped\n");
 
     /* TODO: temporary debug */
 #ifdef CONFIG_CAN_PASS_STRUCTS
