@@ -256,6 +256,12 @@ void unipro_p2p_detect_linkloss(void) {
 
     retval = unipro_attr_local_write(TSB_INTERRUPTENABLE,
                                      TSB_INTERRUPTSTATUS_LINKLOSTIND |
+                                     TSB_INTERRUPTSTATUS_POWERMODIND |
+                                     TSB_INTERRUPTSTATUS_ERRORPHYIND |
+                                     TSB_INTERRUPTSTATUS_ERRORPAIND |
+                                     TSB_INTERRUPTSTATUS_ERRORDIND |
+                                     TSB_INTERRUPTSTATUS_ERRORNIND |
+                                     TSB_INTERRUPTSTATUS_ERRORTIND |
                                      TSB_INTERRUPTSTATUS_PAINITERR |
                                      TSB_INTERRUPTSTATUS_MAILBOX, 0);
     if (retval) {
