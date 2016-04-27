@@ -51,6 +51,16 @@ POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$
 
 endif
 
+ifeq ($(CONFIG_POWER),y)
+
+# Include power management in the build
+
+POWER_DEPPATH := --dep-path power
+POWER_VPATH := :power
+POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
+
+endif
+
 # Add battery drivers
 
 ifeq ($(CONFIG_BATTERY),y)
@@ -84,11 +94,12 @@ CSRCS += max17050.c
 
 endif # CONFIG_BATTERY_MAX17050
 
+endif # CONFIG_I2C
+
+endif # CONFIG_BATTERY
 
 ifeq ($(CONFIG_CHARGER_BQ24292),y)
 CSRCS += bq24292.c bq24292_config.c
-endif
-
 endif
 
 ifeq ($(CONFIG_PWR_LIMIT_DUMMY),y)
@@ -129,14 +140,6 @@ endif
 
 ifeq ($(CONFIG_WRLS_TX_DEVICE_GPIO),y)
 CSRCS += gpio_wrls_tx.c
-endif
-
-# Include battery suport in the build
-
-POWER_DEPPATH := --dep-path power
-POWER_VPATH := :power
-POWER_CFLAGS := ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)power}
-
 endif
 
 # Include power management in the build
