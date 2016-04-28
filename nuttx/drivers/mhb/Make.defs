@@ -58,4 +58,8 @@ ifeq ($(CONFIG_MHB_IPC),y)
 include mhb$(DELIM)ipc$(DELIM)Make.defs
 endif
 
+ifeq ($(CONFIG_CAMERA_MHB), y)
+  CSRCS += mhb_csi_camera.c mhb_csi_camera_sm.c
+endif
+
 endif

@@ -76,25 +76,21 @@ config CAMERA_TC35874X
 	bool "TC35874X Camera Test Pattern generator"
 config CAMERA_TC35874X_PDISP
 	bool "TC35874X Display Parallel to CSI bridge"
-config CAMERA_S10P
-	bool "Altek Sunny 10P Camera"
+config CAMERA_MHB
+	bool "Motorola MHB Camera"
 endchoice
 
-if CAMERA_TC35874X_PDISP
+if CAMERA_MHB
 choice
-  prompt "Select Parrallel display device connected to TC35874X"
-config TC35874X_PDISP_PI
-	bool "Raspberry Pi"
-config TC35874X_PDISP_ALTEK_S10
-	bool "ALTEK S10 chip"
+  prompt "Select MHB Camera config to use"
+config CAMERA_S10P
+       bool "Alltek Sunny S10P + TC35874X Bridge"
 endchoice
-
-endif
 
 config CAMERA_I2C_BUS
 	int "CAMERA I2C BUS"
-	default n
-	depends on CAMERA_S10P
+	default 0
+	depends on CAMERA_MHB
 
 config CAMERA_S10_I2C_ADDR
 	int "S10 CAMERA I2C ADDR"
@@ -105,6 +101,18 @@ config CAMERA_TC35874X_I2C_ADDR
 	int "TC358746 Parallel to CSI Bridge I2C ADDR"
 	default 0x0E
 	depends on CAMERA_S10P
+
+endif
+
+if CAMERA_TC35874X_PDISP
+choice
+  prompt "Select Parrallel display device connected to TC35874X"
+config TC35874X_PDISP_PI
+	bool "Raspberry Pi"
+config TC35874X_PDISP_ALTEK_S10
+	bool "ALTEK S10 chip"
+endchoice
+endif
 
 config CAMERA_EXT_TEST_CTRLS
 	bool "Define test V4L2 control on camera_ext driver"
