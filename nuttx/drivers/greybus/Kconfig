@@ -284,11 +284,11 @@ endchoice
 
 choice
 	prompt "USB Connection PATH"
-config GREYBUS_USB_EXT_PATH_BRIDGE
-	bool "Connected over Bridge Interface"
+config GREYBUS_USB_EXT_PATH_A
+	bool "USB connected over A Pins"
 	depends on GREYBUS_USB_EXT_PROTO_2_0
-config GREYBUS_USB_EXT_PATH_ENTERPRISE
-	bool "Connected over Enterprise Interface"
+config GREYBUS_USB_EXT_PATH_B
+	bool "USB connected over B Interface"
 endchoice
 
 if GREYBUS_USB_EXT_PROTO_3_1
