@@ -51,8 +51,8 @@
 #define GB_USB_EXT_PROTOCOL_2_0           0x00
 #define GB_USB_EXT_PROTOCOL_3_1           0x01
 
-#define GB_USB_EXT_PATH_ENTERPRISE        0x00
-#define GB_USB_EXT_PATH_BRIDGE            0x01
+#define GB_USB_EXT_PATH_A                 0x00
+#define GB_USB_EXT_PATH_B                 0x01
 
 #define GB_USB_EXT_REMOTE_DEVICE          0x00
 #define GB_USB_EXT_REMOTE_HOST            0x01
@@ -65,7 +65,7 @@ struct gb_usb_ext_proto_version_response {
 struct gb_usb_ext_attach_request {
     __u8 active;
     __u8 protocol;      /* 2.0 or 3.1 */
-    __u8 path;          /* tsb bridge or shared dp/usb */
+    __u8 path;          /* A or B */
     __u8 remote_type;   /* host or device */
 } __packed;
 
@@ -111,25 +111,25 @@ static uint8_t gb_usb_ext_send_attach_state(unsigned int cport, bool active)
     request->active = (__u8)active;
 
 /* Rules:
- *   USB2.0 can run over either interface (bridge or enterprise)
+ *   USB2.0 can run over either interface (A or B)
  *   USB2.0 must run in with MOD as the device
- *   USB3.1 can only run over the enterprise bridge
+ *   USB3.1 can only run over the B path
  *   USB3.1 can run with MOD as either the host or device
  */
 #ifdef CONFIG_GREYBUS_USB_EXT_PROTO_2_0
     request->protocol = GB_USB_EXT_PROTOCOL_2_0;
     request->remote_type = GB_USB_EXT_REMOTE_DEVICE;
-# ifdef CONFIG_GREYBUS_USB_EXT_PATH_BRIDGE
-    request->path = GB_USB_EXT_PATH_BRIDGE;
-# elif CONFIG_GREYBUS_USB_EXT_PATH_ENTERPRISE
-    request->path = GB_USB_EXT_PATH_ENTERPRISE;
+# ifdef CONFIG_GREYBUS_USB_EXT_PATH_A
+    request->path = GB_USB_EXT_PATH_A;
+# elif CONFIG_GREYBUS_USB_EXT_PATH_B
+    request->path = GB_USB_EXT_PATH_B;
 # else
 #  error USB_EXT Path Required
 # endif
 
 #elif CONFIG_GREYBUS_USB_EXT_PROTO_3_1
     request->protocol = GB_USB_EXT_PROTOCOL_3_1;
-    request->path = GB_USB_EXT_PATH_ENTERPRISE;
+    request->path = GB_USB_EXT_PATH_B;
 # ifdef CONFIG_GREYBUS_USB_EXT_REMOTE_DEVICE
     request->remote_type = GB_USB_EXT_REMOTE_DEVICE;
 # elif CONFIG_GREYBUS_USB_EXT_REMOTE_HOST
