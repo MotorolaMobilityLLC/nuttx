@@ -69,6 +69,8 @@ const static char *SVC_EVENT_STRINGS[] = {
     TO_STR(SVC_EVENT_UNIPRO_LINK_UP),
     TO_STR(SVC_EVENT_UNIPRO_LINK_DOWN),
     TO_STR(SVC_EVENT_GEAR_SHIFT_DONE),
+    TO_STR(SVC_EVENT_QUEUE_STATS),
+    TO_STR(SVC_EVENT_SEND_STATS),
 };
 
 enum svc_state {
@@ -97,6 +99,7 @@ struct svc {
     enum svc_state state;
     svc_timer_t mod_detect_tid;
     svc_timer_t linkup_poll_tid;
+    svc_timer_t stats_tid;
     uint32_t mod_detect_retry;
     struct gearbox *gearbox;
 };
@@ -113,12 +116,32 @@ struct svc_work {
 typedef enum svc_state (*svc_event_handler)(struct svc *svc, struct svc_work *work);
 
 static struct svc g_svc;
+extern struct mhb_unipro_stats g_unipro_stats;
 
 #define SVC_LINKUP_POLL_INTERVAL 1000 /* ms */
 #define SVC_MOD_DETECT_TIMEOUT 10000 /* ms */
+#define SVC_STATS_TIMEOUT 5000 /* ms */
 #define SVC_MOD_DETECT_RETRY 5
 
 /* Helpers */
+static void _svc_bitmask_to_stats(uint32_t *counter, uint32_t value)
+{
+    bool delta = false;
+
+    while (value) {
+        if (value & 0x1) {
+            (*counter)++;
+            delta = true;
+        }
+
+        value >>= 1;
+        counter++;
+    }
+
+    if (delta) {
+        svc_send_event(SVC_EVENT_QUEUE_STATS, 0, 0, 0);
+    }
+}
 
 /* IMPORTANT:
  * The UniPro event handler callback runs in the context of the UniPro IRQ. */
@@ -175,6 +198,7 @@ static void unipro_evt_handler(enum unipro_event evt)
         v &= 1;
         if (v) {
             llvdbg("rc=%d, phy err=%x\n", rc, v);
+            _svc_bitmask_to_stats(&g_unipro_stats.phy_lane_err, v);
         }
         break;
     case UNIPRO_EVT_PA_ERROR:
@@ -182,13 +206,15 @@ static void unipro_evt_handler(enum unipro_event evt)
         v &= 0x3;
         if (v) {
             llvdbg("rc=%d, pa err=%x\n", rc, v);
+            _svc_bitmask_to_stats(&g_unipro_stats.pa_lane_reset_tx, v);
         }
         break;
     case UNIPRO_EVT_D_ERROR:
         rc = unipro_attr_local_read(TSB_DME_ERRORDIND, &v, 0);
-        v &= 0x3fff;
+        v &= 0x7fff;
         if (v) {
             llvdbg("rc=%d, d err=%x\n", rc, v);
+            _svc_bitmask_to_stats(&g_unipro_stats.d_nac_received, v);
         }
         break;
     case UNIPRO_EVT_N_ERROR:
@@ -196,6 +222,7 @@ static void unipro_evt_handler(enum unipro_event evt)
         v &= 0x7;
         if (v) {
             llvdbg("rc=%d, n err=%x\n", rc, v);
+            _svc_bitmask_to_stats(&g_unipro_stats.n_unsupported_header_type, v);
         }
         break;
     case UNIPRO_EVT_T_ERROR:
@@ -203,6 +230,7 @@ static void unipro_evt_handler(enum unipro_event evt)
         v &= 0x7f;
         if (v) {
             llvdbg("rc=%d, t err=%x\n", rc, v);
+            _svc_bitmask_to_stats(&g_unipro_stats.t_unsupported_header_type, v);
         }
         break;
     case UNIPRO_EVT_PAINIT_ERROR: {
@@ -212,6 +240,7 @@ static void unipro_evt_handler(enum unipro_event evt)
         v &= 0x1;
         if (v) {
             llvdbg("rc=%d, phy err=%x\n", rc, v);
+            _svc_bitmask_to_stats(&g_unipro_stats.phy_lane_err, v);
             lost = true;
         }
 
@@ -219,13 +248,15 @@ static void unipro_evt_handler(enum unipro_event evt)
         v &= 0x3;
         if (v) {
             llvdbg("rc=%d, pa err=%x\n", rc, v);
+            _svc_bitmask_to_stats(&g_unipro_stats.pa_lane_reset_tx, v);
             lost = true;
         }
 
         rc = unipro_attr_local_read(TSB_DME_ERRORDIND, &v, 0);
-        v &= 0x3fff;
+        v &= 0x7fff;
         if (v) {
             llvdbg("rc=%d, d err=%x\n", rc, v);
+            _svc_bitmask_to_stats(&g_unipro_stats.d_nac_received, v);
             lost = true;
         }
 
@@ -275,6 +306,10 @@ static void svc_unipro_link_timeout_handler(svc_timer_t timerid) {
 
 static void svc_mod_detect_timeout_handler(svc_timer_t timerid) {
     svc_send_event(SVC_EVENT_MOD_TIMEOUT, (void *)timerid, NULL, NULL);
+}
+
+static void svc_stats_timeout_handler(svc_timer_t timerid) {
+    svc_send_event(SVC_EVENT_SEND_STATS, 0, 0, 0);
 }
 
 /* true - keep retrying. false - retry exhausted */
@@ -499,6 +534,27 @@ static enum svc_state svc__test_mode(struct svc *svc, struct svc_work *work) {
     return SVC_TEST_MODE;
 }
 
+static enum svc_state svc__queue_stats(struct svc *svc, struct svc_work *work) {
+    if (g_svc.stats_tid != SVC_TIMER_INVALID) {
+        /* The stats timer is already set to expire.  No need to start it again. */
+        return g_svc.state;
+    }
+
+    g_svc.stats_tid = svc_set_timer(&svc_stats_timeout_handler, SVC_STATS_TIMEOUT);
+    if (g_svc.stats_tid == SVC_TIMER_INVALID) {
+        vdbg("ERROR: Failed to send stats.\n");
+    }
+
+    return g_svc.state;
+}
+
+static enum svc_state svc__send_stats(struct svc *svc, struct svc_work *work) {
+    g_svc.stats_tid = SVC_TIMER_INVALID;
+    mhb_send_unipro_stats_not();
+
+    return g_svc.state;
+}
+
 /* State Table */
 
 static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
@@ -513,6 +569,8 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
+        NULL,                        /* SVC_EVENT_QUEUE_STATS */
+        NULL,                        /* SVC_EVENT_SEND_STATS */
     },
     /* SVC_SLAVE_WAIT_FOR_UNIPRO */
     {
@@ -525,6 +583,8 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         svc_wf_slave_unipro__link_up,/* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
+        svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
+        svc__send_stats,             /* SVC_EVENT_SEND_STATS */
     },
     /* SVC_WAIT_FOR_UNIPRO */
     {
@@ -537,6 +597,8 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         svc_wf_unipro__link_up,      /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
+        svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
+        svc__send_stats,             /* SVC_EVENT_SEND_STATS */
     },
     /* SVC_WAIT_FOR_MOD */
     {
@@ -549,6 +611,8 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
+        svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
+        svc__send_stats,             /* SVC_EVENT_SEND_STATS */
     },
     /* SVC_CONNECTED */
     {
@@ -561,6 +625,8 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         svc_connected__link_down,    /* SVC_EVENT_UNIPRO_LINK_DOWN */
         svc_connected__gear_shifted, /* SVC_EVENT_GEAR_SHIFT_DONE */
+        svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
+        svc__send_stats,             /* SVC_EVENT_SEND_STATS */
     },
     /* SVC_DISCONNECTED */
     {
@@ -573,6 +639,8 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
+        svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
+        svc__send_stats,             /* SVC_EVENT_SEND_STATS */
     },
     /* SVC_TEST_MODE */
     {
@@ -585,6 +653,8 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
+        NULL,                        /* SVC_EVENT_QUEUE_STATS */
+        NULL,                        /* SVC_EVENT_SEND_STATS */
     },
 };
 

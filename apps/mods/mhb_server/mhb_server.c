@@ -46,6 +46,7 @@
 #include <arch/chip/unipro_p2p.h>
 
 #include <nuttx/device.h>
+#include <nuttx/irq.h>
 #include <nuttx/util.h>
 
 #if defined(CONFIG_I2S_TUNNEL)
@@ -101,6 +102,8 @@ static int g_gearbox_cdsi1;
 static int g_gearbox_hsic;
 static int g_gearbox_i2s;
 static int g_gearbox_diag;
+
+struct mhb_unipro_stats g_unipro_stats;
 
 struct mhb_msg {
     struct mhb_hdr *hdr;
@@ -255,6 +258,140 @@ static int mhb_handle_unipro_write_attr_req(struct mhb_transaction *transaction)
 
 }
 
+static int _mhb_copy_unipro_stats(struct mhb_unipro_stats *stats)
+{
+    struct mhb_unipro_stats *unipro_stats = &g_unipro_stats;
+
+    irqstate_t flags;
+    flags = irqsave();
+
+    stats->phy_lane_err =
+        cpu_to_le32(unipro_stats->phy_lane_err);
+    stats->pa_lane_reset_tx =
+        cpu_to_le32(unipro_stats->pa_lane_reset_tx);
+    stats->pa_lane_reset_rx =
+        cpu_to_le32(unipro_stats->pa_lane_reset_rx);
+    stats->d_nac_received =
+        cpu_to_le32(unipro_stats->d_nac_received);
+    stats->d_tcx_replay_timer_expired =
+        cpu_to_le32(unipro_stats->d_tcx_replay_timer_expired);
+    stats->d_afcx_request_timer_expired =
+        cpu_to_le32(unipro_stats->d_afcx_request_timer_expired);
+    stats->d_fcx_protectiong_timer_expired =
+        cpu_to_le32(unipro_stats->d_fcx_protectiong_timer_expired);
+    stats->d_crc_error =
+        cpu_to_le32(unipro_stats->d_crc_error);
+    stats->d_rx_buffer_overflow =
+        cpu_to_le32(unipro_stats->d_rx_buffer_overflow);
+    stats->d_max_frame_length_exceeded =
+        cpu_to_le32(unipro_stats->d_max_frame_length_exceeded);
+    stats->d_wrong_sequence_number =
+        cpu_to_le32(unipro_stats->d_wrong_sequence_number);
+    stats->d_afc_frame_syntax_error =
+        cpu_to_le32(unipro_stats->d_afc_frame_syntax_error);
+    stats->d_nac_frame_syntax_error =
+        cpu_to_le32(unipro_stats->d_nac_frame_syntax_error);
+    stats->d_eof_syntax_error =
+        cpu_to_le32(unipro_stats->d_eof_syntax_error);
+    stats->d_frame_syntax_error =
+        cpu_to_le32(unipro_stats->d_frame_syntax_error);
+    stats->d_bad_control_symbol_type =
+        cpu_to_le32(unipro_stats->d_bad_control_symbol_type);
+    stats->d_pa_init_error =
+        cpu_to_le32(unipro_stats->d_pa_init_error);
+    stats->d_pa_error_ind_received =
+        cpu_to_le32(unipro_stats->d_pa_error_ind_received);
+    stats->n_unsupported_header_type =
+        cpu_to_le32(unipro_stats->n_unsupported_header_type);
+    stats->n_bad_device_id_encoding =
+        cpu_to_le32(unipro_stats->n_bad_device_id_encoding);
+    stats->n_lhdr_trap_packet_dropping =
+        cpu_to_le32(unipro_stats->n_lhdr_trap_packet_dropping);
+    stats->t_unsupported_header_type =
+        cpu_to_le32(unipro_stats->t_unsupported_header_type);
+    stats->t_unknown_cport_id =
+        cpu_to_le32(unipro_stats->t_unknown_cport_id);
+    stats->t_no_connection_rx =
+        cpu_to_le32(unipro_stats->t_no_connection_rx);
+    stats->t_controlled_segment_dropping =
+        cpu_to_le32(unipro_stats->t_controlled_segment_dropping);
+    stats->t_bad_tc =
+        cpu_to_le32(unipro_stats->t_bad_tc);
+    stats->t_e2e_credit_overflow =
+        cpu_to_le32(unipro_stats->t_e2e_credit_overflow);
+    stats->t_safety_valve_dropping =
+        cpu_to_le32(unipro_stats->t_safety_valve_dropping);
+
+    irqrestore(flags);
+
+    return 0;
+}
+
+static int _mhb_clear_unipro_stats(void)
+{
+    irqstate_t flags;
+    flags = irqsave();
+
+    memset(&g_unipro_stats, 0, sizeof(g_unipro_stats));
+
+    irqrestore(flags);
+
+    return 0;
+}
+
+static int _mhb_send_unipro_stats_not(struct device *dev)
+{
+    struct mhb_unipro_stats_not not;
+
+    int ret = _mhb_copy_unipro_stats(&not.stats);
+    if (ret) {
+        return ret;
+    }
+
+    struct mhb_hdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_UNIPRO;
+    hdr.type = MHB_TYPE_UNIPRO_STATS_NOT;
+
+    ret =  device_mhb_send(dev, &hdr, (uint8_t *)&not, sizeof(not), 0);
+    if (!ret) {
+        ret = _mhb_clear_unipro_stats();
+    }
+
+    return ret;
+}
+
+int mhb_send_unipro_stats_not(void)
+{
+    return _mhb_send_unipro_stats_not(g_uart_dev);
+}
+
+static int mhb_handle_unipro_stats_req(struct mhb_transaction *transaction)
+{
+    int ret;
+
+    if (transaction->in_msg.payload_length != 0) {
+        return -EINVAL;
+    }
+
+    struct mhb_unipro_stats_rsp *rsp =
+        (struct mhb_unipro_stats_rsp *)transaction->out_msg.payload;
+
+    ret = _mhb_copy_unipro_stats(&rsp->stats);
+    if (!ret) {
+        ret = _mhb_clear_unipro_stats();
+    }
+
+    transaction->out_msg.hdr->addr = MHB_ADDR_UNIPRO;
+    transaction->out_msg.hdr->type = MHB_TYPE_UNIPRO_STATS_RSP;
+    transaction->out_msg.hdr->result =
+        ret ? MHB_RESULT_UNKNOWN_ERROR : MHB_RESULT_SUCCESS;
+    transaction->out_msg.payload_length = sizeof(*rsp);
+    transaction->send_rsp = true;
+
+    return 0;
+}
+
 static int mhb_handle_unipro(struct mhb_transaction *transaction)
 {
     switch (transaction->in_msg.hdr->type) {
@@ -268,6 +405,8 @@ static int mhb_handle_unipro(struct mhb_transaction *transaction)
         return mhb_handle_unipro_read_attr_req(transaction);
     case MHB_TYPE_UNIPRO_WRITE_ATTR_REQ:
         return mhb_handle_unipro_write_attr_req(transaction);
+    case MHB_TYPE_UNIPRO_STATS_REQ:
+        return mhb_handle_unipro_stats_req(transaction);
     default:
         lldbg("ERROR: unknown Unipro event\n");
         return -EINVAL;
