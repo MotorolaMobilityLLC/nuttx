@@ -52,4 +52,8 @@ ifeq ($(CONFIG_DISPLAY_TDI_546_1080P),y)
 CSRCS += tdi_546_1080p.c
 endif
 
+ifeq ($(CONFIG_DISPLAY_SMD_470_720P),y)
+CSRCS += smd_470_720p.c
+endif
+
 endif
