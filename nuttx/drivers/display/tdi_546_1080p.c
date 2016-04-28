@@ -57,8 +57,8 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
     .mode = 0, /* DSI */
     .tx_num_lanes = 4,
     .rx_num_lanes = 4,
-    .tx_mbits_per_lane = 998400000,
-    .rx_mbits_per_lane = 998400000,
+    .tx_mbits_per_lane = 807540000,
+    .rx_mbits_per_lane = 807540000,
     /* RX only */
     .hs_rx_timeout = 0xffffffff,
     /* TX only */
@@ -77,7 +77,14 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
     /* CSI only */
     /* DSI only */
     .vss_control_payload = 0x0000,
-    .horizontal_back_porch = 100,
+    .horizontal_front_porch = 24,
+    .horizontal_pulse_width = 4,
+    .horizontal_back_porch = 40,
+    .vertical_front_porch = 16,
+    .vertical_pulse_width = 2,
+    .vertical_back_porch = 16,
+    .t_clk_pre = 0x1b,
+    .t_clk_post = 0x28,
     /* Video Mode only */
     /* Command Mode only */
 };
