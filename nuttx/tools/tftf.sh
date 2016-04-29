@@ -43,7 +43,7 @@ function tftf_apbe()
     start_address="$(grep Reset_Handler System.map | cut -d\  -f1)"
 
     echo Create base ${TFTF_FILENAME}
-    create-tftf -v --elf ${ELF} \
+    create-tftf -v --elf ${1} \
           --out ${TFTF_FILENAME} \
           --start "0x${start_address}" \
           --unipro-mfg 0x00000126 \
@@ -70,7 +70,7 @@ function tftf_apba()
     TFTF_FILENAME="upd-00000126-00001001-fed70128-0xffff0001-02.tftf"
     start_address="$(grep Reset_Handler System.map | cut -d\  -f1)"
 
-    create-tftf -v --elf ${ELF} \
+    create-tftf -v --elf ${1} \
           --out ${TFTF_FILENAME} \
           --start "0x${start_address}" \
           --unipro-mfg 0x00000126 \
@@ -91,7 +91,7 @@ function tftf_muc()
     load_address="$(grep _vectors System.map | cut -d\  -f1)"
     start_address="$(grep __start System.map  | cut -d\  -f1)"
 
-    create-tftf -v --code ${BIN} \
+    create-tftf -v --code ${1} \
           --out ${TFTF_FILENAME} \
           --start "0x${start_address}" \
           --load "0x${load_address}" \
@@ -106,6 +106,17 @@ function tftf_muc()
 BIN=$1
 ELF=$2
 
+function tftf_muc_hdr()
+{
+    CHP_MFG=${CONFIG_CHIP_MFG_ID##0x}
+    CHP_PID=${CONFIG_CHIP_PRODUCT_ID##0x}
+    BRD_VID=${CONFIG_ARCH_BOARDID_VID##0x}
+    BRD_PID=${CONFIG_ARCH_BOARDID_PID##0x}
+    TFTF_FILENAME="upd-${CHP_MFG}-${CHP_PID}-${BRD_VID}-${BRD_PID}-03.tftf"
+
+    dd if=${TFTF_FILENAME} of=tftf.hdr bs=512 count=1
+}
+
 echo $MFG_ID
 if [ "${CONFIG_UNIPRO_P2P_APBE}"x != "x" ]; then
     echo "APBE"
@@ -116,4 +127,5 @@ elif [ "${CONFIG_UNIPRO_P2P_APBA}"x != "x" ]; then
 else
     echo "MuC"
     tftf_muc ${BIN}
+    tftf_muc_hdr
 fi
