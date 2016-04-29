@@ -597,15 +597,14 @@ static int mb_control_init(unsigned int cport)
     /* see if this device functions as the power control for additional */
     /* devices.  Not having one is not an error.                        */
     ctrl_info->slv_pwr_dev = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, 0);
-    if (!ctrl_info->slv_pwr_dev) {
+    if (ctrl_info->slv_pwr_dev) {
+        if (device_slave_pwrctrl_register_callback(ctrl_info->slv_pwr_dev,
+                                           mb_control_send_slave_state_cb)) {
+            gb_debug("failed to register callback for %s device!\n",
+                    DEVICE_TYPE_SLAVE_PWRCTRL_HW);
+        }
+    } else {
         gb_debug("Failed to open SLAVE Power Control\n");
-        return 0;
-    }
-
-    if (device_slave_pwrctrl_register_callback(ctrl_info->slv_pwr_dev,
-                                       mb_control_send_slave_state_cb)) {
-        gb_debug("failed to register callback for %s device!\n",
-                DEVICE_TYPE_SLAVE_PWRCTRL_HW);
     }
 
 # ifdef CONFIG_PWR_LIMIT
