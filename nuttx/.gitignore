@@ -15,6 +15,7 @@
 /*.ihx
 /*.hex
 /*.tftf
+/tftf.hdr
 /pcode
 /tags
 /cscope*
