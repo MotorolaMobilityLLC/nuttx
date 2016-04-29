@@ -407,8 +407,8 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
         error = 0;
         break;
     case MHB_TYPE_CDSI_UNCONFIG_RSP:
-        if (display->state == MHB_DSI_DISPLAY_STATE_CONFIG_DSI) {
-            /* unconfig-dcs -> off */
+        if (display->state == MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI) {
+            /* unconfig-dsi -> off */
             _mhb_dsi_display_power_off(display);
 
             display->state = MHB_DSI_DISPLAY_STATE_OFF;
