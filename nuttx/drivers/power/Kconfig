@@ -4,6 +4,7 @@
 #
 config PWR_LIMIT
 	bool "Implement Power Limit Interface"
+	select DEVICE_CORE
 	default n
 	---help---
 		Interface does not require MODS_GREYBUS, but if you
@@ -16,8 +17,7 @@ choice
 
 config PWR_LIMIT_DUMMY
 	bool "Use no-op sample skeleton"
-	select CONFIG_DEVICE_CORE
-		default y
+	default y
 endchoice
 endif
 
