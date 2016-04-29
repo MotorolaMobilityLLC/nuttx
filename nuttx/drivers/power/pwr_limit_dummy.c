@@ -35,8 +35,12 @@
 #include <nuttx/device_pwr_limit.h>
 
 static struct device *g_dev;
-static pwr_limit_send_capability_change_cb g_pwr_limit_cb;
-static uint8_t g_pwr_limit;
+
+struct pwr_limit_info_s {
+    pwr_limit_send_capability_change_cb changed_cb;
+    pwr_limit_current_rsv_cb current_rsv_cb;
+    uint8_t limit;
+} g_pwr_limit_info;
 
 /*
  * In a real implementation this might be generated
@@ -47,8 +51,9 @@ int pwr_limit_send_capability_change(
         uint8_t reason,
         uint16_t vendor)
 {
-    pwr_limit_send_capability_change_cb cb = g_pwr_limit_cb;
     int ret = -ENOENT;
+    pwr_limit_send_capability_change_cb cb =
+        g_pwr_limit_info.changed_cb;
 
     if (cb)
         ret = cb(g_dev, level, reason, vendor);
@@ -56,28 +61,58 @@ int pwr_limit_send_capability_change(
     return ret;
 }
 
+/**
+ * @brief Notify the core side that we are using more or less current
+ *
+ *  this should be called before raising current limit usage or
+ *  after lowering it.
+ */
+int pwr_limit_current_rsv(uint8_t rsv)
+{
+    int ret = -ENOENT;
+    pwr_limit_current_rsv_cb cb = g_pwr_limit_info.current_rsv_cb;
+
+    if (cb)
+        ret = cb(g_dev, rsv);
+
+    return ret;
+}
+
 static int pwr_limit_register_capability_change_cb(struct device *dev,
             pwr_limit_send_capability_change_cb cb)
 {
-    g_pwr_limit_cb = cb;
+    g_pwr_limit_info.changed_cb = cb;
     return 0;
 }
 
 static int pwr_limit_unregister_capability_change_cb(struct device *dev)
 {
-    g_pwr_limit_cb = NULL;
+    g_pwr_limit_info.changed_cb = NULL;
+    return 0;
+}
+
+static int pwr_limit_register_current_rsv_cb(struct device *dev,
+            pwr_limit_current_rsv_cb cb)
+{
+    g_pwr_limit_info.current_rsv_cb = cb;
+    return 0;
+}
+
+static int pwr_limit_unregister_current_rsv_cb(struct device *dev)
+{
+    g_pwr_limit_info.current_rsv_cb = NULL;
     return 0;
 }
 
 static int pwr_limit_set_limit(struct device *dev, uint8_t limit)
 {
-    g_pwr_limit = limit;
+    g_pwr_limit_info.limit = limit;
     return 0;
 }
 
 static uint8_t pwr_limit_get_limit(struct device *dev)
 {
-    return g_pwr_limit;
+    return g_pwr_limit_info.limit;
 }
 
 static int pwr_limit_probe(struct device *dev)
@@ -86,11 +121,19 @@ static int pwr_limit_probe(struct device *dev)
     return 0;
 }
 
+static void pwr_limit_current_rsv_ack(struct device *dev, uint8_t rsv)
+{
+    /* TODO: changes to increase current usage if we requested more */
+}
+
 static struct device_pwr_limit_type_ops pwr_limit_type_ops = {
     .set_limit = pwr_limit_set_limit,
     .get_limit = pwr_limit_get_limit,
+    .current_rsv_ack = pwr_limit_current_rsv_ack,
     .register_capability_change_cb = pwr_limit_register_capability_change_cb,
     .unregister_capability_change_cb = pwr_limit_unregister_capability_change_cb,
+    .register_current_rsv_cb = pwr_limit_register_current_rsv_cb,
+    .unregister_current_rsv_cb = pwr_limit_unregister_current_rsv_cb,
 };
 
 static struct device_driver_ops pwr_limit_driver_ops = {
