@@ -2976,7 +2976,8 @@ int dwc_otg_pcd_ep_halt(dwc_otg_pcd_t * pcd, void *ep_handle, int value)
 		dwc_otg_ep_clear_stall(GET_CORE_IF(pcd), &ep->dwc_ep);
 	} else if (value == 1) {
 	stall:
-		if (ep->dwc_ep.is_in == 1 && GET_CORE_IF(pcd)->dma_desc_enable) {
+		if (ep->dwc_ep.num != 0 &&
+		    ep->dwc_ep.is_in == 1 && GET_CORE_IF(pcd)->dma_desc_enable) {
 			dtxfsts_data_t txstatus;
 			fifosize_data_t txfifosize;
 
@@ -2993,10 +2994,6 @@ int dwc_otg_pcd_ep_halt(dwc_otg_pcd_t * pcd, void *ep_handle, int value)
 				DWC_WARN("%s() Data In Tx Fifo\n", __func__);
 				retval = -DWC_E_AGAIN;
 			} else {
-				if (ep->dwc_ep.num == 0) {
-					pcd->ep0state = EP0_STALL;
-				}
-
 				ep->stopped = 1;
 				dwc_otg_ep_set_stall(GET_CORE_IF(pcd),
 						     &ep->dwc_ep);
