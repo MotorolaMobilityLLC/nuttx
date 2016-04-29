@@ -346,7 +346,7 @@ struct mhb_cdsi_config {
 } __attribute__((packed));
 
 struct mhb_cdsi_config_req {
-    struct mhb_cdsi_config cfg;
+	struct mhb_cdsi_config cfg;
 } __attribute__((packed));
 
 /* control */
@@ -387,34 +387,34 @@ struct mhb_cdsi_control_req {
 
 /* read/write command */
 struct mhb_cdsi_cmd {
-    uint8_t ctype;  /* MHB_CTYPE_* */
-    uint8_t dtype;  /* MHB_DTYPE_* */
-    uint16_t length;
-    uint32_t delay; /* minimum milliseconds to wait after command */
-    union {
-        uint16_t spdata;
-        uint32_t lpdata[2];
-    } u;
+	uint8_t ctype;  /* MHB_CTYPE_* */
+	uint8_t dtype;  /* MHB_DTYPE_* */
+	uint16_t length;
+	uint32_t delay; /* minimum milliseconds to wait after command */
+	union {
+		uint16_t spdata;
+		uint32_t lpdata[2];
+	} u;
 } __attribute__((packed));
 
 struct mhb_cdsi_read_cmds_req {
-    struct mhb_cdsi_cmd cmds[0];
+	struct mhb_cdsi_cmd cmds[0];
 } __attribute__((packed));
 
 struct mhb_cdsi_write_cmds_req {
-    struct mhb_cdsi_cmd cmds[0];
+	struct mhb_cdsi_cmd cmds[0];
 } __attribute__((packed));
 
 /* read panel info */
 struct mhb_dsi_panel_info {
-    uint16_t supplier_id;
-    uint8_t id0;
-    uint8_t id1;
-    uint8_t id2;
+	uint16_t supplier_id;
+	uint8_t id0;
+	uint8_t id1;
+	uint8_t id2;
 } __attribute__((packed));
 
 struct mhb_cdsi_write_cmds_rsp {
-    struct mhb_dsi_panel_info info;
+	struct mhb_dsi_panel_info info;
 } __attribute__((packed));
 
 /* I2S */
