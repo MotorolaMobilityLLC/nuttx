@@ -83,6 +83,8 @@
 #define MB_CONTROL_TYPE_SET_CURRENT_LIMIT     0x0a
 #define MB_CONTROL_TYPE_CAPABLITY_CHANGED     0x0b
 #define MB_CONTROL_TYPE_GET_PWRUP_REASON      0x0c
+#define MB_CONTROL_TYPE_CURRENT_RSV           0x0d
+#define MB_CONTROL_TYPE_CURRENT_RSV_ACK       0x0e
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
@@ -168,6 +170,14 @@ struct mb_control_capability_change_request {
     __le16 vendor;
 } __packed;
 /* Control protocol capability change has no response */
+
+struct mb_control_current_rsv_request {
+    __u8 rsv;
+} __packed;
+
+struct mb_control_current_rsv_ack_request {
+    __u8 rsv;
+} __packed;
 
 struct mb_control_info {
     uint16_t cport;
@@ -584,6 +594,56 @@ static int mb_control_capability_change_cb(struct device *dev,
 }
 #endif
 
+# ifdef CONFIG_PWR_LIMIT
+/*
+ * Notify the Core that we will be using high power.  Currently (no
+ * pun intended) this means greater than 1A.
+ */
+static int mb_control_current_rsv_cb(struct device *dev, uint8_t rsv)
+{
+    struct mb_control_current_rsv_request *request;
+    struct gb_operation *operation;
+    int ret;
+
+    operation = gb_operation_create(ctrl_info->cport,
+            MB_CONTROL_TYPE_CURRENT_RSV, sizeof(*request));
+    if (!operation)
+        return -ENOMEM;
+
+    request = gb_operation_get_request_payload(operation);
+    if (!request) {
+        gb_operation_destroy(operation);
+        return -EINVAL;
+    }
+
+    request->rsv = rsv;
+
+    ret = gb_operation_send_request(operation, NULL, false);
+    if (ret)
+        ret = -EIO;
+
+    gb_operation_destroy(operation);
+
+    return ret;
+
+}
+#endif
+
+static uint8_t mb_control_current_rsv_ack(struct gb_operation *operation)
+{
+# ifdef CONFIG_PWR_LIMIT
+    /* if driver exists, call it to notify of current limit */
+    if (ctrl_info->pwr_limit_dev) {
+        struct mb_control_current_rsv_request *request =
+                gb_operation_get_request_payload(operation);
+
+        device_pwr_limit_current_rsv_ack(ctrl_info->pwr_limit_dev,
+                request->rsv);
+    }
+#endif
+    return GB_OP_SUCCESS;
+}
+
 static int mb_control_init(unsigned int cport)
 {
     ctrl_info = zalloc(sizeof(*ctrl_info));
@@ -612,6 +672,13 @@ static int mb_control_init(unsigned int cport)
     if (ctrl_info->pwr_limit_dev) {
         int ret = device_pwr_limit_register_capability_change_cb(
                 ctrl_info->pwr_limit_dev, mb_control_capability_change_cb);
+        if (ret) {
+            gb_info("Failed to register callback for %s device!\n",
+                ctrl_info->pwr_limit_dev->name);
+        }
+
+        ret = device_pwr_limit_register_current_rsv(
+                ctrl_info->pwr_limit_dev, mb_control_current_rsv_cb);
         if (ret) {
             gb_info("Failed to register callback for %s device!\n",
                 ctrl_info->pwr_limit_dev->name);
@@ -659,6 +726,7 @@ static struct gb_operation_handler mb_control_handlers[] = {
     GB_HANDLER(MB_CONTROL_TYPE_RTC_SYNC, mb_control_rtc_sync),
     GB_HANDLER(MB_CONTROL_TYPE_SET_CURRENT_LIMIT, mb_control_set_current_limit),
     GB_HANDLER(MB_CONTROL_TYPE_GET_PWRUP_REASON, mb_control_get_pwrup_reason),
+    GB_HANDLER(MB_CONTROL_TYPE_CURRENT_RSV_ACK, mb_control_current_rsv_ack),
 };
 
 struct gb_driver mb_control_driver = {
