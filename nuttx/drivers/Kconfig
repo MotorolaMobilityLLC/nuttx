@@ -53,14 +53,6 @@ config NULL_DISPLAY
 	bool "Empty implementation of device_display.h"
 	default n
 
-config LYNX_DISPLAY
-	bool "Lynx Display"
-	default n
-
-config GHOST_DISPLAY
-	bool "Ghost Display"
-	default n
-
 config HDMI_DISPLAY
 	bool "HDMI External Display"
 	default n
