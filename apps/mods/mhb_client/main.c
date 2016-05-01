@@ -156,6 +156,23 @@ static int mhb_handle_unipro(struct device *dev, struct mhb_hdr *hdr,
     case MHB_TYPE_UNIPRO_WRITE_ATTR_RSP:
         printf("write %s\n", res);
         return 0;
+    case MHB_TYPE_UNIPRO_STATS_RSP:
+    case MHB_TYPE_UNIPRO_STATS_NOT:
+    {
+        if (!payload || !payload_length) {
+            return 0;
+        }
+
+        uint32_t *p = (uint32_t *)payload;
+        size_t count = payload_length / sizeof(uint32_t);
+        size_t i;
+
+        for (i = 0; i < count; i++) {
+            printf("%08x\n", le32_to_cpu(p[i]));
+        }
+
+        return 0;
+    }
     default:
         printf("ERROR: unknown Unipro event\n");
         return -EINVAL;
@@ -456,6 +473,16 @@ usage:
         CONFIG_MODS_MHB_CLIENT_PROGNAME
         " write <attr (hex)> <value (hex) [selector (dec)] [local|peer]\n");
     return -EINVAL;
+}
+
+static int mhb_send_stats_req(int argc, char *argv[], struct device *dev)
+{
+    struct mhb_hdr hdr;
+
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_UNIPRO;
+    hdr.type = MHB_TYPE_UNIPRO_STATS_REQ;
+    return device_mhb_send(dev, &hdr, NULL, 0, 0);
 }
 
 static int mhb_send_diag_log_req(int argc, char *argv[], struct device *dev)
@@ -829,6 +856,7 @@ int mhb_client_main(int argc, char *argv[])
         { "status", mhb_send_status_req },
         { "read",   mhb_send_read_attr_req },
         { "write",  mhb_send_write_attr_req },
+        { "stats",  mhb_send_stats_req },
         /* Diag */
         { "log",    mhb_send_diag_log_req },
         { "mode",   mhb_send_diag_mode_req },
