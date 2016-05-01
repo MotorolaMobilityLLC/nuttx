@@ -137,14 +137,6 @@ ifeq ($(CONFIG_NULL_DISPLAY),y)
   CSRCS += null_display.c
 endif
 
-ifeq ($(CONFIG_LYNX_DISPLAY),y)
-  CSRCS += lynx_display.c
-endif
-
-ifeq ($(CONFIG_GHOST_DISPLAY),y)
-  CSRCS += ghost_display.c
-endif
-
 ifeq ($(CONFIG_HDMI_DISPLAY),y)
   CSRCS += hdmi_display.c
 endif
