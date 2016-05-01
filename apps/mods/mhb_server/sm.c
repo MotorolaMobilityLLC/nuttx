@@ -43,6 +43,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/util.h>
 #include <nuttx/wqueue.h>
+#include <nuttx/version.h>
 
 #include <nuttx/greybus/tsb_unipro.h>
 #if defined(CONFIG_I2S_TUNNEL)
@@ -370,6 +371,7 @@ static enum svc_state svc_initial__slave_started(struct svc *svc, struct svc_wor
 static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_work *work) {
     unipro_p2p_detect_linkloss();
     tsb_unipro_set_init_status(INIT_STATUS_OPERATING);
+    unipro_attr_local_write(TSB_DME_ES3_SYSTEM_STATUS_14, CONFIG_VERSION, 0);
     tsb_unipro_mbox_send(TSB_MAIL_READY_OTHER);
 
     if (g_svc.gearbox) {
@@ -391,6 +393,8 @@ static enum svc_state svc_wf_unipro__link_up(struct svc *svc, struct svc_work *w
     /* Unipro link is up. Starting "unipro_init" stuff now */
     unipro_init_with_event_handler(unipro_evt_handler);
     unipro_p2p_detect_linkloss();
+    tsb_unipro_set_init_status(INIT_STATUS_OPERATING);
+    unipro_attr_local_write(TSB_DME_ES3_SYSTEM_STATUS_14, CONFIG_VERSION, 0);
     return SVC_WAIT_FOR_MOD;
 }
 
