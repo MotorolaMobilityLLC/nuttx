@@ -33,6 +33,8 @@
 
 #include <nuttx/mhb/mhb_protocol.h>
 
+#define MHB_SEND_FLAGS_PEER_ASLEEP (0x1000)
+
 typedef int (*mhb_receiver)(struct device *dev,
     struct mhb_hdr *hdr, uint8_t *payload, size_t payload_length);
 
