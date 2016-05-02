@@ -48,6 +48,7 @@
 #include <nuttx/device.h>
 #include <nuttx/irq.h>
 #include <nuttx/util.h>
+#include <nuttx/wqueue.h>
 
 #if defined(CONFIG_I2S_TUNNEL)
 # include <nuttx/i2s_tunnel/i2s_unipro.h>
@@ -97,6 +98,7 @@
 #define MHB_HSIC_SPEED_MBPS 480
 
 static struct device *g_uart_dev;
+static struct work_s g_mhb_server_wq;
 
 static struct gearbox *g_gearbox;
 static int g_gearbox_cdsi0;
@@ -921,6 +923,7 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
         ret = mhb_unipro_send(transaction);
     }
 # endif
+    i2s_unipro_tunnel_arm(true);
     transaction->out_msg.hdr->addr = MHB_ADDR_I2S;
     transaction->out_msg.hdr->type = MHB_TYPE_I2S_CONFIG_RSP;
     transaction->out_msg.hdr->result =
@@ -933,6 +936,28 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
 }
 
 #if defined(CONFIG_I2S_TUNNEL)
+/*
+ * Handle starting and stopping i2s tunneling.  A work queue is used to allow
+ * both sides to stop as close as possible to one another.
+ */
+static void mhb_i2s_wq_disarm_disable(void *arg)
+{
+    int ret;
+
+    ret = i2s_unipro_tunnel_arm(false);
+    if (ret == OK) {
+        ret = i2s_unipro_tunnel_enable(false);
+    }
+    if (ret != OK) {
+        lldbg("Error: %d when attempting to disableing i2s tunneling.\n", ret);
+    }
+}
+
+static int mhb_i2s_queue_disarm_disable(void)
+{
+    return work_queue(HPWORK, &g_mhb_server_wq, mhb_i2s_wq_disarm_disable, NULL, 0);
+}
+
 static int mhb_i2s_tunnel_enable_disable(uint8_t status, bool enable)
 {
     int ret = OK;
@@ -949,12 +974,11 @@ static int mhb_i2s_tunnel_enable_disable(uint8_t status, bool enable)
          */
         if (enable) {
             ret = i2s_unipro_tunnel_enable(enable);
-        }
-        if (ret == OK) {
-            ret = i2s_unipro_tunnel_arm(enable);
-            if ((ret == OK) && (!enable)) {
-                ret = i2s_unipro_tunnel_enable(enable);
+            if (ret == OK) {
+                ret = i2s_unipro_tunnel_arm(enable);
             }
+        } else {
+            ret = mhb_i2s_queue_disarm_disable();
         }
     }
     return ret;
@@ -994,11 +1018,9 @@ static int mhb_handle_i2s_control_req(struct mhb_transaction *transaction)
             break;
         case MHB_I2S_COMMAND_RX_START:
             tx_rx_status |= MHB_I2S_TUNNEL_RX;
-            ret = mhb_i2s_tunnel_enable_disable(tx_rx_status, true);
             break;
         case MHB_I2S_COMMAND_TX_START:
             tx_rx_status |= MHB_I2S_TUNNEL_TX;
-            ret = mhb_i2s_tunnel_enable_disable(tx_rx_status, true);
             break;
         case MHB_I2S_COMMAND_ENABLE:
             ret = i2s_unipro_tunnel_enable(true);
