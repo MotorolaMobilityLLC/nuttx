@@ -98,7 +98,10 @@ void tsb_gpio_activate(void *driver_data, uint8_t which)
 
 uint8_t tsb_gpio_get_value(void *driver_data, uint8_t which)
 {
-    return !!(getreg32(GPIO_DATA) & (1 << which));
+    if (tsb_gpio_get_direction(driver_data, which))
+        return !!(getreg32(GPIO_DATA) & (1 << which));
+    else
+        return !!(getreg32(GPIO_ODATA) & (1 << which));
 }
 
 void tsb_gpio_set_value(void *driver_data, uint8_t which, uint8_t value)
