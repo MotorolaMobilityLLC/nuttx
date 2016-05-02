@@ -39,16 +39,27 @@
 #include <nuttx/device.h>
 #include <nuttx/device_usb_ext.h>
 #include <nuttx/greybus/debug.h>
+#include <nuttx/gpio.h>
 
-usb_ext_event_callback s_callback;
+struct usb_ext_s {
+    usb_ext_event_callback callback;
+    uint8_t usb_path_select;
+};
+
+struct usb_ext_s s_data;
 
 static void do_action(bool attached)
 {
-    if (s_callback) {
-        s_callback(attached);
+    irqstate_t flags;
+    flags = irqsave();
+
+    if (s_data.callback) {
+        s_data.callback(attached);
     } else {
         lldbg("USB-EXT ctrl driver is not registered\n");
     }
+
+    irqrestore(flags);
 }
 
 void usb_ext_ctrl_notify_attach(void)
@@ -64,33 +75,49 @@ void usb_ext_ctrl_notify_detach(void)
 static int _register_callback(struct device *dev,
                               usb_ext_event_callback callback)
 {
-    s_callback = callback;
+    s_data.callback = callback;
 
     return 0;
 }
 
 static int _unregister_callback(struct device *dev)
 {
-    s_callback = 0;
+    s_data.callback = 0;
 
     return 0;
 }
 
 static void _close(struct device *dev)
 {
-    s_callback = 0;
+    s_data.callback = 0;
 }
 
 static int _probe(struct device *dev)
 {
-    s_callback = 0;
+    struct device_resource *res;
+
+    memset(&s_data, 0, sizeof(s_data));
+
+    res = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, "USB_PATH_SELECT");
+    if (!res) {
+        lldbg("Failed to get usb_path_select gpio\n");
+        return -ENODEV;
+    }
+    s_data.usb_path_select = res->start;
+
+#if defined(CONFIG_GREYBUS_USB_EXT_PROTO_2_0) && defined(CONFIG_GREYBUS_USB_EXT_PATH_A)
+    gpio_direction_out(s_data.usb_path_select, 1);
+#else
+    gpio_direction_out(s_data.usb_path_select, 0);
+#endif
 
     return 0;
 }
 
 static void _remove(struct device *dev)
 {
-    s_callback = 0;
+    gpio_direction_out(s_data.usb_path_select, 0);
+    memset(&s_data, 0, sizeof(s_data));
 }
 
 static struct device_usb_ext_type_ops _type_ops = {
