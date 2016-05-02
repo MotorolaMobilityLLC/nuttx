@@ -39,18 +39,31 @@
 #include <nuttx/device.h>
 #include <nuttx/device_i2s.h>
 #include <nuttx/device_audio.h>
+#include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/mhb/device_mhb.h>
+#include <nuttx/mhb/mhb_utils.h>
+#include <nuttx/i2s_tunnel/i2s_unipro.h>
 #include <nuttx/mhb/mhb_protocol.h>
 
-#define MHB_I2S_OP_TIMEOUT_MS     800
+#define MHB_I2S_OP_TIMEOUT_MS     2100
 
 #define MHB_I2S_RX_ACTIVE    BIT(0)
 #define MHB_I2S_TX_ACTIVE    BIT(1)
+#define MHB_I2S_LOG_TUNNEL_STATS 1
+#define MHB_I2S_STATE_PENDING 0x80
 
 struct mhb_response {
     struct mhb_hdr hdr;
     uint8_t *payload;
     size_t payload_length;
+};
+
+enum mhb_i2s_audio_state {
+    MHB_I2S_AUDIO_OFF,
+    MHB_I2S_AUDIO_START,
+    MHB_I2S_AUDIO_CONFIG,
+    MHB_I2S_AUDIO_START_STREAM,
+    MHB_I2S_AUDIO_STOP_STREAM,
 };
 
 struct mhb_i2s_audio {
@@ -60,11 +73,15 @@ struct mhb_i2s_audio {
     struct device_i2s_pcm common_pcm_cfg;
     struct device_i2s_dai common_dai_cfg;
     uint8_t i2s_status;
-    bool is_configured;
+    enum mhb_i2s_audio_state state;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
-    struct mhb_response *last_rsp;
+    sem_t lock;
+    struct mhb_response last_rsp;
     device_i2s_notification_callback callback;
+    struct device *slave_pwr_ctrl;
+    int slave_state;
+    struct mhb_i2s_config config;
 };
 
 
@@ -111,10 +128,12 @@ static int _mhb_i2s_wait_for_response(struct mhb_i2s_audio *i2s )
     uint64_t new_ns = timespec_to_nsec(&expires);
     new_ns += MHB_I2S_OP_TIMEOUT_MS * NSEC_PER_MSEC;
     nsec_to_timespec(new_ns, &expires);
-
+    sem_post(&i2s->lock);
     pthread_mutex_lock(&i2s->mutex);
+    llvdbg("waiting for response ..\n");
     ret = pthread_cond_timedwait(&i2s->cond, &i2s->mutex, &expires);
     pthread_mutex_unlock(&i2s->mutex);
+    sem_wait(&i2s->lock);
 
     if (ret) {
         /* timeout or other errors */
@@ -125,6 +144,36 @@ static int _mhb_i2s_wait_for_response(struct mhb_i2s_audio *i2s )
     return 0;
 }
 
+#ifdef MHB_I2S_LOG_TUNNEL_STATS
+static void mhb_print_i2s_status(const char *header, struct i2s_tunnel_info_s *info)
+{
+    FROM_LE(info->enabled);
+    FROM_LE(info->is_master);
+    FROM_LE(info->bclk_rate);
+    FROM_LE(info->bytes_per_sample);
+    FROM_LE(info->roundtrip_timer_ticks);
+    FROM_LE(info->timer_offset);
+    FROM_LE(info->i2s_tunnel_rx_packets);
+    FROM_LE(info->i2s_tunnel_packet_size);
+    FROM_LE(info->i2s_tx_samples_dropped);
+    FROM_LE(info->i2s_tx_samples_retransmitted);
+    FROM_LE(info->i2s_tx_buffers_dropped);
+
+    lldbg("%s:\n", header);
+    lldbg("  Enabled:                      %u\n", (info->enabled));
+    lldbg("  Master:                       %u\n", (info->is_master));
+    lldbg("  Clock Rate:                   %u\n", (info->bclk_rate));
+    lldbg("  Bytes per sample:             %u\n", (info->bytes_per_sample));
+    lldbg("  Round trip 48MHz timer ticks: %u\n", (info->roundtrip_timer_ticks));
+    lldbg("  Timer offset ticks:           %d\n", (info->timer_offset));
+    lldbg("  Packets received:             %u\n", (info->i2s_tunnel_rx_packets));
+    lldbg("  Packet size:                  %u\n", (info->i2s_tunnel_packet_size));
+    lldbg("  Samples removed:              %u\n", (info->i2s_tx_samples_dropped));
+    lldbg("  Samples repeated:             %u\n", (info->i2s_tx_samples_retransmitted));
+    lldbg("  Packets dropped:              %u\n", (info->i2s_tx_buffers_dropped));
+}
+#endif
+
 static int mhb_i2s_send_config_req(struct mhb_i2s_audio *i2s, struct mhb_i2s_config *config)
 {
     struct mhb_hdr hdr;
@@ -134,8 +183,63 @@ static int mhb_i2s_send_config_req(struct mhb_i2s_audio *i2s, struct mhb_i2s_con
     hdr.type = MHB_TYPE_I2S_CONFIG_REQ;
 
     return device_mhb_send(i2s->mhb_dev, &hdr, (uint8_t *)config,
-                   sizeof(*config), 0);
+                   sizeof(struct mhb_i2s_config), 0);
 
+}
+
+static int mhb_i2s_audio_slave_status_callback(struct device *dev,
+                                                   uint32_t slave_status)
+{
+    struct mhb_i2s_audio *i2s = &mhb_i2s;
+
+    llvdbg("status=%d, old_state=%d\n", slave_status, i2s->slave_state);
+
+    sem_wait(&i2s->lock);
+
+    if (i2s->slave_state == slave_status) {
+        sem_post(&i2s->lock);
+        return 0;
+   }
+
+    if (slave_status == MHB_PM_STATUS_PEER_CONNECTED &&
+                          (i2s->state & MHB_I2S_STATE_PENDING)) {
+        mhb_i2s_send_config_req(i2s, &i2s->config);
+    }
+    i2s->slave_state = slave_status;
+    sem_post(&i2s->lock);
+
+    return 0;
+}
+
+static int _mhb_i2s_audio_apbe_on(struct mhb_i2s_audio *i2s)
+{
+    int ret;
+
+    ret = device_slave_pwrctrl_send_slave_state(i2s->slave_pwr_ctrl,
+        SLAVE_STATE_ENABLED);
+    if (ret) {
+        lldbg("ERROR: Failed to send state\n");
+        return ret;
+    }
+
+    return 0;
+}
+
+static int _mhb_i2s_audio_apbe_off(struct mhb_i2s_audio *i2s)
+{
+    int ret;
+
+    if (!i2s->slave_pwr_ctrl) {
+        return -ENODEV;
+    }
+
+    ret = device_slave_pwrctrl_send_slave_state(i2s->slave_pwr_ctrl,
+        SLAVE_STATE_DISABLED);
+    if (ret) {
+        lldbg("ERROR: Failed to send state\n");
+    }
+
+    return 0;
 }
 
 static int mhb_i2s_send_control_req(struct mhb_i2s_audio *i2s,  uint8_t command)
@@ -144,7 +248,8 @@ static int mhb_i2s_send_control_req(struct mhb_i2s_audio *i2s,  uint8_t command)
     struct mhb_i2s_control_req req;
 
     memset(&hdr, 0, sizeof(hdr));
-
+    hdr.addr = MHB_ADDR_I2S;
+    hdr.type = MHB_TYPE_I2S_CONTROL_REQ;
     req.command = command;
 
     return device_mhb_send(i2s->mhb_dev, &hdr,
@@ -361,10 +466,10 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
 
     if (!i2s) {
         lldbg("error no dev\n");
-        result = -ENODEV;
-        goto err;
+        return -ENODEV;
     }
 
+    sem_wait(&i2s->lock);
     /* check if config is supported */
     if (!ONE_BIT_IS_SET(i2s_dai->protocol) ||
           !ONE_BIT_IS_SET(i2s_dai->wclk_polarity) ||
@@ -410,21 +515,34 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
         goto err;
     }
 
-    result =  mhb_i2s_send_config_req(i2s, &i2s_cfg);
-    if (result) {
-        lldbg("ERROR: send config req failed: %d\n", result);
-        goto err;
-    }
+    if (i2s->slave_state == MHB_PM_STATUS_PEER_CONNECTED &&
+                                        i2s->state == MHB_I2S_AUDIO_START) {
+        result =  mhb_i2s_send_config_req(i2s, &i2s_cfg);
+        if (result) {
+            lldbg("ERROR: send config req failed: %d\n", result);
+            goto err;
+        }
+        llvdbg("waiting for config rsp ..\n");
+        result = _mhb_i2s_wait_for_response(i2s);
+        if (result) {
+            lldbg("ERROR: send config req timed out: %d\n", result);
+            goto err;
+        } else {
+            rsp = &i2s->last_rsp;
 
-    result = _mhb_i2s_wait_for_response(i2s);
-    if (result) {
-        lldbg("ERROR: send config req timeed out: %d\n", result);
-        goto err;
+            if(rsp->hdr.type == MHB_TYPE_I2S_CONFIG_RSP &&
+                    rsp->hdr.result == MHB_RESULT_SUCCESS) {
+                llvdbg("mhb i2s: configured successfully\n");
+            }
+        }
+        i2s->state = MHB_I2S_AUDIO_CONFIG;
     } else {
-        rsp = i2s->last_rsp;
-        if(rsp->hdr.type == MHB_TYPE_I2S_CONFIG_RSP &&
-                    rsp->hdr.result == MHB_RESULT_SUCCESS)
-            i2s->is_configured = true;
+       /* else cache config and wait for slave connection, config req will
+        * be sent when slave is connected.
+        */
+        llvdbg("mhb i2s: slave connection pending");
+        i2s->state = (MHB_I2S_AUDIO_CONFIG | MHB_I2S_STATE_PENDING);
+        memcpy(&i2s->config, &i2s_cfg, sizeof(struct mhb_i2s_config));
     }
 
     /* set pcm and dai config to audio codec */
@@ -449,9 +567,11 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
         }
     }
 
+    sem_post(&i2s->lock);
     return 0;
 err:
-    i2s->is_configured = false;
+    i2s->state = MHB_I2S_AUDIO_OFF;
+    sem_post(&i2s->lock);
     return result;
 }
 
@@ -470,92 +590,119 @@ static int mhb_i2s_op_get_capabilties(struct device *dev, uint8_t role,
     return 0;
 }
 
-static int mhb_i2s_op_start_receiver(struct device *dev)
+static int mhb_i2s_op_start_rx_stream(struct device *dev)
 {
     struct mhb_i2s_audio *i2s = device_get_private(dev);
     struct mhb_response *rsp;
-    int result;
+    int result = 0;
 
     if (!i2s)
         return -ENODEV;
 
-    if (!i2s->is_configured)
-        return -EINVAL;
-
+    sem_wait(&i2s->lock);
     if (i2s->i2s_status & MHB_I2S_RX_ACTIVE)
-        return 0;
+        goto out;
 
-    result = mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_RX_START);
-    if (result) {
-        lldbg("ERROR: failed to send control req to start rx\n");
-        return result;
-    }
-    result = _mhb_i2s_wait_for_response(i2s);
-     if (result) {
-        lldbg("ERROR: send control req timed out: %d\n", result);
-        return result;
-    }
-    rsp = i2s->last_rsp;
-    if (rsp->hdr.type == MHB_TYPE_I2S_CONTROL_RSP &&
-                        rsp->hdr.result == MHB_RESULT_SUCCESS) {
-        i2s->i2s_status |= MHB_I2S_RX_ACTIVE;
-        /* trigger audio codec to start receiving */
-        if (i2s->audio_dev)
-            device_audio_rx_dai_start(i2s->audio_dev);
-    }
+    if (i2s->slave_state == MHB_PM_STATUS_PEER_CONNECTED  &&
+                                (i2s->state == MHB_I2S_AUDIO_CONFIG ||
+                                i2s->state == MHB_I2S_AUDIO_START_STREAM)) {
+        result = mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_RX_START);
+        if (result) {
+            lldbg("ERROR: failed to send control req to start rx\n");
+            goto out;
+        }
 
-    return 0;
+        result = _mhb_i2s_wait_for_response(i2s);
+         if (result) {
+            lldbg("ERROR: send control req timed out: %d\n", result);
+            goto out;
+        }
+        rsp = &i2s->last_rsp;
+        if (rsp->hdr.type == MHB_TYPE_I2S_CONTROL_RSP &&
+                            rsp->hdr.result == MHB_RESULT_SUCCESS) {
+            /* trigger audio codec to start receiving */
+            if (i2s->audio_dev)
+                device_audio_rx_dai_start(i2s->audio_dev);
+        } else {
+           result = -EIO;
+           goto out;
+        }
+        i2s->state = MHB_I2S_AUDIO_START_STREAM;
+    } else
+        i2s->state = (MHB_I2S_AUDIO_START_STREAM | MHB_I2S_STATE_PENDING);
+
+    i2s->i2s_status |= MHB_I2S_RX_ACTIVE;
+
+out:
+    sem_post(&i2s->lock);
+    return result;
 }
 
-static int mhb_i2s_op_start_transmitter(struct device *dev)
+static int mhb_i2s_op_start_tx_stream(struct device *dev)
 {
     struct mhb_i2s_audio *i2s = device_get_private(dev);
     struct mhb_response *rsp;
-    int result;
+    int result = 0;
 
     if (!i2s)
         return -ENODEV;
 
-    if (!i2s->is_configured)
-        return -EINVAL;
-
+    sem_wait(&i2s->lock);
     if (i2s->i2s_status & MHB_I2S_TX_ACTIVE)
-        return 0;
+        goto out;
 
-    result = mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_TX_START);
-    if (result) {
-        lldbg("ERROR: failed to send control req to start rx\n");
-        return result;
-    }
-    result = _mhb_i2s_wait_for_response(i2s);
-     if (result) {
-        lldbg("ERROR: send control req timed out: %d\n", result);
-        return result;
-    }
-    rsp = i2s->last_rsp;
-    if (rsp->hdr.type == MHB_TYPE_I2S_CONTROL_RSP &&
-                        rsp->hdr.result == MHB_RESULT_SUCCESS) {
-        i2s->i2s_status |= MHB_I2S_TX_ACTIVE;
-        /* trigger audio codec to start transmitting */
-        if (i2s->audio_dev)
-            device_audio_tx_dai_start(i2s->audio_dev);
-    }
+    if ((i2s->slave_state == MHB_PM_STATUS_PEER_CONNECTED) &&
+                                (i2s->state == MHB_I2S_AUDIO_CONFIG ||
+                                i2s->state == MHB_I2S_AUDIO_START_STREAM)) {
+        result = mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_TX_START);
+        if (result) {
+            lldbg("ERROR: failed to send control req to start rx\n");
+            goto out;
+        }
+        result = _mhb_i2s_wait_for_response(i2s);
+         if (result) {
+            lldbg("ERROR: send control req timed out: %d\n", result);
+             goto out;
+        }
+        rsp = &i2s->last_rsp;
+        if (rsp->hdr.type == MHB_TYPE_I2S_CONTROL_RSP &&
+                            rsp->hdr.result == MHB_RESULT_SUCCESS) {
 
+            /* trigger audio codec to start transmitting */
+            if (i2s->audio_dev)
+                device_audio_tx_dai_start(i2s->audio_dev);
+        } else {
+           result = -EIO;
+           goto out;
+        }
+        i2s->state = MHB_I2S_AUDIO_START_STREAM;
+    } else
+        i2s->state = (MHB_I2S_AUDIO_START_STREAM | MHB_I2S_STATE_PENDING);
+
+    i2s->i2s_status |= MHB_I2S_TX_ACTIVE;
+
+out:
+    sem_post(&i2s->lock);
     return 0;
 }
 
-static int mhb_i2s_op_stop_transmitter(struct device *dev)
+static int mhb_i2s_op_stop_tx_stream(struct device *dev)
 {
     struct mhb_i2s_audio *i2s = device_get_private(dev);
     struct mhb_response *rsp;
-    int result;
+    int result = 0;
 
     if (!i2s)
         return -ENODEV;
 
+    sem_wait(&i2s->lock);
     if (!(i2s->i2s_status & MHB_I2S_TX_ACTIVE))
-        return 0;
+        goto out;
 
+    if (i2s->state != MHB_I2S_AUDIO_START_STREAM) {
+        i2s->i2s_status &= ~MHB_I2S_TX_ACTIVE;
+        goto out;
+    }
    /* trigger audio codec to stop transmitting */
    if (i2s->audio_dev)
         device_audio_tx_dai_stop(i2s->audio_dev);
@@ -563,33 +710,42 @@ static int mhb_i2s_op_stop_transmitter(struct device *dev)
     result = mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_TX_STOP);
     if (result) {
         lldbg("ERROR: failed to send control req to stop tx\n");
-        return result;
+        goto out;
     }
     result = _mhb_i2s_wait_for_response(i2s);
      if (result) {
         lldbg("ERROR: send control req timed out: %d\n", result);
-        return result;
+        goto out;
     }
-    rsp = i2s->last_rsp;
+    rsp = &i2s->last_rsp;
     if (rsp->hdr.type == MHB_TYPE_I2S_CONTROL_RSP &&
                         rsp->hdr.result == MHB_RESULT_SUCCESS) {
         i2s->i2s_status &= ~MHB_I2S_TX_ACTIVE;
     }
 
-    return 0;
+out:
+    i2s->state = MHB_I2S_AUDIO_STOP_STREAM;
+    sem_post(&i2s->lock);
+    return result;
 }
 
-static int mhb_i2s_op_stop_receiver(struct device *dev)
+static int mhb_i2s_op_stop_rx_stream(struct device *dev)
 {
     struct mhb_i2s_audio *i2s = device_get_private(dev);
     struct mhb_response *rsp;
-    int result;
+    int result = 0;
 
     if (!i2s)
         return -ENODEV;
 
+    sem_wait(&i2s->lock);
     if (!(i2s->i2s_status & MHB_I2S_RX_ACTIVE))
-        return 0;
+        goto out;
+
+    if (i2s->state != MHB_I2S_AUDIO_START_STREAM) {
+        i2s->i2s_status &= ~MHB_I2S_RX_ACTIVE;
+        goto out;
+    }
 
    /* trigger audio codec to stop receiving */
    if (i2s->audio_dev)
@@ -598,18 +754,146 @@ static int mhb_i2s_op_stop_receiver(struct device *dev)
     result = mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_RX_STOP);
     if (result) {
         lldbg("ERROR: failed to send control req to stop rx\n");
-        return result;
+        goto out;
     }
     result = _mhb_i2s_wait_for_response(i2s);
      if (result) {
         lldbg("ERROR: send control req timed out: %d\n", result);
-        return result;
+        goto out;
     }
-    rsp = i2s->last_rsp;
+    rsp = &i2s->last_rsp;
     if (rsp->hdr.type == MHB_TYPE_I2S_CONTROL_RSP &&
                         rsp->hdr.result == MHB_RESULT_SUCCESS) {
         i2s->i2s_status &= ~MHB_I2S_RX_ACTIVE;
     }
+
+out:
+    i2s->state = MHB_I2S_AUDIO_STOP_STREAM;
+    sem_post(&i2s->lock);
+    return 0;
+}
+
+static int mhb_i2s_op_start(struct mhb_i2s_audio *i2s)
+{
+    int result;
+
+    if (!i2s->slave_pwr_ctrl) {
+        i2s->slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+            MHB_ADDR_I2S);
+        if (!i2s->slave_pwr_ctrl) {
+           lldbg("ERROR: Failed to open slave pwr ctrl device\n");
+            return -ENODEV;
+        }
+        result = device_slave_pwrctrl_register_status_callback(i2s->slave_pwr_ctrl,
+                             mhb_i2s_audio_slave_status_callback);
+        if (result) {
+            lldbg("ERROR: Failed to register slave pwr ctrl cb\n");
+            return result;
+        }
+    }
+
+    _mhb_i2s_audio_apbe_on(i2s);
+
+    return 0;
+}
+
+static int mhb_i2s_op_stop(struct mhb_i2s_audio *i2s)
+{
+    _mhb_i2s_audio_apbe_off(i2s);
+
+    if(i2s->slave_pwr_ctrl) {
+        device_slave_pwrctrl_unregister_status_callback(
+                  i2s->slave_pwr_ctrl, mhb_i2s_audio_slave_status_callback);
+        device_close(i2s->slave_pwr_ctrl);
+        i2s->slave_pwr_ctrl = NULL;
+        i2s->slave_state = MHB_PM_STATUS_PEER_NONE;
+    }
+
+    return 0;
+}
+
+static int mhb_i2s_op_start_rx(struct device *dev)
+{
+    struct mhb_i2s_audio *i2s = device_get_private(dev);
+    int result = 0;
+
+    if (!i2s)
+        return -ENODEV;
+
+    sem_wait(&i2s->lock);
+
+    if (i2s->state == MHB_I2S_AUDIO_START)
+        goto out;
+
+    result = mhb_i2s_op_start(i2s);
+    if (result) {
+        lldbg("ERROR: failed start mhb i2s\n");
+        goto out;
+    }
+
+    i2s->state = MHB_I2S_AUDIO_START;
+
+out:
+    sem_post(&i2s->lock);
+    return result;
+}
+
+static int mhb_i2s_op_start_tx(struct device *dev)
+{
+    struct mhb_i2s_audio *i2s = device_get_private(dev);
+    int result = 0;
+
+    if (!i2s)
+        return -ENODEV;
+
+    sem_wait(&i2s->lock);
+
+    if (i2s->state == MHB_I2S_AUDIO_START)
+        goto out;
+
+    result = mhb_i2s_op_start(i2s);
+    if (result) {
+        lldbg("ERROR: failed start mhb i2s\n");
+        goto out;
+    }
+
+    i2s->state = MHB_I2S_AUDIO_START;
+
+out:
+    sem_post(&i2s->lock);
+    return result;
+}
+
+static int mhb_i2s_op_stop_rx(struct device *dev)
+{
+    struct mhb_i2s_audio *i2s = device_get_private(dev);
+
+    if (!i2s)
+        return -ENODEV;
+
+    sem_wait(&i2s->lock);
+    mhb_i2s_op_stop(i2s);
+
+    i2s->state = MHB_I2S_AUDIO_OFF;
+    i2s->i2s_status &= ~MHB_I2S_RX_ACTIVE;
+    sem_post(&i2s->lock);
+
+    return 0;
+}
+
+static int mhb_i2s_op_stop_tx(struct device *dev)
+{
+    struct mhb_i2s_audio *i2s = device_get_private(dev);
+
+    if (!i2s)
+        return -ENODEV;
+
+    sem_wait(&i2s->lock);
+    mhb_i2s_op_stop(i2s);
+
+    i2s->state = MHB_I2S_AUDIO_OFF;
+    i2s->i2s_status &= ~MHB_I2S_TX_ACTIVE;
+    sem_post(&i2s->lock);
 
     return 0;
 }
@@ -632,21 +916,72 @@ static int _mhb_i2s_handle_msg(struct device *dev,
     struct mhb_hdr *hdr, uint8_t *payload, size_t payload_length)
 {
     struct mhb_i2s_audio *i2s = &mhb_i2s;
+    int state;
 
     if (!i2s) {
         return -ENODEV;
     }
-
-    llvdbg("type=%02x, result=%02x\n",
-        hdr->type, hdr->result);
+    sem_wait(&i2s->lock);
+    if (i2s->state & MHB_I2S_STATE_PENDING) {
+        state = i2s->state & ~MHB_I2S_STATE_PENDING;
+        /* we are in a state pending for the requests to be sent on slave connection,
+         * check the current state and send config and start requests, on rsp failure
+         * notify AP with error.
+         */
+        switch (state) {
+            case MHB_I2S_AUDIO_CONFIG:
+                if (hdr->result != MHB_RESULT_SUCCESS) {
+                    i2s->state = MHB_I2S_AUDIO_OFF;
+                    _mhb_i2s_send_notification(i2s, DEVICE_I2S_EVENT_UNSPECIFIED);
+                    break;
+                }
+                if (hdr->type == MHB_TYPE_I2S_CONFIG_RSP)
+                    i2s->state &= ~MHB_I2S_STATE_PENDING;
+                else {
+                    _mhb_i2s_send_notification(i2s, DEVICE_I2S_EVENT_UNSPECIFIED);
+                    i2s->state = MHB_I2S_AUDIO_OFF;
+                }
+                break;
+            case MHB_I2S_AUDIO_START_STREAM:
+                if (hdr->result != MHB_RESULT_SUCCESS) {
+                    i2s->state = MHB_I2S_AUDIO_OFF;
+                    i2s->i2s_status = 0;
+                    _mhb_i2s_send_notification(i2s, DEVICE_I2S_EVENT_UNSPECIFIED);
+                    break;
+                }
+                if (hdr->type == MHB_TYPE_I2S_CONFIG_RSP) {
+                    if (i2s->i2s_status & MHB_I2S_RX_ACTIVE)
+                        mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_RX_START);
+                    if (i2s->i2s_status & MHB_I2S_TX_ACTIVE)
+                        mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_TX_START);
+                } else if (hdr->type == MHB_TYPE_I2S_CONTROL_RSP)
+                    i2s->state &= ~MHB_I2S_STATE_PENDING;
+                break;
+            default:
+               break;
+        }
+         sem_post(&i2s->lock);
+         return 0;
+    }
+    /* not in pending state treat responses as synchronous messages,
+     * on receiving response signal waiting thread
+     */
 
     if (hdr->type != MHB_TYPE_I2S_STATUS_NOT) {
-        memcpy(&i2s->last_rsp->hdr, hdr, sizeof(*hdr));
-        /* TODO: copy payload too, needed for status rsp */
+        memcpy(&i2s->last_rsp.hdr, hdr, sizeof(struct mhb_hdr));
+        if (hdr->type == MHB_TYPE_I2S_STATUS_RSP) {
+#ifdef MHB_I2S_LOG_TUNNEL_STATS
+            mhb_print_i2s_status("APBA Info:", (struct i2s_tunnel_info_s *)&payload[0]);
+            mhb_print_i2s_status("APBE Info:",
+                      (struct i2s_tunnel_info_s *)&payload[sizeof(struct i2s_tunnel_info_s)]);
+#endif
+        }
+
     } else
         _mhb_i2s_send_notification(i2s, DEVICE_I2S_EVENT_UNSPECIFIED);
 
     _mhb_i2s_signal_response(i2s);
+    sem_post(&i2s->lock);
 
     return 0;
 }
@@ -742,6 +1077,7 @@ static int mhb_i2s_dev_probe(struct device *dev)
     i2s->i2s_dev = dev;
 
     pthread_mutex_init(&i2s->mutex, NULL);
+    sem_init(&i2s->lock, 0, 1);
     pthread_cond_init(&i2s->cond, NULL);
 
     return 0;
@@ -764,6 +1100,9 @@ static void mhb_i2s_dev_close(struct device *dev) {
         device_close(i2s->audio_dev);
         i2s->audio_dev = NULL;
     }
+    sem_destroy(&i2s->lock);
+    pthread_mutex_destroy(&i2s->mutex);
+    pthread_cond_destroy(&i2s->cond);
 }
 
 static void mhb_i2s_dev_remove(struct device *dev) {
@@ -779,12 +1118,16 @@ static void mhb_i2s_dev_remove(struct device *dev) {
 static struct device_i2s_type_ops mhb_i2s_type_ops = {
     .get_caps                     = mhb_i2s_op_get_capabilties,
     .set_config                   = mhb_i2s_op_set_config,
-    .start_transmitter_port       = mhb_i2s_op_start_transmitter,
-    .start_receiver_port          = mhb_i2s_op_start_receiver,
-    .stop_receiver_port           = mhb_i2s_op_stop_receiver,
-    .stop_transmitter_port        = mhb_i2s_op_stop_transmitter,
+    .start_transmitter_port       = mhb_i2s_op_start_tx_stream,
+    .start_receiver_port          = mhb_i2s_op_start_rx_stream,
+    .stop_receiver_port           = mhb_i2s_op_stop_rx_stream,
+    .stop_transmitter_port        = mhb_i2s_op_stop_tx_stream,
     .register_callback            = mhb_i2s_op_register_cb,
     .unregister_callback          = mhb_i2s_op_unregister_cb,
+    .start_transmitter            = mhb_i2s_op_start_tx,
+    .start_receiver               = mhb_i2s_op_start_rx,
+    .stop_transmitter             = mhb_i2s_op_stop_tx,
+    .stop_receiver                = mhb_i2s_op_stop_rx,
 };
 
 static struct device_driver_ops mhb_i2s_driver_ops = {
