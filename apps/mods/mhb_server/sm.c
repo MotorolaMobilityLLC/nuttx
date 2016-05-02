@@ -71,11 +71,13 @@ const static char *SVC_EVENT_STRINGS[] = {
     TO_STR(SVC_EVENT_GEAR_SHIFT_DONE),
     TO_STR(SVC_EVENT_QUEUE_STATS),
     TO_STR(SVC_EVENT_SEND_STATS),
+    TO_STR(SVC_EVENT_CPORTS_DONE),
 };
 
 enum svc_state {
     SVC_WAIT_FOR_AP,
     SVC_SLAVE_WAIT_FOR_UNIPRO,
+    SVC_SLAVE_WAIT_FOR_CPORTS,
     SVC_WAIT_FOR_UNIPRO,
     SVC_WAIT_FOR_MOD,
     SVC_CONNECTED,
@@ -88,6 +90,7 @@ enum svc_state {
 const static char *SVC_STATE_STRINGS[] = {
     TO_STR(SVC_WAIT_FOR_AP),
     TO_STR(SVC_SLAVE_WAIT_FOR_UNIPRO),
+    TO_STR(SVC_SLAVE_WAIT_FOR_CPORTS),
     TO_STR(SVC_WAIT_FOR_UNIPRO),
     TO_STR(SVC_WAIT_FOR_MOD),
     TO_STR(SVC_CONNECTED),
@@ -291,6 +294,7 @@ static void unipro_evt_handler(enum unipro_event evt)
         }
 #elif CONFIG_UNIPRO_P2P_APBE
         llvdbg("Connected cport %d\n", v-1);
+        svc_send_event(SVC_EVENT_CPORTS_DONE, (void *)(v-1), 0, 0);
 #endif
 
         break;
@@ -420,6 +424,28 @@ static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_w
     (void)i2s_unipro_tunnel_unipro_register();
 #endif
 
+    return SVC_SLAVE_WAIT_FOR_CPORTS;
+}
+
+static enum svc_state svc_wf_cports__link_down(struct svc *svc, struct svc_work *work) {
+#if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
+    ipc_unregister_unipro();
+#endif
+
+    if (g_svc.gearbox) {
+        gearbox_link_down(g_svc.gearbox);
+    }
+
+    mhb_send_pm_status_not(MHB_PM_STATUS_PEER_DISCONNECTED);
+    return SVC_DISCONNECTED;
+}
+
+static enum svc_state svc_wf_cports__connected(struct svc *svc, struct svc_work *work) {
+    unsigned int cport = (unsigned int)work->parameter0;
+    if (cport != CONFIG_MHB_IPC_CPORT_ID) {
+        return g_svc.state;
+    }
+
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
     return SVC_CONNECTED;
 }
@@ -464,15 +490,8 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
         gearbox_link_up(g_svc.gearbox);
     }
 
-#if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
-    ipc_register_unipro();
-#endif
 #if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
     (void)i2s_unipro_tunnel_unipro_register();
-#endif
-#if CONFIG_MHB_IPC_SERVER
-    lldbg("setup cport=%d\n", CONFIG_MHB_IPC_CPORT_ID);
-    unipro_p2p_setup_connection(CONFIG_MHB_IPC_CPORT_ID);
 #endif
 #if CONFIG_UNIPRO_TEST_0_CPORT_ID
     lldbg("setup cport=%d\n", CONFIG_UNIPRO_TEST_0_CPORT_ID);
@@ -483,6 +502,9 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
     lldbg("setup cport=%d\n", CONFIG_UNIPRO_TEST_1_CPORT_ID);
     unipro_p2p_setup_test_connection(CONFIG_UNIPRO_TEST_1_CPORT_ID,
         1 /* test port */, 0 /* APBE to APBA */, 1 /* E2EFC */);
+#endif
+#if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
+    ipc_register_unipro();
 #endif
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
@@ -571,6 +593,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
         NULL,                        /* SVC_EVENT_QUEUE_STATS */
         NULL,                        /* SVC_EVENT_SEND_STATS */
+        NULL,                        /* SVC_EVENT_CPORTS_DONE */
     },
     /* SVC_SLAVE_WAIT_FOR_UNIPRO */
     {
@@ -585,6 +608,22 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
         svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
         svc__send_stats,             /* SVC_EVENT_SEND_STATS */
+        NULL,                        /* SVC_EVENT_CPORTS_DONE */
+    },
+    /* SVC_SLAVE_WAIT_FOR_CPORTS */
+    {
+        NULL,                        /* SVC_EVENT_MASTER_STARTED */
+        NULL,                        /* SVC_EVENT_SLAVE_STARTED */
+        svc__test_mode,              /* SVC_EVENT_TEST_MODE_STARTED */
+        NULL,                        /* SVC_EVENT_MOD_DETECTED */
+        NULL,                        /* SVC_EVENT_UNIPRO_LINK_TIMEOUT */
+        NULL,                        /* SVC_EVENT_MOD_TIMEOUT */
+        NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
+        svc_wf_cports__link_down,    /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
+        svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
+        svc__send_stats,             /* SVC_EVENT_SEND_STATS */
+        svc_wf_cports__connected,    /* SVC_EVENT_CPORTS_DONE */
     },
     /* SVC_WAIT_FOR_UNIPRO */
     {
@@ -599,6 +638,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
         svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
         svc__send_stats,             /* SVC_EVENT_SEND_STATS */
+        NULL,                        /* SVC_EVENT_CPORTS_DONE */
     },
     /* SVC_WAIT_FOR_MOD */
     {
@@ -613,6 +653,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
         svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
         svc__send_stats,             /* SVC_EVENT_SEND_STATS */
+        NULL,                        /* SVC_EVENT_CPORTS_DONE */
     },
     /* SVC_CONNECTED */
     {
@@ -627,6 +668,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         svc_connected__gear_shifted, /* SVC_EVENT_GEAR_SHIFT_DONE */
         svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
         svc__send_stats,             /* SVC_EVENT_SEND_STATS */
+        NULL,                        /* SVC_EVENT_CPORTS_DONE */
     },
     /* SVC_DISCONNECTED */
     {
@@ -641,6 +683,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
         svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
         svc__send_stats,             /* SVC_EVENT_SEND_STATS */
+        NULL,                        /* SVC_EVENT_CPORTS_DONE */
     },
     /* SVC_TEST_MODE */
     {
@@ -655,6 +698,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
         NULL,                        /* SVC_EVENT_QUEUE_STATS */
         NULL,                        /* SVC_EVENT_SEND_STATS */
+        NULL,                        /* SVC_EVENT_CPORTS_DONE */
     },
 };
 
