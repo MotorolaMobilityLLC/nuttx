@@ -891,8 +891,8 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
                                                         I2S_TUNNEL_I2S_FLAGS_RX_EDGE_FALLING);
         flags |= (cfg->wclk_edge == MHB_I2S_EDGE_RISING ? I2S_TUNNEL_I2S_FLAGS_LR_EDGE_RISING :
                                                           I2S_TUNNEL_I2S_FLAGS_LR_EDGE_FALLING);
-        flags |= (cfg->clk_role == MHB_I2S_ROLE_MASTER ? I2S_TUNNEL_I2S_FLAGS_MASTER :
-                                                         I2S_TUNNEL_I2S_FLAGS_SLAVE);
+        flags |= (cfg->clk_role == MHB_I2S_ROLE_MASTER ? I2S_TUNNEL_I2S_FLAGS_SLAVE :
+                                                         I2S_TUNNEL_I2S_FLAGS_MASTER);
         /* Overload the protocol if only one channel is specified. */
         if (cfg->num_channels == 1) {
             cfg->protocol = MHB_I2S_PROTOCOL_PCM;
@@ -997,7 +997,7 @@ static int mhb_handle_i2s_control_req(struct mhb_transaction *transaction)
             ret = mhb_i2s_tunnel_enable_disable(tx_rx_status, true);
             break;
         case MHB_I2S_COMMAND_TX_START:
-            tx_rx_status |= MHB_I2S_TUNNEL_RX;
+            tx_rx_status |= MHB_I2S_TUNNEL_TX;
             ret = mhb_i2s_tunnel_enable_disable(tx_rx_status, true);
             break;
         case MHB_I2S_COMMAND_ENABLE:
