@@ -44,6 +44,8 @@
 #define GB_I2S_MGMT_TYPE_REPORT_EVENT                   0x09
 #define GB_I2S_MGMT_TYPE_ACTIVATE_PORT                  0x0a
 #define GB_I2S_MGMT_TYPE_DEACTIVATE_PORT                0x0b
+#define GB_I2S_MGMT_TYPE_START                          0x0c
+#define GB_I2S_MGMT_TYPE_STOP                           0x0d
 
 #define GB_I2S_DATA_TYPE_PROTOCOL_VERSION               0x01
 #define GB_I2S_DATA_TYPE_SEND_DATA                      0x02
@@ -221,6 +223,16 @@ struct gb_i2s_deactivate_port_request {
     __u8    port_type;
 } __packed;
 /* deactivate port response has no payload */
+
+struct gb_i2s_start_request {
+    __u8    port_type;
+} __packed;
+/* start response has no payload */
+
+struct gb_i2s_stop_request {
+    __u8    port_type;
+} __packed;
+/* stop response has no payload */
 
 struct gb_i2s_send_data_request {
     __le32  sample_number;

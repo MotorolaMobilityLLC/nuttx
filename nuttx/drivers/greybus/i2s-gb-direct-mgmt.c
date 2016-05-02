@@ -45,7 +45,7 @@
 #include "i2s-gb.h"
 
 #define GB_I2S_MGMT_VERSION_MAJOR        0x00
-#define GB_I2S_MGMT_VERSION_MINOR        0x02
+#define GB_I2S_MGMT_VERSION_MINOR        0x03
 
 #define GB_I2S_MGMT_VERSION_CFG_MASK_MAJOR        0x00
 #define GB_I2S_MGMT_VERSION_CFG_MASK_MINOR        0x02
@@ -505,6 +505,40 @@ static uint8_t  gb_i2s_mgmt_protocol_deactivate_port(struct gb_operation *operat
     return 0;
 }
 
+static uint8_t gb_i2s_mgmt_protocol_start(struct gb_operation *operation)
+{
+    struct gb_i2s_start_request *request =
+              gb_operation_get_request_payload(operation);
+
+    gb_debug("%s() port type %d:\n", __func__, request->port_type);
+
+    if (request->port_type == GB_I2S_MGMT_PORT_TYPE_RECEIVER)
+        device_i2s_start_receiver(i2s_dev_info.dev);
+    else if (request->port_type == GB_I2S_MGMT_PORT_TYPE_TRANSMITTER)
+        device_i2s_start_transmitter(i2s_dev_info.dev);
+    else
+        return GB_OP_UNKNOWN_ERROR;
+
+    return 0;
+}
+
+static uint8_t gb_i2s_mgmt_protocol_stop(struct gb_operation *operation)
+{
+    struct gb_i2s_stop_request *request =
+              gb_operation_get_request_payload(operation);
+
+    gb_debug("%s() port type %d:\n", __func__, request->port_type);
+
+    if (request->port_type == GB_I2S_MGMT_PORT_TYPE_RECEIVER)
+        device_i2s_stop_receiver(i2s_dev_info.dev);
+    else if (request->port_type == GB_I2S_MGMT_PORT_TYPE_TRANSMITTER)
+        device_i2s_stop_transmitter(i2s_dev_info.dev);
+    else
+        return GB_OP_UNKNOWN_ERROR;
+
+    return 0;
+}
+
 static struct gb_operation_handler gb_i2s_mgmt_handlers[] = {
     GB_HANDLER(GB_I2S_MGMT_TYPE_PROTOCOL_VERSION, gb_i2s_mgmt_protocol_version),
     GB_HANDLER(GB_I2S_MGMT_TYPE_GET_SUPPORTED_CONFIGURATIONS, gb_i2s_mgmt_protocol_get_supported_cfgs),
@@ -516,6 +550,8 @@ static struct gb_operation_handler gb_i2s_mgmt_handlers[] = {
     GB_HANDLER(GB_I2S_MGMT_TYPE_DEACTIVATE_CPORT, gb_i2s_mgmt_protocol_deactivate_cport),
     GB_HANDLER(GB_I2S_MGMT_TYPE_ACTIVATE_PORT, gb_i2s_mgmt_protocol_activate_port),
     GB_HANDLER(GB_I2S_MGMT_TYPE_DEACTIVATE_PORT, gb_i2s_mgmt_protocol_deactivate_port),
+    GB_HANDLER(GB_I2S_MGMT_TYPE_START, gb_i2s_mgmt_protocol_start),
+    GB_HANDLER(GB_I2S_MGMT_TYPE_STOP, gb_i2s_mgmt_protocol_stop),
 };
 
 static struct gb_driver gb_i2s_mgmt_driver = {
