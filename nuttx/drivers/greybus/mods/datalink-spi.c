@@ -59,6 +59,19 @@
 #  error "CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE > MODS_DL_PAYLOAD_MAX_SZ"
 #endif
 
+/*
+ * Before root version 3, the MuC was responsible for deasserting the RFR and
+ * INT signals manually. The signals must be deasserted ASAP when the transfer
+ * starts to avoid the base seeing them still asserted after the transfer and
+ * taking additional action.
+ *
+ * To avoid this race, root version 3 automatically deasserts those signals
+ * until the MuC deasserts them later.
+ */
+#if CONFIG_GREYBUS_MODS_HW_ROOT_VERSION < 3
+#  define SIGNAL_SOFTWARE_DEASSERT
+#endif
+
 /* Protocol version supported by this driver */
 #define PROTO_VER           (2)
 
@@ -186,10 +199,6 @@ struct mods_spi_dl_s
   __u8 rcvd_payload[MODS_DL_PAYLOAD_MAX_SZ];
   uint32_t rcvd_payload_idx;
   uint8_t pkts_remaining;        /* Number of packets needed to complete msg */
-
-#ifdef CONFIG_DEBUG
-  uint32_t rfr_cnt;              /* Counter of RFR still asserted errors seen */
-#endif
 };
 
 struct spi_dl_msg_bus_config_req
@@ -409,6 +418,12 @@ static inline void setup_for_dummy_tx(FAR struct mods_spi_dl_s *priv)
   next_txp(priv);
 }
 
+static inline void deassert_rfr_int(void)
+{
+  mods_rfr_set(0);
+  mods_host_int_set(false);
+}
+
 /* Caller must hold semaphore before calling this function! */
 static void xfer(FAR struct mods_spi_dl_s *priv)
 {
@@ -501,8 +516,7 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       vdbg("Cleaning up datalink\n");
 
       /* Reset GPIOs to initial state */
-      mods_host_int_set(false);
-      mods_rfr_set(0);
+      deassert_rfr_int();
 
 #ifdef CONFIG_GREYBUS_MODS_ACK
       if (priv->ack_supported)
@@ -543,9 +557,6 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 
       /* Reset state variables */
       priv->proto_ver = 0;
-#ifdef CONFIG_DEBUG
-      priv->rfr_cnt = 0;
-#endif
     }
 
   priv->bstate = state;
@@ -554,15 +565,15 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
   sem_post(&priv->sem);
 }
 
+#ifdef SIGNAL_SOFTWARE_DEASSERT
 /*
  * Called when transaction with base has started.
  */
 static void txn_start_cb(void *v)
 {
-  /* Deassert signals to base */
-  mods_rfr_set(0);
-  mods_host_int_set(false);
+  deassert_rfr_int();
 }
+#endif
 
 static bool ack_handler(FAR struct mods_spi_dl_s *priv, enum ack ack_req)
 {
@@ -653,15 +664,7 @@ static void txn_finished_worker(FAR void *arg)
 
   vdbg("bitmask=0x%04X\n", bitmask);
 
-  /* Handle race condition where txn_start_cb does not get invoked
-   * before this txn_finished_cb, thereby leaving RFR and INT in
-   * active states.
-   */
-  if (mods_rfr_get())
-    {
-      txn_start_cb(priv);
-      dbg("RFR still asserted: cnt=%d\n", ++(priv->rfr_cnt));
-    }
+  deassert_rfr_int();
 
   if (BASE_SUPPORTS(priv, DUMMY))
     {
@@ -820,6 +823,8 @@ static void txn_error_worker(FAR void *arg)
   dbg("Transceive error\n");
 #endif
 
+  deassert_rfr_int();
+
   if (ack_handler(priv, ACK_ERROR))
     {
       /* Reset TX consumer ring buffer entry */
@@ -845,16 +850,18 @@ static void txn_error_cb(void *v)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)v;
 
-  /* Deassert signals to base */
-  mods_rfr_set(0);
-  mods_host_int_set(false);
+#ifdef SIGNAL_SOFTWARE_DEASSERT
+  deassert_rfr_int();
+#endif
 
   dl_work_queue(priv, &priv->terr_work, txn_error_worker);
 }
 
 static const struct spi_cb_ops_s cb_ops =
 {
+#ifdef SIGNAL_SOFTWARE_DEASSERT
   .txn_start = txn_start_cb,
+#endif
   .txn_end = txn_finished_cb,
   .txn_err = txn_error_cb,
 };
