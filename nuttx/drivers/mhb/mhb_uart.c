@@ -159,7 +159,7 @@ static void mhb_handle_pm_sleep_req(void)
     hdr.type = MHB_TYPE_PM_SLEEP_RSP;
     hdr.result = MHB_RESULT_SUCCESS;
 
-    if (mhb_send(g_mhb->self, &hdr, NULL, 0, 0)) {
+    if (mhb_send(g_mhb->self, &hdr, NULL, 0, MHB_SEND_FLAGS_PEER_ASLEEP)) {
         lldbg("ERROR: Failed to send sleep rsp\n");
     }
 }
@@ -716,6 +716,11 @@ static void *mhb_tx_thread(void *data)
             kmm_free(item);
 #endif
             break;
+        }
+
+        /* Handle post-tx flags. */
+        if (item->flags & MHB_SEND_FLAGS_PEER_ASLEEP) {
+            atomic_init(&g_mhb->pm_state_peer, 0);
         }
 
         /* Switch baud rates if requested. */
