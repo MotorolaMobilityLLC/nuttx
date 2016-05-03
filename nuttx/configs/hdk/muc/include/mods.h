@@ -71,6 +71,7 @@
 # define GPIO_DISPLAY_PWR3_EN    CALC_GPIO_NUM('B', 5)
 #else
 # define GPIO_DISPLAY_PWR3_EN    CALC_GPIO_NUM('A', 0)
+# define GPIO_DISPLAY_PWR4_EN    CALC_GPIO_NUM('A', 2)
 #endif
 #define GPIO_DISPLAY_RST1_N      CALC_GPIO_NUM('C', 8)
 

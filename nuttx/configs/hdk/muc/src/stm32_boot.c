@@ -150,6 +150,14 @@ static struct device_resource dsi_display_resources[] = {
         .start  = GPIO_DISPLAY_PWR3_EN,
         .count  = 1,
     },
+#if GPIO_DISPLAY_PWR4_EN
+    {
+        .name   = "pwr4_en",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_DISPLAY_PWR4_EN,
+        .count  = 1,
+    },
+#endif
     {
         .name   = "disp_rst1_n",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
