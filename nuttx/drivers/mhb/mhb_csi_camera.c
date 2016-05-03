@@ -404,19 +404,14 @@ static int _mhb_csi_camera_wait_for_response(pthread_cond_t *cond,
     pthread_mutex_lock(&s_mhb_camera.mutex);
     s_mhb_camera.mhb_wait_event = wait_event;
     result = pthread_cond_timedwait(cond, &s_mhb_camera.mutex, &expires);
+    if (!result) result = s_mhb_camera.mhb_wait_event;
     s_mhb_camera.mhb_wait_event = -1;
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
     clock_gettime(CLOCK_REALTIME, &expires);
     new_ns = timespec_to_nsec(&expires) - (new_ns - MHB_CDSI_OP_TIMEOUT_NS);
-    CAM_ERR("INFO: Time spent on %s  %d ms timeout %d\n",
+    CAM_ERR("%s: Time spent on %s %dms Result %d\n", result?"ERROR":"INFO",
             str, (uint16_t)(new_ns/NSEC_PER_MSEC), result);
-
-    if (result) {
-        /* timeout or other erros */
-        CAM_ERR("ERROR: Wait Timeout %s %d\n", str, result);
-        return -ETIME;
-    }
 
     return result;
 }
@@ -517,33 +512,28 @@ static int _mhb_csi_camera_control_req(uint8_t command)
 static int _mhb_csi_camera_handle_msg(struct device *dev,
     struct mhb_hdr *hdr, uint8_t *payload, size_t payload_length)
 {
-    /* Assume an error */
-    int error = -1;
-    CAM_DBG("addr=0x%02x, type=0x%02x, result=0x%02x\n",
-            hdr->addr, hdr->type, hdr->result);
-
-    switch (hdr->addr) {
-    case MHB_ADDR_CDSI1:
+    if (hdr->addr == MHB_ADDR_CDSI1) {
         switch (hdr->type) {
-        case MHB_TYPE_CDSI_UNCONFIG_RSP:
-        case MHB_TYPE_CDSI_CONFIG_RSP:
-        case MHB_TYPE_CDSI_CONTROL_RSP:
-            if(s_mhb_camera.mhb_wait_event == hdr->type) {
-                _mhb_csi_camera_signal_response(&s_mhb_camera.cdsi_cond);
-                error = 0;
-            }
-            break;
         case MHB_TYPE_CDSI_WRITE_CMDS_RSP:
         case MHB_TYPE_CDSI_READ_CMDS_RSP:
         case MHB_TYPE_CDSI_STATUS_RSP:
-            error = 0;
+            if (hdr->result)
+                CAM_ERR("ERROR:failed cmd: addr=%d type=%d result=%d\n",
+                        hdr->addr, hdr->type, hdr->result);
+            break;
+        case MHB_TYPE_CDSI_UNCONFIG_RSP:
+        case MHB_TYPE_CDSI_CONFIG_RSP:
+        case MHB_TYPE_CDSI_CONTROL_RSP:
+            if (s_mhb_camera.mhb_wait_event == hdr->type) {
+                s_mhb_camera.mhb_wait_event = hdr->result;
+                _mhb_csi_camera_signal_response(&s_mhb_camera.cdsi_cond);
+                break;
+            }
+        default:
+            CAM_ERR("unexpected rsp: addr=%d type=%d result=%d wait=%d\n",
+                    hdr->addr, hdr->type,
+                    hdr->result, s_mhb_camera.mhb_wait_event);
         }
-        break;
-    }
-
-    if (error) {
-        CAM_ERR("unexpected rsp: addr=%d type=%d wait=%d\n",
-                hdr->addr, hdr->type, s_mhb_camera.mhb_wait_event);
     }
 
     return 0;
@@ -554,8 +544,8 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     CAM_DBG("\n");
 
     if(s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_CONNECTED) {
-        if(_mhb_csi_cam_set_apbe_state(1)) {
-            CAM_ERR("Failed to turn on APBE\n");
+        if(_mhb_csi_cam_set_apbe_state(SLAVE_STATE_ENABLED)) {
+            CAM_ERR("Failed to turn ON APBE\n");
             return MHB_CAMERA_EV_FAIL;
         }
     }
@@ -584,14 +574,14 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     CAM_DBG("\n");
 
     //TODO: Fix APBE Pwr CONTROL
-    //if(_mhb_csi_cam_set_apbe_state(0))
-    //    CAM_ERR("Failed to turn on APBE");
+    //if(_mhb_csi_cam_set_apbe_state(SLAVE_STATE_DISABLED))
+    //    CAM_ERR("Failed to turn OFF APBE\n");
+    //s_mhb_camera.apbe_state = MHB_PM_STATUS_PEER_DISCONNECTED;
     s_mhb_camera.soc_enabled = 0;
 
     _mhb_csi_camera_unconfig_req();
     _mhb_camera_soc_disable();
 
-    //s_mhb_camera.apbe_state = MHB_PM_STATUS_PEER_DISCONNECTED;
     return MHB_CAMERA_EV_NONE;
 }
 
