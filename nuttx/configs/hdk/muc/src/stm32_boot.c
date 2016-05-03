@@ -79,6 +79,8 @@ static const struct board_gpio_cfg_s board_gpio_cfgs[] =
   { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT)      },
   { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)              },
   { GPIO_MODS_LED_DRV_1,     (GPIO_OPENDRAIN)             },
+  { GPIO_MODS_LED_DRV_2,     (GPIO_OPENDRAIN)             },
+  { GPIO_MODS_LED_DRV_3,     (GPIO_OPENDRAIN)             },
 };
 
 #ifdef CONFIG_DEVICE_CORE
