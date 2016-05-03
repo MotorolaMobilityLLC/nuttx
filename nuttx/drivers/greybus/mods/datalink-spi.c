@@ -1068,8 +1068,11 @@ static int work_process_thread(int argc, char *argv[])
 
       irqrestore(flags);
 
-      /* Wait "forever" until we are awakened by a signal */
-      sleep(10000000);
+      /* Wait awhile to check the work list.  We will wait here until either
+       * the time elapses or until we are awakened by a signal.
+       */
+
+      usleep(CONFIG_SCHED_WORKPERIOD);
     }
 
   return OK;
