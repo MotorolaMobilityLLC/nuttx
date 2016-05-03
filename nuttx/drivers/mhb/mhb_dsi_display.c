@@ -46,6 +46,8 @@
 #include <nuttx/mhb/mhb_dsi_display.h>
 #include <nuttx/mhb/mhb_protocol.h>
 
+#define MHB_DSI_DISPLAY_READ_PANEL_ID     0
+
 #define MHB_DSI_DISPLAY_INVALID_RESOURCE  0xffffffff
 
 #define MHB_DSI_DISPLAY_POWER_DELAY_US    100000
@@ -89,14 +91,16 @@ static struct mhb_dsi_display
 } g_display;
 
 const static struct mhb_cdsi_cmd GET_SUPPLIER_ID[] = {
+#if MHB_DSI_DISPLAY_READ_PANEL_ID
     { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_READ0, .length = 2,
         .u = { .spdata = 0x00a1 }, .delay = 10 }, /* supplier_id */
     { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_READ0, .length = 1,
-    .u = { .spdata = 0x00da }, .delay = 10 }, /* id0 */
+        .u = { .spdata = 0x00da }, .delay = 10 }, /* id0 */
     { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_READ0, .length = 1,
         .u = { .spdata = 0x00db }, .delay = 10 }, /* id1 */
     { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_READ0, .length = 1,
         .u = { .spdata = 0x00dc }, .delay = 10 }, /* id2 */
+#endif
 };
 
 /* operation signaling */
@@ -382,11 +386,19 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
     switch (hdr->type) {
     case MHB_TYPE_CDSI_CONFIG_RSP:
         if (display->state == MHB_DSI_DISPLAY_STATE_CONFIG_DSI) {
-            /* config-dsi -> panel-info */
-            _mhb_dsi_display_send_read_panel_info_req(display);
+            if (ARRAY_SIZE(GET_SUPPLIER_ID)) {
+                /* config-dsi -> panel-info */
+                _mhb_dsi_display_send_read_panel_info_req(display);
 
-            display->state = MHB_DSI_DISPLAY_STATE_PANEL_INFO;
-            error = 0;
+                display->state = MHB_DSI_DISPLAY_STATE_PANEL_INFO;
+                error = 0;
+            } else {
+                /* config-dsi -> config-dcs */
+                _mhb_dsi_display_send_display_on_req(display);
+
+                display->state = MHB_DSI_DISPLAY_STATE_CONFIG_DCS;
+                error = 0;
+            }
         }
         break;
     case MHB_TYPE_CDSI_WRITE_CMDS_RSP:
