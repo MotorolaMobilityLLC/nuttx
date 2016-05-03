@@ -96,6 +96,12 @@ config MHB_I2S_AUDIO
 	---help---
 		I2S Audio driven by an MHB server.
 
+config MHB_USBTUN
+	bool "MHB USB Tunneling"
+	default n
+	---help---
+		USB tunnel over HSIC driven by an MHB server.
+
 config MHB_IPC
 	bool "MHB IPC"
 	default n

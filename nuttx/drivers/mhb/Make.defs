@@ -54,6 +54,10 @@ ifeq ($(CONFIG_MHB_I2S_AUDIO),y)
 CSRCS += mhb_i2s_audio.c
 endif
 
+ifeq ($(CONFIG_MHB_USBTUN),y)
+CSRCS += mhb_usbtun.c
+endif
+
 ifeq ($(CONFIG_MHB_IPC),y)
 include mhb$(DELIM)ipc$(DELIM)Make.defs
 endif
