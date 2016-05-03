@@ -678,11 +678,14 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
     // TODO: ERROR HANDLING
     _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
     _mhb_csi_camera_unconfig_req();
-    _mhb_camera_stream_disable();
     _mhb_csi_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                       MHB_TYPE_CDSI_CONTROL_RSP, "CDSI STOP");
+
     _mhb_csi_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                       MHB_TYPE_CDSI_UNCONFIG_RSP, "CDSI UNCONFIG");
+
+    _mhb_camera_stream_disable();
+
     return MHB_CAMERA_EV_DECONFIGURED;
 }
 
