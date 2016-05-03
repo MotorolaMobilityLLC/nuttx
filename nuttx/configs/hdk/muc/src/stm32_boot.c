@@ -474,6 +474,8 @@ void stm32_boardinitialize(void)
 #ifdef CONFIG_BOARD_INITIALIZE
 void board_initialize(void)
 {
+  dbg("%d MHz\n", STM32_SYSCLK_FREQUENCY / 1000000);
+
 #if defined(CONFIG_GPIO_CHIP_STM32)
   stm32_gpio_init();
 #endif
