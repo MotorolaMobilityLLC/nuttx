@@ -59,8 +59,8 @@ static int blinky_timer_handler(int irq, FAR void *context)
     pm_activity(BLINKY_ACTIVITY);
     STM32_TIM_ACKINT(tim_dev, 0);
 
-    new_val = gpio_get_value(GPIO_MODS_LED_DRV_1) ^ 1;
-    gpio_set_value(GPIO_MODS_LED_DRV_1, new_val);
+    new_val = gpio_get_value(GPIO_MODS_LED_DRV_3) ^ 1;
+    gpio_set_value(GPIO_MODS_LED_DRV_3, new_val);
 
     llvdbg("new_val=%d\n", new_val);
     return 0;
@@ -94,7 +94,7 @@ static void blinky_timer_stop(void)
         stm32_tim_deinit(tim_dev);
         tim_dev = NULL;
 
-        gpio_set_value(GPIO_MODS_LED_DRV_1, LED_OFF);
+        gpio_set_value(GPIO_MODS_LED_DRV_3, LED_OFF);
     } else {
         dbg("ignore\n");
     }
@@ -128,7 +128,7 @@ static int blinky_unregister_callback(struct device *dev)
 
 static int blinky_probe(struct device *dev)
 {
-    gpio_direction_out(GPIO_MODS_LED_DRV_1, LED_OFF);
+    gpio_direction_out(GPIO_MODS_LED_DRV_3, LED_OFF);
     return 0;
 }
 
