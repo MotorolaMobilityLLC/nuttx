@@ -334,6 +334,9 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size,
             }
         }
         break;
+    case GREYBUS_TYPE_IDS:
+        expected_size += sizeof(struct greybus_descriptor_ids);
+        break;
     case GREYBUS_TYPE_INVALID:
     default:
         gb_error("invalid descriptor type (%hhu)\n", desc_header->type);
