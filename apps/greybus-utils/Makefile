@@ -140,7 +140,7 @@ manifest.inc: $(EXT_MANIFEST_INC)
 		cp $(EXT_MANIFEST_INC) $@
 else
 %.mnfb: %.mnfs
-	manifesto $<
+	manifesto $< $(CONFIG_ARCH_BOARDID_VID) $(CONFIG_ARCH_BOARDID_PID)
 
 %.mnsg: %.mnfb
 	openssl dgst -sha256 -sign testkey_priv.key -out $@ $<
