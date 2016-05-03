@@ -31,11 +31,13 @@
 
 #include <stdio.h>
 
+#define DEBUG_DMESG
+
 #ifdef DEBUG
     #ifndef DEBUG_DMESG
         #define CAM_DBG(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
     #else
-        #define CAM_DBG lldbg
+        #define CAM_DBG(fmt, ...) lldbg(fmt, ##__VA_ARGS__)
     #endif
 #else
     #define CAM_DBG(x...)
@@ -45,7 +47,7 @@
     #ifndef DEBUG_DMESG
         #define CTRL_DBG(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
     #else
-        #define CTRL_DBG lldbg
+        #define CTRL_DBG(fmt, ...) lldbg(fmt, ##__VA_ARGS__)
     #endif
 #else
     #define CTRL_DBG(x...)
@@ -53,9 +55,11 @@
 
 
 #ifndef DEBUG_DMESG
-    #define CAM_ERR(fmt, ...) printf("%s" fmt, __func__, ##__VA_ARGS__)
+    #define CAM_ERR(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
 #else
-    #define CAM_ERR lldbg
+    #define CAM_ERR(fmt, ...) lldbg(fmt, ##__VA_ARGS__)
 #endif
+
+#define CAM_INFO(fmt, ...)  lldbg(fmt, ##__VA_ARGS__)
 
 #endif

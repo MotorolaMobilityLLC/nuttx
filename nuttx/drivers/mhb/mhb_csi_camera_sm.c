@@ -105,8 +105,6 @@ static void *mhb_camera_sm_command_thread(void *arg)
     struct command_item *item;
     mhb_camera_command_func func;
 
-    CAM_DBG("\n");
-
     while (1) {
         sem_wait(&s_command_sem);
         pthread_mutex_lock(&s_command_mutex);
@@ -131,8 +129,6 @@ static void *mhb_camera_sm_command_thread(void *arg)
 
 static int mhb_camera_sm_run_command(mhb_camera_command_func func, uint32_t delay)
 {
-    CAM_DBG("\n");
-
     pthread_mutex_lock(&s_command_mutex);
     struct command_item *item = get_item(&s_free_list);
     if (item == NULL) {
