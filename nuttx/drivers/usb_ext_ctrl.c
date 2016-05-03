@@ -37,6 +37,7 @@
 #include <string.h>
 
 #include <nuttx/device.h>
+#include <nuttx/device_usbtun.h>
 #include <nuttx/device_usb_ext.h>
 #include <nuttx/greybus/debug.h>
 #include <nuttx/gpio.h>
@@ -44,6 +45,7 @@
 struct usb_ext_s {
     usb_ext_event_callback callback;
     uint8_t usb_path_select;
+    struct device *usbtun;
 };
 
 struct usb_ext_s s_data;
@@ -57,6 +59,13 @@ static void do_action(bool attached)
         s_data.callback(attached);
     } else {
         lldbg("USB-EXT ctrl driver is not registered\n");
+    }
+
+    if (s_data.usbtun) {
+        if (attached)
+            device_usbtun_on(s_data.usbtun);
+        else
+            device_usbtun_off(s_data.usbtun);
     }
 
     irqrestore(flags);
@@ -87,9 +96,26 @@ static int _unregister_callback(struct device *dev)
     return 0;
 }
 
+static int _open(struct device *dev)
+{
+#ifdef CONFIG_MHB_USBTUN
+    s_data.usbtun = device_open(DEVICE_TYPE_USBTUN_HW, 0);
+    if (!s_data.usbtun)
+        return -ENODEV;
+#endif
+
+    return 0;
+}
+
 static void _close(struct device *dev)
 {
     s_data.callback = 0;
+
+    if (s_data.usbtun) {
+        device_close(s_data.usbtun);
+        s_data.usbtun = NULL;
+    }
+
 }
 
 static int _probe(struct device *dev)
@@ -117,6 +143,7 @@ static int _probe(struct device *dev)
 static void _remove(struct device *dev)
 {
     gpio_direction_out(s_data.usb_path_select, 0);
+    _close(dev);
     memset(&s_data, 0, sizeof(s_data));
 }
 
@@ -128,6 +155,7 @@ static struct device_usb_ext_type_ops _type_ops = {
 static struct device_driver_ops _driver_ops = {
     .probe              = _probe,
     .remove             = _remove,
+    .open               = _open,
     .close              = _close,
     .type_ops           = &_type_ops,
 };
