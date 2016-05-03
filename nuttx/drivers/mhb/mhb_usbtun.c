@@ -27,41 +27,170 @@
  */
 #include <errno.h>
 #include <debug.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <nuttx/device.h>
 #include <nuttx/device_usbtun.h>
+#include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
+#include <nuttx/time.h>
 
 struct usbtun_s {
     struct device *mhb_dev;
+    struct device *slave_pwr_ctrl;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
 };
 
-static int _on(struct device *dev) {
-    struct usbtun_s *data = device_get_private(dev);
+static struct usbtun_s *s_data = NULL;
+
+#define MHB_USBTUN_OP_TIMEOUT_NS     2000000000LL /* 2 seconds in ns */
+
+static void _signal_response(struct usbtun_s *data) {
+    pthread_mutex_lock(&data->mutex);
+    pthread_cond_signal(&data->cond);
+    pthread_mutex_unlock(&data->mutex);
+}
+
+static int _wait_for_response(struct usbtun_s *data) {
+    int ret;
+    struct timespec expires;
+
+    if (clock_gettime(CLOCK_REALTIME, &expires)) {
+        return -EBADF;
+    }
+
+    uint64_t new_ns = timespec_to_nsec(&expires);
+    new_ns += MHB_USBTUN_OP_TIMEOUT_NS;
+    nsec_to_timespec(new_ns, &expires);
+
+    pthread_mutex_lock(&data->mutex);
+    ret = pthread_cond_timedwait(&data->cond, &data->mutex, &expires);
+    pthread_mutex_unlock(&data->mutex);
+
+    if (ret) {
+        /* timeout or other erros */
+        lldbg("ERROR: wait error %d\n", -ret);
+        return -ETIMEDOUT;
+    }
+
+    return 0;
+}
+
+static int _mhb_handle_msg(struct device *dev,
+                           struct mhb_hdr *hdr, uint8_t *payload, size_t payload_length) {
+    if (!s_data) {
+        return -ENODEV;
+    }
+
+    switch(hdr->type) {
+    case MHB_TYPE_HSIC_CONTROL_RSP:
+        if (hdr->result != MHB_RESULT_SUCCESS) {
+            lldbg("MHB HSIC Control RSP with failure\n");
+        }
+        _signal_response(s_data);
+        break;
+    default:
+        break;
+    }
+
+    return 0;
+}
+static int _slave_status_callback(struct device *dev, uint32_t slave_status) {
+
     struct mhb_hdr hdr;
     struct mhb_hsic_control_req req;
 
-    hdr.addr = MHB_ADDR_HSIC;
-    hdr.type = MHB_TYPE_HSIC_CONTROL_REQ;
-    hdr.result = 0;
-    req.command = MHB_HSIC_COMMAND_START;
-    return device_mhb_send(data->mhb_dev, &hdr, (const uint8_t *)&req, sizeof(req), 0);
+    switch (slave_status) {
+    case MHB_PM_STATUS_PEER_CONNECTED:
+        hdr.addr = MHB_ADDR_HSIC;
+        hdr.type = MHB_TYPE_HSIC_CONTROL_REQ;
+        hdr.result = 0;
+        req.command = MHB_HSIC_COMMAND_START;
+        if (s_data) {
+            return device_mhb_send(s_data->mhb_dev, &hdr, (const uint8_t *)&req, sizeof(req), 0);
+        }
+    }
+
+    return 0;
+}
+
+static int _on(struct device *dev) {
+    int ret;
+    struct usbtun_s *data = device_get_private(dev);
+
+    if (data->slave_pwr_ctrl) {
+        lldbg("Slave pwr ctrl already open\n");
+        return -EBUSY;
+    }
+
+    data->slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+                                       MHB_ADDR_HSIC);
+    if (!data->slave_pwr_ctrl) {
+        lldbg("Failed to open\n");
+        return -ENODEV;
+    }
+
+    ret = device_slave_pwrctrl_register_status_callback(data->slave_pwr_ctrl,
+                                                        _slave_status_callback);
+    if (ret) {
+        lldbg("Failed to register slave pwr ctrl\n");
+        return ret;
+    }
+
+    ret = device_slave_pwrctrl_send_slave_state(data->slave_pwr_ctrl,
+                                                SLAVE_STATE_ENABLED);
+    if (ret) {
+        lldbg("Failed to send state on\n");
+        return ret;
+    }
+
+    return 0;
 }
 
 static int _off(struct device *dev) {
     struct usbtun_s *data = device_get_private(dev);
     struct mhb_hdr hdr;
     struct mhb_hsic_control_req req;
+    int ret;
 
     hdr.addr = MHB_ADDR_HSIC;
     hdr.type = MHB_TYPE_HSIC_CONTROL_REQ;
     hdr.result = 0;
     req.command = MHB_HSIC_COMMAND_STOP;
-    return device_mhb_send(data->mhb_dev, &hdr, (const uint8_t *)&req, sizeof(req), 0);
+    ret = device_mhb_send(data->mhb_dev, &hdr, (const uint8_t *)&req, sizeof(req), 0);
+
+    if (ret) {
+        return ret;
+    } else {
+        _wait_for_response(s_data);
+    }
+
+    /* Turn off APBE */
+    if (!data->slave_pwr_ctrl) {
+        return -ENODEV;
+    }
+
+    ret = device_slave_pwrctrl_unregister_status_callback(
+        data->slave_pwr_ctrl, _slave_status_callback);
+    if (ret) {
+        lldbg("Failed to unregister slave pwr ctrl\n");
+    }
+
+    ret = device_slave_pwrctrl_send_slave_state(data->slave_pwr_ctrl,
+                                                SLAVE_STATE_DISABLED);
+    if (ret) {
+        lldbg("Failed to send state off\n");
+    }
+
+    device_close(data->slave_pwr_ctrl);
+    data->slave_pwr_ctrl = NULL;
+
+    return 0;
 }
 
 static int _open(struct device *dev) {
@@ -76,6 +205,9 @@ static int _open(struct device *dev) {
         return -ENOENT;
     }
 
+    device_mhb_register_receiver(data->mhb_dev, MHB_ADDR_HSIC,
+                                 _mhb_handle_msg);
+
     return 0;
 }
 
@@ -87,6 +219,8 @@ static void _close(struct device *dev) {
     }
 
     if (data->mhb_dev) {
+        device_mhb_unregister_receiver(data->mhb_dev, MHB_ADDR_HSIC,
+                                       _mhb_handle_msg);
         device_close(data->mhb_dev);
         data->mhb_dev = NULL;
     }
@@ -95,20 +229,20 @@ static void _close(struct device *dev) {
 static int _probe(struct device *dev) {
     struct usbtun_s *data;
 
-    data = zalloc(sizeof(*data));
-    if (!data)
+    s_data = zalloc(sizeof(*data));
+    if (!s_data)
         return -ENOMEM;
 
-    device_set_private(dev, data);
+    pthread_mutex_init(&s_data->mutex, NULL);
+    pthread_cond_init(&s_data->cond, NULL);
+    device_set_private(dev, s_data);
 
     return 0;
 }
 
 static void _remove(struct device *dev) {
-    struct usbtun_s *data = device_get_private(dev);
-
-    if (data) {
-        free(data);
+    if (s_data) {
+        free(s_data);
     }
 }
 
