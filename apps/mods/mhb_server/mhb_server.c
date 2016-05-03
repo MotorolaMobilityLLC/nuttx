@@ -1094,13 +1094,15 @@ static int mhb_handle_i2s(struct mhb_transaction *transaction)
 /* HSIC */
 static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
 {
+    int ret = 0;
+
 #if CONFIG_MHB_IPC_CLIENT
     /* Configure APBA side first */
-    int ret = mhb_unipro_send(transaction);
+    ret = mhb_unipro_send(transaction);
 
     if (ret) {
         lldbg("ERROR: Control transaction failure at remote.\n");
-        return ret;
+        goto snd_resp;
     }
 
     /* TODO: Will be changed to use common API to set gear */
@@ -1113,22 +1115,33 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
     switch (req->command) {
 #ifdef CONFIG_MODS_USB_HCD_ROUTER
     case MHB_HSIC_COMMAND_START:
-        return usbtun_hcd_router_init();
+        ret = usbtun_hcd_router_init();
+        break;
     case MHB_HSIC_COMMAND_STOP:
         usbtun_hcd_router_uninit();
-        return 0;
+        ret = 0;
+        break;
 #endif
 #ifdef CONFIG_MODS_USB_PCD_ROUTER
     case MHB_HSIC_COMMAND_START:
-        return usbtun_pcd_router_init();
+        ret = usbtun_pcd_router_init();
+        break;
     case MHB_HSIC_COMMAND_STOP:
         usbtun_pcd_router_uninit();
-        return 0;
+        ret = 0;
+        break;
 #endif
     default:
         lldbg("ERROR: HSIC event %d not handled\n", req->command);
         return -EINVAL;
     }
+
+snd_resp:
+    transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
+    transaction->out_msg.hdr->type = MHB_TYPE_HSIC_CONTROL_RSP;
+    transaction->out_msg.hdr->result =
+        ret ? MHB_RESULT_UNKNOWN_ERROR : MHB_RESULT_SUCCESS;
+    transaction->send_rsp = true;
 
     return 0;
 }
