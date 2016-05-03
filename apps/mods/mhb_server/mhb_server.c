@@ -440,6 +440,10 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
 
     struct cdsi_block *cdsi = cdsi_from_inst(inst);
     ret = cdsi != 0 ? 0 : -EINVAL;
+    /* CDSI already in use. */
+    if (cdsi && cdsi->dev) {
+        ret = -EBUSY;
+    }
 
     cfg = &req->cfg;
 
@@ -526,7 +530,7 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
 #endif
 
     /* If gearbox is present, initiate a gear shift request. */
-    if (g_gearbox) {
+    if (g_gearbox && !ret) {
         const int id = (inst == 0) ? g_gearbox_cdsi0 : g_gearbox_cdsi1;
 
         struct gear_request request;
