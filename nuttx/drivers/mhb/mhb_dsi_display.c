@@ -76,6 +76,7 @@ static struct mhb_dsi_display
     uint32_t gpio_pwr1;
     uint32_t gpio_pwr2;
     uint32_t gpio_pwr3;
+    uint32_t gpio_pwr4;
     uint32_t gpio_rst1;
     uint32_t gpio_rst2;
     atomic_t host_ready;
@@ -170,6 +171,14 @@ static int _mhb_dsi_display_config_gpios(struct device *dev)
         gpio_direction_out(display->gpio_pwr3, 0);
     }
 
+    display->gpio_pwr4 = MHB_DSI_DISPLAY_INVALID_RESOURCE;
+    rsrc = device_resource_get_by_name(dev,
+        DEVICE_RESOURCE_TYPE_GPIO, "pwr4_en");
+    if (rsrc) {
+        display->gpio_pwr4 = rsrc->start;
+        gpio_direction_out(display->gpio_pwr4, 0);
+    }
+
     display->gpio_rst1 = MHB_DSI_DISPLAY_INVALID_RESOURCE;
     rsrc = device_resource_get_by_name(dev,
         DEVICE_RESOURCE_TYPE_GPIO, "disp_rst1_n");
@@ -200,6 +209,9 @@ static void _mhb_dsi_display_power_on(struct mhb_dsi_display *display)
     if (display->gpio_pwr3 != MHB_DSI_DISPLAY_INVALID_RESOURCE)
         gpio_direction_out(display->gpio_pwr3, 1);
 
+    if (display->gpio_pwr4 != MHB_DSI_DISPLAY_INVALID_RESOURCE)
+        gpio_direction_out(display->gpio_pwr4, 1);
+
     usleep(MHB_DSI_DISPLAY_POWER_DELAY_US);
 
     if (display->gpio_rst1 != MHB_DSI_DISPLAY_INVALID_RESOURCE)
@@ -225,6 +237,9 @@ static void _mhb_dsi_display_power_off(struct mhb_dsi_display *display)
 
     if (display->gpio_pwr3 != MHB_DSI_DISPLAY_INVALID_RESOURCE)
         gpio_direction_out(display->gpio_pwr3, 0);
+
+    if (display->gpio_pwr4 != MHB_DSI_DISPLAY_INVALID_RESOURCE)
+        gpio_direction_out(display->gpio_pwr4, 0);
 }
 
 /* Notifications */
