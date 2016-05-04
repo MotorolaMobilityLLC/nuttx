@@ -1136,7 +1136,9 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
         return -EINVAL;
     }
 
+#if CONFIG_MHB_IPC_CLIENT
 snd_resp:
+#endif
     transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
     transaction->out_msg.hdr->type = MHB_TYPE_HSIC_CONTROL_RSP;
     transaction->out_msg.hdr->result =
