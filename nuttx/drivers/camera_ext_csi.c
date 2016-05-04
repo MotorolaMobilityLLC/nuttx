@@ -143,31 +143,30 @@ static int cam_set_resolution(struct camera_dev_s *cam_dev,
 }
 
 static struct cdsi_config CDSI_CONFIG = {
-    /* Common */
     .mode = TSB_CDSI_MODE_CSI,
+
     .tx_num_lanes = 4,
     .rx_num_lanes = 4,
-    .tx_mbits_per_lane = 518*1000*1000,
-    .rx_mbits_per_lane = 518*1000*1000,
-    /* RX only */
+    .tx_bits_per_lane = 518*1000*1000,
+    .rx_bits_per_lane = 518*1000*1000,
+
     .hs_rx_timeout = 0xffffffff,
-    /* TX only */
+
     .framerate = 0, /* variable */
+
     .pll_frs = 0,
     .pll_prd = 0,
     .pll_fbd = 26,
+
     .width = 0,  /* variable */
     .height = 0, /* variable */
     .bpp = 10,
+
     .bta_enabled = 0,
     .continuous_clock = 0,
     .blank_packet_enabled = 0,
     .video_mode = 0,
     .color_bar_enabled = 0,
-    /* CSI only */
-    /* DSI only */
-    /* Video Mode only */
-    /* Command Mode only */
 };
 
 static void generic_csi_init(struct cdsi_dev *dev)
