@@ -157,7 +157,6 @@ static int mhb_handle_unipro(struct device *dev, struct mhb_hdr *hdr,
         printf("write %s\n", res);
         return 0;
     case MHB_TYPE_UNIPRO_STATS_RSP:
-    case MHB_TYPE_UNIPRO_STATS_NOT:
     {
         if (!payload || !payload_length) {
             return 0;
@@ -173,6 +172,9 @@ static int mhb_handle_unipro(struct device *dev, struct mhb_hdr *hdr,
 
         return 0;
     }
+    case MHB_TYPE_UNIPRO_STATS_NOT:
+        /* Ignore the stats notification */
+        return 0;
     default:
         printf("ERROR: unknown Unipro event\n");
         return -EINVAL;
