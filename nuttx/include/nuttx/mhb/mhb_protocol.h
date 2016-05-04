@@ -351,23 +351,29 @@ struct mhb_unipro_stats_not {
 
 /* config */
 struct mhb_cdsi_config {
-	/* Common */
 	uint8_t direction; /* RX: 0 (CDSI -> UniPro), TX: 1 (UniPro -> CDSI) */
 	uint8_t mode;                    /* DSI: 0, CSI: 1 */
+
 	uint8_t rx_num_lanes;            /* 1 to 4 */
 	uint8_t tx_num_lanes;            /* 1 to 4 */
-	uint32_t rx_mbits_per_lane;      /* Mbps-per-lane */
-	uint32_t tx_mbits_per_lane;      /* Mbps-per-lane */
-	/* RX only */
+	uint32_t rx_bits_per_lane;       /* bits-per-lane */
+	uint32_t tx_bits_per_lane;       /* bits-per-lane */
+
 	uint32_t hs_rx_timeout;
-	/* TX only */
+
 	uint32_t pll_frs;
 	uint32_t pll_prd;
 	uint32_t pll_fbd;
+
 	uint32_t framerate;              /* frames-per-second */
+
 	uint32_t width;                  /* pixels */
 	uint32_t height;                 /* pixels */
+	uint16_t physical_width;         /* millimeters */
+	uint16_t physical_height;        /* millimeters */
+
 	uint32_t bpp;                    /* bits-per-pixel */
+
 	uint32_t vss_control_payload;
 	uint8_t bta_enabled;             /* 0: disabled, 1: enabled */
 	uint8_t continuous_clock;        /* 0: off, 1: on */
@@ -375,16 +381,17 @@ struct mhb_cdsi_config {
 	uint8_t video_mode;              /* 0: video, 1: command */
 	uint8_t color_bar_enabled;       /* 0: disabled */
 	uint8_t keep_alive;              /* 0: disabled */
+
 	uint8_t t_clk_pre;               /* nanoseconds */
 	uint8_t t_clk_post;              /* nanoseconds */
-	/* CSI only */
-	/* DSI only */
+
 	uint8_t horizontal_front_porch;  /* pixels */
 	uint8_t horizontal_back_porch;   /* pixels */
 	uint8_t horizontal_pulse_width;  /* pixels */
 	uint8_t horizontal_sync_skew;    /* pixels */
 	uint8_t horizontal_left_border;  /* pixels */
 	uint8_t horizontal_right_border; /* pixels */
+
 	uint8_t vertical_front_porch;    /* lines */
 	uint8_t vertical_back_porch;     /* lines */
 	uint8_t vertical_pulse_width;    /* lines */
@@ -438,7 +445,7 @@ struct mhb_cdsi_cmd {
 	uint8_t ctype;  /* MHB_CTYPE_* */
 	uint8_t dtype;  /* MHB_DTYPE_* */
 	uint16_t length;
-	uint32_t delay; /* minimum milliseconds to wait after command */
+	uint32_t delay; /* minimum microseconds to wait after command */
 	union {
 		uint16_t spdata;
 		uint32_t lpdata[2];
