@@ -500,6 +500,8 @@ static int mhb_dsi_display_host_ready(struct device *dev)
        to increment. This is fine since there isn't a host not ready. */
     atomic_inc(&g_display.host_ready);
 
+    _mhb_dsi_display_notification(display, DISPLAY_NOTIFICATION_EVENT_AVAILABLE);
+
     return 0;
 }
 
@@ -525,14 +527,15 @@ static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
 
     dst->manufacturer_id = display->panel_info.supplier_id;
 
-    dst->mode = src->video_mode;
+    dst->mode = src->video_mode ? DISPLAY_CONFIG_DSI_MODE_VIDEO :
+        DISPLAY_CONFIG_DSI_MODE_COMMAND;
     dst->num_lanes = src->tx_num_lanes;
 
     dst->width = src->width;
     dst->height = src->height;
 
-    dst->physical_width_dim = 3;
-    dst->physical_length_dim = 5;
+    dst->physical_width_dim = src->physical_width;
+    dst->physical_length_dim = src->physical_height;
 
     dst->framerate = src->framerate;
     dst->bpp = src->bpp;
