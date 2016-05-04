@@ -28,6 +28,7 @@
  */
 
 #include <arch/byteorder.h>
+#include <nuttx/clock.h>
 #include <nuttx/device.h>
 #include <nuttx/device_usb_ext.h>
 #include <nuttx/greybus/debug.h>
@@ -56,6 +57,8 @@
 
 #define GB_USB_EXT_REMOTE_DEVICE          0x00
 #define GB_USB_EXT_REMOTE_HOST            0x01
+
+#define GB_USB_EXT_ATTACH_DELAY_MS        1000
 
 struct gb_usb_ext_proto_version_response {
     __u8 major;
@@ -96,6 +99,8 @@ static uint8_t gb_usb_ext_send_attach_state(unsigned int cport, bool active)
     struct gb_usb_ext_attach_request *request;
     struct gb_operation *operation;
     int ret;
+
+    vdbg("active = %d\n", active);
 
     operation = gb_operation_create(cport, GB_USB_EXT_TYPE_ATTACH_STATE,
         sizeof(*request));
@@ -172,14 +177,20 @@ static void gb_usb_ext_detach_worker(void *arg)
     (void)gb_usb_ext_send_detach(cport);
 }
 
-static int event_callback(bool attached)
+static int gb_usb_queue_work(bool attached, uint32_t delay)
 {
     if (!work_available(&usb_ext_info.wq))
         work_cancel(LPWORK, &usb_ext_info.wq);
 
     worker_t worker = attached ? gb_usb_ext_attach_worker : gb_usb_ext_detach_worker;
-    work_queue(LPWORK, &usb_ext_info.wq, worker, (void *)usb_ext_info.cport, 0);
+    work_queue(LPWORK, &usb_ext_info.wq, worker, (void *)usb_ext_info.cport,
+               delay);
     return 0;
+}
+
+static int event_callback(bool attached)
+{
+    return gb_usb_queue_work(attached, 0);
 }
 
 static uint8_t gb_usb_ext_ap_ready(struct gb_operation *operation)
@@ -187,13 +198,13 @@ static uint8_t gb_usb_ext_ap_ready(struct gb_operation *operation)
     int ret;
 
     memset(&usb_ext_info, 0, sizeof(usb_ext_info));
+    usb_ext_info.cport = operation->cport;
 
     usb_ext_info.dev = device_open(DEVICE_TYPE_USB_EXT_HW, 0);
     if (!usb_ext_info.dev) {
-        return -EIO;
+        vdbg("no device\n");
+        return gb_usb_queue_work(true, MSEC2TICK(GB_USB_EXT_ATTACH_DELAY_MS));
     }
-
-    usb_ext_info.cport = operation->cport;
 
     ret = device_usb_ext_register_callback(usb_ext_info.dev, event_callback);
     if (ret) {
