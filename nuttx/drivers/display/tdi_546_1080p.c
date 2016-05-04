@@ -70,6 +70,8 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
     .framerate = 60,
     .width = 1080,
     .height = 1920,
+    .physical_width = 68,
+    .physical_height = 121,
     .bpp = 24,
 
     .bta_enabled = 1,
