@@ -94,6 +94,8 @@
 
 #define MHB_IPC_TIMEOUT (500)
 
+#define MHB_HSIC_SPEED_MBPS 480
+
 static struct device *g_uart_dev;
 
 static struct gearbox *g_gearbox;
@@ -1104,9 +1106,6 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
         lldbg("ERROR: Control transaction failure at remote.\n");
         goto snd_resp;
     }
-
-    /* TODO: Will be changed to use common API to set gear */
-    unipro_powermode_change(2, 2, 0x11, 1, 1);
 #endif
 
     struct mhb_hsic_control_req *req =
@@ -1133,12 +1132,24 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
 #endif
     default:
         lldbg("ERROR: HSIC event %d not handled\n", req->command);
-        return -EINVAL;
+        ret = -EINVAL;
+        goto snd_resp;
     }
 
-#if CONFIG_MHB_IPC_CLIENT
+    if (g_gearbox) {
+        if (req->command == MHB_HSIC_COMMAND_START) {
+            struct gear_request request;
+            request.rx_max_mbps = MHB_HSIC_SPEED_MBPS;
+            request.rx_auto = true;
+            request.tx_max_mbps = MHB_HSIC_SPEED_MBPS;
+            request.tx_auto = true;
+            gearbox_request(g_gearbox, g_gearbox_hsic, &request);
+        } else {
+            gearbox_request(g_gearbox, g_gearbox_hsic, NULL);
+        }
+    }
+
 snd_resp:
-#endif
     transaction->out_msg.hdr->addr = transaction->in_msg.hdr->addr;
     transaction->out_msg.hdr->type = MHB_TYPE_HSIC_CONTROL_RSP;
     transaction->out_msg.hdr->result =
