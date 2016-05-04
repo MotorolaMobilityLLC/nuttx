@@ -54,6 +54,7 @@ struct apbe_ctrl_info {
     uint32_t open_ref_cnt;
     uint32_t slave_state_ref_cnt;
     enum base_attached_e attached;
+    uint32_t status;
     bool is_initialized;
     struct device *mhb_dev;
 };
@@ -160,6 +161,8 @@ static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
         lldbg("ERROR: Invalid PM status notify\n");
         return -EINVAL;
     }
+
+    ctrl_info->status = not->status;
 
     for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
         if (ctrl_info->slave_status_cb[i]) {
@@ -324,9 +327,15 @@ static int apbe_pwrctrl_register_slave_status_cb(struct device *dev,
         return -ENODEV;
     }
 
+    if (cb == NULL) {
+        lldbg("ERROR: Invalid cb\n");
+        return -EINVAL;
+    }
+
     for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
         if (!ctrl_info->slave_status_cb[i]) {
             ctrl_info->slave_status_cb[i] = cb;
+            ctrl_info->slave_status_cb[i](dev, ctrl_info->status);
             return 0;
         }
     }
