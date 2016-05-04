@@ -58,6 +58,10 @@ struct max17050_config {
     uint16_t vf_fullcap;
     uint16_t ichg_term;
     uint32_t voltage_max_design; // in uV units
+#ifdef CONFIG_BATTERY_MAX17050_EMPTY_CFG
+    uint16_t iavg_empty;
+    uint16_t v_empty;
+#endif
     int cell_data[MAX17050_CELL_DATA_SIZE];
 };
 
