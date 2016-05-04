@@ -85,8 +85,10 @@
 #define MAX17050_REG_TOFF               0x2D
 #define MAX17050_REG_CGAIN              0x2E
 #define MAX17050_REG_Q_RESIDUAL_20      0x32
+#define MAX17050_REG_IAVG_EMPTY         0x36
 #define MAX17050_REG_RCOMP0             0x38
 #define MAX17050_REG_TEMPCO             0x39
+#define MAX17050_REG_V_EMPTY            0x3A
 #define MAX17050_REG_Q_RESIDUAL_30      0x42
 #define MAX17050_REG_DQ_ACC             0x45
 #define MAX17050_REG_DP_ACC             0x46
@@ -597,6 +599,10 @@ static int max17050_por_write_custom_params(FAR struct max17050_dev_s *priv)
     WRITE_VERIFY(priv, MAX17050_REG_Q_RESIDUAL_20, max17050_cfg.qr_table_20);
     WRITE_VERIFY(priv, MAX17050_REG_Q_RESIDUAL_30, max17050_cfg.qr_table_30);
 
+#ifdef CONFIG_BATTERY_MAX17050_EMPTY_CFG
+    WRITE(priv, MAX17050_REG_IAVG_EMPTY, max17050_cfg.iavg_empty);
+    WRITE(priv, MAX17050_REG_V_EMPTY, max17050_cfg.v_empty);
+#endif
     return 0;
 }
 
