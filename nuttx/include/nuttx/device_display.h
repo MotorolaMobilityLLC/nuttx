@@ -44,8 +44,8 @@ enum display_config_type {
 };
 
 enum display_config_dsi_mode {
-    DISPLAY_CONFIG_DSI_MODE_COMMAND = 0x00,
-    DISPLAY_CONFIG_DSI_MODE_VIDEO   = 0x01,
+    DISPLAY_CONFIG_DSI_MODE_VIDEO   = 0x00,
+    DISPLAY_CONFIG_DSI_MODE_COMMAND = 0x01,
 };
 
 enum display_config_dsi_swap {
