@@ -635,8 +635,8 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     mhb_camera_csi_config.rx_num_lanes = _mhb_camera_get_csi_rx_lanes(ival->user_data);
     mhb_camera_csi_config.framerate = roundf((float)(ival->denominator) /
                                              (float)(ival->numerator));
-    mhb_camera_csi_config.tx_mbits_per_lane = 500000000;
-    mhb_camera_csi_config.rx_mbits_per_lane = 500000000;
+    mhb_camera_csi_config.tx_bits_per_lane = 500000000;
+    mhb_camera_csi_config.rx_bits_per_lane = 500000000;
 
     /* Send the configuration to the APBE. */
     // TODO: ERROR HANDLING
