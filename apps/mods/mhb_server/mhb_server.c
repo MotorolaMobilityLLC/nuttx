@@ -454,8 +454,8 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
         cdsi->config.mode = cfg->mode != 0;
         cdsi->config.rx_num_lanes = cfg->rx_num_lanes;
         cdsi->config.tx_num_lanes = cfg->tx_num_lanes;
-        cdsi->config.rx_mbits_per_lane = le32_to_cpu(cfg->rx_mbits_per_lane);
-        cdsi->config.tx_mbits_per_lane = le32_to_cpu(cfg->tx_mbits_per_lane);
+        cdsi->config.rx_bits_per_lane = le32_to_cpu(cfg->rx_bits_per_lane);
+        cdsi->config.tx_bits_per_lane = le32_to_cpu(cfg->tx_bits_per_lane);
         cdsi->config.hs_rx_timeout = le32_to_cpu(cfg->hs_rx_timeout);
         cdsi->config.pll_frs = le32_to_cpu(cfg->pll_frs);
         cdsi->config.pll_prd = le32_to_cpu(cfg->pll_prd);
@@ -538,7 +538,7 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
         struct gear_request request;
         const int _auto = cdsi->config.mode == TSB_CDSI_MODE_DSI && !cdsi->config.video_mode;
 
-        /* TSB_CDSI_RX, rx_mbits_per_lane, rx_num_lanes, tx_mbits_per_lane, and
+        /* TSB_CDSI_RX, rx_bits_per_lane, rx_num_lanes, tx_bits_per_lane, and
          * tx_num_lanes are all from the perspective of the CDSI interface.
          *
          * While rx_max_mbps, rx_auto, tx_max_mbps, and tx_auto are from the
@@ -554,7 +554,7 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
          */
         if (cdsi->config.direction == TSB_CDSI_TX) {
             /* Display on CDSI0 */
-            request.rx_max_mbps = cdsi->config.tx_mbits_per_lane / 1000000 * cdsi->config.tx_num_lanes;
+            request.rx_max_mbps = cdsi->config.tx_bits_per_lane / 1000000 * cdsi->config.tx_num_lanes;
             request.rx_auto = _auto;
             request.tx_max_mbps = GEARBOX_HS_MIN;
             request.tx_auto = _auto;
@@ -562,7 +562,7 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
             /* Camera on CDSI1 */
             request.rx_max_mbps = GEARBOX_HS_MIN;
             request.rx_auto = _auto;
-            request.tx_max_mbps = cdsi->config.rx_mbits_per_lane / 1000000 * cdsi->config.rx_num_lanes;
+            request.tx_max_mbps = cdsi->config.rx_bits_per_lane / 1000000 * cdsi->config.rx_num_lanes;
             request.tx_auto = _auto;
         }
 
