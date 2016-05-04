@@ -55,38 +55,41 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
     /* Common */
     .direction = 1, /* TX */
     .mode = 0, /* DSI */
+
     .tx_num_lanes = 4,
     .rx_num_lanes = 4,
-    .tx_mbits_per_lane = 807540000,
-    .rx_mbits_per_lane = 807540000,
-    /* RX only */
+    .tx_bits_per_lane = 807540000,
+    .rx_bits_per_lane = 807540000,
+
     .hs_rx_timeout = 0xffffffff,
-    /* TX only */
+
     .pll_frs = 0,
     .pll_prd = 1,
     .pll_fbd = 103,
+
     .framerate = 60,
     .width = 1080,
     .height = 1920,
     .bpp = 24,
+
     .bta_enabled = 1,
     .continuous_clock = 1,
     .blank_packet_enabled = 1,
     .video_mode = 0,
     .color_bar_enabled = 0,
-    /* CSI only */
-    /* DSI only */
+
     .vss_control_payload = 0x0000,
+
     .horizontal_front_porch = 24,
     .horizontal_pulse_width = 4,
     .horizontal_back_porch = 40,
+
     .vertical_front_porch = 16,
     .vertical_pulse_width = 2,
     .vertical_back_porch = 16,
+
     .t_clk_pre = 0x1b,
     .t_clk_post = 0x28,
-    /* Video Mode only */
-    /* Command Mode only */
 };
 
 const static struct mhb_cdsi_cmd DISPLAY_ON_COMMANDS[] = {
