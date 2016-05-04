@@ -540,7 +540,7 @@ static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
     dst->framerate = src->framerate;
     dst->bpp = src->bpp;
 
-    dst->clockrate = (uint64_t)src->tx_mbits_per_lane;
+    dst->clockrate = (uint64_t)src->tx_bits_per_lane;
 
     dst->t_clk_pre = src->t_clk_pre;
     dst->t_clk_post = src->t_clk_post;
