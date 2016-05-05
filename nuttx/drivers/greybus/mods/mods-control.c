@@ -132,6 +132,7 @@ struct gb_control_get_ids_response {
     __le32    fw_version;
     __le32    slave_mask;
     char      fw_version_str[MB_CONTROL_FW_VER_STR_SZ];
+    __u8      fw_vendor_updates;
 } __packed;
 
 /* Control protocol [dis]connected request */
@@ -432,6 +433,12 @@ static uint8_t gb_control_get_ids(struct gb_operation *operation)
         if (ret)
             gb_error("Failed to get pwrctrl mask\n");
     }
+
+#ifdef CONFIG_GREYBUS_MODS_SUPPORT_VENDOR_UPDATES
+    response->fw_vendor_updates = true;
+#else
+    response->fw_vendor_updates = false;
+#endif
 
     return GB_OP_SUCCESS;
 }
