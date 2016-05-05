@@ -505,14 +505,14 @@ int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t
         uint32_t value = cdsi_read(dev, addr);
         if ((value & mask) == desired_value) {
             /* success */
-            vdbg("wait: %x %x\n", addr, value);
+            vdbg("wait: i=%d addr=%x value=%x\n", i, addr, value);
             return 0;
         }
 
         i++;
         if (retries && (i > retries)) {
             /* retry timeout */
-            dbg("wait timeout: addr=0x%x, value=0x%x\n", addr, value);
+            dbg("wait timeout: i=%d, addr=0x%x, value=0x%x\n", i, addr, value);
             return -ETIME;
         }
         usleep(1);
@@ -723,6 +723,21 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
     const uint32_t horz_period_ns = 1000*1000*1000 / config->framerate / config->height;
     vdbg("horz_period_ns=%d\n", horz_period_ns);
+
+    const int32_t pixel_time = (config->bpp / config->tx_num_lanes) * 1000 / hsck;
+    vdbg("pixel_time=%d\n", pixel_time);
+
+#if CONFIG_DEBUG_VERBOSE
+    const int32_t horz_pixels =
+           config->horizontal_front_porch + config->horizontal_back_porch +
+           config->horizontal_pulse_width + config->horizontal_sync_skew +
+           config->horizontal_left_border + config->horizontal_right_border +
+           config->width;
+    vdbg("horz_pixels=%d\n", horz_pixels);
+
+    const int32_t horz_period_ns_calc = horz_pixels * pixel_time;
+    vdbg("horz_period_ns_calc=%d\n", horz_period_ns_calc);
+#endif
 
     const struct sys_cld_tclk_table_row *sys_cld_tclk_table_row = CDSI_LOOKUP_TABLE(sys_cld_tclk_table, config->tx_bits_per_lane);
     const struct tx_table_row *tx_table_row = CDSI_LOOKUP_TABLE(tx_table, config->tx_bits_per_lane);
@@ -1111,7 +1126,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             SBS_APF_DSI_HSA_CNT, hsa_cnt_dsi);
 
         /* SIDEBAND_CONFIG_12 - Horizontal back porch */
-        const uint32_t hbp = (uint32_t) (config->horizontal_back_porch * hsck /
+        const uint32_t hbp = (uint32_t) (config->horizontal_back_porch * pixel_time * hsck /
                 1000 + 0.9);
         vdbg("hbp: %d\n", hbp);
 
