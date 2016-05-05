@@ -171,11 +171,11 @@ int mhb_camera_i2c_write(uint16_t i2c_addr, uint8_t *addr, int addr_len)
 }
 
 /* 1 bytes value register read */
-uint8_t mhb_camera_i2c_read_reg1(uint16_t i2c_addr, uint16_t regaddr)
+int mhb_camera_i2c_read_reg1(uint16_t i2c_addr, uint16_t regaddr,
+                                        uint8_t *value)
 {
     uint8_t addr[2];
     uint8_t data[1];
-    uint8_t value = 0;
 
     addr[0] = regaddr & 0xFF;
     addr[1] = (regaddr >> 8) & 0xFF;
@@ -183,21 +183,22 @@ uint8_t mhb_camera_i2c_read_reg1(uint16_t i2c_addr, uint16_t regaddr)
     memset(data, 0, sizeof(data));
 
     if (mhb_camera_i2c_read(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
-        value = data[0];
-        CTRL_DBG("read: 0x%04x -> 0x%02x\n", regaddr, value);
+        *value = data[0];
+        CTRL_DBG("read: %02x 0x%04x -> 0x%02x\n", i2c_addr, regaddr, *value);
     } else {
-        CAM_ERR("Failed i2c read 0x%04x\n",regaddr);
+        CAM_ERR("Failed i2c read %02x 0x%04x\n", i2c_addr, regaddr);
+        return -1;
     }
 
-    return value;
+    return 0;
 }
 
 /* 2 bytes value register read */
-uint16_t mhb_camera_i2c_read_reg2(uint16_t i2c_addr, uint16_t regaddr)
+int mhb_camera_i2c_read_reg2(uint16_t i2c_addr, uint16_t regaddr,
+                                        uint16_t *value)
 {
     uint8_t addr[2];
     uint8_t data[2];
-    uint16_t value = 0;
 
     addr[0] = regaddr & 0xFF;
     addr[1] = (regaddr >> 8) & 0xFF;
@@ -205,21 +206,22 @@ uint16_t mhb_camera_i2c_read_reg2(uint16_t i2c_addr, uint16_t regaddr)
     memset(data, 0, sizeof(data));
 
     if (mhb_camera_i2c_read(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
-        value = (data[1] << 8) + data[0];
-        CTRL_DBG("read: 0x%04x -> 0x%04x\n", regaddr, value);
+        *value = (data[1] << 8) + data[0];
+        CTRL_DBG("read: %02x 0x%04x -> 0x%04x\n", i2c_addr, regaddr, *value);
     } else {
-        CAM_ERR("Failed i2c read 0x%04x\n",regaddr);
+        CAM_ERR("Failed i2c read %02x 0x%04x\n", i2c_addr, regaddr);
+        return -1;
     }
 
-    return value;
+    return 0;
 }
 
 /* 4 bytes value register read */
-uint32_t mhb_camera_i2c_read_reg4(uint16_t i2c_addr, uint16_t regaddr)
+int mhb_camera_i2c_read_reg4(uint16_t i2c_addr, uint16_t regaddr,
+                                 uint32_t *value)
 {
     uint8_t addr[2];
     uint8_t data[4];
-    uint32_t value = 0;
 
     addr[0] = regaddr & 0xFF;
     addr[1] = (regaddr >> 8) & 0xFF;
@@ -227,21 +229,21 @@ uint32_t mhb_camera_i2c_read_reg4(uint16_t i2c_addr, uint16_t regaddr)
     memset(data, 0, sizeof(data));
 
     if (mhb_camera_i2c_read(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
-        value = (data[3] << 24) + (data[2] << 16) + (data[1] << 8) + data[0];
-        CTRL_DBG("read: 0x%04x -> 0x%08x\n", regaddr, value);
+        *value = (data[3] << 24) + (data[2] << 16) + (data[1] << 8) + data[0];
+        CTRL_DBG("read: %02x 0x%04x -> 0x%08x\n", i2c_addr, regaddr, *value);
     } else {
-        CAM_ERR("Failed i2c read 0x%04x\n",regaddr);
+        CAM_ERR("Failed i2c read %02x 0x%04x\n", i2c_addr, regaddr);
+        return -1;
     }
-
-    return value;
+    return 0;
 }
 
 /* 16b aligned 2 bytes value register read */
-uint16_t mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr, uint16_t regaddr)
+int mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr, uint16_t regaddr,
+                                 uint16_t *value)
 {
     uint8_t addr[2];
     uint8_t data[2];
-    uint16_t value = 0;
 
     addr[0] = (regaddr >> 8) & 0xFF;
     addr[1] = regaddr & 0xFF;
@@ -249,21 +251,22 @@ uint16_t mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr, uint16_t regaddr)
     memset(data, 0, sizeof(data));
 
     if (mhb_camera_i2c_read_rs(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
-        value = (data[0] << 8) + data[1];
-        CTRL_DBG("read: 0x%04x -> 0x%04x\n", regaddr, value);
+        *value = (data[0] << 8) + data[1];
+        CTRL_DBG("read: %02x 0x%04x -> 0x%04x\n", i2c_addr, regaddr, *value);
     } else {
-        CAM_ERR("Failed i2c read 0x%04x\n",regaddr);
+        CAM_ERR("Failed i2c read %02x 0x%04x\n", i2c_addr, regaddr);
+        return -1;
     }
 
-    return value;
+    return 0;
 }
 
 /* 16b aligned 4 bytes value register read */
-uint32_t mhb_camera_i2c_read_reg4_16(uint16_t i2c_addr, uint16_t regaddr)
+int mhb_camera_i2c_read_reg4_16(uint16_t i2c_addr, uint16_t regaddr,
+                                 uint32_t *value)
 {
     uint8_t addr[2];
     uint8_t data[4];
-    uint32_t value = 0;
 
     addr[0] = (regaddr >> 8) & 0xFF;
     addr[1] = regaddr & 0xFF;
@@ -271,13 +274,14 @@ uint32_t mhb_camera_i2c_read_reg4_16(uint16_t i2c_addr, uint16_t regaddr)
     memset(data, 0, sizeof(data));
 
     if (mhb_camera_i2c_read_rs(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
-        value = (data[0] << 8) + data[1] + (data[2] << 24) + (data[3] << 16);
-        CTRL_DBG("read: 0x%04x -> 0x%08x\n", regaddr, value);
+        *value = (data[0] << 8) + data[1] + (data[2] << 24) + (data[3] << 16);
+        CTRL_DBG("read: %02x 0x%04x -> 0x%08x\n", i2c_addr, regaddr, *value);
     } else {
-        CAM_ERR("Failed i2c read 0x%04x\n",regaddr);
+        CAM_ERR("Failed i2c read %02x 0x%04x\n", i2c_addr, regaddr);
+        return -1;
     }
 
-    return value;
+    return 0;
 }
 
 /* 1 bytes value register write */
@@ -285,14 +289,15 @@ int mhb_camera_i2c_write_reg1(uint16_t i2c_addr, uint16_t regaddr, uint8_t data)
 {
     uint8_t addr[3];
 
-    CTRL_DBG("write 0x%02x to addr 0x%04x\n", data, regaddr);
+    CTRL_DBG("write 0x%02x to %02x addr 0x%04x\n", data, i2c_addr, regaddr);
     addr[0] = regaddr & 0xFF;
     addr[1] = (regaddr >> 8) & 0xFF;
     addr[2] = data & 0xFF;
 
     int ret = mhb_camera_i2c_write(i2c_addr, addr, sizeof(addr));
     if (ret != 0) {
-        CAM_ERR("Failed i2c write 0x%02x to addr 0x%04x err %d\n", data, regaddr, ret);
+        CAM_ERR("Failed i2c write 0x%02x to %02x  addr 0x%04x err %d\n",
+                data, i2c_addr, regaddr, ret);
     }
 
     return ret;
@@ -303,7 +308,7 @@ int mhb_camera_i2c_write_reg2(uint16_t i2c_addr, uint16_t regaddr, uint16_t data
 {
     uint8_t addr[4];
 
-    CTRL_DBG("write 0x%04x to addr 0x%04x\n", data, regaddr);
+    CTRL_DBG("write 0x%04x to %02x addr 0x%04x\n", data, i2c_addr, regaddr);
     addr[0] = regaddr & 0xFF;
     addr[1] = (regaddr >> 8) & 0xFF;
     addr[2] = data & 0xFF;
@@ -311,7 +316,8 @@ int mhb_camera_i2c_write_reg2(uint16_t i2c_addr, uint16_t regaddr, uint16_t data
 
     int ret = mhb_camera_i2c_write(i2c_addr, addr, sizeof(addr));
     if (ret != 0) {
-        CAM_ERR("Failed i2c write 0x%04x to addr 0x%04x err %d\n", data, regaddr, ret);
+        CAM_ERR("Failed i2c write 0x%04x to %02x  addr 0x%04x err %d\n",
+                data, i2c_addr, regaddr, ret);
     }
 
     return ret;
@@ -322,7 +328,7 @@ int mhb_camera_i2c_write_reg4(uint16_t i2c_addr, uint16_t regaddr, uint32_t data
 {
     uint8_t addr[6];
 
-    CTRL_DBG("write 0x%08x to addr 0x%04x\n", data, regaddr);
+    CTRL_DBG("write 0x%08x to %02x addr 0x%04x\n", data, i2c_addr, regaddr);
     addr[0] = regaddr & 0xFF;
     addr[1] = (regaddr >> 8) & 0xFF;
     addr[2] = data & 0xFF;
@@ -332,7 +338,8 @@ int mhb_camera_i2c_write_reg4(uint16_t i2c_addr, uint16_t regaddr, uint32_t data
 
     int ret = mhb_camera_i2c_write(i2c_addr, addr, sizeof(addr));
     if (ret != 0) {
-        CAM_ERR("Failed i2c write 0x%08x to addr 0x%04x err %d\n", data, regaddr, ret);
+        CAM_ERR("Failed i2c write 0x%08x to %02x  addr 0x%04x err %d\n",
+                data, i2c_addr, regaddr, ret);
     }
 
     return ret;
@@ -343,7 +350,7 @@ int mhb_camera_i2c_write_reg2_16(uint16_t i2c_addr, uint16_t regaddr, uint16_t d
 {
     uint8_t addr[4];
 
-    CTRL_DBG("write 0x%04x to addr 0x%04x\n", data, regaddr);
+    CTRL_DBG("write 0x%04x to %02x addr 0x%04x\n", data, i2c_addr, regaddr);
     addr[0] = (regaddr >> 8) & 0xFF;
     addr[1] = regaddr & 0xFF;
     addr[2] = (data >> 8) & 0xFF;
@@ -351,7 +358,8 @@ int mhb_camera_i2c_write_reg2_16(uint16_t i2c_addr, uint16_t regaddr, uint16_t d
 
     int ret = mhb_camera_i2c_write(i2c_addr, addr, sizeof(addr));
     if (ret != 0) {
-        CAM_ERR("Failed i2c write 0x%04x to addr 0x%04x err %d\n", data, regaddr, ret);
+        CAM_ERR("Failed i2c write 0x%04x to %02x  addr 0x%04x err %d\n",
+                data, i2c_addr, regaddr, ret);
     }
 
     return ret;
@@ -362,7 +370,7 @@ int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t d
 {
     uint8_t addr[6];
 
-    CTRL_DBG("write 0x%08x to addr 0x%04x\n", data, regaddr);
+    CTRL_DBG("write 0x%08x to %02x addr 0x%04x\n", data, i2c_addr, regaddr);
     addr[0] = (regaddr >> 8) & 0xFF;
     addr[1] = regaddr & 0xFF;
     addr[2] = (data >> 8) & 0xFF;
@@ -372,7 +380,8 @@ int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t d
 
     int ret = mhb_camera_i2c_write(i2c_addr, addr, sizeof(addr));
     if (ret != 0) {
-        CAM_ERR("Failed i2c write 0x%08x to addr 0x%04x err %d\n", data, regaddr, ret);
+        CAM_ERR("Failed i2c write 0x%08x to %02x  addr 0x%04x err %d\n",
+                data, i2c_addr, regaddr, ret);
     }
 
     return ret;
