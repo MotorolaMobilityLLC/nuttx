@@ -1991,16 +1991,18 @@ static inline void pcd_setup(dwc_otg_pcd_t * pcd)
 		break;
 
 	case UR_CLEAR_FEATURE:
-		do_clear_feature(pcd);
 #ifdef CONFIG_MODS_USB_PCD_ROUTER
 		do_gadget_setup(pcd, &ctrl);
+#else
+		do_clear_feature(pcd);
 #endif
 		break;
 
 	case UR_SET_FEATURE:
-		do_set_feature(pcd);
 #ifdef CONFIG_MODS_USB_PCD_ROUTER
 		do_gadget_setup(pcd, &ctrl);
+#else
+		do_set_feature(pcd);
 #endif
 		break;
 
