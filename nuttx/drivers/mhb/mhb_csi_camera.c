@@ -45,6 +45,7 @@
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_csi_camera.h>
+#include "mhb_csi_camera_sm.h"
 
 #include "greybus/v4l2_camera_ext_ctrls.h"
 #include "camera_ext.h"

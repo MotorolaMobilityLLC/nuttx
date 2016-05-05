@@ -29,36 +29,6 @@
 #ifndef MHB_CSI_CAMERA_H
 #define MHB_CSI_CAMERA_H
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
-typedef enum {
-    MHB_CAMERA_STATE_INVALID = -1,
-    MHB_CAMERA_STATE_OFF = 0,
-    MHB_CAMERA_STATE_WAIT_POWER_ON,
-    MHB_CAMERA_STATE_ON,
-    MHB_CAMERA_STATE_WAIT_STREAM,
-    MHB_CAMERA_STATE_STREAMING,
-    MHB_CAMERA_STATE_WAIT_STREAM_CLOSE,
-} mhb_camera_sm_state_t;
-
-typedef enum {
-    MHB_CAMERA_EV_FAIL = -1,
-    MHB_CAMERA_EV_NONE = 0,
-    MHB_CAMERA_EV_POWER_ON_REQ,
-    MHB_CAMERA_EV_POWER_OFF_REQ,
-    MHB_CAMERA_EV_STREAM_ON_REQ,
-    MHB_CAMERA_EV_STREAM_OFF_REQ,
-    MHB_CAMERA_EV_POWERED_ON,
-    MHB_CAMERA_EV_CONFIGURED,
-    MHB_CAMERA_EV_DECONFIGURED,
-} mhb_camera_sm_event_t;
-
-typedef mhb_camera_sm_event_t (*mhb_camera_command_func)();
-
-mhb_camera_sm_state_t mhb_camera_sm_get_state();
-int mhb_camera_sm_init();
-int mhb_camera_sm_execute(mhb_camera_sm_event_t event);
-
 int mhb_camera_i2c_read(uint16_t i2c_addr,
                         uint8_t *addr, int addr_len,
                         uint8_t *data, int data_len);
@@ -74,11 +44,6 @@ int mhb_camera_i2c_write_reg2(uint16_t i2c_addr, uint16_t regaddr, uint16_t data
 int mhb_camera_i2c_write_reg4(uint16_t i2c_addr, uint16_t regaddr, uint32_t data);
 int mhb_camera_i2c_write_reg2_16(uint16_t i2c_addr, uint16_t regaddr, uint16_t data);
 int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t data);
-
-mhb_camera_sm_event_t mhb_camera_power_on(void);
-mhb_camera_sm_event_t mhb_camera_power_off(void);
-mhb_camera_sm_event_t mhb_camera_stream_on(void);
-mhb_camera_sm_event_t mhb_camera_stream_off(void);
 
 int _mhb_camera_soc_enable();
 int _mhb_camera_soc_disable();
