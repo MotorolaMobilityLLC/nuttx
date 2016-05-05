@@ -85,6 +85,11 @@
 /* Select the SL_BPLUS_AIN pin for base attach */
 #define GPIO_MODS_BASE_ATTACH    GPIO_MODS_SL_BPLUS_AIN
 
+/* HDK P3 and later */
+#if (BOARD_REVISION >= 3)
+#define GPIO_TEMP_DEV_ENABLE     CALC_GPIO_NUM('G', 10)
+#endif
+
 /* Battery voltage comparator */
 #define BATT_COMP                STM32_COMP2             /* Comparator */
 #define BATT_COMP_INP            STM32_COMP_INP_PIN_1    /* Input plus */

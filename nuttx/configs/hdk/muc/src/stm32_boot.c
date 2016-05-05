@@ -246,6 +246,14 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+#ifdef CONFIG_MODS_RAW_TEMPERATURE
+    {
+        .type = DEVICE_TYPE_RAW_HW,
+        .name = "mods_raw_temperature",
+        .desc = "Temperature sensor Raw Interface",
+        .id   = 0,
+    },
+#endif
 #ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY
     {
         .type = DEVICE_TYPE_PTP_HW,
@@ -504,6 +512,10 @@ void board_initialize(void)
 #ifdef CONFIG_MODS_RAW_BLINKY
   extern struct device_driver mods_raw_blinky_driver;
   device_register_driver(&mods_raw_blinky_driver);
+#endif
+#ifdef CONFIG_MODS_RAW_TEMPERATURE
+  extern struct device_driver mods_raw_temperature_driver;
+  device_register_driver(&mods_raw_temperature_driver);
 #endif
 #ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY
   extern struct device_driver batt_ptp_driver;

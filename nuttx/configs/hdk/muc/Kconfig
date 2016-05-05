@@ -32,6 +32,16 @@ config MODS_RAW_BLINKY
 	---help---
 		Enable Blinky LED Raw support
 
+config MODS_RAW_TEMPERATURE
+	bool "Temperature Personality Mods Raw support"
+	default n
+	depends on GREYBUS_RAW
+	select DEVICE_CORE
+	select STM32_ADC
+	select STM32_ADC_SWTRIG
+	---help---
+		Enable Temperature personality Raw support
+
 config MAX17050_DEVICE
 	bool "MAX17050 battery device"
 	default n

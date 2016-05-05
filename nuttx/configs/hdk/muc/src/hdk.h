@@ -35,6 +35,8 @@
 #ifndef __CONFIGS_HDK_MUC_SRC_HDK_H
 #define __CONFIGS_HDK_MUC_SRC_HDK_H
 
+#define  TEMP_RAW_ADC_DEVPATH         "/dev/adc0"
+
 /****************************************************************************
  * Name: mods_init
  *
@@ -42,7 +44,6 @@
  *   Perform GPIO configuration necessary for mods
  *
  ****************************************************************************/
-
 void mods_init(void);
 
 #endif /* __CONFIGS_HDK_MUC_SRC_HDK_H */

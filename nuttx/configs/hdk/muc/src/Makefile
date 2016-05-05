@@ -61,6 +61,10 @@ ifeq ($(CONFIG_MODS_RAW_BLINKY),y)
 CSRCS += stm32_modsraw_blinky.c
 endif
 
+ifeq ($(CONFIG_MODS_RAW_TEMPERATURE),y)
+CSRCS += stm32_modsraw_temperature.c
+endif
+
 ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
