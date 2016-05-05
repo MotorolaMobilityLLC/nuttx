@@ -110,7 +110,7 @@ struct mbps_to_gear {
 };
 
 /* Macro to add reduce the theoretical max to a practical max */
-#define GMAX(x) x
+#define GMAX(x) (x * 0.60)
 
 /* Table that maps abstract megabits-per-second to concrete gear parameters. */
 static const struct mbps_to_gear MBPS_TO_GEAR[] =
