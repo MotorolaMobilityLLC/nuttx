@@ -37,7 +37,7 @@
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_dsi_display.h>
 
-#define CONFIG_DSI_DISPLAY_VIDEO_MODE (0)
+#define CONFIG_DSI_DISPLAY_VIDEO_MODE (1)
 #define CONFIG_DSI_DISPLAY_TE (0)
 
 #define DISPLAY_SUPPLIER_ID (0x0000)
@@ -58,8 +58,8 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
 
     .tx_num_lanes = 4,
     .rx_num_lanes = 4,
-    .tx_bits_per_lane = 423300000,
-    .rx_bits_per_lane = 423300000,
+    .tx_bits_per_lane = 422400000,
+    .rx_bits_per_lane = 423640000,
 
     .hs_rx_timeout = 0xffffffff,
 
