@@ -46,7 +46,7 @@ if [ -z "${PATH_ORIG}" ]; then
   export PATH_ORIG="${PATH}"
 fi
 
-export NUTTX_CONFIG_BASE=hdk/muc/base_powered
+export NUTTX_CONFIG_BASE=hdk/muc/temperature
 
 # this will need to be updated based on your configuration
 if [ -z "${ANDROID_BUILD_TOP}" ]; then
