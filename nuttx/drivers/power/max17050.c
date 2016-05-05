@@ -137,6 +137,9 @@
 
 #define MAX17050_ALERT_DEASSERT_DELAY   500 /* in mS */
 
+#define MIN_SOC_ALRT    1   /* No IRQ for 0% since SOC cannot be less than 0% */
+#define MAX_SOC_ALRT    99  /* No IRQ for 100% since SOC cannot exceed 100% */
+
 extern const struct max17050_config max17050_cfg;
 
 struct max17050_dev_s
@@ -280,7 +283,8 @@ static int max17050_voltage(struct battery_dev_s *dev, b16_t *voltage)
 static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
 {
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
-    b16_t value;
+    int value;
+    int decimal;
     int ret;
 
     if (!priv->initialized)
@@ -291,14 +295,34 @@ static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
         return -ENODEV;
 
     /* high byte with a resolution of 1.0% */
-    value = ret >> 8;
+    value = (ret & 0x0FF00) >> 8;
+    decimal = ret & 0x0FF;
 
-    /* count in low byte, round to the nearest integer */
-    if (ret & 0x80)
-        *capacity = value + 1;
-    else
-        *capacity = value;
+#ifdef CONFIG_BATTERY_LEVEL_FULL_HYST
+#define SOC_RANGE \
+        (MAX_SOC_ALRT - MIN_SOC_ALRT - CONFIG_BATTERY_LEVEL_FULL_HYST)
+#else
+#define SOC_RANGE (MAX_SOC_ALRT - MIN_SOC_ALRT)
+#endif
+    /* MIN_SOC_ALRT for capacity 0, (MAX_SOC_ALRT-FULL_HYST) for 100
+       linearize values between MIN_SOC_ALRT and (MAX_SOC_ALRT-FULL_HYST)
+       so user will not see capacity jump
+       e.g. MIN_SOC_ALRT=1, MAX_SOC_ALRT=99, FULL_HYST=1
+       capacity = (soc - 1) * 100 /97
+       round to the nearest integer
+    */
+    value = (value - MIN_SOC_ALRT) * 100 + ((decimal * 100) >> 8);
+    decimal = value % SOC_RANGE;
+    value = value / SOC_RANGE;
+    if (decimal > SOC_RANGE / 2)
+        ++value;
 
+    if (value > 100) {
+        value = 100;
+    } else if (value < 0) {
+        value = 0;
+    }
+    *capacity = value;
     return OK;
 }
 
@@ -1366,8 +1390,6 @@ static int max17050_battery_level_get_capacity(struct device *dev, int *capacity
     return 0;
 }
 
-#define MIN_SOC_ALRT    1   /* No IRQ for 0% since SOC cannot be less than 0% */
-#define MAX_SOC_ALRT    99  /* No IRQ for 100% since SOC cannot exceed 100% */
 static int max17050_battery_level_get_possible_limits(struct device *dev,
                                                       int *min, int *max)
 {
