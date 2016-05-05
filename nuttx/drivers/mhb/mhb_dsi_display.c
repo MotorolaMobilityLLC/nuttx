@@ -51,7 +51,7 @@
 #define MHB_DSI_DISPLAY_INVALID_RESOURCE  0xffffffff
 
 #define MHB_DSI_DISPLAY_POWER_DELAY_US    100000
-#define MHB_DSI_DISPLAY_OP_TIMEOUT_NS     2000000000LL /* 2 seconds in ns */
+#define MHB_DSI_DISPLAY_OP_TIMEOUT_NS     10000000000LL /* 10 seconds in ns */
 
 #define MHB_DSI_DISPLAY_CDSI_INSTANCE     0
 
@@ -88,6 +88,7 @@ static struct mhb_dsi_display
     uint8_t state;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
+    struct display_dsi_config cfg;
 } g_display;
 
 const static struct mhb_cdsi_cmd GET_SUPPLIER_ID[] = {
@@ -516,7 +517,7 @@ static int mhb_dsi_display_get_config_size(struct device *dev, uint32_t *size)
         return -EINVAL;
     }
 
-    *size = sizeof(struct display_dsi_config);
+    *size = sizeof(display->cfg);
     return 0;
 }
 
@@ -529,7 +530,7 @@ static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
 
     dst->mode = src->video_mode ? DISPLAY_CONFIG_DSI_MODE_VIDEO :
         DISPLAY_CONFIG_DSI_MODE_COMMAND;
-    dst->num_lanes = src->tx_num_lanes;
+    dst->num_lanes = src->rx_num_lanes;
 
     dst->width = src->width;
     dst->height = src->height;
@@ -540,7 +541,7 @@ static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
     dst->framerate = src->framerate;
     dst->bpp = src->bpp;
 
-    dst->clockrate = (uint64_t)src->tx_bits_per_lane;
+    dst->clockrate = (uint64_t)src->rx_bits_per_lane;
 
     dst->t_clk_pre = src->t_clk_pre;
     dst->t_clk_post = src->t_clk_post;
@@ -574,12 +575,14 @@ static int mhb_dsi_display_get_config(struct device *dev, uint8_t *display_type,
     int ret;
     const struct mhb_cdsi_config *cfg = NULL;
     size_t cfg_size = 0;
-    struct display_dsi_config dst;
+    struct display_dsi_config *dst;
 
     struct mhb_dsi_display *display = device_get_private(dev);
     if (!display) {
         return -ENODEV;
     }
+
+    dst = &display->cfg;
 
     ret = _mhb_dsi_display_get_config(display->cdsi_instance,
                 &display->panel_info, &cfg, &cfg_size);
@@ -588,12 +591,36 @@ static int mhb_dsi_display_get_config(struct device *dev, uint8_t *display_type,
         return -EINVAL;
     }
 
-    _mhb_dsi_display_convert_dsi_config(display, cfg, &dst);
+    _mhb_dsi_display_convert_dsi_config(display, cfg, dst);
+
+    vdbg("dst->manufacturer_id: 0x%x\n", dst->manufacturer_id);
+    vdbg("dst->mode: 0x%x\n", dst->mode);
+    vdbg("dst->num_lanes: 0x%x\n", dst->num_lanes);
+    vdbg("dst->width: 0x%x\n", dst->width);
+    vdbg("dst->height: 0x%x\n", dst->height);
+    vdbg("dst->physical_width_dim: 0x%x\n", dst->physical_width_dim);
+    vdbg("dst->physical_length_dim: 0x%x\n", dst->physical_length_dim);
+    vdbg("dst->framerate: 0x%x\n", dst->framerate);
+    vdbg("dst->bpp: 0x%x\n", dst->bpp);
+    vdbg("dst->clockrate: 0x%llx\n", dst->clockrate);
+    vdbg("dst->t_clk_pre: 0x%x\n", dst->t_clk_pre);
+    vdbg("dst->t_clk_post: 0x%x\n", dst->t_clk_post);
+    vdbg("dst->horizontal_front_porch: 0x%x\n", dst->horizontal_front_porch);
+    vdbg("dst->horizontal_sync_pulse_width: 0x%x\n", dst->horizontal_sync_pulse_width);
+    vdbg("dst->horizontal_sync_skew: 0x%x\n", dst->horizontal_sync_skew);
+    vdbg("dst->horizontal_back_porch: 0x%x\n", dst->horizontal_back_porch);
+    vdbg("dst->horizontal_left_border: 0x%x\n", dst->horizontal_left_border);
+    vdbg("dst->horizontal_right_border: 0x%x\n", dst->horizontal_right_border);
+    vdbg("dst->vertical_front_porch: 0x%x\n", dst->vertical_front_porch);
+    vdbg("dst->vertical_sync_pulse_width: 0x%x\n", dst->vertical_sync_pulse_width);
+    vdbg("dst->vertical_back_porch: 0x%x\n", dst->vertical_back_porch);
+    vdbg("dst->vertical_top_border: 0x%x\n", dst->vertical_top_border);
+    vdbg("dst->vertical_bottom_border: 0x%x\n", dst->vertical_bottom_border);
 
     *display_type = DISPLAY_TYPE_DSI;
     *config_type = DISPLAY_CONFIG_TYPE_DSI;
-    *size = sizeof(dst);
-    *config = (uint8_t *)&dst;
+    *size = sizeof(*dst);
+    *config = (uint8_t *)dst;
 
     return 0;
 }
