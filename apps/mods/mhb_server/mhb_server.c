@@ -1098,16 +1098,6 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
 {
     int ret = 0;
 
-#if CONFIG_MHB_IPC_CLIENT
-    /* Configure APBA side first */
-    ret = mhb_unipro_send(transaction);
-
-    if (ret) {
-        lldbg("ERROR: Control transaction failure at remote.\n");
-        goto snd_resp;
-    }
-#endif
-
     struct mhb_hsic_control_req *req =
         (struct mhb_hsic_control_req *)transaction->in_msg.payload;
 
@@ -1135,6 +1125,16 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
         ret = -EINVAL;
         goto snd_resp;
     }
+
+#if CONFIG_MHB_IPC_CLIENT
+    /* Configure APBA side */
+    ret = mhb_unipro_send(transaction);
+
+    if (ret) {
+        lldbg("ERROR: Control transaction failure at remote.\n");
+        goto snd_resp;
+    }
+#endif
 
     if (g_gearbox) {
         if (req->command == MHB_HSIC_COMMAND_START) {
