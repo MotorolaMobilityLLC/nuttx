@@ -45,6 +45,7 @@
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_csi_camera.h>
 #include <nuttx/wqueue.h>
+#include "mhb_csi_camera_sm.h"
 #include "greybus/v4l2_camera_ext_ctrls.h"
 #include "camera_ext.h"
 
@@ -54,8 +55,8 @@
  *
  */
 
-
 #define MAX_COMMAND_ITEMS 6
+#define OFF_STATE_DELAY   25000 /*us*/
 
 struct command_item {
     struct list_head node;
@@ -158,12 +159,18 @@ typedef struct {
 }
 mhb_camera_sm_t;
 
+
+mhb_camera_sm_event_t mhb_camera_sm_off_wait(void)
+{
+    usleep(OFF_STATE_DELAY);
+    return MHB_CAMERA_EV_NONE;
+}
+
 static mhb_camera_sm_state_t  mhb_camera_sm_off_enter(mhb_camera_sm_event_t event)
 {
     struct command_item* item = NULL;
     mhb_camera_sm_state_t next_state = s_state;
     int dump = 0;
-    CAM_DBG("\n");
 
     pthread_mutex_lock(&s_command_mutex);
     while ((item = get_item(&s_active_list)) != NULL) {
@@ -172,7 +179,7 @@ static mhb_camera_sm_state_t  mhb_camera_sm_off_enter(mhb_camera_sm_event_t even
     }
     pthread_mutex_unlock(&s_command_mutex);
 
-    if (dump) CAM_ERR("Dumped %d events", dump);
+    if (dump) CAM_ERR("Dumped %d event\\s\n", dump);
     if (mhb_camera_sm_run_command(mhb_camera_power_off, 0)) {
         CAM_ERR("ERROR: Very Strange! Off Enter Failed. Move to OFF anyway %d\n", s_state);
         // TODO: Handle Failure.
@@ -180,10 +187,10 @@ static mhb_camera_sm_state_t  mhb_camera_sm_off_enter(mhb_camera_sm_event_t even
 
     return next_state;
 }
+
 static mhb_camera_sm_state_t  mhb_camera_sm_wait_poweron_enter(mhb_camera_sm_event_t event)
 {
     mhb_camera_sm_state_t next_state = s_state;
-    CAM_DBG("\n");
 
     if (mhb_camera_sm_run_command(mhb_camera_power_on, 0)) {
         CAM_ERR("ERROR: Wait ON Enter Failed. Stay OFF %d \n", s_state);
@@ -194,7 +201,6 @@ static mhb_camera_sm_state_t  mhb_camera_sm_wait_poweron_enter(mhb_camera_sm_eve
 static mhb_camera_sm_state_t  mhb_camera_sm_wait_stream_enter(mhb_camera_sm_event_t event)
 {
     mhb_camera_sm_state_t next_state = s_state;
-    CAM_DBG("\n");
 
     if (mhb_camera_sm_run_command(mhb_camera_stream_on, 0)) {
         CAM_ERR("ERROR: Wait Stream Enter Failed. Stay OFF %d \n", s_state);
@@ -206,7 +212,6 @@ static mhb_camera_sm_state_t  mhb_camera_sm_wait_stream_enter(mhb_camera_sm_even
 static mhb_camera_sm_state_t  mhb_camera_sm_wait_stream_off_enter(mhb_camera_sm_event_t event)
 {
     mhb_camera_sm_state_t next_state = s_state;
-    CAM_DBG("\n");
 
     if (mhb_camera_sm_run_command(mhb_camera_stream_off, 0)) {
         CAM_ERR("ERROR: Wait Stream OFF Enter Failed. Stay OFF %d \n", s_state);
@@ -215,6 +220,12 @@ static mhb_camera_sm_state_t  mhb_camera_sm_wait_stream_off_enter(mhb_camera_sm_
     return next_state;
 }
 
+/* Special state to have lingering wait to avoid cycle time between ON-OFF-ON */
+static mhb_camera_sm_state_t  mhb_camera_sm_wait_off_enter(mhb_camera_sm_event_t event)
+{
+    mhb_camera_sm_run_command(mhb_camera_sm_off_wait, 0);
+    return s_state;
+}
 
 static mhb_camera_sm_state_t mhb_camera_sm_off_process_ev(mhb_camera_sm_event_t event)
 {
@@ -268,7 +279,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_on_process_ev(mhb_camera_sm_event_t e
             next_state = MHB_CAMERA_STATE_WAIT_STREAM;
             break;
         case MHB_CAMERA_EV_POWER_OFF_REQ:
-            next_state = MHB_CAMERA_STATE_OFF;
+            next_state = MHB_CAMERA_STATE_WAIT_OFF;
             break;
         case MHB_CAMERA_EV_NONE:
             next_state = s_state;
@@ -353,6 +364,35 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_close_process_ev(mhb_came
     return next_state;
 }
 
+static mhb_camera_sm_state_t mhb_camera_sm_wait_off_process_ev(mhb_camera_sm_event_t event)
+{
+    mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
+    struct command_item* item = NULL;
+    int dump = 0;
+    switch (event) {
+        case MHB_CAMERA_EV_POWER_ON_REQ:
+            pthread_mutex_lock(&s_command_mutex);
+            while ((item = get_item(&s_active_list)) != NULL) {
+                put_item(item, &s_free_list);
+                ++dump;
+            }
+            pthread_mutex_unlock(&s_command_mutex);
+            if (dump) CAM_ERR("Dumped %d event\\s\n", dump);
+            next_state = MHB_CAMERA_STATE_ON;
+            break;
+
+        case MHB_CAMERA_EV_NONE:
+            next_state = MHB_CAMERA_STATE_OFF;
+            break;
+
+        default:
+            CAM_ERR("Unexpected Event %d in State %d\n", event, s_state);
+            break;
+    }
+    return next_state;
+}
+
+
 /* s_state table */
 static mhb_camera_sm_t mhb_camera_sm_table[] =
 {
@@ -362,6 +402,7 @@ static mhb_camera_sm_t mhb_camera_sm_table[] =
     {mhb_camera_sm_wait_stream_enter,     mhb_camera_sm_wait_stream_process_ev},
     {NULL,                                mhb_camera_sm_stream_process_ev},
     {mhb_camera_sm_wait_stream_off_enter, mhb_camera_sm_wait_stream_close_process_ev},
+    {mhb_camera_sm_wait_off_enter,        mhb_camera_sm_wait_off_process_ev},
 };
 
 mhb_camera_sm_state_t mhb_camera_sm_get_state(void)
@@ -419,7 +460,8 @@ int mhb_camera_sm_execute(mhb_camera_sm_event_t event)
     if (s_state == MHB_CAMERA_STATE_INVALID ||
         next_state == MHB_CAMERA_STATE_INVALID) {
         pthread_mutex_unlock(&s_sm_mutex);
-        CAM_ERR("Invalid State/Event ev %d s_state %d\n", event,s_state);
+        CAM_ERR("ERROR: Invalid State/Event ev %d s_state %d\n"
+                , event, s_state);
         return -EINVAL;
     }
 
