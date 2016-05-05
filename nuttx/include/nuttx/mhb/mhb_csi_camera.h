@@ -64,14 +64,14 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
                         uint8_t *data, int data_len);
 int mhb_camera_i2c_write(uint16_t i2c_addr,
                          uint8_t *addr, int addr_len);
-uint8_t mhb_camera_i2c_read_reg1(uint16_t i2c_addr, uint16_t regaddr);
-uint16_t mhb_camera_i2c_read_reg2(uint16_t i2c_addr, uint16_t regaddr);
-uint32_t mhb_camera_i2c_read_reg4(uint16_t i2c_addr, uint16_t regaddr);
+int mhb_camera_i2c_read_reg1(uint16_t i2c_addr, uint16_t regaddr, uint8_t *value);
+int mhb_camera_i2c_read_reg2(uint16_t i2c_addr, uint16_t regaddr, uint16_t *value);
+int mhb_camera_i2c_read_reg4(uint16_t i2c_addr, uint16_t regaddr, uint32_t *value);
+int mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr, uint16_t regaddr, uint16_t *value);
+int mhb_camera_i2c_read_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t *value);
 int mhb_camera_i2c_write_reg1(uint16_t i2c_addr, uint16_t regaddr, uint8_t data);
 int mhb_camera_i2c_write_reg2(uint16_t i2c_addr, uint16_t regaddr, uint16_t data);
 int mhb_camera_i2c_write_reg4(uint16_t i2c_addr, uint16_t regaddr, uint32_t data);
-uint16_t mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr, uint16_t regaddr);
-uint32_t mhb_camera_i2c_read_reg4_16(uint16_t i2c_addr, uint16_t regaddr);
 int mhb_camera_i2c_write_reg2_16(uint16_t i2c_addr, uint16_t regaddr, uint16_t data);
 int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t data);
 
