@@ -215,15 +215,20 @@ static mhb_camera_sm_state_t  mhb_camera_sm_wait_stream_off_enter(mhb_camera_sm_
     return next_state;
 }
 
+
 static mhb_camera_sm_state_t mhb_camera_sm_off_process_ev(mhb_camera_sm_event_t event)
 {
-    mhb_camera_sm_state_t next_state = s_state;
+    mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
     switch (event) {
         case MHB_CAMERA_EV_POWER_ON_REQ:
             next_state = MHB_CAMERA_STATE_WAIT_POWER_ON;
             break;
+        case MHB_CAMERA_EV_POWER_OFF_REQ:
+        case MHB_CAMERA_EV_NONE:
+            next_state = s_state;
+            break;
         default:
-            CAM_ERR("Unexpected Event %d in State %d, IGNORE\n", event, s_state);
+            CAM_ERR("Unexpected Event %d in State %d\n", event, s_state);
             break;
     }
     return next_state;
@@ -231,7 +236,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_off_process_ev(mhb_camera_sm_event_t 
 
 static mhb_camera_sm_state_t mhb_camera_sm_wait_poweron_process_ev(mhb_camera_sm_event_t event)
 {
-    mhb_camera_sm_state_t next_state = s_state;
+    mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
     switch (event) {
         case MHB_CAMERA_EV_FAIL:
             next_state = MHB_CAMERA_STATE_OFF;
@@ -245,8 +250,11 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_poweron_process_ev(mhb_camera_sm
         case MHB_CAMERA_EV_POWER_OFF_REQ:
             next_state = MHB_CAMERA_STATE_OFF;
             break;
+        case MHB_CAMERA_EV_NONE:
+            next_state = s_state;
+            break;
         default:
-            CAM_ERR("Unexpected Event %d in State %d, IGNORE\n", event, s_state);
+            CAM_ERR("Unexpected Event %d in State %d\n", event, s_state);
             break;
     }
    return next_state;
@@ -254,7 +262,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_poweron_process_ev(mhb_camera_sm
 
 static mhb_camera_sm_state_t mhb_camera_sm_on_process_ev(mhb_camera_sm_event_t event)
 {
-    mhb_camera_sm_state_t next_state = s_state;
+    mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
     switch (event) {
         case MHB_CAMERA_EV_STREAM_ON_REQ:
             next_state = MHB_CAMERA_STATE_WAIT_STREAM;
@@ -262,8 +270,11 @@ static mhb_camera_sm_state_t mhb_camera_sm_on_process_ev(mhb_camera_sm_event_t e
         case MHB_CAMERA_EV_POWER_OFF_REQ:
             next_state = MHB_CAMERA_STATE_OFF;
             break;
+        case MHB_CAMERA_EV_NONE:
+            next_state = s_state;
+            break;
         default:
-            CAM_ERR("Unexpected Event %d in State %d, IGNORE\n", event, s_state);
+            CAM_ERR("Unexpected Event %d in State %d\n", event, s_state);
             break;
     }
     return next_state;
@@ -271,7 +282,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_on_process_ev(mhb_camera_sm_event_t e
 
 static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_process_ev(mhb_camera_sm_event_t event)
 {
-    mhb_camera_sm_state_t next_state = s_state;
+    mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
     switch (event) {
         case MHB_CAMERA_EV_CONFIGURED:
             next_state = MHB_CAMERA_STATE_STREAMING;
@@ -285,8 +296,13 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_process_ev(mhb_camera_sm_
         case MHB_CAMERA_EV_POWER_OFF_REQ:
             next_state = MHB_CAMERA_STATE_OFF;
             break;
+        case MHB_CAMERA_EV_DECONFIGURED:
+        case MHB_CAMERA_EV_POWERED_ON:
+        case MHB_CAMERA_EV_NONE:
+            next_state = s_state;
+            break;
         default:
-            CAM_ERR("Unexpected Event %d in State %d, IGNORE\n", event, s_state);
+            CAM_ERR("Unexpected Event %d in State %d\n", event, s_state);
             break;
     }
     return next_state;
@@ -294,7 +310,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_process_ev(mhb_camera_sm_
 
 static mhb_camera_sm_state_t mhb_camera_sm_stream_process_ev(mhb_camera_sm_event_t event)
 {
-    mhb_camera_sm_state_t next_state = s_state;
+    mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
     switch (event) {
         case MHB_CAMERA_EV_STREAM_OFF_REQ:
             next_state = MHB_CAMERA_STATE_WAIT_STREAM_CLOSE;
@@ -303,7 +319,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_stream_process_ev(mhb_camera_sm_event
             next_state = MHB_CAMERA_STATE_OFF;
             break;
         default:
-            CAM_ERR("Unexpected Event %d in State %d, IGNORE\n", event, s_state);
+            CAM_ERR("Unexpected Event %d in State %d\n", event, s_state);
             break;
     }
     return next_state;
@@ -311,7 +327,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_stream_process_ev(mhb_camera_sm_event
 
 static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_close_process_ev(mhb_camera_sm_event_t event)
 {
-    mhb_camera_sm_state_t next_state = s_state;
+    mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
     switch (event) {
         case MHB_CAMERA_EV_DECONFIGURED:
             next_state = MHB_CAMERA_STATE_ON;
@@ -325,8 +341,13 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_close_process_ev(mhb_came
         case MHB_CAMERA_EV_POWER_OFF_REQ:
             next_state = MHB_CAMERA_STATE_OFF;
             break;
+        case MHB_CAMERA_EV_POWERED_ON:
+        case MHB_CAMERA_EV_CONFIGURED:
+        case MHB_CAMERA_EV_NONE:
+            next_state = s_state;
+            break;
         default:
-            CAM_ERR("Unexpected Event %d in State %d, IGNORE\n", event, s_state);
+            CAM_ERR("Unexpected Event %d in State %d\n", event, s_state);
             break;
     }
     return next_state;
@@ -382,26 +403,31 @@ int mhb_camera_sm_init(void)
 int mhb_camera_sm_execute(mhb_camera_sm_event_t event)
 {
     mhb_camera_sm_t *state_table;
-    mhb_camera_sm_state_t next_state;
+    mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
 
     pthread_mutex_lock(&s_sm_mutex);
 
-    CAM_DBG("ev %d s_state %d\n", event, s_state);
+    CAM_DBG("ev %s s_state %s\n", mhb_camera_sm_event_str(event),
+            mhb_camera_sm_state_str(s_state));
 
     if (s_state != MHB_CAMERA_STATE_INVALID) {
         state_table = &mhb_camera_sm_table[s_state];
         /* process event */
         next_state = state_table->process_event(event);
-    } else {
+    }
+
+    if (s_state == MHB_CAMERA_STATE_INVALID ||
+        next_state == MHB_CAMERA_STATE_INVALID) {
         pthread_mutex_unlock(&s_sm_mutex);
-        CAM_ERR("Invalid State ev %d s_state %d\n", event, s_state);
+        CAM_ERR("Invalid State/Event ev %d s_state %d\n", event,s_state);
         return -EINVAL;
     }
 
     /* transition s_state */
     while (next_state != s_state) {
         s_state = next_state;
-        CAM_DBG("State Change %d\n", s_state);
+        CAM_DBG("State Change %s\n",
+                mhb_camera_sm_state_str(s_state));
 
         state_table = &mhb_camera_sm_table[next_state];
         if (state_table->enter)

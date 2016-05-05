@@ -692,8 +692,7 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
 static int _power_on(struct device *dev)
 {
     CAM_DBG("mhb_camera_csi\n");
-    mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_ON_REQ);
-    return 0;
+    return mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_ON_REQ);
 }
 
 static int _power_off(struct device *dev)
