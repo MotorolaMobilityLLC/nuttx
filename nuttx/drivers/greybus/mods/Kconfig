@@ -122,3 +122,11 @@ config GREYBUS_MODS_HW_ROOT_VERSION
 		The version/revision of the root hardware circuitry. This will
 		communicate to the host/phone side what hardware features are
 		supported by the mod. Valid values are 0x00 to 0xFF.
+
+config GREYBUS_MODS_SUPPORT_VENDOR_UPDATES
+	bool "Support APK update of firmware"
+	default n
+	---help---
+		Should the Core allow APKs to update the firmware on this
+		device.  If yes, then the mod must be responsible for validating
+		the updates before applying them.
