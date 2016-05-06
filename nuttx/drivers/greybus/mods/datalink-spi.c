@@ -75,16 +75,13 @@
 /* Protocol version supported by this driver */
 #define PROTO_VER           (2)
 
-/* Protocol version change log */
-#define PROTO_VER_PKT1      (1)     /* Version that added PKT1 bit */
-#define PROTO_VER_ACK       (1)     /* Minimum version for ACK support */
-#define PROTO_VER_DUMMY     (2)     /* Version that added DUMMY bit */
-
 /*
- * Protocol version support macro for checking if the requested feature (f)
- * is supported by the attached MuC.
+ * The bare minimum protocol version required by the driver. To remain backwards
+ * compatible with every base ever shipped, this value should never be changed
+ * and new features must only be enabled once determined that the base supports
+ * them.
  */
-#define BASE_SUPPORTS(d, f) (d->proto_ver >= PROTO_VER_##f)
+#define MIN_PROTO_VER       (2)
 
 /* Default payload size of a SPI packet (in bytes) */
 #define DEFAULT_PAYLOAD_SZ (32)
@@ -345,6 +342,12 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
       return -EINVAL;
     }
 
+  if (req.bus_req.version < MIN_PROTO_VER)
+    {
+      dbg("Unsupported protocol version (%d)\n", req.bus_req.version);
+      return -EPROTONOSUPPORT;
+    }
+
   priv->proto_ver = req.bus_req.version;
 
   resp.id = DL_MSG_ID_BUS_CFG_RESP;
@@ -382,13 +385,6 @@ static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
     {
       priv->ack_supported = true;
       resp.bus_resp.features |= DL_BIT_ACK;
-
-      /* Bases that support ACKing must use PROTO_VER_ACK or later */
-      if (!BASE_SUPPORTS(priv, ACK))
-        {
-          dbg("ACK requires newer protocol version\n");
-          priv->proto_ver = PROTO_VER_ACK;
-        }
     }
 
   vdbg("ack_supported = %d\n", priv->ack_supported);
@@ -555,8 +551,8 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
       /* Return packet size back to default */
       set_pkt_size(priv, PKT_SIZE(DEFAULT_PAYLOAD_SZ));
 
-      /* Reset state variables */
-      priv->proto_ver = 0;
+      /* Assume next base only supports the minimum protocol version */
+      priv->proto_ver = MIN_PROTO_VER;
     }
 
   priv->bstate = state;
@@ -666,30 +662,23 @@ static void txn_finished_worker(FAR void *arg)
 
   deassert_rfr_int();
 
-  if (BASE_SUPPORTS(priv, DUMMY))
+  switch (bitmask & (HDR_BIT_VALID | HDR_BIT_DUMMY))
     {
-      switch (bitmask & (HDR_BIT_VALID | HDR_BIT_DUMMY))
-        {
-          case HDR_BIT_VALID:
-            ack_req = ACK_NEEDED;
-            break;
+      case HDR_BIT_VALID:
+        ack_req = ACK_NEEDED;
+        break;
 
-          case HDR_BIT_DUMMY:
-            ack_req = ACK_NOT_NEEDED;
-            break;
+      case HDR_BIT_DUMMY:
+        ack_req = ACK_NOT_NEEDED;
+        break;
 
-          /* If valid and dummy are equal (both 0 or both 1), the packet is
-           * garbage.
-           */
-          default:
-            dbg("garbage packet\n");
-            ack_req = ACK_ERROR;
-            break;
-        }
-    }
-  else
-    {
-      ack_req = (bitmask & HDR_BIT_VALID) ? ACK_NEEDED : ACK_NOT_NEEDED;
+      /* If valid and dummy are equal (both 0 or both 1), the packet is
+       * garbage.
+       */
+      default:
+        dbg("garbage packet\n");
+        ack_req = ACK_ERROR;
+        break;
     }
 
   if (ack_handler(priv, ack_req))
@@ -722,7 +711,7 @@ static void txn_finished_worker(FAR void *arg)
   /* Check if un-packetizing is not required */
   if (MODS_DL_PAYLOAD_MAX_SZ == pl_size)
     {
-      if (!BASE_SUPPORTS(priv, PKT1) || (bitmask & HDR_BIT_PKT1))
+      if (bitmask & HDR_BIT_PKT1)
           recv(&priv->dl, &priv->rx_buf[HDR_SIZE], pl_size);
       else
           dbg("1st pkt bit not set\n");
@@ -730,37 +719,34 @@ static void txn_finished_worker(FAR void *arg)
     }
 #endif
 
-  if (BASE_SUPPORTS(priv, PKT1))
+  if (bitmask & HDR_BIT_PKT1)
     {
-      if (bitmask & HDR_BIT_PKT1)
+      /* Check if data exists from earlier packets */
+      if (priv->rcvd_payload_idx)
         {
-          /* Check if data exists from earlier packets */
-          if (priv->rcvd_payload_idx)
-            {
-              dbg("1st pkt recv'd before prev msg complete\n");
-              priv->rcvd_payload_idx = 0;
-            }
-
-          priv->pkts_remaining = bitmask & HDR_BIT_PKTS;
+          dbg("1st pkt recv'd before prev msg complete\n");
+          priv->rcvd_payload_idx = 0;
         }
-      else /* not first packet of message */
+
+      priv->pkts_remaining = bitmask & HDR_BIT_PKTS;
+    }
+  else /* not first packet of message */
+    {
+      /* Check for data from earlier packets */
+      if (!priv->rcvd_payload_idx)
         {
-          /* Check for data from earlier packets */
-          if (!priv->rcvd_payload_idx)
-            {
-              dbg("Ignore non-first packet\n");
-              goto done;
-            }
+          dbg("Ignore non-first packet\n");
+          goto done;
+        }
 
-          if ((bitmask & HDR_BIT_PKTS) != --priv->pkts_remaining)
-            {
-              dbg("Packets remaining out of sync\n");
+      if ((bitmask & HDR_BIT_PKTS) != --priv->pkts_remaining)
+        {
+          dbg("Packets remaining out of sync\n");
 
-              /* Drop the entire message */
-              priv->rcvd_payload_idx = 0;
-              priv->pkts_remaining = 0;
-              goto done;
-            }
+          /* Drop the entire message */
+          priv->rcvd_payload_idx = 0;
+          priv->pkts_remaining = 0;
+          goto done;
         }
     }
 
