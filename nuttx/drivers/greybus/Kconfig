@@ -78,6 +78,8 @@ config GREYBUS_MODS_AUDIO_TFA9890
 	bool "TFA9890"
 config GREYBUS_MODS_AUDIO_DUMMY
 	bool "DUMMY"
+config GREYBUS_MODS_AUDIO_CUSTOM
+	bool "Use custom audio chip driver"
 endchoice
 endif
 
