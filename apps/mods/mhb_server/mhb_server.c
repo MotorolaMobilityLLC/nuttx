@@ -410,7 +410,7 @@ static int mhb_handle_unipro(struct mhb_transaction *transaction)
     case MHB_TYPE_UNIPRO_STATS_REQ:
         return mhb_handle_unipro_stats_req(transaction);
     default:
-        lldbg("ERROR: unknown Unipro event\n");
+        dbg("ERROR: unknown Unipro event\n");
         return -EINVAL;
     }
 }
@@ -419,7 +419,7 @@ static int mhb_handle_unipro(struct mhb_transaction *transaction)
 inline struct cdsi_block *cdsi_from_inst(uint8_t inst)
 {
     if (inst >= ARRAY_SIZE(g_cdsi_blocks)) {
-        lldbg("ERROR: Invalid CDSI instance.\n");
+        dbg("ERROR: Invalid CDSI instance.\n");
         return NULL;
     }
 
@@ -490,7 +490,7 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
         if (cdsi->dev) {
             ret = 0;
         } else {
-            lldbg("ERROR: Failed to open CDSI device.\n");
+            dbg("ERROR: Failed to open CDSI device.\n");
             ret = -EINVAL;
         }
     }
@@ -501,16 +501,16 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
         } else if (cdsi->config.direction == TSB_CDSI_TX) {
             ret = cdsi_initialize_tx(cdsi->dev, &cdsi->config);
         } else {
-            lldbg("ERROR: Invalid direction.\n");
+            dbg("ERROR: Invalid direction.\n");
             ret = -EINVAL;
             goto error;
         }
     }
 
-    lldbg("reset cport=%d\n", CDSI_INST_TO_CPORT(inst));
+    dbg("reset cport=%d\n", CDSI_INST_TO_CPORT(inst));
     unipro_p2p_reset_connection(CDSI_INST_TO_CPORT(inst));
 #if CONFIG_MHB_IPC_SERVER
-    lldbg("setup cport=%d\n", CDSI_INST_TO_CPORT(inst));
+    dbg("setup cport=%d\n", CDSI_INST_TO_CPORT(inst));
     unipro_p2p_setup_connection(CDSI_INST_TO_CPORT(inst));
 #endif
 
@@ -523,7 +523,7 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
         req->cfg.direction =
             (req->cfg.direction == TSB_CDSI_RX) ? TSB_CDSI_TX : TSB_CDSI_RX;
 
-        lldbg("notify peer: direction: %d\n", req->cfg.direction);
+        dbg("notify peer: direction: %d\n", req->cfg.direction);
         ret = mhb_unipro_send(transaction);
         if (ret) {
             goto error;
@@ -579,7 +579,7 @@ done:
     return 0;
 
 error:
-    lldbg("ERROR: Failed to configure.\n");
+    dbg("ERROR: Failed to configure.\n");
     cdsi_uninitialize(cdsi->dev);
     cdsi->dev = NULL;
     goto done;
@@ -609,7 +609,7 @@ static int mhb_handle_cdsi_control_req(struct mhb_transaction *transaction)
                     ret = cdsi_tx_stop(cdsi->dev);
                     break;
                 default:
-                    lldbg("ERROR: invalid CDSI command.\n");
+                    dbg("ERROR: invalid CDSI command.\n");
                     ret = -EINVAL;
                     break;
             }
@@ -666,7 +666,7 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
                   (struct mhb_cdsi_read_cmds_req *)transaction->in_msg.payload;
 
     if (transaction->in_msg.payload_length % sizeof(req->cmds[0]) != 0) {
-        lldbg("ERROR: invalid size\n");
+        dbg("ERROR: invalid size\n");
         ret = -EINVAL;
         goto error;
     }
@@ -708,7 +708,7 @@ static int mhb_handle_cdsi_read_cmds_req(struct mhb_transaction *transaction)
 
         count = dsi_read_cmd(cdsi->dev, &dsi_cmd, p, src->length);
         if (count < 0) {
-            lldbg("ERROR: Failed to read command\n");
+            dbg("ERROR: Failed to read command\n");
             ret = count;
             break;
         }
@@ -753,7 +753,7 @@ static int mhb_handle_cdsi_write_cmds_req(struct mhb_transaction *transaction)
                   (struct mhb_cdsi_write_cmds_req *)transaction->in_msg.payload;
 
     if (transaction->in_msg.payload_length % sizeof(req->cmds[0]) != 0) {
-        lldbg("ERROR: invalid size\n");
+        dbg("ERROR: invalid size\n");
         ret = -EINVAL;
         goto error;
     }
@@ -762,7 +762,7 @@ static int mhb_handle_cdsi_write_cmds_req(struct mhb_transaction *transaction)
     size_t i;
     for (i = 0; i < n; i++) {
         struct mhb_cdsi_cmd *src = &req->cmds[i];
-        lldbg("[src] i=%d, ct=%d, dt=%d, l=%d, sd=%04x, ld=%08x %08x, l=%d\n",
+        vdbg("[src] i=%d, ct=%d, dt=%d, l=%d, sd=%04x, ld=%08x %08x, l=%d\n",
               i, src->ctype, src->dtype, src->length,
               src->u.spdata, src->u.lpdata[0], src->u.lpdata[1], src->delay);
 
@@ -782,13 +782,13 @@ static int mhb_handle_cdsi_write_cmds_req(struct mhb_transaction *transaction)
             dsi_cmd.u.sp.data = src->u.spdata;
         }
 
-        lldbg("[dst] i=%d, ct=%d, dt=%d, l=%d, sd=%04x ld=%08x %08x\n",
+        vdbg("[dst] i=%d, ct=%d, dt=%d, l=%d, sd=%04x ld=%08x %08x\n",
               i, dsi_cmd.ctype, dsi_cmd.dt, dsi_cmd.u.lp.length,
               dsi_cmd.u.sp.data, dsi_cmd.u.lp.data[0], dsi_cmd.u.lp.data[1]);
 
         ret = dsi_write_cmd(cdsi->dev, &dsi_cmd);
         if (ret) {
-            lldbg("ERROR: Failed to write command\n");
+            dbg("ERROR: Failed to write command\n");
             break;
         }
 
@@ -861,7 +861,7 @@ static int mhb_handle_cdsi(struct mhb_transaction *transaction)
     case MHB_TYPE_CDSI_UNCONFIG_REQ:
         return mhb_handle_cdsi_unconfig_req(transaction);
     default:
-        lldbg("ERROR: unknown CDSI event\n");
+        dbg("ERROR: unknown CDSI event\n");
         return -EINVAL;
     }
 }
@@ -898,7 +898,7 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
             cfg->protocol = MHB_I2S_PROTOCOL_PCM;
         }
         if (cfg->protocol >= ARRAY_SIZE(mhb_to_tunnel_protocol_tb)) {
-            lldbg("Warning: I2S Protocol %d not supported defaulting to I2S Stereo.\n");
+            dbg("Warning: I2S Protocol %d not supported defaulting to I2S Stereo.\n");
             cfg->protocol = I2S_TUNNEL_I2S_MODE_I2S_STEREO;
         }
         ret = i2s_unipro_tunnel_i2s_config(cfg->sample_rate,
@@ -1088,7 +1088,7 @@ static int mhb_handle_i2s(struct mhb_transaction *transaction)
     case MHB_TYPE_I2S_STATUS_REQ:
         return mhb_handle_i2s_status_req(transaction);
     default:
-        lldbg("ERROR: unknown I2S event\n");
+        dbg("ERROR: unknown I2S event\n");
         return -EINVAL;
     }
 }
@@ -1121,7 +1121,7 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
         break;
 #endif
     default:
-        lldbg("ERROR: HSIC event %d not handled\n", req->command);
+        dbg("ERROR: HSIC event %d not handled\n", req->command);
         ret = -EINVAL;
         goto snd_resp;
     }
@@ -1131,7 +1131,7 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
     ret = mhb_unipro_send(transaction);
 
     if (ret) {
-        lldbg("ERROR: Control transaction failure at remote.\n");
+        dbg("ERROR: Control transaction failure at remote.\n");
         goto snd_resp;
     }
 #endif
@@ -1165,7 +1165,7 @@ static int mhb_handle_hsic(struct mhb_transaction *transaction)
     case MHB_TYPE_HSIC_CONTROL_REQ:
         return mhb_handle_hsic_control_req(transaction);
     default:
-        lldbg("ERROR: unknown HSIC event\n");
+        dbg("ERROR: unknown HSIC event\n");
         return -EINVAL;
     }
 }
@@ -1383,7 +1383,7 @@ static int mhb_handle_diag_control_req(struct mhb_transaction *transaction)
             break;
 #endif
         default:
-            lldbg("Error: Unknown diag control: %d\n", req->command);
+            dbg("ERROR: Unknown diag control: %d\n", req->command);
             transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
             break;
     }
@@ -1411,7 +1411,7 @@ static int mhb_handle_diag(struct mhb_transaction *transaction)
     case MHB_TYPE_DIAG_REG_LOG_APBA_REQ:
         return mhb_handle_diag_reg_log_apba_req(transaction);
     default:
-        lldbg("ERROR: unknown server diag event: %d\n", transaction->in_msg.hdr->type);
+        dbg("ERROR: unknown server diag event: %d\n", transaction->in_msg.hdr->type);
         return -EINVAL;
     }
 }
@@ -1433,7 +1433,7 @@ int mhb_handle_msg(struct mhb_transaction *transaction)
     case MHB_FUNC_DIAG:
         return mhb_handle_diag(transaction);
     default:
-        lldbg("ERROR: unknown function\n");
+        dbg("ERROR: unknown function\n");
         return -EINVAL;
     }
 }
@@ -1495,7 +1495,7 @@ static uint32_t mhb_unipro_handle_msg(void *in_data, uint32_t in_data_len,
     struct mhb_transaction transaction;
 
     if (!in_data_len || !in_data) {
-        lldbg("ERROR: Invalid input.\n");
+        dbg("ERROR: Invalid input.\n");
         return -EINVAL;
     }
 
@@ -1559,7 +1559,7 @@ static int mhb_unipro_send(struct mhb_transaction *transaction)
             memcpy(transaction->out_msg.payload, p + sizeof(*transaction->out_msg.hdr), out_len);
             transaction->out_msg.payload_length = out_len;
         } else {
-            lldbg("ERROR: IPC response payload too big.\n");
+            dbg("ERROR: IPC response payload too big.\n");
         }
 
         release_response(out_param);
