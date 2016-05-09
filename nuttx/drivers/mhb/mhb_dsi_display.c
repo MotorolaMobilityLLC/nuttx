@@ -63,6 +63,7 @@ enum {
     MHB_DSI_DISPLAY_STATE_CONFIG_DCS,
     MHB_DSI_DISPLAY_STATE_STARTING,
     MHB_DSI_DISPLAY_STATE_ON,
+    MHB_DSI_DISPLAY_STATE_BRIGHTNESS,
     MHB_DSI_DISPLAY_STATE_STOPPING,
     MHB_DSI_DISPLAY_STATE_UNCONFIG_DCS,
     MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI,
@@ -342,6 +343,39 @@ _mhb_dsi_display_send_display_off_req(struct mhb_dsi_display *display)
     return device_mhb_send(g_display.mhb_dev, &hdr, (uint8_t *)cmds, cmds_size, 0);
 }
 
+static int _mhb_dsi_display_send_brightness_req(struct mhb_dsi_display *display, uint8_t brightness)
+{
+    struct mhb_cdsi_cmd BRIGHTNESS =
+        { .ctype = MHB_CTYPE_LP_SHORT, .dtype = MHB_DTYPE_DCS_WRITE1, .length = 2, .u = { .spdata = 0xff51 }, .delay = 0 }; /* brightness_ctrl */
+
+    BRIGHTNESS.u.spdata = (brightness << 8) | 0x51;
+
+    struct mhb_hdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_CDSI0;
+    hdr.type = MHB_TYPE_CDSI_WRITE_CMDS_REQ;
+
+    return device_mhb_send(g_display.mhb_dev, &hdr, (uint8_t *)&BRIGHTNESS, sizeof(BRIGHTNESS), 0);
+}
+
+int mhb_dsi_display_set_brightness(uint8_t brightness)
+{
+    int result;
+    struct mhb_dsi_display *display = &g_display;
+
+    display->state = MHB_DSI_DISPLAY_STATE_BRIGHTNESS;
+
+    /* Set brightness. */
+    _mhb_dsi_display_send_brightness_req(display, brightness);
+
+    result = _mhb_dsi_display_wait_for_response(display);
+    if (result) {
+        lldbg("ERROR: start failed: %d\n", result);
+    }
+
+    return result;
+}
+
 static int _mhb_dsi_display_send_control_req(struct mhb_dsi_display *display,
                                              uint8_t command)
 {
@@ -414,6 +448,10 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
             _mhb_dsi_display_send_unconfig_req(display);
 
             display->state = MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI;
+            error = 0;
+        } else if (display->state == MHB_DSI_DISPLAY_STATE_BRIGHTNESS) {
+            display->state = MHB_DSI_DISPLAY_STATE_ON;
+            _mhb_dsi_display_signal_response(display);
             error = 0;
         }
         break;

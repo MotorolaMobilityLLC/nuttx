@@ -54,4 +54,6 @@ extern int _mhb_dsi_display_get_off_commands(uint8_t instance,
     const struct mhb_cdsi_cmd **cmds,
     size_t *size);
 
+extern int mhb_dsi_display_set_brightness(uint8_t brightness);
+
 #endif
