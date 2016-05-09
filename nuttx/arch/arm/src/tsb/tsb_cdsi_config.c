@@ -561,7 +561,6 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     vdbg("\n");
     vdbg("mode=%d, num_lanes=%d, bits_per_lane=%d\n", config->mode, config->rx_num_lanes, config->rx_bits_per_lane);
     vdbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
-    vdbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
     vdbg("video_mode=%d\n", config->video_mode);
     vdbg("bta_enabled=%d\n", config->bta_enabled);
     vdbg("continuous_clock=%d\n", config->continuous_clock);
@@ -692,34 +691,114 @@ static void cdsi_clear_tx_status(struct cdsi_dev *dev) {
     cdsi_write(dev, CDSI_AL_TX_BRG_STATUS_OFFS, 0xffffffff);
 }
 
+static int cdsi_config_pll(uint32_t target, uint32_t *final_pll_frs,
+                           uint32_t *final_pll_prd, uint32_t *final_pll_fbd) {
+    const uint32_t MAX_PLL_FRS = (1 << 2);
+    const uint32_t MAX_PLL_PRD = (1 << 2);
+    const uint32_t MAX_PLL_FBD = (1 << 7);
+
+    uint32_t pll_frs;
+    uint32_t pll_prd;
+    uint32_t pll_fbd;
+    int32_t final_delta = LONG_MAX;
+
+    if (!final_pll_frs || !final_pll_prd || !final_pll_fbd) {
+        return -EINVAL;
+    }
+
+    if (*final_pll_frs || *final_pll_prd || *final_pll_fbd) {
+        /* Already configured. */
+        return 0;
+    }
+
+    /* Find best match. */
+    for (pll_frs = 0; pll_frs < MAX_PLL_FRS; pll_frs++) {
+        for (pll_prd = 0; pll_prd < MAX_PLL_PRD; pll_prd++) {
+            for (pll_fbd = 0; pll_fbd < MAX_PLL_FBD; pll_fbd++) {
+                /* Calculate */
+                const uint32_t pll_vco = 2 * 192 * (pll_fbd + 1) / (pll_prd + 1) / 10;
+                const uint32_t hsck = pll_vco / (1 << (pll_frs + 1));
+
+                /* Validate */
+                if (pll_vco <= 1000 || pll_vco >= 2000) {
+                    continue;
+                }
+
+                if (hsck <= 80 || hsck >= 1000) {
+                    continue;
+                }
+
+                /* Compare */
+                const int32_t delta = abs((target / 1000000) - hsck);
+                if (delta < final_delta) {
+                    /* Save better match. */
+                    *final_pll_frs = pll_frs;
+                    *final_pll_prd = pll_prd;
+                    *final_pll_fbd = pll_fbd;
+                    final_delta = delta;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int cdsi_validate_pll(uint32_t target, uint32_t pll_frs,
+                           uint32_t pll_prd, uint32_t pll_fbd,
+                           uint32_t *final_hsck) {
+    const int32_t MAX_HSCK_DELTA = 1;
+
+    int ret = 0;
+
+    if (!final_hsck) {
+        return -EINVAL;
+    }
+
+    vdbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", pll_frs, pll_prd, pll_fbd);
+
+    const uint32_t pll_vco = 2 * 192 * (pll_fbd + 1) / (pll_prd + 1) / 10;
+    vdbg("pll_vco=%d\n", pll_vco);
+    if (pll_vco < 1000 || pll_vco >= 2000) {
+        dbg("ERROR: pll_vco invalid: %d\n", pll_vco);
+        ret = -ERANGE;
+    }
+
+    const uint32_t hsck = pll_vco / (1 << (pll_frs + 1));
+    vdbg("hsck=%d\n", hsck);
+    if (hsck < 80 || hsck >= 1000) {
+        dbg("ERROR: hsck invalid: %d\n", hsck);
+        ret = -ERANGE;
+    }
+    *final_hsck = hsck;
+
+    const int32_t delta = abs((target / 1000000) - hsck);
+    vdbg("delta=%d\n", delta);
+    if (delta > MAX_HSCK_DELTA) {
+        dbg("ERROR: delta invalid: %d\n", delta);
+        ret = -ERANGE;
+    }
+
+    return ret;
+}
+
 int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     vdbg("\n");
     vdbg("mode=%d, num_lanes=%d, bits_per_lane=%d\n", config->mode, config->tx_num_lanes, config->tx_bits_per_lane);
     vdbg("framerate=%d, width=%d, height=%d, bpp=%d\n", config->framerate, config->width, config->height, config->bpp);
-    vdbg("pll_frs=%d, pll_prd=%d, pll_fbd=%d\n", config->pll_frs, config->pll_prd, config->pll_fbd);
     vdbg("video_mode=%d\n", config->video_mode);
     vdbg("bta_enabled=%d\n", config->bta_enabled);
     vdbg("continuous_clock=%d\n", config->continuous_clock);
     vdbg("color_bar_enabled=%d\n", config->color_bar_enabled);
     vdbg("blank_packet_enabled=%d\n", config->blank_packet_enabled);
 
-    const int32_t pll_vco = 2 * 19.2 * (config->pll_fbd + 1) / (config->pll_prd + 1);
-    vdbg("pll_vco=%d\n", pll_vco);
-    if (pll_vco < 1000 || pll_vco >= 2000) {
-        dbg("ERROR: pll_vco invalid: %d\n", pll_vco);
-    }
+    uint32_t pll_frs = config->pll_frs;
+    uint32_t pll_prd = config->pll_prd;
+    uint32_t pll_fbd = config->pll_fbd;
+    cdsi_config_pll(config->tx_bits_per_lane, &pll_frs, &pll_prd, &pll_fbd);
 
-    const int32_t hsck = pll_vco / (1 << (config->pll_frs + 1));
-    vdbg("hsck=%d\n", hsck);
-    if (hsck < 80 || hsck >= 1000) {
-        dbg("ERROR: hsck invalid: %d\n", hsck);
-    }
-
-    const int32_t delta = (config->tx_bits_per_lane / 1000 / 1000) - hsck;
-    vdbg("delta=%d\n", delta);
-    if (delta > 0) {
-        dbg("ERROR: delta invalid: %d\n", delta);
-    }
+    uint32_t hsck = 0;
+    cdsi_validate_pll(config->tx_bits_per_lane, pll_frs, pll_prd, pll_fbd, &hsck);
 
     const uint32_t horz_period_ns = 1000*1000*1000 / config->framerate / config->height;
     vdbg("horz_period_ns=%d\n", horz_period_ns);
@@ -866,11 +945,11 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
     cdsi_write(dev, CDSI_CDSITX_DPHY_RESET_OFFS, 1);
 
-    CDSI_WRITE(dev, CDSI_CDSITX_PLL_CONFIG_00, SBS_DPHY_MPM_FBD, config->pll_fbd);
+    CDSI_WRITE(dev, CDSI_CDSITX_PLL_CONFIG_00, SBS_DPHY_MPM_FBD, pll_fbd);
     CDSI_MODIFY(dev, CDSI_CDSITX_PLL_CONFIG_00, SBS_DPHY_CLM_LFBREN, 1);
-    CDSI_MODIFY(dev, CDSI_CDSITX_PLL_CONFIG_00, SBS_DPHY_MPM_FRS, config->pll_frs);
+    CDSI_MODIFY(dev, CDSI_CDSITX_PLL_CONFIG_00, SBS_DPHY_MPM_FRS, pll_frs);
     CDSI_MODIFY(dev, CDSI_CDSITX_PLL_CONFIG_00, SBS_DPHY_MPM_LBWS, 2);
-    CDSI_MODIFY(dev, CDSI_CDSITX_PLL_CONFIG_00, SBS_DPHY_MPM_PRD, config->pll_prd);
+    CDSI_MODIFY(dev, CDSI_CDSITX_PLL_CONFIG_00, SBS_DPHY_MPM_PRD, pll_prd);
 
     cdsi_write(dev, CDSI_CDSITX_PLL_CONFIG_02_OFFS, 0x00001680);
 
