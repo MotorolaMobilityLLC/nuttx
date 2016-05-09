@@ -380,6 +380,14 @@ config UNIPRO_REMOTE_DEVICEID
 	---help---
 		For UniPro P2P, the remote device ID
 
+config UNIPRO_TEST_CPORTS
+	bool "UniPro Test CPORTs"
+	default n
+	depends on UNIPRO_P2P
+	---help---
+		Enable CPORTs for testing.
+
+if UNIPRO_TEST_CPORTS
 config UNIPRO_TEST_0_CPORT_ID
 	int "Unipro Test 0 CPORT"
 	default 0
@@ -389,6 +397,7 @@ config UNIPRO_TEST_1_CPORT_ID
 	int "Unipro Test 1 CPORT"
 	default 1
 	depends on UNIPRO_P2P
+endif
 endif
 
 config ARCH_VIDCRYPT
