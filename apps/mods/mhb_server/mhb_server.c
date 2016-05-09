@@ -46,6 +46,7 @@
 #include <arch/chip/unipro_p2p.h>
 
 #include <nuttx/device.h>
+#include <nuttx/device_gpio_tunnel.h>
 #include <nuttx/irq.h>
 #include <nuttx/util.h>
 #include <nuttx/wqueue.h>
@@ -98,6 +99,7 @@
 #define MHB_HSIC_SPEED_MBPS 480
 
 static struct device *g_uart_dev;
+static struct device *g_gpio_tunnel_dev;
 static struct work_s g_mhb_server_wq;
 
 static struct gearbox *g_gearbox;
@@ -516,6 +518,11 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
     unipro_p2p_setup_connection(CDSI_INST_TO_CPORT(inst));
 #endif
 
+    bool use_te = (cfg->mode == 0) && (cfg->video_mode == 0) && (cfg->vsync_mode == 1);
+    if (use_te) {
+        g_gpio_tunnel_dev = device_open(DEVICE_TYPE_GPIO_TUNNEL_HW, 0);
+    }
+
 #if CONFIG_MHB_IPC_CLIENT
     if (!ret) {
         /* Cheat and re-use this transaction.  The unipro response (if any)
@@ -824,6 +831,11 @@ static int mhb_handle_cdsi_unconfig_req(struct mhb_transaction *transaction)
         ret = 0;
     } else {
         ret = -ENODEV;
+    }
+
+    if (g_gpio_tunnel_dev) {
+        device_close(g_gpio_tunnel_dev);
+        g_gpio_tunnel_dev = NULL;
     }
 
 #if CONFIG_MHB_IPC_CLIENT
