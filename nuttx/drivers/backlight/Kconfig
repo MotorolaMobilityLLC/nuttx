@@ -1,6 +1,12 @@
 # For a description of the syntax of this configuration file,
 # see misc/tools/kconfig-language.txt.
 #
+config BACKLIGHT_DCS
+	bool "DCS support"
+	default n
+	---help---
+		DCS backlight driver.
+
 config BACKLIGHT_ISL98611
 	bool "Intersil ISL98611 support"
 	default n

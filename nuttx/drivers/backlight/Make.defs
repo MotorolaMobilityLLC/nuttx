@@ -39,6 +39,10 @@ DEPPATH += --dep-path backlight
 VPATH += :backlight
 CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)backlight}
 
+ifeq ($(CONFIG_BACKLIGHT_DCS),y)
+CSRCS += backlight_dcs.c
+endif
+
 ifeq ($(CONFIG_BACKLIGHT_ISL98611),y)
 CSRCS += backlight_isl98611.c
 endif
