@@ -387,6 +387,14 @@ static struct device devices[] = {
 # endif
 #endif
 
+#ifdef CONFIG_BACKLIGHT_DCS
+    {
+        .type = DEVICE_TYPE_LIGHTS_HW,
+        .name = "dcs_backlight",
+        .desc = "DCS Backlight",
+        .id   = 0,
+    },
+#endif
 #ifdef CONFIG_BACKLIGHT_ISL98611
     {
         .type = DEVICE_TYPE_LIGHTS_HW,
@@ -564,6 +572,10 @@ void board_initialize(void)
 #ifdef CONFIG_MHB_DSI_DISPLAY
    extern struct device_driver dsi_display_driver;
    device_register_driver(&dsi_display_driver);
+#endif
+#ifdef CONFIG_BACKLIGHT_DCS
+   extern struct device_driver dcs_backlight_driver;
+   device_register_driver(&dcs_backlight_driver);
 #endif
 #ifdef CONFIG_BACKLIGHT_ISL98611
    extern struct device_driver isl98611_backlight_driver;
