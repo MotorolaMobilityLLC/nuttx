@@ -38,6 +38,7 @@
 
 #include <nuttx/device.h>
 #include <nuttx/device_display.h>
+#include <nuttx/device_lights.h>
 #include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/util.h>
 
@@ -49,6 +50,7 @@
 
 #include <nuttx/unipro/unipro.h>
 
+static struct device *g_backlight;
 static struct device *g_display;
 
 typedef int (*COMMAND_FP)(int argc, char *argv[], struct device *dev);
@@ -809,6 +811,59 @@ static int mhb_subcmd_display(int argc, char *argv[], struct device *dev)
     return mhb_handle_sub_cmd(argc, argv, dev, "display", display_cmd_tb, ARRAY_SIZE(display_cmd_tb));
 }
 
+static int backlight_open(int argc, char *argv[], struct device *dev)
+{
+    if (g_backlight) {
+        printf("ERROR: already open\n");
+        return -EBUSY;
+    }
+
+    g_backlight = device_open(DEVICE_TYPE_LIGHTS_HW, 0);
+    if (!g_backlight) {
+        printf("ERROR: failed to open\n");
+        return -EIO;
+    }
+
+    return 0;
+}
+
+static int backlight_set(int argc, char *argv[], struct device *dev)
+{
+    if (!g_backlight) {
+        printf("ERROR: not opened\n");
+        return -ENODEV;
+    }
+
+    int brightness = (argc > 0 ? atoi(argv[0]) : 255);
+    vdbg("brightness=%d\n", brightness);
+
+    return device_lights_set_brightness(g_backlight, 0, 0, brightness);
+}
+
+static int backlight_close(int argc, char *argv[], struct device *dev)
+{
+    if (!g_backlight) {
+        printf("ERROR: not opened\n");
+        return 0;
+    }
+
+    device_close(g_backlight);
+    g_backlight = NULL;
+
+    return 0;
+}
+
+static int mhb_subcmd_backlight(int argc, char *argv[], struct device *dev)
+{
+    static const struct command backlight_cmd_tb[] = {
+        { "open", backlight_open },
+        { "set", backlight_set },
+        { "close", backlight_close }
+    };
+
+    return mhb_handle_sub_cmd(argc, argv, dev, "backlight", backlight_cmd_tb, ARRAY_SIZE(backlight_cmd_tb));
+}
+
 static int usbtun_on(int argc, char *argv[], struct device *dev)
 {
     struct mhb_hdr hdr;
@@ -869,6 +924,8 @@ int mhb_client_main(int argc, char *argv[])
         { "pwr",    mhb_subcmd_pwr },
         /* Display */
         { "display", mhb_subcmd_display },
+        /* Backlight */
+        { "backlight", mhb_subcmd_backlight },
         /* hsic */
         { "hsic",   mhb_subcmd_hsic },
     };
