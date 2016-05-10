@@ -181,3 +181,7 @@ endif
 ifeq ($(CONFIG_TSB_CHIP_REV_ES3), y)
 CHIP_CSRCS += tsb_isaa.c
 endif
+
+ifeq ($(CONFIG_TSB_GPIO_TUNNEL), y)
+CHIP_CSRCS += tsb_gpio_tunnel.c
+endif
