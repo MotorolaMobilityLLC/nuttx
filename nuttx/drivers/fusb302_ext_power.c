@@ -65,7 +65,7 @@
 # define FUSB302_SWITCHES1_TXCC1_MASK          (0x01 << 0)
 
 #define FUSB302_MEASURE_REG                        0x04
-# define FUSB302_MEASURE_MEAS_VBUS_MASK        (0x01 << 7)
+# define FUSB302_MEASURE_MEAS_VBUS_MASK        (0x01 << 6)
 # define FUSB302_MEASURE_MDAC_MASK             (0x3f << 0)
 #  define FUSB302_MEASURE_MDAC_0P042_0P420     (0x00 << 0)
 #  define FUSB302_MEASURE_MDAC_0P084_0P840     (0x01 << 0)
@@ -108,11 +108,11 @@
 # define FUSB302_CONTROL2_TOG_RD_ONLY_MASK     (0x01 << 5)
 # define FUSB302_CONTROL2_RESERVED_MASK        (0x01 << 4)
 # define FUSB302_CONTROL2_WAKE_EN_MASK         (0x01 << 3)
-# define FUSB302_CONTROL2_MODE_MASK            (0x03 << 2)
+# define FUSB302_CONTROL2_MODE_MASK            (0x03 << 1)
 # define FUSB302_CONTROL2_TOGGLE_MASK          (0x01 << 0)
-#  define FUSB302_CONTROL2_MODE_SRC_POLLING    (0x03 << 2)
-#  define FUSB302_CONTROL2_MODE_SNK_POLLING    (0x02 << 2)
-#  define FUSB302_CONTROL2_MODE_DRP_POLLING    (0x01 << 2)
+#  define FUSB302_CONTROL2_MODE_SRC_POLLING    (0x03 << 1)
+#  define FUSB302_CONTROL2_MODE_SNK_POLLING    (0x02 << 1)
+#  define FUSB302_CONTROL2_MODE_DRP_POLLING    (0x01 << 1)
 
 #define FUSB302_CONTROL3_REG   0x09
 # define FUSB302_CONTROL3_RESERVED1_MASK       (0x01 << 7)
@@ -251,23 +251,6 @@
 
 
 struct fusb302_regs_s {
-    uint8_t device_id;
-    uint8_t switches0;
-    uint8_t switches1;
-    uint8_t measure;
-    uint8_t slice;
-    uint8_t control0;
-    uint8_t control1;
-    uint8_t control2;
-    uint8_t control3;
-    uint8_t mask;
-    uint8_t power;
-    uint8_t reset;
-    uint8_t ocpreg;
-    uint8_t maska;
-    uint8_t maskb;
-    uint8_t control4;
-
     uint8_t status0a;
     uint8_t status1a;
     uint8_t interrupta;
@@ -276,7 +259,6 @@ struct fusb302_regs_s {
     uint8_t status0;
     uint8_t status1;
     uint8_t interrupt;
-    uint8_t fifos;
 };
 
 static struct fusb302_regs_s fusb302_regs;
@@ -317,63 +299,66 @@ static int decode_cc_termination(void)
     return termination; /* Return the termination type */
 }
 
+/* Number of retries for I2C reads/writes */
+#define RETRIES_I2C 3
 static inline int fusb302_reg_read(struct i2c_dev_s *i2c, uint8_t reg)
 {
     uint8_t val;
     int ret;
-
-    ret = I2C_WRITEREAD(i2c, &reg, sizeof(reg), &val, sizeof(val));
+    int retries = RETRIES_I2C;
+    do {
+       ret = I2C_WRITEREAD(i2c, &reg, sizeof(reg), &val, sizeof(val));
+    } while (ret && --retries);
+    if (ret)
+        dbg("I2C_WRITEREAD fail ret=%d reg=0x%02x\n", ret, reg);
     return ret ? ret : val;
 }
 
 static inline int fusb302_reg_write(struct i2c_dev_s *i2c, uint8_t reg, uint8_t val)
 {
     uint8_t buf[2];
+    int ret;
+    int retries = RETRIES_I2C;
 
     buf[0] = reg;
     buf[1] = val;
 
-    return I2C_WRITE(i2c, buf, sizeof(buf));
+    do {
+        ret = I2C_WRITE(i2c, buf, sizeof(buf));
+    } while (ret && --retries);
+    if (ret)
+        dbg("I2C_WRITE fail ret=%d reg=0x%02x val=0x%02x\n", ret, reg, val);
+    return ret;
 }
 
 static void fusb302_init(void)
 {
     fusb302_reg_write(fusb302_info->i2c, FUSB302_RESET_REG, FUSB302_RESET_SW_RES_MASK);                /* [0x0C]:0x01 */
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, FUSB302_CONTROL2_TOGGLE_MASK);          /* [0x08]:0x01 */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_POWER_REG, FUSB302_POWER_PWR_INIT_MASK);              /* [0x0B]:0x07 */
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL0_REG, FUSB302_CONTROL0_TX_START_MASK);        /* [0x06]:0x01 */
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MEASURE_REG, FUSB302_MEASURE_MDAC_0P042_0P420);       /* [0x04]:0x00 */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES0_REG, FUSB302_SWITCHES0_ZERO_MASK);          /* [0x02]:0x00 */
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG, FUSB302_MASK_M_VBUSOK_MASK|                 /* [0x0A]:0xFE */
+    /* mask all interrupts */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG, FUSB302_MASK_M_VBUSOK_MASK|                 /* [0x0A]:0xFF */
                                          FUSB302_MASK_M_ACTIVITY_MASK|FUSB302_MASK_M_COMP_CHNG_MASK|
                                          FUSB302_MASK_M_CRC_CHK_MASK|FUSB302_MASK_M_ALERT_MASK|
-                                         FUSB302_MASK_M_WAKE_MASK|FUSB302_MASK_M_COLLISION_MASK);
+                                         FUSB302_MASK_M_WAKE_MASK|FUSB302_MASK_M_COLLISION_MASK|
+                                         FUSB302_MASK_M_BC_LVL_MASK);
+    /* listen to I_TOGDONE only */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_MASKA_REG, FUSB302_MASKA_M_OCP_TEMP_MASK|             /* [0x0E]:0xBF */
                                          FUSB302_MASKA_M_SOFTFAIL_MASK|FUSB302_MASKA_M_RETRY_FAIL_MASK|
                                          FUSB302_MASKA_M_HARDSENT_MASK|FUSB302_MASKA_M_TXSENT_MASK|
                                          FUSB302_MASKA_M_SOFTRST_MASK|FUSB302_MASKA_M_HARDRST_MASK);
     fusb302_reg_write(fusb302_info->i2c, FUSB302_MASKB_REG, FUSB302_MASKB_M_GCRCSENT_MASK);            /* [0x0F]:0x01 */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_SLICE_REG, FUSB302_SLICE_SDAC_HYS_085MV |             /* [0x05]:0x60 */
+                                         0x20); /* magic */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL0_REG, FUSB302_CONTROL0_TX_START_MASK|         /* [0x06]:0x05 */
+                                         FUSB302_CONTROL0_HOST_CUR_USB);
+    /* enable toggle */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, FUSB302_CONTROL2_TOG_RD_ONLY_MASK|      /* [0x08]:0x25 */
+                                         FUSB302_CONTROL2_MODE_SNK_POLLING|FUSB302_CONTROL2_TOGGLE_MASK);
 }
 
-static void fusb302_read_all_regs(void)
+static void fusb302_read_status_regs(void)
 {
-    fusb302_regs.device_id  = fusb302_reg_read(fusb302_info->i2c, FUSB302_DEVICE_ID_REG);
-    fusb302_regs.switches0  = fusb302_reg_read(fusb302_info->i2c, FUSB302_SWITCHES0_REG);
-    fusb302_regs.switches1  = fusb302_reg_read(fusb302_info->i2c, FUSB302_SWITCHES1_REG);
-    fusb302_regs.measure    = fusb302_reg_read(fusb302_info->i2c, FUSB302_MEASURE_REG);
-    fusb302_regs.slice      = fusb302_reg_read(fusb302_info->i2c, FUSB302_SLICE_REG);
-    fusb302_regs.control0   = fusb302_reg_read(fusb302_info->i2c, FUSB302_CONTROL0_REG);
-    fusb302_regs.control1   = fusb302_reg_read(fusb302_info->i2c, FUSB302_CONTROL1_REG);
-    fusb302_regs.control2   = fusb302_reg_read(fusb302_info->i2c, FUSB302_CONTROL2_REG);
-    fusb302_regs.control3   = fusb302_reg_read(fusb302_info->i2c, FUSB302_CONTROL3_REG);
-    fusb302_regs.mask       = fusb302_reg_read(fusb302_info->i2c, FUSB302_MASK_REG);
-    fusb302_regs.power      = fusb302_reg_read(fusb302_info->i2c, FUSB302_POWER_REG);
-    fusb302_regs.reset      = fusb302_reg_read(fusb302_info->i2c, FUSB302_RESET_REG);
-    fusb302_regs.ocpreg     = fusb302_reg_read(fusb302_info->i2c, FUSB302_OCPREG_REG);
-    fusb302_regs.maska      = fusb302_reg_read(fusb302_info->i2c, FUSB302_MASKA_REG);
-    fusb302_regs.maskb      = fusb302_reg_read(fusb302_info->i2c, FUSB302_MASKB_REG);
-    fusb302_regs.control4   = fusb302_reg_read(fusb302_info->i2c, FUSB302_CONTROL4_REG);
-
     fusb302_regs.status0a   = fusb302_reg_read(fusb302_info->i2c, FUSB302_STATUS0A_REG);
     fusb302_regs.status1a   = fusb302_reg_read(fusb302_info->i2c, FUSB302_STATUS1A_REG);
     fusb302_regs.interrupta = fusb302_reg_read(fusb302_info->i2c, FUSB302_INTERRUPTA_REG);
@@ -382,87 +367,36 @@ static void fusb302_read_all_regs(void)
     fusb302_regs.status0    = fusb302_reg_read(fusb302_info->i2c, FUSB302_STATUS0_REG);
     fusb302_regs.status1    = fusb302_reg_read(fusb302_info->i2c, FUSB302_STATUS1_REG);
     fusb302_regs.interrupt  = fusb302_reg_read(fusb302_info->i2c, FUSB302_INTERRUPT_REG);
-    fusb302_regs.fifos      = fusb302_reg_read(fusb302_info->i2c, FUSB302_FIFOS_REG);
 };
 
 static void fusb302_write_connected(uint8_t sw0, uint8_t sw1)
 {
     fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES0_REG, sw0);
     fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES1_REG, sw1);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MEASURE_REG, /* 0x31 */
-            FUSB302_MEASURE_MDAC_XPXXX_XPXXX);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_SLICE_REG, /* 0x60 */
-            FUSB302_SLICE_SDAC_HYS_085MV |
-            0x20); /* magic */
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL0_REG, 0x00);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL1_REG, 0x00);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, /* 0x25 */
-            FUSB302_CONTROL2_MODE_SNK_POLLING |
-            FUSB302_CONTROL2_TOGGLE_MASK);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL3_REG, /* 0x05 */
-            FUSB302_CONTROL3_N_RETRIES_ONE |
-            FUSB302_CONTROL3_AUTO_RETRY_MASK);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG, /* 0x44 */
-            FUSB302_MASK_M_ACTIVITY_MASK |
-            FUSB302_MASK_M_COMP_CHNG_MASK |
-            FUSB302_MASK_M_WAKE_MASK |
-            FUSB302_MASK_M_WAKE_MASK |
-            FUSB302_MASK_M_COLLISION_MASK);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_POWER_REG, 0x07); /* magic */
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_OCPREG_REG, /* 0x0f */
-            FUSB302_OCPREG_OCP_RANGE_800MA |
-            FUSB302_OCPREG_OCP_CUR_MAX);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASKA_REG, 0x00);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASKB_REG, 0x00);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL4_REG,  /* 0x01 */
-            FUSB302_CONTROL4_TOG_USRC_EXIT_MASK);
+    /* listen to I_VBUSOK only
+       we do not mask I_TOGDONE here, because TOGGLE functionality was terminated */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG,                                             /* [0x0A]:0x7F */
+                                         FUSB302_MASK_M_ACTIVITY_MASK|FUSB302_MASK_M_COMP_CHNG_MASK|
+                                         FUSB302_MASK_M_CRC_CHK_MASK|FUSB302_MASK_M_ALERT_MASK|
+                                         FUSB302_MASK_M_WAKE_MASK|FUSB302_MASK_M_COLLISION_MASK|
+                                         FUSB302_MASK_M_BC_LVL_MASK);
 }
 
 static void fusb302_write_disconnected(void)
 {
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES0_REG, /* 0x03 */
-            FUSB302_SWITCHES0_MEAS_CC1_MASK |
-            FUSB302_SWITCHES0_PDWN2_MASK |
-            FUSB302_SWITCHES0_PDWN1_MASK);
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES0_REG, 0x00);
     fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES1_REG, 0x00);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MEASURE_REG, /* 0x31 */
-            FUSB302_MEASURE_MDAC_XPXXX_XPXXX);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_SLICE_REG, /* 0x60 */
-            FUSB302_SLICE_SDAC_HYS_085MV |
-            0x20); /* magic */
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL0_REG, /* 0x04 */
-            FUSB302_CONTROL0_HOST_CUR_USB |
-            FUSB302_CONTROL0_AUTO_PRE_MASK);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL1_REG,  0x00);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, /* 0x25 */
-            FUSB302_CONTROL2_MODE_SNK_POLLING |
-            FUSB302_CONTROL2_TOGGLE_MASK);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL3_REG, /* 0x06 */
-            FUSB302_CONTROL3_N_RETRIES_THREE);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG,      /* 0xff */
-            FUSB302_MASK_M_VBUSOK_MASK |
-            FUSB302_MASK_M_ACTIVITY_MASK |
-            FUSB302_MASK_M_COMP_CHNG_MASK |
-            FUSB302_MASK_M_CRC_CHK_MASK |
-            FUSB302_MASK_M_ALERT_MASK |
-            FUSB302_MASK_M_WAKE_MASK |
-            FUSB302_MASK_M_COLLISION_MASK |
-            FUSB302_MASK_M_BC_LVL_MASK);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_POWER_REG,     0x07);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_OCPREG_REG,    /* 0x0f */
-            FUSB302_OCPREG_OCP_RANGE_800MA |
-            FUSB302_OCPREG_OCP_CUR_MAX);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASKA_REG,     /* 0xbf */
-            FUSB302_MASKA_M_OCP_TEMP_MASK |
-            FUSB302_MASKA_M_SOFTFAIL_MASK |
-            FUSB302_MASKA_M_RETRY_FAIL_MASK |
-            FUSB302_MASKA_M_HARDSENT_MASK |
-            FUSB302_MASKA_M_TXSENT_MASK |
-            FUSB302_MASKA_M_SOFTRST_MASK |
-            FUSB302_MASKA_M_HARDRST_MASK);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASKB_REG,     0x00);
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL4_REG,  /* 0x01 */
-            FUSB302_CONTROL4_TOG_USRC_EXIT_MASK);
+    /* mask all interrupts */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG, FUSB302_MASK_M_VBUSOK_MASK|                 /* [0x0A]:0xFF */
+                                         FUSB302_MASK_M_ACTIVITY_MASK|FUSB302_MASK_M_COMP_CHNG_MASK|
+                                         FUSB302_MASK_M_CRC_CHK_MASK|FUSB302_MASK_M_ALERT_MASK|
+                                         FUSB302_MASK_M_WAKE_MASK|FUSB302_MASK_M_COLLISION_MASK|
+                                         FUSB302_MASK_M_BC_LVL_MASK);
+    /* clear toggle state */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, 0x00);
+    /* enable toggle */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, FUSB302_CONTROL2_TOG_RD_ONLY_MASK|      /* [0x08]:0x25 */
+                                         FUSB302_CONTROL2_MODE_SNK_POLLING|FUSB302_CONTROL2_TOGGLE_MASK);
 }
 
 static bool fusb302_get_cc1(void)
@@ -496,9 +430,12 @@ static bool fusb302_get_cc2(void)
 
 static void fusb302_toggle_measure(void)
 {
-    fusb302_read_all_regs();
-
-    if (fusb302_regs.status0 & FUSB302_STATUS0_VBUSOK_MASK) {
+    static bool attached = false;
+    fusb302_read_status_regs();
+    if (!attached) {
+        if (!(fusb302_regs.interrupta & FUSB302_INTERRUPTA_I_TOGDONE_MASK))
+            return;
+        attached = true;
         bool cc1 = fusb302_get_cc1();
         bool cc2 = fusb302_get_cc2();
 
@@ -510,13 +447,11 @@ static void fusb302_toggle_measure(void)
             fusb302_write_connected(0x03, 0x00);
         }
     } else {
-        if (fusb302_regs.interrupta & FUSB302_INTERRUPTA_I_TOGDONE_MASK) {
-            /* Disable the toggle in order to clear */
-            fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, 0x22);
-        } else {
-            fusb302_reg_write(fusb302_info->i2c, FUSB302_RESET_REG,
-                    FUSB302_RESET_SW_RES_MASK);
-        }
+        if (!(fusb302_regs.interrupt& FUSB302_INTERRUPT_I_VBUSOK_MASK))
+            return;
+        if (fusb302_regs.status0 & FUSB302_STATUS0_VBUSOK_MASK)
+            return;
+        attached = false;
         fusb302_write_disconnected();
     }
 }
@@ -524,11 +459,20 @@ static void fusb302_toggle_measure(void)
 static void fusb302_worker(FAR void *arg)
 {
     struct fusb302_dev_s *info = arg;
+    int current;
+    bool repeat = false;
 
-    fusb302_toggle_measure();
-    info->current = decode_cc_termination();
-    if (fusb302_info->power_changed_cb)
-        fusb302_info->power_changed_cb(fusb302_info->fusb302_available_arg);
+    do {
+        fusb302_toggle_measure();
+        current = decode_cc_termination();
+        if (current != info->current) {
+            info->current = current;
+            if (info->power_changed_cb)
+                info->power_changed_cb(info->fusb302_available_arg);
+        }
+        /* do we have unhandled isr? */
+        repeat = (0 == gpio_get_value(info->int_n) && work_available(&info->work));
+    } while (repeat);
 }
 
 static int fusb302_isr(int irq, void *context)
