@@ -62,6 +62,7 @@ volatile uint32_t *current_regs;
 #define IRQ_NAME(irq)                \
     [irqn_to_nvic(irq)] = #irq
 
+#if CONFIG_DEBUG_VERBOSE
 const char *irq_names[] = {
     IRQ_NAME(TSB_IRQ_HSIC),
     IRQ_NAME(TSB_IRQ_RESERVED0),
@@ -190,6 +191,7 @@ const char *irq_names[] = {
     IRQ_NAME(TSB_IRQ_UNIPRO_RX_EOM30),
     IRQ_NAME(TSB_IRQ_UNIPRO_RX_EOM31),
 };
+#endif
 
 void up_irqinitialize(void) {
     uint32_t reg;
@@ -251,6 +253,7 @@ void up_ack_irq(int irq) {
     (void)irq;
 }
 
+#if CONFIG_DEBUG_VERBOSE
 /*
  * Print human-readable strings for enabled bits in peripheral NVIC space
  */
@@ -266,6 +269,7 @@ static inline void dbg_irq_names(uint32_t *base, size_t lines_per_word) {
         }
     }
 }
+#endif
 
 
 /**
@@ -281,6 +285,7 @@ void tsb_irq_clear_pending(int irqn) {
 }
 
 
+#if CONFIG_DEBUG_VERBOSE
 /**
  * @brief Print out a bunch of information about the NVIC and currently
  *        configured peripheral interrupts on the low-level debug console
@@ -329,6 +334,7 @@ void tsb_dumpnvic(void) {
 
     irqrestore(flags);
 }
+#endif
 
 #ifdef CONFIG_USEC_MEASURE_PERF
 
