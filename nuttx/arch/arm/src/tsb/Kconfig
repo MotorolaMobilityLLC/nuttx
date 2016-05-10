@@ -411,3 +411,23 @@ config TSB_JTAG_ENABLE
 	default n
 	---help---
 		Enable JTAG (if permitted).
+
+config TSB_GPIO_TUNNEL
+	bool "Enable GPIO UniPro Tunnel"
+	default n
+	---help---
+		Enable GPIO UniPro tunnel support.
+
+if TSB_GPIO_TUNNEL
+config TSB_GPIO_TUNNEL_CPORT_ID
+	int "GPIO Tunnel CPORT"
+	default 12
+
+config TSB_GPIO_TUNNEL_NUM_RX
+	int "Number of RX GPIOs"
+	default 0
+
+config TSB_GPIO_TUNNEL_NUM_TX
+	int "Number of TX GPIOs"
+	default 0
+endif
