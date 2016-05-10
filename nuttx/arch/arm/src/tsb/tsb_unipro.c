@@ -123,7 +123,9 @@ static uint32_t cport_get_status(struct cport*);
 static inline void clear_rx_interrupt(struct cport*);
 static inline void enable_rx_interrupt(struct cport*);
 static void configure_transfer_mode(int);
+#ifdef UNIPRO_DEBUG
 static void dump_regs(void);
+#endif
 
 /* irq handlers */
 static int irq_rx_eom(int, void*);
@@ -573,6 +575,7 @@ uint16_t unipro_get_tx_free_buffer_space(struct cport *cport)
     return tx_space;
 }
 
+#ifdef UNIPRO_DEBUG
 /**
  * @brief UniPro debug dump
  */
@@ -709,6 +712,7 @@ void unipro_info(void)
 {
     dump_regs();
 }
+#endif
 
 void unipro_switch_rxbuf(unsigned int cportid, void *buffer)
 {
