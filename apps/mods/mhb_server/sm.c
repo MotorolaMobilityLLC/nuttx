@@ -59,6 +59,31 @@
 #include "sm.h"
 #include "sm_timer.h"
 
+enum svc_state {
+    SVC_WAIT_FOR_AP,
+    SVC_SLAVE_WAIT_FOR_UNIPRO,
+    SVC_SLAVE_WAIT_FOR_CPORTS,
+    SVC_WAIT_FOR_UNIPRO,
+    SVC_WAIT_FOR_MOD,
+    SVC_CONNECTED,
+    SVC_DISCONNECTED,
+    SVC_TEST_MODE,
+
+    SVC_STATE_MAX,
+};
+
+#if CONFIG_DEBUG
+const static char *SVC_STATE_STRINGS[] = {
+    TO_STR(SVC_WAIT_FOR_AP),
+    TO_STR(SVC_SLAVE_WAIT_FOR_UNIPRO),
+    TO_STR(SVC_SLAVE_WAIT_FOR_CPORTS),
+    TO_STR(SVC_WAIT_FOR_UNIPRO),
+    TO_STR(SVC_WAIT_FOR_MOD),
+    TO_STR(SVC_CONNECTED),
+    TO_STR(SVC_DISCONNECTED),
+    TO_STR(SVC_TEST_MODE),
+};
+
 const static char *SVC_EVENT_STRINGS[] = {
     TO_STR(SVC_EVENT_MASTER_STARTED),
     TO_STR(SVC_EVENT_SLAVE_STARTED),
@@ -73,30 +98,7 @@ const static char *SVC_EVENT_STRINGS[] = {
     TO_STR(SVC_EVENT_SEND_STATS),
     TO_STR(SVC_EVENT_CPORTS_DONE),
 };
-
-enum svc_state {
-    SVC_WAIT_FOR_AP,
-    SVC_SLAVE_WAIT_FOR_UNIPRO,
-    SVC_SLAVE_WAIT_FOR_CPORTS,
-    SVC_WAIT_FOR_UNIPRO,
-    SVC_WAIT_FOR_MOD,
-    SVC_CONNECTED,
-    SVC_DISCONNECTED,
-    SVC_TEST_MODE,
-
-    SVC_STATE_MAX,
-};
-
-const static char *SVC_STATE_STRINGS[] = {
-    TO_STR(SVC_WAIT_FOR_AP),
-    TO_STR(SVC_SLAVE_WAIT_FOR_UNIPRO),
-    TO_STR(SVC_SLAVE_WAIT_FOR_CPORTS),
-    TO_STR(SVC_WAIT_FOR_UNIPRO),
-    TO_STR(SVC_WAIT_FOR_MOD),
-    TO_STR(SVC_CONNECTED),
-    TO_STR(SVC_DISCONNECTED),
-    TO_STR(SVC_TEST_MODE),
-};
+#endif
 
 struct svc {
     enum svc_state state;
@@ -348,6 +350,7 @@ inline static bool svc_event_valid(enum svc_event event) {
     return event < SVC_EVENT_MAX;
 }
 
+#if CONFIG_DEBUG
 static const char * svc_event_to_string(enum svc_event event) {
     if (event >= ARRAY_SIZE(SVC_EVENT_STRINGS)) {
         return NULL;
@@ -356,16 +359,17 @@ static const char * svc_event_to_string(enum svc_event event) {
     return SVC_EVENT_STRINGS[event];
 }
 
-inline static bool svc_state_valid(enum svc_state state) {
-    return state < SVC_STATE_MAX;
-}
-
 static const char *svc_state_to_string(enum svc_state state) {
     if (state >= ARRAY_SIZE(SVC_STATE_STRINGS)) {
         return NULL;
     }
 
     return SVC_STATE_STRINGS[state];
+}
+#endif
+
+inline static bool svc_state_valid(enum svc_state state) {
+    return state < SVC_STATE_MAX;
 }
 
 /* Event Handlers */
