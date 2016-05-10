@@ -269,6 +269,7 @@ void unipro_p2p_detect_linkloss(void) {
     }
 }
 
+#if CONFIG_UNIPRO_TEST_CPORTS
 void unipro_p2p_setup_test_connection(unsigned int cport, unsigned int test_port, unsigned int src_from_local, unsigned int enable_e2efc) {
     /* Set-up the L4 attributes */
     uint32_t cport_flags = CPORT_FLAGS_CSV_N|CPORT_FLAGS_E2EFC;;
@@ -370,6 +371,7 @@ void unipro_p2p_setup_test_connection(unsigned int cport, unsigned int test_port
     /* Notify the remote to configure it's cport registers. */
     unipro_mbox_enable_cport(cport);
 }
+#endif
 
 static int unipro_enter_test_mode(void) {
     uint32_t v;
