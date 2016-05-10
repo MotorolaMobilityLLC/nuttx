@@ -194,8 +194,10 @@ static size_t _dsi_read_cmd(struct cdsi_dev *dev, uint8_t *buffer, size_t buffer
         }
     } else if (dt == DT_RSP_ACK_AND_ERR) {
         CDSI_WRITE(dev, CDSI_CDSITX_INTERRUPT_STATUS_05, INT_APF_LPRX_ACKERR, 1);
+#if CONFIG_DEBUG
         uint16_t ackerr = CDSI_READ(dev, CDSI_CDSITX_SIDEBAND_LPRXIF_04, SBO_APF_LPRX_ACKERR_PKT);
         dbg("ack or error report: 0x%04x\n", ackerr);
+#endif
     } else {
         dbg("ERROR: unexpected DT: 0x%02x\n", dt);
         return -EINVAL;
