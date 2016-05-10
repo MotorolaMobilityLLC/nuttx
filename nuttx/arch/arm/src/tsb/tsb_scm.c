@@ -232,6 +232,7 @@ void tsb_get_chip_id(uint32_t *id0, uint32_t *id1, uint32_t *id2)
 }
 
 /* Debug code for command line tool usage */
+#if CONFIG_DEBUG_VERBOSE
 struct clk_info {
     uint32_t    clk;
     const char  name[16];
@@ -277,6 +278,7 @@ void tsb_clk_dump(void)
         dbg("%12s: %s\n", clk_names[i].name, (tsb_clk_status(clk_names[i].clk) ? "ON" : "OFF"));
     }
 }
+#endif
 
 void tsb_set_spi_clock(uint32_t freq_bits)
 {
