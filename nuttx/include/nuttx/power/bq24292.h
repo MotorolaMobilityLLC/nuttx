@@ -33,6 +33,7 @@
 
 enum bq24292_event {
     POWER_GOOD,     /* Good power input source */
+    POWER_NOT_GOOD,
     BOOST_FAULT,    /* VBUS over-current or over-voltage in boost mode */
 };
 
