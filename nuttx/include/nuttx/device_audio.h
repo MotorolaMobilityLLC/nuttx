@@ -38,6 +38,46 @@
 #define DEVICE_AUDIO_GB_ID    0
 #define DEVICE_AUDIO_MHB_ID    1
 
+
+#define DEV_AUDIO_PLAYBACK_NONE_USE_CASE              BIT(0)
+/* Music */
+#define DEV_AUDIO_PLAYBACK_MUSIC_USE_CASE             BIT(1)
+/* Voice call */
+#define DEV_AUDIO_PLAYBACK_VOICE_CALL_SPKR_USE_CASE   BIT(2)
+/* Ringer  */
+#define DEV_AUDIO_PLAYBACK_RINGTONE_USE_CASE          BIT(3)
+/* System sounds */
+#define DEV_AUDIO_PLAYBACK_SONIFICATION_USE_CASE      BIT(4)
+
+
+/* Capture use cases bit mask*/
+
+/* Default setting capture */
+#define DEV_AUDIO_CAPTURE_DEFAULT_USE_CASE     BIT(0)
+/* Voice  */
+#define DEV_AUDIO_CAPTURE_VOICE_USE_CASE       BIT(1)
+/* Unprocessed pcm capture */
+#define DEV_AUDIO_CAPTURE_RAW_USE_CASE         BIT(2)
+/* Camcorder */
+#define DEV_AUDIO_CAPTURE_CAMCORDER_USE_CASE   BIT(3)
+
+/* audio output devices bit mask */
+#define DEV_AUDIO_DEVICE_OUT_LOUDSPEAKER BIT(0)
+#define DEV_AUDIO_DEVICE_OUT_HEADSET     BIT(1)
+#define DEV_AUDIO_DEVICE_OUT_LINE        BIT(2)
+#define DEV_AUDIO_DEVICE_OUT_HDMI        BIT(3)
+#define DEV_AUDIO_DEVICE_OUT_EARPIECE    BIT(4)
+
+/* audio input devices bit mask */
+#define DEV_AUDIO_DEVICE_IN_MIC                   BIT(0)
+#define DEV_AUDIO_DEVICE_IN_HEADSET_MIC           BIT(1)
+#define DEV_AUDIO_DEVICE_IN_CAMCORDER_MIC         BIT(2)
+#define DEV_AUDIO_DEVICE_IN_EC_REF                BIT(3)
+#define DEV_AUDIO_DEVICE_IN_FM_TUNER              BIT(4)
+#define DEV_AUDIO_DEVICE_IN_MIC_EC                BIT(5)
+#define DEV_AUDIO_DEVICE_IN_MIC_ECNS              BIT(6)
+#define DEV_AUDIO_DEVICE_IN_MIC_NS                BIT(7)
+
 struct device_aud_vol_range {
     int min;
     int step;
