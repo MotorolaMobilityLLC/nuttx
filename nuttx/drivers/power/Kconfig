@@ -82,7 +82,7 @@ config BATTERY_MAX17050_STD_MODEL_1580_CFG
 endchoice
 endif
 
-config CHARGER_BQ24292
+menuconfig CHARGER_BQ24292
 	bool "TI bq24292 charger support"
 	default n
 	select I2C
@@ -113,6 +113,30 @@ config CHARGER_BQ24292_SAMPLE_CFG
 	bool "Sample configuration"
 endchoice
 endif
+
+menuconfig CHARGER_BQ25896
+	bool "TI bq25896 charger support"
+	default n
+	select I2C
+	select I2C_WRITEREAD
+	select SCHED_WORKQUEUE
+	select SCHED_LPWORK
+	---help---
+		Select to support the bq25896 charger IC.
+
+config CHARGER_BQ25896_I2C_BUS
+	int "BQ25896 I2C Bus Number"
+	default 1
+	depends on CHARGER_BQ25896
+	---help---
+		I2C bus to use to communicate with device.
+
+config CHARGER_BQ25896_I2C_BUS_SPEED
+	int "BQ25896 I2C Bus Speed"
+	default 400000
+	depends on CHARGER_BQ25896
+	---help---
+		I2C bus speed to use to communicate with device
 
 config BATTERY_STATE
 	bool "Battery level and temp notifier"
