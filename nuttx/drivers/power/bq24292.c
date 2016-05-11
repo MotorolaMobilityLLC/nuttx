@@ -57,6 +57,7 @@ static struct work_s int_work;
 static struct work_s pg_work;
 
 static bool pg_n_connected;
+static bool power_good;
 
 static FAR struct i2c_dev_s *i2c;
 
@@ -90,13 +91,34 @@ static void pg_worker(FAR void *arg)
 {
     struct notify_node *node;
     struct list_head *iter;
+    int regval;
+    bool pg_now;
 
-    // Configure registers every time power is attached
-    bq24292_configure();
+    /*
+     * Interrupt may not go off if battery is completely depleted and input
+     * power source is removed, thus current state cannot be compared with the
+     * previous one to detect when power becomes good, so notify the detection
+     * of a good power source when the power good bit is asserted.
+     */
 
-    list_foreach(&notify_list, iter) {
-        node = list_entry(iter, struct notify_node, list);
-        node->callback(POWER_GOOD, node->arg);
+    /* Use status reg to detect power good unless pg_n line is connected */
+    regval = bq24292_reg_read(BQ24292_REG_STATUS);
+    if (regval < 0)
+        /* If unable to communicate with the IC, assume power is not good */
+        pg_now = false;
+    else
+        pg_now = (regval & BQ24292_STATUS_PG) > 0;
+    /* Only invoke callback when PG status changes  */
+    if (pg_now != power_good) {
+        power_good = pg_now;
+        // Configure registers every time power is attached
+        if(power_good) bq24292_configure();
+
+        list_foreach(&notify_list, iter) {
+            node = list_entry(iter, struct notify_node, list);
+            node->callback(power_good ? POWER_GOOD: POWER_NOT_GOOD,
+                           node->arg);
+        }
     }
 }
 
@@ -115,29 +137,13 @@ static void int_worker(FAR void *arg)
         }
     }
 
-    /* Use status reg to detect power good unless pg_n line is connected */
     if (pg_n_connected)
         return;
 
-    /*
-     * Interrupt may not go off if battery is completely depleted and input
-     * power source is removed, thus current state cannot be compared with the
-     * previous one to detect when power becomes good, so notify the detection
-     * of a good power source when the power good bit is asserted.
-     */
-    regval = bq24292_reg_read(BQ24292_REG_STATUS);
-    if (regval < 0)
-        /* If unable to communicate with the IC, assume power is not good */
-        return;
+    if (!work_available(&pg_work))
+        work_cancel(LPWORK, &pg_work);
 
-    /* Only interested in the power good bit */
-    if (regval &= BQ24292_STATUS_PG) {
-        /* Ensure input source detection is finished before PG worker runs */
-        if (!work_available(&pg_work))
-            work_cancel(LPWORK, &pg_work);
-
-        work_queue(LPWORK, &pg_work, pg_worker, NULL, BQ24292_PG_DELAY);
-    }
+    work_queue(LPWORK, &pg_work, pg_worker, NULL, BQ24292_PG_DELAY);
 }
 
 static int int_isr(int irq, void *context)
@@ -154,7 +160,6 @@ static int pg_isr(int irq, void *context)
     /* Ensure input source detection is finished before PG worker runs */
     if (!work_available(&pg_work))
         work_cancel(LPWORK, &pg_work);
-
     return work_queue(LPWORK, &pg_work, pg_worker, NULL, BQ24292_PG_DELAY);
 }
 
@@ -393,7 +398,7 @@ int bq24292_driver_init(int16_t int_n, int16_t pg_n)
             goto init_done;
         }
 
-        ret = set_gpio_triggering(pg_n, IRQ_TYPE_EDGE_FALLING);
+        ret = set_gpio_triggering(pg_n, IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING);
         if (ret) {
             dbg("failed to set pg irq edge\n");
             goto init_done;
@@ -418,6 +423,8 @@ int bq24292_driver_init(int16_t int_n, int16_t pg_n)
 
     /* Perform initial configuration */
     (void) configure_device();
+
+    power_good = false;
 
 init_done:
     sem_post(&sem);
