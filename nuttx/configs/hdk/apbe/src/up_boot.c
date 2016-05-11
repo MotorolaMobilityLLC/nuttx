@@ -36,6 +36,7 @@
 
 #include <nuttx/bufram.h>
 #include <nuttx/device.h>
+#include <nuttx/device_gpio_tunnel.h>
 #include <nuttx/device_table.h>
 
 #include <nuttx/mhb/device_mhb.h>
@@ -66,6 +67,23 @@ static struct device_resource mhb_resources[] = {
     },
 };
 
+#if CONFIG_TSB_GPIO_TUNNEL
+static struct device_resource gpio_tunnel_resources[] = {
+    {
+        .name   = "rx_physical_0",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 8,
+        .count  = 1,
+    },
+    {
+        .name   = "rx_logical_0",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = 0,
+        .count  = 1,
+    },
+};
+#endif
+
 static struct device mod_devices[] = {
 #if CONFIG_MHB_UART
     {
@@ -75,6 +93,17 @@ static struct device mod_devices[] = {
         .id   = 0,
         .resources      = mhb_resources,
         .resource_count = ARRAY_SIZE(mhb_resources),
+    },
+#endif
+
+#if CONFIG_TSB_GPIO_TUNNEL
+    {
+        .type = DEVICE_TYPE_GPIO_TUNNEL_HW,
+        .name = "gpio_tunnel",
+        .desc = "GPIO Tunnel",
+        .id   = 0,
+        .resources      = gpio_tunnel_resources,
+        .resource_count = ARRAY_SIZE(gpio_tunnel_resources),
     },
 #endif
 };
@@ -134,6 +163,11 @@ void board_initialize(void) {
 #if CONFIG_MHB_UART
    extern struct device_driver mhb_driver;
    device_register_driver(&mhb_driver);
+#endif
+
+#if CONFIG_TSB_GPIO_TUNNEL
+   extern struct device_driver gpio_tunnel_driver;
+   device_register_driver(&gpio_tunnel_driver);
 #endif
 #endif
 }
