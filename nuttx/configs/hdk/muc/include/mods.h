@@ -53,6 +53,7 @@
 #define GPIO_MODS_CHG_VINB_EN    CALC_GPIO_NUM('C',  7)
 #define GPIO_MODS_INT            CALC_GPIO_NUM('C', 13)
 #define GPIO_MODS_LED_DRV_1      CALC_GPIO_NUM('D',  7)
+#define GPIO_MODS_PCARD_DET_N    CALC_GPIO_NUM('D',  9)
 #define GPIO_MODS_LED_DRV_2      CALC_GPIO_NUM('E',  7)
 #define GPIO_MODS_LED_DRV_3      CALC_GPIO_NUM('E',  8)
 #define GPIO_MODS_FUSB302_INT_N  CALC_GPIO_NUM('G', 13)
