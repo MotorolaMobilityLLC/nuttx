@@ -32,16 +32,41 @@
  ****************************************************************************/
 
 #include <arch/board/mods.h>
+#include <arch/irq.h>
 
+#include <nuttx/arch.h>
+#include <nuttx/config.h>
 #include <nuttx/gpio.h>
 #include <nuttx/power/bq24292.h>
 
+#include <debug.h>
 #include <unistd.h>
+
+/*
+ * Handler for the pcard detection interrupt. When the pcard is attached or
+ * detached, the HDK will reset so the proper firmware can be reloaded.
+ *
+ * You can remove this function when making your own mod.
+ */
+static int pcard_isr(int irq, void *context)
+{
+    dbg("reset\n");
+    up_systemreset(); /* will not return */
+
+    return OK;
+}
 
 void mods_init(void)
 {
     gpio_direction_out(GPIO_MODS_INT, 0);
     gpio_direction_out(GPIO_MODS_SYS_RST, 1);
+
+    /*
+     * The code below is specific to the HDK for supporting pcards. You should
+     * remove this code when making your own mod.
+     */
+    gpio_irqattach(GPIO_MODS_PCARD_DET_N, pcard_isr);
+    set_gpio_triggering(GPIO_MODS_PCARD_DET_N, IRQ_TYPE_EDGE_BOTH);
 }
 
 #ifdef CONFIG_MODS_USER_INIT
