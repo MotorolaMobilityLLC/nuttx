@@ -586,7 +586,8 @@ static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
 
     dst->continuous_clock = src->continuous_clock;
     dst->eot_mode = DISPLAY_CONFIG_DSI_EOT_MODE_APPEND;
-    dst->vsync_mode = DISPLAY_CONFIG_DSI_VSYNC_MODE_NONE;
+    dst->vsync_mode = (src->vsync_mode == 1) ?
+        DISPLAY_CONFIG_DSI_VSYNC_MODE_GPIO : DISPLAY_CONFIG_DSI_VSYNC_MODE_NONE;
     dst->traffic_mode = DISPLAY_CONFIG_DSI_TRAFFIC_MODE_BURST;
 
     dst->virtual_channel_id = 0;
@@ -643,6 +644,10 @@ static int mhb_dsi_display_get_config(struct device *dev, uint8_t *display_type,
     vdbg("dst->clockrate: 0x%llx\n", dst->clockrate);
     vdbg("dst->t_clk_pre: 0x%x\n", dst->t_clk_pre);
     vdbg("dst->t_clk_post: 0x%x\n", dst->t_clk_post);
+    vdbg("dst->continuous_clock: 0x%x\n", dst->continuous_clock);
+    vdbg("dst->eot_mode: 0x%x\n", dst->eot_mode);
+    vdbg("dst->vsync_mode: 0x%x\n", dst->vsync_mode);
+    vdbg("dst->traffic_mode: 0x%x\n", dst->traffic_mode);
     vdbg("dst->horizontal_front_porch: 0x%x\n", dst->horizontal_front_porch);
     vdbg("dst->horizontal_sync_pulse_width: 0x%x\n", dst->horizontal_sync_pulse_width);
     vdbg("dst->horizontal_sync_skew: 0x%x\n", dst->horizontal_sync_skew);
