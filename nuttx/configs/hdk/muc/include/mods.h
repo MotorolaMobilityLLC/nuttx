@@ -87,7 +87,7 @@
 
 /* HDK P3 and later */
 #if (BOARD_REVISION >= 3)
-#define GPIO_TEMP_DEV_ENABLE     CALC_GPIO_NUM('G', 10)
+#define GPIO_MODS_DEMO_ENABLE    CALC_GPIO_NUM('G', 10)
 #endif
 
 /* Battery voltage comparator */

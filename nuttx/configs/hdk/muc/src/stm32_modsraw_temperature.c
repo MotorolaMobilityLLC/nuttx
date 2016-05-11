@@ -278,7 +278,7 @@ static int temp_raw_recv(struct device *dev, uint32_t len, uint8_t data[])
             info->interval = le16_to_cpu(*((uint16_t *)&smsg->payload[0]));
             llvdbg("info->interval: 0x%x\n", info->interval);
 
-            gpio_set_value(GPIO_TEMP_DEV_ENABLE, 1);
+            gpio_set_value(GPIO_MODS_DEMO_ENABLE, 1);
             if (info->interval > TEMP_RAW_MAX_LATENCY)
                 info->interval = TEMP_RAW_MAX_LATENCY;
 
@@ -298,7 +298,7 @@ static int temp_raw_recv(struct device *dev, uint32_t len, uint8_t data[])
             if (!work_available(&info->data_report_work))
                 work_cancel(LPWORK, &info->data_report_work);
 
-            gpio_set_value(GPIO_TEMP_DEV_ENABLE, 0);
+            gpio_set_value(GPIO_MODS_DEMO_ENABLE, 0);
             break;
 
         default:
@@ -365,7 +365,7 @@ static int temp_raw_probe(struct device *dev)
     adc_devinit();
 
     /* Enable temperature device */
-    gpio_direction_out(GPIO_TEMP_DEV_ENABLE, 0);
+    gpio_direction_out(GPIO_MODS_DEMO_ENABLE, 0);
 
     llvdbg("Probe complete\n");
 
