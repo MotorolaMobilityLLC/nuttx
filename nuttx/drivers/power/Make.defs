@@ -130,6 +130,10 @@ ifeq ($(CONFIG_CHARGER_DEVICE_BQ24292),y)
 CSRCS += bq24292_charger.c
 endif
 
+ifeq ($(CONFIG_CHARGER_DEVICE_BQ25896),y)
+CSRCS += bq25896_charger.c
+endif
+
 ifeq ($(CONFIG_EXT_POWER),y)
 CSRCS += ext_power.c
 endif

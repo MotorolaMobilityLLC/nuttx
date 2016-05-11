@@ -138,6 +138,30 @@ config CHARGER_BQ25896_I2C_BUS_SPEED
 	---help---
 		I2C bus speed to use to communicate with device
 
+menuconfig CHARGER_DEVICE_BQ25896
+	bool "Charger device driver"
+	default n
+	depends on CHARGER_BQ25896
+
+choice
+	prompt "Select Boost Mode Current Limit"
+	depends on CHARGER_DEVICE_BQ25896
+config  CHARGER_DEVICE_BQ25896_BOOST_LIM_500MA
+	bool "500 mA"
+config  CHARGER_DEVICE_BQ25896_BOOST_LIM_750MA
+	bool "750 mA"
+config  CHARGER_DEVICE_BQ25896_BOOST_LIM_1200MA
+	bool "1200 mA"
+config  CHARGER_DEVICE_BQ25896_BOOST_LIM_1400MA
+	bool "1400 mA"
+config  CHARGER_DEVICE_BQ25896_BOOST_LIM_1650MA
+	bool "1650 mA"
+config  CHARGER_DEVICE_BQ25896_BOOST_LIM_1875MA
+	bool "1875 mA"
+config  CHARGER_DEVICE_BQ25896_BOOST_LIM_2150MA
+	bool "2150 mA"
+endchoice
+
 config BATTERY_STATE
 	bool "Battery level and temp notifier"
 	default n
