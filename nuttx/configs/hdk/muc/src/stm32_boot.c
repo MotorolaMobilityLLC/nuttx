@@ -56,6 +56,7 @@
 #include <nuttx/device_i2s.h>
 
 #include <nuttx/power/battery_state.h>
+#include <nuttx/power/bq25896.h>
 #include <nuttx/power/ext_power.h>
 #include <nuttx/util.h>
 
@@ -183,6 +184,37 @@ static struct device_resource dsi_display_resources[] = {
     },
 };
 #endif
+
+#ifdef CONFIG_CHARGER_DEVICE_BQ25896
+static struct device_resource bq25896_charger_resources[] = {
+    {
+       .name   = "int_n",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_MODS_CHG_INT_N,
+       .count  = 1,
+    },
+    {
+       .name   = "chg_en",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_MODS_CHG_EN,
+       .count  = 1,
+    },
+};
+
+static struct bq25896_reg bq25896_regs[] = {
+    { BQ25896_REG02, BQ25896_REG02_ICO_MASK,        BQ25896_REG02_ICO_DIS        },
+    { BQ25896_REG05, BQ25896_REG05_IPRECHG_MASK,    BQ25896_REG05_IPRECHG_64MA   },
+    { BQ25896_REG06, BQ25896_REG06_BATLOWV_MASK,    BQ25896_REG06_BATLOWV_2800MV },
+    { BQ25896_REG07, BQ25896_REG07_WATCHDOG_MASK | BQ25896_REG07_TERM_MASK,
+                     BQ25896_REG07_WATCHDOG_DIS  | BQ25896_REG07_TERM_DIS        },
+};
+
+struct bq25896_config bq25896_charger_init_data = {
+    .reg        = bq25896_regs,
+    .reg_num    = sizeof(bq25896_regs) / sizeof(struct bq25896_reg),
+};
+#endif
+
 #ifdef CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
 static struct device_resource switch_ptp_chg_resources[] = {
     {
@@ -317,6 +349,17 @@ static struct device devices[] = {
         .name = "bq2429_charger",
         .desc = "Charger driver for TI bq24292 IC",
         .id   = 0,
+    },
+#endif
+#ifdef CONFIG_CHARGER_DEVICE_BQ25896
+    {
+        .type = DEVICE_TYPE_CHARGER_HW,
+        .name = "bq25896_charger",
+        .desc = "Charger driver for TI bq25896 IC",
+        .id   = 0,
+        .resources      = bq25896_charger_resources,
+        .resource_count = ARRAY_SIZE(bq25896_charger_resources),
+        .init_data      = &bq25896_charger_init_data,
     },
 #endif
 #ifdef CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
@@ -629,6 +672,10 @@ void board_initialize(void)
 #ifdef CONFIG_CHARGER_DEVICE_BQ24292
   extern struct device_driver bq24292_charger_driver;
   device_register_driver(&bq24292_charger_driver);
+#endif
+#ifdef CONFIG_CHARGER_DEVICE_BQ25896
+  extern struct device_driver bq25896_charger_driver;
+  device_register_driver(&bq25896_charger_driver);
 #endif
 #ifdef CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
   extern struct device_driver switch_ptp_chg_driver;

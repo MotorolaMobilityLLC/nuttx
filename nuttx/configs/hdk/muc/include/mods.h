@@ -41,16 +41,23 @@
 
 #define CALC_GPIO_NUM(port, pin)  ((16 * (port - 'A')) + pin)
 
+/* Pins changed on HDK P3 */
+#if (BOARD_REVISION >= 3)
+#define GPIO_MODS_CHG_VINA_EN    CALC_GPIO_NUM('D',  5)
+#define GPIO_MODS_CHG_VINB_EN    CALC_GPIO_NUM('D',  8)
+#else
+#define GPIO_MODS_CHG_VINA_EN    CALC_GPIO_NUM('C',  3)
+#define GPIO_MODS_CHG_VINB_EN    CALC_GPIO_NUM('C',  7)
+#endif
+
 #define GPIO_MODS_SL_BPLUS_EN    CALC_GPIO_NUM('A', 11)
 #define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  0)
 #define GPIO_MODS_SPI_CS_N       CALC_GPIO_NUM('B', 12)
 #define GPIO_MODS_SPI_TACK       CALC_GPIO_NUM('B', 14)
 #define GPIO_MODS_SPI_RACK       CALC_GPIO_NUM('B', 15)
 #define GPIO_MODS_RFR            CALC_GPIO_NUM('C',  2)
-#define GPIO_MODS_CHG_VINA_EN    CALC_GPIO_NUM('C',  3)
 #define GPIO_MODS_CHG_INT_N      CALC_GPIO_NUM('C',  4)
 #define GPIO_MODS_SL_BPLUS_AIN   CALC_GPIO_NUM('C',  5)
-#define GPIO_MODS_CHG_VINB_EN    CALC_GPIO_NUM('C',  7)
 #define GPIO_MODS_INT            CALC_GPIO_NUM('C', 13)
 #define GPIO_MODS_LED_DRV_1      CALC_GPIO_NUM('D',  7)
 #define GPIO_MODS_PCARD_DET_N    CALC_GPIO_NUM('D',  9)
@@ -93,6 +100,7 @@
 
 /* HDK P3 and later */
 #if (BOARD_REVISION >= 3)
+#define GPIO_MODS_CHG_EN         CALC_GPIO_NUM('D', 4)
 #define GPIO_MODS_DEMO_ENABLE    CALC_GPIO_NUM('G', 10)
 #define GPIO_MODS_RST_LS         CALC_GPIO_NUM('H',  0)
 #endif
