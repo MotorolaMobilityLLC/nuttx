@@ -102,6 +102,10 @@ ifeq ($(CONFIG_CHARGER_BQ24292),y)
 CSRCS += bq24292.c bq24292_config.c
 endif
 
+ifeq ($(CONFIG_CHARGER_BQ25896),y)
+CSRCS += bq25896.c
+endif
+
 ifeq ($(CONFIG_PWR_LIMIT_DUMMY),y)
 CSRCS += pwr_limit_dummy.c
 endif
