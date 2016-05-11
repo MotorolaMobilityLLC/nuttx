@@ -55,7 +55,7 @@
  *
  */
 
-#define MAX_COMMAND_ITEMS 6
+#define MAX_COMMAND_ITEMS 4
 #define OFF_STATE_DELAY   25000 /*us*/
 
 struct command_item {
@@ -232,8 +232,15 @@ static mhb_camera_sm_state_t mhb_camera_sm_off_process_ev(mhb_camera_sm_event_t 
     mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
     switch (event) {
         case MHB_CAMERA_EV_POWER_ON_REQ:
-            next_state = MHB_CAMERA_STATE_WAIT_POWER_ON;
+            pthread_mutex_lock(&s_command_mutex);
+            if (list_is_empty(&s_active_list)) {
+                next_state = MHB_CAMERA_STATE_WAIT_POWER_ON;
+            } else {
+                CAM_ERR("Queued events pending. Stay OFF\n");
+            }
+            pthread_mutex_unlock(&s_command_mutex);
             break;
+        case MHB_CAMERA_EV_DECONFIGURED:
         case MHB_CAMERA_EV_POWER_OFF_REQ:
         case MHB_CAMERA_EV_NONE:
             next_state = s_state;
@@ -296,7 +303,15 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_process_ev(mhb_camera_sm_
     mhb_camera_sm_state_t next_state = MHB_CAMERA_STATE_INVALID;
     switch (event) {
         case MHB_CAMERA_EV_CONFIGURED:
-            next_state = MHB_CAMERA_STATE_STREAMING;
+            next_state = s_state;
+            pthread_mutex_lock(&s_command_mutex);
+            if (list_is_empty(&s_active_list)) {
+                next_state = MHB_CAMERA_STATE_STREAMING;
+            }
+            else {
+                CAM_ERR("Queued events pending retain state %d\n", event);
+            }
+            pthread_mutex_unlock(&s_command_mutex);
             break;
         case MHB_CAMERA_EV_STREAM_OFF_REQ:
             next_state = MHB_CAMERA_STATE_WAIT_STREAM_CLOSE;
@@ -472,8 +487,14 @@ int mhb_camera_sm_execute(mhb_camera_sm_event_t event)
                 mhb_camera_sm_state_str(s_state));
 
         state_table = &mhb_camera_sm_table[next_state];
-        if (state_table->enter)
+        if (state_table->enter) {
             next_state = state_table->enter(event);
+            if (next_state == MHB_CAMERA_STATE_INVALID) {
+                pthread_mutex_unlock(&s_sm_mutex);
+                CAM_ERR("ERROR: Queue full. Cannot process ev %d s_state %d\n");
+                return -EBUSY;
+            }
+         }
     }
 
     pthread_mutex_unlock(&s_sm_mutex);

@@ -170,7 +170,8 @@ int mhb_camera_i2c_write(uint16_t i2c_addr, uint8_t *addr, int addr_len)
     }
     pthread_mutex_unlock(&i2c_mutex);
 
-    return -(ret == I2C_RETRIES);
+    //TODO : Return -EAGAIN for S10 Write failures till Altek timing is resolved.
+    return (ret == I2C_RETRIES)?-EAGAIN:0;
 }
 
 /* 1 bytes value register read */
@@ -583,14 +584,19 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
 
 mhb_camera_sm_event_t mhb_camera_power_off(void)
 {
-    CAM_DBG("\n");
+    CAM_DBG(" APBE State: %d, Cam SOC State %d\n",
+            s_mhb_camera.apbe_state, s_mhb_camera.soc_enabled);
 
-    if(_mhb_camera_set_apbe_state(SLAVE_STATE_DISABLED))
-        CAM_ERR("Failed to turn OFF APBE\n");
-    s_mhb_camera.apbe_state = MHB_PM_STATUS_PEER_DISCONNECTED;
+    if (s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_DISCONNECTED) {
+        if(_mhb_camera_set_apbe_state(SLAVE_STATE_DISABLED))
+            CAM_ERR("Failed to turn OFF APBE\n");
+        s_mhb_camera.apbe_state = MHB_PM_STATUS_PEER_DISCONNECTED;
+    }
 
-    _mhb_camera_soc_disable();
-    s_mhb_camera.soc_enabled = 0;
+    if (s_mhb_camera.soc_enabled != 0) {
+        _mhb_camera_soc_disable();
+        s_mhb_camera.soc_enabled = 0;
+    }
 
     return MHB_CAMERA_EV_NONE;
 }
