@@ -58,14 +58,10 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
 
     .tx_num_lanes = 4,
     .rx_num_lanes = 4,
-    .tx_bits_per_lane = 422400000,
+    .tx_bits_per_lane = 504000000,
     .rx_bits_per_lane = 423640000,
 
     .hs_rx_timeout = 0xffffffff,
-
-    .pll_frs = 1,
-    .pll_prd = 0,
-    .pll_fbd = 43,
 
     .framerate = 60,
     .width = 720,
@@ -77,24 +73,25 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
     .bta_enabled = 1,
     .continuous_clock = 1,
     .blank_packet_enabled = 1,
-#if CONFIG_DSI_DISPLAY_VIDEO_MODE
-    .video_mode = 1,
-#else
-    .video_mode = 0,
-#endif
-    .color_bar_enabled = 0,
 
-    .vss_control_payload = 0x0000,
+#if CONFIG_DSI_DISPLAY_VIDEO_MODE
+    .video_mode = 1, /* video-mode */
+#endif
+
+    .t_clk_pre = 4,
+    .t_clk_post = 26,
+
+#if CONFIG_DSI_DISPLAY_TE
+    .vsync_mode = 1, /* gpio-vsync */
+#endif
 
     .horizontal_front_porch = 144,
     .horizontal_pulse_width = 12,
     .horizontal_back_porch = 32,
+
     .vertical_front_porch = 9,
     .vertical_pulse_width = 4,
     .vertical_back_porch = 3,
-
-    .t_clk_pre = 4,
-    .t_clk_post = 26,
 };
 
 const static struct mhb_cdsi_cmd DISPLAY_ON_COMMANDS[] = {
