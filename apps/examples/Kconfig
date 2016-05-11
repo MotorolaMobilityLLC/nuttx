@@ -32,6 +32,7 @@
 source "$APPSDIR/examples/adc/Kconfig"
 source "$APPSDIR/examples/battery_state/Kconfig"
 source "$APPSDIR/examples/bq24292/Kconfig"
+source "$APPSDIR/examples/bq25896/Kconfig"
 source "$APPSDIR/examples/buttons/Kconfig"
 source "$APPSDIR/examples/can/Kconfig"
 source "$APPSDIR/examples/cc3000/Kconfig"

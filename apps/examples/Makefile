@@ -64,9 +64,9 @@
 
 # Sub-directories
 
-SUBDIRS  = adc battery_state bq24292 buttons can cc3000 cpuhog cxxtest dhcpd
-SUBDIRS += discover elf flash_test ftpc ftpd hello helloxx hidkbd igmp i2schar
-SUBDIRS += json keypadtest lcdrw mm mount mtdpart mtdrwb netpkt nettest
+SUBDIRS  = adc battery_state bq24292 bq25896 buttons can cc3000 cpuhog cxxtest
+SUBDIRS += dhcpd discover elf flash_test ftpc ftpd hello helloxx hidkbd igmp
+SUBDIRS += i2schar json keypadtest lcdrw mm mount mtdpart mtdrwb netpkt nettest
 SUBDIRS += nrf24l01_term nsh null nx nxterm nxffs nxflat nxhello nximage
 SUBDIRS += nxlines nxtext ostest pashello pipe poll posix_spawn pwm qencoder
 SUBDIRS += random relays rgmp romfs sendmail serialblaster serloop serialrx
