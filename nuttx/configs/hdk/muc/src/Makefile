@@ -65,6 +65,10 @@ ifeq ($(CONFIG_MODS_RAW_TEMPERATURE),y)
 CSRCS += stm32_modsraw_temperature.c
 endif
 
+ifeq ($(CONFIG_MODS_AUDIO_TFA9890),y)
+CSRCS += stm32_audio_tfa9890.c tfa9890.c
+endif
+
 ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
