@@ -52,6 +52,8 @@
 #include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/device_table.h>
 #include <nuttx/device_uart.h>
+#include <nuttx/device_audio.h>
+#include <nuttx/device_i2s.h>
 
 #include <nuttx/power/battery_state.h>
 #include <nuttx/power/ext_power.h>
@@ -239,6 +241,17 @@ static struct device_resource cam_resources[] = {
         .type    = DEVICE_RESOURCE_TYPE_GPIO,
         .start    = GPIO_MODS_SPI_SEL,
         .count    = 1,
+    },
+};
+#endif
+
+#ifdef CONFIG_MODS_AUDIO_TFA9890
+static struct device_resource tfa9890_audio_resources[] = {
+    {
+       .name   = "audio_en",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_MODS_DEMO_ENABLE,
+       .count  = 1,
     },
 };
 #endif
@@ -445,6 +458,7 @@ static struct device devices[] = {
     },
 #endif
 
+
 #ifdef CONFIG_CAMERA_MHB
 #ifdef CONFIG_MHB_UART
     /* For CSI Camera */
@@ -475,6 +489,22 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif /* CONFIG_CAMERA_MHB */
+#ifdef CONFIG_MODS_AUDIO_TFA9890
+    {
+        .type = DEVICE_TYPE_I2S_HW,
+        .name   = "tfa9890_i2s_direct_driver",
+        .desc   = "TFA9890 I2S Direct Driver",
+        .id   = 1,
+    },
+    {
+        .type = DEVICE_TYPE_MUC_AUD_HW,
+        .name   = "audio_tfa9890_device_driver",
+        .desc   = "Audio Tfa9890 Device Driver",
+        .id   = 2,
+        .resources = tfa9890_audio_resources,
+        .resource_count = ARRAY_SIZE(tfa9890_audio_resources),
+    },
+#endif
 };
 
 static struct device_table muc_device_table = {
@@ -646,7 +676,12 @@ void board_initialize(void)
    extern struct device_driver cam_ext_mhb_driver;
    device_register_driver(&cam_ext_mhb_driver);
 #endif
-
+#ifdef CONFIG_MODS_AUDIO_TFA9890
+  extern struct device_driver tfa9890_i2s_direct_driver;
+  device_register_driver(&tfa9890_i2s_direct_driver);
+  extern struct device_driver tfa9890_audio_dev_driver;
+  device_register_driver(&tfa9890_audio_dev_driver);
+#endif
 #endif
 
 }

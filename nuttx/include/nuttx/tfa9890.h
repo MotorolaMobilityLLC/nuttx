@@ -33,9 +33,33 @@
 
 #define TFA9890_MAX_I2C_SIZE    252
 
+enum tfa9890_lowerhalf_cfg_cmd {
+    TFA9890_VOLUME,
+    TFA9890_USECASE,
+    TFA9890_SYS_VOL,
+};
+
 struct tfa9890_registers {
     uint16_t reg;
     uint16_t val;
+};
+
+struct tfa9890_lowerhalf_s;
+struct tfa9890_caps_s {
+    enum tfa9890_lowerhalf_cfg_cmd type;
+    int param;
+};
+
+struct tfa9890_ops_s {
+    int (*configure)(FAR struct tfa9890_lowerhalf_s *dev,
+                  FAR const struct tfa9890_caps_s *caps);
+    int (*stop)(FAR struct tfa9890_lowerhalf_s *dev);
+    int (*start)(FAR struct tfa9890_lowerhalf_s *dev);
+};
+
+struct tfa9890_lowerhalf_s {
+    const struct tfa9890_ops_s *ops;
+    void *priv;
 };
 
 /*******************  Registers ******************/
