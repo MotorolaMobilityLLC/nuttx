@@ -139,7 +139,11 @@
 
 #define MAX17050_ALERT_DEASSERT_DELAY   500 /* in mS */
 
+#ifdef CONFIG_BATTERY_LEVEL_EMPTY
+#define MIN_SOC_ALRT    CONFIG_BATTERY_LEVEL_EMPTY
+#else
 #define MIN_SOC_ALRT    1   /* No IRQ for 0% since SOC cannot be less than 0% */
+#endif
 #define MAX_SOC_ALRT    99  /* No IRQ for 100% since SOC cannot exceed 100% */
 
 extern const struct max17050_config max17050_cfg;
