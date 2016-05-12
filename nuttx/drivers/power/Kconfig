@@ -180,6 +180,11 @@ menuconfig BATTERY_LEVEL
 	depends on BATTERY_STATE
 	default n
 
+config BATTERY_LEVEL_EMPTY
+	int "Empty battery capacity threshold (%)"
+	depends on BATTERY_LEVEL
+	default 1
+
 config BATTERY_LEVEL_LOW
 	int "Low battery capacity threshold (%)"
 	depends on BATTERY_LEVEL
