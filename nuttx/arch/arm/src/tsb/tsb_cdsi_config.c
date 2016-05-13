@@ -803,8 +803,10 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     const uint32_t horz_period_ns = 1000*1000*1000 / config->framerate / config->height;
     vdbg("horz_period_ns=%d\n", horz_period_ns);
 
+#if CONFIG_DEBUG_VERBOSE
     const int32_t pixel_time = (config->bpp / config->tx_num_lanes) * 1000 / hsck;
     vdbg("pixel_time=%d\n", pixel_time);
+#endif
 
 #if CONFIG_DEBUG_VERBOSE
     const int32_t horz_pixels =
@@ -1122,7 +1124,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
         }
         vdbg("tclk_post: %d\n", tclk_post);
         uint32_t tclk_trail = (tclk_trail_cnt_table_row->tclk_trail_cnt + 3) *
-            sys_cld_tclk_table_row->sys_cld_tclk_div - 2;
+            sys_cld_tclk_table_row->sys_cld_tclk_div - 3;
         vdbg("tclk_trail: %d\n", tclk_trail);
         uint32_t tclk_exit = (tclk_exit_cnt_table_row->tclk_exit_cnt + 2) *
             sys_cld_tclk_table_row->sys_cld_tclk_div;
@@ -1152,13 +1154,12 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
         vdbg("lps_period: %d\n", lps_period);
 
         /* SIDEBAND_CONFIG_11 - Horizontal blank width */
-        const uint32_t hsa = (uint32_t) (100 * hsck / 1000 + 0.9);
+        const uint32_t hsa = (uint32_t) ((hsck + 9) / 10);
         vdbg("hsa: %d\n", hsa);
 
         uint32_t hsa_cnt_dsi;
         if (config->blank_packet_enabled) {
-            uint32_t hsa_blapkt_size = (uint32_t) (hsa * config->tx_num_lanes /
-                    8 + 0.9);
+            uint32_t hsa_blapkt_size = (uint32_t) ((hsa * config->tx_num_lanes + 7) / 8);
             vdbg("hsa_blapkt_size: %d\n", hsa_blapkt_size);
 
             if (hsa_blapkt_size < 7) {
@@ -1176,18 +1177,18 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             }
 
 #if CONFIG_DEBUG_VERBOSE
-            uint32_t hsa_blk = (uint32_t) (hsa_blapkt_size * 8 /
-                config->tx_num_lanes + 0.9);
+            uint32_t hsa_blk = (uint32_t) ((hsa_blapkt_size * 8 /
+                config->tx_num_lanes * 10 + 9) / 10);
             vdbg("hsa_blk=%d\n", hsa_blk);
 #endif
         } else {
             const int32_t hsa_cnt_hs =
-                (uint32_t) (((hsa + 32 / config->tx_num_lanes) / 8 + 0.9) - 3);
+                (uint32_t) ((((hsa + 32 / config->tx_num_lanes) / 8 * 10 + 9) / 10) - 3);
             vdbg("hsa_cnt_hs: %d\n", hsa_cnt_hs);
 
             const int32_t hsa_cnt_lp =
-                (uint32_t) (((lps_period + 32 / config->tx_num_lanes) /
-                        8 + 0.9) - 3);
+                (uint32_t) ((((lps_period + 32 / config->tx_num_lanes) /
+                        8 * 10 + 9) / 10) - 3);
             vdbg("hsa_cnt_lp: %d\n", hsa_cnt_lp);
 
             int32_t hsa_cnt_max = MAX(hsa_cnt_hs, hsa_cnt_lp);
@@ -1205,17 +1206,17 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             SBS_APF_DSI_HSA_CNT, hsa_cnt_dsi);
 
         /* SIDEBAND_CONFIG_12 - Horizontal back porch */
-        const uint32_t hbp = (uint32_t) (config->horizontal_back_porch * pixel_time * hsck /
-                1000 + 0.9);
+        const uint32_t hbp = (uint32_t) ((config->horizontal_back_porch *
+                (config->bpp / config->tx_num_lanes) * 10 + 9) / 10);
         vdbg("hbp: %d\n", hbp);
 
         const uint32_t hbp_cnt_hs =
-            (uint32_t) (((hbp + 32 / config->tx_num_lanes) / 8 + 0.9) - 3);
+            (uint32_t) ((((hbp + 32 / config->tx_num_lanes) / 8 * 10 + 9) / 10) - 3);
         vdbg("hbp_cnt_hs: %d\n", hbp_cnt_hs);
 
         const uint32_t hbp_cnt_lp =
-            (uint32_t) (((lps_period + 32 / config->tx_num_lanes) /
-                    8 + 0.9) - 3);
+            (uint32_t) ((((lps_period + 32 / config->tx_num_lanes) /
+                    8 * 10 + 9) / 10) - 3);
         vdbg("hbp_cnt_lp: %d\n", hbp_cnt_lp);
 
         uint32_t hbp_cnt_max = MAX(hbp_cnt_hs, hbp_cnt_lp);
@@ -1223,8 +1224,8 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
         uint32_t hbp_cnt_dsi;
         if (config->blank_packet_enabled) {
-            uint32_t hbp_blapkt_size = (uint32_t) (hbp * config->tx_num_lanes /
-                    8 + 0.9);
+            uint32_t hbp_blapkt_size = (uint32_t) ((hbp * config->tx_num_lanes /
+                    8 * 10 + 9) / 10);
             vdbg("hbp_blapkt_size: %d\n", hbp_blapkt_size);
 
             if (hbp_blapkt_size < 7) {
@@ -1244,8 +1245,8 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
             }
 
 #if CONFIG_DEBUG_VERBOSE
-            uint32_t hbp_blk = (uint32_t) (hbp_blapkt_size * 8 /
-                config->tx_num_lanes + 0.9);
+            uint32_t hbp_blk = (uint32_t) ((hbp_blapkt_size * 8 /
+                config->tx_num_lanes * 10 + 9) / 10);
             vdbg("hbp_blk=%d\n", hbp_blk);
 #endif
         } else {
