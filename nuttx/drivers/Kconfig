@@ -60,8 +60,6 @@ config HDMI_DISPLAY
 if GREYBUS_CAMERA_EXT
 choice
   prompt "Select Camera to use"
-config CAMERA_IMX220
-	bool "SONY IMX220 Camera Sensor"
 config CAMERA_IMX179
 	bool "SONY IMX179 Camera Sensor"
 config CAMERA_TC35874X
@@ -76,7 +74,9 @@ if CAMERA_MHB
 choice
   prompt "Select MHB Camera config to use"
 config CAMERA_S10P
-       bool "Alltek Sunny S10P + TC35874X Bridge"
+	bool "Alltek Sunny S10P + TC35874X Bridge"
+config CAMERA_IMX220
+	bool "SONY IMX220 Camera Sensor"
 endchoice
 
 config CAMERA_I2C_BUS
