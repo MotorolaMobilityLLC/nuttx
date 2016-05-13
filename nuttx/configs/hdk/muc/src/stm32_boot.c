@@ -40,6 +40,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_battery.h>
 #include <nuttx/device_battery_good.h>
+#include <nuttx/device_cam_ext.h>
 #include <nuttx/device_display.h>
 #include <nuttx/device_ext_power.h>
 #include <nuttx/device_hid.h>
@@ -210,6 +211,35 @@ struct device_resource fusb302_resources[] = {
        .start = GPIO_MODS_FUSB302_INT_N,
        .count = 1,
     }
+};
+#endif
+
+#ifdef CONFIG_CAMERA_MHB
+static struct device_resource cam_resources[] = {
+    {
+        .name   = "rst_n",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_CAM_RST_N,
+        .count  = 1,
+    },
+    {
+        .name    = "dvdd_en",
+        .type    = DEVICE_RESOURCE_TYPE_GPIO,
+        .start    = GPIO_CAM_DVDD_EN,
+        .count    = 1,
+    },
+    {
+        .name    = "areg_en",
+        .type    = DEVICE_RESOURCE_TYPE_GPIO,
+        .start    = GPIO_CAM_AREG_EN,
+        .count    = 1,
+    },
+    {
+        .name    = "spi_sel",
+        .type    = DEVICE_RESOURCE_TYPE_GPIO,
+        .start    = GPIO_MODS_SPI_SEL,
+        .count    = 1,
+    },
 };
 #endif
 
@@ -414,6 +444,37 @@ static struct device devices[] = {
         .resource_count = ARRAY_SIZE(fusb302_resources),
     },
 #endif
+
+#ifdef CONFIG_CAMERA_MHB
+#ifdef CONFIG_MHB_UART
+    /* For CSI Camera */
+    {
+        .type = DEVICE_TYPE_MHB,
+        .name = "mhb",
+        .desc = "mhb",
+        .id   = MHB_ADDR_CDSI1,
+        .resources = mhb_resources,
+        .resource_count = ARRAY_SIZE(mhb_resources),
+    },
+#endif
+#ifdef CONFIG_MHB_APBE_CTRL_DEVICE
+    /* For CSI Camera */
+    {
+        .type = DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+        .name = "slave_pwrctrl",
+        .desc = "slave power control",
+        .id   = MHB_ADDR_CDSI1,
+    },
+#endif
+    {
+        .type = DEVICE_TYPE_CAMERA_EXT_HW,
+        .name = "Motorola",
+        .desc = "Motorola MHB Camera",
+        .resources = cam_resources,
+        .resource_count = ARRAY_SIZE(cam_resources),
+        .id   = 0,
+    },
+#endif /* CONFIG_CAMERA_MHB */
 };
 
 static struct device_table muc_device_table = {
@@ -580,6 +641,10 @@ void board_initialize(void)
 #ifdef CONFIG_BACKLIGHT_ISL98611
    extern struct device_driver isl98611_backlight_driver;
    device_register_driver(&isl98611_backlight_driver);
+#endif
+#if defined(CONFIG_CAMERA_MHB)
+   extern struct device_driver cam_ext_mhb_driver;
+   device_register_driver(&cam_ext_mhb_driver);
 #endif
 
 #endif
