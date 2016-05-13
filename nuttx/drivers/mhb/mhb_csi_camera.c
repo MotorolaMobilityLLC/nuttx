@@ -546,20 +546,17 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
 
 mhb_camera_sm_event_t mhb_camera_power_on(void)
 {
-    CAM_DBG("\n");
+    CAM_DBG(" soc_enabled = %d\n", s_mhb_camera.soc_enabled);
+
+    if (s_mhb_camera.soc_enabled == 1)
+        return MHB_CAMERA_EV_POWERED_ON;
+
+    // TODO: Hack : S10 Should not depend on APBE_PWR_EN
+    gpio_direction_out(GPIO_APBE_PWR_EN, 1);
 
     if(s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_CONNECTED) {
         if(_mhb_camera_set_apbe_state(SLAVE_STATE_ENABLED)) {
             CAM_ERR("Failed to turn ON APBE\n");
-            return MHB_CAMERA_EV_FAIL;
-        }
-    }
-
-    if(s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_CONNECTED &&
-       s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_ON) {
-        if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
-                MHB_CAM_PWRCTL_WAIT_MASK|MHB_PM_STATUS_PEER_ON, "PEER ON")) {
-            CAM_ERR("Failed waiting for PEER_ON\n");
             return MHB_CAMERA_EV_FAIL;
         }
     }
