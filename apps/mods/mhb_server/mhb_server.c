@@ -623,8 +623,14 @@ static int mhb_handle_cdsi_control_req(struct mhb_transaction *transaction)
                     break;
             }
         } else {
-            /* Ignore commands for the RX direction since RX is enabled during
-               configuration. */
+            switch (req->command) {
+                case MHB_CDSI_COMMAND_START:
+                    ret = cdsi_rx_start(cdsi->dev);
+                    break;
+                default:
+                    /* Ignore commands other than start. */
+                    break;
+            }
         }
     }
 
