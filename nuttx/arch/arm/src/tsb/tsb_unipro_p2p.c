@@ -207,9 +207,6 @@ void unipro_p2p_setup_connection(unsigned int cport) {
         peer = default_buffer_space;
     }
 
-    unipro_attr_local_write(T_PEERBUFFERSPACE, peer, cport);
-    //unipro_attr_peer_write(T_PEERBUFFERSPACE, local, cport, NULL);
-
     unipro_attr_local_write(TSB_MAXSEGMENTCONFIG, max_segment, cport);
     unipro_attr_peer_write(TSB_MAXSEGMENTCONFIG, max_segment, cport);
 
