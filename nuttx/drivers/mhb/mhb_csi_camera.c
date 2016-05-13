@@ -242,6 +242,28 @@ int mhb_camera_i2c_read_reg4(uint16_t i2c_addr, uint16_t regaddr,
     return 0;
 }
 
+/* 16b aligned 1 bytes value register read */
+int mhb_camera_i2c_read_reg1_16(uint16_t i2c_addr, uint16_t regaddr, uint8_t *value)
+{
+    uint8_t addr[2];
+    uint8_t data;
+
+    addr[0] = (regaddr >> 8) & 0xFF;
+    addr[1] = regaddr & 0xFF;
+
+    data = 0;
+
+    if (mhb_camera_i2c_read_rs(i2c_addr, addr, sizeof(addr), &data, sizeof(data)) == 0) {
+        *value = data;
+        CTRL_DBG("read: %02x 0x%04x -> 0x%02x\n", i2c_addr, regaddr, *value);
+    } else {
+        CAM_ERR("Failed i2c read %02x 0x%04x\n", i2c_addr, regaddr);
+        return -1;
+    }
+
+    return 0;
+}
+
 /* 16b aligned 2 bytes value register read */
 int mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr, uint16_t regaddr,
                                  uint16_t *value)
@@ -343,6 +365,25 @@ int mhb_camera_i2c_write_reg4(uint16_t i2c_addr, uint16_t regaddr, uint32_t data
     int ret = mhb_camera_i2c_write(i2c_addr, addr, sizeof(addr));
     if (ret != 0) {
         CAM_ERR("Failed i2c write 0x%08x to %02x  addr 0x%04x err %d\n",
+                data, i2c_addr, regaddr, ret);
+    }
+
+    return ret;
+}
+
+/* 16b aligned 1 bytes value register write */
+int mhb_camera_i2c_write_reg1_16(uint16_t i2c_addr, uint16_t regaddr, uint8_t data)
+{
+    uint8_t addr[3];
+
+    CTRL_DBG("write 0x%04x to %02x addr 0x%04x\n", data, i2c_addr, regaddr);
+    addr[0] = (regaddr >> 8) & 0xFF;
+    addr[1] = regaddr & 0xFF;
+    addr[2] = data;
+
+    int ret = mhb_camera_i2c_write(i2c_addr, addr, sizeof(addr));
+    if (ret != 0) {
+        CAM_ERR("Failed i2c write 0x%02x to %02x  addr 0x%04x err %d\n",
                 data, i2c_addr, regaddr, ret);
     }
 
@@ -633,11 +674,26 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
 
     switch(fmt->fourcc) {
         case V4L2_PIX_FMT_RGB24:
+        case V4L2_PIX_FMT_BGR24:
             mhb_camera_csi_config.bpp = 24;
             break;
         case V4L2_PIX_FMT_UYVY:
+        case V4L2_PIX_FMT_VYUY:
+        case V4L2_PIX_FMT_YUYV:
+        case V4L2_PIX_FMT_YVYU:
             mhb_camera_csi_config.bpp = 16;
             break;
+        case V4L2_PIX_FMT_SBGGR10:
+        case V4L2_PIX_FMT_SGBRG10:
+        case V4L2_PIX_FMT_SGRBG10:
+        case V4L2_PIX_FMT_SRGGB10:
+            mhb_camera_csi_config.bpp = 10;
+            break;
+        case V4L2_PIX_FMT_SBGGR8:
+        case V4L2_PIX_FMT_SGBRG8:
+        case V4L2_PIX_FMT_SGRBG8:
+        case V4L2_PIX_FMT_SRGGB8:
+            mhb_camera_csi_config.bpp = 8;
         default:
             CAM_ERR("Unsupported format 0x%x\n", fmt->fourcc);
             return MHB_CAMERA_EV_FAIL;
