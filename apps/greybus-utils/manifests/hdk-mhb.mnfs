@@ -39,3 +39,10 @@ protocol = 0x0f        ; Lights
 
 [bundle-descriptor 2]
 class = 0x0c           ; Display (bundle)
+
+[cport-descriptor 4]
+bundle = 3
+protocol = 0xed        ; Camera-Ext
+
+[bundle-descriptor 3]
+class = 0x0d           ; Camera (bundle)
