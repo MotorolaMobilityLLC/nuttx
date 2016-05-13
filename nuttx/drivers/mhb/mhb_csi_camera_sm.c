@@ -266,7 +266,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_poweron_process_ev(mhb_camera_sm
             next_state = MHB_CAMERA_STATE_WAIT_STREAM;
             break;
         case MHB_CAMERA_EV_POWER_OFF_REQ:
-            next_state = MHB_CAMERA_STATE_OFF;
+            next_state = MHB_CAMERA_STATE_WAIT_OFF;
             break;
         case MHB_CAMERA_EV_NONE:
             next_state = s_state;
@@ -393,7 +393,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_off_process_ev(mhb_camera_sm_eve
             }
             pthread_mutex_unlock(&s_command_mutex);
             if (dump) CAM_ERR("Dumped %d event\\s\n", dump);
-            next_state = MHB_CAMERA_STATE_ON;
+            next_state = MHB_CAMERA_STATE_WAIT_POWER_ON;
             break;
 
         case MHB_CAMERA_EV_NONE:
