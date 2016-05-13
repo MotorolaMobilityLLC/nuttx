@@ -86,6 +86,7 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config);
 
 int cdsi_tx_start(struct cdsi_dev *dev);
 int cdsi_tx_stop(struct cdsi_dev *dev);
+int cdsi_rx_start(struct cdsi_dev *dev);
 
 /**
  * The following helper macros use the register definitions in cdsi_off_def.h and

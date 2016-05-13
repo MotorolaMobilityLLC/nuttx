@@ -663,6 +663,12 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
         return ret;
     }
 
+    return 0;
+}
+
+int cdsi_rx_start(struct cdsi_dev *dev) {
+    int ret;
+
     cdsi_write(dev, CDSI_CDSIRX_START_OFFS, 1);
     usleep(100000);
 
