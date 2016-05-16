@@ -64,6 +64,7 @@
 #define MHB_CAM_PWRCTL_WAIT_MASK 0xFE00
 #define MHB_CAM_CDSI_WAIT_MASK   0xFC00
 #define MHB_CAM_WAIT_EV_NONE     0x0000
+#define MHB_CAM_MAX_CALLBACKS    4
 
 struct mhb_camera_s
 {
@@ -77,6 +78,7 @@ struct mhb_camera_s
     pthread_cond_t slave_cond;
     pthread_cond_t cdsi_cond;
     uint16_t mhb_wait_event;
+    mhb_camera_notification_cb callbacks[MHB_CAM_MAX_CALLBACKS];
 };
 
 pthread_mutex_t i2c_mutex;
@@ -432,6 +434,41 @@ int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t d
     return ret;
 }
 
+static void mhb_csi_camera_callback(uint8_t event)
+{
+    int i;
+    for(i=0; i < MHB_CAM_MAX_CALLBACKS; ++i) {
+        if (s_mhb_camera.callbacks[i])
+           s_mhb_camera.callbacks[i](event);
+        else break;
+    }
+}
+
+int mhb_csi_camera_status_register_callback(
+        mhb_camera_notification_cb callback)
+{
+    int i, retval = -1;
+    pthread_mutex_lock(&s_mhb_camera.mutex);
+    for(i=0; i < MHB_CAM_MAX_CALLBACKS; ++i) {
+        if (s_mhb_camera.callbacks[i] == callback) {
+           retval = 0;
+           break;
+        }
+
+        if (s_mhb_camera.callbacks[i] == NULL) {
+            s_mhb_camera.callbacks[i] = callback;
+            retval = 0;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&s_mhb_camera.mutex);
+
+    callback(s_mhb_camera.soc_enabled?
+             MHB_CAMERA_NOTIFY_POWERED_ON:MHB_CAMERA_NOTIFY_POWERED_OFF);
+
+    return retval;
+}
+
 /* MHB Ops */
 
 static int _mhb_camera_wait_for_response(pthread_cond_t *cond,
@@ -473,7 +510,7 @@ static int _mhb_camera_slave_status_callback(struct device *dev, uint32_t slave_
             slave_status, s_mhb_camera.mhb_wait_event);
 
     if (s_mhb_camera.mhb_wait_event == (slave_status|MHB_CAM_PWRCTL_WAIT_MASK)) {
-         s_mhb_camera.mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
+        s_mhb_camera.mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
          pthread_cond_signal(&s_mhb_camera.slave_cond);
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
@@ -617,6 +654,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     }
 
     s_mhb_camera.soc_enabled = 1;
+    mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_ON);
     return MHB_CAMERA_EV_POWERED_ON;
 }
 
@@ -632,8 +670,9 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     }
 
     if (s_mhb_camera.soc_enabled != 0) {
-        _mhb_camera_soc_disable();
         s_mhb_camera.soc_enabled = 0;
+        mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_OFF);
+        _mhb_camera_soc_disable();
     }
 
     return MHB_CAMERA_EV_NONE;
@@ -729,7 +768,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
                                   "CDSI START");
 
-
+    mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_ON);
     return MHB_CAMERA_EV_CONFIGURED;
 }
 
@@ -749,6 +788,7 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
 
     _mhb_camera_stream_disable();
 
+    mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_OFF);
     return MHB_CAMERA_EV_DECONFIGURED;
 }
 
@@ -803,6 +843,7 @@ static int _dev_probe(struct device *dev)
     mhb_camera->soc_enabled = 0;
     mhb_camera->apbe_state = MHB_PM_STATUS_PEER_DISCONNECTED;
     mhb_camera->mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
+    memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
     _mhb_camera_init(dev);
     camera_ext_register_format_db(&mhb_camera_format_db);
     camera_ext_register_control_db(&mhb_camera_ctrl_db);

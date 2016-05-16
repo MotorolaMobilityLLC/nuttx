@@ -29,6 +29,20 @@
 #ifndef MHB_CSI_CAMERA_H
 #define MHB_CSI_CAMERA_H
 
+enum mhb_camera_notification_event{
+    MHB_CAMERA_NOTIFY_POWERED_ON      = 0x00,
+    MHB_CAMERA_NOTIFY_POWERED_OFF     = 0x01,
+    MHB_CAMERA_NOTIFY_PREVIEW_ON      = 0x02,
+    MHB_CAMERA_NOTIFY_PREVIEW_OFF     = 0x03,
+};
+
+typedef int (*mhb_camera_notification_cb)(
+             enum mhb_camera_notification_event event);
+
+int mhb_csi_camera_status_register_callback(
+             mhb_camera_notification_cb callback);
+
+
 int mhb_camera_i2c_read(uint16_t i2c_addr,
                         uint8_t *addr, int addr_len,
                         uint8_t *data, int data_len);
