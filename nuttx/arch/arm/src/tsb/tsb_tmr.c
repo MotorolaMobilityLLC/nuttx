@@ -40,15 +40,7 @@
 #include <nuttx/clock.h>
 #include <nuttx/irq.h>
 
-#define TSB_TMR_COUNTER_MAX             2880000000U
 #define TSB_TMR_CNT_MAX_USEC            (USEC_PER_SEC * 60)
-
-#define TSB_TMR_CLOCK_ENABLE_REG        (0x40000300)
-#define TSB_TMR_SOFT_RESET_REL_REG      (0x40000100)
-
-#define TSB_TMR_BUS_CLOCK_SUPPLY        BIT(16)
-#define TSB_TMR_TIMER_CLOCK_SUPPLY      BIT(15)
-#define TSB_TMR_RESET_DEASSERT          (0x00003800)
 
 #define TSB_TMR_CTRL_IRQ_ENABLE         BIT(2)
 
@@ -60,6 +52,10 @@ struct tsb_tmr_ctx {
 };
 
 struct tsb_tmr_ctx tsb_timers[] = {
+    {
+        .base = TMR_BASE + TSB_TMR0_OFF,
+        .irq = TSB_IRQ_TMR0,
+    },
     {
         .base = TMR_BASE + TSB_TMR1_OFF,
         .irq = TSB_IRQ_TMR1,
@@ -88,11 +84,8 @@ static void tsb_tmr_global_init(void)
 
     tsb_clk_enable(TSB_CLK_TMR);
     tsb_reset(TSB_RST_TMR);
-
-    /* Supply clock for the bus (but not for the timers yet). */
-    putreg32(TSB_TMR_BUS_CLOCK_SUPPLY, TSB_TMR_CLOCK_ENABLE_REG);
-    /* Reset deassert of the whole clock module. */
-    putreg32(TSB_TMR_RESET_DEASSERT, TSB_TMR_SOFT_RESET_REL_REG);
+    tsb_reset(TSB_RST_WDT);
+    tsb_reset(TSB_RST_TIMER);
 
     irqrestore(flags);
 }
@@ -110,26 +103,12 @@ static uint32_t tsb_tmr_getreg32(struct tsb_tmr_ctx *tmr, uint32_t reg)
 
 static uint32_t tsb_tmr_usec_to_freq(uint32_t usec)
 {
-    uint64_t ratio;
-
-    ratio = usec;
-    ratio *= TSB_TMR_COUNTER_MAX;
-    ratio = DIV_ROUND_CLOSEST(ratio, TSB_TMR_CNT_MAX_USEC);
-    ASSERT(ratio <= UINT32_MAX);
-
-    return (uint32_t)ratio;
+    return TSB_TMR_USEC_TO_RAW(usec);
 }
 
 static uint32_t tsb_tmr_freq_to_usec(uint32_t freq)
 {
-    uint64_t ratio;
-
-    ratio = freq;
-    ratio *= TSB_TMR_CNT_MAX_USEC;
-    ratio = DIV_ROUND_CLOSEST(ratio, TSB_TMR_COUNTER_MAX);
-    ASSERT(ratio <= UINT32_MAX);
-
-    return (uint32_t)ratio;
+    return TSB_TMR_RAW_TO_USEC(freq);
 }
 
 /**
@@ -160,6 +139,9 @@ void tsb_tmr_configure(struct tsb_tmr_ctx *tmr, int mode, xcpt_t isr)
     ASSERT(tmr);
 
     switch (mode) {
+    case TSB_TMR_MODE_WATCHDOG:
+        ASSERT(tmr->base == TMR_BASE + TSB_TMR0_OFF);
+        /* fall through */
     case TSB_TMR_MODE_PERIODIC:
     case TSB_TMR_MODE_ONESHOT:
     case TSB_TMR_MODE_FREERUN:
@@ -174,8 +156,13 @@ void tsb_tmr_configure(struct tsb_tmr_ctx *tmr, int mode, xcpt_t isr)
         up_enable_irq(tmr->irq);
     }
 
-    /* Supply the timer clock to the timer. */
-    putreg32(TSB_TMR_TIMER_CLOCK_SUPPLY, TSB_TMR_CLOCK_ENABLE_REG);
+    if (tmr->base == TMR_BASE + TSB_TMR0_OFF &&
+        tmr->mode == TSB_TMR_MODE_WATCHDOG)
+        /* Supply the timer clock to the timer. */
+        tsb_clk_enable(TSB_CLK_WDT);
+    else
+        /* Supply the timer clock to the timer. */
+        tsb_clk_enable(TSB_CLK_TIMER);
 }
 
 /**
@@ -200,9 +187,14 @@ void tsb_tmr_start(struct tsb_tmr_ctx *tmr)
 
     flags = irqsave();
 
+    tsb_tmr_ack_irq(tmr);
+
     tsb_tmr_putreg32(tmr, 0x00, TSB_TMR_LOAD);
     tsb_tmr_putreg32(tmr, tmr->mode, TSB_TMR_CTRL);
+
     tsb_tmr_putreg32(tmr, tmr->mode == TSB_TMR_MODE_FREERUN ? 0xffffffff : tsb_tmr_usec_to_freq(tmr->usec), TSB_TMR_LOAD);
+    if (tmr->mode == TSB_TMR_MODE_WATCHDOG)
+        tsb_tmr_putreg32(tmr, 0x01, TSB_TMR_WDT);
     tsb_tmr_putreg32(tmr, TSB_TMR_CTRL_IRQ_ENABLE | tmr->mode, TSB_TMR_CTRL);
 
     irqrestore(flags);
@@ -224,6 +216,8 @@ uint32_t tsb_tmr_cancel(struct tsb_tmr_ctx *tmr)
     counter = tmr->mode == TSB_TMR_MODE_FREERUN ?
                                 tsb_tmr_getreg32(tmr, TSB_TMR_CNT) : 0;
     tsb_tmr_putreg32(tmr, 0x00, TSB_TMR_CTRL);
+    if (tmr->mode == TSB_TMR_MODE_WATCHDOG)
+        tsb_tmr_putreg32(tmr, 0x00, TSB_TMR_WDT);
 
     irqrestore(flags);
 

@@ -51,8 +51,9 @@ struct tsb_tmr_ctx;
 #define TSB_TMR_CTRL                    (0x0008)
 #define TSB_TMR_ISR                     (0x000C)
 #define TSB_TMR_WDT                     (0x0040)
-#define TSB_TMR_RSR                     (0x0080)
+#define TSB_TMR_RSR                     (0x0050)
 
+#define TSB_TMR0_OFF                    (0x0000)
 #define TSB_TMR1_OFF                    (0x0100)
 #define TSB_TMR2_OFF                    (0x0200)
 #define TSB_TMR3_OFF                    (0x0300)
@@ -64,7 +65,7 @@ struct tsb_tmr_ctx;
  * map.  This is the case for all versions of the TSB up to and including
  * ES3.
  */
-#define TSB_TMR_GET_REG_PTR(id, reg) ((volatile uint32_t *)(TMR_BASE+(TSB_TMR1_OFF*(id+1))+(reg)))
+#define TSB_TMR_GET_REG_PTR(id, reg) ((volatile uint32_t *)(TMR_BASE+(TSB_TMR1_OFF*(id))+(reg)))
 
 /*
  * The following macro relies on the fact that the timer base frequency on the
@@ -74,16 +75,18 @@ struct tsb_tmr_ctx;
 #define TSB_TMR_USEC_TO_RAW(usec)    (uint32_t)(usec*48)
 
 enum {
-    TSB_TMR_TMR1 = 0,
-    TSB_TMR_TMR2 = 1,
-    TSB_TMR_TMR3 = 2,
-    TSB_TMR_TMR4 = 3,
+    TSB_TMR_TMR0 = 0,
+    TSB_TMR_TMR1 = 1,
+    TSB_TMR_TMR2 = 2,
+    TSB_TMR_TMR3 = 3,
+    TSB_TMR_TMR4 = 4,
 };
 
 enum {
     TSB_TMR_MODE_PERIODIC = 0x07,
     TSB_TMR_MODE_ONESHOT = 0x05,
     TSB_TMR_MODE_FREERUN = 0x03,
+    TSB_TMR_MODE_WATCHDOG = 0x01,
 };
 
 /**
