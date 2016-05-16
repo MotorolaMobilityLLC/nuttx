@@ -66,14 +66,15 @@ int camera_ext_register_event_cb(struct device *dev, camera_ext_event_cb_t cb)
     return 0;
 }
 
-int camera_ext_event_error_send(struct device *dev, int code, const char *desc)
+int camera_ext_event_send(struct device *dev, uint32_t type, int code,
+                                   const char *desc)
 {
-    struct camera_ext_event_error error;
+    struct camera_ext_event event;
     if (s_event_cb != NULL) {
-        error.code = cpu_to_le32(code);
-        strncpy(error.desc, desc, CAMERA_EXT_EVENT_ERROR_DESC_LEN);
-        error.desc[CAMERA_EXT_EVENT_ERROR_DESC_LEN - 1] = 0;
-        return s_event_cb(dev, CAMERA_EXT_EV_ERROR, (uint8_t *)&error, sizeof(error));
+        event.code = cpu_to_le32(code);
+        memset(event.desc, 0x00, CAMERA_EXT_EVENT_DESC_LEN);
+        strncpy(event.desc, desc, CAMERA_EXT_EVENT_DESC_LEN);
+        return s_event_cb(dev, type, (uint8_t *)&event, sizeof(event));
     } else {
         CAM_ERR("event callback not exists\n");
         return -EINVAL;

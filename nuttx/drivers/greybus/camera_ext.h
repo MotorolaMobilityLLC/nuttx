@@ -306,6 +306,7 @@ int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
 int camera_ext_register_event_cb(struct device *dev, camera_ext_event_cb_t cb);
 
 /* Send event to AP */
-int camera_ext_event_error_send(struct device *dev, int code, const char *desc);
+int camera_ext_event_send(struct device *dev, uint32_t type, int code,
+                                   const char *desc);
 
 #endif
