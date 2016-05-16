@@ -57,7 +57,6 @@
 #define GPIO_MODS_LED_DRV_2      CALC_GPIO_NUM('E',  7)
 #define GPIO_MODS_LED_DRV_3      CALC_GPIO_NUM('E',  8)
 #define GPIO_MODS_FUSB302_INT_N  CALC_GPIO_NUM('G', 13)
-#define GPIO_MODS_SYS_RST        CALC_GPIO_NUM('H',  0)
 #define GPIO_APBE_SPIBOOT_N      CALC_GPIO_NUM('A',  8)
 #define GPIO_APBE_INT_N          CALC_GPIO_NUM('B',  8)
 #define GPIO_APBE_RST_N          CALC_GPIO_NUM('H',  1)
@@ -95,6 +94,7 @@
 /* HDK P3 and later */
 #if (BOARD_REVISION >= 3)
 #define GPIO_MODS_DEMO_ENABLE    CALC_GPIO_NUM('G', 10)
+#define GPIO_MODS_RST_LS         CALC_GPIO_NUM('H',  0)
 #endif
 
 /* Battery voltage comparator */

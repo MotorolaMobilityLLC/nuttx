@@ -59,8 +59,6 @@ static int pcard_isr(int irq, void *context)
 void mods_init(void)
 {
     gpio_direction_out(GPIO_MODS_INT, 0);
-    gpio_direction_out(GPIO_MODS_SYS_RST, 1);
-
     /*
      * The code below is specific to the HDK for supporting pcards. You should
      * remove this code when making your own mod.
