@@ -149,6 +149,10 @@ ifeq ($(CONFIG_CAMERA_IMX220), y)
     CSRCS += camera_ext_mhb_imx220.c
 endif
 
+ifeq ($(CONFIG_CAMERA_IMX230), y)
+    CSRCS += camera_ext_mhb_imx230.c
+endif
+
 ifeq ($(CONFIG_CAMERA_EXT_TEST_CTRLS), y)
 	CSRCS += camera_ext_testing_ctrls.c
 endif

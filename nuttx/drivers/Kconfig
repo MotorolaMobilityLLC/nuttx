@@ -77,6 +77,8 @@ config CAMERA_S10P
 	bool "Alltek Sunny S10P + TC35874X Bridge"
 config CAMERA_IMX220
 	bool "SONY IMX220 Camera Sensor"
+config CAMERA_IMX230
+	bool "SONY IMX230 Camera Sensor"
 endchoice
 
 config CAMERA_I2C_BUS
