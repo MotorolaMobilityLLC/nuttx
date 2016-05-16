@@ -82,11 +82,13 @@ void cdsi_modify(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t fi
 int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t desired_value, uint32_t retries);
 
 int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config);
-int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config);
+int cdsi_rx_start(struct cdsi_dev *dev);
+int cdsi_uninitialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config);
 
+int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config);
 int cdsi_tx_start(struct cdsi_dev *dev);
 int cdsi_tx_stop(struct cdsi_dev *dev);
-int cdsi_rx_start(struct cdsi_dev *dev);
+int cdsi_uninitialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config);
 
 /**
  * The following helper macros use the register definitions in cdsi_off_def.h and
