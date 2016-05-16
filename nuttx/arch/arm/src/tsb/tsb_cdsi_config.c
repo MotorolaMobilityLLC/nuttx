@@ -686,6 +686,78 @@ int cdsi_rx_start(struct cdsi_dev *dev) {
     return 0;
 }
 
+int cdsi_uninitialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
+    int result;
+
+    vdbg("\n");
+
+#if CONFIG_TSB_CDSI_WAIT_FOR_RXLP
+    /* Wait until all lanes are in the stop state (set to 1). */
+    const uint32_t mask0 = CDSI_CDSIRX_LANE_STATUS_LP_L0STOPSTATE_MASK|
+                           CDSI_CDSIRX_LANE_STATUS_LP_L1STOPSTATE_MASK|
+                           CDSI_CDSIRX_LANE_STATUS_LP_L2STOPSTATE_MASK|
+                           CDSI_CDSIRX_LANE_STATUS_LP_L3STOPSTATE_MASK|
+                           CDSI_CDSIRX_LANE_STATUS_LP_CLSTOPSTATE_MASK;
+    result = cdsi_read_until(dev, CDSI_CDSIRX_LANE_STATUS_LP_OFFS, mask0, mask0,
+                             CDSI_DEFAULT_RETRIES);
+    if (result) {
+        dbg("ERROR: Failed to stop lanes\n");
+    }
+
+    /* Wait until all lanes are in the LP state (set to 0). */
+    const uint32_t mask1 = CDSI_CDSIRX_LANE_STATUS_HS_D0RXACTIVEHS_MASK|
+                           CDSI_CDSIRX_LANE_STATUS_HS_D1RXACTIVEHS_MASK|
+                           CDSI_CDSIRX_LANE_STATUS_HS_D2RXACTIVEHS_MASK|
+                           CDSI_CDSIRX_LANE_STATUS_HS_D3RXACTIVEHS_MASK|
+                           CDSI_CDSIRX_LANE_STATUS_HS_CLRXACTIVEHS_MASK;
+    result = cdsi_read_until(dev, CDSI_CDSIRX_LANE_STATUS_HS_OFFS, mask1, 0,
+                             CDSI_DEFAULT_RETRIES);
+    if (result) {
+        dbg("ERROR: Failed to go to LP\n");
+    }
+
+    /* Wait until the internal state is idle (set to 0). */
+    const uint32_t mask2 = CDSI_CDSIRX_INTERNAL_STAT_CDSI_RXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_CDSI_EORRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_CL_LPRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_CL_HSRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_D0_LPRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_D0_HSRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_D1_LPRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_D1_HSRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_D2_LPRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_D2_HSRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_D3_LPRXBUSY_MASK|
+                           CDSI_CDSIRX_INTERNAL_STAT_D3_HSRXBUSY_MASK;
+    result = cdsi_read_until(dev, CDSI_CDSIRX_INTERNAL_STAT_OFFS, mask2, 0,
+                             CDSI_DEFAULT_RETRIES);
+    if (result) {
+        dbg("ERROR: Failed to stop internal state\n");
+    }
+#endif
+
+    /* Disable RX. */
+    CDSI_WRITE(dev, CDSI_CDSIRX_START, CDSIRXSTART, 0);
+
+    /* Clear CDSIRX internal state. */
+    CDSI_WRITE(dev, CDSI_CDSIRX_SYSTEM_INIT, SYSINIT, 1);
+
+    /* Disable CDSIRX clocks. */
+    CDSI_WRITE(dev, CDSI_CDSIRX_CLKEN, CDSIRXEN, 0);
+
+    /* Disable RX bridge. */
+    CDSI_MODIFY(dev, CDSI_AL_RX_BRG_MODE, BRG_EN, 0);
+
+    /* Wait until RX bridge is stopped. */
+    result = CDSI_READ_UNTIL_CLR_RETRIES(dev, CDSI_AL_RX_BRG_MODE, BUSY,
+                                         CDSI_DEFAULT_RETRIES);
+    if (result) {
+        dbg("ERROR: Failed to stop RX bridge\n");
+    }
+
+    return result;
+}
+
 static void cdsi_clear_tx_status(struct cdsi_dev *dev) {
     vdbg("\n");
     cdsi_write(dev, CDSI_CDSITX_INTERRUPT_STATUS_00_OFFS, 0xffffffff);
@@ -1362,6 +1434,82 @@ int cdsi_tx_stop(struct cdsi_dev *dev) {
     CDSI_MODIFY(dev, CDSI_CDSITX_APF_RESET, APF_RESET_N, 0);
     CDSI_MODIFY(dev, CDSI_CDSITX_APF_RESET, APF_RESET_N, 1);
     CDSI_MODIFY(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_04, SBD_APF_CDSITX_START, 1);
+
+    return 0;
+}
+
+int cdsi_uninitialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
+    vdbg("\n");
+
+    /* Stop the pixel interface. */
+    CDSI_MODIFY(dev, CDSI_AL_TX_BRG_PIC_COM_START, AL_TX_BRG_REG_COM_START_A, 0);
+
+    /* Wait until the pixel interface is stopped. */
+    int result = CDSI_READ_UNTIL_CLR_RETRIES(dev,
+                    CDSI_CDSITX_SIDEBAND_STATUS_05, SBO_APF_VHIF_BUSY,
+                    CDSI_DEFAULT_RETRIES);
+    if (result) {
+        // This failure is OK if '!config->video_mode'.
+        dbg("WARNING: Failed to stop VHIF\n");
+    }
+
+    /* Disable TX bridge. */
+    CDSI_WRITE(dev, CDSI_AL_TX_BRG_ENABLE, AL_TX_BRG_EN, 0);
+
+    /* Reset TX bridge. */
+    CDSI_WRITE(dev, CDSI_AL_TX_BRG_SOFT_RESET, AL_TX_BRG_SOFT_RESET_N, 0);
+
+    /* Stop the APF . */
+    CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_04, SBD_APF_CDSITX_START, 0);
+
+    /* Disable PPI */
+    CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_03, SBD_DPHY_STARTPPI, 0);
+
+    /* Disable clocks for LINK and APF. */
+    CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_02, SBD_DPHY_HSTXCLKENABLE, 0);
+
+    /* Reset APF. */
+    CDSI_WRITE(dev, CDSI_CDSITX_APF_RESET, APF_RESET_N, 0);
+
+    /* Reset LINK. */
+    CDSI_WRITE(dev, CDSI_CDSITX_LINK_RESET, LINK_RESET_N, 0);
+
+    /* Initialize PPI. */
+    CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_CONTROL_00, SBD_DPHY_PPI_SYSINIT, 1);
+
+    /* Enable clocks for LINK and APF. */
+    CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_02, SBD_DPHY_HSTXCLKENABLE, 1);
+
+    /* Wait until D-Phy clock is stopped. */
+    result = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSITX_SIDEBAND_STATUS_07,
+                    SBO_PPIIF_CLM_STOPSTATE, CDSI_DEFAULT_RETRIES);
+
+    /* Disable clocks for LINK and APF. */
+    CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_02, SBD_DPHY_HSTXCLKENABLE, 0);
+    if (result) {
+        dbg("ERROR: Failed to stop LINK or APF\n");
+    }
+
+    /* Disable voltage regulator. */
+    uint32_t mask0 = CDSI_CDSITX_VREG_CONTROL_SBS_DPHY_D0M_HSTXVREGEN_MASK|
+                     CDSI_CDSITX_VREG_CONTROL_SBS_DPHY_D1M_HSTXVREGEN_MASK|
+                     CDSI_CDSITX_VREG_CONTROL_SBS_DPHY_D2M_HSTXVREGEN_MASK|
+                     CDSI_CDSITX_VREG_CONTROL_SBS_DPHY_D3M_HSTXVREGEN_MASK|
+                     CDSI_CDSITX_VREG_CONTROL_SBS_DPHY_CLM_HSTXVREGEN_MASK;
+    cdsi_modify(dev, CDSI_CDSITX_VREG_CONTROL_OFFS, mask0, 0);
+
+    /* Disable D-Phy. */
+    CDSI_WRITE(dev, CDSI_CDSITX_LPRX_CALIB_CONTROL, SBD_DPHY_CALIB_START, 0);
+
+    /* Disable PLL */
+    CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_INIT_CONTROL_00, SBD_DPHY_MPM_CKEN, 0);
+    CDSI_WRITE(dev, CDSI_CDSITX_PLL_CONTROL_01, SBD_DPHY_MP_ENABLE, 0);
+
+    /* Clear interrupts. */
+    cdsi_clear_tx_status(dev);
+
+    /* Release init for PPI. */
+    CDSI_WRITE(dev, CDSI_CDSITX_SIDEBAND_CONTROL_00, SBD_DPHY_PPI_SYSINIT, 0);
 
     return 0;
 }
