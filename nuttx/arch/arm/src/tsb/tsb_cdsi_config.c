@@ -519,7 +519,6 @@ int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t
     }
 }
 
-#if 0
 static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
     vdbg("\n");
     cdsi_write(dev, CDSI_CDSIRX_DSI_RXTRIG_INT_MASK_OFFS, 0xffffffff);
@@ -555,7 +554,6 @@ static void cdsi_clear_rx_status(struct cdsi_dev *dev) {
 
     cdsi_write(dev, CDSI_AL_RX_BRG_INT_MASK_OFFS, 0xffffffff);
 }
-#endif
 
 int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
     vdbg("\n");
@@ -663,6 +661,8 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
         return ret;
     }
 
+    cdsi_clear_rx_status(dev);
+
     cdsi_write(dev, CDSI_CDSIRX_START_OFFS, 1);
 
     return 0;
@@ -670,6 +670,8 @@ int cdsi_initialize_rx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
 int cdsi_rx_start(struct cdsi_dev *dev) {
     int ret;
+
+    vdbg("\n");
 
     /* Wait for line initialization to finish. */
     ret = CDSI_READ_UNTIL_SET_RETRIES(dev, CDSI_CDSIRX_LPRX_STATE_INT_STAT,
