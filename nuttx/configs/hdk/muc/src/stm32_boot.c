@@ -253,6 +253,12 @@ static struct device_resource tfa9890_audio_resources[] = {
        .start  = GPIO_MODS_DEMO_ENABLE,
        .count  = 1,
     },
+    {
+       .name   = "rst_ls",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_MODS_RST_LS,
+       .count  = 1,
+    },
 };
 #endif
 
