@@ -242,7 +242,9 @@ struct camera_ext_predefined_ctrl_mod_cfg {
 	uint8_t data[0];
 } __packed;
 
-#define CAMERA_EXT_EV_ERROR 1
+
+#define CAMERA_EXT_EV_ERROR    0x01
+#define CAMERA_EXT_EV_ASYNC    0x02
 
 /* event send from MOD to AP */
 struct camera_ext_event_hdr {
@@ -250,11 +252,19 @@ struct camera_ext_event_hdr {
     uint8_t data[0];
 } __packed;
 
-#define CAMERA_EXT_EVENT_ERROR_DESC_LEN 64
+/* Error EVENTS */
+#define CAMERA_EXT_ERROR_FATAL     0x00
+#define CAMERA_EXT_ERROR_POWER_ON  0x01
+#define CAMERA_EXT_ERROR_STREAM_ON 0x02
 
-struct camera_ext_event_error {
+/* Async EVENTS */
+#define CAMERA_EXT_POWERED_ON      0x00
+
+#define CAMERA_EXT_EVENT_DESC_LEN  64
+
+struct camera_ext_event {
     __le32 code;
-    char desc[CAMERA_EXT_EVENT_ERROR_DESC_LEN];
+    char desc[CAMERA_EXT_EVENT_DESC_LEN];
 } __packed;
 
 #endif /* __CAMERA_EXT_DEFS_H */
