@@ -624,6 +624,8 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
 
 mhb_camera_sm_event_t mhb_camera_power_on(void)
 {
+    struct device *dev = CONTAINER_OF(&s_mhb_camera, struct device, private);
+
     CAM_DBG(" soc_enabled = %d\n", s_mhb_camera.soc_enabled);
 
     if (s_mhb_camera.soc_enabled == 1)
@@ -635,27 +637,32 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     if(s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_CONNECTED) {
         if(_mhb_camera_set_apbe_state(SLAVE_STATE_ENABLED)) {
             CAM_ERR("Failed to turn ON APBE\n");
-            return MHB_CAMERA_EV_FAIL;
+            goto failed_power_on;
         }
     }
 
     if (_mhb_camera_soc_enable()) {
         CAM_ERR("Failed to turn on Camera SOC\n");
-        return MHB_CAMERA_EV_FAIL;
+        goto failed_power_on;
     }
+    s_mhb_camera.soc_enabled = 1;
 
     if(s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_CONNECTED) {
         if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
                 MHB_CAM_PWRCTL_WAIT_MASK|MHB_PM_STATUS_PEER_CONNECTED,
                 "PEER CONNECTED")) {
             CAM_ERR("Failed waiting for PEER_CONNECTED\n");
-            return MHB_CAMERA_EV_FAIL;
+            goto failed_power_on;
         }
     }
-
-    s_mhb_camera.soc_enabled = 1;
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_ON);
+    camera_ext_event_send(dev, CAMERA_EXT_EV_ASYNC, CAMERA_EXT_POWERED_ON, "");
     return MHB_CAMERA_EV_POWERED_ON;
+
+failed_power_on:
+    camera_ext_event_send(dev, CAMERA_EXT_EV_ERROR, CAMERA_EXT_ERROR_FATAL, "");
+    return MHB_CAMERA_EV_FAIL;
+
 }
 
 mhb_camera_sm_event_t mhb_camera_power_off(void)
@@ -685,30 +692,31 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     const struct camera_ext_format_node *fmt;
     const struct camera_ext_frmsize_node *frmsize;
     const struct camera_ext_frmival_node *ival;
+    struct device *dev = CONTAINER_OF(&s_mhb_camera, struct device, private);
 
     CAM_DBG("\n");
 
     fmt = get_current_format_node(db, cfg);
     if (fmt == NULL) {
         CAM_ERR("Failed to get current format\n");
-        return MHB_CAMERA_EV_FAIL;
+        goto failed_stream_on;
     }
 
     frmsize = get_current_frmsize_node(db, cfg);
     if (frmsize == NULL) {
         CAM_ERR("Failed to get current frame size\n");
-        return MHB_CAMERA_EV_FAIL;
+        goto failed_stream_on;
     }
 
     ival = get_current_frmival_node(db, cfg);
     if (ival == NULL) {
         CAM_ERR("Failed to get current frame interval\n");
-        return MHB_CAMERA_EV_FAIL;
+        goto failed_stream_on;
     }
 
     if (ival->user_data == NULL) {
         CAM_ERR("Failed to get user data\n");
-        return MHB_CAMERA_EV_FAIL;
+        goto failed_stream_on;
     }
 
     switch(fmt->fourcc) {
@@ -735,7 +743,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
             mhb_camera_csi_config.bpp = 8;
         default:
             CAM_ERR("Unsupported format 0x%x\n", fmt->fourcc);
-            return MHB_CAMERA_EV_FAIL;
+            goto failed_stream_on;
     }
 
     mhb_camera_csi_config.width = frmsize->width;
@@ -747,48 +755,74 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     mhb_camera_csi_config.rx_bits_per_lane = 500000000;
 
     /* Send the configuration to the APBE. */
-    // TODO: ERROR HANDLING
 
-    _mhb_camera_stream_configure();
+    if(_mhb_camera_stream_configure()) {
+        goto failed_stream_on;
+    }
 
     if (_mhb_csi_camera_config_req((uint8_t*)&mhb_camera_csi_config,
                                     sizeof(mhb_camera_csi_config))) {
-        CAM_ERR("ERROR: send config failed\n");
+        CAM_ERR("ERROR: Send Config Failed\n");
+        goto failed_stream_on;
     }
-    _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
-                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONFIG_RSP,
-                                  "CDSI CONFIG");
 
-    _mhb_camera_stream_enable();
+    if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONFIG_RSP,
+                                  "CDSI CONFIG")) {
+        goto failed_stream_on;
+    }
+
+    if (_mhb_camera_stream_enable()) {
+        CAM_ERR("ERROR: _mhb_camera_stream_enable Failed\n");
+        goto failed_stream_on;
+    }
 
     if (_mhb_csi_camera_control_req(MHB_CDSI_COMMAND_START)) {
-        CAM_ERR("ERROR: start failed\n");
+        CAM_ERR("ERROR: MHB_CDSI_COMMAND_START Failed\n");
+        goto failed_stream_on;
     }
-    _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+
+    if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
-                                  "CDSI START");
+                                  "CDSI START")) {
+        goto failed_stream_on;
+    }
 
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_ON);
     return MHB_CAMERA_EV_CONFIGURED;
+
+failed_stream_on:
+    camera_ext_event_send(dev, CAMERA_EXT_EV_ERROR, CAMERA_EXT_ERROR_STREAM_ON, "");
+    return MHB_CAMERA_EV_FAIL;
 }
 
 mhb_camera_sm_event_t mhb_camera_stream_off(void)
 {
+    int retval = 0;
+    //struct device *dev = CONTAINER_OF(&s_mhb_camera, struct device, private);
+
     CAM_DBG("\n");
-    // TODO: ERROR HANDLING
-    _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
-    _mhb_csi_camera_unconfig_req();
-    _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+
+    retval = _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
+    retval |= _mhb_csi_camera_unconfig_req();
+    retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
                                   "CDSI STOP");
 
-    _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+    retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_UNCONFIG_RSP,
                                   "CDSI UNCONFIG");
 
-    _mhb_camera_stream_disable();
+    retval |= _mhb_camera_stream_disable();
 
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_OFF);
+
+    // TODO: Monitor Stream OFF Failures.
+    // if (retval) {
+    //     camera_ext_event_send(dev, CAMERA_EXT_EV_ERROR, CAMERA_EXT_ERROR_FATAL, "");
+    //     return MHB_CAMERA_EV_FAIL;
+    // }
+
     return MHB_CAMERA_EV_DECONFIGURED;
 }
 
