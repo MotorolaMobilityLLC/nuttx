@@ -832,6 +832,12 @@ static int mhb_handle_cdsi_unconfig_req(struct mhb_transaction *transaction)
 
     struct cdsi_block *cdsi = cdsi_from_inst(inst);
     if (cdsi && cdsi->dev) {
+        if (cdsi->config.direction == TSB_CDSI_TX) {
+            cdsi_uninitialize_tx(cdsi->dev, &cdsi->config);
+        } else {
+            cdsi_uninitialize_rx(cdsi->dev, &cdsi->config);
+        }
+
         cdsi_uninitialize(cdsi->dev);
         cdsi->dev = NULL;
         ret = 0;
