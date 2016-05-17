@@ -122,9 +122,9 @@ struct device_aud_dai_config {
     } config;
 };
 
-struct device_aud_data {
-    void (*report_devices)(struct device *dev, struct device_aud_devices *devices);
-};
+
+typedef int (*report_devices_cb)(struct device *dev, struct device_aud_devices *devices);
+
 
 struct device_aud_dev_type_ops {
     int (*get_volume_db_range)(struct device *dev,
@@ -144,6 +144,8 @@ struct device_aud_dev_type_ops {
     int (*tx_dai_start)(struct device *dev);
     int (*rx_dai_stop)(struct device *dev);
     int (*tx_dai_stop)(struct device *dev);
+    int (*register_callback)(struct device *dev, report_devices_cb cb);
+    int (*unregister_callback)(struct device *dev);
 };
 
 static inline int device_audio_get_volume_db_range(struct device *dev,
@@ -345,4 +347,33 @@ static inline int device_audio_tx_dai_stop(struct device *dev)
 
     return -ENOSYS;
 }
+
+static inline int device_audio_register_callback(struct device *dev,
+                                 report_devices_cb cb )
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->register_callback)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->register_callback(dev, cb);
+
+    return -ENOSYS;
+}
+
+static inline int device_audio_unregister_callback(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->unregister_callback)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->unregister_callback(dev);
+
+    return -ENOSYS;
+}
+
+
 #endif
