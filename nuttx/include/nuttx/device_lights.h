@@ -91,7 +91,7 @@ struct channel_config {
     uint32_t    mode;
     /** mode name, 31 characters with null character */
     char        mode_name[NAME_LENGTH];
-} __packed;
+};
 
 /**
  * Lights flash channel configuration
