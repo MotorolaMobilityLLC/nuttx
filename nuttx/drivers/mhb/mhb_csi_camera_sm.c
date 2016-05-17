@@ -237,6 +237,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_off_process_ev(mhb_camera_sm_event_t 
                 next_state = MHB_CAMERA_STATE_WAIT_POWER_ON;
             } else {
                 CAM_ERR("Queued events pending. Stay OFF\n");
+                next_state = MHB_CAMERA_STATE_OFF;
             }
             pthread_mutex_unlock(&s_command_mutex);
             break;
@@ -288,6 +289,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_on_process_ev(mhb_camera_sm_event_t e
         case MHB_CAMERA_EV_POWER_OFF_REQ:
             next_state = MHB_CAMERA_STATE_WAIT_OFF;
             break;
+        case MHB_CAMERA_EV_POWERED_ON:
         case MHB_CAMERA_EV_NONE:
             next_state = s_state;
             break;

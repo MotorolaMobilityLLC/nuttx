@@ -42,6 +42,7 @@
 #include <nuttx/time.h>
 #include <nuttx/device.h>
 #include <nuttx/device_slave_pwrctrl.h>
+#include <nuttx/kmalloc.h>
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_csi_camera.h>
@@ -59,12 +60,20 @@
 #define I2C_RETRY_DELAY_US       10000
 #define MHB_CDSI_CAM_INSTANCE    0
 #define MHB_CDSI_OP_TIMEOUT_NS   2000000000LL
-#define CTRL_SET_RETRY_DELAY_US  200000
+#define CAM_CTRL_RETRY_DELAY_US  200000
 
 #define MHB_CAM_PWRCTL_WAIT_MASK 0xFE00
 #define MHB_CAM_CDSI_WAIT_MASK   0xFC00
 #define MHB_CAM_WAIT_EV_NONE     0x0000
 #define MHB_CAM_MAX_CALLBACKS    4
+
+struct cached_ctrls_node {
+    struct list_head node;
+    struct device *dev;
+    uint32_t idx;
+    uint8_t *ctrl_val;
+    uint32_t ctrl_val_size;
+};
 
 struct mhb_camera_s
 {
@@ -82,7 +91,9 @@ struct mhb_camera_s
 };
 
 pthread_mutex_t i2c_mutex;
+pthread_mutex_t ctrl_mutex;
 static struct mhb_camera_s s_mhb_camera;
+static LIST_DECLARE(cached_ctrl_list);
 
 extern struct camera_ext_format_db mhb_camera_format_db;
 extern struct mhb_cdsi_config mhb_camera_csi_config;
@@ -622,6 +633,27 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
     return 0;
 }
 
+static void _mhb_camera_process_ctrl_cache(void)
+{
+    struct cached_ctrls_node *item;
+
+    pthread_mutex_lock(&ctrl_mutex);
+    while (!list_is_empty(&cached_ctrl_list)) {
+        item = list_entry(cached_ctrl_list.next,
+                          struct cached_ctrls_node, node);
+
+        if (s_mhb_camera.soc_enabled)
+            camera_ext_ctrl_set(item->dev, item->idx,
+                                item->ctrl_val, item->ctrl_val_size);
+
+        list_del(&item->node);
+        kmm_free(item->ctrl_val);
+        kmm_free(item);
+    }
+    pthread_mutex_unlock(&ctrl_mutex);
+
+}
+
 mhb_camera_sm_event_t mhb_camera_power_on(void)
 {
     struct device *dev = CONTAINER_OF(&s_mhb_camera, struct device, private);
@@ -655,6 +687,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
             goto failed_power_on;
         }
     }
+    _mhb_camera_process_ctrl_cache();
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_ON);
     camera_ext_event_send(dev, CAMERA_EXT_EV_ASYNC, CAMERA_EXT_POWERED_ON, "");
     return MHB_CAMERA_EV_POWERED_ON;
@@ -682,6 +715,7 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
         _mhb_camera_soc_disable();
     }
 
+    _mhb_camera_process_ctrl_cache();
     return MHB_CAMERA_EV_NONE;
 }
 
@@ -870,6 +904,7 @@ static int _dev_probe(struct device *dev)
 
     pthread_mutex_init(&mhb_camera->mutex, NULL);
     pthread_mutex_init(&i2c_mutex, NULL);
+    pthread_mutex_init(&ctrl_mutex, NULL);
 
     pthread_cond_init(&mhb_camera->slave_cond, NULL);
     pthread_cond_init(&mhb_camera->cdsi_cond, NULL);
@@ -949,7 +984,32 @@ static void _dev_close(struct device *dev)
     mhb_camera->slave_pwr_ctrl = NULL;
 }
 
-static int _mhb_camera_ext_ready_ctrl_set(struct device *dev,
+static int _mhb_camera_ext_ctrl_cache(struct device *dev,
+    uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size)
+{
+    struct cached_ctrls_node *item;
+
+    item = kmm_malloc(sizeof(struct cached_ctrls_node));
+    if (!item) return -1;
+
+    item->ctrl_val = kmm_malloc(ctrl_val_size);
+    if (!item->ctrl_val) {
+        kmm_free(item);
+        return -1;
+    }
+
+    memcpy(item->ctrl_val, ctrl_val, ctrl_val_size);
+    item->dev = dev;
+    item->idx = idx;
+    item->ctrl_val_size = ctrl_val_size;
+    pthread_mutex_lock(&ctrl_mutex);
+    list_add(&cached_ctrl_list, &item->node);
+    pthread_mutex_unlock(&ctrl_mutex);
+
+    return 0;
+}
+
+static int _mhb_camera_ext_ctrl_set(struct device *dev,
     uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size)
 {
     uint8_t state = mhb_camera_sm_get_state();
@@ -959,13 +1019,35 @@ static int _mhb_camera_ext_ready_ctrl_set(struct device *dev,
         return -ENODEV;
     }
     if (!s_mhb_camera.soc_enabled) {
+        CTRL_DBG("Cam not ready, cache ctrl. CtrlID 0x%08x Size %d State %s\n",
+                 idx, ctrl_val_size, mhb_camera_sm_state_str(state));
+
+        _mhb_camera_ext_ctrl_cache(dev, idx, ctrl_val, ctrl_val_size);
+
+        return 0;
+    }
+    return camera_ext_ctrl_set(dev, idx, ctrl_val, ctrl_val_size);
+}
+
+static int _mhb_camera_ext_ctrl_get(struct device *dev,
+    uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size)
+{
+    uint8_t state = mhb_camera_sm_get_state();
+
+    if (state == MHB_CAMERA_STATE_OFF ||
+        state == MHB_CAMERA_STATE_WAIT_OFF) {
+        CAM_ERR("ERROR: Camera Off : State %d\n", state);
+        return -ENODEV;
+    }
+
+    if (!s_mhb_camera.soc_enabled) {
         CAM_DBG("Cam not ready, try again. CtrlID 0x%08x State %s\n",
                 idx, mhb_camera_sm_state_str(state));
 
-        usleep(CTRL_SET_RETRY_DELAY_US);
+        usleep(CAM_CTRL_RETRY_DELAY_US);
         return -EAGAIN;
     }
-    return camera_ext_ctrl_set(dev, idx, ctrl_val, ctrl_val_size);
+    return camera_ext_ctrl_get(dev, idx, ctrl_val, ctrl_val_size);
 }
 
 static struct device_camera_ext_dev_type_ops camera_ext_type_ops = {
@@ -985,8 +1067,8 @@ static struct device_camera_ext_dev_type_ops camera_ext_type_ops = {
     .stream_set_parm   = camera_ext_stream_set_parm,
     .stream_get_parm   = camera_ext_stream_get_parm,
     .ctrl_get_cfg      = camera_ext_ctrl_get_cfg,
-    .ctrl_get          = camera_ext_ctrl_get,
-    .ctrl_set          = _mhb_camera_ext_ready_ctrl_set,
+    .ctrl_get          = _mhb_camera_ext_ctrl_get,
+    .ctrl_set          = _mhb_camera_ext_ctrl_set,
     .ctrl_try          = camera_ext_ctrl_try,
 };
 
