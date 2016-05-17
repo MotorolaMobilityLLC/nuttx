@@ -44,22 +44,26 @@
 #include <nuttx/greybus/debug.h>
 #include <nuttx/device.h>
 #include <nuttx/device_raw.h>
+#include <nuttx/time.h>
 #include <nuttx/wqueue.h>
 #include <arch/board/mods.h>
 
 
 #include "hdk.h"
-
+#include "aes.h"
 
 #ifdef CONFIG_STM32_ADC1
 /* The number of ADC channels in the conversion list */
 #define ADC1_NCHANNELS 1
 
-/* Identifying number of each ADC channel */
-static const uint8_t  g_chanlist[ADC1_NCHANNELS] = {14};
+/* Identifying number of each ADC channel
+ * Temperature output is available on PC3, which corresponds
+ * to ADC1 channel 4 (GPIO_ADC1_IN4).
+ */
+static const uint8_t  g_chanlist[ADC1_NCHANNELS] = {4};
 
 /* Configurations of pins used by each ADC channel */
-static const uint32_t g_pinlist[ADC1_NCHANNELS]  = {GPIO_ADC1_IN14};
+static const uint32_t g_pinlist[ADC1_NCHANNELS]  = {GPIO_ADC1_IN4};
 #endif
 
 
@@ -73,15 +77,30 @@ static const uint32_t g_pinlist[ADC1_NCHANNELS]  = {GPIO_ADC1_IN14};
 #define TEMP_RAW_COMMAND_ON       0x02
 #define TEMP_RAW_COMMAND_OFF      0x03
 #define TEMP_RAW_COMMAND_DATA     0x04
+#define TEMP_RAW_COMMAND_CHALLENGE      0x05
+#define TEMP_RAW_COMMAND_CHLGE_RESP     0x06
 
 #define TEMP_RAW_COMMAND_RESP_MASK    0x80
 
+/* AES */
+#define TEMP_RAW_AES_KEY            "moto-temp-apk"
+#define TEMP_RAW_AES_BLOCK_SIZE     16
+#define TEMP_RAW_AES_CLIENT_ADDS    777
+
+struct temp_raw_aes {
+    char    key[TEMP_RAW_AES_BLOCK_SIZE];
+    uint8_t input[TEMP_RAW_AES_BLOCK_SIZE];
+    uint8_t encrypted_data[TEMP_RAW_AES_BLOCK_SIZE];
+    uint8_t decrypted_data[TEMP_RAW_AES_BLOCK_SIZE];
+};
 
 struct temp_raw_info {
     struct device *gDevice;
     struct work_s data_report_work;
     uint16_t interval;
     raw_send_callback gCallback;
+    uint8_t client_verified;
+    struct temp_raw_aes tr_aes;
 };
 
 struct temp_raw_msg {
@@ -164,10 +183,10 @@ static int temp_raw_send(struct device *dev, uint32_t len, uint8_t data[])
 }
 
 /**
- * build and send the response message with payload data.
+ * build and send message with payload data.
  */
-static int cmd_response(struct device *dev, uint8_t cmd_id,
-                        uint8_t size, uint8_t *data)
+static int temp_raw_build_send_mesg(struct device *dev, uint8_t cmd_id,
+                        uint8_t size, uint8_t *data, uint8_t resp)
 {
     int ret = 0;
     uint8_t *resp_msg;
@@ -184,7 +203,9 @@ static int cmd_response(struct device *dev, uint8_t cmd_id,
 
     /* fill in the message structure */
     sresp = (struct temp_raw_msg *)resp_msg;
-    sresp->cmd_id = cmd_id | TEMP_RAW_COMMAND_RESP_MASK;
+    sresp->cmd_id = cmd_id;
+    if (resp)
+        sresp->cmd_id |= TEMP_RAW_COMMAND_RESP_MASK;
     sresp->size = size;
     /* copy payload data and send the message */
     memcpy((void *)&sresp->payload[0], data, size);
@@ -224,8 +245,8 @@ static void temp_raw_worker(void *arg)
     read(adc_fd, &sample, sizeof(sample));
     close(adc_fd);
 
-    cmd_response(info->gDevice, TEMP_RAW_COMMAND_DATA,
-                sizeof(sample.am_data), (uint8_t *)&sample.am_data);
+    temp_raw_build_send_mesg(info->gDevice, TEMP_RAW_COMMAND_DATA,
+                sizeof(sample.am_data), (uint8_t *)&sample.am_data, 0);
 
     /* cancel any work and reset ourselves */
     if (!work_available(&info->data_report_work))
@@ -246,6 +267,9 @@ static int temp_raw_recv(struct device *dev, uint32_t len, uint8_t data[])
     struct temp_raw_attr sattr;
     struct temp_raw_msg *smsg;
     struct temp_raw_info *info = NULL;
+    struct timespec ts;
+    uint64_t time_ns;
+    int i, retval;
 
     if (!dev || !device_get_private(dev)) {
         return -ENODEV;
@@ -266,12 +290,76 @@ static int temp_raw_recv(struct device *dev, uint32_t len, uint8_t data[])
             memcpy(&sattr.name[0], TEMP_RAW_NAME, sizeof(TEMP_RAW_NAME));
             sattr.max_interval = cpu_to_le16(TEMP_RAW_MAX_LATENCY);
 
-            cmd_response(dev, TEMP_RAW_COMMAND_INFO, sizeof(sattr),
-                         (uint8_t *)&sattr);
+            temp_raw_build_send_mesg(dev, TEMP_RAW_COMMAND_INFO, sizeof(sattr),
+                         (uint8_t *)&sattr, 1);
+
+            /*
+             * build and send challenge message:
+             * 1. Send AES ECB 128-bit encrypted current time in nanoseconds.
+             * 2. client decrypts, adds TEMP_RAW_AES_CLIENT_ADDS, encrypts
+             *    and sends back the adjusted time.
+             * 3. Decrpyt and match the adjusted time. Allow ON operation on
+             *    match.
+             */
+            up_rtc_gettime(&ts);
+            time_ns = timespec_to_nsec(&ts);
+
+            /*
+             * time_ns is 8 bytes, since AES block size is
+             * TEMP_RAW_AES_BLOCK_SIZE, pad the data for
+             * AES/ECB/PKCS5Padding
+             */
+            memcpy(&info->tr_aes.input[0], &time_ns, sizeof(time_ns));
+            for (i=sizeof(time_ns); i<TEMP_RAW_AES_BLOCK_SIZE; i++)
+            {
+                info->tr_aes.input[i] = TEMP_RAW_AES_BLOCK_SIZE - sizeof(time_ns);
+            }
+
+            /* Encrypt padded time_ns */
+            AES128_ECB_encrypt(&info->tr_aes.input[0],
+                                (const uint8_t *)&info->tr_aes.key[0],
+                                &info->tr_aes.encrypted_data[0]);
+
+            /* send the challenge */
+            temp_raw_build_send_mesg(dev, TEMP_RAW_COMMAND_CHALLENGE,
+                                sizeof(info->tr_aes.encrypted_data),
+                                (uint8_t *)&info->tr_aes.encrypted_data[0], 0);
+            break;
+
+        case TEMP_RAW_COMMAND_CHLGE_RESP:
+            llvdbg("TEMP_RAW_COMMAND_CHLGE_RESP");
+            /* Decrypt the adjusted time data */
+            AES128_ECB_decrypt(&smsg->payload[0],
+                                (const uint8_t *)&info->tr_aes.key[0],
+                                &info->tr_aes.decrypted_data[0]);
+
+            /*
+             * compare the sent data with received adjusted data.
+             * allow ON operation upon match
+             */
+            memcpy(&time_ns, &info->tr_aes.input[0], sizeof(time_ns));
+            time_ns += TEMP_RAW_AES_CLIENT_ADDS;
+            retval = memcmp(&info->tr_aes.decrypted_data[0],
+                            &time_ns, sizeof(time_ns));
+            if (!retval) {
+                info->client_verified = 1;
+                /* Initialize ADC */
+                adc_devinit();
+            } else {
+                info->client_verified = 0;
+                dbg("Client verification failed: %d\n", retval);
+            }
+
+            /* respond with the result */
+            temp_raw_build_send_mesg(dev, TEMP_RAW_COMMAND_CHLGE_RESP,
+                                        sizeof(retval),
+                                        (uint8_t *)&retval, 1);
             break;
 
         case TEMP_RAW_COMMAND_ON:
             llvdbg("TEMP_RAW_COMMAND_ON %d\n", smsg->size);
+            if (info->client_verified == 0)
+                break;
             if (smsg->size != sizeof(sattr.max_interval))
                 break;
 
@@ -289,7 +377,6 @@ static int temp_raw_recv(struct device *dev, uint32_t len, uint8_t data[])
             /* schedule work */
             work_queue(LPWORK, &info->data_report_work,
                         temp_raw_worker, info, 0);
-
             break;
 
         case TEMP_RAW_COMMAND_OFF:
@@ -358,14 +445,14 @@ static int temp_raw_probe(struct device *dev)
         return -ENOMEM;
     }
 
+    info->client_verified = 0;
     info->gDevice = dev;
     device_set_private(dev, info);
 
-    /* Initialize ADC */
-    adc_devinit();
-
     /* Enable temperature device */
     gpio_direction_out(GPIO_MODS_DEMO_ENABLE, 0);
+
+    sprintf(&info->tr_aes.key[0], TEMP_RAW_AES_KEY);
 
     llvdbg("Probe complete\n");
 
