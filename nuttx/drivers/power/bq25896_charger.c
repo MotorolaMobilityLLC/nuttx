@@ -189,7 +189,6 @@ static int set_bq25896_input_current_limit(int limit) /* mA */
 #define INPUT_VOLTAGE_STEP      100
 static int set_bq25896_input_voltage_limit(int limit) /* mV */
 {
-    int ret;
     int val;
     int delta;
 
@@ -206,14 +205,10 @@ static int set_bq25896_input_voltage_limit(int limit) /* mV */
         val +=1;
     }
 
-    /* Program absolute threshold and then enable it */
-    ret = bq25896_reg_modify(BQ25896_REG0D, BQ25896_REG0D_VINDPM_MASK,
-                              val << BQ25896_REG0D_VINDPM_SHIFT);
-    if (ret)
-        return ret;
-
-    return bq25896_reg_modify(BQ25896_REG0D, BQ25896_REG0D_FORCE_VINDPM_MASK,
-                             BQ25896_REG0D_VINDPM_ABSOLUTE);
+    /* Program absolute threshold and enable it */
+    return bq25896_reg_modify(BQ25896_REG0D,
+            BQ25896_REG0D_FORCE_VINDPM_MASK | BQ25896_REG0D_VINDPM_MASK,
+             BQ25896_REG0D_VINDPM_ABSOLUTE | (val << BQ25896_REG0D_VINDPM_SHIFT));
 }
 
 #define MIN_CHARGE_CURRENT  0
