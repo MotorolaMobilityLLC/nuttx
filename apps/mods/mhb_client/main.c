@@ -52,6 +52,7 @@
 
 static struct device *g_backlight;
 static struct device *g_display;
+static struct mhb_unipro_stats g_unipro_stats;
 
 typedef int (*COMMAND_FP)(int argc, char *argv[], struct device *dev);
 struct command {
@@ -164,18 +165,33 @@ static int mhb_handle_unipro(struct device *dev, struct mhb_hdr *hdr,
             return 0;
         }
 
-        uint32_t *p = (uint32_t *)payload;
-        size_t count = payload_length / sizeof(uint32_t);
+        uint32_t *src = (uint32_t *)payload;
+        uint32_t *dst = (uint32_t *)&g_unipro_stats;
+        size_t count = sizeof(g_unipro_stats) / sizeof(uint32_t);
         size_t i;
 
         for (i = 0; i < count; i++) {
-            printf("%08x\n", le32_to_cpu(p[i]));
+            dst[i] += le32_to_cpu(src[i]);
+            printf("%08x\n", dst[i]);
+            dst[i] = 0;
         }
 
         return 0;
     }
     case MHB_TYPE_UNIPRO_STATS_NOT:
-        /* Ignore the stats notification */
+        if (!payload || !payload_length) {
+            return 0;
+        }
+
+        uint32_t *src = (uint32_t *)payload;
+        uint32_t *dst = (uint32_t *)&g_unipro_stats;
+        size_t count = sizeof(g_unipro_stats) / sizeof(uint32_t);
+        size_t i;
+
+        for (i = 0; i < count; i++) {
+            dst[i] += le32_to_cpu(src[i]);
+        }
+
         return 0;
     default:
         printf("ERROR: unknown Unipro event\n");
