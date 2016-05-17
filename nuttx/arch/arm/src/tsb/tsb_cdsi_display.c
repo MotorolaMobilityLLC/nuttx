@@ -103,24 +103,6 @@ int dsi_write_cmd(struct cdsi_dev *dev, const struct dsi_cmd *cmd) {
     return 0;
 }
 
-int dsi_write_cmds(struct cdsi_dev *dev, const struct dsi_cmd *cmds, size_t num_cmds) {
-    vdbg("\n");
-    size_t i;
-    for (i = 0; i < num_cmds; i++) {
-        usleep(120000);
-        dsi_write_cmd(dev, cmds + i);
-
-        size_t j;
-        if (i == 1) {
-            for (j = 0; j < 0x170A390; j++) {
-                __asm("nop");
-            }
-        }
-    }
-
-    return 0;
-}
-
 static size_t _dsi_read_cmd(struct cdsi_dev *dev, uint8_t *buffer, size_t buffer_length) {
     vdbg("\n");
     size_t count = 0;

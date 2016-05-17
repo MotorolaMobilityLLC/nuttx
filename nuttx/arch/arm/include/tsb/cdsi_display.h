@@ -79,7 +79,6 @@ struct dsi_cmd {
 };
 
 int dsi_write_cmd(struct cdsi_dev *dev, const struct dsi_cmd *cmd);
-int dsi_write_cmds(struct cdsi_dev *dev, const struct dsi_cmd *cmds, size_t num_cmds);
 
 size_t dsi_read_cmd(struct cdsi_dev *dev, const struct dsi_cmd *cmd, uint8_t *buffer, size_t buffer_length);
 
