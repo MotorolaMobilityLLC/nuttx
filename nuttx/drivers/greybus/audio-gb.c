@@ -56,8 +56,6 @@ static struct gb_aud_info dev_info = {
         .dev_id     = GB_AUD_BUNDLE_0_DEV_ID,
 };
 
-static struct device_aud_data init_aud_data;
-
 static uint8_t gb_aud_protocol_version(struct gb_operation *operation)
 {
     struct gb_audio_proto_version_response *response;
@@ -223,25 +221,30 @@ static uint8_t gb_aud_protocol_enable_devices(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static void gb_audio_report_devices_request(struct device *dev,
+static int gb_audio_report_devices_request_cb(struct device *dev,
                                      struct device_aud_devices *devices)
 {
     struct gb_operation *operation;
     struct gb_operation_hdr *hdr;
     struct gb_audio_report_devices_request *request;
+    int ret;
 
     operation = gb_operation_create(dev_info.cport,
                                     GB_AUDIO_DEVICES_REPORT_EVENT,
                                     sizeof(*hdr) + sizeof(*request));
     if (!operation)
-        return;
+        return -ENOMEM;
 
     request = gb_operation_get_request_payload(operation);
     request->devices.in_devices = cpu_to_le32(devices->in_devices);
     request->devices.out_devices = cpu_to_le32(devices->out_devices);
 
-    gb_operation_send_request(operation, NULL, false);
+    ret = gb_operation_send_request(operation, NULL, false);
+    if (ret)
+        gb_error("%s: failed reporting audio devices %d\n", __func__, ret);
     gb_operation_destroy(operation);
+
+    return ret;
 }
 
 static int gb_aud_init(unsigned int cport)
@@ -252,10 +255,19 @@ static int gb_aud_init(unsigned int cport)
         return -EIO;
 
     dev_info.cport = cport;
-    init_aud_data.report_devices = gb_audio_report_devices_request;
-    device_set_init_data(dev_info.dev, &init_aud_data);
+    device_audio_register_callback(dev_info.dev,
+                               gb_audio_report_devices_request_cb);
 
     return 0;
+}
+
+static void gb_aud_exit(unsigned int cport)
+{
+    if(dev_info.dev) {
+        device_audio_unregister_callback(dev_info.dev);
+        device_close(dev_info.dev);
+        dev_info.dev = NULL;
+    }
 }
 
 static struct gb_operation_handler gb_aud_handlers[] = {
@@ -272,6 +284,7 @@ static struct gb_operation_handler gb_aud_handlers[] = {
 
 static struct gb_driver gb_aud_driver = {
     .init = gb_aud_init,
+    .exit = gb_aud_exit,
     .op_handlers = (struct gb_operation_handler*)gb_aud_handlers,
     .op_handlers_count = ARRAY_SIZE(gb_aud_handlers),
 };
