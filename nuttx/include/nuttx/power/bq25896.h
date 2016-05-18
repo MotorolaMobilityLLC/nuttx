@@ -37,6 +37,10 @@
 #define BQ25896_REG00                       (0x00)
 #define BQ25896_REG00_INLIM_SHIFT           (0)      /* Bits 0-5: Input Current Limit */
 #define BQ25896_REG00_INLIM_MASK            (63 << BQ25896_REG00_INLIM_SHIFT)
+#define BQ25896_REG00_ILIM_SHIFT            (6)      /* Bit 6: Enable ILIM Pin */
+#define BQ25896_REG00_ILIM_MASK             (1 << BQ25896_REG00_ILIM_SHIFT)
+#define BQ25896_REG07_ILIM_DIS              (0 << BQ25896_REG00_ILIM_SHIFT)
+#define BQ25896_REG07_ILIM_EN               (1 << BQ25896_REG00_ILIM_SHIFT)
 
 #define BQ25896_REG02                       (0x02)
 #define BQ25896_REG02_ICO_SHIFT             (4)      /* Bit 4: Input Current Optimizer */
