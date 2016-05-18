@@ -61,7 +61,7 @@ int mhb_camera_i2c_write_reg1_16(uint16_t i2c_addr, uint16_t regaddr, uint8_t da
 int mhb_camera_i2c_write_reg2_16(uint16_t i2c_addr, uint16_t regaddr, uint16_t data);
 int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t data);
 
-int _mhb_camera_soc_enable();
+int _mhb_camera_soc_enable(uint8_t bootmode);
 int _mhb_camera_soc_disable();
 int _mhb_camera_stream_enable();
 int _mhb_camera_stream_configure();

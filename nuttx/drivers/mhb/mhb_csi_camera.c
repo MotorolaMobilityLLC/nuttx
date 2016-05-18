@@ -83,6 +83,7 @@ struct mhb_camera_s
     uint8_t apbe_state;
     uint8_t soc_enabled;
     uint8_t cdsi_instance;
+    uint8_t bootmode;
     pthread_mutex_t mutex;
     pthread_cond_t slave_cond;
     pthread_cond_t cdsi_cond;
@@ -673,7 +674,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
         }
     }
 
-    if (_mhb_camera_soc_enable()) {
+    if (_mhb_camera_soc_enable(s_mhb_camera.bootmode)) {
         CAM_ERR("Failed to turn on Camera SOC\n");
         goto failed_power_on;
     }
@@ -861,9 +862,10 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
 }
 
 /* CAMERA_EXT devops */
-static int _power_on(struct device *dev)
+static int _power_on(struct device *dev, uint8_t mode)
 {
     CAM_DBG("mhb_camera_csi\n");
+    s_mhb_camera.bootmode = mode;
     return mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_ON_REQ);
 }
 
@@ -912,6 +914,7 @@ static int _dev_probe(struct device *dev)
     mhb_camera->soc_enabled = 0;
     mhb_camera->apbe_state = MHB_PM_STATUS_PEER_DISCONNECTED;
     mhb_camera->mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
+    mhb_camera->bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
     memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
     _mhb_camera_init(dev);
     camera_ext_register_format_db(&mhb_camera_format_db);
