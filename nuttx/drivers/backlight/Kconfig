@@ -27,3 +27,25 @@ config BACKLIGHT_ISL98611_I2C_ADDR
 	---help---
 		ISL98611 I2C address.  Default: 0x29
 endif
+
+config BACKLIGHT_LM27965
+	bool "Intersil LM27965 support"
+	default n
+	select I2C
+	---help---
+		Intersil LM27965 backlight driver.
+
+if BACKLIGHT_LM27965
+config BACKLIGHT_LM27965_I2C_BUS
+	int "LM27965 I2C bus"
+	default 3
+	---help---
+		LM27965 I2C bus.  Default: 3
+
+config BACKLIGHT_LM27965_I2C_ADDR
+	hex "LM27965 I2C address"
+	default 0x36
+	---help---
+		LM27965 I2C address.  Default: 0x36  Alternative: 0x38
+endif
+
