@@ -81,7 +81,7 @@ typedef int (*camera_ext_event_cb_t)(struct device *dev, uint32_t ev_type,
 struct device_camera_ext_dev_type_ops {
     int (*register_event_cb)(struct device *dev, camera_ext_event_cb_t cb);
 
-    int (*power_on)(struct device *dev);
+    int (*power_on)(struct device *dev, uint8_t mode);
     int (*power_off)(struct device *dev);
     int (*stream_on)(struct device *dev);
     int (*stream_off)(struct device *dev);
@@ -119,7 +119,7 @@ struct device_camera_ext_dev_type_ops {
 
 IMPL_CAMERA_EXT_DEV_OP_ARG1(register_event_cb, camera_ext_event_cb_t, cb)
 
-IMPL_CAMERA_EXT_DEV_OP_ARG0(power_on)
+IMPL_CAMERA_EXT_DEV_OP_ARG1(power_on, uint8_t, mode)
 IMPL_CAMERA_EXT_DEV_OP_ARG0(power_off)
 IMPL_CAMERA_EXT_DEV_OP_ARG0(stream_on)
 IMPL_CAMERA_EXT_DEV_OP_ARG0(stream_off)

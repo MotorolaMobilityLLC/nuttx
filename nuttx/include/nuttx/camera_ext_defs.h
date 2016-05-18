@@ -267,4 +267,8 @@ struct camera_ext_event {
     char desc[CAMERA_EXT_EVENT_DESC_LEN];
 } __packed;
 
+#define CAMERA_EXT_BOOTMODE_NORMAL  0x00
+#define CAMERA_EXT_BOOTMODE_PREVIEW 0x01
+#define CAMERA_EXT_BOOTMODE_DFU     0x02
+
 #endif /* __CAMERA_EXT_DEFS_H */
