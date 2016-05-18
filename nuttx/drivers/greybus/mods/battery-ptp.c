@@ -333,8 +333,15 @@ static void batt_ptp_set_power_needs(struct ptp_info *info)
    enum ptp_power_required old_required = info->state.report.required;
 
 #ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
+    if (!info->state.ext_power && info->state.battery.chg_allowed)
+        info->state.report.required = PTP_POWER_REQUIRED;
+    else
+        info->state.report.required = PTP_POWER_NOT_REQUIRED;
+#else
     info->state.report.required = info->state.battery.chg_allowed ?
                                   PTP_POWER_REQUIRED : PTP_POWER_NOT_REQUIRED;
+#endif
 #else
     info->state.report.required = PTP_POWER_NOT_REQUIRED;
 #endif
@@ -540,6 +547,7 @@ static void batt_ptp_ext_power_changed(void *arg, struct device *const dev[])
         goto done;
 
     batt_ptp_set_power_availability(info);
+    batt_ptp_set_power_needs(info);
 
     batt_ptp_process(info->chg_dev, &info->state);
 
