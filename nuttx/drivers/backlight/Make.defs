@@ -47,4 +47,8 @@ ifeq ($(CONFIG_BACKLIGHT_ISL98611),y)
 CSRCS += backlight_isl98611.c
 endif
 
+ifeq ($(CONFIG_BACKLIGHT_LM27965),y)
+CSRCS += backlight_lm27965.c
+endif
+
 endif
