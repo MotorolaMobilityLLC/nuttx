@@ -28,6 +28,7 @@
 
 #include <nuttx/device_charger.h>
 #include <nuttx/power/bq24292.h>
+#include <nuttx/gpio.h>
 
 #include <debug.h>
 #include <errno.h>
@@ -50,7 +51,22 @@ struct bq24292_charger_info {
     charger_boost_fault boost_fault_cb;
     void *boost_fault_arg;
     sem_t boost_fault_sem; /* mutex to register and run callback */
+    /* charge enable gpio that controls BQ24292 CE_N pin */
+    int chg_en;
+    bool chg_en_active_high;
 };
+
+/* Drive charge IC CE_N pin */
+static void set_bq24292_ce_pin(const struct bq24292_charger_info *info,
+                               bool charge)
+{
+    if (info->chg_en >= 0) {
+        if (info->chg_en_active_high)
+            gpio_set_value(info->chg_en, charge ? 1 : 0);
+        else
+            gpio_set_value(info->chg_en, charge ? 0 : 1);
+    }
+}
 
 static void set_bq24292_limits(const struct charger_config *cfg)
 {
@@ -71,6 +87,8 @@ static void config_bq24292(struct bq24292_charger_info *info, enum chg chg,
         info->settings.cfg = *cfg; /* for power good callback */
         set_bq24292_limits(cfg);
     }
+
+    set_bq24292_ce_pin(info, chg == BQ24292_CHG_BATTERY);
 
     info->settings.chg = chg; /* for power good callback */
     (void) bq24292_set_chg(chg);
@@ -202,6 +220,15 @@ static int bq24292_charger_register_boost_fault_cb(struct device *dev,
     return 0;
 }
 
+static int bq24292_get_gpio(struct device *dev, char* name)
+{
+    struct device_resource *r;
+
+    r = device_resource_get_by_name(dev, DEVICE_RESOURCE_TYPE_GPIO, name);
+    return r ? r->start : -1;
+}
+
+
 static int bq24292_charger_probe(struct device *dev)
 {
     struct bq24292_charger_info *info;
@@ -211,6 +238,17 @@ static int bq24292_charger_probe(struct device *dev)
         dbg("failed to allocate memory\n");
         return -ENOMEM;
     }
+
+    /* Optional CHG_EN signal */
+    info->chg_en = bq24292_get_gpio(dev, "chg_en");
+    if (info->chg_en >= 0)
+        info->chg_en_active_high = true;
+    else
+        info->chg_en = bq24292_get_gpio(dev, "chg_en_n");
+
+    /* Disable charging by default */
+    if (info->chg_en >= 0)
+        gpio_direction_out(info->chg_en, info->chg_en_active_high ? 0 : 1);
 
     device_set_private(dev, info);
     return 0;
