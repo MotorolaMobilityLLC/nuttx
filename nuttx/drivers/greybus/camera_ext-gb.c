@@ -209,8 +209,16 @@ static uint8_t gb_camera_protocol_version(struct gb_operation *operation)
 static uint8_t gb_camera_power_on(struct gb_operation *operation)
 {
     int retval;
+    uint8_t *mode;
 
-    retval = CALL_CAM_DEV_OP(dev_info.dev, power_on);
+    if (gb_operation_get_request_payload_size(operation) == sizeof(uint8_t)) {
+        mode = (uint8_t*)gb_operation_get_request_payload(operation);
+        retval = CALL_CAM_DEV_OP(dev_info.dev, power_on, *mode);
+    } else {
+        CAM_ERR("invalid request size\n");
+        retval = -EINVAL;
+    }
+
     CAM_DBG("result %d\n", retval);
     return gb_operation_errno_map(retval);
 }
