@@ -17,7 +17,9 @@ choice
 
 config PWR_LIMIT_DUMMY
 	bool "Use no-op sample skeleton"
-	default y
+
+config PWR_LIMIT_CUSTOM
+	bool "Use custom power limit driver"
 endchoice
 endif
 
