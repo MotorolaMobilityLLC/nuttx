@@ -475,8 +475,6 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
     case MHB_TYPE_CDSI_UNCONFIG_RSP:
         if (display->state == MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI) {
             /* unconfig-dsi -> off */
-            _mhb_dsi_display_power_off(display);
-
             display->state = MHB_DSI_DISPLAY_STATE_OFF;
             _mhb_dsi_display_signal_response(display);
             error = 0;
@@ -819,6 +817,9 @@ static int _mhb_dsi_display_set_state_off(struct mhb_dsi_display *display)
     if (result) {
         lldbg("ERROR: stop failed: %d\n", result);
     }
+
+    /* Turn panel off. */
+    _mhb_dsi_display_power_off(display);
 
     /* Request APBE off. */
     _mhb_dsi_display_apbe_off(display);
