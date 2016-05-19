@@ -165,8 +165,8 @@ struct greybus_descriptor_cport {
  * Descriptor containing the vendor ID and product ID
  */
 struct greybus_descriptor_ids {
-	__le32   vid;
 	__le32   pid;
+	__le32   vid;
 } __packed;
 
 struct greybus_descriptor_header {
