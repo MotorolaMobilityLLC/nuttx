@@ -865,7 +865,7 @@ uint8_t _mhb_camera_get_csi_rx_lanes(const void *udata)
     return 4;
 }
 
-int _mhb_camera_soc_enable(void)
+int _mhb_camera_soc_enable(uint8_t mode)
 {
     gpio_direction_out(s_data.dvdd_en, 1);
     gpio_direction_out(s_data.areg_en, 1);
