@@ -199,7 +199,7 @@ static int mhb_i2s_audio_slave_status_callback(struct device *dev,
     if (i2s->slave_state == slave_status) {
         sem_post(&i2s->lock);
         return 0;
-   }
+    }
 
     if (slave_status == MHB_PM_STATUS_PEER_CONNECTED &&
                           (i2s->state & MHB_I2S_STATE_PENDING)) {
@@ -559,6 +559,7 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
         dai_cfg.config.i2s_dai.wclk_change_edge = i2s_dai->wclk_change_edge;
         dai_cfg.config.i2s_dai.data_rx_edge = i2s_dai->data_rx_edge;
         dai_cfg.config.i2s_dai.data_tx_edge = i2s_dai->data_tx_edge;
+        dai_cfg.config.i2s_dai.protocol = i2s_dai->protocol;
 
         result = device_audio_set_config(i2s->audio_dev, &pcm_cfg, &dai_cfg);
         if (result) {
@@ -672,6 +673,7 @@ static int mhb_i2s_op_start_tx_stream(struct device *dev)
             if (i2s->audio_dev)
                 device_audio_tx_dai_start(i2s->audio_dev);
         } else {
+           lldbg("ERROR: send control req rsp failed %d\n", rsp->hdr.result);
            result = -EIO;
            goto out;
         }
@@ -773,45 +775,6 @@ out:
     return 0;
 }
 
-static int mhb_i2s_op_start(struct mhb_i2s_audio *i2s)
-{
-    int result;
-
-    if (!i2s->slave_pwr_ctrl) {
-        i2s->slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW,
-            MHB_ADDR_I2S);
-        if (!i2s->slave_pwr_ctrl) {
-           lldbg("ERROR: Failed to open slave pwr ctrl device\n");
-            return -ENODEV;
-        }
-        result = device_slave_pwrctrl_register_status_callback(i2s->slave_pwr_ctrl,
-                             mhb_i2s_audio_slave_status_callback);
-        if (result) {
-            lldbg("ERROR: Failed to register slave pwr ctrl cb\n");
-            return result;
-        }
-    }
-
-    _mhb_i2s_audio_apbe_on(i2s);
-
-    return 0;
-}
-
-static int mhb_i2s_op_stop(struct mhb_i2s_audio *i2s)
-{
-    _mhb_i2s_audio_apbe_off(i2s);
-
-    if(i2s->slave_pwr_ctrl) {
-        device_slave_pwrctrl_unregister_status_callback(
-                  i2s->slave_pwr_ctrl, mhb_i2s_audio_slave_status_callback);
-        device_close(i2s->slave_pwr_ctrl);
-        i2s->slave_pwr_ctrl = NULL;
-        i2s->slave_state = MHB_PM_STATUS_PEER_NONE;
-    }
-
-    return 0;
-}
-
 static int mhb_i2s_op_start_rx(struct device *dev)
 {
     struct mhb_i2s_audio *i2s = device_get_private(dev);
@@ -825,13 +788,11 @@ static int mhb_i2s_op_start_rx(struct device *dev)
     if (i2s->state == MHB_I2S_AUDIO_START)
         goto out;
 
-    result = mhb_i2s_op_start(i2s);
-    if (result) {
-        lldbg("ERROR: failed start mhb i2s\n");
-        goto out;
-    }
-
     i2s->state = MHB_I2S_AUDIO_START;
+
+    result = _mhb_i2s_audio_apbe_on(i2s);
+    if (result)
+        lldbg("ERROR: failed start mhb i2s\n");
 
 out:
     sem_post(&i2s->lock);
@@ -851,14 +812,11 @@ static int mhb_i2s_op_start_tx(struct device *dev)
     if (i2s->state == MHB_I2S_AUDIO_START)
         goto out;
 
-    result = mhb_i2s_op_start(i2s);
-    if (result) {
-        lldbg("ERROR: failed start mhb i2s\n");
-        goto out;
-    }
-
     i2s->state = MHB_I2S_AUDIO_START;
 
+    result = _mhb_i2s_audio_apbe_on(i2s);
+    if (result)
+        lldbg("ERROR: failed start mhb i2s\n");
 out:
     sem_post(&i2s->lock);
     return result;
@@ -872,10 +830,12 @@ static int mhb_i2s_op_stop_rx(struct device *dev)
         return -ENODEV;
 
     sem_wait(&i2s->lock);
-    mhb_i2s_op_stop(i2s);
 
     i2s->state = MHB_I2S_AUDIO_OFF;
     i2s->i2s_status &= ~MHB_I2S_RX_ACTIVE;
+    _mhb_i2s_audio_apbe_off(i2s);
+    i2s->slave_state = MHB_PM_STATUS_PEER_NONE;
+
     sem_post(&i2s->lock);
 
     return 0;
@@ -889,10 +849,12 @@ static int mhb_i2s_op_stop_tx(struct device *dev)
         return -ENODEV;
 
     sem_wait(&i2s->lock);
-    mhb_i2s_op_stop(i2s);
 
     i2s->state = MHB_I2S_AUDIO_OFF;
     i2s->i2s_status &= ~MHB_I2S_TX_ACTIVE;
+    _mhb_i2s_audio_apbe_off(i2s);
+    i2s->slave_state = MHB_PM_STATUS_PEER_NONE;
+
     sem_post(&i2s->lock);
 
     return 0;
@@ -950,10 +912,19 @@ static int _mhb_i2s_handle_msg(struct device *dev,
                     break;
                 }
                 if (hdr->type == MHB_TYPE_I2S_CONFIG_RSP) {
-                    if (i2s->i2s_status & MHB_I2S_RX_ACTIVE)
+                    if (i2s->i2s_status & MHB_I2S_RX_ACTIVE) {
                         mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_RX_START);
-                    if (i2s->i2s_status & MHB_I2S_TX_ACTIVE)
+                        /* trigger audio codec to start receiving */
+                        if (i2s->audio_dev)
+                             device_audio_rx_dai_start(i2s->audio_dev);
+
+                    }
+                    if (i2s->i2s_status & MHB_I2S_TX_ACTIVE) {
                         mhb_i2s_send_control_req(i2s, MHB_I2S_COMMAND_TX_START);
+                        /* trigger audio codec to start transmitting */
+                        if (i2s->audio_dev)
+                             device_audio_tx_dai_start(i2s->audio_dev);
+                    }
                 } else if (hdr->type == MHB_TYPE_I2S_CONTROL_RSP)
                     i2s->state &= ~MHB_I2S_STATE_PENDING;
                 break;
@@ -1038,6 +1009,21 @@ static int mhb_i2s_dev_open(struct device *dev)
     device_mhb_register_receiver(i2s->mhb_dev, MHB_ADDR_I2S,
                                  _mhb_i2s_handle_msg);
 
+
+    i2s->slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+            MHB_ADDR_I2S);
+    if (!i2s->slave_pwr_ctrl) {
+        lldbg("ERROR: Failed to open slave pwr ctrl device\n");
+        result = -ENODEV;
+        goto err;
+    }
+    result = device_slave_pwrctrl_register_status_callback(i2s->slave_pwr_ctrl,
+                             mhb_i2s_audio_slave_status_callback);
+    if (result) {
+        lldbg("ERROR: Failed to register slave pwr ctrl cb\n");
+        goto err;
+    }
+
     memcpy(&i2s->common_pcm_cfg, &tsb_i2s_pcm, sizeof(struct device_i2s_pcm));
     memcpy(&i2s->common_dai_cfg, &tsb_i2s_dai, sizeof(struct device_i2s_dai));
     i2s->audio_dev = device_open(DEVICE_TYPE_MUC_AUD_HW, DEVICE_AUDIO_MHB_ID);
@@ -1060,8 +1046,6 @@ static int mhb_i2s_dev_open(struct device *dev)
     } else {
         lldbg("WARN: failed to open audio device.\n");
     }
-
-    // TODO: Request APBE on.
 
     result = 0;
 
@@ -1099,6 +1083,13 @@ static void mhb_i2s_dev_close(struct device *dev) {
     if (i2s->audio_dev) {
         device_close(i2s->audio_dev);
         i2s->audio_dev = NULL;
+    }
+    if(i2s->slave_pwr_ctrl) {
+        device_slave_pwrctrl_unregister_status_callback(
+                  i2s->slave_pwr_ctrl, mhb_i2s_audio_slave_status_callback);
+        device_close(i2s->slave_pwr_ctrl);
+        i2s->slave_pwr_ctrl = NULL;
+        i2s->slave_state = MHB_PM_STATUS_PEER_NONE;
     }
     sem_destroy(&i2s->lock);
     pthread_mutex_destroy(&i2s->mutex);
