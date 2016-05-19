@@ -583,10 +583,9 @@ static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
     dst->t_clk_post = src->t_clk_post;
 
     dst->continuous_clock = src->continuous_clock;
-    dst->eot_mode = DISPLAY_CONFIG_DSI_EOT_MODE_APPEND;
-    dst->vsync_mode = (src->vsync_mode == 1) ?
-        DISPLAY_CONFIG_DSI_VSYNC_MODE_GPIO : DISPLAY_CONFIG_DSI_VSYNC_MODE_NONE;
-    dst->traffic_mode = DISPLAY_CONFIG_DSI_TRAFFIC_MODE_BURST;
+    dst->eot_mode = src->eot_mode;
+    dst->vsync_mode = src->vsync_mode;
+    dst->traffic_mode = src->traffic_mode;
 
     dst->virtual_channel_id = 0;
     dst->color_order = DISPLAY_CONFIG_DSI_SWAP_RGB_TO_RGB;
