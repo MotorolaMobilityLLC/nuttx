@@ -348,6 +348,22 @@ struct mhb_unipro_stats_not {
 } __attribute__((packed));
 
 /* CDSI */
+enum mhb_csi_vsync_mode {
+    MHB_CDSI_VSYNC_MODE_NONE = 0x00,
+    MHB_CDSI_VSYNC_MODE_GPIO = 0x01,
+    MHB_CDSI_VSYNC_MODE_DCS  = 0x02,
+};
+
+enum mhb_cdsi_eot_mode {
+    MHB_CDSI_EOT_MODE_NONE   = 0x00,
+    MHB_CDSI_EOT_MODE_APPEND = 0x01,
+};
+
+enum mhb_cdsi_traffic_mode {
+    MHB_CDSI_TRAFFIC_MODE_NON_BURST_SYNC_PULSE = 0x00,
+    MHB_CDSI_TRAFFIC_MODE_NON_BURST_SYNC_EVENT = 0x01,
+    MHB_CDSI_TRAFFIC_MODE_BURST                = 0x02,
+};
 
 /* config */
 struct mhb_cdsi_config {
@@ -378,7 +394,7 @@ struct mhb_cdsi_config {
 	uint8_t bta_enabled;             /* 0: disabled, 1: enabled */
 	uint8_t continuous_clock;        /* 0: off, 1: on */
 	uint8_t blank_packet_enabled;
-	uint8_t video_mode;              /* 0: video, 1: command */
+	uint8_t video_mode;              /* 0: command, 1: video */
 	uint8_t color_bar_enabled;       /* 0: disabled */
 	uint8_t keep_alive;              /* 0: disabled */
 
@@ -397,7 +413,12 @@ struct mhb_cdsi_config {
 	uint8_t vertical_pulse_width;    /* lines */
 	uint8_t vertical_top_border;     /* lines */
 	uint8_t vertical_bottom_border;  /* lines */
-	uint8_t vsync_mode;              /* 0: none, 1: gpio, 2: dcs */
+
+	uint8_t vsync_mode;              /* mhb_csi_vsync_mode */
+	uint8_t eot_mode;                /* mhb_cdsi_eot_mode */
+	uint8_t traffic_mode;            /* mhb_cdsi_traffic_mode */
+
+	uint8_t reserved[6];
 } __attribute__((packed));
 
 struct mhb_cdsi_config_req {
