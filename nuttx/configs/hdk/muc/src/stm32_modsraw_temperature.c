@@ -44,6 +44,7 @@
 #include <nuttx/greybus/debug.h>
 #include <nuttx/device.h>
 #include <nuttx/device_raw.h>
+#include <nuttx/power/pm.h>
 #include <nuttx/time.h>
 #include <nuttx/wqueue.h>
 #include <arch/board/mods.h>
@@ -87,6 +88,7 @@ static const uint32_t g_pinlist[ADC1_NCHANNELS]  = {GPIO_ADC1_IN4};
 #define TEMP_RAW_AES_BLOCK_SIZE     16
 #define TEMP_RAW_AES_CLIENT_ADDS    777
 
+/* AES key, encrypted and decrypted data */
 struct temp_raw_aes {
     char    key[TEMP_RAW_AES_BLOCK_SIZE];
     uint8_t input[TEMP_RAW_AES_BLOCK_SIZE];
@@ -95,27 +97,33 @@ struct temp_raw_aes {
 };
 
 struct temp_raw_info {
-    struct device *gDevice;
-    struct work_s data_report_work;
-    uint16_t interval;
-    raw_send_callback gCallback;
-    uint8_t client_verified;
-    struct temp_raw_aes tr_aes;
+    struct device *gDevice;         /* device handle for this driver */
+    uint16_t interval;              /* reporting interval */
+    raw_send_callback gCallback;    /* callback to send back messages */
+    uint8_t client_verified;        /* flag to indicate client was verified */
+    struct temp_raw_aes tr_aes;     /* device aes structure */
 };
 
+static struct work_s data_report_work; /* work queue for data reporting */
+
+/*
+ * Message structure between this driver and client.
+ * |   1-byte   |  1-byte           |   N bytes         |
+ * |   CMD ID   |  PAYLOAD SIZE (N) |   PAYLOAD  DATA   |
+ */
 struct temp_raw_msg {
     uint8_t     cmd_id;
     uint8_t     size;
     uint8_t     payload[];
 } __packed;
 
+/* device attributes */
 struct temp_raw_attr {
-    uint8_t     version;
-    uint8_t     reserved;
-    uint16_t    max_interval;
-    uint8_t     name[64];
+    uint8_t     version;        /* device driver version */
+    uint8_t     reserved;       /* reserved */
+    uint16_t    max_interval;   /* max report interval device supports */
+    uint8_t     name[64];       /* name of the device */
 } __packed;
-
 
 /**
  * Initialize ADC1 interface and register the ADC driver.
@@ -249,11 +257,11 @@ static void temp_raw_worker(void *arg)
                 sizeof(sample.am_data), (uint8_t *)&sample.am_data, 0);
 
     /* cancel any work and reset ourselves */
-    if (!work_available(&info->data_report_work))
-        work_cancel(LPWORK, &info->data_report_work);
+    if (!work_available(&data_report_work))
+        work_cancel(LPWORK, &data_report_work);
 
     /* schedule work */
-    work_queue(LPWORK, &info->data_report_work,
+    work_queue(LPWORK, &data_report_work,
                 temp_raw_worker, info, MSEC2TICK(info->interval));
 errout:
     return;
@@ -371,21 +379,23 @@ static int temp_raw_recv(struct device *dev, uint32_t len, uint8_t data[])
                 info->interval = TEMP_RAW_MAX_LATENCY;
 
             /* cancel any work and reset ourselves */
-            if (!work_available(&info->data_report_work))
-                work_cancel(LPWORK, &info->data_report_work);
+            if (!work_available(&data_report_work))
+                work_cancel(LPWORK, &data_report_work);
 
             /* schedule work */
-            work_queue(LPWORK, &info->data_report_work,
+            work_queue(LPWORK, &data_report_work,
                         temp_raw_worker, info, 0);
+
             break;
 
         case TEMP_RAW_COMMAND_OFF:
             llvdbg("TEMP_RAW_COMMAND_OFF\n");
             /* cancel any work and reset ourselves */
-            if (!work_available(&info->data_report_work))
-                work_cancel(LPWORK, &info->data_report_work);
+            if (!work_available(&data_report_work))
+                work_cancel(LPWORK, &data_report_work);
 
             gpio_set_value(GPIO_MODS_DEMO_ENABLE, 0);
+
             break;
 
         default:
@@ -395,6 +405,29 @@ static int temp_raw_recv(struct device *dev, uint32_t len, uint8_t data[])
 
     return 0;
 }
+
+/*
+ * Prepare callback from power management.
+ * This driver returns non-zero value when data
+ * reporting is enabled.
+ */
+#ifdef CONFIG_PM
+static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
+{
+    /*
+    * Do not allow IDLE when work is scheduled
+    */
+    if ((state >= PM_IDLE) && (!work_available(&data_report_work)))
+        return -EIO;
+
+    return OK;
+}
+
+static struct pm_callback_s pm_callback =
+{
+  .prepare = pm_prepare,
+};
+#endif
 
 /**
  * register the send callback function.
@@ -453,6 +486,13 @@ static int temp_raw_probe(struct device *dev)
     gpio_direction_out(GPIO_MODS_DEMO_ENABLE, 0);
 
     sprintf(&info->tr_aes.key[0], TEMP_RAW_AES_KEY);
+
+#ifdef CONFIG_PM
+    if (pm_register(&pm_callback) != OK)
+    {
+        dbg("Failed register to power management!\n");
+    }
+#endif
 
     llvdbg("Probe complete\n");
 
