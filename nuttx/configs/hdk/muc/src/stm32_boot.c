@@ -496,6 +496,14 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+#ifdef CONFIG_BACKLIGHT_LM27965
+    {
+        .type = DEVICE_TYPE_LIGHTS_HW,
+        .name = "lm27965_backlight",
+        .desc = "LM27965 Backlight",
+        .id   = 0,
+    },
+#endif
 
 #ifdef CONFIG_FUSB302
     {
@@ -725,6 +733,10 @@ void board_initialize(void)
 #ifdef CONFIG_BACKLIGHT_ISL98611
    extern struct device_driver isl98611_backlight_driver;
    device_register_driver(&isl98611_backlight_driver);
+#endif
+#ifdef CONFIG_BACKLIGHT_LM27965
+   extern struct device_driver lm27965_backlight_driver;
+   device_register_driver(&lm27965_backlight_driver);
 #endif
 #if defined(CONFIG_CAMERA_MHB)
    extern struct device_driver cam_ext_mhb_driver;
