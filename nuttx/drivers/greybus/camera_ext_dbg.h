@@ -31,35 +31,40 @@
 
 #include <stdio.h>
 
-#define DEBUG_DMESG
+#ifdef CONFIG_NSH_CONSOLE
+    #ifdef CONFIG_DEBUG_TIMESTAMP
+    #define DEBUG_PRINT(fmt, ...) \
+        do {                                                             \
+            struct timespec __time;                                      \
+            up_rtc_gettime(&__time);                                     \
+            lldbg(fmt, ##__VA_ARGS__);                                   \
+            printf("[%u.%03u] %s: " fmt, __time.tv_sec,                  \
+                   (__time.tv_nsec / 1000000), __func__, ##__VA_ARGS__); \
+        } while (0)
+    #else
+    #define DEBUG_PRINT(fmt, ...) \
+        do {                                               \
+            printf("%s: " fmt, __func__, ##__VA_ARGS__);   \
+            lldbg(fmt, ##__VA_ARGS__);                     \
+        } while (0)
+    #endif
+#else
+    #define DEBUG_PRINT(fmt, ...) \
+        lldbg(fmt, ##__VA_ARGS__)
+#endif
 
 #ifdef DEBUG
-    #ifndef DEBUG_DMESG
-        #define CAM_DBG(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
-    #else
-        #define CAM_DBG(fmt, ...) lldbg(fmt, ##__VA_ARGS__)
-    #endif
+    #define CAM_DBG(fmt, ...) DEBUG_PRINT(fmt, ##__VA_ARGS__)
 #else
     #define CAM_DBG(x...)
 #endif
 
 #ifdef DEBUG_CTRL
-    #ifndef DEBUG_DMESG
-        #define CTRL_DBG(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
-    #else
-        #define CTRL_DBG(fmt, ...) lldbg(fmt, ##__VA_ARGS__)
-    #endif
+    #define CTRL_DBG(fmt, ...) DEBUG_PRINT(fmt, ##__VA_ARGS__)
 #else
     #define CTRL_DBG(x...)
 #endif
 
-
-#ifndef DEBUG_DMESG
-    #define CAM_ERR(fmt, ...) printf("%s: " fmt, __func__, ##__VA_ARGS__)
-#else
-    #define CAM_ERR(fmt, ...) lldbg(fmt, ##__VA_ARGS__)
-#endif
-
-#define CAM_INFO(fmt, ...)  lldbg(fmt, ##__VA_ARGS__)
+#define CAM_ERR(fmt, ...)   DEBUG_PRINT(fmt, ##__VA_ARGS__)
 
 #endif
