@@ -431,3 +431,14 @@ config TSB_GPIO_TUNNEL_NUM_TX
 	int "Number of TX GPIOs"
 	default 0
 endif
+
+config TSB_WATCHDOG
+	bool "Enable TSB Watchdog"
+	default n
+	---help---
+		Enable TSB Watchdog.
+
+config TSB_WDG_DEFTIMEOUT
+	int "Watchdog default timeout in milliseconds"
+	default 5000
+	depends on TSB_WATCHDOG

@@ -185,3 +185,7 @@ endif
 ifeq ($(CONFIG_TSB_GPIO_TUNNEL), y)
 CHIP_CSRCS += tsb_gpio_tunnel.c
 endif
+
+ifeq ($(CONFIG_TSB_WATCHDOG), y)
+CHIP_CSRCS += tsb_watchdog.c
+endif
