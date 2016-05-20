@@ -608,6 +608,19 @@ static const struct camera_ext_ctrl_cfg lens_optical_stabilization_mode = {
     .set_ctrl = ctrl_val_set,
 };
 
+static const struct camera_ext_ctrl_cfg lens_manual_focus_position = {
+    .id = CAM_EXT_CID_MANUAL_FOCUS_POSITION,
+    .flags = CAMERA_EXT_CTRL_FLAG_NEED_MIN
+        | CAMERA_EXT_CTRL_FLAG_NEED_MAX,
+    .min = 0,
+    .max = 100,
+    .val_cfg = {
+        .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
+        .nr_of_elem = 1,
+    },
+    .set_ctrl = ctrl_val_set,
+};
+
 static const struct camera_ext_ctrl_cfg reprocess_effective_exposure_factore = {
     .id = CAM_EXT_CID_REPROCESS_EFFECTIVE_EXPOSURE_FACTOR,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
@@ -1456,6 +1469,7 @@ static const struct camera_ext_ctrl_cfg *testing_ctrls[] = {
     &lens_info_minimum_focus_distance,
     &lens_focus_distance,
     &lens_optical_stabilization_mode,
+    &lens_manual_focus_position,
     &reprocess_effective_exposure_factore,
     &reprocess_max_capture_stall,
     &depth_depth_is_exclusive,
