@@ -58,14 +58,10 @@ const static struct mhb_cdsi_config DISPLAY_CONFIG = {
 
     .tx_num_lanes = 4,
     .rx_num_lanes = 4,
-    .tx_bits_per_lane = 807540000,
+    .tx_bits_per_lane = 998400000,
     .rx_bits_per_lane = 807540000,
 
     .hs_rx_timeout = 0xffffffff,
-
-    .pll_frs = 0,
-    .pll_prd = 1,
-    .pll_fbd = 103,
 
     .framerate = 60,
     .width = 1080,
