@@ -101,6 +101,23 @@ static int apbe_pwrctrl_op_get_mask(struct device *dev, uint32_t *mask)
     return OK;
 }
 
+static int apbe_pwrctrl_notify_slave_status(struct device *dev,
+                                    struct apbe_ctrl_info *ctrl_info)
+{
+    int i;
+
+    sem_wait(&ctrl_info->apbe_pwrctrl_sem);
+
+    for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
+        if (ctrl_info->slave_status_cb[i]) {
+            ctrl_info->slave_status_cb[i](dev, ctrl_info->status);
+        }
+    }
+    sem_post(&ctrl_info->apbe_pwrctrl_sem);
+
+    return 0;
+}
+
 static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode mode)
 {
     struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
@@ -116,7 +133,8 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
     case SLAVE_PWRCTRL_POWER_OFF:
     default:
         apbe_power_off();
-
+        ctrl_info->status = MHB_PM_STATUS_PEER_NONE;
+        apbe_pwrctrl_notify_slave_status(dev, ctrl_info);
         if (ctrl_info->mhb_dev) {
             device_mhb_restart(ctrl_info->mhb_dev);
         }
@@ -150,7 +168,6 @@ static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
 {
     struct apbe_ctrl_info *ctrl_info = &apbe_ctrl;
     struct mhb_pm_status_not *not = (struct mhb_pm_status_not *)payload;
-    size_t i;
 
     if (hdr->type != MHB_TYPE_PM_STATUS_NOT) {
         /* Ignore other messages */
@@ -163,12 +180,7 @@ static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
     }
 
     ctrl_info->status = not->status;
-
-    for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
-        if (ctrl_info->slave_status_cb[i]) {
-            ctrl_info->slave_status_cb[i](dev, not->status);
-        }
-    }
+    apbe_pwrctrl_notify_slave_status(dev, ctrl_info);
 
     return 0;
 }
