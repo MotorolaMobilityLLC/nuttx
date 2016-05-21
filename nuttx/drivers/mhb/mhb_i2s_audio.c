@@ -834,7 +834,6 @@ static int mhb_i2s_op_stop_rx(struct device *dev)
     i2s->state = MHB_I2S_AUDIO_OFF;
     i2s->i2s_status &= ~MHB_I2S_RX_ACTIVE;
     _mhb_i2s_audio_apbe_off(i2s);
-    i2s->slave_state = MHB_PM_STATUS_PEER_NONE;
 
     sem_post(&i2s->lock);
 
@@ -853,7 +852,6 @@ static int mhb_i2s_op_stop_tx(struct device *dev)
     i2s->state = MHB_I2S_AUDIO_OFF;
     i2s->i2s_status &= ~MHB_I2S_TX_ACTIVE;
     _mhb_i2s_audio_apbe_off(i2s);
-    i2s->slave_state = MHB_PM_STATUS_PEER_NONE;
 
     sem_post(&i2s->lock);
 
