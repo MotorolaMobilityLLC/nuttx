@@ -219,6 +219,21 @@ static int max17050_reg_write(FAR struct max17050_dev_s *priv, uint8_t reg, uint
     return I2C_WRITE(priv->i2c, buf, sizeof(buf));
 }
 
+static int max17050_reg_write_retry(FAR struct max17050_dev_s *priv, uint16_t reg, uint16_t val)
+{
+    int tries = 8;
+    int ret;
+
+    do {
+        ret = max17050_reg_write(priv, reg, val);
+        if (!ret) {
+            break;
+        }
+    } while (--tries);
+
+    return ret;
+}
+
 static int max17050_reg_write_verify(FAR struct max17050_dev_s *priv, uint16_t reg, uint16_t val)
 {
     int tries = 8;
@@ -467,9 +482,9 @@ static int max17050_enable_alrt(FAR struct max17050_dev_s *priv, bool state)
                                set);
 }
 
-#define WRITE(priv, reg, val)                                   \
+#define WRITE_RETRY(priv, reg, val)                             \
     do {                                                        \
-        int ret = max17050_reg_write(priv, reg, val);           \
+        int ret = max17050_reg_write_retry(priv, reg, val);     \
         if (ret) {                                              \
             dbg("err %d write to %x\n", ret, reg);              \
             return ret;                                         \
@@ -487,27 +502,27 @@ static int max17050_enable_alrt(FAR struct max17050_dev_s *priv, bool state)
 
 static int max17050_por_perform_init_config(FAR struct max17050_dev_s *priv)
 {
-    WRITE(priv, MAX17050_REG_CONFIG, max17050_cfg.config);
-    WRITE(priv, MAX17050_REG_FILTER_CFG, max17050_cfg.filter_cfg);
-    WRITE(priv, MAX17050_REG_RELAX_CFG, max17050_cfg.relax_cfg);
-    WRITE(priv, MAX17050_REG_LEARN_CFG, max17050_cfg.learn_cfg);
-    WRITE(priv, MAX17050_REG_FULL_SOC_THR, max17050_cfg.full_soc_thr);
+    WRITE_RETRY(priv, MAX17050_REG_CONFIG, max17050_cfg.config);
+    WRITE_RETRY(priv, MAX17050_REG_FILTER_CFG, max17050_cfg.filter_cfg);
+    WRITE_RETRY(priv, MAX17050_REG_RELAX_CFG, max17050_cfg.relax_cfg);
+    WRITE_RETRY(priv, MAX17050_REG_LEARN_CFG, max17050_cfg.learn_cfg);
+    WRITE_RETRY(priv, MAX17050_REG_FULL_SOC_THR, max17050_cfg.full_soc_thr);
 
     return 0;
 }
 
 static int max17050_por_unlock_model(FAR struct max17050_dev_s *priv)
 {
-    WRITE(priv, MAX17050_REG_MODEL_ACCESS_1, MAX17050_MODEL_UNLOCK_1);
-    WRITE(priv, MAX17050_REG_MODEL_ACCESS_2, MAX17050_MODEL_UNLOCK_2);
+    WRITE_RETRY(priv, MAX17050_REG_MODEL_ACCESS_1, MAX17050_MODEL_UNLOCK_1);
+    WRITE_RETRY(priv, MAX17050_REG_MODEL_ACCESS_2, MAX17050_MODEL_UNLOCK_2);
 
     return 0;
 }
 
 static int max17050_por_lock_model(FAR struct max17050_dev_s *priv)
 {
-    WRITE(priv, MAX17050_REG_MODEL_ACCESS_1, MAX17050_MODEL_LOCK_1);
-    WRITE(priv, MAX17050_REG_MODEL_ACCESS_2, MAX17050_MODEL_LOCK_2);
+    WRITE_RETRY(priv, MAX17050_REG_MODEL_ACCESS_1, MAX17050_MODEL_LOCK_1);
+    WRITE_RETRY(priv, MAX17050_REG_MODEL_ACCESS_2, MAX17050_MODEL_LOCK_2);
 
     return 0;
 }
@@ -517,7 +532,7 @@ static int max17050_por_write_cell_data(FAR struct max17050_dev_s *priv)
     int i;
 
     for (i = 0; i < MAX17050_CELL_DATA_SIZE; i++)
-        WRITE(priv, MAX17050_REG_CELL_DATA_START + i, max17050_cfg.cell_data[i]);
+        WRITE_RETRY(priv, MAX17050_REG_CELL_DATA_START + i, max17050_cfg.cell_data[i]);
 
     return 0;
 }
@@ -594,9 +609,9 @@ static int max17050_por_write_custom_params(FAR struct max17050_dev_s *priv)
     WRITE_VERIFY(priv, MAX17050_REG_RCOMP0, max17050_cfg.rcomp0);
     WRITE_VERIFY(priv, MAX17050_REG_TEMPCO, max17050_cfg.tempco);
 
-    WRITE(priv, MAX17050_REG_ICHG_TERM, max17050_cfg.ichg_term);
-    WRITE(priv, MAX17050_REG_TGAIN, max17050_cfg.tgain);
-    WRITE(priv, MAX17050_REG_TOFF, max17050_cfg.toff);
+    WRITE_RETRY(priv, MAX17050_REG_ICHG_TERM, max17050_cfg.ichg_term);
+    WRITE_RETRY(priv, MAX17050_REG_TGAIN, max17050_cfg.tgain);
+    WRITE_RETRY(priv, MAX17050_REG_TOFF, max17050_cfg.toff);
 
     WRITE_VERIFY(priv, MAX17050_REG_Q_RESIDUAL_00, max17050_cfg.qr_table_00);
     WRITE_VERIFY(priv, MAX17050_REG_Q_RESIDUAL_10, max17050_cfg.qr_table_10);
@@ -604,8 +619,8 @@ static int max17050_por_write_custom_params(FAR struct max17050_dev_s *priv)
     WRITE_VERIFY(priv, MAX17050_REG_Q_RESIDUAL_30, max17050_cfg.qr_table_30);
 
 #ifdef CONFIG_BATTERY_MAX17050_EMPTY_CFG
-    WRITE(priv, MAX17050_REG_IAVG_EMPTY, max17050_cfg.iavg_empty);
-    WRITE(priv, MAX17050_REG_V_EMPTY, max17050_cfg.v_empty);
+    WRITE_RETRY(priv, MAX17050_REG_IAVG_EMPTY, max17050_cfg.iavg_empty);
+    WRITE_RETRY(priv, MAX17050_REG_V_EMPTY, max17050_cfg.v_empty);
 #endif
     return 0;
 }
@@ -613,7 +628,7 @@ static int max17050_por_write_custom_params(FAR struct max17050_dev_s *priv)
 static int max17050_por_update_full_capacity_params(FAR struct max17050_dev_s *priv)
 {
     WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP, max17050_cfg.capacity);
-    WRITE(priv, MAX17050_REG_DESIGN_CAP, max17050_cfg.vf_fullcap);
+    WRITE_RETRY(priv, MAX17050_REG_DESIGN_CAP, max17050_cfg.vf_fullcap);
     WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP_NOM, max17050_cfg.vf_fullcap);
 
     return 0;
@@ -624,10 +639,10 @@ static int max17050_por_write_vfsoc_and_qh0(FAR struct max17050_dev_s *priv)
     int vfsoc = max17050_reg_read(priv, MAX17050_REG_VFSOC);
     int qh = max17050_reg_read(priv, MAX17050_REG_QH);
 
-    WRITE(priv, MAX17050_REG_VFSOC0_QH0_ACCESS, MAX17050_VFSOC0_QH0_UNLOCK);
+    WRITE_RETRY(priv, MAX17050_REG_VFSOC0_QH0_ACCESS, MAX17050_VFSOC0_QH0_UNLOCK);
     WRITE_VERIFY(priv, MAX17050_REG_VFSOC0, vfsoc);
-    WRITE(priv, MAX17050_REG_QH0, qh);
-    WRITE(priv, MAX17050_REG_VFSOC0_QH0_ACCESS, MAX17050_VFSOC0_QH0_LOCK);
+    WRITE_RETRY(priv, MAX17050_REG_QH0, qh);
+    WRITE_RETRY(priv, MAX17050_REG_VFSOC0_QH0_ACCESS, MAX17050_VFSOC0_QH0_LOCK);
 
     return 0;
 }
@@ -650,9 +665,9 @@ static int max17050_por_load_new_capacity_params(FAR struct max17050_dev_s *priv
     WRITE_VERIFY(priv, MAX17050_REG_DP_ACC, MAX17050_DP_ACC);
     WRITE_VERIFY(priv, MAX17050_REG_DQ_ACC, dq_acc);
     WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP, max17050_cfg.capacity);
-    WRITE(priv, MAX17050_REG_DESIGN_CAP, max17050_cfg.vf_fullcap);
+    WRITE_RETRY(priv, MAX17050_REG_DESIGN_CAP, max17050_cfg.vf_fullcap);
     WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP_NOM, max17050_cfg.vf_fullcap);
-    WRITE(priv, MAX17050_REG_REP_SOC, vfsoc);
+    WRITE_RETRY(priv, MAX17050_REG_REP_SOC, vfsoc);
 
     return 0;
 }
@@ -663,9 +678,9 @@ static int max17050_por_init(FAR struct max17050_dev_s *priv)
      * fuel gauge CSN and CSP inputs
      */
 #ifdef CONFIG_BATTERY_MAX17050_REVERSED_SENSE_RESISTOR
-    WRITE(priv, MAX17050_REG_CGAIN, MAX17050_CGAIN_REVERSED_SENSE_R);
+    WRITE_RETRY(priv, MAX17050_REG_CGAIN, MAX17050_CGAIN_REVERSED_SENSE_R);
 #else
-    WRITE(priv, MAX17050_REG_CGAIN, MAX17050_CGAIN_DEFAULT);
+    WRITE_RETRY(priv, MAX17050_REG_CGAIN, MAX17050_CGAIN_DEFAULT);
 #endif
 
     if (max17050_por_perform_init_config(priv))
@@ -723,7 +738,7 @@ static void *max17050_por(void *v)
         if (max17050_reg_write(priv, MAX17050_REG_CONFIG_VER, max17050_cfg.version)) {
             dbg("Failed to set config version\n");
         }
-        dbg("Power-On Reset complete\n");       
+        dbg("Power-On Reset complete\n");
     } else {
         dbg("Power-On Reset failed\n");
     }
