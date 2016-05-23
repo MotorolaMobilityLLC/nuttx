@@ -103,4 +103,9 @@ config MODS_TFA9890_MONO_I2C_ADDR
 	---help---
 		I2C addr to use to communicate with device (default 52).
 
+config DISPLAY_MUX
+	bool "Display Mux driver to switch between DSI and MyDP"
+	default n
+	depends on GREYBUS_MODS_DISPLAY
+	depends on GREYBUS_RAW
 endif
