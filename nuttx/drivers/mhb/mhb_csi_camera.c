@@ -27,6 +27,7 @@
  */
 
 #define DEBUG
+//#define DEBUG_CTRL
 
 #include <errno.h>
 #include <debug.h>
@@ -101,7 +102,16 @@ extern struct mhb_cdsi_config mhb_camera_csi_config;
 extern struct camera_ext_ctrl_db mhb_camera_ctrl_db;
 
 /* Cam I2C Ops */
-int mhb_camera_i2c_read_rs(uint16_t i2c_addr,
+int mhb_camera_i2c_set_freq(uint32_t frequency)
+{
+    int ret = 0;
+    pthread_mutex_lock(&i2c_mutex);
+    ret = I2C_SETFREQUENCY(s_mhb_camera.cam_i2c, frequency);
+    pthread_mutex_unlock(&i2c_mutex);
+    return ret;
+}
+
+int mhb_camera_i2c_read(uint16_t i2c_addr,
                     uint8_t *addr, int addr_len,
                     uint8_t *data, int data_len)
 {
@@ -124,7 +134,7 @@ int mhb_camera_i2c_read_rs(uint16_t i2c_addr,
 
 }
 
-int mhb_camera_i2c_read(uint16_t i2c_addr,
+int mhb_camera_i2c_read_nors(uint16_t i2c_addr,
                     uint8_t *addr, int addr_len,
                     uint8_t *data, int data_len)
 {
@@ -142,7 +152,7 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
     msg[1].length = data_len;
 
     pthread_mutex_lock(&i2c_mutex);
-    while (I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[1], 1) != 0)
+    while (I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[0], 1) != 0)
     {
         usleep(I2C_RETRY_DELAY_US);
         if (++ret == I2C_RETRIES) break;
@@ -155,7 +165,7 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
             return ret;
         }
     }
-    ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[0], 1);
+    ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[1], 1);
     pthread_mutex_unlock(&i2c_mutex);
 
     return ret;
@@ -267,7 +277,7 @@ int mhb_camera_i2c_read_reg1_16(uint16_t i2c_addr, uint16_t regaddr, uint8_t *va
 
     data = 0;
 
-    if (mhb_camera_i2c_read_rs(i2c_addr, addr, sizeof(addr), &data, sizeof(data)) == 0) {
+    if (mhb_camera_i2c_read(i2c_addr, addr, sizeof(addr), &data, sizeof(data)) == 0) {
         *value = data;
         CTRL_DBG("read: %02x 0x%04x -> 0x%02x\n", i2c_addr, regaddr, *value);
     } else {
@@ -290,7 +300,7 @@ int mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr, uint16_t regaddr,
 
     memset(data, 0, sizeof(data));
 
-    if (mhb_camera_i2c_read_rs(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
+    if (mhb_camera_i2c_read(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
         *value = (data[0] << 8) + data[1];
         CTRL_DBG("read: %02x 0x%04x -> 0x%04x\n", i2c_addr, regaddr, *value);
     } else {
@@ -313,7 +323,7 @@ int mhb_camera_i2c_read_reg4_16(uint16_t i2c_addr, uint16_t regaddr,
 
     memset(data, 0, sizeof(data));
 
-    if (mhb_camera_i2c_read_rs(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
+    if (mhb_camera_i2c_read(i2c_addr, addr, sizeof(addr), data, sizeof(data)) == 0) {
         *value = (data[0] << 8) + data[1] + (data[2] << 24) + (data[3] << 16);
         CTRL_DBG("read: %02x 0x%04x -> 0x%08x\n", i2c_addr, regaddr, *value);
     } else {
@@ -864,7 +874,7 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
 /* CAMERA_EXT devops */
 static int _power_on(struct device *dev, uint8_t mode)
 {
-    CAM_DBG("mhb_camera_csi\n");
+    CAM_DBG("mhb_camera_csi: bootmode: %d\n", mode);
     s_mhb_camera.bootmode = mode;
     return mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_ON_REQ);
 }
