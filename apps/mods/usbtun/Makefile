@@ -37,10 +37,10 @@ ASRCS =
 CSRCS =
 
 ifeq ($(CONFIG_MODS_USB_HCD_ROUTER),y)
-MAINSRC = usbtun_hcd_router.c
+MAINSRC = usbtun_hcd_router.c usbtun_router_common.c
 endif
 ifeq ($(CONFIG_MODS_USB_PCD_ROUTER),y)
-MAINSRC = usbtun_pcd_router.c
+MAINSRC = usbtun_pcd_router.c usbtun_router_common.c
 endif
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
