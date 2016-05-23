@@ -16,3 +16,9 @@ config MODS_USB_PCD_ROUTER
 	depends on ARCH_CHIP_USB_PCD
 	---help---
 		Enable the Mods USB tunneling at HSIC Device
+
+config MODS_USBTUN_CPORT_ID
+	int "CPORT ID used for USB tunneling"
+	default 13
+	depends on ARCH_CHIP_USB_HCD || ARCH_CHIP_USB_PCD
+
