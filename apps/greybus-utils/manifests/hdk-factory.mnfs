@@ -72,3 +72,21 @@ protocol = 0xec
 ; USB Bundle 4
 [bundle-descriptor 4]
 class = 0xff
+
+; RAW interface on CPort 7
+[cport-descriptor 7]
+bundle = 5
+protocol = 0xfe
+
+; RAW Bundle 5
+[bundle-descriptor 5]
+class = 0xfe
+
+; Camera on CPort 8
+[cport-descriptor 8]
+bundle = 6
+protocol = 0xed
+
+; Camera related Bundle 6
+[bundle-descriptor 6]
+class = 0x0d
