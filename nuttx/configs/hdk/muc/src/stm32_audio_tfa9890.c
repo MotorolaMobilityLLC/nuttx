@@ -364,11 +364,6 @@ static int tfa9890_aud_dev_enable_devices(struct device *dev,
         lldbg("ERROR: device private data is null\n");
         return -ENODEV;
     }
-    if (!(devices->out_devices & TFA9890_SUPPORTED_OUT_DEVICES))
-    {
-        lldbg("ERROR: invalid audio device\n");
-        return -EINVAL;
-    }
     priv->out_enabled_devices = devices->out_devices;
 
     return 0;
