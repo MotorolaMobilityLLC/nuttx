@@ -78,6 +78,21 @@
 #define DEV_AUDIO_DEVICE_IN_MIC_ECNS              BIT(6)
 #define DEV_AUDIO_DEVICE_IN_MIC_NS                BIT(7)
 
+/* speaker eq preset*/
+#define DEV_AUDIO_SPEAKER_PRESET_EQ_NONE                 0
+ /* EQ and Bass Enhancement optimized to boost an approximate
+  * frequency range of 400Hz - 800Hz.
+  */
+#define DEV_AUDIO_SPEAKER_PRESET_EQ_SMALL                1
+/* EQ and Bass Enhancement optimized to boost an approximate
+ * frequency range of 150Hz - 300Hz.
+ */
+#define DEV_AUDIO_SPEAKER_PRESET_EQ_MEDIUM               2
+ /* EQ and Bass Enhancement optimized to boost a frequency range
+  * below 150Hz.
+  */
+#define DEV_AUDIO_SPEAKER_PRESET_EQ_LARGE                3
+
 struct device_aud_vol_range {
     int min;
     int step;
@@ -140,6 +155,7 @@ struct device_aud_dev_type_ops {
                            struct device_aud_dai_config *dai);
     int (*set_config)(struct device *dev, struct device_aud_pcm_config *pcm,
                            struct device_aud_dai_config *dai);
+    int (*get_spkr_preset_eq)(struct device *dev, int *preset_eq);
     int (*rx_dai_start)(struct device *dev);
     int (*tx_dai_start)(struct device *dev);
     int (*rx_dai_stop)(struct device *dev);
@@ -375,5 +391,18 @@ static inline int device_audio_unregister_callback(struct device *dev)
     return -ENOSYS;
 }
 
+static inline int device_audio_get_spkr_preset_eq(struct device *dev,
+                                                         int *preset_eq)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
 
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_spkr_preset_eq)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_spkr_preset_eq(dev,
+                                                                    preset_eq);
+
+    return -ENOSYS;
+}
 #endif
