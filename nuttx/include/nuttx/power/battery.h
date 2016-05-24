@@ -190,6 +190,25 @@ extern "C" {
 EXTERN int battery_register(FAR const char *devpath,
                             FAR struct battery_dev_s *dev);
 
+
+
+/****************************************************************************
+ * Name: battery_set_status
+ *
+ * Description:
+ *   Set battery status. This function can be implemented in the driver to
+ *   allow setting battery status externally.
+ *
+ * Input parameters:
+ *   status - The status of the battery.
+ *
+ * Returned value:
+ *    Zero on success or a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+EXTERN int battery_set_status(enum battery_status_e status);
+
 /****************************************************************************
  * Name: max1704x_initialize
  *
