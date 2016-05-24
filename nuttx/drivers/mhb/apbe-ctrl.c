@@ -238,7 +238,9 @@ static int apbe_pwrctrl_probe(struct device *dev)
         return 0;
 
     sem_init(&apbe_ctrl.apbe_pwrctrl_sem, 0, 1);
+#ifdef GPIO_MODS_SPI_SEL
     gpio_direction_out(GPIO_MODS_SPI_SEL, 0);
+#endif
     gpio_direction_out(GPIO_APBE_SPIBOOT_N, 0);
     gpio_direction_out(GPIO_APBE_PWR_EN, 0);
     gpio_direction_out(GPIO_APBE_RST_N, 0);
