@@ -848,17 +848,17 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
 
     CAM_DBG("\n");
 
-    retval = _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
-    retval |= _mhb_csi_camera_unconfig_req();
+    retval |= _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
     retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
                                   "CDSI STOP");
 
+    retval |= _mhb_camera_stream_disable();
+
+    retval |= _mhb_csi_camera_unconfig_req();
     retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_UNCONFIG_RSP,
                                   "CDSI UNCONFIG");
-
-    retval |= _mhb_camera_stream_disable();
 
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_OFF);
 
