@@ -94,7 +94,7 @@ static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
     urb->actual_length = dwc_otg_hcd_urb_get_actual_length(dwc_urb);
     urb->status = status;
 
-    free(dwc_urb);
+    DWC_FREE(dwc_urb);
     urb->hcpriv = NULL;
 
     /*
@@ -178,7 +178,7 @@ static int hcd_core_init(void)
 
     DEBUGASSERT(!g_dev);
 
-    g_dev = zalloc(sizeof(*g_dev));
+    g_dev = DWC_ALLOC(sizeof(*g_dev));
     if (!g_dev) {
         return -ENOMEM;
     }
@@ -222,7 +222,7 @@ error_hcd_init:
 error_set_parameter:
     dwc_otg_cil_remove(g_dev->core_if);
 error_cil_init:
-    free(g_dev);
+    DWC_FREE(g_dev);
     g_dev = NULL;
 
     return retval;
@@ -303,7 +303,7 @@ static void tsb_usb_hcd_close(struct device *dev)
     dwc_otg_hcd_remove(g_dev->hcd);
     dwc_otg_cil_remove(g_dev->core_if);
 
-    free(g_dev);
+    DWC_FREE(g_dev);
     g_dev = NULL;
 
     tsb_clk_disable(TSB_CLK_HSIC480);
@@ -457,7 +457,7 @@ static int urb_enqueue(struct device *dev, struct urb *urb)
     return 0;
 
 error_enqueue:
-    free(dwc_urb);
+    DWC_FREE(dwc_urb);
 
     return retval;
 }
@@ -479,7 +479,7 @@ static int urb_dequeue(struct device *dev, struct urb *urb)
 
     retval = dwc_otg_hcd_urb_dequeue(g_dev->hcd, urb->hcpriv);
 
-    free(urb->hcpriv);
+    DWC_FREE(urb->hcpriv);
     urb->hcpriv = NULL;
 
     DWC_SPINUNLOCK(g_dev->hcd->lock);
