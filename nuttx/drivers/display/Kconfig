@@ -9,6 +9,14 @@ config DISPLAY_ANX7750
 		ANX7750 is SlimPort to DisplayPort Converter
 		for video stream up to 4K@30Hz.
 
+config DISPLAY_NT35355_360P
+	bool "NT 35355, 360p DSI display panel support"
+	default n
+	depends on MHB_DSI_DISPLAY
+	---help---
+		Support for a NT 35355, 360p DSI display panel connected
+		via Mods High-Speed Bus (MHB).
+
 config DISPLAY_TDI_546_1080P
 	bool "TDI 5.46 inch, 1080p DSI display panel support"
 	default n
