@@ -43,6 +43,7 @@
 #define GB_AUDIO_GET_SUPPORTED_DEVICES    0x08
 #define GB_AUDIO_DEVICES_REPORT_EVENT     0x09
 #define GB_AUDIO_ENABLE_DEVICES	          0x0a
+#define GB_AUDIO_GET_SPEAKER_PRESET_EQ    0x0b
 
 /* use cases bit mask*/
 
@@ -159,5 +160,10 @@ struct gb_audio_enable_devices_request {
 /* report available audio devices */
 struct gb_audio_report_devices_request {
     struct gb_aud_devices    devices;
+};
+
+/* get preset eq for speaker */
+struct gb_audio_get_speaker_preset_eq_response {
+    __le32                  preset_eq;
 };
 #endif /* __AUDIO_GB_H__ */
