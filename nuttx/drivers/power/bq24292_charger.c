@@ -27,6 +27,7 @@
  */
 
 #include <nuttx/device_charger.h>
+#include <nuttx/power/battery.h>
 #include <nuttx/power/bq24292.h>
 #include <nuttx/gpio.h>
 
@@ -92,6 +93,9 @@ static void config_bq24292(struct bq24292_charger_info *info, enum chg chg,
 
     info->settings.chg = chg; /* for power good callback */
     (void) bq24292_set_chg(chg);
+
+    battery_set_status(chg == BQ24292_CHG_BATTERY ? BATTERY_CHARGING :
+                                                    BATTERY_DISCHARGING);
 }
 
 static void bq24292_pwr_good(struct bq24292_charger_info *info)
