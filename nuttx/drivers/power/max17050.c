@@ -198,6 +198,19 @@ static void max17050_alrt_worker(FAR void *arg);
  */
 static struct max17050_dev_s* g_max17050_dev;
 
+/* Battery status that is set externally */
+static enum battery_status_e g_status = BATTERY_DISCHARGING;
+
+int battery_set_status(enum battery_status_e status)
+{
+    /* Will use only BATTERY_CHARGING and BATTERY_DISCHARGING states */
+    if (status != BATTERY_CHARGING)
+        status = BATTERY_DISCHARGING;
+
+    g_status = status;
+    return 0;
+}
+
 static int max17050_reg_read(FAR struct max17050_dev_s *priv, uint8_t reg)
 {
     uint16_t reg_val;
@@ -434,30 +447,15 @@ static int max17050_state(struct battery_dev_s *dev, int *status)
     int ret;
     b16_t value;
 
-    if (!priv->initialized)
-        return -EAGAIN;
-
-    ret = max17050_capacity(dev, &value);
-    if (ret < 0) {
-        *status = BATTERY_UNKNOWN;
-        return -ENODEV;
+    if (priv->initialized) {
+        ret = max17050_capacity(dev, &value);
+        if (ret == 0 && value >= 100) {
+            *status = BATTERY_FULL;
+            return OK;
+        }
     }
 
-    // TODO: Currently treating 100% capacity as full. Should it be based on
-    // capacity or when input current drops below certain threshold?
-    if (value >= 100) {
-        *status = BATTERY_FULL;
-        return OK;
-    }
-
-    ret = max17050_current(dev, &value);
-    if (ret < 0) {
-        *status = BATTERY_UNKNOWN;
-        return ret;
-    }
-
-    // Positive current means the battery is charging
-    *status = (value > 0) ? BATTERY_CHARGING : BATTERY_DISCHARGING;
+    *status = g_status;
 
     return OK;
 }
