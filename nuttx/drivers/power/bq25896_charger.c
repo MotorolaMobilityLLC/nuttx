@@ -28,6 +28,7 @@
 
 #include <nuttx/device_charger.h>
 #include <nuttx/gpio.h>
+#include <nuttx/power/battery.h>
 #include <nuttx/power/bq25896.h>
 
 #include <debug.h>
@@ -277,6 +278,9 @@ static void config_bq25896(struct bq25896_charger_info *info,
 
     info->settings.chg = chg; /* for power good callback */
     (void) set_bq25896_chg(info, chg);
+
+    battery_set_status(chg == BQ25896_CHG_BATTERY ? BATTERY_CHARGING :
+                                                    BATTERY_DISCHARGING);
 }
 
 static void bq25896_pwr_good(struct bq25896_charger_info *info)
