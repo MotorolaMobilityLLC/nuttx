@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2016 Motorola Mobility. All rights reserved.
  * Copyright (c) 2014 Google Inc.
  * All rights reserved.
  *
@@ -150,6 +151,8 @@
 #define TSB_PIN_GPIO21          BIT(14)
 #define TSB_PIN_GPIO22          BIT(15)
 
+/* System Conf bits */
+#define TSB_SYS_CONF_WDT_IRQ_EN BIT(1)
 
 /* IO_DRIVE_STRENGTH: 2 Bits per Output */
 
@@ -220,6 +223,8 @@ void tsb_reset(uint32_t rst);
 int tsb_set_pinshare(uint32_t pin);
 int tsb_clr_pinshare(uint32_t pin);
 uint32_t tsb_get_pinshare(void);
+int tsb_set_system_conf(uint32_t bits);
+uint32_t tsb_get_system_conf(void);
 void tsb_set_drivestrength(uint32_t ds_id, enum tsb_drivestrength value);
 enum tsb_drivestrength tsb_get_drivestrength(uint32_t ds_id);
 uint32_t tsb_get_vendor_id(void);

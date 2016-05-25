@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2016 Motorola Mobility. All rights reserved.
  * Copyright (c) 2014 Google Inc.
  * All rights reserved.
  *
@@ -47,6 +48,7 @@
 #define TSB_SCM_CLOCKGATING0            0x00000200
 #define TSB_SCM_CLOCKENABLE0            0x00000300
 #define TSB_SPI_CLOCK_SELECTOR          0x00000480
+#define TSB_SYSTEM_CONF                 0x000004C0
 #define TSB_SCM_VID                     0x00000700
 #define TSB_SCM_PID                     0x00000704 // named MODULEID1 in ES1
 #define TSB_SCM_PINSHARE                0x00000800
@@ -180,6 +182,18 @@ int tsb_clr_pinshare(uint32_t bits)
 uint32_t tsb_get_pinshare(void)
 {
     return scm_read(TSB_SCM_PINSHARE);
+}
+
+int tsb_set_system_conf(uint32_t bits)
+{
+    scm_write(TSB_SYSTEM_CONF, bits);
+
+    return 0;
+}
+
+uint32_t tsb_get_system_conf(void)
+{
+    return scm_read(TSB_SYSTEM_CONF);
 }
 
 void tsb_set_drivestrength(uint32_t ds_id, enum tsb_drivestrength value)
