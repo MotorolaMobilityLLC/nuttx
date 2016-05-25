@@ -341,7 +341,12 @@ static inline void rcc_enableapb1_1(void)
   regval |= RCC_APB1ENR_DAC1EN;
 #endif
 
-  /* TODO Add OPAMP & LPTIM1 */
+#ifdef CONFIG_STM32_LPTIM1
+  /* LPTIM1 clock enable */
+  regval |= RCC_APB1ENR1_LPTIM1EN;
+#endif
+
+  /* TODO Add OPAMP */
 
   putreg32(regval, STM32_RCC_APB1ENR1);   /* Enable peripherals */
 }
@@ -364,7 +369,12 @@ static inline void rcc_enableapb1_2(void)
 
   regval = getreg32(STM32_RCC_APB1ENR2);
 
-  /* TODO Add LPUART1EN, SWPMI1EN and LPTIM2EN */
+#ifdef CONFIG_STM32_LPTIM2
+  /* LPTIM2 clock enable */
+  regval |= RCC_APB1ENR2_LPTIM2EN;
+#endif
+
+  /* TODO Add LPUART1EN and SWPMI1EN */
 
   putreg32(regval, STM32_RCC_APB1ENR2);   /* Enable peripherals */
 }
@@ -486,6 +496,32 @@ static inline void rcc_enableccip(void)
 #if defined(CONFIG_STM32_I2C3) && (STM32_I2C3_FREQUENCY == STM32_HSI_FREQUENCY)
   /* Set I2C3 to use HSI clock */
   regval |= RCC_CCIPR_I2C3SEL_HSI;
+#endif
+
+#if defined(CONFIG_STM32_LPTIM1)
+# if (STM32_LPTIM1_FREQUENCY == STM32_LSI_FREQUENCY)
+  /* Set LPTIM1 to use LSI clock */
+  regval |= RCC_CCIPR_LPTIM1SEL_LSI;
+# elif (STM32_LPTIM1_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set LPTIM1 to use HSI clock */
+  regval |= RCC_CCIPR_LPTIM1_HSI;
+# elif (STM32_LPTIM1_FREQUENCY == STM32_LSE_FREQUENCY)
+  /* Set LPTIM1 to use LSE clock */
+  regval |= RCC_CCIPR_LPTIM1_LSE;
+# endif
+#endif
+
+#if defined(CONFIG_STM32_LPTIM2)
+# if (STM32_LPTIM2_FREQUENCY == STM32_LSI_FREQUENCY)
+  /* Set LPTIM2 to use LSI clock */
+  regval |= RCC_CCIPR_LPTIM2SEL_LSI;
+# elif (STM32_LPTIM2_FREQUENCY == STM32_HSI_FREQUENCY)
+  /* Set LPTIM2 to use HSI clock */
+  regval |= RCC_CCIPR_LPTIM2_HSI;
+# elif (STM32_LPTIM2_FREQUENCY == STM32_LSE_FREQUENCY)
+  /* Set LPTIM2 to use LSE clock */
+  regval |= RCC_CCIPR_LPTIM2_LSE;
+# endif
 #endif
 
 #endif /* STM32_BOARD_USEHSI */
