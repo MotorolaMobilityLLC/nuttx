@@ -81,6 +81,8 @@
 
 typedef struct {
     sq_entry_t entry;
+    bool sync;
+    bool tun;
     struct urb urb;
     usbtun_buf_t setup;
     usbtun_buf_t data;
@@ -126,7 +128,7 @@ static bool do_run = false;
 static bool init_ep_req(uint8_t local_eq, hcd_req_t *ep_urb, struct usb_epdesc_s *eq_info);
 static void prep_tun_setup(hcd_req_t *req, usbtun_buf_t *setup, void *dout, uint16_t length);
 static void prep_tun_data_out(hcd_req_t *req, usbtun_buf_t *buf);
-static int usb_control_transfer_sync(struct device *dev, hcd_req_t *req, int direction, int addr);
+static int usb_control_transfer_tun(struct device *dev, hcd_req_t *req, int direction, int addr);
 
 static int send_to_unipro(hcd_req_t *req, size_t actual_length, uint8_t type, int16_t code) {
     uint8_t ep = req->urb.pipe.endpoint;
@@ -208,7 +210,7 @@ static usbtun_data_res_t handle_data_body(usbtun_buf_t *buf, uint8_t ep, uint8_t
                 prep_tun_setup(req, buf, dout, dlen);
 
                 usbtun_req_to_usb(0, &req->entry);
-                if (usb_control_transfer_sync(s_data.dev, req, dir, 0)) {
+                if (usb_control_transfer_tun(s_data.dev, req, dir, 0)) {
                     lldbg("Failed to pass setup data\n");
                     clean_hcd_req(req);
                     usbtun_req_from_usb(0, &req->entry);
@@ -719,7 +721,7 @@ static void usb_control_transfer_complete(struct urb *urb) {
         }
     }
 
-    if (s_data.do_tunnel) {
+    if (req->tun) {
         /* In case of OUT request for EP0, response is already sent by PCD
          * as soon as data phase is complete. Do not send extra response.
          */
@@ -728,7 +730,8 @@ static void usb_control_transfer_complete(struct urb *urb) {
         }
     }
 
-    sem_post(&urb->semaphore);
+    if (req->sync)
+        sem_post(&urb->semaphore);
 
     clean_hcd_req(req);
     usbtun_req_from_usb(0, &req->entry);
@@ -815,7 +818,7 @@ static void init_ctrl_req(hcd_req_t *req)
 }
 
 static int usb_control_transfer(struct device *dev, hcd_req_t *req,
-                                int direction, int addr) {
+                                int direction, int addr, bool to_port) {
     if (!req) {
         lldbg("Null ctrl req\n");
         return -1;
@@ -829,7 +832,7 @@ static int usb_control_transfer(struct device *dev, hcd_req_t *req,
     req->urb.actual_length = 0;
     req->urb.status = 0;
 
-    if (s_data.do_tunnel) {
+    if (to_port) {
         req->urb.devnum = USB3813_ADDRESS;
         req->urb.dev_ttport = 1;
     }
@@ -838,17 +841,32 @@ static int usb_control_transfer(struct device *dev, hcd_req_t *req,
 }
 
 static int usb_control_transfer_sync(struct device *dev, hcd_req_t *req,
+                                     int direction, int addr, bool to_port) {
+    int ret;
+
+    req->sync = true;
+    ret = usb_control_transfer(dev, req, direction, addr, to_port);
+
+    if (ret) {
+        req->sync = false;
+        return ret;
+    }
+
+    sem_wait(&req->urb.semaphore);
+    req->sync = false;
+
+    return req->urb.status;
+}
+
+static int usb_control_transfer_tun(struct device *dev, hcd_req_t *req,
                                      int direction, int addr) {
     int ret;
 
-    ret = usb_control_transfer(dev, req, direction, addr);
+    req->tun = true;
+    ret = usb_control_transfer_sync(dev, req, direction, addr, true);
+    req->tun = false;
 
-    if (ret)
-        return ret;
-
-    sem_wait(&req->urb.semaphore);
-
-    return req->urb.status;
+    return ret;
 }
 
 /* Called when IN endpoint have data to be consumed. */
@@ -992,7 +1010,7 @@ static void *hcd_router_startup(void *arg) {
     /* Configure usb3813 hub */
     req = (hcd_req_t *)usbtun_req_dq(0);
     prep_internal_setup(req, SET_ADDRESS, USB3813_ADDRESS, 0, 0);
-    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, 0);
+    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, 0, false);
     if (ret) {
         lldbg("Failed to set address to 3813 hub\n");
         goto errout;
@@ -1000,7 +1018,7 @@ static void *hcd_router_startup(void *arg) {
 
     req = (hcd_req_t *)usbtun_req_dq(0);
     prep_internal_setup(req, SET_CONFIGURATION, USB3813_CONFIG_ID, 0, 0);
-    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS);
+    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
     if (ret) {
         lldbg("Failed to set configuration to 3813 hub\n");
         goto errout;
@@ -1009,7 +1027,7 @@ static void *hcd_router_startup(void *arg) {
     /* Enable port 1 on usb3813 hub */
     req = (hcd_req_t *)usbtun_req_dq(0);
     prep_internal_setup(req, SET_PORT_FEATURE, PORT_POWER, USB3813_EXTERNAL_PORT, 0);
-    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS);
+    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
     if (ret) {
         lldbg("Failed to enable port 1 on 3813 hub\n");
         goto errout;
@@ -1019,7 +1037,7 @@ static void *hcd_router_startup(void *arg) {
 
     req = (hcd_req_t *)usbtun_req_dq(0);
     prep_internal_setup(req, SET_PORT_FEATURE, PORT_RESET, USB3813_EXTERNAL_PORT, 0);
-    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS);
+    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
     if (ret) {
         lldbg("Failed to reset port 1 on 3813 hub\n");
         goto errout;
@@ -1033,7 +1051,7 @@ static void *hcd_router_startup(void *arg) {
     req->data.type = USBTUN_MEM_NONE;
     req->data.ptr = status;
     req->data.size = sizeof(*status);
-    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_IN, USB3813_ADDRESS);
+    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_IN, USB3813_ADDRESS, false);
     if (ret) {
         lldbg("Failed to get port 1 status on 3813 hub.\n");
         goto errout;
@@ -1081,6 +1099,7 @@ stop_hcd:
     s_data.do_tunnel = false;
     lldbg("Stopping HCD router\n");
 
+errout:
     /* clean up non-ctrl endpoints */
     unprepare_endpint();
 
@@ -1100,7 +1119,6 @@ stop_hcd:
     /* init pooled resources */
     uninit_router_common();
 
-errout:
     device_close(s_data.dev);
     s_data.dev = NULL;
 
