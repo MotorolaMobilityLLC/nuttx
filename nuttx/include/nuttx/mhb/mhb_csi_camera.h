@@ -29,6 +29,17 @@
 #ifndef MHB_CSI_CAMERA_H
 #define MHB_CSI_CAMERA_H
 
+enum {
+    MHB_CAMERA_REG_WIDTH_8 = 0,
+    MHB_CAMERA_REG_WIDTH_16,
+};
+
+enum {
+    MHB_CAMERA_REG_BYTE  = 1,
+    MHB_CAMERA_REG_WORD  = 2,
+    MHB_CAMERA_REG_DWORD = 4,
+};
+
 enum mhb_camera_notification_event{
     MHB_CAMERA_NOTIFY_POWERED_ON      = 0x00,
     MHB_CAMERA_NOTIFY_POWERED_OFF     = 0x01,
@@ -52,18 +63,88 @@ int mhb_camera_i2c_read_nors(uint16_t i2c_addr,
 
 int mhb_camera_i2c_write(uint16_t i2c_addr,
                          uint8_t *addr, int addr_len);
-int mhb_camera_i2c_read_reg1(uint16_t i2c_addr, uint16_t regaddr, uint8_t *value);
-int mhb_camera_i2c_read_reg2(uint16_t i2c_addr, uint16_t regaddr, uint16_t *value);
-int mhb_camera_i2c_read_reg4(uint16_t i2c_addr, uint16_t regaddr, uint32_t *value);
-int mhb_camera_i2c_read_reg1_16(uint16_t i2c_addr, uint16_t regaddr, uint8_t *value);
-int mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr, uint16_t regaddr, uint16_t *value);
-int mhb_camera_i2c_read_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t *value);
-int mhb_camera_i2c_write_reg1(uint16_t i2c_addr, uint16_t regaddr, uint8_t data);
-int mhb_camera_i2c_write_reg2(uint16_t i2c_addr, uint16_t regaddr, uint16_t data);
-int mhb_camera_i2c_write_reg4(uint16_t i2c_addr, uint16_t regaddr, uint32_t data);
-int mhb_camera_i2c_write_reg1_16(uint16_t i2c_addr, uint16_t regaddr, uint8_t data);
-int mhb_camera_i2c_write_reg2_16(uint16_t i2c_addr, uint16_t regaddr, uint16_t data);
-int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr, uint16_t regaddr, uint32_t data);
+int mhb_camera_i2c_read_reg(uint16_t i2c_addr, uint16_t regaddr,
+                             void *value, uint8_t reg_size, uint8_t reg_width);
+int mhb_camera_i2c_write_reg(uint16_t i2c_addr, uint16_t regaddr,
+                             uint32_t data, uint8_t reg_size, uint8_t reg_width);
+
+static inline int mhb_camera_i2c_read_reg1(uint16_t i2c_addr,
+                                           uint16_t regaddr, uint8_t *value)
+{
+    return mhb_camera_i2c_read_reg(i2c_addr, regaddr, value,
+                                   MHB_CAMERA_REG_BYTE, MHB_CAMERA_REG_WIDTH_8);
+}
+
+static inline int mhb_camera_i2c_read_reg2(uint16_t i2c_addr,
+                                           uint16_t regaddr, uint16_t *value)
+{
+    return mhb_camera_i2c_read_reg(i2c_addr, regaddr, value,
+                                  MHB_CAMERA_REG_WORD, MHB_CAMERA_REG_WIDTH_8);
+}
+
+static inline int mhb_camera_i2c_read_reg4(uint16_t i2c_addr,
+                                           uint16_t regaddr, uint32_t *value)
+{
+    return mhb_camera_i2c_read_reg(i2c_addr, regaddr, value,
+                                  MHB_CAMERA_REG_DWORD, MHB_CAMERA_REG_WIDTH_8);
+}
+
+static inline int mhb_camera_i2c_read_reg1_16(uint16_t i2c_addr,
+                                              uint16_t regaddr, uint8_t *value)
+{
+    return mhb_camera_i2c_read_reg(i2c_addr, regaddr, value,
+                                  MHB_CAMERA_REG_BYTE, MHB_CAMERA_REG_WIDTH_16);
+}
+static inline int mhb_camera_i2c_read_reg2_16(uint16_t i2c_addr,
+                                              uint16_t regaddr, uint16_t *value)
+{
+    return mhb_camera_i2c_read_reg(i2c_addr, regaddr, value,
+                                  MHB_CAMERA_REG_WORD, MHB_CAMERA_REG_WIDTH_16);
+}
+static inline int mhb_camera_i2c_read_reg4_16(uint16_t i2c_addr,
+                                              uint16_t regaddr, uint32_t *value)
+{
+    return mhb_camera_i2c_read_reg(i2c_addr, regaddr, value,
+                                  MHB_CAMERA_REG_DWORD, MHB_CAMERA_REG_WIDTH_16);
+}
+
+static inline int mhb_camera_i2c_write_reg1(uint16_t i2c_addr,
+                                            uint16_t regaddr, uint8_t data)
+{
+    return mhb_camera_i2c_write_reg(i2c_addr, regaddr, (uint32_t)data,
+                                    MHB_CAMERA_REG_BYTE, MHB_CAMERA_REG_WIDTH_8);
+}
+
+static inline int mhb_camera_i2c_write_reg2(uint16_t i2c_addr,
+                                            uint16_t regaddr, uint16_t data)
+{
+    return mhb_camera_i2c_write_reg(i2c_addr, regaddr, (uint32_t)data,
+                                    MHB_CAMERA_REG_WORD, MHB_CAMERA_REG_WIDTH_8);
+}
+static inline int mhb_camera_i2c_write_reg4(uint16_t i2c_addr,
+                                            uint16_t regaddr, uint32_t data)
+{
+    return mhb_camera_i2c_write_reg(i2c_addr, regaddr, (uint32_t)data,
+                                    MHB_CAMERA_REG_DWORD, MHB_CAMERA_REG_WIDTH_8);
+}
+static inline int mhb_camera_i2c_write_reg1_16(uint16_t i2c_addr,
+                                               uint16_t regaddr, uint8_t data)
+{
+    return mhb_camera_i2c_write_reg(i2c_addr, regaddr, (uint32_t)data,
+                                    MHB_CAMERA_REG_BYTE, MHB_CAMERA_REG_WIDTH_16);
+}
+static inline int mhb_camera_i2c_write_reg2_16(uint16_t i2c_addr,
+                                               uint16_t regaddr, uint16_t data)
+{
+    return mhb_camera_i2c_write_reg(i2c_addr, regaddr, (uint32_t)data,
+                                    MHB_CAMERA_REG_WORD, MHB_CAMERA_REG_WIDTH_16);
+}
+static inline int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr,
+                                               uint16_t regaddr, uint32_t data)
+{
+    return mhb_camera_i2c_write_reg(i2c_addr, regaddr, (uint32_t)data,
+                                    MHB_CAMERA_REG_DWORD, MHB_CAMERA_REG_WIDTH_16);
+}
 
 int _mhb_camera_soc_enable(uint8_t bootmode);
 int _mhb_camera_soc_disable();
