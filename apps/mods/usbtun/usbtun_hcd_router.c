@@ -411,9 +411,9 @@ static bool prepare_config_list(void *buf, size_t len) {
     }
 
     if (s_data.configs)
-        free(s_data.configs);
+        USBTUN_FREE(s_data.configs);
 
-    s_data.configs = zalloc(desc->nconfigs * sizeof(hdc_config_desc_t));
+    s_data.configs = USBTUN_ALLOC(desc->nconfigs * sizeof(hdc_config_desc_t));
 
     if (!s_data.configs) {
         lldbg("Failed to allocate config_desc list\n");
@@ -446,9 +446,9 @@ static bool prepare_config_item(uint8_t idx, void *buf, size_t len) {
     /* look for GET_DESCRIPTOR for a Configuration descriptor */
     /* currently only assuming one */
     if (s_data.configs[idx].config_desc)
-        free(s_data.configs[idx].config_desc);
+        USBTUN_FREE(s_data.configs[idx].config_desc);
 
-    void *ptr = zalloc(len);
+    void *ptr = USBTUN_ALLOC(len);
     if (!ptr) {
         lldbg("Failed to allocate config descriptor storage\n");
         return false;
@@ -575,12 +575,12 @@ static void config_endpoint(uint8_t mapped, uint8_t local, struct usb_epdesc_s *
 
         int i;
         for (i = 0; i < bufnum; i++) {
-            hcd_req_t *req = bufram_alloc(sizeof(*req));
+            hcd_req_t *req = USBTUN_ALLOC(sizeof(*req));
             if (!req)
                 continue;
 
             if (!init_ep_req(local, req, ep_desc)) {
-                free(req);
+                USBTUN_FREE(req);
                 continue;
             }
 
@@ -589,7 +589,7 @@ static void config_endpoint(uint8_t mapped, uint8_t local, struct usb_epdesc_s *
 
             if (device_usb_hcd_urb_enqueue(s_data.dev, &req->urb)) {
                 lldbg("Failed to queue urb for ep=%d\n", local);
-                bufram_free(req);
+                USBTUN_FREE(req);
                 continue;
             }
 
@@ -608,12 +608,12 @@ static void config_endpoint(uint8_t mapped, uint8_t local, struct usb_epdesc_s *
         }
         int i;
         for (i = 0; i < bufnum; i++) {
-            hcd_req_t *req = bufram_alloc(sizeof(*req));
+            hcd_req_t *req = USBTUN_ALLOC(sizeof(*req));
             if (!req)
                 continue;
 
             if (!init_ep_req(local, req, ep_desc)) {
-                bufram_free(req);
+                USBTUN_FREE(req);
                 continue;
             }
 
@@ -629,11 +629,11 @@ static void unconfig_endpoint(uint8_t mapped, uint8_t local, struct usb_epdesc_s
     while ((req = (hcd_req_t *)usbtun_req_dq_usb(local)) != NULL) {
         device_usb_hcd_urb_dequeue(s_data.dev, &req->urb);
         clean_hcd_req(req);
-        bufram_free(req);
+        USBTUN_FREE(req);
     }
     while ((req = (hcd_req_t *)usbtun_req_dq(local)) != NULL) {
         clean_hcd_req(req);
-        bufram_free(req);
+        USBTUN_FREE(req);
     }
     s_data.hcpriv_ep[mapped] = NULL;
     memset(ep_desc, 0, sizeof(*ep_desc));
@@ -934,14 +934,7 @@ static void *hcd_router_startup(void *arg) {
     hcd_req_t *req;
 
     /* TODO: temporary memory debug - to be removed */
-    struct mallinfo mem;
-#ifdef CONFIG_CAN_PASS_STRUCTS
-    mem = mallinfo();
-#else
-    (void)mallinfo(&mem);
-#endif
-    lldbg("total:%d, used:%d, free:%d, largest:%d\n",
-          mem.arena, mem.uordblks, mem.fordblks, mem.mxordblk);
+    usbtun_print_mem_info();
 
     int ret;
     uint32_t *status = bufram_alloc(sizeof(uint32_t));
@@ -959,7 +952,7 @@ static void *hcd_router_startup(void *arg) {
 
     /* pre-allocate ep_urb for control endpoint */
     for (i = 0; i < NUM_CTRL_REQS; i++) {
-        req = zalloc(sizeof(*req));
+        req = USBTUN_ALLOC(sizeof(*req));
         if (req) {
             init_ctrl_req(req);
             usbtun_req_q(0, &req->entry);
@@ -995,8 +988,6 @@ static void *hcd_router_startup(void *arg) {
 
     lldbg("Status on root hub port %08x\n", *status);
     lldbg("HDC Router started\n");
-
-    lldbg("status on root hub port %08x\n", *status);
 
     /* Configure usb3813 hub */
     req = (hcd_req_t *)usbtun_req_dq(0);
@@ -1039,7 +1030,7 @@ static void *hcd_router_startup(void *arg) {
     /* Get port status */
     req = (hcd_req_t *)usbtun_req_dq(0);
     prep_internal_setup(req, GET_PORT_STATUS, 0, USB3813_EXTERNAL_PORT, sizeof(*status));
-    req->data.type = USBTUN_MEM_BUFRAM;
+    req->data.type = USBTUN_MEM_NONE;
     req->data.ptr = status;
     req->data.size = sizeof(*status);
     ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_IN, USB3813_ADDRESS);
@@ -1094,14 +1085,14 @@ stop_hcd:
     unprepare_endpint();
 
     /* clean up ctrl */
-    while ((req = (hcd_req_t *)usbtun_req_dq(0)) != NULL) {
+    while ((req = (hcd_req_t *)usbtun_req_dq_usb(0)) != NULL) {
         device_usb_hcd_urb_dequeue(s_data.dev, &req->urb);
         clean_hcd_req(req);
-        free(req);
+        USBTUN_FREE(req);
     }
     while ((req = (hcd_req_t *)usbtun_req_dq(0)) != NULL) {
         clean_hcd_req(req);
-        free(req);
+        USBTUN_FREE(req);
     }
 
     device_usb_hcd_stop(s_data.dev);
@@ -1119,13 +1110,7 @@ bufram_clean:
     lldbg("HCD router Stopped\n");
 
     /* TODO: temporary memory debug - to be removed */
-#ifdef CONFIG_CAN_PASS_STRUCTS
-    mem = mallinfo();
-#else
-    (void)mallinfo(&mem);
-#endif
-    lldbg("total:%d, used:%d, free:%d, largest:%d\n",
-          mem.arena, mem.uordblks, mem.fordblks, mem.mxordblk);
+    usbtun_print_mem_info();
 
     return NULL;
 }
