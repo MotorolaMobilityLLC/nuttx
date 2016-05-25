@@ -465,7 +465,7 @@ int mhb_camera_sm_execute(mhb_camera_sm_event_t event)
 
     pthread_mutex_lock(&s_sm_mutex);
 
-    CAM_DBG("ev %s s_state %s\n", mhb_camera_sm_event_str(event),
+    CTRL_DBG("ev %s s_state %s\n", mhb_camera_sm_event_str(event),
             mhb_camera_sm_state_str(s_state));
 
     if (s_state != MHB_CAMERA_STATE_INVALID) {
@@ -485,8 +485,7 @@ int mhb_camera_sm_execute(mhb_camera_sm_event_t event)
     /* transition s_state */
     while (next_state != s_state) {
         s_state = next_state;
-        CAM_DBG("State Change %s\n",
-                mhb_camera_sm_state_str(s_state));
+        CAM_DBG("%s\n", mhb_camera_sm_state_str(s_state));
 
         state_table = &mhb_camera_sm_table[next_state];
         if (state_table->enter) {
