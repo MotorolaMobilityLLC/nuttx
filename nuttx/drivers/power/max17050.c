@@ -135,7 +135,7 @@
 #define MAX17050_MIN_BATTERY_VOLTAGE    2500    /* in mV */
 
 /* Delay afer fuel gauge power up */
-#define MAX17050_DELAY_AFTER_POWERUP    500000  /* in uS */
+#define MAX17050_DELAY_AFTER_POWERUP    750000  /* in uS */
 
 #define MAX17050_ALERT_DEASSERT_DELAY   500 /* in mS */
 
