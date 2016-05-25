@@ -53,17 +53,18 @@
         lldbg(fmt, ##__VA_ARGS__)
 #endif
 
-#ifdef DEBUG
+#if (defined(CONFIG_DEBUG) && defined(DEBUG))
     #define CAM_DBG(fmt, ...) DEBUG_PRINT(fmt, ##__VA_ARGS__)
+    #ifdef DEBUG_CTRL
+        #define CTRL_DBG(fmt, ...) DEBUG_PRINT(fmt, ##__VA_ARGS__)
+    #else
+        #define CTRL_DBG(x...)
+    #endif
 #else
     #define CAM_DBG(x...)
-#endif
-
-#ifdef DEBUG_CTRL
-    #define CTRL_DBG(fmt, ...) DEBUG_PRINT(fmt, ##__VA_ARGS__)
-#else
     #define CTRL_DBG(x...)
 #endif
+
 
 #define CAM_ERR(fmt, ...)   DEBUG_PRINT(fmt, ##__VA_ARGS__)
 
