@@ -693,6 +693,8 @@ config STM32_STM32L4X3
 	select STM32_HAVE_TIM7
 	select STM32_HAVE_TIM15
 	select STM32_HAVE_TIM16
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
 	select STM32_HAVE_CAN1
 	select STM32_HAVE_RNG
 	select STM32_HAVE_RTC_SUBSECONDS
@@ -721,6 +723,8 @@ config STM32_STM32L4X6
 	select STM32_HAVE_TIM15
 	select STM32_HAVE_TIM16
 	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
 	select STM32_HAVE_ADC2
 	select STM32_HAVE_ADC3
 	select STM32_HAVE_CAN1
@@ -1138,6 +1142,14 @@ config STM32_HAVE_TIM17
 	bool
 	default n
 
+config STM32_HAVE_LPTIM1
+	bool
+	default n
+
+config STM32_HAVE_LPTIM2
+	bool
+	default n
+
 config STM32_HAVE_ADC2
 	bool
 	default n
@@ -1480,6 +1492,16 @@ config STM32_TIM17
 	bool "TIM17"
 	default n
 	depends on STM32_HAVE_TIM17
+
+config STM32_LPTIM1
+	bool "LPTIM1"
+	default n
+	depends on STM32_HAVE_LPTIM1
+
+config STM32_LPTIM2
+	bool "LPTIM2"
+	default n
+	depends on STM32_HAVE_LPTIM2
 
 config STM32_TSC
 	bool "TSC"
