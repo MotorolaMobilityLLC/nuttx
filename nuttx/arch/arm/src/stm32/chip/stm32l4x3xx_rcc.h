@@ -1,7 +1,7 @@
 /****************************************************************************************************
  * arch/arm/src/stm32/chip/stm32l4x3xx_rcc.h
  *
- *   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
+ *   Copyright (C) 2016 Motorola Mobility, LLC. All rights reserved.
  *   Copyright (C) 2009, 2011-2012 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
@@ -314,6 +314,8 @@
 
 /* APB1 Peripheral reset register 2 */
 
+#define RCC_APB1RSTR2_LPTIM2RST     (1 << 18) /* Bit 18: LPTIM2 reset */
+
 /* APB2 Peripheral reset register */
 #define RCC_APB2RSTR_SPI1RST       (1 << 12) /* Bit 12: SPI 1 reset */
 
@@ -364,6 +366,8 @@
 #define RCC_APB1ENR1_LPTIM1EN       (1 << 31) /* Bit 31: LPTIM1 enable */
 
 /* APB1 Peripheral Clock enable register 2 */
+
+#define RCC_APB1ENR2_LPTIM2EN       (1 << 18) /* Bit 18: LPTIM2 enable */
 
 /* APB2 Peripheral Clock enable register (incomplete) */
 
@@ -418,6 +422,18 @@
 #  define RCC_CCIPR_I2C3SEL_PCLK     (0 << RCC_CCIPR_I2C3SEL_SHIFT) /* 00: PCLK selected as I2C3 clock */
 #  define RCC_CCIPR_I2C3SEL_SYSCLK   (1 << RCC_CCIPR_I2C3SEL_SHIFT) /* 01: SYSCLK selected as I2C3 clock */
 #  define RCC_CCIPR_I2C3SEL_HSI      (2 << RCC_CCIPR_I2C3SEL_SHIFT) /* 10: HSI clock selected as I2C3 clock */
+#define RCC_CCIPR_LPTIM1SEL_SHIFT    (18)      /* Bits 18-19: LPTIM1 clock source selection */
+#define RCC_CCIPR_LPTIM1SEL_MASK     (3 << RCC_CCIPR_LPTIM1SEL_SHIFT)
+#  define RCC_CCIPR_LPTIM1SEL_PCLK   (0 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 00: PCLK selected as LPTIM1 clock */
+#  define RCC_CCIPR_LPTIM1SEL_LSI    (1 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 01: LSI selected as LPTIM1 clock */
+#  define RCC_CCIPR_LPTIM1SEL_HSI    (2 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 10: HSI clock selected as LPTIM1 clock */
+#  define RCC_CCIPR_LPTIM1SEL_LSE    (3 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 11: LSE clock selected as LPTIM1 clock */
+#define RCC_CCIPR_LPTIM2SEL_SHIFT    (20)      /* Bits 20-21: LPTIM2 clock source selection */
+#define RCC_CCIPR_LPTIM2SEL_MASK     (3 << RCC_CCIPR_LPTIM1SEL_SHIFT)
+#  define RCC_CCIPR_LPTIM2SEL_PCLK   (0 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 00: PCLK selected as LPTIM2 clock */
+#  define RCC_CCIPR_LPTIM2SEL_LSI    (1 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 01: LSI selected as LPTIM2 clock */
+#  define RCC_CCIPR_LPTIM2SEL_HSI    (2 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 10: HSI clock selected as LPTIM2 clock */
+#  define RCC_CCIPR_LPTIM2SEL_LSE    (3 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 11: LSE clock selected as LPTIM2 clock */
 #define RCC_CCIPR_ADCSEL_SHIFT       (28)       /* Bits 28-29: ADCs clock source selection */
 #define RCC_CCIPR_ADCSEL_MASK        (3 << RCC_CCIPR_ADCSEL_SHIFT)
 #  define RCC_CCIPR_ADCSEL_NONE      (0 << RCC_CCIPR_ADCSEL_SHIFT) /* 00: No clock selected */
