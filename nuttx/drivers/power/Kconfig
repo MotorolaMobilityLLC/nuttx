@@ -67,6 +67,26 @@ config BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP
 	---help---
 		Select if need more accurate temperature with MAX17050.
 
+config BATTERY_MAX17050_SENSE_TRACE_CORRECTION
+	bool "Adding offset to correct wrong capactity due to sense trace issue"
+	default n
+	---help---
+		Select if need correct fuel gauge DC offset caused by sense trace issue.
+
+config BATTERY_MAX17050_COFF_CFG
+	hex "Set Max17050 COFF Register Value"
+	default 0x0
+	depends on BATTERY_MAX17050_SENSE_TRACE_CORRECTION
+	---help---
+		Set necessary COFF value for MAX17050.
+
+config BATTERY_MAX17050_MISC_CFG
+	hex "Set Max17050 MISC CFG Register Value to set servo mixing rate"
+	default 0x0870
+	depends on BATTERY_MAX17050_SENSE_TRACE_CORRECTION
+	---help---
+		Set necessary MISC CFG value for MAX17050.
+
 choice
 	prompt "Select Battery Specific Configuration"
 config BATTERY_MAX17050_SAMPLE_CFG
