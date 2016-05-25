@@ -73,6 +73,10 @@ typedef enum {
     USBTUN_WAIT_DATA,
 } usbtun_hdr_res_t;
 
+void *USBTUN_ALLOC(uint32_t size);
+void USBTUN_FREE(void *ptr);
+void usbtun_print_mem_info(void);
+
 typedef usbtun_hdr_res_t (*usbtun_hdr_handler_t)(uint8_t ep, uint8_t type,
                                                  int16_t code, size_t len);
 

@@ -121,6 +121,38 @@ static struct unipro_driver route_driver = {
     .rx_handler = unipro_rx_handler,
 };
 
+void *USBTUN_ALLOC(uint32_t size) {
+#ifdef CONFIG_DWC_USE_BUFRAM
+    void *buf = bufram_alloc(size);
+
+    if (buf)
+        memset(buf, 0, size);
+
+    return buf;
+#else
+    return zalloc(size);
+#endif
+}
+
+void USBTUN_FREE(void *ptr) {
+#ifdef CONFIG_DWC_USE_BUFRAM
+    bufram_free(ptr);
+#else
+    free(ptr);
+#endif
+}
+
+void usbtun_print_mem_info(void) {
+    struct mallinfo mem;
+#ifdef CONFIG_CAN_PASS_STRUCTS
+    mem = mallinfo();
+#else
+    (void)mallinfo(&mem);
+#endif
+    lldbg("total:%d, used:%d, free:%d, largest:%d\n",
+          mem.arena, mem.uordblks, mem.fordblks, mem.mxordblk);
+}
+
 int init_router_common(usbtun_hdr_handler_t hdr_handler, usbtun_data_handler_t data_handler) {
     int i;
     irqstate_t flags = irqsave();

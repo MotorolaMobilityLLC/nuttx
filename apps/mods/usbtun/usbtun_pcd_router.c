@@ -126,11 +126,11 @@ static void ep0_out_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *dev_re
     if (req->dev_req)
         EP_FREEREQ(ep, req->dev_req);
 
-    free(req);
+    USBTUN_FREE(req);
 }
 
 static pcd_req_t *alloc_setup_req(size_t dlen) {
-    pcd_req_t *req = zalloc(sizeof(*req));
+    pcd_req_t *req = USBTUN_ALLOC(sizeof(*req));
     uint8_t *setup_ptr = NULL;
 
     if (req) {
@@ -171,7 +171,7 @@ alloc_failure:
         bufram_free(setup_ptr);
 
     if (req)
-        free(req);
+        USBTUN_FREE(req);
 
     return NULL;
 }
@@ -183,7 +183,7 @@ static int _usbclass_bind(struct usbdevclass_driver_s *driver, struct usbdev_s *
     /* preallocate ep_req_s items for control endpoints */
     int i;
     for(i = 0; i < NUM_CTRL_REQS; i++) {
-        pcd_req_t *req = zalloc(sizeof(*req));
+        pcd_req_t *req = USBTUN_ALLOC(sizeof(*req));
         if (req) {
             void *ptr = bufram_alloc(sizeof(struct usb_ctrlreq_s));
             if (!ptr)
@@ -201,7 +201,7 @@ static int _usbclass_bind(struct usbdevclass_driver_s *driver, struct usbdev_s *
                 usbtun_req_q(0, &req->entry);
             } else {
                 pcd_req_mem_free(req);
-                free(req);
+                USBTUN_FREE(req);
             }
         }
     }
@@ -332,7 +332,7 @@ static void _prepare_in_ep(uint8_t epno) {
     struct usbdev_req_s * dev_req;
 
     for (i = 0; i < NUM_IN_REQS; i++) {
-        req = zalloc(sizeof(*req));
+        req = USBTUN_ALLOC(sizeof(*req));
         if (req) {
             req->ep = epno;
             dev_req = alloc_request(s_data.ep[epno], &req_in_callback, req);
@@ -341,7 +341,7 @@ static void _prepare_in_ep(uint8_t epno) {
                 req->dev_req = dev_req;
                 usbtun_req_q(epno, &req->entry);
             } else {
-                free(req);
+                USBTUN_FREE(req);
             }
         }
     }
@@ -357,13 +357,13 @@ static void _prepare_out_ep(uint8_t epno) {
     void *ptr;
 
     for (i = 0; i < NUM_OUT_REQS; i++) {
-        req = zalloc(sizeof(*req));
+        req = USBTUN_ALLOC(sizeof(*req));
         if (req) {
             req->ep = epno;
             dev_req = alloc_request(s_data.ep[epno], &req_out_callback, req);
 
             if (!dev_req) {
-                free(req);
+                USBTUN_FREE(req);
                 continue;
             }
 
@@ -371,7 +371,7 @@ static void _prepare_out_ep(uint8_t epno) {
             if (!ptr) {
                 lldbg("Failed to allocate bufram for EP %d\n", epno);
                 EP_FREEREQ(s_data.ep[epno], dev_req);
-                free(req);
+                USBTUN_FREE(req);
                 continue;
             }
             req->data.type = USBTUN_MEM_BUFRAM;
@@ -385,7 +385,7 @@ static void _prepare_out_ep(uint8_t epno) {
                 lldbg("Failed to allocate URB for EP %d\n", epno);
                 pcd_req_mem_free(req);
                 EP_FREEREQ(s_data.ep[epno], dev_req);
-                free(req);
+                USBTUN_FREE(req);
                 continue;
             }
         }
@@ -401,12 +401,12 @@ static void _unconfigure_ep(uint8_t epno) {
         EP_CANCEL(s_data.ep[epno], req->dev_req);
         EP_FREEREQ(s_data.ep[epno], req->dev_req);
         pcd_req_mem_free(req);
-        free(req);
+        USBTUN_FREE(req);
     }
     while ((req = (pcd_req_t *)usbtun_req_dq(epno)) != NULL) {
         EP_FREEREQ(s_data.ep[epno], req->dev_req);
         pcd_req_mem_free(req);
-        free(req);
+        USBTUN_FREE(req);
     }
 
     if (epno != 0)
@@ -666,15 +666,7 @@ static void *pcd_router_startup(void *arg) {
     int ret;
 
     /* TODO: Just temporary debug until HSIC become fully stable */
-    struct mallinfo mem;
-
-#ifdef CONFIG_CAN_PASS_STRUCTS
-    mem = mallinfo();
-#else
-    (void)mallinfo(&mem);
-#endif
-    lldbg("total:%d, used:%d, free:%d, largest:%d\n",
-          mem.arena, mem.uordblks, mem.fordblks, mem.mxordblk);
+    usbtun_print_mem_info();
 
     memset(&s_data, 0, sizeof(s_data));
 
@@ -742,13 +734,7 @@ common_uninit:
     lldbg("PCD router stopped\n");
 
     /* TODO: temporary debug */
-#ifdef CONFIG_CAN_PASS_STRUCTS
-    mem = mallinfo();
-#else
-    (void)mallinfo(&mem);
-#endif
-    lldbg("total:%d, used:%d, free:%d, largest:%d\n",
-          mem.arena, mem.uordblks, mem.fordblks, mem.mxordblk);
+    usbtun_print_mem_info();
 
     return NULL;
 }
