@@ -196,6 +196,8 @@ config ARCH_BOARD_FREEDOM_KL25Z
 config ARCH_BOARD_HDK_MUC
 	bool "Motorola HDK MuC"
 	depends on ARCH_CHIP_STM32L476JG
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
 	---help---
 		Motorola HDK board based on the STMicro STM32L476JG7YTR MCU.
 

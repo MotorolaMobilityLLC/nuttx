@@ -37,6 +37,14 @@
 
 #define  TEMP_RAW_ADC_DEVPATH         "/dev/adc0"
 
+/* BUTTONS -- NOTE that all have EXTI interrupts configured */
+
+#define MIN_IRQBUTTON   BUTTON_POWER
+#define MAX_IRQBUTTON   BUTTON_POWER
+#define NUM_IRQBUTTONS  1
+
+#define GPIO_BTN_POWER  (GPIO_INPUT|GPIO_FLOAT|GPIO_EXTI|GPIO_PORTD|GPIO_PIN2)
+
 /****************************************************************************
  * Name: mods_init
  *

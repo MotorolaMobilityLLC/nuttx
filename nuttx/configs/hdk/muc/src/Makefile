@@ -45,6 +45,10 @@ ifeq ($(CONFIG_ARCH_BOARD_STM32_CUSTOM_CLOCKCONFIG),y)
 CSRCS += stm32_sysclk.c
 endif
 
+ifeq ($(CONFIG_ARCH_BUTTONS),y)
+CSRCS += stm32_buttons.c
+endif
+
 ifeq ($(CONFIG_WATCHDOG),y)
 CSRCS += stm32_watchdog.c
 endif
@@ -80,6 +84,10 @@ endif
 
 ifeq ($(CONFIG_MAX17050_DEVICE),y)
 CSRCS += stm32_battery.c
+
+ifeq ($(CONFIG_ARCH_BUTTONS),y)
+CSRCS += stm32_battery_indicator.c
+endif
 endif
 
 ifeq ($(CONFIG_BATTERY_GOOD_DEVICE_COMP),y)

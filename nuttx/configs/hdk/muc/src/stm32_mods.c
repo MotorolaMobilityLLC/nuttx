@@ -37,10 +37,19 @@
 #include <nuttx/arch.h>
 #include <nuttx/config.h>
 #include <nuttx/gpio.h>
+#include <nuttx/i2c.h>
+#include <nuttx/power/battery.h>
+#include <nuttx/power/battery_state.h>
 #include <nuttx/power/bq24292.h>
 
 #include <debug.h>
+#include <errno.h>
 #include <unistd.h>
+
+#define MAX17050_I2C_BUS          3
+#define MAX17050_I2C_FREQ         400000
+
+static struct battery_dev_s *g_battery;
 
 /*
  * Handler for the pcard detection interrupt. When the pcard is attached or
@@ -78,6 +87,24 @@ int mods_user_init(void)
         return ret;
 #endif
 
+#ifdef CONFIG_BATTERY_MAX17050
+        struct i2c_dev_s *i2c = up_i2cinitialize(MAX17050_I2C_BUS);
+        if (!i2c)
+            return -ENODEV;
+
+        g_battery = max17050_initialize(i2c, MAX17050_I2C_FREQ, GPIO_MODS_CC_ALERT,
+                                        -1);
+        if (!g_battery) {
+            up_i2cuninitialize(i2c);
+            return -ENODEV;
+        }
+
+#if defined(CONFIG_BATTERY_STATE)
+        /* Must be initialized after MAX17050 core driver has been initialized */
+        battery_state_init();
+#endif
+#endif
+
     return ret;
 }
 #endif
@@ -85,4 +112,9 @@ int mods_user_init(void)
 void mods_host_int_set(bool value)
 {
     gpio_set_value(GPIO_MODS_INT, value ? 1 : 0);
+}
+
+struct battery_dev_s *get_battery(void)
+{
+    return g_battery;
 }
