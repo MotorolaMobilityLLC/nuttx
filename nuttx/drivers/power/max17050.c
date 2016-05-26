@@ -281,6 +281,20 @@ static int max17050_reg_modify(FAR struct max17050_dev_s *priv, uint16_t reg,
     return max17050_reg_write(priv, reg, new_value);
 }
 
+static int max17050_reg_modify_retry(FAR struct max17050_dev_s *priv, uint16_t reg,
+                               uint16_t mask, uint16_t set)
+{
+    int tries = 8;
+    int ret;
+    do {
+        ret = max17050_reg_modify(priv, reg, mask, set);
+        if (!ret) {
+            break;
+        }
+    } while (--tries);
+    return ret;
+}
+
 static int max17050_online(struct battery_dev_s *dev, bool *status)
 {
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
@@ -478,7 +492,7 @@ static int max17050_enable_alrt(FAR struct max17050_dev_s *priv, bool state)
 {
     uint16_t set = state ? MAX17050_CONFIG_AEN : ~MAX17050_CONFIG_AEN;
 
-    return max17050_reg_modify(priv, MAX17050_REG_CONFIG, MAX17050_CONFIG_AEN,
+    return max17050_reg_modify_retry(priv, MAX17050_REG_CONFIG, MAX17050_CONFIG_AEN,
                                set);
 }
 
@@ -714,7 +728,7 @@ static int max17050_por_init(FAR struct max17050_dev_s *priv)
         return -EIO;
 
     // Clear POR bit to indicate successful initialization
-    if (!max17050_reg_modify(priv, MAX17050_REG_STATUS, MAX17050_STATUS_POR, 0)) {
+    if (!max17050_reg_modify_retry(priv, MAX17050_REG_STATUS, MAX17050_STATUS_POR, 0)) {
         int status = max17050_reg_read(priv, MAX17050_REG_STATUS);
         if (status >= 0 && !(status & MAX17050_STATUS_POR)) {
             return 0;
@@ -1040,7 +1054,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
         return;
     }
     if (ret != CONFIG_BATTERY_MAX17050_COFF_CFG) {
-        max17050_reg_modify(priv, MAX17050_REG_STATUS,
+        max17050_reg_modify_retry(priv, MAX17050_REG_STATUS,
               MAX17050_STATUS_POR, MAX17050_STATUS_POR)
     } else {
        ret = max17050_reg_read(priv, MAX17050_REG_MISC_CFG);
@@ -1049,7 +1063,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
            return;
        }
        if (ret != CONFIG_BATTERY_MAX17050_MISC_CFG) {
-           max17050_reg_modify(priv, MAX17050_REG_STATUS,
+           max17050_reg_modify_retry(priv, MAX17050_REG_STATUS,
               MAX17050_STATUS_POR, MAX17050_STATUS_POR)
        }
     }
