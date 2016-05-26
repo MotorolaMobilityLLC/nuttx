@@ -30,11 +30,13 @@
 #include <debug.h>
 #include <errno.h>
 
+#include <arch/board/mods.h>
+
 #include <nuttx/device.h>
 #include <nuttx/device_battery.h>
-#include <nuttx/i2c.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/power/battery.h>
+#include <nuttx/power/battery_state.h>
 
 #define SHUTDOWN_TEMPERATURE         500
 
@@ -47,16 +49,23 @@
 #define DEFAULT_BATT_TOTAL_CAPACITY 0                         /* mAh  */
 #define DEFAULT_BATT_TEMP           250                       /* 0.1C */
 
-#define MAX17050_I2C_BUS               3
-#define MAX17050_I2C_FREQ         400000
-
 /**
  * @brief private battery device information
  */
 struct batt_info {
     struct i2c_dev_s *i2c;
     struct battery_dev_s *bdev;
+    enum batt_level_e current_level;
 };
+
+static struct batt_info *g_batt_info;
+static int get_capacity_internal(struct batt_info *info, b16_t *capacity);
+
+#ifdef CONFIG_ARCH_BUTTONS
+int battery_indicator_probe(void);
+int battery_indicator_open(void);
+void battery_indicator_remove(void);
+#endif
 
 /**
  * @brief Get battery technology.
@@ -200,18 +209,13 @@ static int batt_get_current(struct device *dev, int *current)
 static int batt_get_percent_capacity(struct device *dev, uint32_t *capacity)
 {
     struct batt_info *info = NULL;
-    int ret;
 
     /* check input parameters */
     if (!dev || !capacity)
         return -EINVAL;
 
     info = device_get_private(dev);
-    ret = info->bdev->ops->capacity(info->bdev, (b16_t *)capacity);
-    if (ret < 0)
-        *capacity = DEFAULT_BATT_CAPACITY;
-
-    return OK;
+    return get_capacity_internal(info, (b16_t *)capacity);
 }
 
 /**
@@ -277,6 +281,16 @@ static int batt_get_shutdown_temp(struct device *dev, int *shutdown_temp)
     return OK;
 }
 
+static void battery_state_changed_cb(void *arg,
+        const struct batt_state_s *batt)
+{
+    struct batt_info *info = arg;
+    if (info->current_level == batt->level)
+        return;
+
+    info->current_level = batt->level;
+}
+
 /**
  * @brief Open battery device
  *
@@ -291,16 +305,30 @@ static int batt_get_shutdown_temp(struct device *dev, int *shutdown_temp)
 static int batt_dev_open(struct device *dev)
 {
     struct batt_info *info = NULL;
+    int retval = OK;
 
     /* check input parameters */
     if (!dev || !device_get_private(dev))
         return -EINVAL;
 
     info = device_get_private(dev);
-    if (!info->bdev)
-        info->bdev = max17050_initialize(info->i2c, MAX17050_I2C_FREQ, -1, -1);
+    if (!info->bdev) {
+        info->bdev = get_battery();
+        if (!info->bdev)
+            return -ENODEV;
+    }
 
-    return info->bdev ? OK : -ENODEV;
+    retval = battery_state_register(battery_state_changed_cb, info);
+    if (retval) {
+        dbg("failed to register battery_state callback\n");
+        return retval;
+    }
+
+#ifdef CONFIG_ARCH_BUTTONS
+    retval = battery_indicator_open();
+#endif
+
+    return retval;
 }
 
 /**
@@ -321,17 +349,16 @@ static int batt_dev_probe(struct device *dev)
     if (!info)
         return -ENOMEM;
 
-    info->i2c = up_i2cinitialize(MAX17050_I2C_BUS);
-    if (!info->i2c)
-        goto i2c_fail;
+    info->current_level = BATTERY_LEVEL_EMPTY;
 
     device_set_private(dev, info);
+    g_batt_info = info;
+
+#ifdef CONFIG_ARCH_BUTTONS
+    battery_indicator_probe();
+#endif
 
     return 0;
-
-i2c_fail:
-    free(info);
-    return -ENODEV;
 }
 
 /**
@@ -348,13 +375,18 @@ static void batt_dev_remove(struct device *dev)
 {
     struct batt_info *info = NULL;
 
+#ifdef CONFIG_ARCH_BUTTONS
+    battery_indicator_remove();
+#endif
+
     /* check input parameters */
     if (!dev || !device_get_private(dev))
         return;
 
     info = device_get_private(dev);
-    up_i2cuninitialize(info->i2c);
+
     free(info);
+    g_batt_info = NULL;
     device_set_private(dev, NULL);
 }
 
@@ -383,3 +415,31 @@ struct device_driver batt_driver = {
     .desc       = "MAX17050 Battery Driver",
     .ops        = &batt_driver_ops,
 };
+
+static int get_capacity_internal(struct batt_info *info, b16_t *capacity)
+{
+    int ret;
+
+    /* check input parameters */
+    if (!info || !capacity)
+        return -EINVAL;
+
+    ret = info->bdev->ops->capacity(info->bdev, capacity);
+    if (ret < 0)
+        *capacity = DEFAULT_BATT_CAPACITY;
+
+    return OK;
+}
+
+int stm32_battery_get_capacity(b16_t *capacity)
+{
+    return get_capacity_internal(g_batt_info, capacity);
+}
+
+enum batt_level_e stm32_battery_get_level(void)
+{
+    if (g_batt_info)
+        return g_batt_info->current_level;
+    else
+        return BATTERY_LEVEL_EMPTY;
+}

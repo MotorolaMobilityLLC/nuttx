@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (C) 2015 Motorola Mobility, LLC. All rights reserved.
+ *   Copyright (C) 2015-2016 Motorola Mobility, LLC. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,6 +36,7 @@
 
 #include <stdbool.h>
 #include <nuttx/gpio.h>
+#include <nuttx/power/battery.h>
 
 #define BOARD_REVISION           (CONFIG_ARCH_BOARDID_PID & 0x000000FF)
 
@@ -52,6 +53,7 @@
 
 #define GPIO_MODS_SL_BPLUS_EN    CALC_GPIO_NUM('A', 11)
 #define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  0)
+#define GPIO_MODS_CC_ALERT       CALC_GPIO_NUM('B',  1)
 #define GPIO_MODS_SPI_CS_N       CALC_GPIO_NUM('B', 12)
 #define GPIO_MODS_SPI_TACK       CALC_GPIO_NUM('B', 14)
 #define GPIO_MODS_SPI_RACK       CALC_GPIO_NUM('B', 15)
@@ -59,6 +61,7 @@
 #define GPIO_MODS_CHG_INT_N      CALC_GPIO_NUM('C',  4)
 #define GPIO_MODS_SL_BPLUS_AIN   CALC_GPIO_NUM('C',  5)
 #define GPIO_MODS_INT            CALC_GPIO_NUM('C', 13)
+#define GPIO_MODS_KEY_POWER_PMIC CALC_GPIO_NUM('D',  2)
 #define GPIO_MODS_LED_DRV_1      CALC_GPIO_NUM('D',  7)
 #define GPIO_MODS_PCARD_DET_N    CALC_GPIO_NUM('D',  9)
 #define GPIO_MODS_LED_DRV_2      CALC_GPIO_NUM('E',  7)
@@ -132,5 +135,7 @@ static inline uint8_t mods_rfr_get(void)
 }
 
 void mods_host_int_set(bool value);
+
+struct battery_dev_s *get_battery(void);
 
 #endif /* _STM32_MODS_H_ */

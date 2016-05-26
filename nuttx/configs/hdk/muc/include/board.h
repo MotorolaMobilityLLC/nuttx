@@ -120,6 +120,12 @@
 #define STM32_TIM18_FREQUENCY   (STM32_PCLK2_FREQUENCY)
 #define STM32_TIM27_FREQUENCY   (STM32_PCLK1_FREQUENCY)
 
+/* The board only has one button */
+
+#define BUTTON_POWER       0
+#define NUM_BUTTONS        1
+#define BUTTON_POWER_BIT   (1 << BUTTON_POWER)
+
 /* USART */
 
 #define STM32_USART3_FREQUENCY  STM32_HSI_FREQUENCY

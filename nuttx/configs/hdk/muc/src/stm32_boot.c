@@ -40,6 +40,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_battery.h>
 #include <nuttx/device_battery_good.h>
+#include <nuttx/device_battery_level.h>
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/device_display.h>
 #include <nuttx/device_ext_power.h>
@@ -79,6 +80,7 @@ struct board_gpio_cfg_s
 static const struct board_gpio_cfg_s board_gpio_cfgs[] =
 {
   { GPIO_MODS_SL_BPLUS_EN,   (GPIO_PULLUP)                },
+  { GPIO_MODS_CC_ALERT,      (GPIO_PULLUP)                },
   { GPIO_MODS_FUSB302_INT_N, (GPIO_INPUT|GPIO_FLOAT)      },
   { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT)      },
   { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)              },
@@ -382,7 +384,14 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
-
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+    {
+        .type = DEVICE_TYPE_BATTERY_LEVEL_HW,
+        .name = "max17050_battery_level",
+        .desc = "Battery level monitoring with MAX17050",
+        .id   = 0,
+    },
+#endif
 #ifdef CONFIG_MHB_APBE_CTRL_DEVICE
     /* For GB Mods Control Protocol */
     {
@@ -673,10 +682,6 @@ void board_initialize(void)
   mods_init();
 #endif
 
-#if defined(CONFIG_BATTERY_STATE)
-  battery_state_init();
-#endif
-
 #ifdef CONFIG_DEVICE_CORE
   device_table_register(&muc_device_table);
 
@@ -715,6 +720,10 @@ void board_initialize(void)
 #ifdef CONFIG_MAX17050_DEVICE
   extern struct device_driver batt_driver;
   device_register_driver(&batt_driver);
+#endif
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+  extern struct device_driver max17050_battery_level_driver;
+  device_register_driver(&max17050_battery_level_driver);
 #endif
 #ifdef CONFIG_MHB_APBE_CTRL_DEVICE
   extern struct device_driver apbe_pwrctrl_driver;
