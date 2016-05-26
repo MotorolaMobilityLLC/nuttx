@@ -99,6 +99,12 @@
 #define BQ25896_REG07_TERM_DIS              (0 << BQ25896_REG07_TERM_SHIFT)
 #define BQ25896_REG07_TERM_EN               (1 << BQ25896_REG07_TERM_SHIFT)
 
+#define BQ25896_REG09                       (0x09)
+#define BQ25896_REG09_BATFET_SHIFT          (5)      /* Bit 5: Force BATFET off to enable ship mode */
+#define BQ25896_REG09_BATFET_MASK           (1 << BQ25896_REG09_BATFET_SHIFT)
+#define BQ25896_REG09_BATFET_ON             (0 << BQ25896_REG09_BATFET_SHIFT)
+#define BQ25896_REG09_BATFET_OFF            (1 << BQ25896_REG09_BATFET_SHIFT)
+
 #define BQ25896_REG0A                       (0x0A)
 #define BQ25896_REG0A_BOOST_LIM_SHIFT       (0)      /* Bits 0-2: Boost Mode Current Limit */
 #define BQ25896_REG0A_BOOST_LIM_MASK        (7 << BQ25896_REG0A_BOOST_LIM_SHIFT)
