@@ -42,6 +42,8 @@
 
 #include "usbtun.h"
 
+int mhb_send_hsic_status_not(uint8_t status);
+
 /* HCD local defs */
 #define SET_PORT_FEATURE 0x2303
 #define CLR_PORT_FEATURE 0x2301
@@ -1065,6 +1067,9 @@ static void handle_port_change(hcd_req_t *req) {
     if (status.port_status & PORT_CONNECTED_MASK) {
         if (!s_data.do_tunnel) {
             lldbg("USB Device Connected\n");
+
+            mhb_send_hsic_status_not(1);
+
             s_data.do_tunnel = true;
             int ret = unipro_send_tunnel_cmd(0, HCD_ROUTER_READY, 0, NULL, 0);
             if (ret) {
@@ -1076,6 +1081,9 @@ static void handle_port_change(hcd_req_t *req) {
     } else {
         if (s_data.do_tunnel) {
             lldbg("USB Device Disconnected\n");
+
+            mhb_send_hsic_status_not(0);
+
             s_data.do_tunnel = false;
         }
     }
