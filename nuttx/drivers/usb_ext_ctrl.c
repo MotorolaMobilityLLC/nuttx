@@ -50,7 +50,7 @@ struct usb_ext_s {
 
 struct usb_ext_s s_data;
 
-static void do_action(bool attached)
+static void do_gb_action(bool attached)
 {
     irqstate_t flags;
     flags = irqsave();
@@ -61,24 +61,44 @@ static void do_action(bool attached)
         lldbg("USB-EXT ctrl driver is not registered\n");
     }
 
-    if (s_data.usbtun) {
-        if (attached)
-            device_usbtun_on(s_data.usbtun);
-        else
-            device_usbtun_off(s_data.usbtun);
-    }
-
     irqrestore(flags);
+}
+
+static int _hsic_status_cb(struct device *dev, uint8_t attached) {
+    lldbg("USB: %s\n", attached ? "connected" : "disconnected");
+    do_gb_action(attached);
+    return 0;
+}
+
+static void do_mhb_action(bool start)
+{
+    if (start)
+        device_usbtun_on(s_data.usbtun);
+    else
+        device_usbtun_off(s_data.usbtun);
 }
 
 void usb_ext_ctrl_notify_attach(void)
 {
-    do_action(true);
+    if (s_data.usbtun) {
+        /*
+         * The gb attach indication will be sent when a USB device
+         * is connected.
+         */
+        do_mhb_action(true);
+    } else {
+        do_gb_action(true);
+    }
 }
 
 void usb_ext_ctrl_notify_detach(void)
 {
-    do_action(false);
+    if (s_data.usbtun) {
+        do_gb_action(false);
+        do_mhb_action(false);
+    } else {
+        do_gb_action(true);
+    }
 }
 
 static int _register_callback(struct device *dev,
@@ -102,6 +122,8 @@ static int _open(struct device *dev)
     s_data.usbtun = device_open(DEVICE_TYPE_USBTUN_HW, 0);
     if (!s_data.usbtun)
         return -ENODEV;
+
+    device_usbtun_register_callback(s_data.usbtun, &_hsic_status_cb);
 #endif
 
     return 0;
@@ -112,6 +134,7 @@ static void _close(struct device *dev)
     s_data.callback = 0;
 
     if (s_data.usbtun) {
+        device_usbtun_unregister_callback(s_data.usbtun);
         device_close(s_data.usbtun);
         s_data.usbtun = NULL;
     }
