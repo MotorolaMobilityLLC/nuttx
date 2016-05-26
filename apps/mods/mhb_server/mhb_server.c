@@ -1216,6 +1216,22 @@ static int mhb_handle_hsic(struct mhb_transaction *transaction)
     }
 }
 
+static int _mhb_send_hsic_status_not(struct device *dev, bool attached)
+{
+    struct mhb_hdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_HSIC;
+    hdr.type = MHB_TYPE_HSIC_STATUS_NOT;
+    uint8_t payload = attached ? 1 : 0;
+
+    return device_mhb_send(dev, &hdr, &payload, sizeof(payload), 0);
+}
+
+int mhb_send_hsic_status_not(bool attached)
+{
+    return _mhb_send_hsic_status_not(g_uart_dev, attached);
+}
+
 /* Diag */
 static int _mhb_send_diag_local_log_not(struct device *dev)
 {

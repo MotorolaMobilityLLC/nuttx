@@ -41,4 +41,6 @@ int mhb_send_unipro_stats_not(void);
 int mhb_send_diag_local_log_not(void);
 int mhb_send_diag_peer_log_not(void);
 
+int mhb_send_hsic_status_not(uint8_t status);
+
 #endif
