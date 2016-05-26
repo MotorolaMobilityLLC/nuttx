@@ -593,13 +593,8 @@ static void tsb_i2s_unipro_tunnel_stop_i2s_dma(void)
     }
 
     /* Disable the input and output channels. */
-    tsb_i2s_unipro_i2s_wait_clear(TSB_I2S_REG_SO_BASE + TSB_I2S_REG_BUSY,
-                                  TSB_I2S_REG_BUSY_SERIBUSY);
     putreg32(TSB_I2S_REG_STOP_I2S_STOP, TSB_I2S_REG_SO_BASE + TSB_I2S_REG_STOP);
 
-    /* Wait for the input channel to complete. */
-    tsb_i2s_unipro_i2s_wait_clear(TSB_I2S_REG_SI_BASE + TSB_I2S_REG_BUSY,
-                                  TSB_I2S_REG_BUSY_SERIBUSY);
 
     putreg32(TSB_I2S_REG_STOP_I2S_STOP, TSB_I2S_REG_SI_BASE + TSB_I2S_REG_STOP);
 
