@@ -260,7 +260,7 @@ struct camera_ext_event_hdr {
 /* Async EVENTS */
 #define CAMERA_EXT_POWERED_ON      0x00
 
-#define CAMERA_EXT_EVENT_DESC_LEN  64
+#define CAMERA_EXT_EVENT_DESC_LEN  60
 
 struct camera_ext_event {
     __le32 code;
