@@ -498,6 +498,10 @@ static int bq25896_charger_open(struct device *dev)
         return retval;
     }
 
+    /* disable ship mode, allow BATFET turn on */
+    bq25896_reg_modify(BQ25896_REG09, BQ25896_REG09_BATFET_MASK,
+            BQ25896_REG09_BATFET_ON);
+
     /* Initialize the device */
     (void) bq25896_configure(&info->init_data);
 
