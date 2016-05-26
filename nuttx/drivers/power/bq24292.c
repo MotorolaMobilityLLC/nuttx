@@ -421,6 +421,9 @@ int bq24292_driver_init(int16_t int_n, int16_t pg_n)
         }
     }
 
+    /* disable ship mode, allow BATFET turn on */
+    reg_modify(0x07, 0x20, 0x00);
+
     /* Perform initial configuration */
     (void) configure_device();
 
