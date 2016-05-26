@@ -36,9 +36,13 @@
 
 #define DEVICE_TYPE_USBTUN_HW "usbtun"
 
+typedef int (*usbtun_status_cb)(struct device *dev, uint8_t attached);
+
 struct device_usbtun_type_ops {
     int (*on)(struct device *dev);
     int (*off)(struct device *dev);
+    int (*register_callback)(struct device *dev, usbtun_status_cb cb);
+    int (*unregister_callback)(struct device *dev);
 };
 
 static inline int device_usbtun_on(struct device *dev)
@@ -63,6 +67,32 @@ static inline int device_usbtun_off(struct device *dev)
     }
     if (DEVICE_DRIVER_GET_OPS(dev, usbtun)->off) {
         return DEVICE_DRIVER_GET_OPS(dev, usbtun)->off(dev);
+    }
+    return -ENOSYS;
+}
+
+static inline int device_usbtun_register_callback(struct device *dev, usbtun_status_cb cb)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+    if (DEVICE_DRIVER_GET_OPS(dev, usbtun)->register_callback) {
+        return DEVICE_DRIVER_GET_OPS(dev, usbtun)->register_callback(dev, cb);
+    }
+    return -ENOSYS;
+}
+
+static inline int device_usbtun_unregister_callback(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+    if (DEVICE_DRIVER_GET_OPS(dev, usbtun)->unregister_callback) {
+        return DEVICE_DRIVER_GET_OPS(dev, usbtun)->unregister_callback(dev);
     }
     return -ENOSYS;
 }
