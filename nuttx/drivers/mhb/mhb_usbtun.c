@@ -42,6 +42,7 @@
 struct usbtun_s {
     struct device *mhb_dev;
     struct device *slave_pwr_ctrl;
+    usbtun_status_cb cb;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
 };
@@ -93,6 +94,11 @@ static int _mhb_handle_msg(struct device *dev,
             lldbg("MHB HSIC Control RSP with failure\n");
         }
         _signal_response(s_data);
+        break;
+    case MHB_TYPE_HSIC_STATUS_NOT:
+        if (payload_length && s_data->cb) {
+            s_data->cb(dev, *payload);
+        }
         break;
     default:
         break;
@@ -193,6 +199,25 @@ static int _off(struct device *dev) {
     return 0;
 }
 
+static int _reg_cb(struct device *dev, usbtun_status_cb cb) {
+    struct usbtun_s *data = device_get_private(dev);
+
+    if (data->cb)
+        return -EBUSY;
+
+    data->cb = cb;
+
+    return 0;
+}
+
+static int _unreg_cb(struct device *dev) {
+    struct usbtun_s *data = device_get_private(dev);
+
+    data->cb = NULL;
+
+    return 0;
+}
+
 static int _open(struct device *dev) {
     struct usbtun_s *data = device_get_private(dev);
 
@@ -249,6 +274,8 @@ static void _remove(struct device *dev) {
 static struct device_usbtun_type_ops _type_ops = {
     .on  = _on,
     .off = _off,
+    .register_callback = _reg_cb,
+    .unregister_callback = _unreg_cb,
 };
 
 static struct device_driver_ops _driver_ops = {
