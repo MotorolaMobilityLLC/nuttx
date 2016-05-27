@@ -64,11 +64,13 @@ static void do_gb_action(bool attached)
     irqrestore(flags);
 }
 
+#ifdef CONFIG_MHB_USBTUN
 static int _hsic_status_cb(struct device *dev, uint8_t attached) {
     lldbg("USB: %s\n", attached ? "connected" : "disconnected");
     do_gb_action(attached);
     return 0;
 }
+#endif
 
 static void do_mhb_action(bool start)
 {
