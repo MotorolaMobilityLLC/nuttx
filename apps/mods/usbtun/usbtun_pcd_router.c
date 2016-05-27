@@ -394,23 +394,30 @@ static void _prepare_out_ep(uint8_t epno) {
 }
 
 static void _unconfigure_ep(uint8_t epno) {
-    EP_DISABLE(s_data.ep[epno]);
+    struct usbdev_ep_s *ep;
+
+    if (epno == 0)
+        ep = s_data.usbdev->ep0;
+    else
+        ep = s_data.ep[epno];
+
+    /* Call below will force complete all queued request to
+     * complete with ESHUTDOWN */
+    EP_DISABLE(ep);
 
     pcd_req_t *req;
     while ((req = (pcd_req_t *)usbtun_req_dq_usb(epno)) != NULL) {
-        EP_CANCEL(s_data.ep[epno], req->dev_req);
-        EP_FREEREQ(s_data.ep[epno], req->dev_req);
-        pcd_req_mem_free(req);
-        USBTUN_FREE(req);
+        EP_CANCEL(ep, req->dev_req);
+        usbtun_req_q(epno, &req->entry);
     }
     while ((req = (pcd_req_t *)usbtun_req_dq(epno)) != NULL) {
-        EP_FREEREQ(s_data.ep[epno], req->dev_req);
+        EP_FREEREQ(ep, req->dev_req);
         pcd_req_mem_free(req);
         USBTUN_FREE(req);
     }
 
     if (epno != 0)
-        DEV_FREEEP(s_data.usbdev, s_data.ep[epno]);
+        DEV_FREEEP(s_data.usbdev, ep);
 }
 
 static void _handle_ep_list(void *list, size_t len) {
@@ -504,6 +511,11 @@ static void req_out_callback(struct usbdev_ep_s *ep, struct usbdev_req_s *dev_re
               ep->eplog, dev_req->result, dev_req->xfrd, dev_req->buf, req);
     }
 #endif
+    if (!s_data.pcd_ready || dev_req->result == -ESHUTDOWN) {
+        usbtun_req_from_usb(req->ep, &req->entry);
+        usbtun_req_q(ep->eplog, &req->entry);
+        return;
+    }
 
     if (dev_req->xfrd)
         unipro_send_tunnel_cmd(ep->eplog, 0, 0, dev_req->buf, dev_req->xfrd);
