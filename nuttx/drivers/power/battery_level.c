@@ -42,7 +42,7 @@ struct battery_level_info_s {
     bool available;             /* are measurements available ? */
     enum batt_level_e level;    /* current level */
     int battery_limit_empty;    /* minimum possible value for min limit */
-    int battery_limit_full;     /* maximum possible value for max limit */
+    int battery_limit_full;     /* TODO: remove with battery_limit_empty */
 };
 
 static struct battery_level_info_s *g_info; /* for battery_level_stop() */
@@ -66,10 +66,10 @@ static void battery_level_set(struct battery_level_info_s *info,
         break;
     case BATTERY_LEVEL_NORMAL:
         min = CONFIG_BATTERY_LEVEL_LOW;
-        max = info->battery_limit_full;
+        max = 100;
         break;
     case BATTERY_LEVEL_FULL:
-        min = info->battery_limit_full - CONFIG_BATTERY_LEVEL_FULL_HYST;
+        min = 100 - CONFIG_BATTERY_LEVEL_FULL_HYST;
         max = INT_MAX;
         break;
      default:
@@ -128,10 +128,8 @@ static void battery_available_cb(void *arg, bool available)
             battery_level_set(info, BATTERY_LEVEL_EMPTY);
         else if (capacity <= CONFIG_BATTERY_LEVEL_LOW)
             battery_level_set(info, BATTERY_LEVEL_LOW);
-        else if (capacity <= info->battery_limit_full)
-            battery_level_set(info, BATTERY_LEVEL_NORMAL);
         else
-            battery_level_set(info, BATTERY_LEVEL_FULL);
+            battery_level_set(info, BATTERY_LEVEL_NORMAL);
     } else if (info->available && !available) {
         info->available = false;
         battery_state_set_level(BATTERY_LEVEL_EMPTY);
