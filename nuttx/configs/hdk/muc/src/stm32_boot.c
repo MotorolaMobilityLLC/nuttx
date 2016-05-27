@@ -41,6 +41,8 @@
 #include <nuttx/device_battery.h>
 #include <nuttx/device_battery_good.h>
 #include <nuttx/device_battery_level.h>
+#include <nuttx/device_battery_temp.h>
+#include <nuttx/device_battery_voltage.h>
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/device_display.h>
 #include <nuttx/device_ext_power.h>
@@ -384,11 +386,27 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+#ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
+    {
+        .type = DEVICE_TYPE_BATTERY_TEMP_HW,
+        .name = "max17050_battery_temp",
+        .desc = "Battery temperature monitoring with MAX17050",
+        .id   = 0,
+    },
+#endif
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
     {
         .type = DEVICE_TYPE_BATTERY_LEVEL_HW,
         .name = "max17050_battery_level",
         .desc = "Battery level monitoring with MAX17050",
+        .id   = 0,
+    },
+#endif
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+    {
+        .type = DEVICE_TYPE_BATTERY_VOLTAGE_HW,
+        .name = "max17050_battery_voltage",
+        .desc = "Battery voltage monitoring with MAX17050",
         .id   = 0,
     },
 #endif
@@ -721,9 +739,17 @@ void board_initialize(void)
   extern struct device_driver batt_driver;
   device_register_driver(&batt_driver);
 #endif
+#ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
+  extern struct device_driver max17050_battery_temp_driver;
+  device_register_driver(&max17050_battery_temp_driver);
+#endif
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
   extern struct device_driver max17050_battery_level_driver;
   device_register_driver(&max17050_battery_level_driver);
+#endif
+#ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
+  extern struct device_driver max17050_battery_voltage_driver;
+  device_register_driver(&max17050_battery_voltage_driver);
 #endif
 #ifdef CONFIG_MHB_APBE_CTRL_DEVICE
   extern struct device_driver apbe_pwrctrl_driver;
