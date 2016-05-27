@@ -48,8 +48,8 @@ int mhb_send_hsic_status_not(uint8_t status);
 #define SET_PORT_FEATURE 0x2303
 #define CLR_PORT_FEATURE 0x2301
 #define GET_PORT_STATUS  0xa300
-#define PORT_POWERING_DELAY_IN_MS   1000
-#define PORT_RESETING_DELAY_IN_MS   1000
+#define PORT_POWERING_DELAY_IN_MS   100
+#define PORT_RESETING_DELAY_IN_MS   100
 #define PORT_RESET      0x4
 #define PORT_POWER      0x8
 #define ROOT_HUB_PORT   1
@@ -1027,6 +1027,18 @@ static void clear_feature(uint16_t feature) {
     }
 }
 
+static void reset_port(void) {
+    hcd_req_t *req = (hcd_req_t *)usbtun_req_dq(0);
+    prep_internal_setup(req, SET_PORT_FEATURE, PORT_RESET, USB3813_EXTERNAL_PORT, 0);
+    int ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
+    if (ret) {
+        lldbg("Failed to reset port 1 on 3813 hub\n");
+        return;
+    }
+
+    up_mdelay(PORT_RESETING_DELAY_IN_MS);
+}
+
 static void usb_hub_intr(struct urb *urb) {
     uint8_t status = 0;
 
@@ -1052,6 +1064,7 @@ static void usb_hub_intr(struct urb *urb) {
 
 static void handle_port_change(hcd_req_t *req) {
     port_status_t status;
+    bool reset_done = false;
 
     status = get_port_status();
 
@@ -1067,21 +1080,28 @@ static void handle_port_change(hcd_req_t *req) {
     if (status.status_change & PORT_CHANGE_OVERCURRENT)
         clear_feature(C_PORT_OVERCURRENT);
 
-    if (status.status_change & PORT_CHANGE_RESET)
+    if (status.status_change & PORT_CHANGE_RESET) {
+        reset_done = true;
         clear_feature(C_PORT_RESET);
+    }
 
     if (status.port_status & PORT_CONNECTED_MASK) {
         if (!s_data.do_tunnel) {
-            lldbg("USB Device Connected\n");
-
-            mhb_send_hsic_status_not(1);
-
-            s_data.do_tunnel = true;
-            int ret = unipro_send_tunnel_cmd(0, HCD_ROUTER_READY, 0, NULL, 0);
-            if (ret) {
-                lldbg("Failed to send ROUTER READY\n");
+            if (!reset_done) {
+                lldbg("USB Device Connected - Retting port\n");
+                reset_port();
             } else {
-                lldbg("ROUTER READY SENT\n");
+                lldbg("USB Device Connected\n");
+
+                mhb_send_hsic_status_not(1);
+
+                s_data.do_tunnel = true;
+                int ret = unipro_send_tunnel_cmd(0, HCD_USB_CONNECTED, 0, NULL, 0);
+                if (ret) {
+                    lldbg("Failed to send ROUTER READY\n");
+                } else {
+                    lldbg("USB CONNECTED SENT\n");
+                }
             }
         }
     } else {
@@ -1091,6 +1111,13 @@ static void handle_port_change(hcd_req_t *req) {
             mhb_send_hsic_status_not(0);
 
             s_data.do_tunnel = false;
+            int ret = unipro_send_tunnel_cmd(0, HCD_USB_DISCONNECTED, 0, NULL, 0);
+            if (ret) {
+                lldbg("Failed to send ROUTER OFF\n");
+            } else {
+                lldbg("USB DISCONNECTED SENT\n");
+            }
+            unprepare_endpint();
         }
     }
 
@@ -1237,6 +1264,14 @@ static void *hcd_router_startup(void *arg) {
     }
     lldbg("PCD router ready\n");
 
+    ret = unipro_send_tunnel_cmd(0, HCD_ROUTER_READY, 0, NULL, 0);
+    if (ret) {
+        lldbg("Failed to send ROUTER READY\n");
+        goto stop_hcd;
+    } else {
+        lldbg("HCD ROUTER READY SENT\n");
+    }
+
     /* Enable port 1 on usb3813 hub */
     req = (hcd_req_t *)usbtun_req_dq(0);
     prep_internal_setup(req, SET_PORT_FEATURE, PORT_POWER, USB3813_EXTERNAL_PORT, 0);
@@ -1245,18 +1280,6 @@ static void *hcd_router_startup(void *arg) {
         lldbg("Failed to enable port 1 on 3813 hub\n");
         goto stop_hcd;
     }
-
-    up_mdelay(PORT_POWERING_DELAY_IN_MS);
-
-    req = (hcd_req_t *)usbtun_req_dq(0);
-    prep_internal_setup(req, SET_PORT_FEATURE, PORT_RESET, USB3813_EXTERNAL_PORT, 0);
-    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
-    if (ret) {
-        lldbg("Failed to reset port 1 on 3813 hub\n");
-        goto stop_hcd;
-    }
-
-    up_mdelay(PORT_RESETING_DELAY_IN_MS);
 
     /* start monitor port state change */
     hub_req = USBTUN_ALLOC(sizeof(hcd_req_t));

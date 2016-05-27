@@ -46,6 +46,7 @@
 #define NUM_OUT_REQS 1
 
 #define ROUTER_READY_WAIT_NS 200000000LL
+#define PCD_RESTART_BACKOFF_US 100000
 
 typedef struct {
     sq_entry_t entry;
@@ -55,11 +56,14 @@ typedef struct {
     usbtun_buf_t data;
 } pcd_req_t;
 
+enum { USB_STATE_NONE, USB_STATE_CONNECTED, USB_STATE_DISCONNECTED };
+
 struct pcd_router_data_s {
     struct device *pcddev;
     struct usbdev_s *usbdev;
     bool pcd_ready;
     bool hcd_ready;
+    int usb_connected;
     struct usbdevclass_driver_s driver;
     struct usb_epdesc_s ep_list[MAX_ENDPOINTS];
     struct usbdev_ep_s *ep[MAX_ENDPOINTS];
@@ -272,9 +276,8 @@ static int _usbclass_setup(struct usbdevclass_driver_s *driver, struct usbdev_s 
 
     return ret;
 }
+
 static void _usbclass_disconnect(struct usbdevclass_driver_s *driver, struct usbdev_s *dev) {
-    /* Perform the soft connect function so that we can be re-enumerated. */
-    DEV_CONNECT(dev);
 }
 
 /* USB class driver operations */
@@ -288,7 +291,6 @@ static const struct usbdevclass_driverops_s s_driverops = {
 };
 
 static void _connect(void) {
-    lldbg("Connect to hub\n");
     DEV_CONNECT(s_data.usbdev);
 }
 
@@ -536,9 +538,24 @@ static usbtun_hdr_res_t handle_hdr(uint8_t ep, uint8_t type, int16_t code, size_
     if (ep == 0) {
         switch (type) {
         case HCD_ROUTER_READY:
-            lldbg("hcd router ready\n");
+            pthread_mutex_lock(&run_lock);
             s_data.hcd_ready = true;
-            _connect();
+            pthread_cond_signal(&run_cond);
+            pthread_mutex_unlock(&run_lock);
+            return USBTUN_NO_DATA;
+        case HCD_USB_CONNECTED:
+            lldbg("hcd usb connected\n");
+            pthread_mutex_lock(&run_lock);
+            s_data.usb_connected = USB_STATE_CONNECTED;
+            pthread_cond_signal(&run_cond);
+            pthread_mutex_unlock(&run_lock);
+            return USBTUN_NO_DATA;
+        case HCD_USB_DISCONNECTED:
+            lldbg("hcd usb_disconnected\n");
+            pthread_mutex_lock(&run_lock);
+            s_data.usb_connected = USB_STATE_DISCONNECTED;
+            pthread_cond_signal(&run_cond);
+            pthread_mutex_unlock(&run_lock);
             return USBTUN_NO_DATA;
         case HCD_SETUP_RESP:
             if (code != 0) {
@@ -674,27 +691,20 @@ static usbtun_data_res_t handle_data_body(usbtun_buf_t *buf, uint8_t ep, uint8_t
     return USBTUN_FREE_BUF;
 }
 
-static void *pcd_router_startup(void *arg) {
-    int ret;
-
-    /* TODO: Just temporary debug until HSIC become fully stable */
-    usbtun_print_mem_info();
-
-    memset(&s_data, 0, sizeof(s_data));
-
-    if (init_router_common(&handle_hdr, &handle_data_body))
-        return NULL;
+static void pcd_start(void) {
+    if (s_data.pcd_ready)
+        return;
 
     s_data.pcddev = device_open(DEVICE_TYPE_USB_PCD, 0);
     if (!s_data.pcddev) {
         lldbg("Faied to open PCD device\n");
-        goto common_uninit;
+        return;
     }
 
     s_data.driver.speed = USB_SPEED_HIGH;
     s_data.driver.ops = &s_driverops;
 
-    ret = device_usbdev_register_gadget(s_data.pcddev, &s_data.driver);
+    int ret = device_usbdev_register_gadget(s_data.pcddev, &s_data.driver);
     if (ret) {
         lldbg("Failed to register pcd_router_driver\n");
         goto devclose;
@@ -703,12 +713,42 @@ static void *pcd_router_startup(void *arg) {
     s_data.pcd_ready = true;
     lldbg("PCD router started\n");
 
+    return;
+
+devclose:
+    device_close(s_data.pcddev);
+    s_data.pcddev = NULL;
+}
+
+static void pcd_stop(void) {
+    if (!s_data.pcd_ready)
+        return;
+
+    lldbg("Stopping PCD router\n");
+    s_data.pcd_ready = false;
+
+    device_usbdev_unregister_gadget(s_data.pcddev, &s_data.driver);
+    device_close(s_data.pcddev);
+    s_data.pcddev = NULL;
+}
+
+static void *pcd_router_startup(void *arg) {
+    /* TODO: Just temporary debug until HSIC become fully stable */
+    usbtun_print_mem_info();
+
+    memset(&s_data, 0, sizeof(s_data));
+
+    if (init_router_common(&handle_hdr, &handle_data_body))
+        return NULL;
+
+    pcd_start();
+
     /* Handshaking with HCD router */
     while(!s_data.hcd_ready && do_run) {
-        ret = unipro_send_tunnel_cmd(0, PCD_ROUTER_READY, 0, NULL, 0);
+        int ret = unipro_send_tunnel_cmd(0, PCD_ROUTER_READY, 0, NULL, 0);
         if (ret) {
             lldbg("Failed to send ROUTER READY\n");
-            goto unreg_gadget;
+            goto common_uninit;
         }
         struct timespec expires;
         clock_gettime(CLOCK_REALTIME, &expires);
@@ -720,26 +760,27 @@ static void *pcd_router_startup(void *arg) {
         pthread_cond_timedwait(&run_cond, &run_lock, &expires);
         pthread_mutex_unlock(&run_lock);
     }
+    lldbg("HCD ROUTER READY\n");
 
-    pthread_mutex_lock(&run_lock);
-    if (!do_run) {
+    while(true) {
+        pthread_mutex_lock(&run_lock);
+        if (!do_run) {
+            pthread_mutex_unlock(&run_lock);
+            break;
+        }
+        if (s_data.usb_connected == USB_STATE_CONNECTED)
+            _connect();
+        else if (s_data.usb_connected == USB_STATE_DISCONNECTED) {
+            pcd_stop();
+            usleep(PCD_RESTART_BACKOFF_US);
+            pcd_start();
+        }
+
+        pthread_cond_wait(&run_cond, &run_lock);
         pthread_mutex_unlock(&run_lock);
-        goto unreg_gadget;
     }
 
-    /* Wait until uninit request is received */
-    pthread_cond_wait(&run_cond, &run_lock);
-    pthread_mutex_unlock(&run_lock);
-
-unreg_gadget:
-    s_data.pcd_ready = false;
-    lldbg("Stopping PCD router\n");
-
-    device_usbdev_unregister_gadget(s_data.pcddev, &s_data.driver);
-
-devclose:
-    device_close(s_data.pcddev);
-    s_data.pcddev = NULL;
+    pcd_stop();
 
 common_uninit:
     uninit_router_common();
