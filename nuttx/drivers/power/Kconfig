@@ -271,6 +271,21 @@ choice
 config BATTERY_LEVEL_DEVICE_MAX17050
 	bool "Use MAX17050"
 	depends on BATTERY_MAX17050
+
+config BATTERY_LEVEL_DEVICE_MAX17050_MIN_VFSOC
+	depends on BATTERY_LEVEL_DEVICE_MAX17050
+	int "Min voltage based battery capacity to detect end of charging (%)"
+	default 99
+
+config BATTERY_LEVEL_DEVICE_MAX17050_MAX_ITERM
+	depends on BATTERY_LEVEL_DEVICE_MAX17050
+	int "Max charge current to detect end of charging (mA)"
+	default 50
+
+config BATTERY_LEVEL_DEVICE_MAX17050_MIN_ITERM
+	depends on BATTERY_LEVEL_DEVICE_MAX17050
+	int "Min charge current to detect end of charging (mA)"
+	default 5
 endchoice
 endif
 
