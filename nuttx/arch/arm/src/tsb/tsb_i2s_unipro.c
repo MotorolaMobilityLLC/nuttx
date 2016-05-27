@@ -595,7 +595,6 @@ static void tsb_i2s_unipro_tunnel_stop_i2s_dma(void)
     /* Disable the input and output channels. */
     putreg32(TSB_I2S_REG_STOP_I2S_STOP, TSB_I2S_REG_SO_BASE + TSB_I2S_REG_STOP);
 
-
     putreg32(TSB_I2S_REG_STOP_I2S_STOP, TSB_I2S_REG_SI_BASE + TSB_I2S_REG_STOP);
 
     /* Disable the I2S controller. */
@@ -1472,6 +1471,7 @@ int i2s_unipro_tunnel_i2s_config(
                    TSB_I2S_REG_AUDIOSET_WORDLEN_POS;
     reg_audioset |= (bytes_per_sample == 2 ? 0 : 1) << TSB_I2S_REG_AUDIOSET_SCLKTOWS_POS;
     reg_audioset |= (flags & I2S_TUNNEL_I2S_FLAGS_LR_EDGE_RISING) ? TSB_I2S_REG_AUDIOSET_EDGE : 0;
+    reg_audioset |= TSB_I2S_REG_AUDIOSET_DTFMT;
     /* Validate the mode. */
     if (mode >= I2S_TUNNEL_I2S_MODE_END)
     {
