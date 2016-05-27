@@ -65,6 +65,7 @@
 #define MAX17050_REG_TEMP               0x08
 #define MAX17050_REG_VCELL              0x09
 #define MAX17050_REG_CURRENT            0x0A
+#define MAX17050_REG_AVERAGE_CURRENT    0x0B
 #define MAX17050_REG_REM_CAP            0x0F
 #define MAX17050_REG_FULL_CAP           0x10
 #define MAX17050_REG_Q_RESIDUAL_00      0x12
@@ -146,7 +147,8 @@
 #else
 #define MIN_SOC_ALRT    1   /* No IRQ for 0% since SOC cannot be less than 0% */
 #endif
-#define MAX_SOC_ALRT    99  /* No IRQ for 100% since SOC cannot exceed 100% */
+
+#define MAX_SOC_ALRT   100
 
 extern const struct max17050_config max17050_cfg;
 
@@ -180,6 +182,10 @@ struct max17050_dev_s
     void *level_limits_arg;
     batt_level_available level_available_cb;
     void *level_available_arg;
+    bool max_soc_alrt;
+    int eoc_counter;
+    struct work_s state_changed_work;
+    struct work_s eoc_work;
 #endif
 #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
     sem_t battery_voltage_sem;
@@ -203,13 +209,42 @@ static struct max17050_dev_s* g_max17050_dev;
 /* Battery status that is set externally */
 static enum battery_status_e g_status = BATTERY_DISCHARGING;
 
+#ifdef CONFIG_PM
+static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
+{
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+    /* Do not allow STANDBY while charging */
+    if (state >= PM_STANDBY && g_status == BATTERY_CHARGING)
+        return -EBUSY;
+#endif
+    return OK;
+}
+
+static struct pm_callback_s pm_callback =
+{
+  .prepare = pm_prepare,
+};
+#endif
+
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+static void max17050_battery_level_state_changed_worker(FAR void *arg);
+#endif
+
 int battery_set_status(enum battery_status_e status)
 {
     /* Will use only BATTERY_CHARGING and BATTERY_DISCHARGING states */
     if (status != BATTERY_CHARGING)
         status = BATTERY_DISCHARGING;
 
-    g_status = status;
+    if (g_status != status) {
+        g_status = status;
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+        if (work_available(&g_max17050_dev->state_changed_work))
+            work_queue(LPWORK, &g_max17050_dev->state_changed_work,
+                max17050_battery_level_state_changed_worker, g_max17050_dev, 0);
+#endif
+    };
+
     return 0;
 }
 
@@ -431,15 +466,16 @@ static int max17050_temperature(struct battery_dev_s *dev, b16_t *temperature)
     return OK;
 }
 
-static int max17050_current(struct battery_dev_s *dev, b16_t *current)
+static int max17050_get_current(struct battery_dev_s *dev, bool average, b16_t *current)
 {
     FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
+    uint8_t reg = average ? MAX17050_REG_AVERAGE_CURRENT : MAX17050_REG_CURRENT;
     int ret;
 
     if (!priv->initialized)
         return -EAGAIN;
 
-    ret = max17050_reg_read_retry(priv, MAX17050_REG_CURRENT);
+    ret = max17050_reg_read_retry(priv, reg);
     if (ret < 0)
         return -ENODEV;
 
@@ -453,6 +489,11 @@ static int max17050_current(struct battery_dev_s *dev, b16_t *current)
     *current *= 1562500 / max17050_cfg.sns_resistor;
 
     return OK;
+}
+
+static int max17050_current(struct battery_dev_s *dev, b16_t *current)
+{
+    return max17050_get_current(dev, false, current);
 }
 
 static int max17050_full_capacity(struct battery_dev_s *dev, b16_t *capacity)
@@ -1229,6 +1270,13 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
 
     }
 
+#ifdef CONFIG_PM
+    if (pm_register(&pm_callback) != OK)
+    {
+        dbg("Failed register to power management!\n");
+    }
+#endif
+
     return (FAR struct battery_dev_s *)priv;
 
 err:
@@ -1483,6 +1531,104 @@ static int max17050_battery_level_get_possible_limits(struct device *dev,
     return 0;
 }
 
+#define MAX17050_EOC_COUNT  (15)
+#define MAX17050_EOC_DELAY  MSEC2TICK(1000)
+
+static int max17050_average_current(struct battery_dev_s *dev, b16_t *current)
+{
+    return max17050_get_current(dev, true, current);
+}
+
+static int max17050_voltage_capacity(struct battery_dev_s *dev, b16_t *capacity)
+{
+    FAR struct max17050_dev_s *priv = (FAR struct max17050_dev_s *)dev;
+    int ret;
+
+    if (!priv->initialized)
+        return -EAGAIN;
+
+    ret = max17050_reg_read(priv, MAX17050_REG_VFSOC);
+    if (ret < 0)
+        return -ENODEV;
+
+    *capacity = ret >> 8;
+
+    return OK;
+}
+
+static int max17050_battery_level_charge_complete(struct max17050_dev_s *priv)
+{
+    int repcap = max17050_reg_read(priv, MAX17050_REG_REP_CAP);
+
+    /* Set FullCap to RepCap to force 100% */
+    if (repcap < 0)
+        return repcap;
+
+    WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP, repcap);
+    return 0;
+}
+
+static bool max17050_battery_level_eoc_conditions(struct battery_dev_s *dev)
+{
+    int current, a_current, v_capacity;
+
+    if (max17050_current(dev, &current) < 0)
+        return false;
+
+    current /= 1000; /* uA to mA */
+
+    if (max17050_average_current(dev, &a_current) < 0)
+        return false;
+
+    a_current /= 1000; /* uA to mA */
+
+    if (max17050_voltage_capacity(dev, &v_capacity) < 0)
+        return false;
+
+    return (current    >= CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_MIN_ITERM &&
+            current    <= CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_MAX_ITERM &&
+            a_current  >= CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_MIN_ITERM &&
+            a_current  <= CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_MAX_ITERM &&
+            v_capacity >= CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_MIN_VFSOC);
+}
+
+static void max17050_battery_level_eoc_worker(FAR void *arg)
+{
+    FAR struct max17050_dev_s *priv = arg;
+
+    /* Conditions must be met several times in a row */
+    if (max17050_battery_level_eoc_conditions(arg)) {
+        if (++priv->eoc_counter == MAX17050_EOC_COUNT) {
+            max17050_battery_level_charge_complete(arg);
+        }
+    } else {
+        priv->eoc_counter = 0;
+    }
+
+    /* Make callback after SOC became 100% */
+    if (priv->eoc_counter > MAX17050_EOC_COUNT && priv->max_soc_alrt)
+         max17050_do_level_limits_cb(priv, false);
+
+    work_queue(LPWORK, &priv->eoc_work, max17050_battery_level_eoc_worker, priv,
+               MAX17050_EOC_DELAY);
+}
+
+static void max17050_battery_level_state_changed_worker(FAR void *arg)
+{
+    FAR struct max17050_dev_s *priv = arg;
+
+    /* Detect end-of-charging conditions while charging */
+    if (g_status == BATTERY_CHARGING) {
+        if (work_available(&priv->eoc_work)) {
+            priv->eoc_counter = 0;
+            work_queue(LPWORK, &priv->eoc_work,
+                       max17050_battery_level_eoc_worker, priv, 0);
+        }
+    } else {
+        work_cancel(LPWORK, &priv->eoc_work);
+    }
+}
+
 static int max17050_battery_level_set_limits(struct device *dev, int min, int max)
 {
     FAR struct max17050_dev_s *priv = device_get_private(dev);
@@ -1492,6 +1638,11 @@ static int max17050_battery_level_set_limits(struct device *dev, int min, int ma
 
     if (max != INT_MAX && max > MAX_SOC_ALRT)
         return -EINVAL;
+
+    /* Use end of charging detection for MAX_SOC_ALRT */
+    priv->max_soc_alrt = (max == MAX_SOC_ALRT);
+    if (priv->max_soc_alrt)
+        max = INT_MAX;
 
     return max17050_set_soc_alert(priv, min, max);
 }
