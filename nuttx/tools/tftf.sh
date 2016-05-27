@@ -27,7 +27,6 @@
 source .version
 source .config
 
-
 MAJOR=$(grep CONFIG_VERSION_MAJOR .version | cut -f2 -d"=" )
 MINOR=$(grep CONFIG_VERSION_MINOR .version | cut -f2 -d"=" )
 printf -v VERSION  '%08x' $(($(($(grep CONFIG_VERSION_MAJOR .version | cut -f2 -d"=" )<<16)) + $(grep CONFIG_VERSION_MINOR .version | cut -f2 -d"=" )))
@@ -87,7 +86,7 @@ function tftf_muc()
     CHP_PID=${CONFIG_CHIP_PRODUCT_ID##0x}
     BRD_VID=${CONFIG_ARCH_BOARDID_VID##0x}
     BRD_PID=${CONFIG_ARCH_BOARDID_PID##0x}
-    TFTF_FILENAME="upd-${CHP_MFG}-${CHP_PID}-${BRD_VID}-${BRD_PID}-03.tftf"
+    TFTF_FILENAME="nuttx.tftf"
     load_address="$(grep _vectors System.map | cut -d\  -f1)"
     start_address="$(grep __start System.map  | cut -d\  -f1)"
 
@@ -112,7 +111,7 @@ function tftf_muc_hdr()
     CHP_PID=${CONFIG_CHIP_PRODUCT_ID##0x}
     BRD_VID=${CONFIG_ARCH_BOARDID_VID##0x}
     BRD_PID=${CONFIG_ARCH_BOARDID_PID##0x}
-    TFTF_FILENAME="upd-${CHP_MFG}-${CHP_PID}-${BRD_VID}-${BRD_PID}-03.tftf"
+    TFTF_FILENAME="nuttx.tftf"
 
     dd if=${TFTF_FILENAME} of=tftf.hdr bs=512 count=1
 }
