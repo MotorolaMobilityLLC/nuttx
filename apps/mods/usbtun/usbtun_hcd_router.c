@@ -652,8 +652,7 @@ static void unconfig_endpoint(uint8_t mapped, uint8_t local, struct usb_epdesc_s
 
     while ((req = (hcd_req_t *)usbtun_req_dq_usb(local)) != NULL) {
         device_usb_hcd_urb_dequeue(s_data.dev, &req->urb);
-        clean_hcd_req(req);
-        USBTUN_FREE(req);
+        usbtun_req_q(local, &req->entry);
     }
     while ((req = (hcd_req_t *)usbtun_req_dq(local)) != NULL) {
         clean_hcd_req(req);
@@ -692,7 +691,7 @@ static void unprepare_endpint(void) {
     int i;
     uint8_t local_ep;
 
-    for (i = 0; i < MAX_ENDPOINTS; i++) {
+    for (i = 1; i < MAX_ENDPOINTS; i++) {
         if (s_data.ep_list[i].len) {
             local_ep = s_data.ep_map.a2e[i];
             unconfig_endpoint(i, local_ep, &s_data.ep_list[i]);
@@ -903,11 +902,18 @@ static void usb_ep_in_transfer_complete(struct urb *urb) {
               ts.tv_sec, ts.tv_nsec / 1000000, ep, urb->actual_length, urb);
     }
 #endif
+    if (!s_data.do_tunnel) {
+        /* USB device is not present. The request queue will be
+         * cleaned up in unconfig_endpoint().*/
+        return;
+    }
+
     send_to_unipro(req, urb->actual_length, 0, urb->status);
 
     if (device_usb_hcd_urb_enqueue(s_data.dev, &req->urb)) {
         lldbg("Failed to enqueue urb for ep=%d\n", urb->pipe.endpoint);
         /* queue to free list so this item is cleaned up later */
+        usbtun_req_from_usb(urb->pipe.endpoint, &req->entry);
         usbtun_req_q(urb->pipe.endpoint, &req->entry);
     }
 }
@@ -1295,8 +1301,7 @@ errout:
     /* clean up ctrl */
     while ((req = (hcd_req_t *)usbtun_req_dq_usb(0)) != NULL) {
         device_usb_hcd_urb_dequeue(s_data.dev, &req->urb);
-        clean_hcd_req(req);
-        USBTUN_FREE(req);
+        usbtun_req_q(0, &req->entry);
     }
     while ((req = (hcd_req_t *)usbtun_req_dq(0)) != NULL) {
         clean_hcd_req(req);
