@@ -52,7 +52,6 @@ export NUTTX_CONFIG_BASE=hdk/muc/speaker
 if [ -z "${ANDROID_BUILD_TOP}" ]; then
 export TOOLCHAIN_BIN=/usr/local/gcc-arm-none-eabi-4_8-2014q3/bin
 else
-export TOOLCHAIN_BIN=${ANDROID_BUILD_TOP}/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8/bin
 export CROSSDEV=arm-eabi-
 export ARCROSSDEV=arm-eabi-
 fi
@@ -107,8 +106,17 @@ function _menuconfig()
     popd
 }
 
+function _flash_nuttx()
+{
+    nuttx_dir=$1
+    shift
+    pushd $nuttx_dir
+    openocd -f board/moto_mdk_muc.cfg -c "program nuttx.tftf 0x08008000 reset exit"
+    popd
+}
+
 alias mm="_build_nuttx $WD"
-alias flash="st-flash --reset write $WD/nuttx.bin 0x8008000"
+alias flash="_flash_nuttx $WD"
 alias mc="_menuconfig $WD"
 alias dl="_diff_locals $WD"
 alias cl="_cp_locals $WD"
