@@ -98,6 +98,10 @@ ifeq ($(CONFIG_DISPLAY_MUX),y)
 CSRCS += stm32_display_mux.c
 endif
 
+ifeq ($(CONFIG_STM32_LPTIM1),y)
+CSRCS += stm32_lptim1.c
+endif
+
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(ASRCS) $(CSRCS)
