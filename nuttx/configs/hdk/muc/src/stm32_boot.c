@@ -67,6 +67,7 @@
 
 #include <arch/board/board.h>
 #include <arch/board/mods.h>
+#include <arch/board/stm32_lptim1.h>
 
 #include "up_arch.h"
 #include "hdk.h"
@@ -698,6 +699,10 @@ void board_initialize(void)
 
 #if defined(CONFIG_GPIO_CHIP_STM32)
   stm32_gpio_init();
+#endif
+
+#ifdef CONFIG_STM32_LPTIM1
+  stm32_lptim1_on();
 #endif
 
 #ifdef CONFIG_MODS_DIET

@@ -174,6 +174,10 @@
 #define stm32_spi2select NULL
 #define stm32_spi2status NULL
 
+/* LPTIM1 */
+
+#define STM32_LPTIM1_FREQUENCY    STM32_LSI_FREQUENCY
+
 /************************************************************************************
  * Public Data
  ************************************************************************************/
