@@ -92,6 +92,15 @@ config GREYBUS_MODS_SLOW_CHG_CURRENT
 config GREYBUS_MODS_INPUT_VOLTAGE
 	int "Input voltage limit in mV"
 	default 4500
+
+config GREYBUS_MODS_NORMAL_BATTERY_OUTPUT_CURRENT
+	int "Quick discharging current limit in mA"
+	default 3000
+
+config GREYBUS_MODS_LOW_BATTERY_OUTPUT_CURRENT
+	int "Restricted discharging current limit in mA"
+	default 500
+
 endif
 
 config GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH

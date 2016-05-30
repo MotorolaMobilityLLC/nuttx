@@ -47,6 +47,7 @@
 struct batt_ptp {
     bool chg_allowed; /* flag */
     bool dischg_allowed; /* flag */
+    bool low_battery; /* flag */
     /* Limits are in mA and mV */
     int input_current; /* as per command from base */
     int charge_current; /* as per battery temp */
@@ -123,8 +124,16 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
 #endif
 
     if (state->battery.dischg_allowed && !state->base_powered_off) {
-        if ((retval = device_ptp_chg_send_batt_pwr(chg, &state->batt_current)) == 0)
+        if ((retval = device_ptp_chg_send_batt_pwr(chg, &state->batt_current)) == 0){
+            if (state->battery.low_battery) {
+                state->batt_current = MIN(state->batt_current,
+                    CONFIG_GREYBUS_MODS_LOW_BATTERY_OUTPUT_CURRENT);
+            } else {
+                state->batt_current = MIN(state->batt_current,
+                    CONFIG_GREYBUS_MODS_NORMAL_BATTERY_OUTPUT_CURRENT);
+            }
             state->output_current = &state->batt_current;
+        }
         goto done;
     }
 #endif
@@ -380,6 +389,8 @@ static void batt_ptp_set_battery_state(const struct batt_state_s *batt,
     state->dischg_allowed = (batt->temp != BATTERY_TEMP_COOL_DOWN &&
                              batt->temp != BATTERY_TEMP_UNAVAILABLE &&
                              batt->level != BATTERY_LEVEL_EMPTY);
+
+    state->low_battery = (batt->level != BATTERY_LEVEL_FULL && batt->level != BATTERY_LEVEL_NORMAL);
 
     if (state->chg_allowed) {
         if (batt->temp == BATTERY_TEMP_NORMAL) {
