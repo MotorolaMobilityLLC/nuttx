@@ -519,8 +519,6 @@ static void _mhb_camera_process_ctrl_cache(void)
 
 mhb_camera_sm_event_t mhb_camera_power_on(void)
 {
-    struct device *dev = CONTAINER_OF(&s_mhb_camera, struct device, private);
-
     CAM_DBG(" soc_enabled = %d\n", s_mhb_camera.soc_enabled);
 
     if (s_mhb_camera.soc_enabled == 1)
@@ -556,11 +554,11 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
 
     _mhb_camera_process_ctrl_cache();
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_ON);
-    camera_ext_event_send(dev, CAMERA_EXT_EV_ASYNC, CAMERA_EXT_POWERED_ON, "");
+
     return MHB_CAMERA_EV_POWERED_ON;
 
 failed_power_on:
-    camera_ext_event_send(dev, CAMERA_EXT_EV_ERROR, CAMERA_EXT_ERROR_FATAL, "");
+    camera_ext_send_error(CAMERA_EXT_ERROR_FATAL);
     return MHB_CAMERA_EV_FAIL;
 
 }
@@ -600,7 +598,6 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     const struct camera_ext_format_node *fmt;
     const struct camera_ext_frmsize_node *frmsize;
     const struct camera_ext_frmival_node *ival;
-    struct device *dev = CONTAINER_OF(&s_mhb_camera, struct device, private);
 
     CAM_DBG("\n");
 
@@ -703,10 +700,11 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_ON);
+
     return MHB_CAMERA_EV_CONFIGURED;
 
 failed_stream_on:
-    camera_ext_event_send(dev, CAMERA_EXT_EV_ERROR, CAMERA_EXT_ERROR_STREAM_ON, "");
+    camera_ext_send_error(CAMERA_EXT_ERROR_STREAM_ON);
     return MHB_CAMERA_EV_FAIL;
 }
 
