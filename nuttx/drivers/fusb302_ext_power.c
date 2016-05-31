@@ -336,13 +336,11 @@ static void fusb302_init(void)
     fusb302_reg_write(fusb302_info->i2c, FUSB302_RESET_REG, FUSB302_RESET_SW_RES_MASK);                /* [0x0C]:0x01 */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_POWER_REG, FUSB302_POWER_PWR_INIT_MASK);              /* [0x0B]:0x07 */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES0_REG, FUSB302_SWITCHES0_ZERO_MASK);          /* [0x02]:0x00 */
-    /* mask all interrupts */
-    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG, FUSB302_MASK_M_VBUSOK_MASK|                 /* [0x0A]:0xFF */
+    /* listen to I_BC_LVL and I_TOGDONE only */
+    fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG, FUSB302_MASK_M_VBUSOK_MASK|                 /* [0x0A]:0xFB */
                                          FUSB302_MASK_M_ACTIVITY_MASK|FUSB302_MASK_M_COMP_CHNG_MASK|
                                          FUSB302_MASK_M_CRC_CHK_MASK|FUSB302_MASK_M_ALERT_MASK|
-                                         FUSB302_MASK_M_WAKE_MASK|FUSB302_MASK_M_COLLISION_MASK|
-                                         FUSB302_MASK_M_BC_LVL_MASK);
-    /* listen to I_TOGDONE only */
+                                         FUSB302_MASK_M_WAKE_MASK|FUSB302_MASK_M_COLLISION_MASK);
     fusb302_reg_write(fusb302_info->i2c, FUSB302_MASKA_REG, FUSB302_MASKA_M_OCP_TEMP_MASK|             /* [0x0E]:0xBF */
                                          FUSB302_MASKA_M_SOFTFAIL_MASK|FUSB302_MASKA_M_RETRY_FAIL_MASK|
                                          FUSB302_MASKA_M_HARDSENT_MASK|FUSB302_MASKA_M_TXSENT_MASK|
