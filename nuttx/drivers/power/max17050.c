@@ -941,6 +941,8 @@ static int max17050_alrt_isr(int irq, void *context)
 
 static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state)
 {
+    if (state == priv->initialized)
+        return;
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
     while (sem_wait(&priv->battery_temp_sem) != OK) {
         if (errno == EINVAL) {
