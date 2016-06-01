@@ -33,8 +33,15 @@
 
 #include "sm.h"
 
+#if CONFIG_WATCHDOG
+extern int wdog_init(void);
+#endif
+
 int mhb_main(int argc, char *argv[])
 {
+#if CONFIG_WATCHDOG
+    wdog_init();
+#endif
     svc_init();
 
 #if CONFIG_UNIPRO_P2P_APBA
