@@ -228,18 +228,22 @@ static struct device_resource switch_ptp_chg_resources[] = {
        .start  = GPIO_MODS_CHG_VINA_EN,
        .count  = 1,
     },
+#if !(IS_BATT_PCARD)
     {
        .name   = "wrd_path",
        .type   = DEVICE_RESOURCE_TYPE_GPIO,
        .start  = GPIO_MODS_CHG_VINB_EN,
        .count  = 1,
     },
+#endif
 };
 
 struct ptp_chg_init_data switch_ptp_chg_init_data = {
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
        .wls_active_low = false,
        .wrd_active_low = false,
        .base_active_low = false,
+#endif
 };
 #endif
 #ifdef CONFIG_FUSB302

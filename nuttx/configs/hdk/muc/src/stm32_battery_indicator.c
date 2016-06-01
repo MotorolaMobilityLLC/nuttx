@@ -343,6 +343,7 @@ static void attach_state_changed_cb(FAR void *arg,
     }
 }
 
+#ifdef CONFIG_EXT_POWER
 /* external power state change callback is running in LPWORK */
 static void ext_power_state_changed_cb(FAR void *arg,
         struct device *const dev[])
@@ -371,6 +372,7 @@ static void ext_power_state_changed_cb(FAR void *arg,
         do_start_stop_pulse(info, new_power_state);
     }
 }
+#endif
 
 static int battery_button_isr(int irq, FAR void *context)
 {
@@ -436,11 +438,13 @@ int battery_indicator_open(void)
         return retval;
     }
 
+#ifdef CONFIG_EXT_POWER
     retval = ext_power_register_callback(ext_power_state_changed_cb, &g_indicator_info);
     if (retval) {
         dbg("failed to register ext_power_notification callback\n");
         return retval;
     }
+#endif
 
     return OK;
 }

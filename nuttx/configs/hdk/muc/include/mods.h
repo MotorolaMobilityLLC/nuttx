@@ -40,6 +40,8 @@
 
 #define BOARD_REVISION           (CONFIG_ARCH_BOARDID_PID & 0x000000FF)
 
+#define IS_BATT_PCARD   ((CONFIG_ARCH_BOARDID_PID & 0x0000FF00) == 0x00000800)
+
 #define CALC_GPIO_NUM(port, pin)  ((16 * (port - 'A')) + pin)
 
 /* Pins changed on HDK P3 */
@@ -53,12 +55,10 @@
 
 #define GPIO_MODS_SL_BPLUS_EN    CALC_GPIO_NUM('A', 11)
 #define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  0)
-#define GPIO_MODS_CC_ALERT       CALC_GPIO_NUM('B',  1)
 #define GPIO_MODS_SPI_CS_N       CALC_GPIO_NUM('B', 12)
 #define GPIO_MODS_SPI_TACK       CALC_GPIO_NUM('B', 14)
 #define GPIO_MODS_SPI_RACK       CALC_GPIO_NUM('B', 15)
 #define GPIO_MODS_RFR            CALC_GPIO_NUM('C',  2)
-#define GPIO_MODS_CHG_INT_N      CALC_GPIO_NUM('C',  4)
 #define GPIO_MODS_SL_BPLUS_AIN   CALC_GPIO_NUM('C',  5)
 #define GPIO_MODS_INT            CALC_GPIO_NUM('C', 13)
 #define GPIO_MODS_KEY_POWER_PMIC CALC_GPIO_NUM('D',  2)
@@ -103,14 +103,28 @@
 
 /* HDK P3 and later */
 #if (BOARD_REVISION >= 3)
-#define GPIO_MODS_CHG_EN         CALC_GPIO_NUM('D', 4)
 #define GPIO_MODS_DEMO_ENABLE    CALC_GPIO_NUM('G', 10)
 #define GPIO_MODS_RST_LS         CALC_GPIO_NUM('H',  0)
 #endif
 
+#if IS_BATT_PCARD
+# define GPIO_MODS_CC_ALERT      CALC_GPIO_NUM('G', 12)
+# define GPIO_MODS_CHG_INT_N     CALC_GPIO_NUM('C',  7)
+# define GPIO_MODS_CHG_EN        GPIO_MODS_DEMO_ENABLE
+#else
+# define GPIO_MODS_CC_ALERT      CALC_GPIO_NUM('B',  1)
+# define GPIO_MODS_CHG_INT_N     CALC_GPIO_NUM('C',  4)
+# define GPIO_MODS_CHG_EN        CALC_GPIO_NUM('D',  4)
+#endif
+
 /* Battery voltage comparator */
-#define BATT_COMP                STM32_COMP2             /* Comparator */
-#define BATT_COMP_INP            STM32_COMP_INP_PIN_1    /* Input plus */
+#if IS_BATT_PCARD
+# define BATT_COMP               STM32_COMP1             /* Comparator */
+# define BATT_COMP_INP           STM32_COMP_INP_PIN_2    /* Input plus */
+#else
+# define BATT_COMP               STM32_COMP2             /* Comparator */
+# define BATT_COMP_INP           STM32_COMP_INP_PIN_1    /* Input plus */
+#endif
 #define BATT_COMP_INM            STM32_COMP_INM_VREF     /* Input minus */
 #define BATT_COMP_HYST           STM32_COMP_HYST_HIGH    /* Hysteresis */
 #define BATT_COMP_SPEED          STM32_COMP_SPEED_LOW    /* Speed */
