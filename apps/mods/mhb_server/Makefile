@@ -37,6 +37,10 @@ ASRCS =
 CSRCS =
 MAINSRC = gearbox.c main.c mhb_server.c sm.c sm_timer.c
 
+ifeq ($(CONFIG_WATCHDOG),y)
+MAINSRC += wdog.c
+endif
+
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
 MAINOBJ = $(MAINSRC:.c=$(OBJEXT))
