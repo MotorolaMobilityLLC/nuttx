@@ -57,9 +57,46 @@ struct apbe_ctrl_info {
     uint32_t status;
     bool is_initialized;
     struct device *mhb_dev;
+    gpio_cfg_t uart_tx_cfg;
+    gpio_cfg_t uart_rts_cfg;
 };
 
 static struct apbe_ctrl_info apbe_ctrl;
+
+static void apbe_pwrctrl_disable_uart(struct apbe_ctrl_info *info)
+{
+    if (apbe_ctrl.uart_tx_cfg || apbe_ctrl.uart_rts_cfg) {
+        dbg("WARNING: UART already disabled\n");
+        return;
+    }
+
+    /* Save pin config for the output UART pins and set to inputs */
+#ifdef GPIO_APBE_UART_TX
+    apbe_ctrl.uart_tx_cfg = gpio_cfg_save(GPIO_APBE_UART_TX);
+    gpio_direction_in(GPIO_APBE_UART_TX);
+#endif
+#ifdef GPIO_APBE_UART_RTS
+    apbe_ctrl.uart_rts_cfg = gpio_cfg_save(GPIO_APBE_UART_RTS);
+    gpio_direction_in(GPIO_APBE_UART_RTS);
+#endif
+}
+
+static void apbe_pwrctrl_enable_uart(struct apbe_ctrl_info *info)
+{
+    /* Restore all output UART pins to UART */
+#ifdef GPIO_APBE_UART_TX
+    if (apbe_ctrl.uart_tx_cfg) {
+        gpio_cfg_restore(GPIO_APBE_UART_TX, info->uart_tx_cfg);
+        apbe_ctrl.uart_tx_cfg = NULL;
+    }
+#endif
+#ifdef GPIO_APBE_UART_RTS
+    if (apbe_ctrl.uart_rts_cfg) {
+        gpio_cfg_restore(GPIO_APBE_UART_RTS, info->uart_rts_cfg);
+        apbe_ctrl.uart_rts_cfg = NULL;
+    }
+#endif
+}
 
 static void apbe_power_off(void)
 {
@@ -125,9 +162,11 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
     lldbg("mode=%d\n", mode);
     switch (mode) {
     case SLAVE_PWRCTRL_POWER_ON:
+        apbe_pwrctrl_enable_uart(ctrl_info);
         apbe_power_on_normal();
         break;
     case SLAVE_PWRCTRL_POWER_FLASH_MODE:
+        apbe_pwrctrl_enable_uart(ctrl_info);
         apbe_power_on_flash();
         break;
     case SLAVE_PWRCTRL_POWER_OFF:
@@ -139,9 +178,11 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
             device_mhb_restart(ctrl_info->mhb_dev);
         }
 
+        apbe_pwrctrl_disable_uart(ctrl_info);
         break;
     }
 
+    lldbg("mode=%d done\n", mode);
     return OK;
 }
 static void apbe_pwrctrl_attach_changed(FAR void *arg, enum base_attached_e state)
@@ -195,6 +236,9 @@ static int apbe_pwrctrl_open(struct device *dev)
         apbe_ctrl.mhb_dev = device_open(DEVICE_TYPE_MHB, MHB_ADDR_PM);
 
         if (apbe_ctrl.mhb_dev) {
+            /* Save and disable the output UART pins. */
+            apbe_pwrctrl_disable_uart(&apbe_ctrl);
+
             device_mhb_register_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
         }
     }
@@ -220,6 +264,9 @@ static void apbe_pwrctrl_close(struct device *dev) {
     if (apbe_ctrl.open_ref_cnt == 0 && apbe_ctrl.mhb_dev) {
         /* Close the MHB device. */
         device_mhb_unregister_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
+
+        /* Restore the output UART pins (if they were modified). */
+        apbe_pwrctrl_enable_uart(&apbe_ctrl);
 
         device_close(apbe_ctrl.mhb_dev);
         apbe_ctrl.mhb_dev = NULL;
