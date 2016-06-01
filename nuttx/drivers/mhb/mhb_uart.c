@@ -100,7 +100,41 @@ static int mhb_send(struct device *dev, struct mhb_hdr *hdr,
 
 #define PM_HANDSHAKE_TIMEOUT 1000 /* ms */
 
+#define MHB_UART_ACTIVITY 10
+
 #define MHB_INVALID_GPIO (0xffffffff)
+
+#ifdef CONFIG_PM
+static bool g_pm_registered = false;
+static struct pm_callback_s g_pm_cb;
+
+static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e pmstate)
+{
+    if (!g_mhb)
+        return 0;
+
+    if (pmstate == PM_NORMAL || pmstate == PM_IDLE) {
+        return 0;
+    }
+
+    if (!atomic_get(&g_mhb->pm_state_peer)) {
+        return 0;
+    }
+
+    struct mhb_hdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_PM;
+    hdr.type = MHB_TYPE_PM_SLEEP_REQ;
+    hdr.result = MHB_RESULT_SUCCESS;
+
+    if (mhb_send(g_mhb->self, &hdr, NULL, 0, MHB_SEND_FLAGS_LOCAL_SLEEP)) {
+        lldbg("ERROR: Failed to send sleep rsp\n");
+    }
+
+    return 1;
+}
+
+#endif
 
 static void mhb_assert_peer_wake(void) {
     if (gpio_get_value(g_mhb->peer_wake) == 0) {
@@ -126,16 +160,13 @@ static void mhb_assert_peer_wake_ack(void) {
  */
 static void mhb_handle_pm_wake_req(void)
 {
-    /* If we are responding to wake up request, consider the remote is awake. */
-    atomic_init(&g_mhb->pm_state_peer, 1);
-
     struct mhb_hdr hdr;
     memset(&hdr, 0, sizeof(hdr));
     hdr.addr = MHB_ADDR_PM;
     hdr.type = MHB_TYPE_PM_WAKE_RSP;
     hdr.result = MHB_RESULT_SUCCESS;
 
-    if (mhb_send(g_mhb->self, &hdr, NULL, 0, 0)) {
+    if (mhb_send(g_mhb->self, &hdr, NULL, 0, MHB_SEND_FLAGS_WAKE_ACK)) {
         lldbg("ERROR: Failed to send wake rsp\n");
     }
 }
@@ -178,7 +209,7 @@ static void mhb_handle_pm_status_not(struct mhb_hdr *hdr,
 }
 
 static int mhb_local_wake_irq(int irq, FAR void *context) {
-    pm_activity(9);
+    pm_activity(MHB_UART_ACTIVITY);
     gpio_clear_interrupt(g_mhb->local_wake);
     mhb_handle_pm_wake_req();
     return 0;
@@ -228,7 +259,7 @@ static void mhb_wake_peer(void)
 
     pthread_mutex_lock(&g_mhb->mutex);
 
-    /* Assert Wake INT */
+    /* Assert Wake GPIO */
     mhb_assert_peer_wake();
 
     if (!mhb_wait_or_timeout(PM_HANDSHAKE_TIMEOUT)) {
@@ -670,6 +701,43 @@ static void mhb_tx_flush(void)
     irqrestore(flags);
 }
 
+static void pm_pre_tx(const struct mhb_queue_item *item)
+{
+    if (item->flags & MHB_SEND_FLAGS_PEER_ASLEEP) {
+        /*
+         * Responding to SLEEP Indication from the peer.
+         * The peer may go in sleep anytime. Do not go through
+         * wake up sequence so not to wake up the peer.
+         */
+        atomic_init(&g_mhb->pm_state_peer, 0);
+        return;
+    }
+
+    if (item->flags & MHB_SEND_FLAGS_WAKE_ACK) {
+        /*
+         * Responding to wake assert from the peer. Consider
+         * the remote is up.
+         */
+        atomic_init(&g_mhb->pm_state_peer, 1);
+    }
+
+    mhb_wake_peer();
+}
+
+static void pm_post_tx(const struct mhb_queue_item *item)
+{
+    if (item->flags & MHB_SEND_FLAGS_LOCAL_SLEEP) {
+        /*
+         * Successfuly sent out SLEEP IND to the peer. The peer
+         * may goto sleep anytime from this point. Consider peer
+         * is in sleep now.
+         */
+        atomic_init(&g_mhb->pm_state_peer, 0);
+    }
+
+    pm_activity(MHB_UART_ACTIVITY);
+}
+
 static void *mhb_tx_thread(void *data)
 {
     int ret = 0;
@@ -698,10 +766,10 @@ static void *mhb_tx_thread(void *data)
             continue;
         }
 
-        mhb_wake_peer();
-
         struct mhb_queue_item *item =
                         (struct mhb_queue_item *)sq_remfirst(&g_mhb->tx_queue);
+
+        pm_pre_tx(item);
 
         /* Send the buffer */
         int sent = 0;
@@ -718,10 +786,7 @@ static void *mhb_tx_thread(void *data)
             break;
         }
 
-        /* Handle post-tx flags. */
-        if (item->flags & MHB_SEND_FLAGS_PEER_ASLEEP) {
-            atomic_init(&g_mhb->pm_state_peer, 0);
-        }
+        pm_post_tx(item);
 
         /* Switch baud rates if requested. */
         if (g_mhb->current_baud != g_mhb->new_baud) {
@@ -875,8 +940,24 @@ static void mhb_dev_close(struct device *dev) {
     irqrestore(flags);
 }
 
-int mhb_dev_probe(struct device *dev)
+static int mhb_dev_probe(struct device *dev)
 {
+#ifdef CONFIG_PM
+    /* There is no pm_unregister() defined. Do register once only. */
+    if (!g_pm_registered) {
+        memset(&g_pm_cb, 0, sizeof(g_pm_cb));
+        g_pm_cb.prepare = &pm_prepare;
+
+        int ret = pm_register(&g_pm_cb);
+        if (ret) {
+            lldbg("ERROR: Register PM callbacks\n");
+            return ret;
+        }
+
+        g_pm_registered = true;
+    }
+#endif
+
     irqstate_t flags;
     flags = irqsave();
 
