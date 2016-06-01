@@ -223,6 +223,21 @@ static int max17050_reg_read(FAR struct max17050_dev_s *priv, uint8_t reg)
     return ret ? ret : reg_val;
 }
 
+static int max17050_reg_read_retry(FAR struct max17050_dev_s *priv, uint8_t reg)
+{
+    int tries = 8;
+    uint16_t reg_val;
+    int ret;
+    do {
+        ret = I2C_WRITEREAD(priv->i2c, (uint8_t *)&reg, sizeof(reg),
+                        (uint8_t *)&reg_val, sizeof(reg_val));
+        if (!ret) {
+            break;
+        }
+    } while (--tries);
+    return ret ? ret : reg_val;
+}
+
 static int max17050_reg_write(FAR struct max17050_dev_s *priv, uint8_t reg, uint16_t val)
 {
     uint8_t buf[3];
@@ -303,7 +318,7 @@ static int max17050_online(struct battery_dev_s *dev, bool *status)
     if (!priv->initialized)
         return -EAGAIN;
 
-    ret = max17050_reg_read(priv, MAX17050_REG_STATUS);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_STATUS);
     if (ret < 0)
         return -ENODEV;
 
@@ -321,7 +336,7 @@ static int max17050_voltage(struct battery_dev_s *dev, b16_t *voltage)
     if (!priv->initialized)
         return -EAGAIN;
 
-    ret = max17050_reg_read(priv, MAX17050_REG_VCELL);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_VCELL);
     if (ret < 0)
         return -ENODEV;
 
@@ -340,7 +355,7 @@ static int max17050_capacity(struct battery_dev_s *dev, b16_t *capacity)
     if (!priv->initialized)
         return -EAGAIN;
 
-    ret = max17050_reg_read(priv, MAX17050_REG_REP_SOC);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_REP_SOC);
     if (ret < 0)
         return -ENODEV;
 
@@ -394,7 +409,7 @@ static int max17050_temperature(struct battery_dev_s *dev, b16_t *temperature)
     if (!priv->initialized)
         return -EAGAIN;
 
-    ret = max17050_reg_read(priv, MAX17050_REG_TEMP);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_TEMP);
     if (ret < 0)
         return -ENODEV;
 
@@ -424,7 +439,7 @@ static int max17050_current(struct battery_dev_s *dev, b16_t *current)
     if (!priv->initialized)
         return -EAGAIN;
 
-    ret = max17050_reg_read(priv, MAX17050_REG_CURRENT);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_CURRENT);
     if (ret < 0)
         return -ENODEV;
 
@@ -448,7 +463,7 @@ static int max17050_full_capacity(struct battery_dev_s *dev, b16_t *capacity)
     if (!priv->initialized)
         return -EAGAIN;
 
-    ret = max17050_reg_read(priv, MAX17050_REG_FULL_CAP);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_FULL_CAP);
     if (ret < 0)
         return -ENODEV;
 
@@ -556,7 +571,7 @@ static void max17050_por_read_cell_data(FAR struct max17050_dev_s *priv, uint16_
     int i;
 
     for (i = 0; i < MAX17050_CELL_DATA_SIZE; i++)
-        cell_data[i] = max17050_reg_read(priv, MAX17050_REG_CELL_DATA_START + i);
+        cell_data[i] = max17050_reg_read_retry(priv, MAX17050_REG_CELL_DATA_START + i);
 }
 
 static bool max17050_por_cell_data_correct(FAR struct max17050_dev_s *priv)
@@ -650,8 +665,8 @@ static int max17050_por_update_full_capacity_params(FAR struct max17050_dev_s *p
 
 static int max17050_por_write_vfsoc_and_qh0(FAR struct max17050_dev_s *priv)
 {
-    int vfsoc = max17050_reg_read(priv, MAX17050_REG_VFSOC);
-    int qh = max17050_reg_read(priv, MAX17050_REG_QH);
+    int vfsoc = max17050_reg_read_retry(priv, MAX17050_REG_VFSOC);
+    int qh = max17050_reg_read_retry(priv, MAX17050_REG_QH);
 
     WRITE_RETRY(priv, MAX17050_REG_VFSOC0_QH0_ACCESS, MAX17050_VFSOC0_QH0_UNLOCK);
     WRITE_VERIFY(priv, MAX17050_REG_VFSOC0, vfsoc);
@@ -669,7 +684,7 @@ static int max17050_por_advance_to_cc_mode(FAR struct max17050_dev_s *priv)
 
 static int max17050_por_load_new_capacity_params(FAR struct max17050_dev_s *priv)
 {
-    int vfsoc = max17050_reg_read(priv, MAX17050_REG_VFSOC);
+    int vfsoc = max17050_reg_read_retry(priv, MAX17050_REG_VFSOC);
     int remcap = vfsoc * max17050_cfg.vf_fullcap / MAX17050_REM_CAP_DIV;
     int repcap = remcap * max17050_cfg.capacity / max17050_cfg.vf_fullcap;
     int dq_acc = max17050_cfg.vf_fullcap / 16;
@@ -729,7 +744,7 @@ static int max17050_por_init(FAR struct max17050_dev_s *priv)
 
     // Clear POR bit to indicate successful initialization
     if (!max17050_reg_modify_retry(priv, MAX17050_REG_STATUS, MAX17050_STATUS_POR, 0)) {
-        int status = max17050_reg_read(priv, MAX17050_REG_STATUS);
+        int status = max17050_reg_read_retry(priv, MAX17050_REG_STATUS);
         if (status >= 0 && !(status & MAX17050_STATUS_POR)) {
             return 0;
         }
@@ -892,7 +907,7 @@ static void max17050_alrt_worker(FAR void *arg)
     if (gpio_get_value(priv->alrt_gpio))
         return;
 
-    status = max17050_reg_read(priv, MAX17050_REG_STATUS);
+    status = max17050_reg_read_retry(priv, MAX17050_REG_STATUS);
 
     if (status >= 0) {
         if (!priv->initialized && priv->use_voltage_alrt) {
@@ -1023,7 +1038,7 @@ static bool max17050_new_config(FAR struct max17050_dev_s *priv)
 {
     int ret;
 
-    ret = max17050_reg_read(priv, MAX17050_REG_CONFIG_VER);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_CONFIG_VER);
     if (ret < 0)
         return false;
 
@@ -1038,7 +1053,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
     // Wait in case the device just powered up
     usleep(MAX17050_DELAY_AFTER_POWERUP);
 
-    ret = max17050_reg_read(priv, MAX17050_REG_DEV_NAME);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_DEV_NAME);
     if (ret < 0) {
         max17050_set_initialized(priv, false);
         return;
@@ -1050,7 +1065,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
     }
 
 #ifdef BATTERY_MAX17050_SENSE_TRACE_CORRECTION
-    ret = max17050_reg_read(priv, MAX17050_REG_COFF);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_COFF);
     if (ret < 0) {
         max17050_set_initialized(priv, false);
         return;
@@ -1059,7 +1074,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
         max17050_reg_modify_retry(priv, MAX17050_REG_STATUS,
               MAX17050_STATUS_POR, MAX17050_STATUS_POR)
     } else {
-       ret = max17050_reg_read(priv, MAX17050_REG_MISC_CFG);
+       ret = max17050_reg_read_retry(priv, MAX17050_REG_MISC_CFG);
        if (ret < 0) {
            max17050_set_initialized(priv, false);
            return;
@@ -1071,7 +1086,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
     }
 #endif
 
-    ret = max17050_reg_read(priv, MAX17050_REG_STATUS);
+    ret = max17050_reg_read_retry(priv, MAX17050_REG_STATUS);
     if (ret < 0) {
         max17050_set_initialized(priv, false);
         return;
