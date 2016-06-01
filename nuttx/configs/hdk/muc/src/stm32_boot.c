@@ -449,7 +449,7 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_DISPLAY_HW,
         .name = "hdmi_display",
         .desc = "HDMI Display",
-#ifdef CONFIG_DISPLAY_MUX
+#ifdef CONFIG_MODS_RAW_FACTORY
         .id   = DISPLAY_TYPE_DP,
 #else
         .id   = 0,
@@ -490,7 +490,7 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_DISPLAY_HW,
         .name = "mhb_dsi_display",
         .desc = "MHB DSI Display",
-#ifdef CONFIG_DISPLAY_MUX
+#ifdef  CONFIG_MODS_RAW_FACTORY
         .id   = DISPLAY_TYPE_DSI,
 #else
         .id   = 0, /* Must match device_open() in gb_mods_display_init() */
@@ -603,7 +603,7 @@ static struct device devices[] = {
         .resource_count = ARRAY_SIZE(tfa9890_audio_resources),
     },
 #endif
-#ifdef CONFIG_DISPLAY_MUX
+#ifdef CONFIG_MODS_RAW_FACTORY
     {
         .type = DEVICE_TYPE_DISPLAY_HW,
         .name = "display_mux",
@@ -612,8 +612,8 @@ static struct device devices[] = {
     },
     {
         .type = DEVICE_TYPE_RAW_HW,
-        .name = "raw_display_mux",
-        .desc = "Raw Interface for Display Mux Control",
+        .name = "mods_raw_factory",
+        .desc = "Factory Raw Interface",
         .id   = 0,
     },
 #endif
@@ -814,11 +814,11 @@ void board_initialize(void)
   extern struct device_driver tfa9890_audio_dev_driver;
   device_register_driver(&tfa9890_audio_dev_driver);
 #endif
-#ifdef CONFIG_DISPLAY_MUX
+#ifdef CONFIG_MODS_RAW_FACTORY
    extern struct device_driver display_mux_driver;
    device_register_driver(&display_mux_driver);
-   extern struct device_driver raw_display_mux_driver;
-   device_register_driver(&raw_display_mux_driver);
+   extern struct device_driver mods_raw_factory_driver;
+   device_register_driver(&mods_raw_factory_driver);
 #endif
 #endif
 

@@ -32,9 +32,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <arch/board/mods.h>
+
 #include <nuttx/device.h>
 #include <nuttx/device_display.h>
 #include <nuttx/device_raw.h>
+#include <nuttx/greybus/debug.h>
 #include <arch/byteorder.h>
 
 #define PID                                CONFIG_ARCH_BOARDID_PID
@@ -43,6 +46,8 @@
 #define RESP_CMD_MASK                      0x80
 
 #define SET_DISPLAY_TYPE                   0x00
+#define GPIO_READ                          0x01
+#define GPIO_WRITE                         0x02
 
 static struct display_mux
 {
@@ -59,7 +64,7 @@ struct raw_cmd_s
     uint8_t      ver_id;
     uint8_t      cid;
     uint8_t      size;
-    uint8_t      payload[0];
+    uint8_t      payload[];
 } __packed;
 
 static struct device *gRawDevice;
@@ -261,27 +266,59 @@ static int raw_response(uint8_t cid, uint8_t size, uint8_t * data)
         memcpy(response->payload, data, size);
 
     if (gRawCallback) {
-        gRawCallback(gRawDevice, response_size, data);
+        gRawCallback(gRawDevice, response_size, response_data);
     }
     return ret ;
 }
 
 static int handle_raw_cmd (uint8_t cid,uint8_t size, uint8_t payload[])
 {
-    int ret = OK;
-    if (cid == SET_DISPLAY_TYPE)
-    {
-        uint8_t res = 0;
-        enum display_type type = (enum display_type) payload[0];
-        dbg("RAW CMD: SET_DISPLAY_TYPE - type (%d).\n", type);
-        res = (uint8_t) set_display_type((&g_display)->dev, type);
-        ret = raw_response(cid,sizeof(res),&res);
+    int ret = -EINVAL;
+    uint8_t res = 0;
+
+    switch (cid) {
+        case SET_DISPLAY_TYPE:
+            //SET_DISPLAY_TYPE must have 1 byte of payload data
+            if(size != 1) return -EINVAL;
+
+            enum display_type type = (enum display_type) payload[0];
+            dbg("RAW CMD: SET_DISPLAY_TYPE - type (%d).\n", type);
+            res = (uint8_t) set_display_type((&g_display)->dev, type);
+            ret = raw_response(cid,sizeof(res),&res);
+            break;
+
+        case GPIO_READ:
+            //GPIO_READ must have 1 byte of payload data
+            if(size != 1) return -EINVAL;
+
+            dbg("RAW CMD: GPIO_READ\n");
+
+            uint8_t gpioData[2];
+            gpio_direction_in(payload[0]);
+            gpioData[1] = gpio_get_value(payload[0]);
+            gpioData[0] = 0;
+            ret = raw_response(cid,sizeof(gpioData),gpioData);
+            break;
+
+        case GPIO_WRITE:
+            //GPIO_WRITE must have 2 byts of payload data
+            if(size !=2) return -EINVAL;
+
+            dbg("RAW CMD: GPIO_WRITE\n");
+
+            gpio_direction_out(payload[0], payload[1]);
+            ret = raw_response(cid,sizeof(res),&res);
+            break;
+
+        default:
+            dbg("Invalid command: %d\n", cid);
+            break;
     }
 
     return ret;
 }
 
-static int raw_display_mux_recv(struct device *dev, uint32_t len, uint8_t data[])
+static int mods_raw_factory_recv(struct device *dev, uint32_t len, uint8_t data[])
 {
     struct raw_cmd_s  rec_cmd;
 
@@ -292,12 +329,12 @@ static int raw_display_mux_recv(struct device *dev, uint32_t len, uint8_t data[]
     rec_cmd.vid = be32_to_cpu(rec_cmd.vid);
 
     if ((rec_cmd.pid != PID) || (rec_cmd.vid != VID)|| (rec_cmd.ver_id != VERSION_ID)) return -EINVAL;
-    if (len < sizeof(struct raw_cmd_s) + rec_cmd.size - 1) return -EINVAL;
+    if (len < sizeof(struct raw_cmd_s) + rec_cmd.size) return -EINVAL;
 
     return handle_raw_cmd(rec_cmd.cid, rec_cmd.size,rec_cmd.payload);
 }
 
-static int raw_display_mux_register_callback(struct device *dev,
+static int mods_raw_factory_register_callback(struct device *dev,
                                     raw_send_callback callback)
 {
     dbg("callback=0x%p\n", callback);
@@ -306,34 +343,34 @@ static int raw_display_mux_register_callback(struct device *dev,
     return 0;
 }
 
-static int raw_display_mux_unregister_callback(struct device *dev)
+static int mods_raw_factory_unregister_callback(struct device *dev)
 {
     gRawCallback = NULL;
     return 0;
 }
 
-static int raw_display_mux_probe(struct device *dev)
+static int mods_raw_factory_probe(struct device *dev)
 {
     dbg("enter\n");
     gRawDevice = dev;
     return 0;
 }
 
-static struct device_raw_type_ops raw_display_mux_type_ops = {
-    .recv = raw_display_mux_recv,
-    .register_callback = raw_display_mux_register_callback,
-    .unregister_callback = raw_display_mux_unregister_callback,
+static struct device_raw_type_ops mods_raw_factory_type_ops = {
+    .recv = mods_raw_factory_recv,
+    .register_callback = mods_raw_factory_register_callback,
+    .unregister_callback = mods_raw_factory_unregister_callback,
 };
 
-static struct device_driver_ops raw_display_mux_driver_ops = {
-    .probe = raw_display_mux_probe,
-    .type_ops = &raw_display_mux_type_ops,
+static struct device_driver_ops mods_raw_factory_driver_ops = {
+    .probe = mods_raw_factory_probe,
+    .type_ops = &mods_raw_factory_type_ops,
 };
 
-struct device_driver raw_display_mux_driver = {
+struct device_driver mods_raw_factory_driver = {
     .type = DEVICE_TYPE_RAW_HW,
-    .name = "raw_display_mux",
-    .desc = "Raw Interface for Display Mux Control",
-    .ops = &raw_display_mux_driver_ops,
+    .name = "mods_raw_factory",
+    .desc = "Factory Raw Interface",
+    .ops = &mods_raw_factory_driver_ops,
 };
 

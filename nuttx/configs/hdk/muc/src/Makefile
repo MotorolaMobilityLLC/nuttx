@@ -94,8 +94,8 @@ ifeq ($(CONFIG_BATTERY_GOOD_DEVICE_COMP),y)
 CSRCS += stm32_battery_good.c
 endif
 
-ifeq ($(CONFIG_DISPLAY_MUX),y)
-CSRCS += stm32_display_mux.c
+ifeq ($(CONFIG_MODS_RAW_FACTORY),y)
+CSRCS += stm32_modsraw_factory.c
 endif
 
 ifeq ($(CONFIG_STM32_LPTIM1),y)
