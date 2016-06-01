@@ -46,7 +46,11 @@
 #include <errno.h>
 #include <unistd.h>
 
+#if IS_BATT_PCARD
+#define MAX17050_I2C_BUS          2
+#else
 #define MAX17050_I2C_BUS          3
+#endif
 #define MAX17050_I2C_FREQ         400000
 
 static struct battery_dev_s *g_battery;
