@@ -96,7 +96,8 @@
 
 #define MHB_IPC_TIMEOUT (500)
 
-#define MHB_HSIC_SPEED_MBPS 480
+/* Practical max bps with USBTUN */
+#define MHB_HSIC_SPEED_MBPS (200)
 
 static struct device *g_uart_dev;
 static struct device *g_gpio_tunnel_dev;
