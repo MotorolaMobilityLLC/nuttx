@@ -39,10 +39,10 @@
 #include <nuttx/device_cam_ext.h>
 #include <nuttx/i2c.h>
 #include <arch/board/mods.h>
-#include <nuttx/math.h>
 #include <nuttx/time.h>
 #include <nuttx/device.h>
 #include <nuttx/device_slave_pwrctrl.h>
+#include <nuttx/device_mhb_cam.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
@@ -79,6 +79,7 @@ struct cached_ctrls_node {
 struct mhb_camera_s
 {
     struct device *mhb_device;
+    struct device *cam_device;
     struct device *slave_pwr_ctrl;
     struct i2c_dev_s* cam_i2c;
     uint8_t apbe_state;
@@ -96,10 +97,6 @@ pthread_mutex_t i2c_mutex;
 pthread_mutex_t ctrl_mutex;
 static struct mhb_camera_s s_mhb_camera;
 static LIST_DECLARE(cached_ctrl_list);
-
-extern struct camera_ext_format_db mhb_camera_format_db;
-extern struct mhb_cdsi_config mhb_camera_csi_config;
-extern struct camera_ext_ctrl_db mhb_camera_ctrl_db;
 
 /* Cam I2C Ops */
 int mhb_camera_i2c_set_freq(uint32_t frequency)
@@ -534,7 +531,8 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
         }
     }
 
-    if (_mhb_camera_soc_enable(s_mhb_camera.bootmode)) {
+    if (MHB_CAM_DEV_OP(s_mhb_camera.cam_device, soc_enable,
+                       s_mhb_camera.bootmode)) {
         CAM_ERR("Failed to turn on Camera SOC\n");
         goto failed_power_on;
     }
@@ -573,7 +571,7 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     if (s_mhb_camera.soc_enabled != 0) {
         s_mhb_camera.soc_enabled = 0;
         mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_OFF);
-        _mhb_camera_soc_disable();
+        MHB_CAM_DEV_OP(s_mhb_camera.cam_device, soc_disable);
     }
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
@@ -597,7 +595,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
     const struct camera_ext_format_node *fmt;
     const struct camera_ext_frmsize_node *frmsize;
-    const struct camera_ext_frmival_node *ival;
+    struct mhb_cdsi_config *cdsi_config;
 
     CAM_DBG("\n");
 
@@ -613,60 +611,49 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
         goto failed_stream_on;
     }
 
-    ival = get_current_frmival_node(db, cfg);
-    if (ival == NULL) {
-        CAM_ERR("Failed to get current frame interval\n");
-        goto failed_stream_on;
-    }
-
-    if (ival->user_data == NULL) {
-        CAM_ERR("Failed to get user data\n");
+    if (MHB_CAM_DEV_OP(s_mhb_camera.cam_device, get_csi_config, (void*)&cdsi_config)) {
+        CAM_ERR("Failed to get CSI Params\n");
         goto failed_stream_on;
     }
 
     switch(fmt->fourcc) {
         case V4L2_PIX_FMT_RGB24:
         case V4L2_PIX_FMT_BGR24:
-            mhb_camera_csi_config.bpp = 24;
+            cdsi_config->bpp = 24;
             break;
         case V4L2_PIX_FMT_UYVY:
         case V4L2_PIX_FMT_VYUY:
         case V4L2_PIX_FMT_YUYV:
         case V4L2_PIX_FMT_YVYU:
-            mhb_camera_csi_config.bpp = 16;
+            cdsi_config->bpp = 16;
             break;
         case V4L2_PIX_FMT_SBGGR10:
         case V4L2_PIX_FMT_SGBRG10:
         case V4L2_PIX_FMT_SGRBG10:
         case V4L2_PIX_FMT_SRGGB10:
-            mhb_camera_csi_config.bpp = 10;
+            cdsi_config->bpp = 10;
             break;
         case V4L2_PIX_FMT_SBGGR8:
         case V4L2_PIX_FMT_SGBRG8:
         case V4L2_PIX_FMT_SGRBG8:
         case V4L2_PIX_FMT_SRGGB8:
-            mhb_camera_csi_config.bpp = 8;
+            cdsi_config->bpp = 8;
         default:
             CAM_ERR("Unsupported format 0x%x\n", fmt->fourcc);
             goto failed_stream_on;
     }
 
-    mhb_camera_csi_config.width = frmsize->width;
-    mhb_camera_csi_config.height = frmsize->height;
-    mhb_camera_csi_config.rx_num_lanes = _mhb_camera_get_csi_rx_lanes(ival->user_data);
-    mhb_camera_csi_config.framerate = roundf((float)(ival->denominator) /
-                                             (float)(ival->numerator));
-    mhb_camera_csi_config.tx_bits_per_lane = 500000000;
-    mhb_camera_csi_config.rx_bits_per_lane = 500000000;
+    cdsi_config->width = frmsize->width;
+    cdsi_config->height = frmsize->height;
 
     /* Send the configuration to the APBE. */
 
-    if(_mhb_camera_stream_configure()) {
+    if(MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_configure)) {
         goto failed_stream_on;
     }
 
-    if (_mhb_csi_camera_config_req((uint8_t*)&mhb_camera_csi_config,
-                                    sizeof(mhb_camera_csi_config))) {
+    if (_mhb_csi_camera_config_req((uint8_t*)cdsi_config,
+                                    sizeof(*cdsi_config))) {
         CAM_ERR("ERROR: Send Config Failed\n");
         goto failed_stream_on;
     }
@@ -680,7 +667,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
-    if (_mhb_camera_stream_enable()) {
+    if (MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_enable)) {
         CAM_ERR("ERROR: _mhb_camera_stream_enable Failed\n");
         goto failed_stream_on;
     }
@@ -723,7 +710,7 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
                                   "CDSI STOP");
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
-    retval |= _mhb_camera_stream_disable();
+    retval |= MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_disable);
 
     retval |= _mhb_csi_camera_unconfig_req();
 
@@ -799,9 +786,6 @@ static int _dev_probe(struct device *dev)
     mhb_camera->mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
     mhb_camera->bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
     memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
-    _mhb_camera_init(dev);
-    camera_ext_register_format_db(&mhb_camera_format_db);
-    camera_ext_register_control_db(&mhb_camera_ctrl_db);
 
     return 0;
 }
@@ -809,7 +793,7 @@ static int _dev_probe(struct device *dev)
 static int _dev_open(struct device *dev)
 {
     struct mhb_camera_s* mhb_camera = (struct mhb_camera_s*)device_get_private(dev);
-    int ret;
+    int ret = -ENODEV;
     CAM_DBG("mhb_camera_csi\n");
 
     if (mhb_camera->mhb_device) {
@@ -817,18 +801,22 @@ static int _dev_open(struct device *dev)
         return -EBUSY;
     }
 
+    mhb_camera->cam_device = device_open(DEVICE_TYPE_MHB_CAMERA_HW, MHB_CAM_DRIVER_ID);
+    if (!mhb_camera->cam_device) {
+        CAM_ERR("ERROR: Failed to open Cam Device\n");
+        goto open_failed;
+    }
+
     mhb_camera->slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, MHB_ADDR_CDSI1);
     if (!mhb_camera->slave_pwr_ctrl) {
-       CAM_ERR("ERROR: Failed to open SLAVE Power Control\n");
-       return -ENODEV;
+        CAM_ERR("ERROR: Failed to open SLAVE Power Control\n");
+        goto open_failed;
     }
 
     mhb_camera->mhb_device = device_open(DEVICE_TYPE_MHB, MHB_ADDR_CDSI1);
     if (!mhb_camera->mhb_device) {
         CAM_ERR("ERROR: failed to open MHB device.\n");
-        device_close(mhb_camera->slave_pwr_ctrl);
-        mhb_camera->slave_pwr_ctrl = NULL;
-        return -ENODEV;
+        goto open_failed;
     }
     mhb_camera_sm_init();
 
@@ -836,17 +824,27 @@ static int _dev_open(struct device *dev)
                                                         _mhb_camera_slave_status_callback);
     if(ret) {
         CAM_ERR("ERROR: Failed to register callback %d\n", ret);
-        return ret;
+        goto open_failed;
     }
 
     ret = device_mhb_register_receiver(mhb_camera->mhb_device, MHB_ADDR_CDSI1,
-                                 _mhb_csi_camera_handle_msg);
+                                       _mhb_csi_camera_handle_msg);
 
     if(ret) {
         CAM_ERR("ERROR: Failed to register device_mhb_register_receiver %d\n", ret);
-        return ret;
+        goto open_failed;
     }
     return 0;
+
+open_failed:
+
+    device_close(mhb_camera->cam_device);
+    device_close(mhb_camera->slave_pwr_ctrl);
+    device_close(mhb_camera->mhb_device);
+    mhb_camera->cam_device = NULL;
+    mhb_camera->slave_pwr_ctrl = NULL;
+    mhb_camera->mhb_device = NULL;
+    return ret;
 }
 
 static void _dev_close(struct device *dev)
@@ -866,6 +864,8 @@ static void _dev_close(struct device *dev)
 
     device_close(mhb_camera->mhb_device);
     device_close(mhb_camera->slave_pwr_ctrl);
+    device_close(mhb_camera->cam_device);
+    mhb_camera->cam_device = NULL;
     mhb_camera->mhb_device = NULL;
     mhb_camera->slave_pwr_ctrl = NULL;
 }
