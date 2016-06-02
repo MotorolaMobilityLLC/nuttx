@@ -146,12 +146,4 @@ static inline int mhb_camera_i2c_write_reg4_16(uint16_t i2c_addr,
                                     MHB_CAMERA_REG_DWORD, MHB_CAMERA_REG_WIDTH_16);
 }
 
-int _mhb_camera_soc_enable(uint8_t bootmode);
-int _mhb_camera_soc_disable();
-int _mhb_camera_stream_enable();
-int _mhb_camera_stream_configure();
-int _mhb_camera_stream_disable();
-int _mhb_camera_init(struct device *dev);
-uint8_t _mhb_camera_get_csi_rx_lanes(const void *udata);
-
 #endif
