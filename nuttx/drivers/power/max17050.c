@@ -713,7 +713,7 @@ static int max17050_por_init(FAR struct max17050_dev_s *priv)
 #endif
 
     // Set COFF and MiscRate register
-#ifdef BATTERY_MAX17050_SENSE_TRACE_CORRECTION
+#ifdef CONFIG_BATTERY_MAX17050_SENSE_TRACE_CORRECTION
     WRITE_VERIFY(priv, MAX17050_REG_COFF, CONFIG_BATTERY_MAX17050_COFF_CFG);
     WRITE_VERIFY(priv, MAX17050_REG_MISC_CFG, CONFIG_BATTERY_MAX17050_MISC_CFG);
 #endif
@@ -1064,7 +1064,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
         return;
     }
 
-#ifdef BATTERY_MAX17050_SENSE_TRACE_CORRECTION
+#ifdef CONFIG_BATTERY_MAX17050_SENSE_TRACE_CORRECTION
     ret = max17050_reg_read_retry(priv, MAX17050_REG_COFF);
     if (ret < 0) {
         max17050_set_initialized(priv, false);
@@ -1072,7 +1072,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
     }
     if (ret != CONFIG_BATTERY_MAX17050_COFF_CFG) {
         max17050_reg_modify_retry(priv, MAX17050_REG_STATUS,
-              MAX17050_STATUS_POR, MAX17050_STATUS_POR)
+              MAX17050_STATUS_POR, MAX17050_STATUS_POR);
     } else {
        ret = max17050_reg_read_retry(priv, MAX17050_REG_MISC_CFG);
        if (ret < 0) {
@@ -1081,7 +1081,7 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
        }
        if (ret != CONFIG_BATTERY_MAX17050_MISC_CFG) {
            max17050_reg_modify_retry(priv, MAX17050_REG_STATUS,
-              MAX17050_STATUS_POR, MAX17050_STATUS_POR)
+              MAX17050_STATUS_POR, MAX17050_STATUS_POR);
        }
     }
 #endif
