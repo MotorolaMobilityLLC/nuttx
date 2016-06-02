@@ -44,14 +44,8 @@
 
 #define CALC_GPIO_NUM(port, pin)  ((16 * (port - 'A')) + pin)
 
-/* Pins changed on HDK P3 */
-#if (BOARD_REVISION >= 3)
 #define GPIO_MODS_CHG_VINA_EN    CALC_GPIO_NUM('D',  5)
 #define GPIO_MODS_CHG_VINB_EN    CALC_GPIO_NUM('D',  8)
-#else
-#define GPIO_MODS_CHG_VINA_EN    CALC_GPIO_NUM('C',  3)
-#define GPIO_MODS_CHG_VINB_EN    CALC_GPIO_NUM('C',  7)
-#endif
 
 #define GPIO_MODS_SL_BPLUS_EN    CALC_GPIO_NUM('A', 11)
 #define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  0)
@@ -72,19 +66,12 @@
 #define GPIO_APBE_RST_N          CALC_GPIO_NUM('H',  1)
 #define GPIO_APBE_PWR_EN         CALC_GPIO_NUM('G', 14)
 
-/* Only present on HDK P2 and later */
-#if (BOARD_REVISION >= 2)
-# define GPIO_APBE_WAKE          CALC_GPIO_NUM('B',  5)
-#endif
+#define GPIO_APBE_WAKE           CALC_GPIO_NUM('B',  5)
 
 #define GPIO_DISPLAY_PWR1_EN     CALC_GPIO_NUM('A', 10)
 #define GPIO_DISPLAY_PWR2_EN     CALC_GPIO_NUM('C', 12)
-#if (BOARD_REVISION < 2)
-# define GPIO_DISPLAY_PWR3_EN    CALC_GPIO_NUM('B', 5)
-#else
-# define GPIO_DISPLAY_PWR3_EN    CALC_GPIO_NUM('A', 0)
-# define GPIO_DISPLAY_PWR4_EN    CALC_GPIO_NUM('A', 2)
-#endif
+#define GPIO_DISPLAY_PWR3_EN     CALC_GPIO_NUM('A', 0)
+#define GPIO_DISPLAY_PWR4_EN     CALC_GPIO_NUM('A', 2)
 #define GPIO_DISPLAY_RST1_N      CALC_GPIO_NUM('C', 8)
 
 #define GPIO_TOUCH_INT_N         CALC_GPIO_NUM('A', 9)
@@ -101,11 +88,8 @@
 /* Select the SL_BPLUS_AIN pin for base attach */
 #define GPIO_MODS_BASE_ATTACH    GPIO_MODS_SL_BPLUS_AIN
 
-/* HDK P3 and later */
-#if (BOARD_REVISION >= 3)
 #define GPIO_MODS_DEMO_ENABLE    CALC_GPIO_NUM('G', 10)
 #define GPIO_MODS_RST_LS         CALC_GPIO_NUM('H',  0)
-#endif
 
 #if IS_BATT_PCARD
 # define GPIO_MODS_CC_ALERT      CALC_GPIO_NUM('G', 12)
