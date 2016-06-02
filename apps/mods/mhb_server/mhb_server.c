@@ -575,6 +575,15 @@ static int mhb_handle_cdsi_config_req(struct mhb_transaction *transaction)
             request.tx_auto = _auto;
         }
 
+        /* Apply additional factor to max_bps for DSI */
+        if (cdsi->config.mode == TSB_CDSI_MODE_DSI) {
+            if (request.rx_max_mbps != GEARBOX_HS_MIN)
+                request.rx_max_mbps = request.rx_max_mbps / 4 * 5;
+
+            if (request.tx_max_mbps != GEARBOX_HS_MIN)
+                request.tx_max_mbps = request.tx_max_mbps / 4 * 5;
+        }
+
         gearbox_request(g_gearbox, id, &request);
     }
 
