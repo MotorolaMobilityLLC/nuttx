@@ -70,6 +70,8 @@ struct device_mhb_camera_dev_type_ops {
     int (*stream_configure)(struct device *dev);
     int (*stream_enable)(struct device *dev);
     int (*stream_disable)(struct device *dev);
+    int (*lens_retract)(struct device *dev);
+    int (*lens_extend)(struct device *dev);
     int (*power_limit)(struct device *dev, uint8_t enable);
     int (*get_csi_config)(struct device *dev, void *config);
     int (*get_fw_version)(struct device *dev, uint32_t *fw_ver);
@@ -79,6 +81,8 @@ IMPL_MHB_CAMERA_DEV_OP_ARG0(soc_disable)
 IMPL_MHB_CAMERA_DEV_OP_ARG0(stream_configure)
 IMPL_MHB_CAMERA_DEV_OP_ARG0(stream_enable)
 IMPL_MHB_CAMERA_DEV_OP_ARG0(stream_disable)
+IMPL_MHB_CAMERA_DEV_OP_ARG0(lens_retract)
+IMPL_MHB_CAMERA_DEV_OP_ARG0(lens_extend)
 
 IMPL_MHB_CAMERA_DEV_OP_ARG1(soc_enable, uint8_t, bootmode)
 IMPL_MHB_CAMERA_DEV_OP_ARG1(get_fw_version, uint32_t*, fw_ver)

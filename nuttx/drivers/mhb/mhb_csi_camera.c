@@ -493,16 +493,19 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
     return 0;
 }
 
-static void _mhb_camera_process_ctrl_cache(void)
+static void _mhb_camera_process_ctrl_cache(int dump)
 {
     struct cached_ctrls_node *item;
+    int soc_enabled;
 
     pthread_mutex_lock(&ctrl_mutex);
+    soc_enabled = s_mhb_camera.soc_enabled;
+
     while (!list_is_empty(&cached_ctrl_list)) {
         item = list_entry(cached_ctrl_list.next,
                           struct cached_ctrls_node, node);
 
-        if (s_mhb_camera.soc_enabled)
+        if (soc_enabled && !dump)
             camera_ext_ctrl_set(item->dev, item->idx,
                                 item->ctrl_val, item->ctrl_val_size);
 
@@ -518,8 +521,11 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
 {
     CAM_DBG(" soc_enabled = %d\n", s_mhb_camera.soc_enabled);
 
-    if (s_mhb_camera.soc_enabled == 1)
+    if (s_mhb_camera.soc_enabled == 1) {
+        if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_PREVIEW)
+            mhb_camera_lens_extend();
         return MHB_CAMERA_EV_POWERED_ON;
+    }
 
     // TODO: Hack : S10 Should not depend on APBE_PWR_EN
     gpio_direction_out(GPIO_APBE_PWR_EN, 1);
@@ -550,7 +556,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
-    _mhb_camera_process_ctrl_cache();
+    _mhb_camera_process_ctrl_cache(0);
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_ON);
 
     return MHB_CAMERA_EV_POWERED_ON;
@@ -585,7 +591,7 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
-    _mhb_camera_process_ctrl_cache();
+    _mhb_camera_process_ctrl_cache(1);
     return MHB_CAMERA_EV_NONE;
 }
 
@@ -731,6 +737,18 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
     return MHB_CAMERA_EV_DECONFIGURED;
 }
 
+mhb_camera_sm_event_t mhb_camera_lens_extend(void)
+{
+    MHB_CAM_DEV_OP(s_mhb_camera.cam_device, lens_extend);
+    return MHB_CAMERA_EV_NONE;
+}
+
+mhb_camera_sm_event_t mhb_camera_lens_retract(void)
+{
+    MHB_CAM_DEV_OP(s_mhb_camera.cam_device, lens_retract);
+    return MHB_CAMERA_EV_NONE;
+}
+
 /* CAMERA_EXT devops */
 static int _power_on(struct device *dev, uint8_t mode)
 {
@@ -742,6 +760,7 @@ static int _power_on(struct device *dev, uint8_t mode)
 static int _power_off(struct device *dev)
 {
     CAM_DBG("mhb_camera_csi\n");
+    _mhb_camera_process_ctrl_cache(1);
     return mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_OFF_REQ);
 }
 
@@ -930,7 +949,6 @@ static int _mhb_camera_ext_ctrl_get(struct device *dev,
         CAM_DBG("Cam not ready, try again. CtrlID 0x%08x State %s\n",
                 idx, mhb_camera_sm_state_str(state));
 
-        usleep(CAM_CTRL_RETRY_DELAY_US);
         return -EAGAIN;
     }
     return camera_ext_ctrl_get(dev, idx, ctrl_val, ctrl_val_size);

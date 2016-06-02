@@ -51,6 +51,7 @@ typedef enum {
     MHB_CAMERA_EV_POWERED_ON,
     MHB_CAMERA_EV_CONFIGURED,
     MHB_CAMERA_EV_DECONFIGURED,
+    MHB_CAMERA_EV_WAIT_OVER,
     MHB_CAMERA_EV_MAX,
 } mhb_camera_sm_event_t;
 
@@ -74,6 +75,7 @@ static char *mhb_camera_sm_events_str[] = {
     "MHB_CAMERA_EV_POWERED_ON",
     "MHB_CAMERA_EV_CONFIGURED",
     "MHB_CAMERA_EV_DECONFIGURED",
+    "MHB_CAMERA_EV_WAIT_OVER",
 };
 
 static inline char* mhb_camera_sm_event_str(int event) {
@@ -98,5 +100,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void);
 mhb_camera_sm_event_t mhb_camera_power_off(void);
 mhb_camera_sm_event_t mhb_camera_stream_on(void);
 mhb_camera_sm_event_t mhb_camera_stream_off(void);
+mhb_camera_sm_event_t mhb_camera_lens_retract(void);
+mhb_camera_sm_event_t mhb_camera_lens_extend(void);
 
 #endif
