@@ -56,7 +56,7 @@
  */
 
 #define MAX_COMMAND_ITEMS 4
-#define OFF_STATE_DELAY   25000 /*us*/
+#define OFF_STATE_DELAY   MSEC2TICK(7000)
 
 struct command_item {
     struct list_head node;
@@ -141,7 +141,7 @@ static int mhb_camera_sm_run_command(mhb_camera_command_func func, uint32_t dela
     put_item(item, &s_active_list);
     pthread_mutex_unlock(&s_command_mutex);
 
-    if (delay < 1000)
+    if (!delay)
         sem_post(&s_command_sem);
     else
         work_queue(HPWORK, &mhb_sm_work, state_worker, NULL, delay);
@@ -160,10 +160,9 @@ typedef struct {
 mhb_camera_sm_t;
 
 
-mhb_camera_sm_event_t mhb_camera_sm_off_wait(void)
+mhb_camera_sm_event_t mhb_camera_sm_waiting(void)
 {
-    usleep(OFF_STATE_DELAY);
-    return MHB_CAMERA_EV_NONE;
+    return MHB_CAMERA_EV_WAIT_OVER;
 }
 
 static mhb_camera_sm_state_t  mhb_camera_sm_off_enter(mhb_camera_sm_event_t event)
@@ -223,7 +222,8 @@ static mhb_camera_sm_state_t  mhb_camera_sm_wait_stream_off_enter(mhb_camera_sm_
 /* Special state to have lingering wait to avoid cycle time between ON-OFF-ON */
 static mhb_camera_sm_state_t  mhb_camera_sm_wait_off_enter(mhb_camera_sm_event_t event)
 {
-    mhb_camera_sm_run_command(mhb_camera_sm_off_wait, 0);
+    mhb_camera_sm_run_command(mhb_camera_lens_retract, 0);
+    mhb_camera_sm_run_command(mhb_camera_sm_waiting,  OFF_STATE_DELAY);
     return s_state;
 }
 
@@ -367,7 +367,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_close_process_ev(mhb_came
             //TODO: Greybus ERROR
             CAM_ERR("FAILED s_state %d event %d. Powering Off\n", s_state, event);
         case MHB_CAMERA_EV_POWER_OFF_REQ:
-            next_state = MHB_CAMERA_STATE_OFF;
+            next_state = MHB_CAMERA_STATE_WAIT_OFF;
             break;
         case MHB_CAMERA_EV_POWERED_ON:
         case MHB_CAMERA_EV_CONFIGURED:
@@ -388,6 +388,10 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_off_process_ev(mhb_camera_sm_eve
     int dump = 0;
     switch (event) {
         case MHB_CAMERA_EV_POWER_ON_REQ:
+            if (work_cancel(HPWORK, &mhb_sm_work)) {
+                CAM_ERR("ERROR: Cancel off wait FAILED");
+            }
+
             pthread_mutex_lock(&s_command_mutex);
             while ((item = get_item(&s_active_list)) != NULL) {
                 put_item(item, &s_free_list);
@@ -398,8 +402,25 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_off_process_ev(mhb_camera_sm_eve
             next_state = MHB_CAMERA_STATE_WAIT_POWER_ON;
             break;
 
-        case MHB_CAMERA_EV_NONE:
+        case MHB_CAMERA_EV_FAIL:
+            if (work_cancel(HPWORK, &mhb_sm_work)) {
+                CAM_ERR("ERROR: Cancel off wait FAILED");
+            }
+
+            pthread_mutex_lock(&s_command_mutex);
+            while ((item = get_item(&s_active_list)) != NULL) {
+                put_item(item, &s_free_list);
+                ++dump;
+            }
+            pthread_mutex_unlock(&s_command_mutex);
+            if (dump) CAM_ERR("Dumped %d event\\s\n", dump);
+        case MHB_CAMERA_EV_WAIT_OVER:
             next_state = MHB_CAMERA_STATE_OFF;
+            break;
+
+        case MHB_CAMERA_EV_DECONFIGURED:
+        case MHB_CAMERA_EV_NONE:
+            next_state = s_state;
             break;
 
         default:
