@@ -47,8 +47,9 @@
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_csi_camera.h>
-#include "mhb_csi_camera_sm.h"
+#include <nuttx/power/pm.h>
 
+#include "mhb_csi_camera_sm.h"
 #include "greybus/v4l2_camera_ext_ctrls.h"
 #include "camera_ext.h"
 
@@ -68,6 +69,12 @@
 #define MHB_CAM_WAIT_EV_NONE     0x0000
 #define MHB_CAM_MAX_CALLBACKS    4
 
+enum soc_status {
+    SOC_DISABLED = 0,
+    SOC_DISABLING,
+    SOC_ENABLED,
+};
+
 struct cached_ctrls_node {
     struct list_head node;
     struct device *dev;
@@ -83,7 +90,7 @@ struct mhb_camera_s
     struct device *slave_pwr_ctrl;
     struct i2c_dev_s* cam_i2c;
     uint8_t apbe_state;
-    uint8_t soc_enabled;
+    uint8_t soc_status;
     uint8_t cdsi_instance;
     uint8_t bootmode;
     pthread_mutex_t mutex;
@@ -97,6 +104,48 @@ pthread_mutex_t i2c_mutex;
 pthread_mutex_t ctrl_mutex;
 static struct mhb_camera_s s_mhb_camera;
 static LIST_DECLARE(cached_ctrl_list);
+
+#ifdef CONFIG_PM
+static int mhb_camera_pm_prepare(struct pm_callback_s *cb,
+                                 enum pm_state_e pm_state)
+{
+    if (pm_state >= PM_STANDBY)
+    {
+       /* Multiple situations when we dont want MUC to suspend  */
+       /* Waiting on transactions                               */
+       /* SM in Wait states                                     */
+       /* SM in OFF && SOC is still enabled. pthread_timed_wait */
+       /* timers dont seem to wake up reliably, so handle here  */
+       pthread_mutex_lock(&s_mhb_camera.mutex);
+       uint8_t sm_state = mhb_camera_sm_get_state();
+       /*
+       CAM_DBG("pm_state=%d, sm_state=%d, mhb_wait=%04x, soc=%d\n",
+               pm_state, sm_state, s_mhb_camera.mhb_wait_event,
+               s_mhb_camera.soc_status);
+       */
+       if ((sm_state == MHB_CAMERA_STATE_WAIT_OFF ||
+            sm_state == MHB_CAMERA_STATE_WAIT_POWER_ON ||
+            sm_state == MHB_CAMERA_STATE_WAIT_STREAM||
+            sm_state == MHB_CAMERA_STATE_WAIT_STREAM_CLOSE)
+           ||
+           (s_mhb_camera.mhb_wait_event != MHB_CAM_WAIT_EV_NONE)
+           ||
+           (sm_state == MHB_CAMERA_STATE_OFF &&
+            s_mhb_camera.soc_status != SOC_DISABLED)
+          ) {
+            pthread_mutex_unlock(&s_mhb_camera.mutex);
+            return -EBUSY;
+       }
+       pthread_mutex_unlock(&s_mhb_camera.mutex);
+    }
+    return 0;
+}
+
+static struct pm_callback_s pm_callback =
+{
+    .prepare = mhb_camera_pm_prepare,
+};
+#endif
 
 /* Cam I2C Ops */
 int mhb_camera_i2c_set_freq(uint32_t frequency)
@@ -335,7 +384,7 @@ int mhb_csi_camera_status_register_callback(
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
-    callback(s_mhb_camera.soc_enabled?
+    callback(s_mhb_camera.soc_status == SOC_ENABLED?
              MHB_CAMERA_NOTIFY_POWERED_ON:MHB_CAMERA_NOTIFY_POWERED_OFF);
 
     return retval;
@@ -496,16 +545,16 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
 static void _mhb_camera_process_ctrl_cache(int dump)
 {
     struct cached_ctrls_node *item;
-    int soc_enabled;
+    uint8_t soc_status;
 
     pthread_mutex_lock(&ctrl_mutex);
-    soc_enabled = s_mhb_camera.soc_enabled;
+    soc_status = s_mhb_camera.soc_status;
 
     while (!list_is_empty(&cached_ctrl_list)) {
         item = list_entry(cached_ctrl_list.next,
                           struct cached_ctrls_node, node);
 
-        if (soc_enabled && !dump)
+        if ((soc_status == SOC_ENABLED) && !dump)
             camera_ext_ctrl_set(item->dev, item->idx,
                                 item->ctrl_val, item->ctrl_val_size);
 
@@ -519,9 +568,9 @@ static void _mhb_camera_process_ctrl_cache(int dump)
 
 mhb_camera_sm_event_t mhb_camera_power_on(void)
 {
-    CAM_DBG(" soc_enabled = %d\n", s_mhb_camera.soc_enabled);
+    CAM_DBG(" soc_status = %d\n", s_mhb_camera.soc_status);
 
-    if (s_mhb_camera.soc_enabled == 1) {
+    if (s_mhb_camera.soc_status == SOC_ENABLED) {
         if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_PREVIEW)
             mhb_camera_lens_extend();
         return MHB_CAMERA_EV_POWERED_ON;
@@ -542,7 +591,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
         CAM_ERR("Failed to turn on Camera SOC\n");
         goto failed_power_on;
     }
-    s_mhb_camera.soc_enabled = 1;
+    s_mhb_camera.soc_status = SOC_ENABLED;
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
     if(s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_CONNECTED) {
@@ -556,7 +605,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
-    _mhb_camera_process_ctrl_cache(0);
+    _mhb_camera_process_ctrl_cache(FALSE);
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_ON);
 
     return MHB_CAMERA_EV_POWERED_ON;
@@ -570,14 +619,15 @@ failed_power_on:
 mhb_camera_sm_event_t mhb_camera_power_off(void)
 {
     CAM_DBG("APBE State: %d, Cam SOC State %d\n",
-            s_mhb_camera.apbe_state, s_mhb_camera.soc_enabled);
+            s_mhb_camera.apbe_state, s_mhb_camera.soc_status);
 
     _mhb_camera_set_apbe_state(SLAVE_STATE_DISABLED);
 
-    if (s_mhb_camera.soc_enabled != 0) {
-        s_mhb_camera.soc_enabled = 0;
+    if (s_mhb_camera.soc_status == SOC_ENABLED) {
+        s_mhb_camera.soc_status = SOC_DISABLING;
         mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_OFF);
         MHB_CAM_DEV_OP(s_mhb_camera.cam_device, soc_disable);
+        s_mhb_camera.soc_status = SOC_DISABLED;
     }
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
@@ -591,7 +641,6 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
-    _mhb_camera_process_ctrl_cache(1);
     return MHB_CAMERA_EV_NONE;
 }
 
@@ -760,7 +809,7 @@ static int _power_on(struct device *dev, uint8_t mode)
 static int _power_off(struct device *dev)
 {
     CAM_DBG("mhb_camera_csi\n");
-    _mhb_camera_process_ctrl_cache(1);
+    _mhb_camera_process_ctrl_cache(TRUE);
     return mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_OFF_REQ);
 }
 
@@ -778,20 +827,28 @@ static int _stream_off(struct device *dev)
 
 static int _dev_probe(struct device *dev)
 {
+    struct mhb_camera_s* mhb_camera = &s_mhb_camera;
+
     CAM_DBG("mhb_camera_csi\n");
 
-    struct mhb_camera_s* mhb_camera = &s_mhb_camera;
-    device_set_private(dev, (void*)mhb_camera);
-    /* Only initialize I2C once in life */
-    if (mhb_camera->cam_i2c == NULL) {
-        /* initialize once */
-        mhb_camera->cam_i2c = up_i2cinitialize(CONFIG_CAMERA_I2C_BUS);
-
-        if (mhb_camera->cam_i2c == NULL) {
-            CAM_ERR("Failed to initialize I2C\n");
-            return -1;
-        }
+    if (mhb_camera->cam_i2c != NULL) {
+        CAM_ERR("mhb_camera_csi already probed?\n");
+        return -1;
     }
+
+    device_set_private(dev, (void*)mhb_camera);
+
+    /* Initialize once */
+    mhb_camera->cam_i2c = up_i2cinitialize(CONFIG_CAMERA_I2C_BUS);
+
+    if (mhb_camera->cam_i2c == NULL) {
+        CAM_ERR("Failed to initialize I2C\n");
+        return -1;
+    }
+
+#ifdef CONFIG_PM
+    pm_register(&pm_callback);
+#endif
 
     pthread_mutex_init(&mhb_camera->mutex, NULL);
     pthread_mutex_init(&i2c_mutex, NULL);
@@ -800,7 +857,7 @@ static int _dev_probe(struct device *dev)
     pthread_cond_init(&mhb_camera->slave_cond, NULL);
     pthread_cond_init(&mhb_camera->cdsi_cond, NULL);
 
-    mhb_camera->soc_enabled = 0;
+    mhb_camera->soc_status = SOC_DISABLED;
     mhb_camera->apbe_state = MHB_PM_STATUS_PEER_NONE;
     mhb_camera->mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
     mhb_camera->bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
@@ -923,7 +980,7 @@ static int _mhb_camera_ext_ctrl_set(struct device *dev,
         CAM_ERR("ERROR: Camera Off : State %d\n", state);
         return -ENODEV;
     }
-    if (!s_mhb_camera.soc_enabled) {
+    if (s_mhb_camera.soc_status != SOC_ENABLED) {
         CTRL_DBG("Cam not ready, cache ctrl. CtrlID 0x%08x Size %d State %s\n",
                  idx, ctrl_val_size, mhb_camera_sm_state_str(state));
 
@@ -945,7 +1002,7 @@ static int _mhb_camera_ext_ctrl_get(struct device *dev,
         return -ENODEV;
     }
 
-    if (!s_mhb_camera.soc_enabled) {
+    if (s_mhb_camera.soc_status != SOC_ENABLED) {
         CAM_DBG("Cam not ready, try again. CtrlID 0x%08x State %s\n",
                 idx, mhb_camera_sm_state_str(state));
 
