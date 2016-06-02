@@ -68,11 +68,7 @@
 
 #define GPIO_APBE_WAKE           CALC_GPIO_NUM('B',  5)
 
-#if (BOARD_REVISION >= 3)
-# define GPIO_DISPLAY_PWR1_EN    CALC_GPIO_NUM('G', 10)
-#else
-# define GPIO_DISPLAY_PWR1_EN    CALC_GPIO_NUM('A', 10)
-#endif
+#define GPIO_DISPLAY_PWR1_EN     CALC_GPIO_NUM('G', 10)
 #define GPIO_DISPLAY_PWR2_EN     CALC_GPIO_NUM('C', 12)
 #define GPIO_DISPLAY_PWR3_EN     CALC_GPIO_NUM('A', 0)
 #define GPIO_DISPLAY_PWR4_EN     CALC_GPIO_NUM('A', 2)
