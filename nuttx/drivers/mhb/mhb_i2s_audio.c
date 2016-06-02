@@ -468,6 +468,13 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
     }
 
     sem_wait(&i2s->lock);
+    if (i2s->i2s_status) {
+        i2s->state = MHB_I2S_AUDIO_CONFIG;
+        llvdbg("bridge already cfg'ed and streaming return\n");
+        result = 0;
+        goto err;
+    }
+
     /* check if config is supported */
     if (!ONE_BIT_IS_SET(i2s_dai->protocol) ||
           !ONE_BIT_IS_SET(i2s_dai->wclk_polarity) ||
