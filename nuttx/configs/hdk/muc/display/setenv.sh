@@ -51,64 +51,10 @@ export NUTTX_CONFIG_BASE=hdk/muc/display
 # this will need to be updated based on your configuration
 if [ -z "${ANDROID_BUILD_TOP}" ]; then
 export TOOLCHAIN_BIN=/usr/local/gcc-arm-none-eabi-4_8-2014q3/bin
+export PATH="${TOOLCHAIN_BIN}:/sbin:/usr/sbin:${PATH_ORIG}"
 else
-export TOOLCHAIN_BIN=${ANDROID_BUILD_TOP}/prebuilts/gcc/linux-x86/arm/arm-eabi-4.8/bin
 export CROSSDEV=arm-eabi-
 export ARCROSSDEV=arm-eabi-
 fi
 
-# Add the path to the toolchain to the PATH varialble
-export PATH="${TOOLCHAIN_BIN}:/sbin:/usr/sbin:${PATH_ORIG}"
-
-echo "PATH : ${PATH}"
-
-# some handy aliases to build and flash
-function _diff_locals()
-{
-    nuttx_dir=$1
-    shift
-    echo $nuttx_dir
-    pushd $nuttx_dir
-    git diff .config configs/$NUTTX_CONFIG_BASE/defconfig
-    git diff setenv.sh configs/$NUTTX_CONFIG_BASE/setenv.sh
-    popd
-}
-
-# some handy aliases to build and flash
-function _cp_locals()
-{
-    nuttx_dir=$1
-    shift
-    echo $nuttx_dir
-    pushd $nuttx_dir
-    cp .config configs/$NUTTX_CONFIG_BASE/defconfig
-    cp setenv.sh configs/$NUTTX_CONFIG_BASE/setenv.sh
-    popd
-}
-
-function _build_nuttx()
-{
-    nuttx_dir=$1
-    echo $nuttx_dir
-    shift
-    pushd $nuttx_dir
-    make $*
-    popd
-}
-
-# some handy aliases to build and flash
-function _menuconfig()
-{
-    nuttx_dir=$1
-    echo $nuttx_dir
-    shift
-    pushd $nuttx_dir
-    make menuconfig
-    popd
-}
-
-alias mm="_build_nuttx $WD"
-alias flash="st-flash --reset write $WD/nuttx.bin 0x8008000"
-alias mc="_menuconfig $WD"
-alias dl="_diff_locals $WD"
-alias cl="_cp_locals $WD"
+alias flash="openocd -f board/moto_mdk_muc.cfg -c \"program $WD/nuttx.tftf 0x08008000 reset exit\""
