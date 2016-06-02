@@ -929,10 +929,7 @@ static int mhb_handle_i2s_config_req(struct mhb_transaction *transaction)
                                                           I2S_TUNNEL_I2S_FLAGS_LR_EDGE_FALLING);
         flags |= (cfg->clk_role == MHB_I2S_ROLE_MASTER ? I2S_TUNNEL_I2S_FLAGS_SLAVE :
                                                          I2S_TUNNEL_I2S_FLAGS_MASTER);
-        /* Overload the protocol if only one channel is specified. */
-        if (cfg->num_channels == 1) {
-            cfg->protocol = MHB_I2S_PROTOCOL_PCM;
-        }
+
         if (cfg->protocol >= ARRAY_SIZE(mhb_to_tunnel_protocol_tb)) {
             dbg("Warning: I2S Protocol %d not supported defaulting to I2S Stereo.\n");
             cfg->protocol = I2S_TUNNEL_I2S_MODE_I2S_STEREO;
