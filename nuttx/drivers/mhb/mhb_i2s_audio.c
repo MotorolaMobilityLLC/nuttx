@@ -93,9 +93,7 @@ static struct mhb_i2s_audio mhb_i2s;
  * to get supported configurations
  */
 static const struct device_i2s_pcm tsb_i2s_pcm = {
-    .rate = (DEVICE_I2S_PCM_RATE_16000 | DEVICE_I2S_PCM_RATE_96000 |
-                            DEVICE_I2S_PCM_RATE_48000 |
-                            DEVICE_I2S_PCM_RATE_192000),
+    .rate = (DEVICE_I2S_PCM_RATE_16000 | DEVICE_I2S_PCM_RATE_48000),
     .format = DEVICE_I2S_PCM_FMT_16 | DEVICE_I2S_PCM_FMT_24,
     .channels = 2,
 };
