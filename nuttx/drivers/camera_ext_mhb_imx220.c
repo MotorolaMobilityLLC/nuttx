@@ -43,6 +43,8 @@
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_csi_camera.h>
 #include <nuttx/camera_ext_defs.h>
+#include <nuttx/device_mhb_cam.h>
+#include <nuttx/math.h>
 
 #include "camera_ext.h"
 
@@ -1115,12 +1117,30 @@ struct mhb_cdsi_config mhb_camera_csi_config =
 };
 
 /* Device Ops */
-uint8_t _mhb_camera_get_csi_rx_lanes(const void *udata)
+int imx220_get_csi_config(struct device *dev,
+                       void *config)
 {
-    return 4;
+    const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
+    const struct camera_ext_frmival_node *ival;
+
+    ival = get_current_frmival_node(&mhb_camera_format_db, cfg);
+    if (ival == NULL) {
+        CAM_ERR("Failed to get current frame interval\n");
+        return -1;
+    }
+
+    mhb_camera_csi_config.rx_num_lanes = 4;
+    mhb_camera_csi_config.framerate = roundf((float)(ival->denominator) /
+                                             (float)(ival->numerator));
+    mhb_camera_csi_config.tx_bits_per_lane = 500000000;
+    mhb_camera_csi_config.rx_bits_per_lane = 500000000;
+
+    *(struct mhb_cdsi_config **)config = &mhb_camera_csi_config;
+
+    return 0;
 }
 
-int _mhb_camera_soc_enable(uint8_t mode)
+int imx220_soc_enable(struct device *dev, uint8_t bootmode)
 {
     gpio_direction_out(s_data.dvdd_en, 1);
     gpio_direction_out(s_data.areg_en, 1);
@@ -1144,7 +1164,7 @@ int _mhb_camera_soc_enable(uint8_t mode)
     return ret;
 }
 
-int _mhb_camera_soc_disable(void)
+int imx220_soc_disable(struct device *dev)
 {
     gpio_direction_out(s_data.rst_n, 0);
     gpio_direction_out(s_data.dvdd_en, 0);
@@ -1155,8 +1175,10 @@ int _mhb_camera_soc_disable(void)
     return 0;
 }
 
-int _mhb_camera_stream_configure(void)
+int imx220_stream_enable(struct device *dev)
 {
+    int i;
+    int ret;
     const struct camera_ext_format_user_config *cfg = camera_ext_get_user_config();
     const struct camera_ext_frmival_node *ival;
 
@@ -1173,8 +1195,6 @@ int _mhb_camera_stream_configure(void)
         return -1;
     }
 
-    int i;
-    int ret;
     for (i = 0; i < udata->size; i++) {
         ret = mhb_camera_i2c_write_reg1_16(CAMERA_SENSOR_I2C_ADDR,
                                         udata->regs[i].reg_addr,
@@ -1182,21 +1202,16 @@ int _mhb_camera_stream_configure(void)
         if (ret)
             break;
     }
-    return 0;
-}
 
-
-int _mhb_camera_stream_enable(void)
-{
     return mhb_camera_i2c_write_reg1_16(CAMERA_SENSOR_I2C_ADDR, 0x0100, 0x01);
 }
 
-int _mhb_camera_stream_disable(void)
+int imx220_stream_disable(struct device *dev)
 {
     return mhb_camera_i2c_write_reg1_16(CAMERA_SENSOR_I2C_ADDR, 0x0100, 0x00);
 }
 
-int _mhb_camera_init(struct device *dev)
+static int _dev_probe(struct device *dev)
 {
     struct device_resource *res;
 
@@ -1237,3 +1252,23 @@ int _mhb_camera_init(struct device *dev)
 
     return 0;
 }
+
+static struct device_mhb_camera_dev_type_ops mhb_camera_type_ops = {
+    .soc_enable = imx220_soc_enable,
+    .soc_disable = imx220_soc_disable,
+    .stream_enable = imx220_stream_enable,
+    .stream_disable = imx220_stream_disable,
+    .get_csi_config = imx220_get_csi_config,
+};
+
+static struct device_driver_ops imx220_driver_ops = {
+    .probe    = _dev_probe,
+    .type_ops = &mhb_camera_type_ops,
+};
+
+struct device_driver imx220_mhb_camera_driver = {
+    .type = DEVICE_TYPE_MHB_CAMERA_HW,
+    .name = "Sony",
+    .desc = "IMX220 MHB Camera",
+    .ops  = &imx220_driver_ops,
+};
