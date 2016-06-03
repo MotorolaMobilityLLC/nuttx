@@ -255,6 +255,16 @@ config BATTERY_LEVEL_LOW
 	depends on BATTERY_LEVEL
 	default 20
 
+config BATTERY_LEVEL_EMPTY_HYST
+	int "Hysteresis to transition from Empty to Low (%)"
+	depends on BATTERY_LEVEL
+	default 1
+
+config BATTERY_LEVEL_LOW_HYST
+	int "Hysteresis to transition from Low to Normal (%)"
+	depends on BATTERY_LEVEL
+	default 1
+
 config BATTERY_LEVEL_FULL_HYST
 	int "Hysteresis to transition from Full to Normal (%)"
 	depends on BATTERY_LEVEL
