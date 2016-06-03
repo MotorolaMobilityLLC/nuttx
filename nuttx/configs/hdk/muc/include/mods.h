@@ -61,25 +61,27 @@
 #define GPIO_MODS_LED_DRV_2      CALC_GPIO_NUM('E',  7)
 #define GPIO_MODS_LED_DRV_3      CALC_GPIO_NUM('E',  8)
 #define GPIO_MODS_FUSB302_INT_N  CALC_GPIO_NUM('G', 13)
+
 #define GPIO_APBE_UART_RX        CALC_GPIO_NUM('B',  7)
 #define GPIO_APBE_UART_TX        CALC_GPIO_NUM('B',  6)
 #define GPIO_APBE_UART_CTS       CALC_GPIO_NUM('G', 11)
 #define GPIO_APBE_UART_RTS       CALC_GPIO_NUM('B',  3)
+
 #define GPIO_APBE_SPIBOOT_N      CALC_GPIO_NUM('A',  8)
 #define GPIO_APBE_INT_N          CALC_GPIO_NUM('B',  8)
 #define GPIO_APBE_RST_N          CALC_GPIO_NUM('H',  1)
 #define GPIO_APBE_PWR_EN         CALC_GPIO_NUM('G', 14)
-
 #define GPIO_APBE_WAKE           CALC_GPIO_NUM('B',  5)
 
 #define GPIO_DISPLAY_PWR1_EN     CALC_GPIO_NUM('G', 10)
-#define GPIO_DISPLAY_PWR2_EN     CALC_GPIO_NUM('C', 12)
-#define GPIO_DISPLAY_PWR3_EN     CALC_GPIO_NUM('A', 0)
-#define GPIO_DISPLAY_PWR4_EN     CALC_GPIO_NUM('A', 2)
 #define GPIO_DISPLAY_RST1_N      CALC_GPIO_NUM('C', 8)
 
-#define GPIO_TOUCH_INT_N         CALC_GPIO_NUM('A', 9)
-#define GPIO_TOUCH_RST_N         CALC_GPIO_NUM('C', 9)
+#define GPIO_BACKLIGHT_RST_N     CALC_GPIO_NUM('C', 12)
+
+/* Note: Touch uses GPIO_DISPLAY_PWR1_EN, PG10, as well. */
+#define GPIO_TOUCH_INT_N         CALC_GPIO_NUM('C', 7)
+#define GPIO_TOUCH_EN_N          CALC_GPIO_NUM('G', 12)
+#define GPIO_TOUCH_RST_N         CALC_GPIO_NUM('D', 6)
 
 #define GPIO_MODS_CHG_PG_N       (-1)
 

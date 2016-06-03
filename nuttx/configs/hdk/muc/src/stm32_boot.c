@@ -151,41 +151,20 @@ static struct device_resource dsi_display_resources[] = {
         .count  = 1,
     },
     {
-        .name   = "pwr2_en",
-        .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = GPIO_DISPLAY_PWR2_EN,
-        .count  = 1,
-    },
-    {
-        .name   = "pwr3_en",
-        .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = GPIO_DISPLAY_PWR3_EN,
-        .count  = 1,
-    },
-#if GPIO_DISPLAY_PWR4_EN
-    {
-        .name   = "pwr4_en",
-        .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = GPIO_DISPLAY_PWR4_EN,
-        .count  = 1,
-    },
-#endif
-    {
         .name   = "disp_rst1_n",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
         .start  = GPIO_DISPLAY_RST1_N,
         .count  = 1,
     },
+};
+#endif
+
+#ifdef CONFIG_BACKLIGHT_LM27965
+static struct device_resource lm27965_resources[] = {
     {
-        .name   = "touch_int_n",
+        .name   = "gpio_reset",
         .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = GPIO_TOUCH_INT_N,
-        .count  = 1,
-    },
-    {
-        .name   = "touch_rst_n",
-        .type   = DEVICE_RESOURCE_TYPE_GPIO,
-        .start  = GPIO_TOUCH_RST_N,
+        .start  = GPIO_BACKLIGHT_RST_N,
         .count  = 1,
     },
 };
@@ -542,6 +521,8 @@ static struct device devices[] = {
         .name = "lm27965_backlight",
         .desc = "LM27965 Backlight",
         .id   = 0,
+        .resources = lm27965_resources,
+        .resource_count = ARRAY_SIZE(lm27965_resources),
     },
 #endif
 
