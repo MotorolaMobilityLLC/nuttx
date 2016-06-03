@@ -291,6 +291,12 @@ config BATTERY_LEVEL_DEVICE_MAX17050_MIN_ITERM
 	depends on BATTERY_LEVEL_DEVICE_MAX17050
 	int "Min charge current to detect end of charging (mA)"
 	default 5
+
+config BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE
+	depends on BATTERY_LEVEL_DEVICE_MAX17050
+	int "Battery voltage threshold to detect empty battery (mV)"
+	default 3000
+
 endchoice
 endif
 
