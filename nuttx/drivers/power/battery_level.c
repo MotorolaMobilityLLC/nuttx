@@ -41,8 +41,6 @@ struct battery_level_info_s {
     struct device *dev;         /* device for battery capacity measurements */
     bool available;             /* are measurements available ? */
     enum batt_level_e level;    /* current level */
-    int battery_limit_empty;    /* minimum possible value for min limit */
-    int battery_limit_full;     /* TODO: remove with battery_limit_empty */
 };
 
 static struct battery_level_info_s *g_info; /* for battery_level_stop() */
@@ -58,18 +56,18 @@ static void battery_level_set(struct battery_level_info_s *info,
     switch (level) {
     case BATTERY_LEVEL_EMPTY:
         min = INT_MIN;
-        max = info->battery_limit_empty;
+        max = DEVICE_BATTERY_LEVEL_EMPTY + CONFIG_BATTERY_LEVEL_EMPTY_HYST;
         break;
     case BATTERY_LEVEL_LOW:
-        min = info->battery_limit_empty;
-        max = CONFIG_BATTERY_LEVEL_LOW;
+        min = DEVICE_BATTERY_LEVEL_EMPTY;
+        max = CONFIG_BATTERY_LEVEL_LOW + CONFIG_BATTERY_LEVEL_LOW_HYST;
         break;
     case BATTERY_LEVEL_NORMAL:
         min = CONFIG_BATTERY_LEVEL_LOW;
-        max = 100;
+        max = DEVICE_BATTERY_LEVEL_FULL;
         break;
     case BATTERY_LEVEL_FULL:
-        min = 100 - CONFIG_BATTERY_LEVEL_FULL_HYST;
+        min = DEVICE_BATTERY_LEVEL_FULL - CONFIG_BATTERY_LEVEL_FULL_HYST;
         max = INT_MAX;
         break;
      default:
@@ -118,14 +116,12 @@ static void battery_available_cb(void *arg, bool available)
 
     if (!info->available && available) {
         /*
-         * Determine initial level based on current capacity. Device driver
-         * callbacks will be used to transition between levels.
+         * Determine if battery is low or normal based on current capacity.
+         * Device driver callbacks will be used to transition between levels.
          */
         info->available = true;
         if (device_batt_level_get_capacity(info->dev, &capacity))
-            battery_level_set(info, BATTERY_LEVEL_EMPTY);
-        else if (capacity <= info->battery_limit_empty )
-            battery_level_set(info, BATTERY_LEVEL_EMPTY);
+            battery_level_set(info, CONFIG_BATTERY_LEVEL_LOW);
         else if (capacity <= CONFIG_BATTERY_LEVEL_LOW)
             battery_level_set(info, BATTERY_LEVEL_LOW);
         else
@@ -153,14 +149,6 @@ int battery_level_start(void)
     if (!info->dev) {
         dbg("failed to open battery level device\n");
         ret = EIO;
-        goto error;
-    }
-
-    ret = device_batt_level_get_possible_limits(info->dev,
-                                                &info->battery_limit_empty,
-                                                &info->battery_limit_full);
-    if (ret) {
-        dbg("failed to obtain allowed battery level limits\n");
         goto error;
     }
 
