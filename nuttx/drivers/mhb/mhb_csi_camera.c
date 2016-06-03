@@ -630,6 +630,9 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
         s_mhb_camera.soc_status = SOC_DISABLED;
     }
 
+    // TODO: TEMP HACK, till bootmode functionality is complete.
+    s_mhb_camera.bootmode = CAMERA_EXT_BOOTMODE_PREVIEW;
+
     pthread_mutex_lock(&s_mhb_camera.mutex);
     if (s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_NONE) {
         if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
@@ -802,7 +805,8 @@ mhb_camera_sm_event_t mhb_camera_lens_retract(void)
 static int _power_on(struct device *dev, uint8_t mode)
 {
     CAM_DBG("mhb_camera_csi: bootmode: %d\n", mode);
-    s_mhb_camera.bootmode = mode;
+    // TODO: TEMP HACK, till bootmode functionality is complete.
+    //s_mhb_camera.bootmode = mode;
     return mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_ON_REQ);
 }
 
