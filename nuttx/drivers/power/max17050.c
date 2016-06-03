@@ -140,7 +140,8 @@
 /* Delay afer fuel gauge power up */
 #define MAX17050_DELAY_AFTER_POWERUP    750000  /* in uS */
 
-#define MAX17050_ALERT_DEASSERT_DELAY   500 /* in mS */
+/* Delay to wait for the ALERT line to deassert after conditions go away */
+#define MAX17050_ALERT_DEASSERT_DELAY   500     /* in mS */
 
 extern const struct max17050_config max17050_cfg;
 
@@ -178,6 +179,8 @@ struct max17050_dev_s
     int eoc_counter;
     struct work_s state_changed_work;
     struct work_s eoc_work;
+    int min_valrt;
+    int max_valrt;
 #endif
 #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
     sem_t battery_voltage_sem;
@@ -191,6 +194,10 @@ struct max17050_dev_s
 /* Forward declarations */
 static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state);
 static void max17050_alrt_worker(FAR void *arg);
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+static void max17050_battery_level_set_empty(struct max17050_dev_s *priv);
+static void max17050_battery_level_empty_detection(struct max17050_dev_s *priv, bool enable);
+#endif
 
 /*
  * Global pointer is needed because Nuttx IRQs do not provide a pointer to
@@ -797,6 +804,23 @@ static void *max17050_por(void *v)
 static int max17050_set_voltage_alert(FAR struct max17050_dev_s *priv, int min,
                                       int max)
 {
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+    static bool empty_battery_detection;
+
+    /* Set empty battery limit when MIN VALRT is not used by voltage driver */
+    if (max == INT_MIN) { /* max value used only by empty battery detection */
+        empty_battery_detection = (min != INT_MIN);
+        max = priv->max_valrt;
+        if (empty_battery_detection && priv->min_valrt != INT_MIN)
+            return 0;
+    } else if (min == INT_MIN && empty_battery_detection)
+        min = CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE;
+
+    /* Remember the limits that will be programmed */
+    priv->min_valrt = min;
+    priv->max_valrt = max;
+#endif
+
     uint16_t valrt_min = (min == INT_MIN ? 0x00 : min / 20);
     uint16_t valrt_max = (max == INT_MAX ? 0xff : max / 20);
     uint16_t valrt = valrt_min | valrt_max << 8;
@@ -914,6 +938,8 @@ static void max17050_alrt_worker(FAR void *arg)
     FAR struct max17050_dev_s *priv = arg;
     pthread_t por_thread;
     int status;
+    bool empty_battery = false;
+    int delay;
 
     /* Process only if ALRT line is asserted */
     if (gpio_get_value(priv->alrt_gpio))
@@ -927,6 +953,19 @@ static void max17050_alrt_worker(FAR void *arg)
             pthread_create(&por_thread, NULL, max17050_por, priv);
             pthread_detach(por_thread);
         } else if (priv->initialized) {
+#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
+            if (status & MAX17050_STATUS_VMN && priv->min_valrt ==
+                          CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE) {
+                max17050_battery_level_set_empty(priv);
+                empty_battery = true;
+                max17050_do_level_limits_cb(priv, true);
+                /* Skip checking voltage alerts in battery voltage driver */
+                status &= ~(MAX17050_STATUS_VMN | MAX17050_STATUS_VMX);
+            } else if (status & MAX17050_STATUS_SMN)
+                max17050_do_level_limits_cb(priv, true);
+            else if (status & MAX17050_STATUS_SMX)
+                max17050_do_level_limits_cb(priv, false);
+#endif
 #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
             if (status & MAX17050_STATUS_VMN)
                 max17050_do_voltage_limits_cb(priv, true);
@@ -939,20 +978,18 @@ static void max17050_alrt_worker(FAR void *arg)
             else if (status & MAX17050_STATUS_TMX)
                 max17050_do_temp_limits_cb(priv, false);
 #endif
-#ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
-            if (status & MAX17050_STATUS_SMN)
-                max17050_do_level_limits_cb(priv, true);
-            else if (status & MAX17050_STATUS_SMX)
-                max17050_do_level_limits_cb(priv, false);
-#endif
         }
    }
 
     /* It takes up to 350 mS for the IC to de-assert the ALRT line after the
      * condition goes away. Run this worker again since ALRT line will remain
      * asserted if another condition becomes active within this window.
+     * If SOC is forced to 0% after empty battery is detected, it may take
+     * another 350 mS for the IC to process it. So, double the delay to avoid
+     * false SOC alerts.
      */
-    max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
+    delay = empty_battery ? 2 * MAX17050_ALERT_DEASSERT_DELAY : MAX17050_ALERT_DEASSERT_DELAY;
+    max17050_queue_alrt_work(priv, delay);
 }
 
 static int max17050_alrt_isr(int irq, void *context)
@@ -1017,9 +1054,11 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
     if (priv->level_available_cb)
         priv->level_available_cb(priv->level_available_arg, state);
 
-    if (!state)
+    if (!state) {
         /* Disable */
         max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
+        max17050_battery_level_empty_detection(priv, false);
+    }
 
     sem_post(&priv->battery_level_sem);
 #endif
@@ -1192,6 +1231,8 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
 
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
         sem_init(&priv->battery_level_sem, 0, 1);
+        priv->min_valrt = INT_MIN;
+        priv->max_valrt = INT_MAX;
 #endif
 
 #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
@@ -1417,6 +1458,9 @@ static void max17050_battery_level_close(struct device *dev)
     /* Disable soc alerts */
     (void) max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
 
+    /* Disable empty battery detection */
+    (void) max17050_battery_level_empty_detection(priv, false);
+
     /* Unregister callbacks */
     priv->level_limits_cb     = NULL;
     priv->level_limits_arg    = NULL;
@@ -1493,20 +1537,8 @@ static int max17050_battery_level_get_capacity(struct device *dev, int *capacity
     return 0;
 }
 
-#define MIN_SOC_ALRT    1    /* No IRQ for 0% since SOC cannot be less than 0% */
-#define MAX_SOC_ALRT    100  /* No IRQ for 100% since SOC cannot exceed 100% */
-static int max17050_battery_level_get_possible_limits(struct device *dev,
-                                                      int *min, int *max)
-{
-    *min = MIN_SOC_ALRT;
-    *max = MAX_SOC_ALRT;
-
-    return 0;
-}
-
 #define MAX17050_EOC_COUNT  (15)
 #define MAX17050_EOC_DELAY  MSEC2TICK(1000)
-
 static int max17050_average_current(struct battery_dev_s *dev, b16_t *current)
 {
     return max17050_get_current(dev, true, current);
@@ -1602,29 +1634,49 @@ static void max17050_battery_level_state_changed_worker(FAR void *arg)
     }
 }
 
+static void max17050_battery_level_empty_detection(struct max17050_dev_s *priv, bool enable)
+{
+
+    max17050_set_voltage_alert(priv,
+        enable ? CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE : INT_MIN,
+        INT_MIN /* this value indicates that request came from empty battery detector */);
+}
+
 static int max17050_battery_level_set_limits(struct device *dev, int min, int max)
 {
     FAR struct max17050_dev_s *priv = device_get_private(dev);
 
-    if (min != INT_MIN && min < MIN_SOC_ALRT)
+    if (min != INT_MIN && min < DEVICE_BATTERY_LEVEL_EMPTY)
         return -EINVAL;
 
-    if (max != INT_MAX && max > MAX_SOC_ALRT)
+    if (max != INT_MAX && max > DEVICE_BATTERY_LEVEL_FULL)
         return -EINVAL;
 
-    /* Use end of charging detection for MAX_SOC_ALRT */
-    priv->max_soc_alrt = (max == MAX_SOC_ALRT);
+    /* Use end of charging detection for DEVICE_BATTERY_LEVEL_FULL */
+    priv->max_soc_alrt = (max == DEVICE_BATTERY_LEVEL_FULL);
     if (priv->max_soc_alrt)
         max = INT_MAX;
 
+    /* Enable empty battery detection if MIN ALRT is enabled */
+    max17050_battery_level_empty_detection(priv, min != INT_MIN);
+
+    /* Use empty battery detection for DEVICE_BATTERY_LEVEL_EMPTY */
+    if (min == DEVICE_BATTERY_LEVEL_EMPTY)
+        min = INT_MIN;
+
     return max17050_set_soc_alert(priv, min, max);
+}
+
+static void max17050_battery_level_set_empty(struct max17050_dev_s *priv)
+{
+    /* Set RepCap to 0 mAh to force RepSOC to become 0% */
+    max17050_reg_write_verify(priv, MAX17050_REG_REP_CAP, 0);
 }
 
 static struct device_batt_level_type_ops max17050_battery_level_type_ops = {
     .register_limits_cb = max17050_battery_level_register_limits_cb,
     .register_available_cb = max17050_battery_level_register_available_cb,
     .get_capacity = max17050_battery_level_get_capacity,
-    .get_possible_limits = max17050_battery_level_get_possible_limits,
     .set_limits = max17050_battery_level_set_limits,
 };
 
