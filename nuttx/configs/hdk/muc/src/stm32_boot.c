@@ -57,6 +57,7 @@
 #include <nuttx/device_uart.h>
 #include <nuttx/device_audio.h>
 #include <nuttx/device_i2s.h>
+#include <nuttx/device_mhb_cam.h>
 
 #include <nuttx/power/battery_state.h>
 #include <nuttx/power/bq25896.h>
@@ -272,7 +273,7 @@ struct device_resource fusb302_resources[] = {
 };
 #endif
 
-#ifdef CONFIG_CAMERA_MHB
+#ifdef CONFIG_CAMERA_IMX220
 static struct device_resource cam_resources[] = {
     {
         .name   = "rst_n",
@@ -598,11 +599,19 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_CAMERA_EXT_HW,
         .name = "Motorola",
         .desc = "Motorola MHB Camera",
-        .resources = cam_resources,
-        .resource_count = ARRAY_SIZE(cam_resources),
         .id   = 0,
     },
 #endif /* CONFIG_CAMERA_MHB */
+#ifdef CONFIG_CAMERA_IMX220
+    {
+        .type = DEVICE_TYPE_MHB_CAMERA_HW,
+        .name = "Sony",
+        .desc = "IMX220 MHB Camera",
+        .resources = cam_resources,
+        .resource_count = ARRAY_SIZE(cam_resources),
+        .id   = MHB_CAM_DRIVER_ID,
+    },
+#endif
 #ifdef CONFIG_MODS_AUDIO_TFA9890
     {
         .type = DEVICE_TYPE_I2S_HW,
@@ -823,6 +832,10 @@ void board_initialize(void)
 #if defined(CONFIG_CAMERA_MHB)
    extern struct device_driver cam_ext_mhb_driver;
    device_register_driver(&cam_ext_mhb_driver);
+#endif
+#if defined(CONFIG_CAMERA_IMX220)
+    extern struct device_driver imx220_mhb_camera_driver;
+    device_register_driver(&imx220_mhb_camera_driver);
 #endif
 #ifdef CONFIG_MODS_AUDIO_TFA9890
   extern struct device_driver tfa9890_i2s_direct_driver;
