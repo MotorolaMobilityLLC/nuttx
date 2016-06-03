@@ -55,6 +55,8 @@
 
 #define MHB_DSI_DISPLAY_CDSI_INSTANCE     0
 
+#define MHB_DSI_SIG_STOP (9)
+
 enum {
     MHB_DSI_DISPLAY_STATE_OFF = 0,
     MHB_DSI_DISPLAY_STATE_APBE_ON,
@@ -89,6 +91,8 @@ static struct mhb_dsi_display
     uint8_t state;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
+    sem_t event_sem;
+    pthread_t event_thread;
     struct display_dsi_config cfg;
 } g_display;
 
@@ -525,9 +529,76 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
     return 0;
 }
 
+static void *_mhb_dsi_display_event_thread(void *data)
+{
+    int ret = 0;
+    vdbg("begin: data=%p\n", data);
+
+    if (!data) {
+        ret = -EINVAL;
+        goto error;
+    }
+
+    struct mhb_dsi_display *display = (struct mhb_dsi_display *)data;
+
+    _mhb_dsi_display_notification(display, DISPLAY_NOTIFICATION_EVENT_AVAILABLE);
+
+    usleep(100000);
+    _mhb_dsi_display_notification(display, DISPLAY_NOTIFICATION_EVENT_CONNECT);
+
+    sem_wait(&display->event_sem);
+    display->event_thread = 0;
+    sem_post(&display->event_sem);
+
+error:
+    vdbg("done: ret=%d\n", ret);
+    return (void *)ret;
+}
+
+static int _mhb_dsi_display_start_thread(struct mhb_dsi_display *display)
+{
+    vdbg("\n");
+
+    int ret = pthread_create(&display->event_thread, NULL /* attributes */,
+                             _mhb_dsi_display_event_thread, display);
+    if (ret) {
+        ret = -get_errno();
+        lldbg("ERROR: Failed to create connect thread: %d.\n", ret);
+        display->event_thread = 0;
+    }
+
+    return ret;
+}
+
+static int _mhb_dsi_display_stop_thread(struct mhb_dsi_display *display)
+{
+    int ret = 0;
+    pthread_t thread;
+
+    vdbg("\n");
+
+    sem_wait(&display->event_sem);
+    thread = display->event_thread;
+    display->event_thread = 0;
+    sem_post(&display->event_sem);
+
+    if (thread) {
+        pthread_addr_t join_value;
+
+        vdbg("kill and join\n");
+
+        pthread_kill(thread, MHB_DSI_SIG_STOP);
+        ret = pthread_join(thread, &join_value);
+    }
+
+    return ret;
+}
+
 /* Device operations */
 static int mhb_dsi_display_host_ready(struct device *dev)
 {
+    int ret;
+
     struct mhb_dsi_display *display = device_get_private(dev);
     if (!display) {
         return -ENODEV;
@@ -537,9 +608,9 @@ static int mhb_dsi_display_host_ready(struct device *dev)
        to increment. This is fine since there isn't a host not ready. */
     atomic_inc(&g_display.host_ready);
 
-    _mhb_dsi_display_notification(display, DISPLAY_NOTIFICATION_EVENT_AVAILABLE);
+    ret = _mhb_dsi_display_start_thread(display);
 
-    return 0;
+    return ret;
 }
 
 static int mhb_dsi_display_get_config_size(struct device *dev, uint32_t *size)
@@ -803,6 +874,9 @@ static int _mhb_dsi_display_set_state_off(struct mhb_dsi_display *display)
 {
     int result;
 
+    /* Stop the event thread (it should already be stopped). */
+    result = _mhb_dsi_display_stop_thread(display);
+
     /* Stop the CDSI stream. */
     result = _mhb_dsi_display_send_control_req(display, MHB_CDSI_COMMAND_STOP);
     if (result) {
@@ -953,6 +1027,7 @@ static int mhb_dsi_display_probe(struct device *dev)
     atomic_init(&display->host_ready, 0);
     pthread_mutex_init(&display->mutex, NULL);
     pthread_cond_init(&display->cond, NULL);
+    sem_init(&display->event_sem, 0 /* shared */, 1 /* value */);
 
     result = _mhb_dsi_display_config_gpios(dev);
     if (result) {
