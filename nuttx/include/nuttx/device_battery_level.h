@@ -36,6 +36,10 @@
 
 #define DEVICE_TYPE_BATTERY_LEVEL_HW  "batt_level"
 
+/* Limits to detect empty or full battery */
+#define DEVICE_BATTERY_LEVEL_EMPTY      (0)
+#define DEVICE_BATTERY_LEVEL_FULL       (100)
+
 /* The type of the batt level limits callback function */
 typedef void (*batt_level_limits)(void *arg, bool min);
 
@@ -46,7 +50,6 @@ struct device_batt_level_type_ops {
     int (*register_limits_cb)(struct device *dev, batt_level_limits cb, void *arg);
     int (*register_available_cb)(struct device *dev, batt_level_available cb, void *arg);
     int (*get_capacity)(struct device *dev, int *capacity);
-    int (*get_possible_limits)(struct device *dev, int *min, int *max);
     int (*set_limits)(struct device *dev, int min, int max);
 };
 
@@ -100,22 +103,6 @@ static inline int device_batt_level_get_capacity(struct device *dev, int *capaci
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, batt_level)->get_capacity(dev, capacity);
-}
-
-static inline int device_batt_level_get_possible_limits(struct device *dev,
-                                                        int *min, int *max)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev)) {
-        return -ENODEV;
-    }
-
-    if (!DEVICE_DRIVER_GET_OPS(dev, batt_level)->get_possible_limits) {
-        return -ENOSYS;
-    }
-
-    return DEVICE_DRIVER_GET_OPS(dev, batt_level)->get_possible_limits(dev, min, max);
 }
 
 static inline int device_batt_level_set_limits(struct device *dev, int min,
