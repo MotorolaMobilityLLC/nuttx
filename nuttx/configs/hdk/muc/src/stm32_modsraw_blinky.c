@@ -68,6 +68,8 @@ static int blinky_timer_handler(int irq, FAR void *context)
 
 static void blinky_timer_start(void)
 {
+    gpio_set_value(GPIO_MODS_DEMO_ENABLE, 1);
+
     if (!tim_dev) {
         dbg("BLINKY\n");
 
@@ -87,6 +89,8 @@ static void blinky_timer_start(void)
 
 static void blinky_timer_stop(void)
 {
+    gpio_set_value(GPIO_MODS_DEMO_ENABLE, 0);
+
     if (tim_dev) {
         dbg("STOP\n");
 
@@ -129,6 +133,7 @@ static int blinky_unregister_callback(struct device *dev)
 static int blinky_probe(struct device *dev)
 {
     gpio_direction_out(GPIO_MODS_LED_DRV_3, LED_OFF);
+    gpio_direction_out(GPIO_MODS_DEMO_ENABLE, 0);
     return 0;
 }
 
