@@ -1564,12 +1564,30 @@ static int max17050_voltage_capacity(struct battery_dev_s *dev, b16_t *capacity)
 static int max17050_battery_level_charge_complete(struct max17050_dev_s *priv)
 {
     int repcap = max17050_reg_read(priv, MAX17050_REG_REP_CAP);
+#ifdef CONFIG_BATTERY_MAX17050_SENSE_TRACE_CORRECTION
+    int full_charge_design = max17050_cfg.capacity;
+    int repcap_max = full_charge_design + full_charge_design * 3 / 100;
+    int repcap_min = full_charge_design / 2;
+#endif
 
     /* Set FullCap to RepCap to force 100% */
     if (repcap < 0)
         return repcap;
 
+#ifdef CONFIG_BATTERY_MAX17050_SENSE_TRACE_CORRECTION
+    if (repcap > repcap_max) {
+        WRITE_VERIFY(priv, MAX17050_REG_REP_CAP, repcap_max);
+        WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP, repcap_max);
+    } else if(repcap < repcap_min) {
+        WRITE_VERIFY(priv, MAX17050_REG_REP_CAP, repcap_min);
+        WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP, repcap_min);
+    } else {
+        WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP, repcap);
+    }
+#else
     WRITE_VERIFY(priv, MAX17050_REG_FULL_CAP, repcap);
+#endif
+
     return 0;
 }
 
