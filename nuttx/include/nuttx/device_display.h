@@ -29,6 +29,9 @@
 #ifndef __DEVICE_DISPLAY_H__
 #define __DEVICE_DISPLAY_H__
 
+#include <errno.h>
+#include <nuttx/device.h>
+
 #define DEVICE_TYPE_DISPLAY_HW          "display"
 
 enum display_type {
