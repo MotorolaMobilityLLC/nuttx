@@ -55,6 +55,7 @@ static LIST_DECLARE(notify_list);
 static sem_t sem = SEM_INITIALIZER(1);
 static struct work_s int_work;
 static struct work_s pg_work;
+static struct work_s fault_work;
 
 static bool pg_n_connected;
 static bool power_good;
@@ -69,6 +70,7 @@ static FAR struct i2c_dev_s *i2c;
 
 #define BQ24292_STATUS_PG           0x04
 #define BQ24292_FAULT_BOOST         0x40
+#define BQ24292_FAULT_DELAY         MSEC2TICK(100)
 
 int bq24292_register_callback(bq24292_callback cb, void *arg)
 {
@@ -122,18 +124,46 @@ static void pg_worker(FAR void *arg)
     }
 }
 
-static void int_worker(FAR void *arg)
+static int read_fault_reg(void)
+{
+    /*
+     * From the spec:
+     * "To read the current fault status, the host has to read the register two
+     * times consecutively. The 1st read reports the pre-existing fault register
+     * status and the 2nd read reports the current fault register status."
+     */
+    (void) bq24292_reg_read(BQ24292_REG_FAULT);
+    return bq24292_reg_read(BQ24292_REG_FAULT);
+}
+
+static void fault_worker(FAR void *arg)
 {
     struct notify_node *node;
     struct list_head *iter;
     int regval;
 
-    /* Boost fault */
-    regval = bq24292_reg_read(BQ24292_REG_FAULT);
+    regval = read_fault_reg();
     if (regval > 0 && regval & BQ24292_FAULT_BOOST) {
         list_foreach(&notify_list, iter) {
             node = list_entry(iter, struct notify_node, list);
             node->callback(BOOST_FAULT, node->arg);
+        }
+    } else {
+        dbg("fault gone\n");
+    }
+}
+
+static void int_worker(FAR void *arg)
+{
+    int regval;
+
+    /* Boost fault */
+    regval = read_fault_reg();
+    if (regval > 0 && regval & BQ24292_FAULT_BOOST) {
+        vdbg("possible fault\n");
+        if (work_available(&fault_work)) {
+            work_queue(LPWORK, &fault_work, fault_worker, NULL,
+                       BQ24292_FAULT_DELAY);
         }
     }
 
