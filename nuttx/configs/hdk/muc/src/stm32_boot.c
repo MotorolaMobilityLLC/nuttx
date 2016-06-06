@@ -143,6 +143,7 @@ static struct device_resource mhb_resources[] = {
 #endif
 
 #ifdef CONFIG_MHB_DSI_DISPLAY
+# if CONFIG_DISPLAY_NT35355_360P
 static struct device_resource dsi_display_resources[] = {
     {
         .name   = "pwr1_en",
@@ -157,6 +158,40 @@ static struct device_resource dsi_display_resources[] = {
         .count  = 1,
     },
 };
+# elif CONFIG_DISPLAY_SMD_470_720P || CONFIG_DISPLAY_TDI_546_1080P
+static struct device_resource dsi_display_resources[] = {
+    {
+        .name   = "pwr1_en",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_FACT_DISP_PWR1_EN,
+        .count  = 1,
+    },
+    {
+        .name   = "pwr2_en",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_FACT_DISP_PWR2_EN,
+        .count  = 1,
+    },
+    {
+        .name   = "pwr3_en",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_FACT_DISP_PWR3_EN,
+        .count  = 1,
+    },
+    {
+        .name   = "pwr4_en",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_FACT_DISP_PWR4_EN,
+        .count  = 1,
+    },
+    {
+        .name   = "disp_rst1_n",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_FACT_DISP_RST1_N,
+        .count  = 1,
+    },
+};
+# endif
 #endif
 
 #ifdef CONFIG_BACKLIGHT_LM27965
