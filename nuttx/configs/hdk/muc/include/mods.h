@@ -83,6 +83,12 @@
 #define GPIO_TOUCH_EN_N          CALC_GPIO_NUM('G', 12)
 #define GPIO_TOUCH_RST_N         CALC_GPIO_NUM('D', 6)
 
+#define GPIO_FACT_DISP_PWR1_EN   CALC_GPIO_NUM('A', 10)
+#define GPIO_FACT_DISP_PWR2_EN   CALC_GPIO_NUM('C', 12)
+#define GPIO_FACT_DISP_PWR3_EN   CALC_GPIO_NUM('A', 0)
+#define GPIO_FACT_DISP_PWR4_EN   CALC_GPIO_NUM('A', 2)
+#define GPIO_FACT_DISP_RST1_N    CALC_GPIO_NUM('C', 8)
+
 #define GPIO_MODS_CHG_PG_N       (-1)
 
 #define GPIO_CAM_DVDD_EN         CALC_GPIO_NUM('A', 3)
