@@ -498,16 +498,18 @@ static inline void rcc_enableccip(void)
   regval |= RCC_CCIPR_I2C3SEL_HSI;
 #endif
 
+#endif /* STM32_BOARD_USEHSI */
+
 #if defined(CONFIG_STM32_LPTIM1)
 # if (STM32_LPTIM1_FREQUENCY == STM32_LSI_FREQUENCY)
   /* Set LPTIM1 to use LSI clock */
   regval |= RCC_CCIPR_LPTIM1SEL_LSI;
 # elif (STM32_LPTIM1_FREQUENCY == STM32_HSI_FREQUENCY)
   /* Set LPTIM1 to use HSI clock */
-  regval |= RCC_CCIPR_LPTIM1_HSI;
+  regval |= RCC_CCIPR_LPTIM1SEL_HSI;
 # elif (STM32_LPTIM1_FREQUENCY == STM32_LSE_FREQUENCY)
   /* Set LPTIM1 to use LSE clock */
-  regval |= RCC_CCIPR_LPTIM1_LSE;
+  regval |= RCC_CCIPR_LPTIM1SEL_LSE;
 # endif
 #endif
 
@@ -517,14 +519,12 @@ static inline void rcc_enableccip(void)
   regval |= RCC_CCIPR_LPTIM2SEL_LSI;
 # elif (STM32_LPTIM2_FREQUENCY == STM32_HSI_FREQUENCY)
   /* Set LPTIM2 to use HSI clock */
-  regval |= RCC_CCIPR_LPTIM2_HSI;
+  regval |= RCC_CCIPR_LPTIM2SEL_HSI;
 # elif (STM32_LPTIM2_FREQUENCY == STM32_LSE_FREQUENCY)
   /* Set LPTIM2 to use LSE clock */
-  regval |= RCC_CCIPR_LPTIM2_LSE;
+  regval |= RCC_CCIPR_LPTIM2SEL_LSE;
 # endif
 #endif
-
-#endif /* STM32_BOARD_USEHSI */
 
   putreg32(regval, STM32_RCC_CCIPR);
 }
