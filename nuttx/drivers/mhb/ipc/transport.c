@@ -166,6 +166,8 @@ static int unipro_rx_irq_handler(unsigned int cport, void *data, size_t size)
         }
     }
 
+    unipro_rxbuf_free(CONFIG_MHB_IPC_CPORT_ID, data);
+
     return 0;
 }
 
