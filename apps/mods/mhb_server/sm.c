@@ -575,7 +575,11 @@ static enum svc_state svc__queue_stats(struct svc *svc, struct svc_work *work) {
 }
 
 static enum svc_state svc__send_stats(struct svc *svc, struct svc_work *work) {
-    g_svc.stats_tid = SVC_TIMER_INVALID;
+    if (g_svc.stats_tid != SVC_TIMER_INVALID) {
+        svc_delete_timer(g_svc.stats_tid);
+        g_svc.stats_tid = SVC_TIMER_INVALID;
+    }
+
     mhb_send_unipro_stats_not();
 
     return g_svc.state;
