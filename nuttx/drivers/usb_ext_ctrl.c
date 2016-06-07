@@ -95,11 +95,10 @@ void usb_ext_ctrl_notify_attach(void)
 
 void usb_ext_ctrl_notify_detach(void)
 {
+    do_gb_action(false);
+
     if (s_data.usbtun) {
-        do_gb_action(false);
         do_mhb_action(false);
-    } else {
-        do_gb_action(true);
     }
 }
 
