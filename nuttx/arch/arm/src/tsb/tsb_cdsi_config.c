@@ -1004,17 +1004,6 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
     cdsi_write(dev, CDSI_AL_TX_BRG_UNIPRO_BYTESWAP_OFFS, 0x76543210);
 
-    if (config->color_bar_enabled) {
-        // TODO: color bar
-        cdsi_write(dev, CDSI_AL_TX_BRG_DEBUG_04_OFFS, 0x0004000);  // wwww dd 00
-        cdsi_write(dev, CDSI_AL_TX_BRG_DEBUG_05_OFFS, 0x00000000);
-        cdsi_write(dev, CDSI_AL_TX_BRG_DEBUG_06_OFFS, 0x05000003); // vact vbp
-        cdsi_write(dev, CDSI_AL_TX_BRG_DEBUG_07_OFFS, 0x00040009); // vsyn vfp
-        cdsi_write(dev, CDSI_AL_TX_BRG_DEBUG_08_OFFS, 0x02D00020); // hact hbp
-        cdsi_write(dev, CDSI_AL_TX_BRG_DEBUG_09_OFFS, 0x000C0090); // hsyn hfp
-        cdsi_write(dev, CDSI_AL_TX_BRG_DEBUG_04_OFFS, 0x0004001);  // wwww dd 01
-    }
-
     cdsi_write(dev, CDSI_AL_TX_BRG_ENABLE_OFFS, 1);
 
     cdsi_write(dev, CDSI_CDSITX_INTERRUPT_FUNC_ENABLE_00_OFFS, 0xf);
@@ -1391,11 +1380,6 @@ int cdsi_initialize_tx(struct cdsi_dev *dev, const struct cdsi_config *config) {
 
     /* Enable PIC_SYN_* and PIC_COM_*. */
     cdsi_write(dev, CDSI_AL_TX_BRG_VPARAM_UPDATE_OFFS, 3);
-
-    if (config->color_bar_enabled) {
-        /* Enable color bar. */
-        cdsi_write(dev, CDSI_AL_TX_BRG_DEBUG_05_OFFS, 1);
-    }
 
     return 0;
 }
