@@ -89,6 +89,8 @@ static void battery_limits_cb(void *arg, bool min)
     /* Transition to a new level */
     switch (info->level) {
     case BATTERY_LEVEL_EMPTY:
+        if (min) /* no change */
+            return;
         new_level = BATTERY_LEVEL_LOW;
         break;
     case BATTERY_LEVEL_LOW :
@@ -98,7 +100,9 @@ static void battery_limits_cb(void *arg, bool min)
         new_level = min ? BATTERY_LEVEL_LOW : BATTERY_LEVEL_FULL;
         break;
     case BATTERY_LEVEL_FULL:
-         new_level = BATTERY_LEVEL_NORMAL;
+        if (!min) /* no change */
+            return;
+        new_level = BATTERY_LEVEL_NORMAL;
         break;
     default:
         /* Should never be here !*/
