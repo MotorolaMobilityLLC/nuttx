@@ -1218,7 +1218,7 @@ static int tsb_uart_dev_probe(struct device *dev)
     if (!uart_info)
         goto err_malloc_info;
 
-    lldbg("LL uart info struct: 0x%08p\n", uart_info);
+    llvdbg("LL uart info struct: 0x%08p\n", uart_info);
 
     ret = tsb_uart_extract_resources(dev, uart_info);
     if (ret)
