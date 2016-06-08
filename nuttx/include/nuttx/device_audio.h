@@ -156,6 +156,7 @@ struct device_aud_dev_type_ops {
     int (*set_config)(struct device *dev, struct device_aud_pcm_config *pcm,
                            struct device_aud_dai_config *dai);
     int (*get_spkr_preset_eq)(struct device *dev, int *preset_eq);
+    int (*get_mic_params)(struct device *dev, uint8_t *params, int len);
     int (*rx_dai_start)(struct device *dev);
     int (*tx_dai_start)(struct device *dev);
     int (*rx_dai_stop)(struct device *dev);
@@ -504,6 +505,30 @@ static inline int device_audio_get_spkr_preset_eq(struct device *dev,
     if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_spkr_preset_eq)
         return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_spkr_preset_eq(dev,
                                                                     preset_eq);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief get mic tuning parameters that will applied on the captured
+ * multimedia stream. These tuning params will be provided my motorola
+ * and is not applicable for voice call use cases.
+ * @param dev pointer to structure of device data.
+ * @param params output mic tuning parameters
+ * @param len size of mic tuning parameters
+ * @return 0 on success, negative errno on error.
+ */
+static inline int device_audio_get_mic_params(struct device *dev,
+                                                  uint8_t *params, int len)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_mic_params)
+        return DEVICE_DRIVER_GET_OPS(dev, aud_dev)->get_mic_params(dev,
+                                                             params, len);
 
     return -ENOSYS;
 }

@@ -38,7 +38,8 @@
 
 
 #define GB_AUD_VERSION_MAJOR        0x00
-#define GB_AUD_VERSION_MINOR        0x02
+#define GB_AUD_VERSION_MINOR        0x03
+
 #define GB_AUD_BUNDLE_0_DEV_ID          0x02
 #define GB_AUD_BUNDLE_0_ID              0x00
 
@@ -268,6 +269,25 @@ static uint8_t gb_aud_protocol_get_spkr_preset_eq(struct gb_operation *operation
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_aud_protocol_get_mic_params(struct gb_operation *operation)
+{
+    struct gb_audio_get_mic_params_response *response =
+                            gb_operation_get_request_payload(operation);
+    int ret;
+
+    gb_debug("%s()\n", __func__);
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    ret = device_audio_get_mic_params(dev_info.dev, response->params,
+                    GB_AUDIO_MIC_PARAMS_SIZE);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+}
+
 static int gb_aud_init(unsigned int cport)
 {
     gb_debug("%s()\n", __func__);
@@ -302,6 +322,7 @@ static struct gb_operation_handler gb_aud_handlers[] = {
     GB_HANDLER(GB_AUDIO_GET_SUPPORTED_DEVICES, gb_aud_protocol_get_devices),
     GB_HANDLER(GB_AUDIO_ENABLE_DEVICES, gb_aud_protocol_enable_devices),
     GB_HANDLER(GB_AUDIO_GET_SPEAKER_PRESET_EQ, gb_aud_protocol_get_spkr_preset_eq),
+    GB_HANDLER(GB_AUDIO_GET_MIC_PARAMS, gb_aud_protocol_get_mic_params),
 };
 
 static struct gb_driver gb_aud_driver = {

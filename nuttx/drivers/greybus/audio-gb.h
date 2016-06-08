@@ -34,16 +34,17 @@
 #define GB_AUDIO_PROTOCOL_VERSION       0x01
 
 /* Commands */
-#define GB_AUDIO_GET_VOLUME_DB_RANGE      0x02
-#define GB_AUDIO_GET_SUPPORTED_USE_CASES  0x03
-#define GB_AUDIO_SET_CAPTURE_USE_CASE     0x04
-#define GB_AUDIO_SET_PLAYBACK_USE_CASE    0x05
-#define GB_AUDIO_SET_VOLUME               0x06
-#define GB_AUDIO_SET_SYSTEM_VOLUME        0x07
-#define GB_AUDIO_GET_SUPPORTED_DEVICES    0x08
-#define GB_AUDIO_DEVICES_REPORT_EVENT     0x09
-#define GB_AUDIO_ENABLE_DEVICES	          0x0a
-#define GB_AUDIO_GET_SPEAKER_PRESET_EQ    0x0b
+#define GB_AUDIO_GET_VOLUME_DB_RANGE       0x02
+#define GB_AUDIO_GET_SUPPORTED_USE_CASES   0x03
+#define GB_AUDIO_SET_CAPTURE_USE_CASE      0x04
+#define GB_AUDIO_SET_PLAYBACK_USE_CASE     0x05
+#define GB_AUDIO_SET_VOLUME                0x06
+#define GB_AUDIO_SET_SYSTEM_VOLUME         0x07
+#define GB_AUDIO_GET_SUPPORTED_DEVICES     0x08
+#define GB_AUDIO_DEVICES_REPORT_EVENT      0x09
+#define GB_AUDIO_ENABLE_DEVICES	           0x0a
+#define GB_AUDIO_GET_SPEAKER_PRESET_EQ     0x0b
+#define GB_AUDIO_GET_MIC_PARAMS            0x0c
 
 /* use cases bit mask*/
 
@@ -88,6 +89,14 @@
 #define GB_AUDIO_DEVICE_IN_MIC_EC                BIT(5)
 #define GB_AUDIO_DEVICE_IN_MIC_ECNS              BIT(6)
 #define GB_AUDIO_DEVICE_IN_MIC_NS                BIT(7)
+
+/* Size of motorola provided camcorder tuning parameters
+ * binary file. If the size of this parameters is changed, make
+ * sure it is less than maximum greybus message size, current
+ * API is defined to send the parameters in one greybus message,
+ * It does not break it up in to chunks.
+ */
+#define GB_AUDIO_MIC_PARAMS_SIZE   1996
 
 /* version request has no payload */
 struct gb_audio_proto_version_response {
@@ -166,4 +175,10 @@ struct gb_audio_report_devices_request {
 struct gb_audio_get_speaker_preset_eq_response {
     __le32                  preset_eq;
 };
+
+/* get mic tuning parameters */
+struct gb_audio_get_mic_params_response {
+    u8  params[GB_AUDIO_MIC_PARAMS_SIZE];
+};
+
 #endif /* __AUDIO_GB_H__ */
