@@ -46,12 +46,6 @@ config ARCH_BOARD_AMBER
 		on the Atmel AVR ATMega128 MCU.  There is not much there yet and what is
 		there is untested due to tool-related issues.
 
-config ARCH_BOARD_APBA
-	bool "Motorola APBA"
-	depends on ARCH_CHIP_TSB && UNIPRO_P2P
-	---help---
-		Motorola APBA based on the TSB.
-
 config ARCH_BOARD_ARDUINO_DUE
 	bool "Arduino Due"
 	depends on ARCH_CHIP_ATSAM3X8E
@@ -1078,7 +1072,6 @@ config ARCH_BOARD_CUSTOM_DIR
 config ARCH_BOARD
 	string
 	default "amber"               if ARCH_BOARD_AMBER
-	default "apba"                if ARCH_BOARD_APBA
 	default "arduino-due"         if ARCH_BOARD_ARDUINO_DUE
 	default "avr32dev1"           if ARCH_BOARD_AVR32DEV1
 	default "bdb"                 if ARCH_BOARD_BDB
@@ -1239,9 +1232,6 @@ endif
 
 if ARCH_BOARD_AMBER
 source "configs/amber/Kconfig"
-endif
-if ARCH_BOARD_APBA
-source "configs/apba/Kconfig"
 endif
 if ARCH_BOARD_ARDUINO_DUE
 source "configs/arduino-due/Kconfig"
