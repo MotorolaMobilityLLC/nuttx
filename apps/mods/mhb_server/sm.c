@@ -108,6 +108,7 @@ struct svc {
     svc_timer_t stats_tid;
     uint32_t mod_detect_retry;
     struct gearbox *gearbox;
+    bool stats_pending;
 };
 
 struct svc_work {
@@ -144,8 +145,9 @@ static void _svc_bitmask_to_stats(uint32_t *counter, uint32_t value)
         counter++;
     }
 
-    if (delta) {
+    if (delta && !g_svc.stats_pending) {
         svc_send_event(SVC_EVENT_QUEUE_STATS, 0, 0, 0);
+        g_svc.stats_pending = true;
     }
 }
 
@@ -606,6 +608,7 @@ static enum svc_state svc__send_stats(struct svc *svc, struct svc_work *work) {
     }
 
     mhb_send_unipro_stats_not();
+    g_svc.stats_pending = false;
 
     return g_svc.state;
 }
