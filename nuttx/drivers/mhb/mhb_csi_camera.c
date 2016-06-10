@@ -89,7 +89,8 @@ struct mhb_camera_s
     struct device *cam_device;
     struct device *slave_pwr_ctrl;
     struct i2c_dev_s* cam_i2c;
-    uint8_t apbe_state;
+    uint8_t apbe_en_state;
+    uint8_t apbe_configured;
     uint8_t soc_status;
     uint8_t cdsi_instance;
     uint8_t bootmode;
@@ -424,7 +425,7 @@ static int _mhb_camera_slave_status_callback(struct device *dev, uint32_t slave_
 {
     pthread_mutex_lock(&s_mhb_camera.mutex);
 
-    s_mhb_camera.apbe_state = slave_status;
+    s_mhb_camera.apbe_en_state = slave_status;
 
     CAM_DBG("slave status %d wait_event=0x%04x\n",
             slave_status, s_mhb_camera.mhb_wait_event);
@@ -437,7 +438,7 @@ static int _mhb_camera_slave_status_callback(struct device *dev, uint32_t slave_
     return 0;
 }
 
-static int _mhb_camera_set_apbe_state(int state)
+static int _mhb_camera_set_apbe_enable(int state)
 {
     int ret;
 
@@ -568,7 +569,8 @@ static void _mhb_camera_process_ctrl_cache(int dump)
 
 mhb_camera_sm_event_t mhb_camera_power_on(void)
 {
-    CAM_DBG(" soc_status = %d\n", s_mhb_camera.soc_status);
+    CAM_DBG("soc_status = %d apbe_en_state = %d\n",
+            s_mhb_camera.soc_status, s_mhb_camera.apbe_en_state);
 
     if (s_mhb_camera.soc_status == SOC_ENABLED) {
         if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_PREVIEW)
@@ -579,8 +581,8 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     // TODO: Hack : S10 Should not depend on APBE_PWR_EN
     gpio_direction_out(GPIO_APBE_PWR_EN, 1);
 
-    if(s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_CONNECTED) {
-        if(_mhb_camera_set_apbe_state(SLAVE_STATE_ENABLED)) {
+    if(s_mhb_camera.apbe_en_state != MHB_PM_STATUS_PEER_CONNECTED) {
+        if(_mhb_camera_set_apbe_enable(SLAVE_STATE_ENABLED)) {
             CAM_ERR("Failed to turn ON APBE\n");
             goto failed_power_on;
         }
@@ -594,7 +596,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     s_mhb_camera.soc_status = SOC_ENABLED;
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
-    if(s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_CONNECTED) {
+    if(s_mhb_camera.apbe_en_state != MHB_PM_STATUS_PEER_CONNECTED) {
         if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
                 MHB_CAM_PWRCTL_WAIT_MASK|MHB_PM_STATUS_PEER_CONNECTED,
                 "PEER CONNECTED")) {
@@ -618,10 +620,10 @@ failed_power_on:
 
 mhb_camera_sm_event_t mhb_camera_power_off(void)
 {
-    CAM_DBG("APBE State: %d, Cam SOC State %d\n",
-            s_mhb_camera.apbe_state, s_mhb_camera.soc_status);
+    CAM_DBG("soc_status = %d apbe_en_state = %d\n",
+            s_mhb_camera.soc_status, s_mhb_camera.apbe_en_state);
 
-    _mhb_camera_set_apbe_state(SLAVE_STATE_DISABLED);
+    _mhb_camera_set_apbe_enable(SLAVE_STATE_DISABLED);
 
     if (s_mhb_camera.soc_status == SOC_ENABLED) {
         s_mhb_camera.soc_status = SOC_DISABLING;
@@ -631,12 +633,12 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     }
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
-    if (s_mhb_camera.apbe_state != MHB_PM_STATUS_PEER_NONE) {
+    if (s_mhb_camera.apbe_en_state != MHB_PM_STATUS_PEER_NONE) {
         if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
                 MHB_CAM_PWRCTL_WAIT_MASK|MHB_PM_STATUS_PEER_NONE,
                 "PEER NONE")) {
             CAM_ERR("Failed waiting for APBE Power OFF\n");
-            s_mhb_camera.apbe_state = MHB_PM_STATUS_PEER_NONE;
+            s_mhb_camera.apbe_en_state = MHB_PM_STATUS_PEER_NONE;
         }
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
@@ -701,6 +703,30 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     cdsi_config->width = frmsize->width;
     cdsi_config->height = frmsize->height;
 
+
+    if (s_mhb_camera.apbe_configured) {
+
+        CAM_ERR("ERROR: Weird! APBE already Configured\n");
+        _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
+
+        pthread_mutex_lock(&s_mhb_camera.mutex);
+        _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
+                                  "CDSI STOP");
+        pthread_mutex_unlock(&s_mhb_camera.mutex);
+
+        _mhb_csi_camera_unconfig_req();
+
+        pthread_mutex_lock(&s_mhb_camera.mutex);
+        _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_UNCONFIG_RSP,
+                                  "CDSI UNCONFIG");
+        pthread_mutex_unlock(&s_mhb_camera.mutex);
+
+        s_mhb_camera.apbe_configured = 0;
+    }
+
+
     /* Send the configuration to the APBE. */
 
     if(MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_configure)) {
@@ -740,6 +766,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
         goto failed_stream_on;
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
+    s_mhb_camera.apbe_configured = 1;
 
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_ON);
 
@@ -775,6 +802,7 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
                                   "CDSI UNCONFIG");
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
+    s_mhb_camera.apbe_configured = 0;
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_OFF);
 
     // TODO: Monitor Stream OFF Failures.
@@ -858,7 +886,8 @@ static int _dev_probe(struct device *dev)
     pthread_cond_init(&mhb_camera->cdsi_cond, NULL);
 
     mhb_camera->soc_status = SOC_DISABLED;
-    mhb_camera->apbe_state = MHB_PM_STATUS_PEER_NONE;
+    mhb_camera->apbe_en_state = MHB_PM_STATUS_PEER_NONE;
+    mhb_camera->apbe_configured = 0;
     mhb_camera->mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
     mhb_camera->bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
     memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
