@@ -828,7 +828,6 @@ static int max17050_set_voltage_alert(FAR struct max17050_dev_s *priv, int min,
     return max17050_reg_write(priv, MAX17050_REG_VALRT, valrt);
 }
 
-#ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
 #define TALRT_MIN       -128
 #define TALRT_MIN_DIS   0x80
 #define TALRT_MAX       127
@@ -868,6 +867,17 @@ static int max17050_set_temperature_alert(FAR struct max17050_dev_s *priv,
     return max17050_reg_write(priv, MAX17050_REG_TALRT, talrt);
 }
 
+static int max17050_set_soc_alert(FAR struct max17050_dev_s *priv, int min,
+                                  int max)
+{
+    uint16_t salrt_min = (min == INT_MIN ? 0x00 : min );
+    uint16_t salrt_max = (max == INT_MAX ? 0xff : max );
+    uint16_t salrt = salrt_min | salrt_max << 8;
+
+    return max17050_reg_write(priv, MAX17050_REG_SALRT, salrt);
+}
+
+#ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
 static void max17050_do_temp_limits_cb(FAR struct max17050_dev_s *priv, bool min)
 {
     while (sem_wait(&priv->battery_temp_sem) != OK) {
@@ -884,16 +894,6 @@ static void max17050_do_temp_limits_cb(FAR struct max17050_dev_s *priv, bool min
 #endif
 
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
-static int max17050_set_soc_alert(FAR struct max17050_dev_s *priv, int min,
-                                  int max)
-{
-    uint16_t salrt_min = (min == INT_MIN ? 0x00 : min );
-    uint16_t salrt_max = (max == INT_MAX ? 0xff : max );
-    uint16_t salrt = salrt_min | salrt_max << 8;
-
-    return max17050_reg_write(priv, MAX17050_REG_SALRT, salrt);
-}
-
 static void max17050_do_level_limits_cb(FAR struct max17050_dev_s *priv, bool min)
 {
     while (sem_wait(&priv->battery_level_sem) != OK) {
@@ -1224,6 +1224,13 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
         I2C_SETFREQUENCY(i2c, frequency);
 
         priv->alrt_gpio = alrt_gpio;
+
+        /* Disable alerts */
+        if (alrt_gpio >= 0) {
+            max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
+            max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
+            max17050_set_temperature_alert(priv, INT_MIN, INT_MAX);
+        }
 
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
         sem_init(&priv->battery_temp_sem, 0, 1);
