@@ -1624,8 +1624,12 @@ static int mhb_unipro_send(struct mhb_transaction *transaction)
         /* Save the response. */
         if (out_len <= sizeof(mhb_unipro_tx_buf) - sizeof(*transaction->out_msg.hdr)) {
             p = out_param;
-            memcpy(transaction->out_msg.hdr, p, sizeof(*transaction->out_msg.hdr));
-            memcpy(transaction->out_msg.payload, p + sizeof(*transaction->out_msg.hdr), out_len);
+            if (transaction->out_msg.hdr) {
+                memcpy(transaction->out_msg.hdr, p, sizeof(*transaction->out_msg.hdr));
+            }
+            if (transaction->out_msg.payload) {
+                memcpy(transaction->out_msg.payload, p + sizeof(*transaction->out_msg.hdr), out_len);
+            }
             transaction->out_msg.payload_length = out_len;
         } else {
             dbg("ERROR: IPC response payload too big.\n");
