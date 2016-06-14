@@ -46,6 +46,7 @@
         if (DEVICE_DRIVER_GET_OPS(dev, mhb_camera_dev)->op) \
             return DEVICE_DRIVER_GET_OPS(dev, mhb_camera_dev)->op(dev, \
                 ##__VA_ARGS__); \
+        return 0; \
     } while (0)
 
 #define IMPL_MHB_CAMERA_DEV_OP_ARG0(op) \
