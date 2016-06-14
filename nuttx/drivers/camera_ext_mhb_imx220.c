@@ -1175,7 +1175,7 @@ int imx220_soc_disable(struct device *dev)
     return 0;
 }
 
-int imx220_stream_enable(struct device *dev)
+int imx220_stream_configure(struct device *dev)
 {
     int i;
     int ret;
@@ -1203,6 +1203,11 @@ int imx220_stream_enable(struct device *dev)
             break;
     }
 
+    return ret;
+}
+
+int imx220_stream_enable(struct device *dev)
+{
     return mhb_camera_i2c_write_reg1_16(CAMERA_SENSOR_I2C_ADDR, 0x0100, 0x01);
 }
 
@@ -1250,12 +1255,16 @@ static int _dev_probe(struct device *dev)
     gpio_direction_out(s_data.dvdd_en, 0);
     gpio_direction_out(s_data.areg_en, 0);
 
+    camera_ext_register_format_db(&mhb_camera_format_db);
+    camera_ext_register_control_db(&mhb_camera_ctrl_db);
+
     return 0;
 }
 
 static struct device_mhb_camera_dev_type_ops mhb_camera_type_ops = {
     .soc_enable = imx220_soc_enable,
     .soc_disable = imx220_soc_disable,
+    .stream_configure = imx220_stream_configure,
     .stream_enable = imx220_stream_enable,
     .stream_disable = imx220_stream_disable,
     .get_csi_config = imx220_get_csi_config,
