@@ -273,7 +273,7 @@ struct device_resource fusb302_resources[] = {
 };
 #endif
 
-#ifdef CONFIG_CAMERA_IMX220
+#ifdef CONFIG_MHB_CAMERA
 static struct device_resource cam_resources[] = {
     {
         .name   = "rst_n",
@@ -574,7 +574,7 @@ static struct device devices[] = {
 #endif
 
 
-#ifdef CONFIG_CAMERA_MHB
+#ifdef CONFIG_MHB_CAMERA
 #ifdef CONFIG_MHB_UART
     /* For CSI Camera */
     {
@@ -601,12 +601,12 @@ static struct device devices[] = {
         .desc = "Motorola MHB Camera",
         .id   = 0,
     },
-#endif /* CONFIG_CAMERA_MHB */
-#ifdef CONFIG_CAMERA_IMX220
+#endif /* CONFIG_MHB_CAMERA */
+#if defined(CONFIG_CAMERA_IMX220) || defined(CONFIG_CAMERA_IMX230)
     {
         .type = DEVICE_TYPE_MHB_CAMERA_HW,
         .name = "Sony",
-        .desc = "IMX220 MHB Camera",
+        .desc = "MHB Camera",
         .resources = cam_resources,
         .resource_count = ARRAY_SIZE(cam_resources),
         .id   = MHB_CAM_DRIVER_ID,
@@ -829,13 +829,17 @@ void board_initialize(void)
    extern struct device_driver lm27965_backlight_driver;
    device_register_driver(&lm27965_backlight_driver);
 #endif
-#if defined(CONFIG_CAMERA_MHB)
+#if defined(CONFIG_MHB_CAMERA)
    extern struct device_driver cam_ext_mhb_driver;
    device_register_driver(&cam_ext_mhb_driver);
 #endif
 #if defined(CONFIG_CAMERA_IMX220)
     extern struct device_driver imx220_mhb_camera_driver;
     device_register_driver(&imx220_mhb_camera_driver);
+#endif
+#if defined(CONFIG_CAMERA_IMX230)
+    extern struct device_driver imx230_mhb_camera_driver;
+    device_register_driver(&imx230_mhb_camera_driver);
 #endif
 #ifdef CONFIG_MODS_AUDIO_TFA9890
   extern struct device_driver tfa9890_i2s_direct_driver;
