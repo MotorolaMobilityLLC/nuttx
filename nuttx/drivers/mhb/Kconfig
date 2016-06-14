@@ -90,6 +90,13 @@ config MHB_DSI_DISPLAY
 	---help---
 		DSI display driven by an MHB server.
 
+config MHB_CAMERA
+	bool "MHB Camera"
+	default n
+	depends on GREYBUS_CAMERA_EXT
+	---help---
+		GB CAMERA_EXT based camera driven by an MHB server.
+
 config MHB_I2S_AUDIO
 	bool "MHB I2S Audio"
 	default n
