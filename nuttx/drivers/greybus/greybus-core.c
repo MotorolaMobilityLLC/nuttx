@@ -1139,7 +1139,7 @@ int gb_notify(unsigned cport, enum gb_event event)
     if (!gb_is_valid_cport(cport))
         return -EINVAL;
 
-    if (!_g_cport(cport)->driver)
+    if (!_g_cport(cport) || !_g_cport(cport)->driver)
         return -ENOTCONN;
 
     switch (event) {
