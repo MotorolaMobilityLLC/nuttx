@@ -7,8 +7,3 @@ config MODS_DIET
 	bool "Diet Mods"
 	select GREYBUS_UTILS
 	default n
-
-config MODS_USER_INIT
-	bool "Initialize device drivers when app starts"
-	default n
-	depends on MODS_DIET
