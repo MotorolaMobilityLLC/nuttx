@@ -54,13 +54,10 @@ int mhb_csi_camera_status_register_callback(
              mhb_camera_notification_cb callback);
 
 int mhb_camera_i2c_set_freq(uint32_t frequency);
+int mhb_camera_i2c_set_repeatstart(uint8_t en);
 int mhb_camera_i2c_read(uint16_t i2c_addr,
                         uint8_t *addr, int addr_len,
                         uint8_t *data, int data_len);
-int mhb_camera_i2c_read_nors(uint16_t i2c_addr,
-                    uint8_t *addr, int addr_len,
-                    uint8_t *data, int data_len);
-
 int mhb_camera_i2c_write(uint16_t i2c_addr,
                          uint8_t *addr, int addr_len);
 int mhb_camera_i2c_read_reg(uint16_t i2c_addr, uint16_t regaddr,

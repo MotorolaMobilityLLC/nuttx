@@ -89,6 +89,7 @@ struct mhb_camera_s
     struct device *cam_device;
     struct device *slave_pwr_ctrl;
     struct i2c_dev_s* cam_i2c;
+    uint8_t i2c_disable_rs;
     uint8_t apbe_en_state;
     uint8_t apbe_configured;
     uint8_t soc_status;
@@ -158,6 +159,13 @@ int mhb_camera_i2c_set_freq(uint32_t frequency)
     return ret;
 }
 
+int mhb_camera_i2c_set_repeatstart(uint8_t en)
+{
+    s_mhb_camera.i2c_disable_rs = !en;
+    return 0;
+}
+
+
 int mhb_camera_i2c_read(uint16_t i2c_addr,
                     uint8_t *addr, int addr_len,
                     uint8_t *data, int data_len)
@@ -165,54 +173,37 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
     int ret = 0;
     struct i2c_msg_s msg[2];
     msg[0].addr   = i2c_addr;
-    msg[0].flags  = 0;
+    msg[0].flags  = s_mhb_camera.i2c_disable_rs?I2C_M_NORESTART:0;
     msg[0].buffer = addr;
     msg[0].length = addr_len;
 
     msg[1].addr   = i2c_addr;
-    msg[1].flags  = I2C_M_READ;
+    msg[1].flags  = I2C_M_READ|msg[0].flags;
     msg[1].buffer = data;
     msg[1].length = data_len;
 
     pthread_mutex_lock(&i2c_mutex);
-    ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, msg, 2);
-    pthread_mutex_unlock(&i2c_mutex);
-    return ret;
 
-}
-
-int mhb_camera_i2c_read_nors(uint16_t i2c_addr,
-                    uint8_t *addr, int addr_len,
-                    uint8_t *data, int data_len)
-{
-    struct i2c_msg_s msg[2];
-    int ret = 0;
-
-    msg[0].addr   = i2c_addr;
-    msg[0].flags  = 0;
-    msg[0].buffer = addr;
-    msg[0].length = addr_len;
-
-    msg[1].addr   = i2c_addr;
-    msg[1].flags  = I2C_M_READ;
-    msg[1].buffer = data;
-    msg[1].length = data_len;
-
-    pthread_mutex_lock(&i2c_mutex);
-    while (I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[0], 1) != 0)
-    {
-        usleep(I2C_RETRY_DELAY_US);
-        if (++ret == I2C_RETRIES) break;
-    }
-    if (ret) {
-        CAM_ERR("%s I2C read retried %d of %d\n",
-                (ret == I2C_RETRIES)?"FAIL":"INFO", ret, I2C_RETRIES);
-        if (ret == I2C_RETRIES) {
-            pthread_mutex_unlock(&i2c_mutex);
-            return ret;
+    if (s_mhb_camera.i2c_disable_rs) {
+        while (I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[0], 1) != 0)
+        {
+            usleep(I2C_RETRY_DELAY_US);
+            if (++ret == I2C_RETRIES) break;
         }
+        if (ret) {
+            CAM_ERR("%s I2C read retried %d of %d\n",
+                    (ret == I2C_RETRIES)?"FAIL":"INFO",
+                    ret, I2C_RETRIES);
+            if (ret == I2C_RETRIES) {
+                pthread_mutex_unlock(&i2c_mutex);
+                return ret;
+            }
+        }
+        ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[1], 1);
+    } else {
+        ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, msg, 2);
     }
-    ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[1], 1);
+
     pthread_mutex_unlock(&i2c_mutex);
 
     return ret;
@@ -225,7 +216,7 @@ int mhb_camera_i2c_write(uint16_t i2c_addr, uint8_t *addr, int addr_len)
     int ret = 0;
 
     msg.addr   = i2c_addr;
-    msg.flags  = 0;
+    msg.flags  = s_mhb_camera.i2c_disable_rs?I2C_M_NORESTART:0;
     msg.buffer = addr;
     msg.length = addr_len;
 
@@ -890,6 +881,8 @@ static int _dev_probe(struct device *dev)
     mhb_camera->apbe_configured = 0;
     mhb_camera->mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
     mhb_camera->bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
+    mhb_camera->i2c_disable_rs = 0;
+
     memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
 
     return 0;
