@@ -164,6 +164,12 @@ struct device_aud_dev_type_ops {
     int (*unregister_callback)(struct device *dev);
 };
 
+/**
+ * @brief get volume range,
+ * @param dev pointer to structure of device data.
+ * @param vol_range output structure containing min volume and volume step size
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_get_volume_db_range(struct device *dev,
                                          struct device_aud_vol_range *vol_range)
 {
@@ -179,6 +185,12 @@ static inline int device_audio_get_volume_db_range(struct device *dev,
 
 }
 
+/**
+ * @brief get supported use cases
+ * @param dev pointer to structure of device data.
+ * @param use_cases output structure containing playback and capture use cases
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_get_supported_use_cases(struct device *dev,
                                          struct device_aud_usecases *use_cases)
 {
@@ -195,6 +207,12 @@ static inline int device_audio_get_supported_use_cases(struct device *dev,
 
 }
 
+/**
+ * @brief set current playback use case that is active on the core
+ * @param dev pointer to structure of device data.
+ * @param use_case playback use case DEV_AUDIO_PLAYBACK_*
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_set_playback_use_case(struct device *dev,
                                                                  uint32_t use_case)
 {
@@ -211,6 +229,12 @@ static inline int device_audio_set_playback_use_case(struct device *dev,
 
 }
 
+/**
+ * @brief set current capture use case that is active on the core
+ * @param dev pointer to structure of device data.
+ * @param use_case capture use case DEV_AUDIO_CAPTURE_*
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_set_capture_use_case(struct device *dev,
                                                                  uint32_t use_case)
 {
@@ -226,6 +250,13 @@ static inline int device_audio_set_capture_use_case(struct device *dev,
     return -ENOSYS;
 
 }
+
+/**
+ * @brief set volume on the playback stream
+ * @param dev pointer to structure of device data.
+ * @param vol_step volume step number to which volume level to be set
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_set_volume(struct device *dev,
                                                 uint32_t vol_step)
 {
@@ -240,6 +271,13 @@ static inline int device_audio_set_volume(struct device *dev,
     return -ENOSYS;
 }
 
+/**
+ * @brief set current system volume on the playback stream
+ * @param dev pointer to structure of device data.
+ * @param vol_db volume level/atenuation applied on the current active playback
+ * stream in (db*100) units
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_set_sys_volume(struct device *dev,
                                                 int vol_db)
 {
@@ -254,6 +292,12 @@ static inline int device_audio_set_sys_volume(struct device *dev,
     return -ENOSYS;
 }
 
+/**
+ * @brief get supported audio devices
+ * @param dev pointer to structure of device data.
+ * @param devices output structure containing supported in and out devices.
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_get_supp_devices(struct device *dev,
                                            struct device_aud_devices *devices)
 {
@@ -268,6 +312,12 @@ static inline int device_audio_get_supp_devices(struct device *dev,
     return -ENOSYS;
 }
 
+/**
+ * @brief enable audio devices
+ * @param dev pointer to structure of device data.
+ * @param devices structures containing in and out devices bit masks to be enabled
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_enable_devices(struct device *dev,
                                             struct device_aud_devices *devices)
 {
@@ -282,6 +332,13 @@ static inline int device_audio_enable_devices(struct device *dev,
     return -ENOSYS;
 }
 
+/**
+ * @brief get supported DAI and PCM configurations
+ * @param dev pointer to structure of device data.
+ * @param pcm output structure containing rate, format and max channels supported
+ * @param dai output structure containing supported low level DAI configurations.
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_get_config(struct device *dev,
                                            struct device_aud_pcm_config *pcm,
                                            struct device_aud_dai_config *dai)
@@ -297,6 +354,13 @@ static inline int device_audio_get_config(struct device *dev,
     return -ENOSYS;
 }
 
+/**
+ * @brief set supported DAI and PCM configurations
+ * @param dev pointer to structure of device data.
+ * @param pcm structure containing rate, format and channels configuration used
+ * @param dai structure containing low level DAI configurations used
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_set_config(struct device *dev,
                                            struct device_aud_pcm_config *pcm,
                                            struct device_aud_dai_config *dai)
@@ -312,6 +376,11 @@ static inline int device_audio_set_config(struct device *dev,
     return -ENOSYS;
 }
 
+/**
+ * @brief start receiving playback stream
+ * @param dev pointer to structure of device data.
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_rx_dai_start(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
@@ -325,6 +394,11 @@ static inline int device_audio_rx_dai_start(struct device *dev)
     return -ENOSYS;
 }
 
+/**
+ * @brief start transmitting capture stream
+ * @param dev pointer to structure of device data.
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_tx_dai_start(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
@@ -338,6 +412,11 @@ static inline int device_audio_tx_dai_start(struct device *dev)
     return -ENOSYS;
 }
 
+/**
+ * @brief stop receiving playback stream
+ * @param dev pointer to structure of device data.
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_rx_dai_stop(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
@@ -351,6 +430,11 @@ static inline int device_audio_rx_dai_stop(struct device *dev)
     return -ENOSYS;
 }
 
+/**
+ * @brief stop transmitting capture stream
+ * @param dev pointer to structure of device data.
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_tx_dai_stop(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
@@ -364,6 +448,12 @@ static inline int device_audio_tx_dai_stop(struct device *dev)
     return -ENOSYS;
 }
 
+/**
+ * @brief register callback method used to report supported audio devices
+ * @param dev pointer to structure of device data.
+ * @param cb report_devices_cb type callback method
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_register_callback(struct device *dev,
                                  report_devices_cb cb )
 {
@@ -378,6 +468,11 @@ static inline int device_audio_register_callback(struct device *dev,
     return -ENOSYS;
 }
 
+/**
+ * @brief unregister callback
+ * @param dev pointer to structure of device data.
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_unregister_callback(struct device *dev)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
@@ -391,6 +486,13 @@ static inline int device_audio_unregister_callback(struct device *dev)
     return -ENOSYS;
 }
 
+/**
+ * @brief get eq preset profile that will be applied on the playback stream
+ * for speaker device
+ * @param dev pointer to structure of device data.
+ * @param preset_eq output EQ DEV_AUDIO_SPEAKER_PRESET_EQ_* type
+ * @return 0 on success, negative errno on error.
+ */
 static inline int device_audio_get_spkr_preset_eq(struct device *dev,
                                                          int *preset_eq)
 {
