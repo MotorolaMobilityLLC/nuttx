@@ -66,6 +66,11 @@ config CAMERA_IMX230
 	bool "SONY IMX230 Camera Sensor"
 endchoice
 
+config MHB_CAMERA_OFF_DELAY_MS
+	int "MHB Camera delay before powerdown"
+	default 100
+	depends on CAMERA_MHB
+
 config CAMERA_I2C_BUS
 	int "CAMERA I2C BUS"
 	default 0

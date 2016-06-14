@@ -56,7 +56,7 @@
  */
 
 #define MAX_COMMAND_ITEMS 4
-#define OFF_STATE_DELAY   MSEC2TICK(7000)
+#define OFF_STATE_DELAY   MSEC2TICK(CONFIG_MHB_CAMERA_OFF_DELAY_MS)
 
 struct command_item {
     struct list_head node;
@@ -403,21 +403,17 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_off_process_ev(mhb_camera_sm_eve
             break;
 
         case MHB_CAMERA_EV_FAIL:
+        case MHB_CAMERA_EV_POWER_OFF_REQ:
             if (work_cancel(HPWORK, &mhb_sm_work)) {
                 CAM_ERR("ERROR: Cancel off wait FAILED");
             }
 
-            pthread_mutex_lock(&s_command_mutex);
-            while ((item = get_item(&s_active_list)) != NULL) {
-                put_item(item, &s_free_list);
-                ++dump;
-            }
-            pthread_mutex_unlock(&s_command_mutex);
-            if (dump) CAM_ERR("Dumped %d event\\s\n", dump);
         case MHB_CAMERA_EV_WAIT_OVER:
             next_state = MHB_CAMERA_STATE_OFF;
             break;
 
+        case MHB_CAMERA_EV_CONFIGURED:
+        case MHB_CAMERA_EV_POWERED_ON:
         case MHB_CAMERA_EV_DECONFIGURED:
         case MHB_CAMERA_EV_NONE:
             next_state = s_state;
