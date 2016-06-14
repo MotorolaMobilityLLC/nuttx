@@ -361,6 +361,8 @@ int mhb_csi_camera_status_register_callback(
         mhb_camera_notification_cb callback)
 {
     int i, retval = -1;
+    uint8_t event = MHB_CAMERA_NOTIFY_POWERED_OFF;
+
     pthread_mutex_lock(&s_mhb_camera.mutex);
     for(i=0; i < MHB_CAM_MAX_CALLBACKS; ++i) {
         if (s_mhb_camera.callbacks[i] == callback) {
@@ -376,8 +378,14 @@ int mhb_csi_camera_status_register_callback(
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
-    callback(s_mhb_camera.soc_status == SOC_ENABLED?
-             MHB_CAMERA_NOTIFY_POWERED_ON:MHB_CAMERA_NOTIFY_POWERED_OFF);
+    if (s_mhb_camera.soc_status == SOC_ENABLED) {
+        if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU)
+            event = MHB_CAMERA_NOTIFY_FW_UPGRADE;
+        else
+            event = MHB_CAMERA_NOTIFY_POWERED_ON;
+    }
+
+    callback(event);
 
     return retval;
 }
@@ -564,9 +572,16 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
             s_mhb_camera.soc_status, s_mhb_camera.apbe_en_state);
 
     if (s_mhb_camera.soc_status == SOC_ENABLED) {
-        if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_PREVIEW)
+        if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_PREVIEW) {
             mhb_camera_lens_extend();
-        return MHB_CAMERA_EV_POWERED_ON;
+        }
+        if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) {
+            mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_OFF);
+            MHB_CAM_DEV_OP(s_mhb_camera.cam_device, soc_disable);
+            s_mhb_camera.soc_status = SOC_DISABLED;
+        } else {
+            return MHB_CAMERA_EV_POWERED_ON;
+        }
     }
 
     // TODO: Hack : S10 Should not depend on APBE_PWR_EN
@@ -599,7 +614,9 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
     _mhb_camera_process_ctrl_cache(FALSE);
-    mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_POWERED_ON);
+    mhb_csi_camera_callback(
+        (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) ?
+        MHB_CAMERA_NOTIFY_FW_UPGRADE : MHB_CAMERA_NOTIFY_POWERED_ON);
 
     return MHB_CAMERA_EV_POWERED_ON;
 
@@ -821,33 +838,51 @@ mhb_camera_sm_event_t mhb_camera_lens_retract(void)
 static int _power_on(struct device *dev, uint8_t mode)
 {
     CAM_DBG("mhb_camera_csi: bootmode: %d\n", mode);
+
     s_mhb_camera.bootmode = mode;
     return mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_ON_REQ);
 }
 
 static int _power_off(struct device *dev)
 {
-    CAM_DBG("mhb_camera_csi\n");
+    CAM_DBG("mhb_camera_csi : bootmode %d\n", s_mhb_camera.bootmode);
+
     _mhb_camera_process_ctrl_cache(TRUE);
+    if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) {
+         /* Send 2 Off events when powering off from DFU to ensure */
+         /* we dont linger in WAIT_OFF states.*/
+         mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_OFF_REQ);
+    }
+
+    s_mhb_camera.bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
     return mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_OFF_REQ);
 }
 
 static int _stream_on(struct device *dev)
 {
-    CAM_DBG("mhb_camera_csi\n");
+    CAM_DBG("mhb_camera_csi : bootmode %d\n", s_mhb_camera.bootmode);
+    if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) {
+        CAM_ERR("ERROR: mhb_camera_csi: stream_on in DFU Mode\n");
+        return -EINVAL;
+    }
+
     return mhb_camera_sm_execute(MHB_CAMERA_EV_STREAM_ON_REQ);
 }
 
 static int _stream_off(struct device *dev)
 {
-    CAM_DBG("mhb_camera_csi\n");
+    CAM_DBG("mhb_camera_csi : bootmode %d\n", s_mhb_camera.bootmode);
+    if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) {
+        CAM_ERR("ERROR: mhb_camera_csi: stream_off in DFU Mode\n");
+        return -EINVAL;
+    }
+
     return mhb_camera_sm_execute(MHB_CAMERA_EV_STREAM_OFF_REQ);
 }
 
 static int _dev_probe(struct device *dev)
 {
     struct mhb_camera_s* mhb_camera = &s_mhb_camera;
-
     CAM_DBG("mhb_camera_csi\n");
 
     if (mhb_camera->cam_i2c != NULL) {

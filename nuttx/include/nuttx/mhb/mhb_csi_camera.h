@@ -45,6 +45,7 @@ enum mhb_camera_notification_event{
     MHB_CAMERA_NOTIFY_POWERED_OFF     = 0x01,
     MHB_CAMERA_NOTIFY_PREVIEW_ON      = 0x02,
     MHB_CAMERA_NOTIFY_PREVIEW_OFF     = 0x03,
+    MHB_CAMERA_NOTIFY_FW_UPGRADE      = 0x04,
 };
 
 typedef int (*mhb_camera_notification_cb)(
