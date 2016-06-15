@@ -338,25 +338,32 @@ int bq24292_set_input_voltage_limit(int limit)
     return bq24292_reg_modify(0x00, 0x78, val << 3);
 }
 
-#define MIN_CHARGE_CURRENT  512
-#define CHARGE_CURRENT_STEP 64
+#define MIN_CHARGE_CURRENT              512
+#define MIN_CHARGE_CURRENT_BATFET_OCP   1024 /* lowest IC limit greater than 1A */
+#define CHARGE_CURRENT_STEP             64
 int bq24292_set_charge_current_limit(int limit)
 {
+    bool force_20pct = limit < MIN_CHARGE_CURRENT_BATFET_OCP;
     int val;
     int delta;
 
-    /* Program max possible setting that is less or equal to the limit */
-    if (limit < MIN_CHARGE_CURRENT) {
-        return -EINVAL;
-    }
+    /* Work-around for the bq24196 issue where charge current less than 1A may
+     * result in triggering BATFET over-current protection */
+    if (force_20pct)
+        limit *=5;
 
+    /* Do not program the limit that can result in BATFET OCP */
+    if (limit < MIN_CHARGE_CURRENT_BATFET_OCP)
+        return -EINVAL;
+
+    /* Program max possible setting that is less or equal to the limit */
     delta = limit - MIN_CHARGE_CURRENT;
     val = delta / CHARGE_CURRENT_STEP;
     if (val > 63) {
         val = 63;
     }
 
-    return bq24292_reg_modify(0x02, 0xFC, val << 2);
+    return bq24292_reg_modify(0x02, 0xFD, force_20pct ? (val << 2) + 1: val << 2);
 }
 
 #define MIN_CHARGE_VOLTAGE  3504
