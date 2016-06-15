@@ -227,10 +227,11 @@ static int batt_ptp_process(struct device *chg, struct ptp_state *state)
     }
 }
 
-static void batt_ptp_attach_changed(FAR void *arg, enum base_attached_e state)
+static int batt_ptp_attach_changed(FAR void *arg, const void *data)
 {
     static bool init = true; /* first callback is to initialize */
     struct ptp_info *info = arg;
+    enum base_attached_e state = *((enum base_attached_e *)data);
 
     if (init) {
         init = false;
@@ -239,12 +240,12 @@ static void batt_ptp_attach_changed(FAR void *arg, enum base_attached_e state)
             info->state.base_powered_off = true;
         else
             info->state.base_powered_off = false;
-        return;
+        return OK;
     }
 
     while (sem_wait(&info->sem) != OK) {
         if (errno == EINVAL) {
-            return;
+            return -errno;
         }
     }
 
@@ -272,6 +273,8 @@ static void batt_ptp_attach_changed(FAR void *arg, enum base_attached_e state)
 
 attach_done:
     sem_post(&info->sem);
+
+    return OK;
 }
 
 static int batt_ptp_set_current_flow(struct device *dev, uint8_t direction)
