@@ -185,23 +185,24 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
     lldbg("mode=%d done\n", mode);
     return OK;
 }
-static void apbe_pwrctrl_attach_changed(FAR void *arg, enum base_attached_e state)
+
+static int apbe_pwrctrl_attach_changed(FAR void *arg, const void *data)
 {
     struct apbe_ctrl_info *ctrl_info = arg;
+    enum base_attached_e state = *((enum base_attached_e *)data);
 
-    if (!ctrl_info) {
-        lldbg("ctrl info null\n");
-        return;
-    }
+    DEBUGASSERT(ctrl_info);
 
     while (sem_wait(&ctrl_info->apbe_pwrctrl_sem) != OK) {
         if (errno == EINVAL) {
-            return;
+            return -errno;
         }
     }
 
     ctrl_info->attached = state;
     sem_post(&ctrl_info->apbe_pwrctrl_sem);
+
+    return OK;
 }
 
 static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
