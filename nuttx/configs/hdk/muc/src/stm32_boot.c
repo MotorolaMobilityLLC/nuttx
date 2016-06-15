@@ -94,6 +94,23 @@ static const struct board_gpio_cfg_s board_gpio_cfgs[] =
   { GPIO_MODS_PCARD_DET_N,   (GPIO_PULLUP)                },
 };
 
+#ifdef CONFIG_BATTERY_MAX17050
+static struct battery_dev_s *g_battery;
+
+struct battery_dev_s *get_battery(void)
+{
+    return g_battery;
+}
+
+# if IS_BATT_PCARD
+#  define MAX17050_I2C_BUS          2
+# else
+#  define MAX17050_I2C_BUS          3
+# endif
+# define MAX17050_I2C_FREQ         400000
+#endif
+
+
 #ifdef CONFIG_DEVICE_CORE
 typedef enum {
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL
@@ -854,6 +871,23 @@ void board_initialize(void)
    device_register_driver(&mods_raw_factory_driver);
 #endif
 #endif
+#if defined(CONFIG_CHARGER_BQ24292)
+   (void)bq24292_driver_init(GPIO_MODS_CHG_INT_N, GPIO_MODS_CHG_PG_N);
+#endif
 
+#ifdef CONFIG_BATTERY_MAX17050
+   struct i2c_dev_s *i2c = up_i2cinitialize(MAX17050_I2C_BUS);
+   if (i2c) {
+      g_battery = max17050_initialize(i2c, MAX17050_I2C_FREQ,
+             GPIO_MODS_CC_ALERT, -1);
+      if (!g_battery) {
+         up_i2cuninitialize(i2c);
+      }
+   }
+# if defined(CONFIG_BATTERY_STATE)
+   /* Must be initialized after MAX17050 core driver has been initialized */
+   battery_state_init();
+# endif
+#endif
 }
 #endif

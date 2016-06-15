@@ -46,15 +46,6 @@
 #include <errno.h>
 #include <unistd.h>
 
-#if IS_BATT_PCARD
-#define MAX17050_I2C_BUS          2
-#else
-#define MAX17050_I2C_BUS          3
-#endif
-#define MAX17050_I2C_FREQ         400000
-
-static struct battery_dev_s *g_battery;
-
 /*
  * Handler for the pcard detection interrupt. When the pcard is attached or
  * detached, the HDK will reset so the proper firmware can be reloaded.
@@ -80,45 +71,8 @@ void mods_init(void)
     set_gpio_triggering(GPIO_MODS_PCARD_DET_N, IRQ_TYPE_EDGE_BOTH);
 }
 
-#ifdef CONFIG_MODS_USER_INIT
-// This initialization call is performed when mods app starts
-int mods_user_init(void)
-{
-    int ret = 0;
-#if defined(CONFIG_CHARGER_BQ24292)
-    ret = bq24292_driver_init(GPIO_MODS_CHG_INT_N, GPIO_MODS_CHG_PG_N);
-    if (ret)
-        return ret;
-#endif
-
-#ifdef CONFIG_BATTERY_MAX17050
-        struct i2c_dev_s *i2c = up_i2cinitialize(MAX17050_I2C_BUS);
-        if (!i2c)
-            return -ENODEV;
-
-        g_battery = max17050_initialize(i2c, MAX17050_I2C_FREQ, GPIO_MODS_CC_ALERT,
-                                        -1);
-        if (!g_battery) {
-            up_i2cuninitialize(i2c);
-            return -ENODEV;
-        }
-
-#if defined(CONFIG_BATTERY_STATE)
-        /* Must be initialized after MAX17050 core driver has been initialized */
-        battery_state_init();
-#endif
-#endif
-
-    return ret;
-}
-#endif
-
 void mods_host_int_set(bool value)
 {
     gpio_set_value(GPIO_MODS_INT, value ? 1 : 0);
 }
 
-struct battery_dev_s *get_battery(void)
-{
-    return g_battery;
-}
