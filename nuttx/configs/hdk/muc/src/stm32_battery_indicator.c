@@ -314,16 +314,18 @@ static void button_pressed_cb(FAR void *arg)
 }
 
 /* attach state callback is running in LPWORK */
-static void attach_state_changed_cb(FAR void *arg,
-        enum base_attached_e new_state)
+static int attach_state_changed_cb(FAR void *arg, const void *data)
 {
     struct battery_indicator_info *info = arg;
+    enum base_attached_e new_state = *((enum base_attached_e *)data);
+
     if (info->attach_state == new_state)
-        return;
+        return OK;
+
     if (BASE_DETACHED == new_state && BASE_INVALID == info->attach_state) {
         /* we are still detached */
         info->attach_state = new_state;
-        return;
+        return OK;
     }
 
     info->attach_state = new_state;
@@ -341,6 +343,8 @@ static void attach_state_changed_cb(FAR void *arg,
     } else {
         do_button_pressed(info);
     }
+
+    return OK;
 }
 
 #ifdef CONFIG_EXT_POWER
