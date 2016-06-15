@@ -493,9 +493,10 @@ static void reset_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
   priv->txc_rb = ring_buf_get_next(priv->txc_rb);
 }
 
-static void attach_cb(FAR void *arg, enum base_attached_e state)
+static int attach_cb(FAR void *arg, const void *data)
 {
   FAR struct mods_spi_dl_s *priv = (FAR struct mods_spi_dl_s *)arg;
+  enum base_attached_e state = *((enum base_attached_e *)data);
   irqstate_t flags;
   int ret;
 
@@ -559,6 +560,8 @@ static void attach_cb(FAR void *arg, enum base_attached_e state)
 
   irqrestore(flags);
   sem_post(&priv->sem);
+
+  return OK;
 }
 
 #ifdef SIGNAL_SOFTWARE_DEASSERT
