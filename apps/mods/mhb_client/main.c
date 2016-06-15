@@ -236,8 +236,11 @@ static int mhb_handle_diag(struct device *dev, struct mhb_hdr *hdr,
 
     switch (hdr->type) {
     case MHB_TYPE_DIAG_LOG_RSP:
+    case MHB_TYPE_DIAG_LOG_NOT:
     case MHB_TYPE_DIAG_LAST_RSP:
-        printf((char *)payload);
+        if (payload_length) {
+            printf((char *)payload);
+        }
         break;
     case MHB_TYPE_DIAG_MODE_RSP:
         printf("mode %s\n", res);
