@@ -364,10 +364,8 @@ static ssize_t _mhb_addr_to_index(uint8_t addr)
 {
     ssize_t index;
 
-    if (addr & MHB_PEER_MASK) {
-        lldbg("ERROR: peer callbacks not supported\n");
-        return -ENOSYS;
-    }
+    /* Use the same callback index for both local and peer addresses. */
+    addr &= ~MHB_PEER_MASK;
 
     /* Compress the valid addresses into a contiguous array.
        Only MHB_FUNC_CDSI supports more than one instance.
@@ -381,7 +379,7 @@ static ssize_t _mhb_addr_to_index(uint8_t addr)
     }
 
     if (index >= ARRAY_SIZE(g_mhb->receivers)) {
-        lldbg("FATAL: Invalid index: %d\n", index);
+        lldbg("FATAL: Invalid index: %x\n", index);
         return -ENODEV;
     }
 
@@ -398,6 +396,7 @@ static int mhb_register_receiver(struct device *dev,
 
     ssize_t index = _mhb_addr_to_index(addr);
     if (index < 0) {
+        dbg("ERROR: invalid addr: %x\n", addr);
         ret = index;
         goto err_irqrestore;
     }
@@ -420,6 +419,7 @@ static int mhb_unregister_receiver(struct device *dev,
 
     ssize_t index = _mhb_addr_to_index(addr);
     if (index < 0) {
+        dbg("ERROR: invalid addr: %x\n", addr);
         ret = index;
         goto err_irqrestore;
     }
@@ -437,7 +437,7 @@ static int mhb_notify_callback(struct mhb_hdr *hdr,
 {
     ssize_t index = _mhb_addr_to_index(hdr->addr);
     if (index < 0) {
-       lldbg("ERROR: invalid addr=%d.\n", hdr->addr);
+       vdbg("invalid addr=%x\n", hdr->addr);
        return index;
     }
 
@@ -490,6 +490,7 @@ static int _mhb_send_sync_pattern(void)
     uint8_t *buf = kmm_zalloc(sizeof(*item) + length);
 #endif
     if (!buf) {
+        dbg("ERROR: Failed to allocate\n");
         return -ENOMEM;
     }
 
@@ -641,13 +642,13 @@ static int mhb_send(struct device *dev, struct mhb_hdr *hdr,
     hdr->length = cpu_to_le16(length);
 
     /* Allocate an item */
-    // TODO: Use buffer-pool.
 #ifdef CONFIG_MM_BUFRAM_ALLOCATOR
-    uint8_t *buf = bufram_alloc(sizeof(*item) + CONFIG_MHB_UART_TXBUFSIZE);
+    uint8_t *buf = bufram_alloc(sizeof(*item) + length);
 #else
-    uint8_t *buf = kmm_zalloc(sizeof(*item) + CONFIG_MHB_UART_TXBUFSIZE);
+    uint8_t *buf = kmm_zalloc(sizeof(*item) + length);
 #endif
     if (!buf) {
+        dbg("ERROR: Failed to allocate\n");
         return -ENOMEM;
     }
 
