@@ -623,3 +623,7 @@ config BUF_CON_OUT_BUFSIZE
                 Size of each ring-buffer entry for the output stream.
 
 endif
+
+config LIB_NOTIFIER
+	bool "Notifier"
+	default n

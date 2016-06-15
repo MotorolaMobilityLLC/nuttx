@@ -113,6 +113,12 @@ ifeq ($(CONFIG_BUF_CON),y)
 CSRCS += lib_buf_con.c
 endif
 
+# Notifier package
+
+ifeq ($(CONFIG_LIB_NOTIFIER),y)
+CSRCS += lib_notifier.c
+endif
+
 # Add the misc directory to the build
 
 DEPPATH += --dep-path misc
