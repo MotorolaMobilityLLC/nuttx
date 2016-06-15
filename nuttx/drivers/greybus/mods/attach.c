@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Motorola Mobility, LLC.
+ * Copyright (C) 2015-2016 Motorola Mobility, LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@
 #include <nuttx/gpio.h>
 #include <nuttx/greybus/greybus.h>
 #include <nuttx/greybus/mods.h>
-#include <nuttx/list.h>
+#include <nuttx/notifier.h>
 #include <nuttx/power/pm.h>
 #include <nuttx/wqueue.h>
 
@@ -65,14 +65,7 @@
 #  define GPIO_MODS_BASE_ATTACH  GPIO_MODS_SL_BPLUS_EN
 #endif
 
-struct notify_node_s
-{
-  mods_attach_t callback;
-  void *arg;
-  struct list_head list;
-};
-
-static LIST_DECLARE(g_notify_list);
+static NOTIFIER_HEAD(g_notify_head);
 static enum base_attached_e g_base_state = BASE_INVALID;
 static struct work_s g_attach_work;
 
@@ -97,9 +90,6 @@ static enum base_attached_e read_base_state(void)
 static void base_attach_worker(FAR void *arg)
 {
   enum base_attached_e base_state;
-  struct list_head *iter;
-  struct list_head *iter_next;
-  struct notify_node_s *node;
 
   base_state = read_base_state();
   if (g_base_state != base_state)
@@ -114,11 +104,7 @@ static void base_attach_worker(FAR void *arg)
 
       g_base_state = base_state;
 
-      list_foreach_safe(&g_notify_list, iter, iter_next)
-        {
-          node = list_entry(iter, struct notify_node_s, list);
-          node->callback(node->arg, base_state);
-        }
+      notifier_call_chain(&g_notify_head, &base_state);
     }
 }
 
@@ -167,29 +153,18 @@ static int cs_isr(int irq, void *context)
 }
 #endif
 
-int mods_attach_register(mods_attach_t callback, void *arg)
+int mods_attach_register(notifier_fn_t callback, void *arg)
 {
-  irqstate_t flags;
-  struct notify_node_s *node;
+  int ret;
 
-  if (!callback)
-      return -EINVAL;
-
-  node = malloc(sizeof(struct notify_node_s));
-  if (!node)
-      return -ENOMEM;
-
-  node->callback = callback;
-  node->arg = arg;
-
-  flags = irqsave();
-  list_add(&g_notify_list, &node->list);
-  irqrestore(flags);
+  ret = notifier_register(&g_notify_head, callback, arg);
+  if (ret)
+      return ret;
 
   /* Immediately call back with current state */
-  callback(arg, g_base_state);
+  callback(arg, &g_base_state);
 
-  return 0;
+  return OK;
 }
 
 int mods_attach_init(void)

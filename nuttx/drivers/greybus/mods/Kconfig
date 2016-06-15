@@ -14,6 +14,7 @@ endchoice
 
 config GREYBUS_MODS_ATTACH
 	bool "Mod Attach"
+	select LIB_NOTIFIER
 	default n
 	---help---
 		Include mod attach logic.

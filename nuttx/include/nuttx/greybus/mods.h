@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Motorola Mobility, LLC.
+ * Copyright (C) 2015-2016 Motorola Mobility, LLC.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,8 @@
 #ifndef _GREYBUS_MODS_H_
 #define _GREYBUS_MODS_H_
 
+#include <nuttx/notifier.h>
+
 /*
  * Base attach logic assumes this enum order. Do not change without changing
  * both!
@@ -41,10 +43,6 @@ enum base_attached_e
   BASE_ATTACHED_OFF,
   BASE_INVALID,
 };
-
-/* The type of the base attach/detach callback function */
-
-typedef void (*mods_attach_t)(void *arg, enum base_attached_e state);
 
 /****************************************************************************
  * Name: mods_attach_init
@@ -77,7 +75,7 @@ int mods_attach_init(void);
  *
  ****************************************************************************/
 
-int mods_attach_register(mods_attach_t callback, void *arg);
+int mods_attach_register(notifier_fn_t callback, void *arg);
 
 /****************************************************************************
  * Name: mods_network_init
