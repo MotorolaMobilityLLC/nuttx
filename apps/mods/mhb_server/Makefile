@@ -37,6 +37,10 @@ ASRCS =
 CSRCS =
 MAINSRC = gearbox.c main.c mhb_server.c sm.c sm_timer.c
 
+ifeq ($(CONFIG_RAMLOG_SYSLOG),y)
+MAINSRC += mhb_ramlog.c
+endif
+
 ifeq ($(CONFIG_WATCHDOG),y)
 MAINSRC += wdog.c
 endif

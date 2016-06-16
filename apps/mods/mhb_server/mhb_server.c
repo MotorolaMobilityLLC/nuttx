@@ -1240,19 +1240,52 @@ int mhb_send_hsic_status_not(bool attached)
 }
 
 /* Diag */
-static int _mhb_send_diag_local_log_not(struct device *dev)
+#if CONFIG_MHB_IPC_SERVER
+static int _mhb_send_diag_log_not_uart(struct device *dev, const char *buffer, size_t length)
 {
     struct mhb_hdr hdr;
     memset(&hdr, 0, sizeof(hdr));
     hdr.addr = MHB_ADDR_DIAG;
     hdr.type = MHB_TYPE_DIAG_LOG_NOT;
+    hdr.result = MHB_RESULT_SUCCESS;
 
-    return device_mhb_send(dev, &hdr, NULL, 0, 0);
+    return device_mhb_send(dev, &hdr, (const uint8_t *)buffer, length, 0);
 }
+#endif
 
-int mhb_send_diag_local_log_not(void)
+#if CONFIG_MHB_IPC_CLIENT
+static int _mhb_send_diag_log_not_unipro(struct device *dev, const char *buffer, size_t length)
 {
-    return _mhb_send_diag_local_log_not(g_uart_dev);
+    struct mhb_hdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_DIAG;
+    hdr.type = MHB_TYPE_DIAG_LOG_NOT;
+    hdr.result = MHB_RESULT_SUCCESS;
+
+    struct mhb_transaction transaction;
+    memset(&transaction, 0, sizeof(transaction));
+
+    transaction.dev = dev;
+    transaction.in_msg.hdr = &hdr;
+    transaction.in_msg.payload = (uint8_t *)buffer;
+    transaction.in_msg.payload_length = MIN(length, ipc_get_sync_data_sz() - MHB_HDR_SIZE - MHB_CRC_SIZE);
+    transaction.out_msg.hdr = NULL;
+    transaction.out_msg.payload = NULL;
+    transaction.out_msg.payload_length = 0;
+    transaction.out_msg.payload_max = 0;
+    transaction.send_rsp = false;
+
+    return mhb_unipro_send(&transaction);
+}
+#endif
+
+int mhb_send_diag_log_not(const char *buffer, size_t length)
+{
+#if CONFIG_MHB_IPC_SERVER
+    return _mhb_send_diag_log_not_uart(g_uart_dev, buffer, length);
+#elif CONFIG_MHB_IPC_CLIENT
+    return _mhb_send_diag_log_not_unipro(NULL /* dev */, buffer, length);
+#endif
 }
 
 static int _mhb_handle_local_diag_reg_log_req(struct mhb_transaction *transaction)
@@ -1367,6 +1400,15 @@ done:
     return 0;
 }
 
+static int mhb_handle_diag_log_not(struct mhb_transaction *transaction)
+{
+    /* Forward log notification from UniPro to UART. */
+    transaction->in_msg.hdr->addr |= MHB_PEER_MASK;
+    return device_mhb_send(g_uart_dev, transaction->in_msg.hdr,
+                           transaction->in_msg.payload,
+                           transaction->in_msg.payload_length, 0);
+}
+
 static int mhb_handle_diag_last_req(struct mhb_transaction *transaction)
 {
     transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
@@ -1474,6 +1516,8 @@ static int mhb_handle_diag(struct mhb_transaction *transaction)
     switch (transaction->in_msg.hdr->type) {
     case MHB_TYPE_DIAG_LOG_REQ:
         return mhb_handle_diag_log_req(transaction);
+    case MHB_TYPE_DIAG_LOG_NOT:
+        return mhb_handle_diag_log_not(transaction);
     case MHB_TYPE_DIAG_LAST_REQ:
         return mhb_handle_diag_last_req(transaction);
     case MHB_TYPE_DIAG_MODE_REQ:

@@ -55,6 +55,7 @@
 #include <nuttx/mhb/mhb_utils.h>
 
 #include "gearbox.h"
+#include "mhb_ramlog.h"
 #include "mhb_server.h"
 #include "sm.h"
 #include "sm_timer.h"
@@ -432,6 +433,10 @@ static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_w
 }
 
 static enum svc_state svc_wf_cports__link_down(struct svc *svc, struct svc_work *work) {
+#if CONFIG_RAMLOG_SYSLOG
+    mhb_ramlog_disable(true /* force */);
+#endif
+
 #if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_unregister_unipro();
 #endif
@@ -449,6 +454,10 @@ static enum svc_state svc_wf_cports__connected(struct svc *svc, struct svc_work 
     if (cport != CONFIG_MHB_IPC_CPORT_ID) {
         return g_svc.state;
     }
+
+#if CONFIG_RAMLOG_SYSLOG
+    mhb_ramlog_enable();
+#endif
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
     return SVC_CONNECTED;
@@ -511,6 +520,10 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
     ipc_register_unipro();
 #endif
 
+#if CONFIG_RAMLOG_SYSLOG
+    mhb_ramlog_enable();
+#endif
+
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
     return SVC_CONNECTED;
 }
@@ -534,6 +547,10 @@ static enum svc_state svc_wf_mod__mod_timeout(struct svc *svc, struct svc_work *
 }
 
 static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work *work) {
+#if CONFIG_RAMLOG_SYSLOG
+    mhb_ramlog_disable(true /* force */);
+#endif
+
 #if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_unregister_unipro();
 #endif
