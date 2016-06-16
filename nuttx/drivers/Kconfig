@@ -57,27 +57,6 @@ config HDMI_DISPLAY
 	bool "HDMI External Display"
 	default n
 
-if MHB_CAMERA
-choice
-  prompt "Select MHB Camera config to use"
-config CAMERA_IMX220
-	bool "SONY IMX220 Camera Sensor"
-config CAMERA_IMX230
-	bool "SONY IMX230 Camera Sensor"
-endchoice
-
-config MHB_CAMERA_OFF_DELAY_MS
-	int "MHB Camera delay before powerdown"
-	default 100
-	depends on CAMERA_MHB
-
-config CAMERA_I2C_BUS
-	int "CAMERA I2C BUS"
-	default 0
-	depends on MHB_CAMERA
-
-endif
-
 config DEV_RANDOM
 	bool "Enable /dev/random"
 	default n

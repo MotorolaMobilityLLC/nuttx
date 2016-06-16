@@ -42,11 +42,11 @@
 #include <nuttx/device.h>
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_csi_camera.h>
-#include <nuttx/camera_ext_defs.h>
+#include <nuttx/camera/camera_ext_defs.h>
 #include <nuttx/device_mhb_cam.h>
 #include <nuttx/math.h>
 
-#include "camera_ext.h"
+#include <nuttx/camera/camera_ext.h>
 
 struct dev_private_s
 {

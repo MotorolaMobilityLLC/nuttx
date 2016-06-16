@@ -97,6 +97,20 @@ config MHB_CAMERA
 	---help---
 		GB CAMERA_EXT based camera driven by an MHB server.
 
+if MHB_CAMERA
+source drivers/camera/Kconfig
+endif
+
+config MHB_CAMERA_I2C_BUS_ID
+	int "Camera I2C Bus ID"
+	default 0
+	depends on MHB_CAMERA
+
+config MHB_CAMERA_OFF_DELAY_MS
+	int "Delay (ms) before camera powerdown"
+	default 100
+	depends on MHB_CAMERA
+
 config MHB_I2S_AUDIO
 	bool "MHB I2S Audio"
 	default n

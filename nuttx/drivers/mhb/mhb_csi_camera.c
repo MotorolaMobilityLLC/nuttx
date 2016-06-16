@@ -893,7 +893,7 @@ static int _dev_probe(struct device *dev)
     device_set_private(dev, (void*)mhb_camera);
 
     /* Initialize once */
-    mhb_camera->cam_i2c = up_i2cinitialize(CONFIG_CAMERA_I2C_BUS);
+    mhb_camera->cam_i2c = up_i2cinitialize(CONFIG_MHB_CAMERA_I2C_BUS_ID);
 
     if (mhb_camera->cam_i2c == NULL) {
         CAM_ERR("Failed to initialize I2C\n");

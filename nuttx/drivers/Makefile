@@ -85,6 +85,7 @@ include gpio$(DELIM)Make.defs
 include input$(DELIM)Make.defs
 include lcd$(DELIM)Make.defs
 include mhb$(DELIM)Make.defs
+include camera$(DELIM)Make.defs
 include mmcsd$(DELIM)Make.defs
 include mtd$(DELIM)Make.defs
 include net$(DELIM)Make.defs
@@ -139,35 +140,6 @@ endif
 
 ifeq ($(CONFIG_HDMI_DISPLAY),y)
   CSRCS += hdmi_display.c
-endif
-
-ifeq ($(CONFIG_CAMERA_IMX179), y)
-    CSRCS += camera_ext_csi.c camera_ext-imx179.c
-endif
-
-ifeq ($(CONFIG_CAMERA_IMX220), y)
-    CSRCS += camera_ext_mhb_imx220.c
-endif
-
-ifeq ($(CONFIG_CAMERA_IMX230), y)
-    CSRCS += camera_ext_mhb_imx230.c
-endif
-
-ifeq ($(CONFIG_CAMERA_EXT_TEST_CTRLS), y)
-	CSRCS += camera_ext_testing_ctrls.c
-endif
-
-ifeq ($(CONFIG_CAMERA_TC35874X), y)
-  CSRCS += tc35874x.c tc35874x-util.c
-endif
-
-ifeq ($(CONFIG_CAMERA_TC35874X_PDISP), y)
-  CSRCS += tc35874x_pdisp.c tc35874x-util.c
-endif
-
-ifeq ($(CONFIG_CAMERA_S10P), y)
-  CSRCS += camera_ext_s10p.c camera_ext_s10p_ctrl.c tc35874x-util.c
-  CSRCS += camera_ext_s10p_hid.c
 endif
 
 ifeq ($(CONFIG_DEVICE_CORE),y)
