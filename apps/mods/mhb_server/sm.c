@@ -75,29 +75,29 @@ enum svc_state {
 
 #if CONFIG_DEBUG
 const static char *SVC_STATE_STRINGS[] = {
-    TO_STR(SVC_WAIT_FOR_AP),
-    TO_STR(SVC_SLAVE_WAIT_FOR_UNIPRO),
-    TO_STR(SVC_SLAVE_WAIT_FOR_CPORTS),
-    TO_STR(SVC_WAIT_FOR_UNIPRO),
-    TO_STR(SVC_WAIT_FOR_MOD),
-    TO_STR(SVC_CONNECTED),
-    TO_STR(SVC_DISCONNECTED),
-    TO_STR(SVC_TEST_MODE),
+    "WAIT_FOR_AP",
+    "SLAVE_WAIT_FOR_UNIPRO",
+    "SLAVE_WAIT_FOR_CPORTS",
+    "WAIT_FOR_UNIPRO",
+    "WAIT_FOR_MOD",
+    "CONNECTED",
+    "DISCONNECTED",
+    "TEST_MODE",
 };
 
 const static char *SVC_EVENT_STRINGS[] = {
-    TO_STR(SVC_EVENT_MASTER_STARTED),
-    TO_STR(SVC_EVENT_SLAVE_STARTED),
-    TO_STR(SVC_EVENT_TEST_MODE_STARTED),
-    TO_STR(SVC_EVENT_MOD_DETECTED),
-    TO_STR(SVC_EVENT_UNIPRO_LINK_TIMEOUT),
-    TO_STR(SVC_EVENT_MOD_TIMEOUT),
-    TO_STR(SVC_EVENT_UNIPRO_LINK_UP),
-    TO_STR(SVC_EVENT_UNIPRO_LINK_DOWN),
-    TO_STR(SVC_EVENT_GEAR_SHIFT_DONE),
-    TO_STR(SVC_EVENT_QUEUE_STATS),
-    TO_STR(SVC_EVENT_SEND_STATS),
-    TO_STR(SVC_EVENT_CPORTS_DONE),
+    "MASTER_STARTED",
+    "SLAVE_STARTED",
+    "MODE_STARTED",
+    "MOD_DETECTED",
+    "LINK_TIMEOUT",
+    "MOD_TIMEOUT",
+    "LINK_UP",
+    "LINK_DOWN",
+    "GEAR_SHIFT_DONE",
+    "QUEUE_STATS",
+    "SEND_STATS",
+    "CPORTS_DONE",
 };
 #endif
 
@@ -747,19 +747,17 @@ static void svc_handle_event(struct svc *svc, struct svc_work *work) {
 
     const svc_event_handler handler = SVC_STATES[state][event];
     if (!handler) {
-        lldbg("state: %s (%d), event: %s (%d) handler: %p\n",
+        lldbg("state: %s (%d), event: %s (%d)\n",
             svc_state_to_string(state), state,
-            svc_event_to_string(event), event,
-            handler);
+            svc_event_to_string(event), event);
         return;
     }
 
     const enum svc_state new_state = handler(svc, work);
     if (new_state == state) {
-        lldbg("state: %s (%d), event: %s (%d) handler: %p\n",
+        lldbg("state: %s (%d), event: %s (%d)\n",
             svc_state_to_string(state), state,
-            svc_event_to_string(event), event,
-            handler);
+            svc_event_to_string(event), event);
     } else {
         if (!svc_state_valid(new_state)) {
             lldbg("ERROR: handler, %p, returned an invalid state, %d\n",
@@ -767,10 +765,9 @@ static void svc_handle_event(struct svc *svc, struct svc_work *work) {
             return;
         }
 
-        lldbg("state: %s (%d), event: %s (%d), handler=%p, new state: %s (%d)\n",
+        lldbg("state: %s (%d), event: %s (%d), new state: %s (%d)\n",
             svc_state_to_string(state), state,
             svc_event_to_string(event), event,
-            handler,
             svc_state_to_string(new_state), new_state);
 
         svc->state = new_state;
