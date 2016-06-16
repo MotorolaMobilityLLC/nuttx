@@ -29,7 +29,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include "camera_ext.h"
+#include <nuttx/camera/camera_ext.h>
 
 struct camera_ext_db {
     const struct camera_ext_format_db *format_db;

@@ -33,8 +33,7 @@
 #include <nuttx/util.h>
 #include <nuttx/device.h>
 #include <nuttx/greybus/types.h>
-
-#include "camera_ext_defs.h"
+#include <nuttx/camera/camera_ext_defs.h>
 
 #define DEVICE_TYPE_CAMERA_EXT_HW "camera_ext_dev"
 

@@ -35,7 +35,7 @@
 #include <nuttx/device.h>
 #include <nuttx/greybus/types.h>
 #include <nuttx/device_cam_ext.h>
-#include <nuttx/camera_ext_defs.h>
+#include <nuttx/camera/camera_ext_defs.h>
 
 #include "camera_ext_dbg.h"
 

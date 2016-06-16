@@ -36,7 +36,7 @@
 #include <nuttx/gpio.h>
 
 //#define DEBUG
-#include "camera_ext_dbg.h"
+#include <nuttx/camera/camera_ext_dbg.h>
 
 //support only one camera_ext device for now
 #define CAMERA_EXT_DEVICE_ID 0
