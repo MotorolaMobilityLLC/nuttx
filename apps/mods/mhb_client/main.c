@@ -115,8 +115,9 @@ static int mhb_send_diag_reg_log_apbe_req_na(struct device *dev)
 {
     struct mhb_hdr hdr;
 
+    memset(&hdr, 0, sizeof(hdr));
     hdr.addr = MHB_ADDR_DIAG;
-    hdr.type = MHB_TYPE_DIAG_REG_LOG_APBE_REQ;
+    hdr.type = MHB_TYPE_DIAG_REG_LOG_REQ;
     return device_mhb_send(dev, &hdr, NULL, 0, 0);
 }
 
@@ -124,8 +125,9 @@ static int mhb_send_diag_reg_log_apba_req_na(struct device *dev)
 {
     struct mhb_hdr hdr;
 
-    hdr.addr = MHB_ADDR_DIAG;
-    hdr.type = MHB_TYPE_DIAG_REG_LOG_APBA_REQ;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_DIAG|MHB_PEER_MASK;
+    hdr.type = MHB_TYPE_DIAG_REG_LOG_REQ;
     return device_mhb_send(dev, &hdr, NULL, 0, 0);
 }
 
@@ -242,24 +244,25 @@ static int mhb_handle_diag(struct device *dev, struct mhb_hdr *hdr,
         break;
     case MHB_TYPE_DIAG_LOOP_RSP:
         break;
-    case MHB_TYPE_DIAG_REG_LOG_APBE_RSP:
-        if (mhb_handle_diag_print_reglog((struct reglog_value_s *)payload,
-                                         payload_length/sizeof(struct reglog_value_s),
-                                         "APBE") > 0) {
-            /* Request more data. */
-            ret = mhb_send_diag_reg_log_apbe_req_na(dev);
-        }
-        else {
-            /* Request APBA data. */
-            ret = mhb_send_diag_reg_log_apba_req_na(dev);
-        }
-        break;
-    case MHB_TYPE_DIAG_REG_LOG_APBA_RSP:
-        if (mhb_handle_diag_print_reglog((struct reglog_value_s *)payload,
-                                         payload_length/sizeof(struct reglog_value_s),
-                                         "APBA") > 0) {
-            /* Request more data. */
-            ret = mhb_send_diag_reg_log_apba_req_na(dev);
+    case MHB_TYPE_DIAG_REG_LOG_RSP:
+        if (hdr->addr & MHB_PEER_MASK) {
+            if (mhb_handle_diag_print_reglog((struct reglog_value_s *)payload,
+                                             payload_length/sizeof(struct reglog_value_s),
+                                             "APBA") > 0) {
+                /* Request more data. */
+                ret = mhb_send_diag_reg_log_apba_req_na(dev);
+            }
+        } else {
+            if (mhb_handle_diag_print_reglog((struct reglog_value_s *)payload,
+                                             payload_length/sizeof(struct reglog_value_s),
+                                             "APBE") > 0) {
+                /* Request more data. */
+                ret = mhb_send_diag_reg_log_apbe_req_na(dev);
+            }
+            else {
+                /* Request APBA data. */
+                ret = mhb_send_diag_reg_log_apba_req_na(dev);
+            }
         }
         break;
     default:
