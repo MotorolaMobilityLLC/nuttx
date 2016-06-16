@@ -45,9 +45,10 @@
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/mhb/mhb_csi_camera.h>
 #include <nuttx/wqueue.h>
+#include <nuttx/camera/v4l2_camera_ext_ctrls.h>
+#include <nuttx/camera/camera_ext.h>
+
 #include "mhb_csi_camera_sm.h"
-#include "greybus/v4l2_camera_ext_ctrls.h"
-#include "camera_ext.h"
 
 /*
  * This is the reference greybus camera extension driver
