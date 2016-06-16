@@ -1255,7 +1255,7 @@ int mhb_send_diag_local_log_not(void)
     return _mhb_send_diag_local_log_not(g_uart_dev);
 }
 
-static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
+static int _mhb_handle_local_diag_reg_log_req(struct mhb_transaction *transaction)
 {
 #if defined(CONFIG_REGLOG)
     static size_t entries_left = REGLOG_DEPTH;
@@ -1264,11 +1264,7 @@ static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
     struct reglog_value_s *log_entry;
 
     transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
-# if defined(CONFIG_MHB_IPC_CLIENT)
-    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBE_RSP;
-# else
-    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBA_RSP;
-# endif
+    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_RSP;
     transaction->send_rsp = true;
 
     /* If the first time through, advance past the duplicate entries. */
@@ -1310,17 +1306,28 @@ static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
     return 0;
 }
 
-static int mhb_handle_diag_reg_log_apba_req(struct mhb_transaction *transaction)
+static int _mhb_handle_peer_diag_reg_log_req(struct mhb_transaction *transaction)
 {
 #if defined(CONFIG_MHB_IPC_CLIENT)
-    /* Send the request off to the APBA as an APBE request. */
-    transaction->in_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_APBE_REQ;
+    /* Forward the request to the APBA. */
+    transaction->in_msg.hdr->addr &= ~MHB_PEER_MASK;
     transaction->send_rsp = true;
-    return mhb_unipro_send(transaction);
+    int ret = mhb_unipro_send(transaction);
+    transaction->out_msg.hdr->addr |= MHB_PEER_MASK;
+    return ret;
 #else
     transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
     return 0;
 #endif
+}
+
+static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
+{
+    if (transaction->in_msg.hdr->addr & MHB_PEER_MASK) {
+        return _mhb_handle_peer_diag_reg_log_req(transaction);
+    } else {
+        return _mhb_handle_local_diag_reg_log_req(transaction);
+    }
 }
 
 static int mhb_handle_diag_log_req(struct mhb_transaction *transaction)
@@ -1475,10 +1482,8 @@ static int mhb_handle_diag(struct mhb_transaction *transaction)
         return mhb_handle_diag_loop_req(transaction);
     case MHB_TYPE_DIAG_CONTROL_REQ:
         return mhb_handle_diag_control_req(transaction);
-    case MHB_TYPE_DIAG_REG_LOG_APBE_REQ:
+    case MHB_TYPE_DIAG_REG_LOG_REQ:
         return mhb_handle_diag_reg_log_req(transaction);
-    case MHB_TYPE_DIAG_REG_LOG_APBA_REQ:
-        return mhb_handle_diag_reg_log_apba_req(transaction);
     default:
         dbg("ERROR: unknown server diag event: %d\n", transaction->in_msg.hdr->type);
         return -EINVAL;
