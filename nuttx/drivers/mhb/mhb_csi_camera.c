@@ -58,6 +58,7 @@
  * for MHB (Motorola Mods Hi-speed Bus Archirecture)
  *
  */
+#define CTRL_RETRIES             5
 #define I2C_RETRIES              5
 #define I2C_RETRY_DELAY_US       10000
 #define MHB_CDSI_CAM_INSTANCE    0
@@ -170,7 +171,7 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
                     uint8_t *addr, int addr_len,
                     uint8_t *data, int data_len)
 {
-    int ret = 0;
+    int ret = 0, retries = I2C_RETRIES;
     struct i2c_msg_s msg[2];
     msg[0].addr   = i2c_addr;
     msg[0].flags  = s_mhb_camera.i2c_disable_rs?I2C_M_NORESTART:0;
@@ -183,28 +184,22 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
     msg[1].length = data_len;
 
     pthread_mutex_lock(&i2c_mutex);
-
-    if (s_mhb_camera.i2c_disable_rs) {
-        while (I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[0], 1) != 0)
-        {
-            usleep(I2C_RETRY_DELAY_US);
-            if (++ret == I2C_RETRIES) break;
+    do {
+        if (s_mhb_camera.i2c_disable_rs) {
+            ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[0], 1);
+            if (!ret)
+                ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[1], 1);
+        } else {
+            ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, msg, 2);
         }
-        if (ret) {
-            CAM_ERR("%s I2C read retried %d of %d\n",
-                    (ret == I2C_RETRIES)?"FAIL":"INFO",
-                    ret, I2C_RETRIES);
-            if (ret == I2C_RETRIES) {
-                pthread_mutex_unlock(&i2c_mutex);
-                return ret;
-            }
-        }
-        ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[1], 1);
-    } else {
-        ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, msg, 2);
-    }
-
+        if (ret) usleep(I2C_RETRY_DELAY_US);
+    } while (ret && --retries);
     pthread_mutex_unlock(&i2c_mutex);
+
+    if (ret || (I2C_RETRIES - retries))
+        CAM_ERR("%s I2C read retried %d of %d\n",
+                ret ? "FAIL":"INFO",
+                I2C_RETRIES - retries, I2C_RETRIES);
 
     return ret;
 }
@@ -213,27 +208,26 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
 int mhb_camera_i2c_write(uint16_t i2c_addr, uint8_t *addr, int addr_len)
 {
     struct i2c_msg_s msg;
-    int ret = 0;
+    int ret = 0, retries = I2C_RETRIES;
 
     msg.addr   = i2c_addr;
-    msg.flags  = s_mhb_camera.i2c_disable_rs?I2C_M_NORESTART:0;
+    msg.flags  = s_mhb_camera.i2c_disable_rs ? I2C_M_NORESTART:0;
     msg.buffer = addr;
     msg.length = addr_len;
 
     pthread_mutex_lock(&i2c_mutex);
-    while (I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg, 1) != 0)
-    {
-        usleep(I2C_RETRY_DELAY_US);
-        if (++ret == I2C_RETRIES) break;
-    }
-    if (ret) {
-        CAM_ERR("%s I2C write retries %d of %d\n",
-                (ret == I2C_RETRIES)?"FAIL":"INFO", ret, I2C_RETRIES);
-    }
+    do {
+        ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg, 1);
+        if (ret) usleep(I2C_RETRY_DELAY_US);
+    } while (ret && --retries);
     pthread_mutex_unlock(&i2c_mutex);
 
-    //TODO : Return -EAGAIN for S10 Write failures till Altek timing is resolved.
-    return (ret == I2C_RETRIES)?-EAGAIN:0;
+    if (ret || (I2C_RETRIES - retries))
+        CAM_ERR("%s I2C write retried %d of %d\n",
+                ret ? "FAIL":"INFO",
+                I2C_RETRIES - retries, I2C_RETRIES);
+
+    return ret;
 }
 
 int mhb_camera_i2c_read_reg(uint16_t i2c_addr, uint16_t regaddr,
@@ -554,10 +548,17 @@ static void _mhb_camera_process_ctrl_cache(int dump)
         item = list_entry(cached_ctrl_list.next,
                           struct cached_ctrls_node, node);
 
-        if ((soc_status == SOC_ENABLED) && !dump)
-            camera_ext_ctrl_set(item->dev, item->idx,
-                                item->ctrl_val, item->ctrl_val_size);
+        if ((soc_status == SOC_ENABLED) && !dump) {
+            int ret = 0, retries = CTRL_RETRIES;
+            do {
+                ret = camera_ext_ctrl_set(item->dev, item->idx,
+                                          item->ctrl_val, item->ctrl_val_size);
+            } while (ret == -EAGAIN && --retries);
 
+            if (ret || (CTRL_RETRIES - retries))
+                CAM_ERR("%s camera_ext_ctrl_set 0x%08x retries %d/%d\n",
+                    ret ? "FAIL":"INFO", CTRL_RETRIES - retries, CTRL_RETRIES);
+        }
         list_del(&item->node);
         kmm_free(item->ctrl_val);
         kmm_free(item);
