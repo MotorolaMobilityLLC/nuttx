@@ -351,6 +351,9 @@ int ipc_register_unipro(void)
 int ipc_unregister_unipro(void)
 {
     IPC_DBG("unregister unipro\n");
+#ifdef CONFIG_UNIPRO_P2P_APBA
+    unipro_p2p_reset_connection(CONFIG_MHB_IPC_CPORT_ID);
+#endif
     unipro_driver_unregister(CONFIG_MHB_IPC_CPORT_ID);
     return 0;
 }
