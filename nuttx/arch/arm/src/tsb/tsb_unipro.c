@@ -747,6 +747,9 @@ static int unipro_init_cport(unsigned int cportid)
 
     _unipro_reset_cport(cportid);
 
+    if (cport->rx_buf)
+        unipro_rxbuf_free(cportid, cport->rx_buf);
+
     atomic_init(&cport->inflight_buf_count, 0);
 #if defined(CONFIG_APBRIDGEA)
     cport->max_inflight_buf_count = 1;
@@ -754,9 +757,6 @@ static int unipro_init_cport(unsigned int cportid)
     cport->max_inflight_buf_count = CONFIG_TSB_UNIPRO_MAX_INFLIGHT_BUFCOUNT;
 #endif
     cport->switch_buf_on_free = false;
-
-    if (cport->rx_buf)
-        unipro_rxbuf_free(cportid, cport->rx_buf);
 
     cport->rx_buf = unipro_rxbuf_alloc(cportid);
     if (!cport->rx_buf) {
