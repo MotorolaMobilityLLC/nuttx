@@ -557,7 +557,8 @@ static void _mhb_camera_process_ctrl_cache(int dump)
 
             if (ret || (CTRL_RETRIES - retries))
                 CAM_ERR("%s camera_ext_ctrl_set 0x%08x retries %d/%d\n",
-                    ret ? "FAIL":"INFO", CTRL_RETRIES - retries, CTRL_RETRIES);
+                    ret ? "FAIL":"INFO", item->idx,
+                    CTRL_RETRIES - retries, CTRL_RETRIES);
         }
         list_del(&item->node);
         kmm_free(item->ctrl_val);
