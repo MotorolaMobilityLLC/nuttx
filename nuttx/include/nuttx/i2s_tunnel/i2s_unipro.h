@@ -37,6 +37,7 @@
 int i2s_unipro_tunnel_init(void);
 void i2s_unipro_tunnel_deinit(void);
 int i2s_unipro_tunnel_unipro_register(void);
+int i2s_unipro_tunnel_unipro_unregister(void);
 int i2s_unipro_tunnel_enable(bool enable);
 int i2s_unipro_tunnel_i2s_config(unsigned int sample_rate,
                                  I2S_TUNNEL_I2S_MODE_T mode,

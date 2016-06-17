@@ -1825,6 +1825,13 @@ int i2s_unipro_tunnel_unipro_register(void)
     return ret;
 }
 
+int i2s_unipro_tunnel_unipro_unregister(void)
+{
+    g_i2s_unipro_tunnel.unipro_registered = false;
+    (void)unipro_driver_unregister(TSB_I2S_UNIPRO_TUNNEL_CPORTID);
+    return 0;
+}
+
 /*
  * Initialize a buffer structure.
  *
@@ -1893,8 +1900,6 @@ void i2s_unipro_tunnel_deinit(void)
 
     if (g_i2s_unipro_tunnel.initialized == TSB_I2S_UNIPRO_TUNNEL_INIT)
     {
-        //(void)unipro_driver_unregister(TSB_I2S_UNIPRO_TUNNEL_CPORTID);
-
         for (i = 0; i < TSB_I2S_UNIPRO_TUNNEL_BUF_NUM; i++)
         {
             if (g_i2s_unipro_tunnel.i2s_rx_unipro_tx_buf[i].msg)
