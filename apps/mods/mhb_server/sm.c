@@ -437,6 +437,10 @@ static enum svc_state svc_wf_cports__link_down(struct svc *svc, struct svc_work 
     mhb_ramlog_disable(true /* force */);
 #endif
 
+#if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
+    (void)i2s_unipro_tunnel_unipro_unregister();
+#endif
+
 #if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_unregister_unipro();
 #endif
@@ -549,6 +553,10 @@ static enum svc_state svc_wf_mod__mod_timeout(struct svc *svc, struct svc_work *
 static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work *work) {
 #if CONFIG_RAMLOG_SYSLOG
     mhb_ramlog_disable(true /* force */);
+#endif
+
+#if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
+    (void)i2s_unipro_tunnel_unipro_unregister();
 #endif
 
 #if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
