@@ -1288,81 +1288,6 @@ int mhb_send_diag_log_not(const char *buffer, size_t length)
 #endif
 }
 
-static int _mhb_handle_local_diag_reg_log_req(struct mhb_transaction *transaction)
-{
-#if defined(CONFIG_REGLOG)
-    static size_t entries_left = REGLOG_DEPTH;
-    size_t max_bytes;
-    size_t bytes_read;
-    struct reglog_value_s *log_entry;
-
-    transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
-    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_RSP;
-    transaction->send_rsp = true;
-
-    /* If the first time through, advance past the duplicate entries. */
-    if (entries_left == REGLOG_DEPTH) {
-        (void)reglog_advance_tail();
-    }
-    /*
-     * Limit the data to the max payload for MHB or IPC.  The header and CRC are
-     * sent as part of the transaction, but it's size must be rounded up to the
-     * next 32 bit boundary.
-     */
-    max_bytes = ipc_get_sync_data_sz() - MHB_HDR_SIZE - MHB_CRC_SIZE;
-    if (transaction->out_msg.payload_max < max_bytes) {
-        max_bytes = transaction->out_msg.payload_max;
-    }
-    /* Update max_bytes to be an even number of log packets. */
-    max_bytes = (max_bytes/sizeof(struct reglog_value_s)*sizeof(struct reglog_value_s));
-    /* Copy the data into the MHB buffer. */
-    bytes_read = 0;
-    log_entry = (struct reglog_value_s *)transaction->out_msg.payload;
-    do {
-        if (reglog_get_entries(log_entry, 1) == 0)
-        {
-            entries_left = REGLOG_DEPTH;
-            break;
-        }
-        TO_LE(log_entry->time);
-        TO_LE(log_entry->addr);
-        TO_LE(log_entry->val);
-        log_entry++;
-        bytes_read += sizeof(struct reglog_value_s);
-    } while ((--entries_left) &&
-             (max_bytes > bytes_read));
-    transaction->out_msg.payload_length = bytes_read;
-    transaction->out_msg.hdr->result = MHB_RESULT_SUCCESS;
-#else
-    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
-#endif
-    return 0;
-}
-
-static int _mhb_handle_peer_diag_reg_log_req(struct mhb_transaction *transaction)
-{
-#if defined(CONFIG_MHB_IPC_CLIENT)
-    /* Forward the request to the APBA. */
-    transaction->in_msg.hdr->addr &= ~MHB_PEER_MASK;
-    transaction->send_rsp = true;
-    int ret = mhb_unipro_send(transaction);
-    transaction->out_msg.hdr->addr |= MHB_PEER_MASK;
-    return ret;
-#else
-    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
-    return 0;
-#endif
-}
-
-static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
-{
-    if (transaction->in_msg.hdr->addr & MHB_PEER_MASK) {
-        return _mhb_handle_peer_diag_reg_log_req(transaction);
-    } else {
-        return _mhb_handle_local_diag_reg_log_req(transaction);
-    }
-}
-
 static int _mhb_handle_local_diag_log_req(struct mhb_transaction *transaction)
 {
     transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
@@ -1527,6 +1452,81 @@ static int mhb_handle_diag_control_req(struct mhb_transaction *transaction)
 
     transaction->send_rsp = true;
     return 0;
+}
+
+static int _mhb_handle_local_diag_reg_log_req(struct mhb_transaction *transaction)
+{
+#if defined(CONFIG_REGLOG)
+    static size_t entries_left = REGLOG_DEPTH;
+    size_t max_bytes;
+    size_t bytes_read;
+    struct reglog_value_s *log_entry;
+
+    transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
+    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_REG_LOG_RSP;
+    transaction->send_rsp = true;
+
+    /* If the first time through, advance past the duplicate entries. */
+    if (entries_left == REGLOG_DEPTH) {
+        (void)reglog_advance_tail();
+    }
+    /*
+     * Limit the data to the max payload for MHB or IPC.  The header and CRC are
+     * sent as part of the transaction, but it's size must be rounded up to the
+     * next 32 bit boundary.
+     */
+    max_bytes = ipc_get_sync_data_sz() - MHB_HDR_SIZE - MHB_CRC_SIZE;
+    if (transaction->out_msg.payload_max < max_bytes) {
+        max_bytes = transaction->out_msg.payload_max;
+    }
+    /* Update max_bytes to be an even number of log packets. */
+    max_bytes = (max_bytes/sizeof(struct reglog_value_s)*sizeof(struct reglog_value_s));
+    /* Copy the data into the MHB buffer. */
+    bytes_read = 0;
+    log_entry = (struct reglog_value_s *)transaction->out_msg.payload;
+    do {
+        if (reglog_get_entries(log_entry, 1) == 0)
+        {
+            entries_left = REGLOG_DEPTH;
+            break;
+        }
+        TO_LE(log_entry->time);
+        TO_LE(log_entry->addr);
+        TO_LE(log_entry->val);
+        log_entry++;
+        bytes_read += sizeof(struct reglog_value_s);
+    } while ((--entries_left) &&
+             (max_bytes > bytes_read));
+    transaction->out_msg.payload_length = bytes_read;
+    transaction->out_msg.hdr->result = MHB_RESULT_SUCCESS;
+#else
+    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
+#endif
+    return 0;
+}
+
+static int _mhb_handle_peer_diag_reg_log_req(struct mhb_transaction *transaction)
+{
+#if defined(CONFIG_MHB_IPC_CLIENT)
+    /* Forward the request to the APBA. */
+    transaction->in_msg.hdr->addr &= ~MHB_PEER_MASK;
+    transaction->send_rsp = true;
+    int ret = mhb_unipro_send(transaction);
+    transaction->out_msg.hdr->addr |= MHB_PEER_MASK;
+    return ret;
+#else
+    transaction->out_msg.hdr->result = MHB_RESULT_NONEXISTENT;
+    return 0;
+#endif
+}
+
+static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
+{
+    if (transaction->in_msg.hdr->addr & MHB_PEER_MASK) {
+        return _mhb_handle_peer_diag_reg_log_req(transaction);
+    } else {
+        return _mhb_handle_local_diag_reg_log_req(transaction);
+    }
 }
 
 /* All */
