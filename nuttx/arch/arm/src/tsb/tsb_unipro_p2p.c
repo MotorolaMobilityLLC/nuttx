@@ -142,7 +142,7 @@ uint32_t unipro_p2p_get_boot_status(void) {
     uint32_t boot_status = INIT_STATUS_UNINITIALIZED;
     int rc = unipro_attr_peer_read(DME_DDBL2_INIT_STATUS, &boot_status, 0 /* selector */);
     if (rc) {
-        lldbg("Failed to read boot mode\n");
+        lldbg("Failed to read boot mode: %d\n", rc);
     } else {
         boot_status = TSB_READ_STATUS(boot_status);
     }
@@ -248,22 +248,28 @@ void unipro_p2p_setup(void) {
     unipro_attr_peer_write(N_DEVICEID_VALID, 1, 0 /* selector */);
 }
 
-void unipro_p2p_detect_linkloss(void) {
+int unipro_p2p_detect_linkloss(bool enable) {
     int retval;
 
-    retval = unipro_attr_local_write(TSB_INTERRUPTENABLE,
-                                     TSB_INTERRUPTSTATUS_LINKLOSTIND |
-                                     TSB_INTERRUPTSTATUS_POWERMODIND |
-                                     TSB_INTERRUPTSTATUS_ERRORPHYIND |
-                                     TSB_INTERRUPTSTATUS_ERRORPAIND |
-                                     TSB_INTERRUPTSTATUS_ERRORDIND |
-                                     TSB_INTERRUPTSTATUS_ERRORNIND |
-                                     TSB_INTERRUPTSTATUS_ERRORTIND |
-                                     TSB_INTERRUPTSTATUS_PAINITERR |
-                                     TSB_INTERRUPTSTATUS_MAILBOX, 0);
-    if (retval) {
-        lldbg("Failed to enable tsb interrupts\n");
+    uint32_t mask = 0;
+    if (enable) {
+        mask = TSB_INTERRUPTSTATUS_LINKLOSTIND |
+               TSB_INTERRUPTSTATUS_POWERMODIND |
+               TSB_INTERRUPTSTATUS_ERRORPHYIND |
+               TSB_INTERRUPTSTATUS_ERRORPAIND |
+               TSB_INTERRUPTSTATUS_ERRORDIND |
+               TSB_INTERRUPTSTATUS_ERRORNIND |
+               TSB_INTERRUPTSTATUS_ERRORTIND |
+               TSB_INTERRUPTSTATUS_PAINITERR |
+               TSB_INTERRUPTSTATUS_MAILBOX;
     }
+
+    retval = unipro_attr_local_write(TSB_INTERRUPTENABLE, mask, 0);
+    if (retval) {
+        lldbg("Failed to set tsb interrupt mask: %08x\n", mask);
+    }
+
+    return retval;
 }
 
 #if CONFIG_UNIPRO_TEST_CPORTS

@@ -33,7 +33,7 @@ uint32_t unipro_p2p_get_boot_status(void);
 void unipro_p2p_setup_connection(unsigned int cport);
 void unipro_p2p_reset_connection(unsigned int cport);
 void unipro_p2p_setup(void);
-void unipro_p2p_detect_linkloss(void);
+int unipro_p2p_detect_linkloss(bool enable);
 bool unipro_p2p_is_link_up(void);
 
 void unipro_powermode_change(uint8_t txgear, uint8_t rxgear, uint8_t pwrmode, uint8_t series, uint8_t termination);
