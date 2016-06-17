@@ -270,6 +270,8 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_poweron_process_ev(mhb_camera_sm
         case MHB_CAMERA_EV_POWER_OFF_REQ:
             next_state = MHB_CAMERA_STATE_WAIT_OFF;
             break;
+        case MHB_CAMERA_EV_CONFIGURED:
+        case MHB_CAMERA_EV_DECONFIGURED:
         case MHB_CAMERA_EV_NONE:
             next_state = s_state;
             break;
