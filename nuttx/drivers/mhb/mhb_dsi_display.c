@@ -42,6 +42,8 @@
 #include <nuttx/gpio.h>
 #include <nuttx/time.h>
 
+#include <nuttx/greybus/mods.h>
+
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_dsi_display.h>
 #include <nuttx/mhb/mhb_protocol.h>
@@ -851,6 +853,41 @@ static int _mhb_dsi_display_apbe_off(struct mhb_dsi_display *display)
     return 0;
 }
 
+static int _mhb_dsi_display_attach(void *arg, const void *data)
+{
+    if (!arg || !data) {
+        return -EINVAL;
+    }
+
+    struct mhb_dsi_display *display = (struct mhb_dsi_display *)arg;
+    enum base_attached_e state = *((enum base_attached_e *)data);
+
+    vdbg("display=%p, state=%d\n", display, state);
+
+    switch (state) {
+    case BASE_DETACHED:
+    case BASE_ATTACHED_OFF:
+        /* Stop the event thread (it should already be stopped). */
+        _mhb_dsi_display_stop_thread(display);
+
+        /* Turn panel off. */
+        _mhb_dsi_display_power_off(display);
+
+        /* Request APBE off. */
+        _mhb_dsi_display_apbe_off(display);
+
+        display->state = MHB_DSI_DISPLAY_STATE_OFF;
+        break;
+    case BASE_ATTACHED:
+    case BASE_INVALID:
+        /* Ignore */
+        break;
+    }
+
+    vdbg("done\n");
+    return 0;
+}
+
 static int _mhb_dsi_display_set_state_on(struct mhb_dsi_display *display)
 {
     int result;
@@ -1033,6 +1070,11 @@ static int mhb_dsi_display_probe(struct device *dev)
     if (result) {
         dbg("ERROR: Failed to configure GPIOS\n");
         return -EBUSY;
+    }
+
+    /* Register for attach notifications. This will callback immediately. */
+    if (mods_attach_register(_mhb_dsi_display_attach, display)) {
+        dbg("ERROR: failed to register attach notifier\n");
     }
 
     return 0;
