@@ -133,6 +133,8 @@ extern struct mhb_unipro_stats g_unipro_stats;
 /* Helpers */
 static void _svc_bitmask_to_stats(uint32_t *counter, uint32_t value)
 {
+    vdbg("%p %d\n", counter, value);
+
     bool delta = false;
 
     while (value) {
@@ -148,6 +150,8 @@ static void _svc_bitmask_to_stats(uint32_t *counter, uint32_t value)
     if (delta && !g_svc.stats_pending) {
         svc_send_event(SVC_EVENT_QUEUE_STATS, 0, 0, 0);
         g_svc.stats_pending = true;
+    } else {
+        vdbg("stats pending\n");
     }
 }
 
@@ -307,17 +311,22 @@ static void unipro_evt_handler(enum unipro_event evt)
     default:
         break;
     }
+
+    vdbg("done\n");
 }
 
 static void svc_unipro_link_timeout_handler(svc_timer_t timerid) {
+    vdbg("\n");
     svc_send_event(SVC_EVENT_UNIPRO_LINK_TIMEOUT, (void *)timerid, NULL, NULL);
 }
 
 static void svc_mod_detect_timeout_handler(svc_timer_t timerid) {
+    vdbg("\n");
     svc_send_event(SVC_EVENT_MOD_TIMEOUT, (void *)timerid, NULL, NULL);
 }
 
 static void svc_stats_timeout_handler(svc_timer_t timerid) {
+    vdbg("\n");
     svc_send_event(SVC_EVENT_SEND_STATS, 0, 0, 0);
 }
 
@@ -325,6 +334,7 @@ static void svc_stats_timeout_handler(svc_timer_t timerid) {
 static bool handle_mod_retry(svc_timer_t tid) {
 
     if (tid != g_svc.mod_detect_tid) {
+        vdbg("ignore tid\n");
         return true;
     }
 
@@ -342,6 +352,7 @@ static bool handle_mod_retry(svc_timer_t tid) {
         unipro_reset();
         if (!svc_restart_timer(tid)) {
             /* TODO: handle error case */
+            dbg("ERROR: restart timer failed\n");
         }
         mhb_send_pm_status_not(MHB_PM_STATUS_PEER_RESET);
     }
@@ -378,19 +389,24 @@ inline static bool svc_state_valid(enum svc_state state) {
 /* Event Handlers */
 
 static enum svc_state svc_initial__master_started(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     svc_timer_init();
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_ON);
 
     if (unipro_p2p_is_link_up()) {
+        vdbg("link already up\n");
         /* Link is already up. No need poll link status. */
         svc_send_event(SVC_EVENT_UNIPRO_LINK_UP, 0, 0, 0);
     } else {
+        vdbg("link not up\n");
         /* Link is not up. Start up link status check polling */
         g_svc.linkup_poll_tid = svc_set_timer(&svc_unipro_link_timeout_handler,
                                               SVC_LINKUP_POLL_INTERVAL);
         if (g_svc.linkup_poll_tid == SVC_TIMER_INVALID) {
             /* TODO: handle error case */
+            dbg("ERROR: invalid link timer\n");
         }
     }
 
@@ -399,12 +415,15 @@ static enum svc_state svc_initial__master_started(struct svc *svc, struct svc_wo
                                          SVC_MOD_DETECT_TIMEOUT);
     if (g_svc.mod_detect_tid == SVC_TIMER_INVALID) {
         /* TODO: handle error case */
+        dbg("ERROR: invalid mod timer\n");
     }
 
     return SVC_WAIT_FOR_UNIPRO;
 }
 
 static enum svc_state svc_initial__slave_started(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     svc_timer_init();
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_ON);
@@ -415,6 +434,8 @@ static enum svc_state svc_initial__slave_started(struct svc *svc, struct svc_wor
 }
 
 static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     unipro_p2p_detect_linkloss(true);
     tsb_unipro_set_init_status(INIT_STATUS_OPERATING);
     unipro_attr_local_write(TSB_DME_ES3_SYSTEM_STATUS_14, CONFIG_VERSION, 0);
@@ -435,6 +456,8 @@ static enum svc_state svc_wf_slave_unipro__link_up(struct svc *svc, struct svc_w
 }
 
 static enum svc_state svc_wf_cports__link_down(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
 #if CONFIG_RAMLOG_SYSLOG
     mhb_ramlog_disable(true /* force */);
 #endif
@@ -456,6 +479,8 @@ static enum svc_state svc_wf_cports__link_down(struct svc *svc, struct svc_work 
 }
 
 static enum svc_state svc_wf_cports__connected(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     unsigned int cport = (unsigned int)work->parameter0;
     if (cport != CONFIG_MHB_IPC_CPORT_ID) {
         return g_svc.state;
@@ -470,6 +495,8 @@ static enum svc_state svc_wf_cports__connected(struct svc *svc, struct svc_work 
 }
 
 static enum svc_state svc_wf_unipro__link_up(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     /* Unipro link is up. Starting "unipro_init" stuff now */
     unipro_init_with_event_handler(unipro_evt_handler);
     unipro_p2p_detect_linkloss(true);
@@ -479,16 +506,21 @@ static enum svc_state svc_wf_unipro__link_up(struct svc *svc, struct svc_work *w
 }
 
 static enum svc_state svc_wf_unipro__link_timeout(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     svc_timer_t tid = (svc_timer_t)work->parameter0;
 
     if (tid == g_svc.linkup_poll_tid) {
         if (unipro_p2p_is_link_up()) {
+            vdbg("link already up\n");
             svc_delete_timer(g_svc.linkup_poll_tid);
             g_svc.linkup_poll_tid = SVC_TIMER_INVALID;
             svc_send_event(SVC_EVENT_UNIPRO_LINK_UP, 0, 0, 0);
         } else {
+            vdbg("link not up\n");
             if (!svc_restart_timer(tid)) {
                 /* TODO: handle error case */
+                dbg("ERROR: restart timer failed\n");
             }
         }
     }
@@ -496,12 +528,16 @@ static enum svc_state svc_wf_unipro__link_timeout(struct svc *svc, struct svc_wo
 }
 
 static enum svc_state svc_wf_unipro__mod_timeout(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     svc_timer_t tid = (svc_timer_t)work->parameter0;
 
     return handle_mod_retry(tid) ? SVC_WAIT_FOR_UNIPRO : SVC_DISCONNECTED;
 }
 
 static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     svc_delete_timer(g_svc.mod_detect_tid);
     g_svc.mod_detect_tid = SVC_TIMER_INVALID;
 
@@ -535,15 +571,20 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
 }
 
 static enum svc_state svc_wf_mod__mod_timeout(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     svc_timer_t tid = (svc_timer_t)work->parameter0;
 
     if (handle_mod_retry(tid)) {
+        vdbg("retry\n");
+
         /* APBE will be reset && local unipro block is restarted.
            Need to wait for unipro link up again */
         g_svc.linkup_poll_tid = svc_set_timer(&svc_unipro_link_timeout_handler,
                                               SVC_LINKUP_POLL_INTERVAL);
         if (g_svc.linkup_poll_tid == SVC_TIMER_INVALID) {
             /* TODO: handle error case */
+            dbg("ERROR: invalid link timer\n");
         }
         return SVC_WAIT_FOR_UNIPRO;
     }
@@ -553,6 +594,8 @@ static enum svc_state svc_wf_mod__mod_timeout(struct svc *svc, struct svc_work *
 }
 
 static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
 #if CONFIG_RAMLOG_SYSLOG
     mhb_ramlog_disable(true /* force */);
 #endif
@@ -574,6 +617,8 @@ static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work 
 }
 
 static enum svc_state svc_connected__gear_shifted(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     int err = (int)work->parameter0;
     gearbox_shift_complete(g_svc.gearbox, err);
     return SVC_CONNECTED;
@@ -588,8 +633,11 @@ static enum svc_state svc__test_mode(struct svc *svc, struct svc_work *work) {
 }
 
 static enum svc_state svc__queue_stats(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     if (g_svc.stats_tid != SVC_TIMER_INVALID) {
         /* The stats timer is already set to expire.  No need to start it again. */
+        vdbg("stats timer already running\n");
         return g_svc.state;
     }
 
@@ -602,6 +650,8 @@ static enum svc_state svc__queue_stats(struct svc *svc, struct svc_work *work) {
 }
 
 static enum svc_state svc__send_stats(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
     if (g_svc.stats_tid != SVC_TIMER_INVALID) {
         svc_delete_timer(g_svc.stats_tid);
         g_svc.stats_tid = SVC_TIMER_INVALID;
@@ -756,6 +806,10 @@ static void svc_handle_event(struct svc *svc, struct svc_work *work) {
         return;
     }
 
+    vdbg("state: %s (%d), event: %s (%d)\n",
+         svc_state_to_string(state), state,
+         svc_event_to_string(event), event);
+
     const svc_event_handler handler = SVC_STATES[state][event];
     if (!handler) {
         lldbg("state: %s (%d), event: %s (%d)\n",
@@ -792,12 +846,24 @@ static void svc_work_callback(FAR void *arg) {
         return;
     }
 
+    vdbg("event: %s (%d), %p %p %p\n",
+         svc_event_to_string(svc_work->event), svc_work->event,
+         svc_work->parameter0,
+         svc_work->parameter1,
+         svc_work->parameter2);
+
     svc_handle_event(svc_work->svc, svc_work);
 
     kmm_free(svc_work);
 }
 
 int svc_send_event(enum svc_event event, void *parameter0, void *parameter1, void *parameter2) {
+    llvdbg("event: %s (%d), %p %p %p\n",
+         svc_event_to_string(event), event,
+         parameter0,
+         parameter1,
+         parameter2);
+
     struct svc_work *svc_work = (struct svc_work *)kmm_zalloc(sizeof(*svc_work));
     if (!svc_work) {
         lldbg("ERROR: failed to alloc work: errno=%d\n", get_errno());
@@ -820,6 +886,8 @@ int svc_send_event(enum svc_event event, void *parameter0, void *parameter1, voi
 }
 
 int svc_init(void) {
+    vdbg("\n");
+
     g_svc.state = SVC_WAIT_FOR_AP;
     g_svc.mod_detect_tid = SVC_TIMER_INVALID;
     g_svc.linkup_poll_tid = SVC_TIMER_INVALID;
