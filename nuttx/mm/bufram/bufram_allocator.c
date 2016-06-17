@@ -52,6 +52,11 @@
 
 static struct list_head mm_bucket[MM_BUCKET_MAX + 1];
 
+#ifdef CONFIG_MM_BUFRAM_DEBUG
+static size_t g_bufram_allocs;
+static size_t g_bufram_frees;
+#endif
+
 struct mm_buffer {
     uint32_t canary;
     uint32_t bucket;
@@ -246,6 +251,10 @@ void *bufram_alloc(size_t size)
     if (!buffer)
         goto error;
 
+#ifdef CONFIG_MM_BUFRAM_DEBUG
+    g_bufram_allocs++;
+#endif
+
     list_del(&buffer->list);
     irqrestore(flags);
 
@@ -278,6 +287,10 @@ void bufram_free(void *ptr)
 #endif
 
     flags = irqsave();
+
+#ifdef CONFIG_MM_BUFRAM_DEBUG
+    g_bufram_frees++;
+#endif
 
     list_add(&mm_bucket[buffer->bucket], &buffer->list);
     defragment(buffer);
@@ -316,3 +329,44 @@ void bufram_page_free(void *ptr, size_t page_count)
 
     bufram_free(get_buffer_payload(buffer));
 }
+
+#ifdef CONFIG_MM_BUFRAM_DEBUG
+void bufram_dump(void)
+{
+    irqstate_t flags;
+    flags = irqsave();
+
+    lldbg("allocs=%d, frees=%d, outstanding=%d\n",
+          g_bufram_allocs, g_bufram_frees, (g_bufram_allocs - g_bufram_frees));
+
+    size_t i;
+    for (i = 0; i < ARRAY_SIZE(mm_bucket); i++) {
+        size_t count = 0;
+        size_t errors = 0;
+
+        if (!list_is_empty(&mm_bucket[i])) {
+            struct list_head *iter;
+            list_foreach(&mm_bucket[i], iter) {
+                struct mm_buffer *buffer;
+                buffer = list_entry(iter, struct mm_buffer, list);
+
+#if defined(CONFIG_MM_BUFRAM_CANARY)
+                if (buffer->canary != MM_CANARY) {
+                    errors++;
+                }
+#endif
+
+                if (buffer->bucket != i) {
+                    errors++;
+                }
+
+                count++;
+            }
+        }
+
+        lldbg("[% 2d] count=%zd, errors=%zd\n", i, count, errors);
+    }
+
+    irqrestore(flags);
+}
+#endif
