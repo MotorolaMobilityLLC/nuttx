@@ -1363,7 +1363,7 @@ static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
     }
 }
 
-static int mhb_handle_diag_log_req(struct mhb_transaction *transaction)
+static int _mhb_handle_local_diag_log_req(struct mhb_transaction *transaction)
 {
     transaction->out_msg.hdr->addr = MHB_ADDR_DIAG;
     transaction->out_msg.hdr->type = MHB_TYPE_DIAG_LOG_RSP;
@@ -1398,6 +1398,25 @@ done:
 #endif
 
     return 0;
+}
+
+static int _mhb_handle_peer_diag_log_req(struct mhb_transaction *transaction)
+{
+    transaction->out_msg.hdr->addr = MHB_ADDR_DIAG|MHB_PEER_MASK;
+    transaction->out_msg.hdr->type = MHB_TYPE_DIAG_LOG_RSP;
+    transaction->out_msg.hdr->result = MHB_RESULT_UNKNOWN_ERROR;
+    transaction->send_rsp = true;
+
+    return 0;
+}
+
+static int mhb_handle_diag_log_req(struct mhb_transaction *transaction)
+{
+    if (transaction->in_msg.hdr->addr & MHB_PEER_MASK) {
+        return _mhb_handle_peer_diag_log_req(transaction);
+    } else {
+        return _mhb_handle_local_diag_log_req(transaction);
+    }
 }
 
 static int mhb_handle_diag_log_not(struct mhb_transaction *transaction)
