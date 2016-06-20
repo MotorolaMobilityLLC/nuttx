@@ -26,6 +26,36 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* The apbe-ctrl driver performs two functions:
+ *    1. Provide a service that drivers use to 'vote' to request the APBA/APBE
+ *       functionality.  The votes are tallied and the APBA/APBE are enabled IFF
+ *       at least one driver needs the functionality.  The results of the tally
+ *       are known as the 'slave_state'.
+ *    2. Provide a service to the APBA (that it uses via the AP and Greybus) to
+ *       control the APBE's power and to check the APBE's boot status.  The
+ *       current power status is known as the 'slave status'.
+ *
+ *  These functions are accessed via three groups of thread-contexts:
+ *    1. Driver threads (e.g. display or camera threads) for voting for the
+ *       APBA/APBE.
+ *    2. Greybus threads (e.g. GB Mods Control thread) to control or report the
+ *       APBE status.
+ *    3. Attach notifier thread for attach and detach requests.
+ *
+ *  Block diagram:
+ *                        ----------      ------------
+ *                        |        |      |  SLAVE   | <--- (un)register_slave_state_cb
+ *  send_slave_state ---> | VOTING | ---> |  STATE   | ----> slave_state_cb (notify current vote)
+ *    (cast vote)         |        |      | CALLBACK | <--- op_get_mask     (query current vote)
+ *                        ----------      -----------
+ *
+ *                                   ------------      ------------
+ * (un)register_slave_status_cb ---> |  SLAVE   |      |  POWER   | <--- op_set_mode (power on/off)
+ *              slave_status_cb <--- |  STATUS  | <--- | CONTROL  |
+ *                                   | CALLBACK |      |          | <--- attach_changed (attach state)
+ *                                   ------------      -----------
+ */
+
 #include <debug.h>
 #include <errno.h>
 #include <semaphore.h>
@@ -134,7 +164,7 @@ static int apbe_pwrctrl_op_get_mask(struct device *dev, uint32_t *mask)
         *mask = MB_CONTROL_SLAVE_MASK_APBE;
     }
 
-    lldbg("mask=0x%x\n", (mask ? *mask : 0));
+    dbg("state=%d\n", (mask ? *mask : 0));
     return OK;
 }
 
@@ -159,7 +189,7 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
 {
     struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
 
-    lldbg("mode=%d\n", mode);
+    dbg("power mode=%d\n", mode);
     switch (mode) {
     case SLAVE_PWRCTRL_POWER_ON:
         apbe_pwrctrl_enable_uart(ctrl_info);
@@ -182,7 +212,6 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
         break;
     }
 
-    lldbg("mode=%d done\n", mode);
     return OK;
 }
 
@@ -192,6 +221,8 @@ static int apbe_pwrctrl_attach_changed(FAR void *arg, const void *data)
     enum base_attached_e state = *((enum base_attached_e *)data);
 
     DEBUGASSERT(ctrl_info);
+
+    vdbg("new attach=%d, old attach=%d\n", state, ctrl_info->attached);
 
     while (sem_wait(&ctrl_info->apbe_pwrctrl_sem) != OK) {
         if (errno == EINVAL) {
@@ -217,9 +248,11 @@ static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
     }
 
     if (payload_length != sizeof(*not)) {
-        lldbg("ERROR: Invalid PM status notify\n");
+        dbg("ERROR: Invalid PM status notify\n");
         return -EINVAL;
     }
+
+    vdbg("status=%d\n", not->status);
 
     ctrl_info->status = not->status;
     apbe_pwrctrl_notify_slave_status(dev, ctrl_info);
@@ -245,12 +278,13 @@ static int apbe_pwrctrl_open(struct device *dev)
     }
 
     if (!apbe_ctrl.mhb_dev) {
-        lldbg("failed to open MHB device.\n");
+        dbg("ERROR: failed to open MHB device\n");
         irqrestore(flags);
         return -EAGAIN;
     }
 
     apbe_ctrl.open_ref_cnt++;
+    vdbg("opened=%d\n", apbe_ctrl.open_ref_cnt);
 
     irqrestore(flags);
     return 0;
@@ -261,8 +295,11 @@ static void apbe_pwrctrl_close(struct device *dev) {
     flags = irqsave();
 
     apbe_ctrl.open_ref_cnt--;
+    vdbg("opened=%d\n", apbe_ctrl.open_ref_cnt);
 
     if (apbe_ctrl.open_ref_cnt == 0 && apbe_ctrl.mhb_dev) {
+        vdbg("close MHB\n");
+
         /* Close the MHB device. */
         device_mhb_unregister_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
 
@@ -294,7 +331,7 @@ static int apbe_pwrctrl_probe(struct device *dev)
     gpio_direction_out(GPIO_APBE_RST_N, 0);
     apbe_ctrl.attached = BASE_DETACHED;
     if (mods_attach_register(apbe_pwrctrl_attach_changed, &apbe_ctrl))
-        lldbg("failed to register mods_attach callback\n");
+        dbg("ERROR: failed to register mods_attach callback\n");
 
     apbe_ctrl.is_initialized = true;
 
@@ -346,13 +383,13 @@ static int apbe_pwrctrl_send_slave_state(struct device *dev, uint32_t slave_stat
     }
 
     if (ctrl_info->attached != BASE_ATTACHED) {
-         lldbg("base is not attached\n");
+         dbg("ERROR: base is not attached\n");
          ret = -EINVAL;
          goto err;
     }
 
     if (!ctrl_info->slave_state_cb) {
-        lldbg("slave state cb is not registered\n");
+        dbg("ERROR: slave state cb is not registered\n");
         ret = -EIO;
         goto err;
     }
@@ -369,8 +406,12 @@ static int apbe_pwrctrl_send_slave_state(struct device *dev, uint32_t slave_stat
 
     if ((ctrl_info->slave_state_ref_cnt <= 1) &&
                       (curr_ref_cnt <= 1)) {
-            lldbg("update slave state %s\n", (slave_state == SLAVE_STATE_ENABLED)?"Enabled":"Disabled");
+            dbg("state=%d, new votes=%d, old votes=%d\n",
+                slave_state, ctrl_info->slave_state_ref_cnt, curr_ref_cnt);
             ret = ctrl_info->slave_state_cb(dev, slave_state);
+    } else {
+        vdbg("no change, state=%d, votes=%d\n",
+             slave_state, ctrl_info->slave_state_ref_cnt);
     }
 
 err:
@@ -386,12 +427,12 @@ static int apbe_pwrctrl_register_slave_status_cb(struct device *dev,
     struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
 
     if (!ctrl_info) {
-        lldbg("ERROR: Invalid device\n");
+        dbg("ERROR: Invalid device\n");
         return -ENODEV;
     }
 
     if (cb == NULL) {
-        lldbg("ERROR: Invalid cb\n");
+        dbg("ERROR: Invalid cb\n");
         return -EINVAL;
     }
 
@@ -403,7 +444,7 @@ static int apbe_pwrctrl_register_slave_status_cb(struct device *dev,
         }
     }
 
-    lldbg("ERROR: Failed to register\n");
+    dbg("ERROR: Failed to register\n");
     return -ENOMEM;
 }
 
@@ -414,7 +455,7 @@ static int apbe_pwrctrl_unregister_slave_status_cb(struct device *dev,
     struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
 
     if (!ctrl_info) {
-        lldbg("ERROR: Invalid device\n");
+        dbg("ERROR: Invalid device\n");
         return -ENODEV;
     }
 
@@ -425,7 +466,7 @@ static int apbe_pwrctrl_unregister_slave_status_cb(struct device *dev,
         }
     }
 
-    lldbg("ERROR: Failed to unregister\n");
+    dbg("ERROR: Failed to unregister\n");
     return -EINVAL;
 }
 
