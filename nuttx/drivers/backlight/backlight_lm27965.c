@@ -31,6 +31,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <nuttx/greybus/mods.h>
+
 #include <nuttx/device.h>
 #include <nuttx/device_lights.h>
 #include <nuttx/gpio.h>
@@ -152,6 +154,32 @@ static void _lm27965_backlight_power_off(struct lm27965_backlight *backlight)
     if (backlight->gpio_power != LM27965_INVALID_RESOURCE) {
         gpio_direction_out(backlight->gpio_power, 0);
     }
+}
+
+static int _lm27965_backlight_attach(void *arg, const void *data)
+{
+    if (!arg || !data) {
+        return -EINVAL;
+    }
+
+    struct lm27965_backlight *backlight = (struct lm27965_backlight *)arg;
+    enum base_attached_e state = *((enum base_attached_e *)data);
+
+    vdbg("backlight=%p, state=%d\n", backlight, state);
+
+    switch (state) {
+    case BASE_ATTACHED_OFF:
+    case BASE_DETACHED:
+        _lm27965_backlight_power_off(backlight);
+        break;
+    case BASE_ATTACHED:
+    case BASE_INVALID:
+        /* Ignore */
+        break;
+    }
+
+    vdbg("done\n");
+    return 0;
 }
 
 static int
@@ -339,7 +367,6 @@ static int lm27965_backlight_unregister_callback(struct device *dev)
     return 0;
 }
 
-
 /**
  * @brief open device
  *
@@ -437,6 +464,12 @@ static int lm27965_backlight_probe(struct device *dev)
     backlight->on = 0;
 
     device_set_private(dev, backlight);
+
+    /* Register for attach notifications. This will callback immediately. */
+    if (mods_attach_register(_lm27965_backlight_attach, backlight)) {
+        dbg("ERROR: failed to register attach notifier\n");
+    }
+
     return 0;
 }
 
