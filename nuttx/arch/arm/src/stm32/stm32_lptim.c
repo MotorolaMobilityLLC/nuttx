@@ -74,6 +74,8 @@
 
 #include <errno.h>
 
+#include <arch/board/board.h>
+
 #include "stm32.h"
 #include "stm32_gpio.h"
 #include "stm32_lptim.h"
@@ -100,11 +102,19 @@ struct stm32_lptim_priv_s
   struct stm32_lptim_ops_s *ops;
   stm32_lptim_mode_t        mode;
   uint32_t                  base;   /* LPTIMn base address */
+  uint32_t                  freq;   /* Clocking for the LPTIM module */
 };
 
 /************************************************************************************
  * Private Functions
  ************************************************************************************/
+
+static inline void stm32_modifyreg32(FAR struct stm32_lptim_dev_s *dev,
+                                     uint8_t offset, uint32_t clearbits,
+                                     uint32_t setbits)
+{
+  modifyreg32(((struct stm32_lptim_priv_s *)dev)->base + offset, clearbits, setbits);
+}
 
 static int stm32_lptim_enable(FAR struct stm32_lptim_dev_s *dev)
 {
@@ -281,6 +291,74 @@ static int stm32_lptim_setmode(FAR struct stm32_lptim_dev_s *dev, stm32_lptim_mo
   return OK;
 }
 
+static int stm32_lptim_setclock(FAR struct stm32_lptim_dev_s *dev, uint32_t freq)
+{
+  FAR struct stm32_lptim_priv_s *priv = (FAR struct stm32_lptim_priv_s *)dev;
+  uint32_t setbits;
+  uint32_t actual;
+
+  ASSERT(dev);
+
+  /* Disable Timer? */
+
+  if (freq == 0)
+    {
+      stm32_lptim_disable(dev);
+      return 0;
+    }
+
+  if (freq >= priv->freq >> 0)
+    {
+      /* More than clock source.  This is as fast as we can go */
+
+      setbits = LPTIM_CFGR_PRESCd1;
+      actual = priv->freq >> 0;
+    }
+  else if (freq >= priv->freq >> 1)
+    {
+      setbits = LPTIM_CFGR_PRESCd2;
+      actual = priv->freq >> 1;
+    }
+  else if (freq >= priv->freq >> 2)
+    {
+      setbits = LPTIM_CFGR_PRESCd4;
+      actual = priv->freq >> 2;
+    }
+  else if (freq >= priv->freq >> 3)
+    {
+      setbits = LPTIM_CFGR_PRESCd8;
+      actual = priv->freq >> 3;
+    }
+  else if (freq >= priv->freq >> 4)
+    {
+      setbits = LPTIM_CFGR_PRESCd16;
+      actual = priv->freq >> 4;
+    }
+  else if (freq >= priv->freq >> 5)
+    {
+      setbits = LPTIM_CFGR_PRESCd32;
+      actual = priv->freq >> 5;
+    }
+  else if (freq >= priv->freq >> 6)
+    {
+      setbits = LPTIM_CFGR_PRESCd64;
+      actual = priv->freq >> 6;
+    }
+  else
+    {
+      /* This is as slow as we can go */
+
+      setbits = LPTIM_CFGR_PRESCd128;
+      actual = priv->freq >> 7;
+    }
+
+  stm32_modifyreg32(dev, STM32_LPTIM_CFGR_OFFSET, LPTIM_CFGR_PRESC_MASK,
+                    setbits);
+  stm32_lptim_enable(dev);
+
+  return actual;
+}
+
 static int stm32_lptim_setchannel(FAR struct stm32_lptim_dev_s *dev,
                                   stm32_lptim_channel_t channel, int enable)
 {
@@ -313,6 +391,7 @@ static int stm32_lptim_setchannel(FAR struct stm32_lptim_dev_s *dev,
 struct stm32_lptim_ops_s stm32_lptim_ops =
 {
   .setmode        = &stm32_lptim_setmode,
+  .setclock       = &stm32_lptim_setclock,
   .setchannel     = &stm32_lptim_setchannel,
 };
 
@@ -322,6 +401,7 @@ struct stm32_lptim_priv_s stm32_lptim1_priv =
   .ops        = &stm32_lptim_ops,
   .mode       = STM32_LPTIM_MODE_UNUSED,
   .base       = STM32_LPTIM1_BASE,
+  .freq       = STM32_LPTIM1_FREQUENCY,
 };
 #endif
 
@@ -331,6 +411,7 @@ struct stm32_lptim_priv_s stm32_lptim2_priv =
   .ops        = &stm32_lptim_ops,
   .mode       = STM32_LPTIM_MODE_UNUSED,
   .base       = STM32_LPTIM2_BASE,
+  .freq       = STM32_LPTIM2_FREQUENCY,
 };
 #endif
 
@@ -404,4 +485,4 @@ int stm32_lptim_deinit(FAR struct stm32_lptim_dev_s * dev)
   return OK;
 }
 
-#endif /* defined(CONFIG_STM32_LPTIM1 || ... || LPTIM2) */
+#endif /* defined(CONFIG_STM32_LPTIM1 || LPTIM2) */

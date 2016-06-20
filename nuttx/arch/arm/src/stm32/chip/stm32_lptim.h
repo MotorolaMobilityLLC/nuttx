@@ -89,6 +89,14 @@
                                             /* Bit  8: reserved */
 #define LPTIM_CFGR_PRESC_SHIFT   (9)        /* Bits 11-9: clock pre-scaler */
 #define LPTIM_CFGR_PRESC_MASK    (0x7 << LPTIM_CFGR_PRESC_SHIFT)
+#  define LPTIM_CFGR_PRESCd1     (0 << LPTIM_CFGR_PRESC_SHIFT) /* 000: divide by 1 */
+#  define LPTIM_CFGR_PRESCd2     (1 << LPTIM_CFGR_PRESC_SHIFT) /* 001: divide by 2 */
+#  define LPTIM_CFGR_PRESCd4     (2 << LPTIM_CFGR_PRESC_SHIFT) /* 010: divide by 4 */
+#  define LPTIM_CFGR_PRESCd8     (3 << LPTIM_CFGR_PRESC_SHIFT) /* 011: divide by 8 */
+#  define LPTIM_CFGR_PRESCd16    (4 << LPTIM_CFGR_PRESC_SHIFT) /* 100: divide by 16 */
+#  define LPTIM_CFGR_PRESCd32    (5 << LPTIM_CFGR_PRESC_SHIFT) /* 101: divide by 32 */
+#  define LPTIM_CFGR_PRESCd64    (6 << LPTIM_CFGR_PRESC_SHIFT) /* 110: divide by 64 */
+#  define LPTIM_CFGR_PRESCd128   (7 << LPTIM_CFGR_PRESC_SHIFT) /* 111: divide by 128 */
                                             /* Bit  12: reserved */
 #define LPTIM_CFGR_TRIGSEL_SHIFT (13)       /* Bits 15-13: Trigger selector */
 #define LPTIM_CFGR_TRIGSEL_MASK  (0x7 << LPTIM_CFGR_TRIGSEL_SHIFT)

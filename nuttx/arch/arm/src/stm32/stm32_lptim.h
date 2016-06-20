@@ -84,6 +84,7 @@
 /* Helpers **************************************************************************/
 
 #define STM32_LPTIM_SETMODE(d,mode)     ((d)->ops->setmode(d,mode))
+#define STM32_LPTIM_SETCLOCK(d,freq)    ((d)->ops->setclock(d,freq))
 #define STM32_LPTIM_SETCHANNEL(d,ch,en) ((d)->ops->setchannel(d,ch,en))
 
 /************************************************************************************
@@ -139,6 +140,7 @@ typedef enum
 struct stm32_lptim_ops_s
 {
   int  (*setmode)(FAR struct stm32_lptim_dev_s *dev, stm32_lptim_mode_t mode);
+  int  (*setclock)(FAR struct stm32_lptim_dev_s *dev, uint32_t freq);
   int  (*setchannel)(FAR struct stm32_lptim_dev_s *dev, stm32_lptim_channel_t channel, int enable);
 };
 
