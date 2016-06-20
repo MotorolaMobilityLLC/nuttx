@@ -147,7 +147,7 @@ ifeq ($(CONFIG_DEVICE_CORE),y)
 endif
 
 ifeq ($(CONFIG_FUSB302),y)
-  CSRCS += fusb302_ext_power.c
+  CSRCS += fusb302.c
 endif
 
 ifeq ($(CONFIG_USB_EXT_CTRL), y)
