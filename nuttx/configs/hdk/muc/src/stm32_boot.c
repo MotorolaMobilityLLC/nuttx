@@ -883,7 +883,7 @@ void board_initialize(void)
    struct i2c_dev_s *i2c = up_i2cinitialize(MAX17050_I2C_BUS);
    if (i2c) {
       g_battery = max17050_initialize(i2c, MAX17050_I2C_FREQ,
-             GPIO_MODS_CC_ALERT, -1);
+                  GPIO_MODS_CC_ALERT);
       if (!g_battery) {
          up_i2cuninitialize(i2c);
       }
