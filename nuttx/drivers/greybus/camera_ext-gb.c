@@ -42,8 +42,8 @@
 #define CAMERA_EXT_DEVICE_ID 0
 
 /* Version of the Greybus camera protocol we support */
-#define GB_CAMERA_EXT_VERSION_MAJOR 0x00
-#define GB_CAMERA_EXT_VERSION_MINOR 0x01
+#define GB_CAMERA_EXT_VERSION_MAJOR 0x01
+#define GB_CAMERA_EXT_VERSION_MINOR 0x00
 
 /* Used to indicate enum index is not found */
 #define GB_CAMERA_EXT_INVALID_INDEX cpu_to_le32(0xFFFFFFFF)
