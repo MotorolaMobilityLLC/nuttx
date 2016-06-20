@@ -138,7 +138,7 @@
 #define MAX17050_MIN_BATTERY_VOLTAGE    2500    /* in mV */
 
 /* Delay afer fuel gauge power up */
-#define MAX17050_DELAY_AFTER_POWERUP    750000  /* in uS */
+#define MAX17050_DELAY_AFTER_POWERUP    750     /* in mS */
 
 /* Delay to wait for the ALERT line to deassert after conditions go away */
 #define MAX17050_ALERT_DEASSERT_DELAY   500     /* in mS */
@@ -156,10 +156,8 @@ struct max17050_dev_s
 
     FAR struct i2c_dev_s *i2c;
     bool initialized;
-    struct work_s i2c_available_work;
     struct work_s alrt_work;
     int alrt_gpio;
-    bool use_voltage_alrt;
     struct work_s batt_good_work;
     struct device *batt_good_dev;
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
@@ -938,56 +936,49 @@ static void max17050_queue_alrt_work(FAR struct max17050_dev_s *priv, int ms)
 static void max17050_alrt_worker(FAR void *arg)
 {
     FAR struct max17050_dev_s *priv = arg;
-    pthread_t por_thread;
     int status;
     bool empty_battery = false;
     int delay;
 
-    /* Process only if ALRT line is asserted */
-    if (gpio_get_value(priv->alrt_gpio))
+    /* Process only if ALRT line is asserted and initialized */
+    if (gpio_get_value(priv->alrt_gpio) || !priv->initialized)
         return;
 
     status = max17050_reg_read_retry(priv, MAX17050_REG_STATUS);
 
-    if (status >= 0) {
-        if (!priv->initialized && priv->use_voltage_alrt) {
-            max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
-            pthread_create(&por_thread, NULL, max17050_por, priv);
-            pthread_detach(por_thread);
-        } else if (priv->initialized) {
+    if (status > 0) {
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
  #if CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE
-            if (status & MAX17050_STATUS_VMN && priv->min_valrt ==
-                          CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE) {
-                max17050_battery_level_set_empty(priv);
-                empty_battery = true;
-                max17050_do_level_limits_cb(priv, true);
-                /* Skip checking voltage alerts in battery voltage driver */
-                status &= ~(MAX17050_STATUS_VMN | MAX17050_STATUS_VMX);
-            } else if (status & MAX17050_STATUS_SMN)
-                max17050_do_level_limits_cb(priv, true);
-            else if (status & MAX17050_STATUS_SMX)
-                max17050_do_level_limits_cb(priv, false);
+        if (status & MAX17050_STATUS_VMN && priv->min_valrt ==
+                        CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE) {
+            max17050_battery_level_set_empty(priv);
+            empty_battery = true;
+            max17050_do_level_limits_cb(priv, true);
+            /* Skip checking voltage alerts in battery voltage driver */
+            status &= ~(MAX17050_STATUS_VMN | MAX17050_STATUS_VMX);
+        } else if (status & MAX17050_STATUS_SMN)
+            max17050_do_level_limits_cb(priv, true);
+        else if (status & MAX17050_STATUS_SMX)
+            max17050_do_level_limits_cb(priv, false);
  #else
-            if (status & MAX17050_STATUS_SMN)
-                max17050_do_level_limits_cb(priv, true);
-            else if (status & MAX17050_STATUS_SMX)
-                max17050_do_level_limits_cb(priv, false);
+        if (status & MAX17050_STATUS_SMN)
+            max17050_do_level_limits_cb(priv, true);
+        else if (status & MAX17050_STATUS_SMX)
+            max17050_do_level_limits_cb(priv, false);
  #endif
 #endif
 #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
-            if (status & MAX17050_STATUS_VMN)
-                max17050_do_voltage_limits_cb(priv, true);
-            else if (status & MAX17050_STATUS_VMX)
-                max17050_do_voltage_limits_cb(priv, false);
+        if (status & MAX17050_STATUS_VMN)
+            max17050_do_voltage_limits_cb(priv, true);
+        else if (status & MAX17050_STATUS_VMX)
+            max17050_do_voltage_limits_cb(priv, false);
 #endif
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
-            if (status & MAX17050_STATUS_TMN)
-                max17050_do_temp_limits_cb(priv, true);
-            else if (status & MAX17050_STATUS_TMX)
-                max17050_do_temp_limits_cb(priv, false);
+        if (status & MAX17050_STATUS_TMN)
+            max17050_do_temp_limits_cb(priv, true);
+        else if (status & MAX17050_STATUS_TMX)
+            max17050_do_temp_limits_cb(priv, false);
 #endif
-        }
    }
 
     /* It takes up to 350 mS for the IC to de-assert the ALRT line after the
@@ -1091,7 +1082,8 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
            in available callback is already active */
         max17050_enable_alrt(priv, true);
         max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
-    }
+    } else
+        max17050_enable_alrt(priv, false);
 #endif
 
 }
@@ -1107,13 +1099,11 @@ static bool max17050_new_config(FAR struct max17050_dev_s *priv)
     return (max17050_cfg.version != ret);
 }
 
-static void max17050_check_por(FAR struct max17050_dev_s *priv)
+static void max17050_batt_is_good_worker(FAR void *arg)
 {
+    FAR struct max17050_dev_s *priv = arg;
     pthread_t por_thread;
     int ret;
-
-    // Wait in case the device just powered up
-    usleep(MAX17050_DELAY_AFTER_POWERUP);
 
     ret = max17050_reg_read_retry(priv, MAX17050_REG_DEV_NAME);
     if (ret < 0) {
@@ -1157,37 +1147,10 @@ static void max17050_check_por(FAR struct max17050_dev_s *priv)
     // Configure device after Power-On Reset or with the new configuration
     if (ret & MAX17050_STATUS_POR || max17050_new_config(priv)) {
         max17050_set_initialized(priv, false);
-        if (priv->use_voltage_alrt) {
-            max17050_set_voltage_alert(priv, INT_MIN,
-                                       MAX17050_MIN_BATTERY_VOLTAGE);
-            max17050_enable_alrt(priv, true);
-        } else {
-            pthread_create(&por_thread, NULL, max17050_por, priv);
-            pthread_detach(por_thread);
-        }
+        pthread_create(&por_thread, NULL, max17050_por, priv);
+        pthread_detach(por_thread);
     } else
         max17050_set_initialized(priv, true);
-}
-
-static void max17050_i2c_available_worker(FAR void *arg)
-{
-    max17050_check_por((FAR struct max17050_dev_s *)arg);
-}
-
-static int max17050_i2c_available_isr(int irq, void *context)
-{
-    if (work_available(&g_max17050_dev->i2c_available_work)) {
-        work_queue(LPWORK, &g_max17050_dev->i2c_available_work,
-                   max17050_i2c_available_worker, g_max17050_dev, 0);
-        pm_activity(PM_ACTIVITY);
-    };
-
-    return OK;
-}
-
-static void max17050_batt_is_good_worker(FAR void *arg)
-{
-    max17050_check_por(arg);
 }
 
 static void max17050_batt_is_bad_worker(FAR void *arg)
@@ -1200,17 +1163,17 @@ static void max17050_battery_good(void *arg, bool good)
     FAR struct max17050_dev_s *priv = arg;
     worker_t worker = good ? max17050_batt_is_good_worker :
                              max17050_batt_is_bad_worker;
+    int delay = good ? MSEC2TICK(MAX17050_DELAY_AFTER_POWERUP) : 0;
 
     if (work_cancel(LPWORK, &priv->batt_good_work) == 0)
-        work_queue(LPWORK, &priv->batt_good_work, worker, priv, 0);
+        work_queue(LPWORK, &priv->batt_good_work, worker, priv, delay);
 
     return;
 }
 
 FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
                                               uint32_t frequency,
-                                              int alrt_gpio,
-                                              int reg_gpio)
+                                              int alrt_gpio)
 {
     FAR struct max17050_dev_s *priv;
     int ret;
@@ -1241,6 +1204,7 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
             max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
             max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
             max17050_set_temperature_alert(priv, INT_MIN, INT_MAX);
+            max17050_enable_alrt(priv, false);
         }
 
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
@@ -1261,15 +1225,11 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
 
         g_max17050_dev = priv;
 
-        /* The host could be running when battery voltage is below the min level
-         * needed for a fuel gauge to operate. An external device, such as, for
-         * example, battery voltage comparator could be used to detect when fuel
-         * gauge becomes functional. If such h/w is not present, fuel gauge REG
-         * line may be used to detect when fuel gauge can communicate over I2C to
-         * setup VALRT min IRQ to go off when battery voltage is above the min
-         * level.
-         */
-
+       /* If the host can run when battery voltage is below the min level
+        * needed for a fuel gauge to operate, an external device such as
+        * a battery voltage comparator needs to be used to detect when fuel
+        * gauge is functional.
+        */
         priv->batt_good_dev = device_open(DEVICE_TYPE_BATTERY_GOOD_HW, 0);
         if (priv->batt_good_dev) {
             ret = device_batt_good_register_callback(priv->batt_good_dev,
@@ -1280,25 +1240,17 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
                 device_close(priv->batt_good_dev);
                 goto err;
             }
-        }
+        } else
+            /* If batt_good device is not used, check for POR right away */
+            work_queue(LPWORK, &priv->batt_good_work,
+                       max17050_batt_is_good_worker, priv,
+                       MSEC2TICK(MAX17050_DELAY_AFTER_POWERUP));
 
         /* Setup ALRT IRQ */
         if (alrt_gpio >= 0) {
             gpio_irqattach(alrt_gpio, max17050_alrt_isr);
             set_gpio_triggering(alrt_gpio, IRQ_TYPE_EDGE_FALLING);
         }
-
-        /* Use REG line if external batt_good device is not used */
-        if (!priv->batt_good_dev && alrt_gpio >= 0 && reg_gpio >= 0) {
-            priv->use_voltage_alrt = true;
-            gpio_irqattach(reg_gpio, max17050_i2c_available_isr);
-            set_gpio_triggering(reg_gpio, IRQ_TYPE_EDGE_BOTH);
-        }
-
-        /* If batt_good device is not used, check for POR init right away */
-        if (!priv->batt_good_dev && work_available(&priv->i2c_available_work))
-            work_queue(LPWORK, &priv->i2c_available_work,
-                       max17050_i2c_available_worker, priv, 0);
 
     }
 
