@@ -107,7 +107,6 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
         goto done;
     }
 
-#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     if (state->ext_power == &state->wired_current) {
         if ((retval = device_ptp_chg_send_wired_pwr(chg)) == 0)
@@ -120,6 +119,7 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
     }
 #endif
 
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
     if (state->battery.dischg_allowed && !state->base_powered_off) {
         if ((retval = device_ptp_chg_send_batt_pwr(chg, &state->batt_current)) == 0){
             if (state->battery.low_battery) {
