@@ -58,6 +58,8 @@
 #include <nuttx/device_audio.h>
 #include <nuttx/device_i2s.h>
 #include <nuttx/device_mhb_cam.h>
+#include <nuttx/device_usb_ext.h>
+#include <nuttx/fusb302.h>
 
 #include <nuttx/power/battery_state.h>
 #include <nuttx/power/bq25896.h>
@@ -83,7 +85,6 @@ struct board_gpio_cfg_s
 
 static const struct board_gpio_cfg_s board_gpio_cfgs[] =
 {
-  { GPIO_MODS_SL_BPLUS_EN,   (GPIO_PULLUP)                },
   { GPIO_MODS_CC_ALERT,      (GPIO_PULLUP)                },
   { GPIO_MODS_FUSB302_INT_N, (GPIO_INPUT|GPIO_FLOAT)      },
   { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT)      },
@@ -279,12 +280,12 @@ struct ptp_chg_init_data switch_ptp_chg_init_data = {
 #endif
 };
 #endif
-#ifdef CONFIG_FUSB302
-struct device_resource fusb302_resources[] = {
+#ifdef CONFIG_FUSB302_USB_EXT
+struct device_resource fusb302_usb_ext_resources[] = {
     {
-       .name = "int_n",
-       .type = DEVICE_RESOURCE_TYPE_IRQ,
-       .start = GPIO_MODS_FUSB302_INT_N,
+       .name = "path",
+       .type = DEVICE_RESOURCE_TYPE_REGS,
+       .start = GB_USB_EXT_PATH_A,
        .count = 1,
     }
 };
@@ -579,18 +580,24 @@ static struct device devices[] = {
     },
 #endif
 
-#ifdef CONFIG_FUSB302
+#ifdef CONFIG_FUSB302_EXT_POWER
     {
         .type = DEVICE_TYPE_EXT_POWER_HW,
-        .name = "fusb302",
-        .desc = "fusb302",
+        .name = "fusb302_ext_power",
+        .desc = "FUSB 302 External Power",
         .id   = EXT_POWER_WIRED,
-        .resources = fusb302_resources,
-        .resource_count = ARRAY_SIZE(fusb302_resources),
     },
 #endif
-
-
+#ifdef CONFIG_FUSB302_USB_EXT
+    {
+        .type = DEVICE_TYPE_USB_EXT_HW,
+        .name = "fusb302_usb_ext",
+        .desc = "USB-EXT Interface",
+        .id   = 0,
+        .resources = fusb302_usb_ext_resources,
+        .resource_count = ARRAY_SIZE(fusb302_usb_ext_resources),
+    },
+#endif
 #ifdef CONFIG_MHB_CAMERA
 #ifdef CONFIG_MHB_UART
     /* For CSI Camera */
@@ -755,12 +762,23 @@ void board_initialize(void)
   mods_init();
 #endif
 
+#ifndef CONFIG_BOARD_INITTHREAD
+# error "Must enable INITTHREAD"
+#endif
+
 #ifdef CONFIG_DEVICE_CORE
   device_table_register(&muc_device_table);
 
 #ifdef CONFIG_FUSB302
-  extern struct device_driver fusb302_driver;
-  device_register_driver(&fusb302_driver);
+  fusb302_register(GPIO_MODS_FUSB302_INT_N, GPIO_MODS_VBUS_PWR_EN);
+#endif
+#ifdef CONFIG_FUSB302_USB_EXT
+  extern struct device_driver fusb302_usb_ext_driver;
+  device_register_driver(&fusb302_usb_ext_driver);
+#endif
+#ifdef CONFIG_FUSB302_EXT_POWER
+  extern struct device_driver fusb302_ext_power_driver;
+  device_register_driver(&fusb302_ext_power_driver);
 #endif
 #ifdef CONFIG_MODS_RAW
   extern struct device_driver mods_raw_driver;
