@@ -80,6 +80,7 @@
 struct apbe_ctrl_info {
     sem_t apbe_pwrctrl_sem;
     slave_state_callback slave_state_cb;
+    struct device *slave_status_dev[4];
     slave_status_callback slave_status_cb[4];
     uint32_t open_ref_cnt;
     uint32_t slave_state_ref_cnt;
@@ -128,31 +129,6 @@ static void apbe_pwrctrl_enable_uart(struct apbe_ctrl_info *info)
 #endif
 }
 
-static void apbe_power_off(void)
-{
-    gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
-    gpio_set_value(GPIO_APBE_PWR_EN, 0);
-    gpio_set_value(GPIO_APBE_RST_N, 0);
-}
-
-static void apbe_power_on_normal(void)
-{
-    gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
-    gpio_set_value(GPIO_APBE_PWR_EN, 1);
-    usleep(APBE_PWR_EN_DELAY);
-    gpio_set_value(GPIO_APBE_RST_N, 1);
-    usleep(APBE_RST_N_DELAY);
-}
-
-static void apbe_power_on_flash(void)
-{
-    gpio_set_value(GPIO_APBE_SPIBOOT_N, 1);
-    gpio_set_value(GPIO_APBE_PWR_EN, 1);
-    usleep(APBE_PWR_EN_DELAY);
-    gpio_set_value(GPIO_APBE_RST_N, 1);
-    usleep(APBE_RST_N_DELAY);
-}
-
 static int apbe_pwrctrl_op_get_mask(struct device *dev, uint32_t *mask)
 {
     struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
@@ -168,8 +144,7 @@ static int apbe_pwrctrl_op_get_mask(struct device *dev, uint32_t *mask)
     return OK;
 }
 
-static int apbe_pwrctrl_notify_slave_status(struct device *dev,
-                                    struct apbe_ctrl_info *ctrl_info)
+static int apbe_pwrctrl_notify_slave_status(struct apbe_ctrl_info *ctrl_info)
 {
     int i;
 
@@ -177,12 +152,46 @@ static int apbe_pwrctrl_notify_slave_status(struct device *dev,
 
     for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
         if (ctrl_info->slave_status_cb[i]) {
+            struct device *dev = ctrl_info->slave_status_dev[i];
             ctrl_info->slave_status_cb[i](dev, ctrl_info->status);
         }
     }
     sem_post(&ctrl_info->apbe_pwrctrl_sem);
 
     return 0;
+}
+
+static void apbe_power_off(struct apbe_ctrl_info *ctrl_info)
+{
+    /* Power off the APBE */
+    gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
+    gpio_set_value(GPIO_APBE_PWR_EN, 0);
+    gpio_set_value(GPIO_APBE_RST_N, 0);
+
+    /* Reset the UART */
+    if (ctrl_info->mhb_dev) {
+        device_mhb_restart(ctrl_info->mhb_dev);
+    }
+
+    /* Disable UART */
+    apbe_pwrctrl_disable_uart(ctrl_info);
+
+    /* Notify listeners */
+    ctrl_info->status = MHB_PM_STATUS_PEER_NONE;
+    apbe_pwrctrl_notify_slave_status(ctrl_info);
+}
+
+static void apbe_power_on(struct apbe_ctrl_info *ctrl_info)
+{
+    /* Enable UART */
+    apbe_pwrctrl_enable_uart(ctrl_info);
+
+    /* Power on the APBE */
+    gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
+    gpio_set_value(GPIO_APBE_PWR_EN, 1);
+    usleep(APBE_PWR_EN_DELAY);
+    gpio_set_value(GPIO_APBE_RST_N, 1);
+    usleep(APBE_RST_N_DELAY);
 }
 
 static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode mode)
@@ -192,23 +201,11 @@ static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode 
     dbg("power mode=%d\n", mode);
     switch (mode) {
     case SLAVE_PWRCTRL_POWER_ON:
-        apbe_pwrctrl_enable_uart(ctrl_info);
-        apbe_power_on_normal();
-        break;
     case SLAVE_PWRCTRL_POWER_FLASH_MODE:
-        apbe_pwrctrl_enable_uart(ctrl_info);
-        apbe_power_on_flash();
+        apbe_power_on(ctrl_info);
         break;
     case SLAVE_PWRCTRL_POWER_OFF:
-    default:
-        apbe_power_off();
-        ctrl_info->status = MHB_PM_STATUS_PEER_NONE;
-        apbe_pwrctrl_notify_slave_status(dev, ctrl_info);
-        if (ctrl_info->mhb_dev) {
-            device_mhb_restart(ctrl_info->mhb_dev);
-        }
-
-        apbe_pwrctrl_disable_uart(ctrl_info);
+        apbe_power_off(ctrl_info);
         break;
     }
 
@@ -255,7 +252,7 @@ static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
     vdbg("status=%d\n", not->status);
 
     ctrl_info->status = not->status;
-    apbe_pwrctrl_notify_slave_status(dev, ctrl_info);
+    apbe_pwrctrl_notify_slave_status(ctrl_info);
 
     return 0;
 }
@@ -336,11 +333,6 @@ static int apbe_pwrctrl_probe(struct device *dev)
     apbe_ctrl.is_initialized = true;
 
     return 0;
-}
-
-static void apbe_pwrctrl_remove(struct device *dev)
-{
-    apbe_power_off();
 }
 
 static int apbe_pwrctrl_register_slave_state_cb(struct device *dev,
@@ -438,6 +430,7 @@ static int apbe_pwrctrl_register_slave_status_cb(struct device *dev,
 
     for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
         if (!ctrl_info->slave_status_cb[i]) {
+            ctrl_info->slave_status_dev[i] = dev;
             ctrl_info->slave_status_cb[i] = cb;
             ctrl_info->slave_status_cb[i](dev, ctrl_info->status);
             return 0;
@@ -461,6 +454,7 @@ static int apbe_pwrctrl_unregister_slave_status_cb(struct device *dev,
 
     for (i=0; i < ARRAY_SIZE(ctrl_info->slave_status_cb); i++) {
         if (ctrl_info->slave_status_cb[i] == cb) {
+            ctrl_info->slave_status_dev[i] = NULL;
             ctrl_info->slave_status_cb[i] = NULL;
             return 0;
         }
@@ -482,7 +476,6 @@ static struct device_slave_pwrctrl_type_ops apbe_pwrctrl_type_ops = {
 
 static struct device_driver_ops apbe_pwrctrl_driver_ops = {
     .probe    = &apbe_pwrctrl_probe,
-    .remove   = &apbe_pwrctrl_remove,
     .open     = apbe_pwrctrl_open,
     .close    = apbe_pwrctrl_close,
     .type_ops = &apbe_pwrctrl_type_ops,
