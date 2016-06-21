@@ -2085,10 +2085,7 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
 #endif
 
 #ifdef SPI_CR2_FRXTH
-  if (priv->mode_type == SPI_MODE_TYPE_SLAVE)
-    {
-      spi_modifycr2(priv, SPI_CR2_FRXTH, 0);
-    }
+  spi_modifycr2(priv, SPI_CR2_FRXTH, 0);
 #endif
 
   /* Enable spi */
