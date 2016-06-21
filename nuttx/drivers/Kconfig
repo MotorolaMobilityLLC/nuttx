@@ -586,6 +586,23 @@ menuconfig FUSB302
 	---help---
 		Driver for detecting USB Insertion
 
+config FUSB302_USB_EXT
+	bool "FUSB302 USB-EXT Interface"
+	default n
+	depends on FUSB302
+	---help---
+		Create device_usb_ext interface for fusb302.
+		Enable if you are using USB on Moto Mods and
+		fusb302 for detection.
+
+config FUSB302_EXT_POWER
+	bool "FUSB302 External Power Interface"
+	default n
+	depends on FUSB302
+	---help---
+		Create device_ext_power interface for fusb302.
+		Enable if you are using USB charging on Moto Mods.
+
 config FUSB302_I2C_BUS
 	int "FUSB302 I2C Bus Number"
 	default 3
@@ -637,13 +654,6 @@ if ARCH_HAVE_PROGMEM
 config PROGMEM
 	bool "Enable flash programming"
 	default n
-endif
-
-if GREYBUS_USB_EXT
-config USB_EXT_CTRL
-	bool "USB-EXT Control"
-	default n
-	depends on DEVICE_CORE
 endif
 
 comment "Register logging to RAM Options"
