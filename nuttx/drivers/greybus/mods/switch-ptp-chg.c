@@ -51,7 +51,9 @@ struct switch_ptp_chg_info {
     bool base_active_low;
     enum ext_pwr_sources off_state;
 #endif
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     struct device *chg_dev; /* device to control current syncing and sourcing */
+#endif
 };
 
 /* Set switch state */
@@ -84,35 +86,40 @@ static inline void base_path(const struct switch_ptp_chg_info *info, bool state)
 static int switch_ptp_chg_send_wireless_pwr(struct device *dev)
 {
     struct switch_ptp_chg_info *info = device_get_private(dev);
-    int retval;
+    int retval = 0;
 
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     retval = device_charger_off(info->chg_dev);
     if (retval)
-        return retval;
+         return retval;
+#endif
 
     wired_path(info, false);
     base_path(info, true);
     wireless_path(info, true);
 
-    return 0;
+    return retval;
 }
 
 static int switch_ptp_chg_send_wired_pwr(struct device *dev)
 {
     struct switch_ptp_chg_info *info = device_get_private(dev);
-    int retval;
+    int retval = 0;
 
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     retval = device_charger_off(info->chg_dev);
     if (retval)
         return retval;
+#endif
 
     wireless_path(info, false);
     base_path(info, true);
     wired_path(info, true);
 
-    return 0;
+    return retval;
 }
 
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
 int switch_ptp_chg_receive_wireless_pwr(struct device *dev,
                                         const struct charger_config *cfg)
 {
@@ -148,6 +155,7 @@ int switch_ptp_chg_receive_wired_pwr(struct device *dev,
 
     return 0;
 }
+#endif
 #else
 static inline void wireless_path(const struct switch_ptp_chg_info *info, bool state)
 {
@@ -165,6 +173,7 @@ static inline void base_path(const struct switch_ptp_chg_info *info, bool state)
 }
 #endif
 
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
 static int switch_ptp_chg_send_batt_pwr(struct device *dev, int *current)
 {
     int retval;
@@ -199,9 +208,11 @@ static int switch_ptp_chg_receive_base_pwr(struct device *dev,
 
     return 0;
 }
+#endif
 
 static int switch_ptp_chg_off(struct device *dev)
 {
+    int retval = 0;
     struct switch_ptp_chg_info *info = device_get_private(dev);
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
@@ -222,9 +233,14 @@ static int switch_ptp_chg_off(struct device *dev)
 
     base_path(info, false);
 
-    return device_charger_off(info->chg_dev);
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+    retval = device_charger_off(info->chg_dev);
+#endif
+
+    return retval;
 }
 
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
 static int switch_ptp_chg_register_boost_fault_cb(struct device *dev,
                                             charger_boost_fault cb, void *arg)
 {
@@ -232,6 +248,7 @@ static int switch_ptp_chg_register_boost_fault_cb(struct device *dev,
 
     return device_charger_register_boost_fault_cb(info->chg_dev, cb, arg);
 }
+#endif
 
 static int switch_ptp_chg_probe(struct device *dev)
 {
@@ -317,6 +334,7 @@ static void switch_ptp_chg_remove(struct device *dev)
 
 static int switch_ptp_chg_open(struct device *dev)
 {
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     struct switch_ptp_chg_info *info = device_get_private(dev);
 
     info->chg_dev = device_open(DEVICE_TYPE_CHARGER_HW, 0);
@@ -324,27 +342,33 @@ static int switch_ptp_chg_open(struct device *dev)
         dbg("failed to open charger device\n");
         return -EIO;
     }
-
+#endif
     return 0;
 }
 
 static void switch_ptp_chg_close(struct device *dev)
 {
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     struct switch_ptp_chg_info *info = device_get_private(dev);
     device_close(info->chg_dev);
+#endif
 }
 
 static struct device_ptp_chg_type_ops switch_ptp_chg_type_ops = {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     .send_wireless_pwr = switch_ptp_chg_send_wireless_pwr,
     .send_wired_pwr = switch_ptp_chg_send_wired_pwr,
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     .receive_wireless_pwr = switch_ptp_chg_receive_wireless_pwr,
     .receive_wired_pwr = switch_ptp_chg_receive_wired_pwr,
 #endif
+#endif
+    .off = switch_ptp_chg_off,
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     .send_batt_pwr = switch_ptp_chg_send_batt_pwr,
     .receive_base_pwr = switch_ptp_chg_receive_base_pwr,
-    .off = switch_ptp_chg_off,
     .register_boost_fault_cb = switch_ptp_chg_register_boost_fault_cb,
+#endif
 };
 
 static struct device_driver_ops driver_ops = {
