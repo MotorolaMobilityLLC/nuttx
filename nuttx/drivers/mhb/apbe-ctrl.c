@@ -163,6 +163,8 @@ static int apbe_pwrctrl_notify_slave_status(struct apbe_ctrl_info *ctrl_info)
 
 static void apbe_power_off(struct apbe_ctrl_info *ctrl_info)
 {
+    vdbg("\n");
+
     /* Power off the APBE */
     gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
     gpio_set_value(GPIO_APBE_PWR_EN, 0);
@@ -183,6 +185,8 @@ static void apbe_power_off(struct apbe_ctrl_info *ctrl_info)
 
 static void apbe_power_on(struct apbe_ctrl_info *ctrl_info)
 {
+    vdbg("\n");
+
     /* Enable UART */
     apbe_pwrctrl_enable_uart(ctrl_info);
 
@@ -219,13 +223,13 @@ static int apbe_pwrctrl_attach_changed(FAR void *arg, const void *data)
 
     DEBUGASSERT(ctrl_info);
 
-    vdbg("new attach=%d, old attach=%d\n", state, ctrl_info->attached);
-
     while (sem_wait(&ctrl_info->apbe_pwrctrl_sem) != OK) {
         if (errno == EINVAL) {
             return -errno;
         }
     }
+
+    vdbg("new attach=%d, old attach=%d\n", state, ctrl_info->attached);
 
     ctrl_info->attached = state;
     sem_post(&ctrl_info->apbe_pwrctrl_sem);
@@ -364,6 +368,7 @@ static int apbe_pwrctrl_send_slave_state(struct device *dev, uint32_t slave_stat
     int ret = 0;
     struct apbe_ctrl_info *ctrl_info = device_get_private(dev);
     uint32_t curr_ref_cnt;
+    bool power_off = false;
 
     if (!ctrl_info)
         return -EINVAL;
@@ -374,33 +379,37 @@ static int apbe_pwrctrl_send_slave_state(struct device *dev, uint32_t slave_stat
         }
     }
 
-    if (ctrl_info->attached != BASE_ATTACHED) {
-         dbg("ERROR: base is not attached\n");
-         ret = -EINVAL;
-         goto err;
-    }
-
-    if (!ctrl_info->slave_state_cb) {
-        dbg("ERROR: slave state cb is not registered\n");
-        ret = -EIO;
-        goto err;
-    }
+    /* Save current ref count */
     curr_ref_cnt = ctrl_info->slave_state_ref_cnt;
-    if (slave_state == SLAVE_STATE_ENABLED)
+
+    /* Update ref count */
+    if (slave_state == SLAVE_STATE_ENABLED) {
        ctrl_info->slave_state_ref_cnt++;
-    else if ((slave_state == SLAVE_STATE_DISABLED) &&
-                               (ctrl_info->slave_state_ref_cnt != 0))
+    } else if ((slave_state == SLAVE_STATE_DISABLED) &&
+               (ctrl_info->slave_state_ref_cnt != 0)) {
        ctrl_info->slave_state_ref_cnt--;
-    else {
+    } else {
        ret = -EINVAL;
        goto err;
     }
 
-    if ((ctrl_info->slave_state_ref_cnt <= 1) &&
-                      (curr_ref_cnt <= 1)) {
-            dbg("state=%d, new votes=%d, old votes=%d\n",
-                slave_state, ctrl_info->slave_state_ref_cnt, curr_ref_cnt);
-            ret = ctrl_info->slave_state_cb(dev, slave_state);
+    /* Notify the AP (if appropriate) */
+    if ((ctrl_info->slave_state_ref_cnt <= 1) && (curr_ref_cnt <= 1)) {
+        dbg("state=%d, attached=%d, new votes=%d, old votes=%d\n", slave_state,
+            ctrl_info->attached, ctrl_info->slave_state_ref_cnt, curr_ref_cnt);
+
+        if (ctrl_info->attached == BASE_ATTACHED) {
+            if (ctrl_info->slave_state_cb) {
+                vdbg("send state\n");
+                ret = ctrl_info->slave_state_cb(dev, slave_state);
+            } else {
+                dbg("ERROR: slave state cb is not registered\n");
+                ret = -EIO;
+            }
+        } else if (slave_state == SLAVE_STATE_DISABLED) {
+            /* The base is not attached, but we want to disable. */
+            power_off = true;
+        }
     } else {
         vdbg("no change, state=%d, votes=%d\n",
              slave_state, ctrl_info->slave_state_ref_cnt);
@@ -408,6 +417,11 @@ static int apbe_pwrctrl_send_slave_state(struct device *dev, uint32_t slave_stat
 
 err:
     sem_post(&ctrl_info->apbe_pwrctrl_sem);
+
+    /* Execute outside of the semaphore since the notification needs the sem. */
+    if (power_off) {
+        apbe_power_off(ctrl_info);
+    }
 
     return ret;
 }
