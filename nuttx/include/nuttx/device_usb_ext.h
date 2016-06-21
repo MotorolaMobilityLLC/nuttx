@@ -36,13 +36,83 @@
 
 #define DEVICE_TYPE_USB_EXT_HW "usb_ext"
 
-typedef int (*usb_ext_event_callback)(bool attached);
+/* greybus attach definitions */
+#define GB_USB_EXT_PROTOCOL_2_0           0x00
+#define GB_USB_EXT_PROTOCOL_3_1           0x01
+
+#define GB_USB_EXT_PATH_A                 0x00
+#define GB_USB_EXT_PATH_B                 0x01
+
+#define GB_USB_EXT_REMOTE_DEVICE          0x00
+#define GB_USB_EXT_REMOTE_HOST            0x01
+
+typedef int (*usb_ext_event_callback)(struct device *dev, bool attached);
 
 struct device_usb_ext_type_ops {
+    uint8_t (*get_attached)(void);
+    uint8_t (*get_protocol)(void);
+    uint8_t (*get_path)(void);
+    uint8_t (*get_type)(void);
     int (*register_callback)(struct device *dev,
                              usb_ext_event_callback callback);
     int (*unregister_callback)(struct device *dev);
 };
+
+static inline int device_usb_ext_get_attached(struct device *dev, uint8_t *attached)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_ext)->get_attached) {
+        *attached = DEVICE_DRIVER_GET_OPS(dev, usb_ext)->get_attached();
+        return 0;
+    }
+    return -ENOSYS;
+}
+
+static inline int device_usb_ext_get_protocol(struct device *dev, uint8_t *protocol)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_ext)->get_protocol) {
+        *protocol = DEVICE_DRIVER_GET_OPS(dev, usb_ext)->get_protocol();
+        return 0;
+    }
+    return -ENOSYS;
+}
+
+static inline int device_usb_ext_get_path(struct device *dev, uint8_t *path)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_ext)->get_path) {
+        *path = DEVICE_DRIVER_GET_OPS(dev, usb_ext)->get_path();
+        return 0;
+    }
+    return -ENOSYS;
+}
+
+static inline int device_usb_ext_get_type(struct device *dev, uint8_t *type)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+    if (DEVICE_DRIVER_GET_OPS(dev, usb_ext)->get_type) {
+        *type = DEVICE_DRIVER_GET_OPS(dev, usb_ext)->get_type();
+        return 0;
+    }
+    return -ENOSYS;
+}
 
 static inline int device_usb_ext_register_callback(struct device *dev,
                                             usb_ext_event_callback callback)
@@ -72,4 +142,4 @@ static inline int device_usb_ext_unregister_callback(struct device *dev)
     return -ENOSYS;
 }
 
-#endif /* __DEBICE_USB_EXT_H__ */
+#endif /* __DEVICE_USB_EXT_H__ */
