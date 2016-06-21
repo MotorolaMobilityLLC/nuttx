@@ -275,36 +275,6 @@ config GREYBUS_USB_EXT
 	select SCHED_LPWORK
 	default n
 
-if GREYBUS_USB_EXT
-choice
-	prompt "Select USB Protocol Supported"
-config GREYBUS_USB_EXT_PROTO_2_0
-	bool "USB 2.0"
-config GREYBUS_USB_EXT_PROTO_3_1
-	bool "USB 3.1"
-endchoice
-
-choice
-	prompt "USB Connection PATH"
-config GREYBUS_USB_EXT_PATH_A
-	bool "USB connected over A Pins"
-	depends on GREYBUS_USB_EXT_PROTO_2_0
-config GREYBUS_USB_EXT_PATH_B
-	bool "USB connected over B Interface"
-endchoice
-
-if GREYBUS_USB_EXT_PROTO_3_1
-choice
-	prompt "USB Connection Role"
-config GREYBUS_USB_EXT_REMOTE_DEVICE
-	bool "The MOD will function as a USB Device"
-config GREYBUS_USB_EXT_REMOTE_HOST
-	bool "The MOD will function as a USB HOST"
-endchoice
-endif
-
-endif
-
 config GREYBUS_CAMERA_EXT
 	bool "Camera Extension"
 	default n

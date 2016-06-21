@@ -48,16 +48,6 @@
 #define GB_USB_EXT_VERSION_MAJOR          0x00
 #define GB_USB_EXT_VERSION_MINOR          0x01
 
-/* greybus attach definitions */
-#define GB_USB_EXT_PROTOCOL_2_0           0x00
-#define GB_USB_EXT_PROTOCOL_3_1           0x01
-
-#define GB_USB_EXT_PATH_A                 0x00
-#define GB_USB_EXT_PATH_B                 0x01
-
-#define GB_USB_EXT_REMOTE_DEVICE          0x00
-#define GB_USB_EXT_REMOTE_HOST            0x01
-
 #define GB_USB_EXT_ATTACH_DELAY_MS        1000
 
 struct gb_usb_ext_proto_version_response {
@@ -76,10 +66,19 @@ struct gb_usb_ext_info {
     struct work_s wq;
     unsigned int  cport;
     struct device *dev;
+    uint8_t path;
+    uint8_t protocol;
+    uint8_t remote_type;
+    uint8_t attached;
+    bool ap_ready;
 };
 
 static struct gb_usb_ext_info usb_ext_info;
 
+/**
+ * @brief USB_EXT protocol version
+ *
+ */
 static uint8_t gb_usb_ext_protocol_version(struct gb_operation *operation)
 {
     struct gb_usb_ext_proto_version_response *response;
@@ -94,13 +93,16 @@ static uint8_t gb_usb_ext_protocol_version(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_usb_ext_send_attach_state(unsigned int cport, bool active)
+/**
+ * @brief USB_EXT send attach message
+ *
+ */
+static uint8_t gb_usb_ext_send_attach(unsigned int cport, uint8_t active,
+        uint8_t protocol, uint8_t type, uint8_t path)
 {
     struct gb_usb_ext_attach_request *request;
     struct gb_operation *operation;
     int ret;
-
-    vdbg("active = %d\n", active);
 
     operation = gb_operation_create(cport, GB_USB_EXT_TYPE_ATTACH_STATE,
         sizeof(*request));
@@ -113,38 +115,18 @@ static uint8_t gb_usb_ext_send_attach_state(unsigned int cport, bool active)
         return GB_OP_INVALID;
     }
 
-    request->active = (__u8)active;
+    request->active = active;
+    request->protocol = protocol;
+    request->remote_type = type;
+    request->path = path;
 
-/* Rules:
- *   USB2.0 can run over either interface (A or B)
- *   USB2.0 must run in with MOD as the device
- *   USB3.1 can only run over the B path
- *   USB3.1 can run with MOD as either the host or device
- */
-#ifdef CONFIG_GREYBUS_USB_EXT_PROTO_2_0
-    request->protocol = GB_USB_EXT_PROTOCOL_2_0;
-    request->remote_type = GB_USB_EXT_REMOTE_DEVICE;
-# ifdef CONFIG_GREYBUS_USB_EXT_PATH_A
-    request->path = GB_USB_EXT_PATH_A;
-# elif CONFIG_GREYBUS_USB_EXT_PATH_B
-    request->path = GB_USB_EXT_PATH_B;
-# else
-#  error USB_EXT Path Required
-# endif
-
-#elif CONFIG_GREYBUS_USB_EXT_PROTO_3_1
-    request->protocol = GB_USB_EXT_PROTOCOL_3_1;
-    request->path = GB_USB_EXT_PATH_B;
-# ifdef CONFIG_GREYBUS_USB_EXT_REMOTE_DEVICE
-    request->remote_type = GB_USB_EXT_REMOTE_DEVICE;
-# elif CONFIG_GREYBUS_USB_EXT_REMOTE_HOST
-    request->remote_type = GB_USB_EXT_REMOTE_HOST;
-# else
-#  error USB EXT Protocol Host/Device must be defined
-# endif
-#else
-# error USB Protocol not defined
-#endif
+    vdbg("active   = %d\n", request->active);
+    vdbg("protocol = %s\n", (request->protocol == GB_USB_EXT_PROTOCOL_2_0) ?
+            "2.0" : "3.1");
+    vdbg("type     = %s\n", (request->remote_type == GB_USB_EXT_REMOTE_DEVICE) ?
+            "device" : "host");
+    vdbg("path     = %s\n", (request->path == GB_USB_EXT_PATH_A) ?
+            "A" : "B");
 
     ret = gb_operation_send_request(operation, NULL, false);
 
@@ -152,68 +134,135 @@ static uint8_t gb_usb_ext_send_attach_state(unsigned int cport, bool active)
 
     return ret;
 }
-
-static inline uint8_t gb_usb_ext_send_attach(unsigned int cport)
-{
-    return gb_usb_ext_send_attach_state(cport, TRUE);
-}
-
-static inline uint8_t gb_usb_ext_send_detach(unsigned int cport)
-{
-    return gb_usb_ext_send_attach_state(cport, FALSE);
-}
-
+/**
+ * @brief Gather USB state and send attach msg
+ *
+ */
 static void gb_usb_ext_attach_worker(void *arg)
 {
-    unsigned int cport = (unsigned int)arg;
+    struct device *dev = (struct device *)arg;
+    uint8_t active;
+    uint8_t protocol;
+    uint8_t type;
+    uint8_t path;
+    int rv;
 
-    (void)gb_usb_ext_send_attach(cport);
+    if (dev == NULL) {
+        dbg("NULL!!!!!\n");
+        return;
+    }
+
+    if ((rv = device_usb_ext_get_attached(dev, &active))) {
+        dbg("active error %d\n", rv);
+        return;
+    }
+    if ((rv = device_usb_ext_get_protocol(dev, &protocol))) {
+        dbg("protocol error\n");
+        return;
+    }
+    if ((rv = device_usb_ext_get_type(dev, &type))) {
+        dbg("type error\n");
+        return;
+    }
+    if ((rv = device_usb_ext_get_path(dev, &path))) {
+        dbg("path error\n");
+        return;
+    }
+
+    (void)gb_usb_ext_send_attach(usb_ext_info.cport,
+            active, protocol, type, path);
 }
-
-static void gb_usb_ext_detach_worker(void *arg)
-{
-    unsigned int cport = (unsigned int)arg;
-
-    (void)gb_usb_ext_send_detach(cport);
-}
-
-static int gb_usb_queue_work(bool attached, uint32_t delay)
+/**
+ * @brief queue sending attach message
+ *
+ */
+static void gb_usb_queue_work(struct device *dev, uint32_t delay)
 {
     if (!work_available(&usb_ext_info.wq))
         work_cancel(LPWORK, &usb_ext_info.wq);
 
-    worker_t worker = attached ? gb_usb_ext_attach_worker : gb_usb_ext_detach_worker;
-    work_queue(LPWORK, &usb_ext_info.wq, worker, (void *)usb_ext_info.cport,
-               delay);
+    work_queue(LPWORK, &usb_ext_info.wq, gb_usb_ext_attach_worker,
+        (void *)dev, delay);
+}
+
+/**
+ * @brief USB_EXT state changed callback
+ *
+ * This callback is called when the state (usually attached/detached) of
+ * the Mod has changed.
+ *
+ * @return 0
+ */
+static int event_callback(struct device *dev, bool attached)
+{
+    if (usb_ext_info.ap_ready)
+        gb_usb_queue_work(dev, 0);
+
     return 0;
 }
-
-static int event_callback(bool attached)
+/**
+ * @brief Greybus USB ext protocol AP is ready for usb_ext msgs
+ *
+ * @param operation 
+ * @return 0 on success, negative errno on error
+ */
+static uint8_t gb_usb_ext_ap_ready(struct gb_operation *operation)
 {
-    return gb_usb_queue_work(attached, 0);
+    usb_ext_info.ap_ready = true;
+
+    gb_usb_queue_work(usb_ext_info.dev, MSEC2TICK(GB_USB_EXT_ATTACH_DELAY_MS));
+
+    return GB_OP_SUCCESS;
 }
 
-static uint8_t gb_usb_ext_ap_ready(struct gb_operation *operation)
+/**
+ * @brief Greybus USB ext protocol initialization
+ *
+ * @param cport CPort number
+ * @return 0 on success, negative errno on error
+ */
+static int gb_usb_ext_init(unsigned int cport)
 {
     int ret;
 
     memset(&usb_ext_info, 0, sizeof(usb_ext_info));
-    usb_ext_info.cport = operation->cport;
+    usb_ext_info.cport = cport;
 
     usb_ext_info.dev = device_open(DEVICE_TYPE_USB_EXT_HW, 0);
     if (!usb_ext_info.dev) {
-        vdbg("no device\n");
-        return gb_usb_queue_work(true, MSEC2TICK(GB_USB_EXT_ATTACH_DELAY_MS));
+        dbg("no device\n");
+        ret = -EIO;
+        goto err_out;
     }
 
     ret = device_usb_ext_register_callback(usb_ext_info.dev, event_callback);
     if (ret) {
-        device_close(usb_ext_info.dev);
-        memset(&usb_ext_info, 0, sizeof(usb_ext_info));
-        return ret;
+        dbg("failed to register callback \n");
+        goto err_close_device;
     }
 
     return 0;
+
+err_close_device:
+    device_close(usb_ext_info.dev);
+
+err_out:
+    memset(&usb_ext_info, 0, sizeof(usb_ext_info));
+
+    return ret;
+}
+
+/**
+ * @brief Greybus USB ext protocol deinitialize function
+ *
+ * @param cport CPort number
+ */
+static void gb_usb_ext_exit(unsigned int cport)
+{
+    device_usb_ext_unregister_callback(usb_ext_info.dev);
+
+    device_close(usb_ext_info.dev);
+    memset(&usb_ext_info, 0, sizeof(usb_ext_info));
 }
 
 static struct gb_operation_handler gb_usb_ext_handlers[] = {
@@ -222,6 +271,8 @@ static struct gb_operation_handler gb_usb_ext_handlers[] = {
 };
 
 struct gb_driver usb_ext_driver = {
+    .init = gb_usb_ext_init,
+    .exit = gb_usb_ext_exit,
     .op_handlers = (struct gb_operation_handler*) gb_usb_ext_handlers,
     .op_handlers_count = ARRAY_SIZE(gb_usb_ext_handlers),
 };
