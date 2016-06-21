@@ -82,7 +82,6 @@ struct apbe_ctrl_info {
     slave_state_callback slave_state_cb;
     struct device *slave_status_dev[4];
     slave_status_callback slave_status_cb[4];
-    uint32_t open_ref_cnt;
     uint32_t slave_state_ref_cnt;
     enum base_attached_e attached;
     uint32_t status;
@@ -93,6 +92,10 @@ struct apbe_ctrl_info {
 };
 
 static struct apbe_ctrl_info apbe_ctrl;
+
+static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
+               uint8_t *payload, size_t payload_length);
+
 
 static void apbe_pwrctrl_disable_uart(struct apbe_ctrl_info *info)
 {
@@ -161,19 +164,23 @@ static int apbe_pwrctrl_notify_slave_status(struct apbe_ctrl_info *ctrl_info)
     return 0;
 }
 
-static void apbe_power_off(struct apbe_ctrl_info *ctrl_info)
+static int apbe_power_off(struct apbe_ctrl_info *ctrl_info)
 {
     vdbg("\n");
+
+    /* Close the UART */
+    if (ctrl_info->mhb_dev) {
+        /* Close the MHB device. */
+        device_mhb_unregister_receiver(ctrl_info->mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
+
+        device_close(ctrl_info->mhb_dev);
+        ctrl_info->mhb_dev = NULL;
+    }
 
     /* Power off the APBE */
     gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
     gpio_set_value(GPIO_APBE_PWR_EN, 0);
     gpio_set_value(GPIO_APBE_RST_N, 0);
-
-    /* Reset the UART */
-    if (ctrl_info->mhb_dev) {
-        device_mhb_restart(ctrl_info->mhb_dev);
-    }
 
     /* Disable UART */
     apbe_pwrctrl_disable_uart(ctrl_info);
@@ -181,14 +188,32 @@ static void apbe_power_off(struct apbe_ctrl_info *ctrl_info)
     /* Notify listeners */
     ctrl_info->status = MHB_PM_STATUS_PEER_NONE;
     apbe_pwrctrl_notify_slave_status(ctrl_info);
+
+    vdbg("done\n");
+
+    return 0;
 }
 
-static void apbe_power_on(struct apbe_ctrl_info *ctrl_info)
+static int apbe_power_on(struct apbe_ctrl_info *ctrl_info)
 {
     vdbg("\n");
 
+    if (ctrl_info->mhb_dev) {
+        dbg("ERROR: MHB already opened\n");
+        return -EINVAL;
+    }
+
     /* Enable UART */
     apbe_pwrctrl_enable_uart(ctrl_info);
+
+    /* Open the MHB device */
+    ctrl_info->mhb_dev = device_open(DEVICE_TYPE_MHB, MHB_ADDR_PM);
+    if (!ctrl_info->mhb_dev) {
+        dbg("ERROR: MHB failed to open\n");
+        return -ENOSYS;
+    }
+
+    device_mhb_register_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
 
     /* Power on the APBE */
     gpio_set_value(GPIO_APBE_SPIBOOT_N, 0);
@@ -196,6 +221,10 @@ static void apbe_power_on(struct apbe_ctrl_info *ctrl_info)
     usleep(APBE_PWR_EN_DELAY);
     gpio_set_value(GPIO_APBE_RST_N, 1);
     usleep(APBE_RST_N_DELAY);
+
+    vdbg("done\n");
+
+    return 0;
 }
 
 static int apbe_pwrctrl_op_set_mode(struct device *dev, enum slave_pwrctrl_mode mode)
@@ -259,59 +288,6 @@ static int mhb_handle_pm(struct device *dev, struct mhb_hdr *hdr,
     apbe_pwrctrl_notify_slave_status(ctrl_info);
 
     return 0;
-}
-
-static int apbe_pwrctrl_open(struct device *dev)
-{
-    irqstate_t flags;
-    flags = irqsave();
-
-    /* Open the MHB device if it is not already opened. */
-    if (!apbe_ctrl.mhb_dev) {
-        apbe_ctrl.mhb_dev = device_open(DEVICE_TYPE_MHB, MHB_ADDR_PM);
-
-        if (apbe_ctrl.mhb_dev) {
-            /* Save and disable the output UART pins. */
-            apbe_pwrctrl_disable_uart(&apbe_ctrl);
-
-            device_mhb_register_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
-        }
-    }
-
-    if (!apbe_ctrl.mhb_dev) {
-        dbg("ERROR: failed to open MHB device\n");
-        irqrestore(flags);
-        return -EAGAIN;
-    }
-
-    apbe_ctrl.open_ref_cnt++;
-    vdbg("opened=%d\n", apbe_ctrl.open_ref_cnt);
-
-    irqrestore(flags);
-    return 0;
-}
-
-static void apbe_pwrctrl_close(struct device *dev) {
-    irqstate_t flags;
-    flags = irqsave();
-
-    apbe_ctrl.open_ref_cnt--;
-    vdbg("opened=%d\n", apbe_ctrl.open_ref_cnt);
-
-    if (apbe_ctrl.open_ref_cnt == 0 && apbe_ctrl.mhb_dev) {
-        vdbg("close MHB\n");
-
-        /* Close the MHB device. */
-        device_mhb_unregister_receiver(apbe_ctrl.mhb_dev, MHB_ADDR_PM, mhb_handle_pm);
-
-        /* Restore the output UART pins (if they were modified). */
-        apbe_pwrctrl_enable_uart(&apbe_ctrl);
-
-        device_close(apbe_ctrl.mhb_dev);
-        apbe_ctrl.mhb_dev = NULL;
-    }
-
-    irqrestore(flags);
 }
 
 static int apbe_pwrctrl_probe(struct device *dev)
@@ -490,8 +466,6 @@ static struct device_slave_pwrctrl_type_ops apbe_pwrctrl_type_ops = {
 
 static struct device_driver_ops apbe_pwrctrl_driver_ops = {
     .probe    = &apbe_pwrctrl_probe,
-    .open     = apbe_pwrctrl_open,
-    .close    = apbe_pwrctrl_close,
     .type_ops = &apbe_pwrctrl_type_ops,
 };
 
