@@ -53,6 +53,10 @@ endif
 ifeq ($(CONFIG_I2C_LM75),y)
   CSRCS += lm75.c
 endif
+
+ifeq ($(CONFIG_GREYBUS_SENSORS_EXT_LSM9DS1_ACCEL),y)
+  CSRCS += lsm9sd1_accel-gb.c
+endif
 endif
 
 # Quadrature encoder upper half
