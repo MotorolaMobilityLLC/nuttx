@@ -226,6 +226,9 @@ struct stm32_spidev_s
   void            *cb_v;       /* Data pointer for spi dev callbacks */
   uint32_t         err_cnt;    /* Count of errors seen since last success */
 #endif
+#ifdef CONFIG_SPI_CRC16
+  uint8_t          crc16_en;   /* CRC16 enabled */
+#endif
 };
 
 /************************************************************************************
@@ -367,6 +370,9 @@ static struct stm32_spidev_s g_spi1dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+#ifdef CONFIG_SPI_CRC16
+  .crc16_en   = SPI1_CRC16_EN,
+#endif
 };
 #endif
 
@@ -418,6 +424,9 @@ static struct stm32_spidev_s g_spi2dev =
   .mode_type  = SPI2_MODE_TYPE,
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
+#endif
+#ifdef CONFIG_SPI_CRC16
+  .crc16_en   = SPI2_CRC16_EN,
 #endif
 };
 #endif
@@ -471,6 +480,9 @@ static struct stm32_spidev_s g_spi3dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+#ifdef CONFIG_SPI_CRC16
+  .crc16_en   = SPI3_CRC16_EN,
+#endif
 };
 #endif
 
@@ -522,6 +534,9 @@ static struct stm32_spidev_s g_spi4dev =
   .mode_type  = SPI4_MODE_TYPE,
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
+#endif
+#ifdef CONFIG_SPI_CRC16
+  .crc16_en   = SPI4_CRC16_EN,
 #endif
 };
 #endif
@@ -575,6 +590,9 @@ static struct stm32_spidev_s g_spi5dev =
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
 #endif
+#ifdef CONFIG_SPI_CRC16
+  .crc16_en   = SPI5_CRC16_EN,
+#endif
 };
 #endif
 
@@ -626,6 +644,9 @@ static struct stm32_spidev_s g_spi6dev =
   .mode_type  = SPI6_MODE_TYPE,
 #else
   .mode_type  = SPI_MODE_TYPE_MASTER,
+#endif
+#ifdef CONFIG_SPI_CRC16
+  .crc16_en   = SPI6_CRC16_EN,
 #endif
 };
 #endif
@@ -884,7 +905,7 @@ static void spi_dmarxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 #ifdef CONFIG_SPI_CRC16
       status = spi_getreg(priv, STM32_SPI_SR_OFFSET);
 
-      if (status & SPI_SR_CRCERR)
+      if (priv->crc16_en && (status & SPI_SR_CRCERR))
         {
           /* clear the CRCERR bit */
           status &= ~SPI_SR_CRCERR;
@@ -1661,20 +1682,26 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
 #endif
 
 #ifdef CONFIG_SPI_CRC16
-      spi_modifycr1(priv, 0, SPI_CR1_CRCEN);
+      if (priv->crc16_en)
+        {
+          spi_modifycr1(priv, 0, SPI_CR1_CRCEN);
 
-      /* Setup DMAs */
+          /* Setup DMAs */
 
-      /* RXCRCR and TXCRCR registers are cleared by setting CRCEN bit */
-      spi_modifycr1(priv, SPI_CR1_CRCEN, 0);
+          /* RXCRCR and TXCRCR registers are cleared by setting CRCEN bit */
+          spi_modifycr1(priv, SPI_CR1_CRCEN, 0);
 
-      /* The counter of the reception DMA channel is set to the number of
-       * data frames to receive including the CRC, DMA_RX = Numb_of_data + 2
-       */
-      spi_dmatxsetup(priv, txbuffer, &txdummy, nwords - 2);
-#else
-      spi_dmatxsetup(priv, txbuffer, &txdummy, nwords);
+          /* The counter of the reception DMA channel is set to the number of
+           * data frames to receive including the CRC, DMA_RX = Numb_of_data + 2
+           */
+          spi_dmatxsetup(priv, txbuffer, &txdummy, nwords - 2);
+        }
+      else
 #endif
+        {
+          spi_dmatxsetup(priv, txbuffer, &txdummy, nwords);
+        }
+
       spi_dmarxsetup(priv, rxbuffer, &rxdummy, nwords);
 
       /* Start the DMAs */
@@ -2015,9 +2042,12 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
 
 #if defined(CONFIG_SPI_CRC16) && \
     (defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3))
-  /* CRC setup */
+  if (priv->crc16_en)
+    {
+      /* CRC setup */
 
-  spi_modifycr1(priv, SPI_CR1_CRCL, 0);
+      spi_modifycr1(priv, SPI_CR1_CRCL, 0);
+    }
 #endif
 
   /* CRCPOLY configuration */
