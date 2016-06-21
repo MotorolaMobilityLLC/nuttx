@@ -241,6 +241,7 @@ endif
 
 menuconfig GREYBUS_SENSORS_EXT
 	bool "Sensors-Ext Protocol"
+	select DEVICE_CORE
 	default n
 
 if GREYBUS_SENSORS_EXT
@@ -250,6 +251,9 @@ config GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
 config GREYBUS_SENSORS_EXT_DUMMY_ACCEL
 	bool "Dummy Accel Sensor"
 	depends on RTC && SCHED_LPWORK
+config GREYBUS_SENSORS_EXT_LSM9DS1_ACCEL
+	bool "LSM9DS1 Accel Sensor"
+	depends on RTC && I2C
 endif
 
 menuconfig GREYBUS_MODS
