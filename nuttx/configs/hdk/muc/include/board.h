@@ -161,8 +161,7 @@
 #define GPIO_SPI1_SCK    GPIO_SPI1_SCK_1
 #define GPIO_SPI1_NSS    GPIO_SPI1_NSS_2
 #define SPI1_MODE_TYPE   SPI_MODE_TYPE_MASTER
-#define stm32_spi1select NULL
-#define stm32_spi1status NULL
+#define SPI1_CRC16_EN    0
 #define DMACHAN_SPI1_RX  DMACHAN_SPI1_RX_1
 #define DMACHAN_SPI1_TX  DMACHAN_SPI1_TX_1
 
@@ -171,6 +170,7 @@
 #define GPIO_SPI2_SCK    GPIO_SPI2_SCK_1
 #define GPIO_SPI2_NSS    GPIO_SPI2_NSS_1
 #define SPI2_MODE_TYPE   SPI_MODE_TYPE_SLAVE
+#define SPI2_CRC16_EN    1
 #define stm32_spi2select NULL
 #define stm32_spi2status NULL
 

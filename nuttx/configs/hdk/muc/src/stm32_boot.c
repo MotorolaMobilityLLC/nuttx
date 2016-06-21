@@ -747,6 +747,10 @@ void board_initialize(void)
   stm32_lptim1_on();
 #endif
 
+#ifdef CONFIG_STM32_SPI
+  stm32_spiinitialize();
+#endif
+
 #ifdef CONFIG_MODS_DIET
   mods_init();
 #endif

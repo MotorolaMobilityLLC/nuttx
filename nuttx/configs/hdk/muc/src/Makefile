@@ -102,6 +102,10 @@ ifeq ($(CONFIG_STM32_LPTIM1),y)
 CSRCS += stm32_lptim1.c
 endif
 
+ifeq ($(CONFIG_STM32_SPI),y)
+CSRCS += stm32_spi.c
+endif
+
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(ASRCS) $(CSRCS)

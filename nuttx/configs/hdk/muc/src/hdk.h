@@ -54,4 +54,14 @@
  ****************************************************************************/
 void mods_init(void);
 
+/****************************************************************************
+ * Name: stm32_spiinitialize
+ *
+ * Description:
+ *   Called to configure SPI chip select GPIO pins for ports in master mode.
+ *
+ ****************************************************************************/
+
+void stm32_spiinitialize(void);
+
 #endif /* __CONFIGS_HDK_MUC_SRC_HDK_H */

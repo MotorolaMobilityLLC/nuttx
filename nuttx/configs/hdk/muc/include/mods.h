@@ -113,6 +113,8 @@
 # define GPIO_MODS_CHG_EN        CALC_GPIO_NUM('D',  4)
 #endif
 
+#define GPIO_SPI1_CS_N           CALC_GPIO_NUM('A',  4)
+
 /* Battery voltage comparator */
 #if IS_BATT_PCARD
 # define BATT_COMP               STM32_COMP1             /* Comparator */
