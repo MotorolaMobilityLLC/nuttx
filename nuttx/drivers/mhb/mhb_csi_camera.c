@@ -614,12 +614,11 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
         }
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
-
-    _mhb_camera_process_ctrl_cache(FALSE);
     mhb_csi_camera_callback(
         (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) ?
         MHB_CAMERA_NOTIFY_FW_UPGRADE : MHB_CAMERA_NOTIFY_POWERED_ON);
 
+    _mhb_camera_process_ctrl_cache(FALSE);
     return MHB_CAMERA_EV_POWERED_ON;
 
 failed_power_on:
@@ -780,6 +779,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
 
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_ON);
 
+    _mhb_camera_process_ctrl_cache(FALSE);
     return MHB_CAMERA_EV_CONFIGURED;
 
 failed_stream_on:
@@ -1039,7 +1039,9 @@ static int _mhb_camera_ext_ctrl_set(struct device *dev,
         CAM_ERR("ERROR: Camera Off : State %d\n", state);
         return -ENODEV;
     }
-    if (s_mhb_camera.soc_status != SOC_ENABLED) {
+    if (s_mhb_camera.soc_status != SOC_ENABLED ||
+        state == MHB_CAMERA_STATE_WAIT_POWER_ON||
+        state == MHB_CAMERA_STATE_WAIT_STREAM) {
         CTRL_DBG("Cam not ready, cache ctrl. CtrlID 0x%08x Size %d State %s\n",
                  idx, ctrl_val_size, mhb_camera_sm_state_str(state));
 
@@ -1061,7 +1063,9 @@ static int _mhb_camera_ext_ctrl_get(struct device *dev,
         return -ENODEV;
     }
 
-    if (s_mhb_camera.soc_status != SOC_ENABLED) {
+    if (s_mhb_camera.soc_status != SOC_ENABLED ||
+        state == MHB_CAMERA_STATE_WAIT_POWER_ON||
+        state == MHB_CAMERA_STATE_WAIT_STREAM) {
         CAM_DBG("Cam not ready, try again. CtrlID 0x%08x State %s\n",
                 idx, mhb_camera_sm_state_str(state));
 
