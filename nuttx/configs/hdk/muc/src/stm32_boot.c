@@ -119,8 +119,22 @@ typedef enum {
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
     DUMMY_PRESSURE,
 #endif
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_LSM9DS1_ACCEL
+    LSM9DS1_ACCEL,
+#endif
     SENSORS_TOTAL,
 } sensor_type;
+
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_LSM9DS1_ACCEL
+static struct device_resource lsm9ds1_resources[] = {
+    {
+        .name   = "i2c_bus",
+        .type   = DEVICE_RESOURCE_TYPE_REGS,
+        .start  = 2,  /* I2C2 */
+        .count  = 1,
+    },
+};
+#endif
 
 #ifdef CONFIG_STM32_UART_DEVICE
 static struct device_resource stm32_uart_resources[] = {
@@ -371,6 +385,16 @@ static struct device devices[] = {
         .name = "sensors_ext_dummy_accel",
         .desc = "Sensors Extension Protocol",
         .id   = DUMMY_ACCEL,
+    },
+#endif
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_LSM9DS1_ACCEL
+    {
+        .type = DEVICE_TYPE_SENSORS_HW,
+        .name = "sensors_ext_accel",
+        .desc = "Sensors Extension Protocol",
+        .id   = LSM9DS1_ACCEL,
+        .resources = lsm9ds1_resources,
+        .resource_count = ARRAY_SIZE(lsm9ds1_resources),
     },
 #endif
 #ifdef CONFIG_MODS_RAW
@@ -909,6 +933,10 @@ void board_initialize(void)
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL
   extern struct device_driver sensor_dummy_accel_driver;
   device_register_driver(&sensor_dummy_accel_driver);
+#endif
+#ifdef CONFIG_GREYBUS_SENSORS_EXT_LSM9DS1_ACCEL
+  extern struct device_driver sensor_lsm9sd1_accel_driver;
+  device_register_driver(&sensor_lsm9sd1_accel_driver);
 #endif
 #ifdef CONFIG_HDMI_DISPLAY
    extern struct device_driver hdmi_display_driver;
