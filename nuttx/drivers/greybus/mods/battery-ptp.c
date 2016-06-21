@@ -86,9 +86,6 @@ struct ptp_info {
     sem_t sem; /* mutual exclusion to set and process state */
     struct device *batt_dev; /*battery temp and level notifications */
     struct device *chg_dev; /* current control */
-#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    struct device *wired_src_dev; /* ext power source device */
-#endif
     /* external power present, power available or required have changed */
     ptp_changed changed_cb;
 };
