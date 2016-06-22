@@ -64,6 +64,7 @@ enum svc_state {
     SVC_WAIT_FOR_AP,
     SVC_SLAVE_WAIT_FOR_UNIPRO,
     SVC_SLAVE_WAIT_FOR_CPORTS,
+    SVC_SLAVE_CONNECTED,
     SVC_WAIT_FOR_UNIPRO,
     SVC_WAIT_FOR_MOD,
     SVC_CONNECTED,
@@ -78,6 +79,7 @@ const static char *SVC_STATE_STRINGS[] = {
     "WAIT_FOR_AP",
     "SLAVE_WAIT_FOR_UNIPRO",
     "SLAVE_WAIT_FOR_CPORTS",
+    "SLAVE_CONNECTED",
     "WAIT_FOR_UNIPRO",
     "WAIT_FOR_MOD",
     "CONNECTED",
@@ -491,7 +493,7 @@ static enum svc_state svc_wf_cports__connected(struct svc *svc, struct svc_work 
 #endif
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
-    return SVC_CONNECTED;
+    return SVC_SLAVE_CONNECTED;
 }
 
 static enum svc_state svc_wf_unipro__link_up(struct svc *svc, struct svc_work *work) {
@@ -621,7 +623,7 @@ static enum svc_state svc_connected__gear_shifted(struct svc *svc, struct svc_wo
 
     int err = (int)work->parameter0;
     gearbox_shift_complete(g_svc.gearbox, err);
-    return SVC_CONNECTED;
+    return g_svc.state;
 }
 
 static enum svc_state svc__test_mode(struct svc *svc, struct svc_work *work) {
@@ -710,6 +712,21 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
         svc__send_stats,             /* SVC_EVENT_SEND_STATS */
         svc_wf_cports__connected,    /* SVC_EVENT_CPORTS_DONE */
+    },
+    /* SVC_SLAVE_CONNECTED */
+    {
+        NULL,                        /* SVC_EVENT_MASTER_STARTED */
+        NULL,                        /* SVC_EVENT_SLAVE_STARTED */
+        svc__test_mode,              /* SVC_EVENT_TEST_MODE_STARTED */
+        NULL,                        /* SVC_EVENT_MOD_DETECTED */
+        NULL,                        /* SVC_EVENT_UNIPRO_LINK_TIMEOUT */
+        NULL,                        /* SVC_EVENT_MOD_TIMEOUT */
+        NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
+        svc_connected__link_down,    /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        svc_connected__gear_shifted, /* SVC_EVENT_GEAR_SHIFT_DONE */
+        svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
+        svc__send_stats,             /* SVC_EVENT_SEND_STATS */
+        NULL,                        /* SVC_EVENT_CPORTS_DONE */
     },
     /* SVC_WAIT_FOR_UNIPRO */
     {
