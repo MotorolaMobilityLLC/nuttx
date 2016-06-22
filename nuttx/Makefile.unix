@@ -276,15 +276,16 @@ endif
 tools/mkversion$(HOSTEXEEXT):
 	$(Q) $(MAKE) -C tools -f Makefile.host TOPDIR="$(TOPDIR)"  mkversion$(HOSTEXEEXT)
 
+ifneq (${BUILD_NUMBER},)
+  OVERRIDE_VERSION = 0.${BUILD_NUMBER}
+else
+  OVERRIDE_VERSION = 0.1
+endif
+OVERRIDE_BUILD_NUM = ${shell git describe --always --dirty --match nothing 2>/dev/null}
+
 $(TOPDIR)/.version: FORCE
-	$(Q) if [ -n "$(OVERRIDE_BUILD_NUM)" ] && [ -n "$(OVERRIDE_VERSION)" ]; then \
-		tools/version.sh -v $(OVERRIDE_VERSION) -b $(OVERRIDE_BUILD_NUM) .version; \
-		chmod 755 .version; \
-	elif [ ! -f .version ]; then \
-		echo "No .version file found, creating one"; \
-		tools/version.sh -v 0.0 -b 0 .version; \
-		chmod 755 .version; \
-	fi
+	tools/version.sh -v $(OVERRIDE_VERSION) -b $(OVERRIDE_BUILD_NUM) .version; \
+	chmod 755 .version; \
 
 FORCE:
 
