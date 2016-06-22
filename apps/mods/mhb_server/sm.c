@@ -618,6 +618,60 @@ static enum svc_state svc_connected__link_down(struct svc *svc, struct svc_work 
     return SVC_DISCONNECTED;
 }
 
+static enum svc_state svc__link_down(struct svc *svc, struct svc_work *work) {
+    vdbg("\n");
+
+    /* Cancel timers (if running). */
+    if (g_svc.linkup_poll_tid != SVC_TIMER_INVALID) {
+        svc_delete_timer(g_svc.linkup_poll_tid);
+        g_svc.linkup_poll_tid = SVC_TIMER_INVALID;
+    }
+
+    if (g_svc.mod_detect_tid != SVC_TIMER_INVALID) {
+        svc_delete_timer(g_svc.mod_detect_tid);
+        g_svc.mod_detect_tid = SVC_TIMER_INVALID;
+    }
+
+#if CONFIG_RAMLOG_SYSLOG
+    mhb_ramlog_disable(true /* force */);
+#endif
+
+#if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
+    (void)i2s_unipro_tunnel_unipro_unregister();
+#endif
+
+#if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
+    ipc_unregister_unipro();
+#endif
+
+    if (g_svc.gearbox) {
+        gearbox_link_down(g_svc.gearbox);
+    }
+
+    /* Disable UniPro interrupt events. */
+    unipro_p2p_detect_linkloss(false);
+
+    /* Reset the UniPro link. */
+    unipro_reset();
+
+    g_svc.linkup_poll_tid = svc_set_timer(&svc_unipro_link_timeout_handler,
+                                          SVC_LINKUP_POLL_INTERVAL);
+    if (g_svc.linkup_poll_tid == SVC_TIMER_INVALID) {
+        /* TODO: handle error case */
+        dbg("ERROR: invalid link timer\n");
+    }
+
+    /* Start up a timer for overall Mod detection */
+    g_svc.mod_detect_tid = svc_set_timer(&svc_mod_detect_timeout_handler,
+                                         SVC_MOD_DETECT_TIMEOUT);
+    if (g_svc.mod_detect_tid == SVC_TIMER_INVALID) {
+        /* TODO: handle error case */
+        dbg("ERROR: invalid mod timer\n");
+    }
+
+    return SVC_WAIT_FOR_UNIPRO;
+}
+
 static enum svc_state svc_connected__gear_shifted(struct svc *svc, struct svc_work *work) {
     vdbg("\n");
 
@@ -752,7 +806,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_TIMEOUT */
         svc_wf_mod__mod_timeout,     /* SVC_EVENT_MOD_TIMEOUT */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
-        NULL,                        /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        svc__link_down,              /* SVC_EVENT_UNIPRO_LINK_DOWN */
         NULL,                        /* SVC_EVENT_GEAR_SHIFT_DONE */
         svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
         svc__send_stats,             /* SVC_EVENT_SEND_STATS */
@@ -767,7 +821,7 @@ static const svc_event_handler SVC_STATES[SVC_STATE_MAX][SVC_EVENT_MAX] = {
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_TIMEOUT */
         NULL,                        /* SVC_EVENT_MOD_TIMEOUT */
         NULL,                        /* SVC_EVENT_UNIPRO_LINK_UP */
-        svc_connected__link_down,    /* SVC_EVENT_UNIPRO_LINK_DOWN */
+        svc__link_down,              /* SVC_EVENT_UNIPRO_LINK_DOWN */
         svc_connected__gear_shifted, /* SVC_EVENT_GEAR_SHIFT_DONE */
         svc__queue_stats,            /* SVC_EVENT_QUEUE_STATS */
         svc__send_stats,             /* SVC_EVENT_SEND_STATS */
