@@ -54,6 +54,7 @@
 
 #define MHB_UART_SYNC_FLAG   (0x7f)
 #define MHB_UART_SYNC_LENGTH (32)
+#define MHB_UART_SYNC_MIN_LENGTH (16)
 
 #define MHB_SIG_STOP (9)
 
@@ -513,36 +514,48 @@ static int _mhb_send_sync_pattern(void)
 }
 #endif
 
-#if CONFIG_MHB_UART_WAIT_FOR_SYNC
-static int _mhb_wait_for_sync_pattern(void)
+static int _mhb_wait_for_sync_pattern(uint8_t *rx_buf, size_t *rx_size)
 {
     int ret = 0;
+    *rx_size = 0;
+
+#if CONFIG_MHB_UART_WAIT_FOR_SYNC
     size_t n = 0;
 
     while (!ret) {
-        uint8_t rx_buf[1];
         int got = 0;
-        ret = device_uart_start_receiver(g_mhb->dev, rx_buf, sizeof(rx_buf),
+        ret = device_uart_start_receiver(g_mhb->dev, rx_buf, 1 /* size */,
                       NULL /* dma */,
                       &got, NULL /* blocking */);
         if (ret || !got) {
             if (ret != -EINTR) {
                 lldbg("FATAL: Failed to wait for sync: %d\n", ret);
             }
+
+            /* Return the error code. */
             break;
         }
 
-        n = (rx_buf[0] == MHB_UART_SYNC_FLAG) ? n + 1 : 0;
-
-        if (n == MHB_UART_SYNC_LENGTH) {
-            /* sync found */
+        if (rx_buf[0] == MHB_UART_SYNC_FLAG) {
+            vdbg("sync_length=%d\n", n);
+            n++;
+        } else if (n < MHB_UART_SYNC_MIN_LENGTH) {
+            vdbg("continue: non-flag (0x%02x), sync_length=%d\n", *rx_buf, n);
+            /* Start looking all over again. */
+            n = 0;
+            continue;
+        } else {
+            vdbg("done: non-flag (0x%02x), sync_length=%d\n", *rx_buf, n);
+            *rx_size = 1;
+            ret = 0;
             break;
         }
     }
+#endif
 
+    vdbg("ret=%d\n", ret);
     return ret;
 }
-#endif
 
 static void *mhb_rx_thread(void *data)
 {
@@ -550,9 +563,8 @@ static void *mhb_rx_thread(void *data)
     static uint8_t rx_buf[CONFIG_MHB_UART_RXBUFSIZE];
     size_t rx_size = 0;
 
-#if CONFIG_MHB_UART_WAIT_FOR_SYNC
-    ret = _mhb_wait_for_sync_pattern();
-#endif
+    ret = _mhb_wait_for_sync_pattern(rx_buf, &rx_size);
+    vdbg("sync done: ret=%d\n", ret);
 
     while (!ret) {
         int got = 0;
@@ -592,10 +604,9 @@ static void *mhb_rx_thread(void *data)
                         lldbg("ERROR: CRC mismatch: rx=%04x, calc=%04x\n",
                                                 received_crc, calculated_crc);
 
-                        // TODO: Tell the peer there is an error
-
-                        /* Reset the rx size */
-                        rx_size = 0;
+                        /* Re-sync */
+                        ret = _mhb_wait_for_sync_pattern(rx_buf, &rx_size);
+                        vdbg("sync done: ret=%d\n", ret);
                         continue;
                     }
                 }
@@ -614,10 +625,9 @@ static void *mhb_rx_thread(void *data)
             } else if (length > MHB_MAX_MSG_SIZE) {
                 lldbg("ERROR: Invalid length=%04x\n", length);
 
-                 // TODO: Tell the peer there is an error
-
-                 /* Reset the rx size */
-                 rx_size = 0;
+                 /* Re-sync */
+                 ret = _mhb_wait_for_sync_pattern(rx_buf, &rx_size);
+                 vdbg("sync done: ret=%d\n", ret);
                  continue;
             }
         }
