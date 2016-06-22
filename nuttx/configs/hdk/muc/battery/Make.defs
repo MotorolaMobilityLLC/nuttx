@@ -54,19 +54,6 @@ else
   ARCHSCRIPT = -T$(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/scripts/$(LDSCRIPT)
 endif
 
-ifeq (${INCREMENTAL_RELEASE_NUMBER},)
-  OVERRIDE_VERSION = 0.1
-else
-  OVERRIDE_VERSION = 0.${INCREMENTAL_RELEASE_NUMBER}
-endif
-
-#f we are build from a jenkins build, use the build number as OVERRIDE_BUILD_NUM
-ifeq (${BUILD_NUMBER},)
-  OVERRIDE_BUILD_NUM = ${shell git describe --always --dirty --match nothing 2>/dev/null}
-else
-  OVERRIDE_BUILD_NUM = ${BUILD_NUMBER}
-endif
-
 CC = $(CROSSDEV)gcc
 CXX = $(CROSSDEV)g++
 CPP = $(CROSSDEV)gcc -E
