@@ -1,0 +1,14 @@
+language: c
+
+before_install:
+  - sudo add-apt-repository ppa:team-gcc-arm-embedded/ppa -y
+  - sudo apt-get -qq update
+  - sudo apt-get install -y git gperf flex bison libncurses5-dev gcc-arm-embedded python-pip
+  - sudo pip install pyelftools
+
+install:
+  - git clone https://github.com/MotorolaMobilityLLC/manifesto /tmp/manifesto
+  - git clone https://github.com/MotorolaMobilityLLC/bootrom-tools /tmp/bootrom-tools
+  - export PATH=$PATH:/tmp/manifesto:/tmp/bootrom-tools
+
+script: ./travis_build.sh
