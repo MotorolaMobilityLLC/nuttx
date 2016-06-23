@@ -421,7 +421,7 @@ static int mhb_handle_unipro(struct mhb_transaction *transaction)
 }
 
 /* CDSI */
-inline struct cdsi_block *cdsi_from_inst(uint8_t inst)
+static inline struct cdsi_block *cdsi_from_inst(uint8_t inst)
 {
     if (inst >= ARRAY_SIZE(g_cdsi_blocks)) {
         dbg("ERROR: Invalid CDSI instance.\n");
