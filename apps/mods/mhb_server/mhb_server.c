@@ -49,11 +49,13 @@
 #include <nuttx/device_gpio_tunnel.h>
 #include <nuttx/irq.h>
 #include <nuttx/util.h>
+#include <nuttx/version.h>
 #include <nuttx/wqueue.h>
 
 #if defined(CONFIG_I2S_TUNNEL)
 # include <nuttx/i2s_tunnel/i2s_unipro.h>
 #endif
+#include <nuttx/greybus/tsb_unipro.h>
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/ipc.h>
 #include <nuttx/mhb/mhb_protocol.h>
@@ -1529,6 +1531,60 @@ static int mhb_handle_diag_reg_log_req(struct mhb_transaction *transaction)
     }
 }
 
+static int _mhb_send_id_not(struct device *dev, struct mhb_diag_id_not *not)
+{
+    struct mhb_hdr hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.addr = MHB_ADDR_DIAG;
+    hdr.type = MHB_TYPE_DIAG_ID_NOT;
+    hdr.result = MHB_RESULT_SUCCESS;
+
+#if CONFIG_MHB_IPC_CLIENT
+    struct mhb_transaction transaction;
+    memset(&transaction, 0, sizeof(transaction));
+
+    transaction.dev = dev;
+    transaction.in_msg.hdr = &hdr;
+    transaction.in_msg.payload = (uint8_t *)not;
+    transaction.in_msg.payload_length = sizeof(struct mhb_diag_id_not);
+
+    return mhb_unipro_send(&transaction);
+#elif CONFIG_MHB_IPC_SERVER
+    return device_mhb_send(dev, &hdr, (const uint8_t *)not,
+                           sizeof(struct mhb_diag_id_not), 0);
+#endif
+}
+
+int mhb_send_id_not(void)
+{
+    struct mhb_diag_id_not not;
+    memset(&not, 0, sizeof(not));
+
+    unipro_attr_local_read(DME_DDBL1_MANUFACTURERID, &not.unipro_mid, 0);
+    unipro_attr_local_read(DME_DDBL1_PRODUCTID, &not.unipro_pid, 0);
+    unipro_attr_local_read(TSB_DME_DDBL2_A, &not.vid, 0);
+    unipro_attr_local_read(TSB_DME_DDBL2_B, &not.pid, 0);
+
+    not.major_version = CONFIG_VERSION_MAJOR;
+    not.minor_version = CONFIG_VERSION_MINOR;
+    strncpy(not.build, CONFIG_VERSION_BUILD, sizeof(not.build) - 1);
+
+#if CONFIG_MHB_IPC_CLIENT
+    return _mhb_send_id_not(NULL /* device */, &not);
+#elif CONFIG_MHB_IPC_SERVER
+    return _mhb_send_id_not(g_uart_dev, &not);
+#endif
+}
+
+static int mhb_handle_diag_id_not(struct mhb_transaction *transaction)
+{
+    /* Forward ID notification from UniPro to UART. */
+    transaction->in_msg.hdr->addr |= MHB_PEER_MASK;
+    return device_mhb_send(g_uart_dev, transaction->in_msg.hdr,
+                           transaction->in_msg.payload,
+                           transaction->in_msg.payload_length, 0);
+}
+
 /* All */
 static int mhb_handle_diag(struct mhb_transaction *transaction)
 {
@@ -1547,6 +1603,8 @@ static int mhb_handle_diag(struct mhb_transaction *transaction)
         return mhb_handle_diag_control_req(transaction);
     case MHB_TYPE_DIAG_REG_LOG_REQ:
         return mhb_handle_diag_reg_log_req(transaction);
+    case MHB_TYPE_DIAG_ID_NOT:
+        return mhb_handle_diag_id_not(transaction);
     default:
         dbg("ERROR: unknown server diag event: %d\n", transaction->in_msg.hdr->type);
         return -EINVAL;

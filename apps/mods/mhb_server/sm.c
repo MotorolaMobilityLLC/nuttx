@@ -493,6 +493,7 @@ static enum svc_state svc_wf_cports__connected(struct svc *svc, struct svc_work 
 #endif
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
+    mhb_send_id_not();
     return SVC_SLAVE_CONNECTED;
 }
 
@@ -569,6 +570,7 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
 #endif
 
     mhb_send_pm_status_not(MHB_PM_STATUS_PEER_CONNECTED);
+    mhb_send_id_not();
     return SVC_CONNECTED;
 }
 

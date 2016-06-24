@@ -224,6 +224,9 @@ enum MHB_ADDR {
 #define MHB_TYPE_DIAG_REG_LOG_REQ (5)
 #define MHB_TYPE_DIAG_REG_LOG_RSP (MHB_RSP_MASK|MHB_TYPE_DIAG_REG_LOG_REQ)
 
+#define MHB_TYPE_DIAG_ID_REQ (6)
+#define MHB_TYPE_DIAG_ID_NOT (MHB_NOT_MASK|MHB_TYPE_DIAG_ID_REQ)
+
 /* result */
 enum MHB_RESULT {
 	MHB_RESULT_SUCCESS       = 0x00,
@@ -570,5 +573,16 @@ struct mhb_diag_control_req {
 #define MHB_DIAG_CONTROL_NONE           0
 #define MHB_DIAG_CONTROL_REGLOG_FIFO    1  /* Set the reglog mode to FIFO. */
 #define MHB_DIAG_CONTROL_REGLOG_STACK   2  /* Set the reglog mode to stack. */
+
+struct mhb_diag_id_not {
+	uint32_t unipro_mid;
+	uint32_t unipro_pid;
+	uint32_t vid;
+	uint32_t pid;
+	uint16_t major_version;
+	uint16_t minor_version;
+	char build[32];
+	char reserved[32];
+} __attribute__((packed));
 
 #endif

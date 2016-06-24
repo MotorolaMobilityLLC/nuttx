@@ -42,4 +42,6 @@ int mhb_send_diag_log_not(const char *buffer, size_t length);
 
 int mhb_send_hsic_status_not(uint8_t status);
 
+int mhb_send_id_not(void);
+
 #endif
