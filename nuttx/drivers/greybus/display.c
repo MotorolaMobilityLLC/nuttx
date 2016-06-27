@@ -103,10 +103,13 @@ static uint8_t gb_mods_display_host_ready(struct gb_operation *operation)
 static uint8_t gb_mods_display_get_config_size(struct gb_operation *operation)
 {
     struct gb_mods_display_get_display_config_size_response *response;
+    uint8_t display_type;
+    uint8_t config_type;
     size_t config_size;
     int ret;
 
-    ret = device_display_get_config_size(display_info->dev,  &config_size);
+    ret = device_display_get_config(display_info->dev, &display_type,
+            &config_type, &config_size, NULL);
     if (ret)
         return GB_OP_UNKNOWN_ERROR;
 
