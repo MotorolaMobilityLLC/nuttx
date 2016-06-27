@@ -42,7 +42,7 @@
 #define GB_MODS_DISPLAY_TYPE_NOTIFICATION             0x08
 
 #define GB_MODS_DISPLAY_VERSION_MAJOR              0
-#define GB_MODS_DISPLAY_VERSION_MINOR              1
+#define GB_MODS_DISPLAY_VERSION_MINOR              2
 
 #define GB_MODS_DISPLAY_DISPLAY_TYPE_INVALID          0x00
 #define GB_MODS_DISPLAY_DISPLAY_TYPE_DSI              0x01
@@ -51,6 +51,7 @@
 #define GB_MODS_DISPLAY_CONFIG_TYPE_INVALID           0x00
 #define GB_MODS_DISPLAY_CONFIG_TYPE_EDID_1P3          0x01
 #define GB_MODS_DISPLAY_CONFIG_DSI                    0x02
+#define GB_MODS_DISPLAY_CONFIG_TYPE_EDID_DOWNSTREAM   0x03
 
 #define GB_MODS_DISPLAY_STATE_OFF                     0x00
 #define GB_MODS_DISPLAY_STATE_ON                      0x01
@@ -67,6 +68,14 @@
     ((major > GB_MODS_DISPLAY_SUPPORT_##name##_MAJOR) || \
     (major == GB_MODS_DISPLAY_SUPPORT_##name##_MAJOR && \
     minor >= GB_MODS_DISPLAY_SUPPORT_##name##_MINOR))
+
+/**
+ * New in version 0.2
+ *   added value to enum display_config_type
+ *     DISPLAY_CONFIG_TYPE_EDID_DOWNSTREAM
+ */
+#define GB_MODS_DISPLAY_SUPPORT_CONFIG_TYPE_EDID_DOWNSTREAM_MAJOR 0
+#define GB_MODS_DISPLAY_SUPPORT_CONFIG_TYPE_EDID_DOWNSTREAM_MINOR 2
 
 /**
  * Greybus Display Protocol Version Request

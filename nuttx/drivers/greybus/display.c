@@ -112,6 +112,31 @@ static uint8_t gb_mods_display_host_ready(struct gb_operation *operation)
 }
 
 /**
+ * @brief Get config data from the display device, handling protocol compatibility
+ *
+ * @return GB_OP_SUCCESS on success, error code on failure
+ */
+static int get_compatible_config(struct device *dev, uint8_t *display_type,
+        uint8_t *config_type, uint32_t *config_size, uint8_t **config, const char *func)
+{
+    int ret = device_display_get_config(display_info->dev, display_type,
+            config_type, config_size, config);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    if (*config_type == DISPLAY_CONFIG_TYPE_EDID_DOWNSTREAM
+            && !GB_MODS_DISPLAY_SUPPORTS(CONFIG_TYPE_EDID_DOWNSTREAM)) {
+        gb_info("%s(): protocol %d.%d does not support config_type=EDID_DOWNSTREAM\n",
+                func, display_info->host_proto_major, display_info->host_proto_minor);
+        gb_info("%s(): forcing config_size=0, config_type=EDID_1P3\n", func);
+        *config_size = 0;
+        *config_type = DISPLAY_CONFIG_TYPE_EDID_1P3;
+    }
+
+    return GB_OP_SUCCESS;
+}
+
+/**
  * @brief Get the size of the configuration data
  *
  * This function is called before gb_mods_display_get_config() to get the
@@ -128,10 +153,10 @@ static uint8_t gb_mods_display_get_config_size(struct gb_operation *operation)
     size_t config_size;
     int ret;
 
-    ret = device_display_get_config(display_info->dev, &display_type,
-            &config_type, &config_size, NULL);
+    ret = get_compatible_config(display_info->dev, &display_type,
+            &config_type, &config_size, NULL, __func__);
     if (ret)
-        return GB_OP_UNKNOWN_ERROR;
+        return ret;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response) {
@@ -158,10 +183,10 @@ static uint8_t gb_mods_display_get_config(struct gb_operation *operation)
     uint8_t *config_data;
     int ret;
 
-    ret = device_display_get_config(display_info->dev, &display_type,
-            &config_type, &config_size, &config_data);
+    ret = get_compatible_config(display_info->dev, &display_type,
+            &config_type, &config_size, &config_data, __func__);
     if (ret)
-        return GB_OP_UNKNOWN_ERROR;
+        return ret;
 
     response = gb_operation_alloc_response(operation,
             sizeof(*response) + config_size);
