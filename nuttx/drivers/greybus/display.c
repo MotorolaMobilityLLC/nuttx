@@ -42,11 +42,21 @@
 
 #include "display-gb.h"
 
+#define GB_MODS_DISPLAY_SUPPORTS(name) \
+    GB_MODS_DISPLAY_VERSION_SUPPORTS( \
+        display_info->host_proto_major, \
+        display_info->host_proto_minor, \
+        name)
+
 struct gb_mods_display_info {
     /** opened device driver handler */
     struct device *dev;
     /** assigned CPort number */
     unsigned int cport;
+    /** host protocol major version */
+    __u8 host_proto_major;
+    /** host protocol minor version */
+    __u8 host_proto_minor;
 };
 
 static struct gb_mods_display_info *display_info;
@@ -61,7 +71,17 @@ static struct gb_mods_display_info *display_info;
  */
 static uint8_t gb_mods_display_protocol_version(struct gb_operation *operation)
 {
+    struct gb_mods_display_proto_version_request *request;
     struct gb_mods_display_proto_version_response *response;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("dropping short message\n");
+        return GB_OP_INVALID;
+    }
+
+    request = gb_operation_get_request_payload(operation);
+    display_info->host_proto_major = request->major;
+    display_info->host_proto_minor = request->minor;
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response) {

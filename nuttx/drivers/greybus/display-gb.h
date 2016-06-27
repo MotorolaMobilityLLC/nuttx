@@ -62,6 +62,20 @@
 #define GB_MODS_DISPLAY_NOTIFICATION_EVENT_CONNECT     0x04
 #define GB_MODS_DISPLAY_NOTIFICATION_EVENT_DISCONNECT  0x05
 
+/* Check for operation support */
+#define GB_MODS_DISPLAY_VERSION_SUPPORTS(major, minor, name) \
+    ((major > GB_MODS_DISPLAY_SUPPORT_##name##_MAJOR) || \
+    (major == GB_MODS_DISPLAY_SUPPORT_##name##_MAJOR && \
+    minor >= GB_MODS_DISPLAY_SUPPORT_##name##_MINOR))
+
+/**
+ * Greybus Display Protocol Version Request
+ */
+struct gb_mods_display_proto_version_request {
+    __u8 major;
+    __u8 minor;
+} __packed;
+
 /**
  * Greybus Display Protocol Version Response
  */
