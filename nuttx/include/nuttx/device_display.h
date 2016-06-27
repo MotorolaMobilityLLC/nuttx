@@ -41,9 +41,10 @@ enum display_type {
 };
 
 enum display_config_type {
-    DISPLAY_CONFIG_TYPE_INVALID  = 0x00,
-    DISPLAY_CONFIG_TYPE_EDID_1P3 = 0x01,
-    DISPLAY_CONFIG_TYPE_DSI      = 0x02,
+    DISPLAY_CONFIG_TYPE_INVALID         = 0x00,
+    DISPLAY_CONFIG_TYPE_EDID_1P3        = 0x01,
+    DISPLAY_CONFIG_TYPE_DSI             = 0x02,
+    DISPLAY_CONFIG_TYPE_EDID_DOWNSTREAM = 0x03,
 };
 
 enum display_config_dsi_mode {
@@ -152,6 +153,10 @@ struct display_dsi_config {
     uint16_t vertical_top_border;
     uint16_t vertical_bottom_border;
     uint16_t reserved2;
+};
+
+struct display_downstream_config {
+    uint32_t max_link_bandwidth_khz;
 };
 
 enum display_state {
