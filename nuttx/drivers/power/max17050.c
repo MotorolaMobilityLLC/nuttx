@@ -160,6 +160,15 @@ struct max17050_dev_s
     int alrt_gpio;
     struct work_s batt_good_work;
     struct device *batt_good_dev;
+    bool min_max_valrt;
+    bool min_max_talrt;
+    bool min_max_salrt;
+    int min_valrt;
+    int max_valrt;
+    int min_talrt;
+    int max_talrt;
+    int min_salrt;
+    int max_salrt;
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
     sem_t battery_temp_sem;
     batt_temp_limits temp_limits_cb;
@@ -177,10 +186,6 @@ struct max17050_dev_s
     int eoc_counter;
     struct work_s state_changed_work;
     struct work_s eoc_work;
- #if CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE
-    int min_valrt;
-    int max_valrt;
- #endif
 #endif
 #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050
     sem_t battery_voltage_sem;
@@ -815,11 +820,11 @@ static int max17050_set_voltage_alert(FAR struct max17050_dev_s *priv, int min,
             return 0;
     } else if (min == INT_MIN && empty_battery_detection)
         min = CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE;
+#endif
 
     /* Remember the limits that will be programmed */
     priv->min_valrt = min;
     priv->max_valrt = max;
-#endif
 
     uint16_t valrt_min = (min == INT_MIN ? 0x00 : min / 20);
     uint16_t valrt_max = (max == INT_MAX ? 0xff : max / 20);
@@ -862,6 +867,10 @@ static int max17050_set_temperature_alert(FAR struct max17050_dev_s *priv,
         talrt_max = (~talrt_max + 1) & 0x00FF;
     }
 
+    /* Remember the limits that will be programmed */
+    priv->min_talrt = min;
+    priv->max_talrt = max;
+
     talrt = talrt_min | talrt_max << 8;
 
     return max17050_reg_write(priv, MAX17050_REG_TALRT, talrt);
@@ -873,6 +882,10 @@ static int max17050_set_soc_alert(FAR struct max17050_dev_s *priv, int min,
     uint16_t salrt_min = (min == INT_MIN ? 0x00 : min );
     uint16_t salrt_max = (max == INT_MAX ? 0xff : max );
     uint16_t salrt = salrt_min | salrt_max << 8;
+
+    /* Remember the limits that will be programmed */
+    priv->min_salrt = min;
+    priv->max_salrt = max;
 
     return max17050_reg_write(priv, MAX17050_REG_SALRT, salrt);
 }
@@ -933,6 +946,101 @@ static void max17050_queue_alrt_work(FAR struct max17050_dev_s *priv, int ms)
                    priv, MSEC2TICK(ms));
 }
 
+/*
+ * Fuel gauge may erroneously assert both min and max alerts at the same time in
+ * some corner cases. If these conditions are detected, disable the alerts to
+ * clear the erroneous state and reprogram the thresholds back after at least
+ * 351 mS.
+ * status: The output value is "-1" if not initialized or ALRT line is not
+ * asserted, otherwise the value is non negative.
+ */
+static void max17050_min_max_alrt(struct max17050_dev_s *priv, int *status)
+{
+    /* Thresholds before alerts are disabled */
+    static int min_valrt, max_valrt;
+    static int min_talrt, max_talrt;
+    static int min_salrt, max_salrt;
+    /* Flags indicating which alarms need to be reprogrammed */
+    bool valrt = priv->min_max_valrt;
+    bool talrt = priv->min_max_talrt;
+    bool salrt = priv->min_max_salrt;
+
+    *status = -1;
+
+    /* Process only if initialized */
+    if (!priv->initialized)
+        return;
+
+    /* Reprogram alarms if both min and max were previously detected */
+    if (valrt) {
+        max17050_set_voltage_alert(priv, min_valrt, max_valrt);
+        priv->min_max_valrt = false;
+    }
+
+    if (talrt) {
+        max17050_set_temperature_alert(priv, min_talrt, max_talrt);
+        priv->min_max_talrt = false;
+    }
+
+    if (salrt) {
+        max17050_set_soc_alert(priv, min_salrt, max_salrt);
+        priv->min_max_salrt = false;
+    }
+
+    /* Process only if ALRT line is asserted */
+    if (gpio_get_value(priv->alrt_gpio))
+        return;
+
+    *status = max17050_reg_read_retry(priv, MAX17050_REG_STATUS);
+
+    if (*status < 0) {
+        *status = 0; /* To force rescheduling alrt worker */
+        return;
+    }
+
+    if (valrt)
+         /* Skip processing since new thresholds were just programmed */
+        *status &= ~(MAX17050_STATUS_VMN | MAX17050_STATUS_VMX);
+    else if (*status & MAX17050_STATUS_VMN && *status & MAX17050_STATUS_VMX) {
+        dbg("Simultaneous min and max VALRT\n");
+        priv->min_max_valrt = true;
+         /* Skip processing since both min and max are asserted */
+        *status &= ~(MAX17050_STATUS_VMN | MAX17050_STATUS_VMX);
+         /* Remember current thresholds and disable the alerts to clear them */
+        min_valrt = priv->min_valrt;
+        max_valrt = priv->max_valrt;
+        max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
+    }
+
+    if (talrt)
+         /* Skip processing since new thresholds were just programmed */
+        *status &= ~(MAX17050_STATUS_TMN | MAX17050_STATUS_TMX);
+    else if (*status & MAX17050_STATUS_TMN && *status & MAX17050_STATUS_TMX) {
+        dbg("Simultaneous min and max TALRT\n");
+        priv->min_max_talrt = true;
+         /* Skip processing since both min and max are asserted */
+        *status &= ~(MAX17050_STATUS_TMN | MAX17050_STATUS_TMX);
+         /* Remember current thresholds and disable the alerts to clear them */
+        min_talrt = priv->min_talrt;
+        max_talrt = priv->max_talrt;
+        max17050_set_temperature_alert(priv, INT_MIN, INT_MAX);
+    }
+
+    if (salrt)
+         /* Clear bits to skip processing */
+        *status &= ~(MAX17050_STATUS_SMN | MAX17050_STATUS_SMX);
+    else if (*status & MAX17050_STATUS_SMN && *status & MAX17050_STATUS_SMX) {
+        dbg("Simultaneous min and max SALRT\n");
+        priv->min_max_salrt = true;
+         /* Skip processing since both min and max are asserted */
+        *status &= ~(MAX17050_STATUS_SMN | MAX17050_STATUS_SMX);
+         /* Remember current thresholds and disable the alerts to clear them */
+        min_salrt = priv->min_salrt;
+        max_salrt = priv->max_salrt;
+        max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
+    }
+}
+
 static void max17050_alrt_worker(FAR void *arg)
 {
     FAR struct max17050_dev_s *priv = arg;
@@ -940,11 +1048,10 @@ static void max17050_alrt_worker(FAR void *arg)
     bool empty_battery = false;
     int delay;
 
+    max17050_min_max_alrt(priv, &status);
     /* Process only if ALRT line is asserted and initialized */
-    if (gpio_get_value(priv->alrt_gpio) || !priv->initialized)
+    if (status < 0)
         return;
-
-    status = max17050_reg_read_retry(priv, MAX17050_REG_STATUS);
 
     if (status > 0) {
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
@@ -981,11 +1088,11 @@ static void max17050_alrt_worker(FAR void *arg)
 #endif
    }
 
-    /* It takes up to 350 mS for the IC to de-assert the ALRT line after the
+    /* It takes up to 351 mS for the IC to de-assert the ALRT line after the
      * condition goes away. Run this worker again since ALRT line will remain
      * asserted if another condition becomes active within this window.
      * If SOC is forced to 0% after empty battery is detected, it may take
-     * another 350 mS for the IC to process it. So, double the delay to avoid
+     * another 351 mS for the IC to process it. So, double the delay to avoid
      * false SOC alerts.
      */
     delay = empty_battery ? 2 * MAX17050_ALERT_DEASSERT_DELAY : MAX17050_ALERT_DEASSERT_DELAY;
@@ -1039,6 +1146,11 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
 #endif
 
     priv->initialized = state;
+    if (!state) {
+        priv->min_max_valrt = false;
+        priv->min_max_talrt = false;
+        priv->min_max_salrt = false;
+    }
 
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
     if (priv->temp_available_cb)
