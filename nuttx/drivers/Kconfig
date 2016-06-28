@@ -57,6 +57,20 @@ config HDMI_DISPLAY
 	bool "HDMI External Display"
 	default n
 
+config HDMI_DISPLAY_BANDWIDTH_LIMIT
+	bool "Limit HDMI display link bandwidth"
+	default n
+	depends on HDMI_DISPLAY
+	---help---
+		Enable limiting HDMI display link bandwidth
+
+config HDMI_DISPLAY_MAX_BANDWIDTH_KHZ
+	int "HDMI display max link bandwidth in KHz"
+	default 5400000
+	depends on HDMI_DISPLAY_BANDWIDTH_LIMIT
+	---help---
+		Maximum HDMI display link bandwidth in KHz. Default: 5400000 (5.4 GHz)
+
 config DEV_RANDOM
 	bool "Enable /dev/random"
 	default n
