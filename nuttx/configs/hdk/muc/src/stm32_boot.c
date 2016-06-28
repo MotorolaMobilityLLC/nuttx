@@ -378,11 +378,11 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE
     {
         .type = DEVICE_TYPE_PTP_HW,
-        .name = "battery_ptp",
-        .desc = "Power transfer protocol for devices with a battery",
+        .name = "mods_ptp",
+        .desc = "Power transfer protocol for devices",
         .id   = 0,
     },
 #endif
@@ -792,9 +792,9 @@ void board_initialize(void)
   extern struct device_driver mods_raw_temperature_driver;
   device_register_driver(&mods_raw_temperature_driver);
 #endif
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_BATTERY
-  extern struct device_driver batt_ptp_driver;
-  device_register_driver(&batt_ptp_driver);
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE
+  extern struct device_driver mods_ptp_driver;
+  device_register_driver(&mods_ptp_driver);
 #endif
 #ifdef CONFIG_CHARGER_DEVICE_BQ24292
   extern struct device_driver bq24292_charger_driver;
