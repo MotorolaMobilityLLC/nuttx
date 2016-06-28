@@ -32,7 +32,19 @@
 #include <stdint.h>
 #define __packed    __attribute__((packed))
 
-#define IPC_PACKET_MAX_SIZE 128
+/* Unipro currently uses a pool of ring buffers which are allocated at
+ * startup using the bufram allocator.
+ *
+ * The ring buffer adds overhead of 32 bytes for a ring buffer control
+ * struct.  The bufram itself adds overhead of 16 bytes.  The bufram
+ * allocator will include these overhead sizes when trying allocate
+ * the buffer, and the total size allocated must be a power of two.
+ * This causes the nominal allocation of 128 bytes to actually fit in
+ * the bufram bucket for size 256 allocations, because it requires 128
+ * bytes plus overhead of 48 bytes.  Therefore, we can fit 208 bytes
+ * as well in the 256 bucket (208 + 48 = 256).
+ */
+#define IPC_PACKET_MAX_SIZE 208
 
 #define IPC_FOURCC(a,b,c,d) ((uint32_t)(a) | ((uint32_t)(b)<<8) \
         | ((uint32_t)(c)<<16) | ((uint32_t)(d)<<24))
