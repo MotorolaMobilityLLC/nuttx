@@ -38,17 +38,22 @@
 #include <nuttx/device.h>
 #include <nuttx/device_display.h>
 
-static struct device *gDevice;
-static display_notification_cb gCallback;
+static struct hdmi_display
+{
+    display_notification_cb callback;
+} g_display;
 
 /**
  * Send a notification to the Core
  */
-int hdmi_display_notification(enum display_notification_event event)
+static int hdmi_display_notification(struct device *dev,
+        enum display_notification_event event)
 {
-    if (gCallback)
+    struct hdmi_display *display = device_get_private(dev);
+
+    if (display->callback)
     {
-        gCallback(gDevice, event);
+        display->callback(dev, event);
     }
 
     return OK;
@@ -58,7 +63,7 @@ static int hdmi_display_host_ready(struct device *dev)
 {
     dbg("enter\n");
 
-    hdmi_display_notification(DISPLAY_NOTIFICATION_EVENT_AVAILABLE);
+    hdmi_display_notification(dev, DISPLAY_NOTIFICATION_EVENT_AVAILABLE);
 
     return OK;
 }
@@ -78,25 +83,38 @@ static int hdmi_display_get_config(struct device *dev, uint8_t *display_type, ui
 static int hdmi_display_register_callback(struct device *dev,
         display_notification_cb callback)
 {
+    struct hdmi_display *display = device_get_private(dev);
     dbg("callback=0x%p\n", callback);
 
-    gCallback = callback;
+    display->callback = callback;
     return 0;
 }
 
 static int hdmi_display_unregister_callback(struct device *dev)
 {
-    gCallback = NULL;
+    struct hdmi_display *display = device_get_private(dev);
+    display->callback = NULL;
     return 0;
 }
 
 static int hdmi_display_probe(struct device *dev)
 {
+    struct hdmi_display *display = &g_display;
+
     dbg("enter\n");
 
-    gDevice = dev;
+    memset(display, 0, sizeof(*display));
+    device_set_private(dev, display);
 
     return 0;
+}
+
+static void hdmi_display_remove(struct device *dev) {
+    struct hdmi_display *display = device_get_private(dev);
+    if (display) {
+        device_set_private(dev, NULL);
+        memset(display, 0, sizeof(*display));
+    }
 }
 
 static struct device_display_type_ops hdmi_display_ops = {
@@ -108,6 +126,7 @@ static struct device_display_type_ops hdmi_display_ops = {
 
 static struct device_driver_ops hdmi_display_driver_ops = {
     .probe = hdmi_display_probe,
+    .remove = hdmi_display_remove,
     .type_ops = &hdmi_display_ops,
 };
 
