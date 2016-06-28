@@ -63,13 +63,18 @@ config GREYBUS_MODS_ACK
 		latency or high throughput.
 endif
 
-menuconfig GREYBUS_MODS_PTP_DEVICE_BATTERY
-	bool "PTP device with a battery and charging from external power sources"
+config GREYBUS_MODS_PTP_DEVICE
+	bool "PTP device to be used for charger and/or battery devices"
+	default n
+	depends on GREYBUS_PTP
+
+menuconfig GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+	bool "PTP device has a battery"
 	select BATTERY_STATE
 	default n
-	depends on GREYBUS_PTP && (!GREYBUS_PTP_INT_RCV_NEVER || !GREYBUS_PTP_INT_SND_NEVER)
+	depends on GREYBUS_MODS_PTP_DEVICE
 
-if GREYBUS_MODS_PTP_DEVICE_BATTERY
+if GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
 config GREYBUS_MODS_QUICK_CHG_CURRENT
 	int "Quick charging current limit in mA"
 	default 1500
@@ -109,7 +114,7 @@ endif
 config GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
 	bool "PTP charger driver controlling power path through switches"
 	default n
-	depends on GREYBUS_MODS_PTP_DEVICE_BATTERY && GPIO
+	depends on GREYBUS_MODS_PTP_DEVICE && GPIO
 
 if DEBUG
 config GREYBUS_SELF_DESTRUCT
