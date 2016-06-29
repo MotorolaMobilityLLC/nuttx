@@ -835,58 +835,59 @@ static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
 static int mhb_dsi_display_get_config(struct device *dev, uint8_t *display_type,
     uint8_t *config_type, uint32_t *size, uint8_t **config)
 {
-    int ret;
-    const struct mhb_cdsi_config *cfg = NULL;
-    size_t cfg_size = 0;
-    struct display_dsi_config *dst;
-
     struct mhb_dsi_display *display = device_get_private(dev);
     if (!display) {
         return -ENODEV;
     }
 
-    dst = &display->cfg;
-
-    ret = _mhb_dsi_display_get_config(display->cdsi_instance,
-                &display->panel_info, &cfg, &cfg_size);
-    if (ret || !cfg || !cfg_size) {
-        dbg("ERROR: failed to get config.\n");
-        return -EINVAL;
-    }
-
-    MHB_DSI_LOCK(&display->sem);
-
-    MHB_DSI_DUMP_STATE(display);
-
-    _mhb_dsi_display_convert_dsi_config(display, cfg, dst);
-
-    dbg("wd=%d (%d %d %d %d %d %d), ht=%d (%d %d %d %d %d), fps=%d, bpp=%d\n",
-    dst->width,
-    dst->horizontal_back_porch, dst->horizontal_sync_pulse_width,
-    dst->horizontal_sync_skew, dst->horizontal_front_porch,
-    dst->horizontal_left_border, dst->horizontal_right_border,
-    dst->height,
-    dst->vertical_front_porch, dst->vertical_sync_pulse_width,
-    dst->vertical_back_porch, dst->vertical_top_border,
-    dst->vertical_bottom_border,
-    dst->framerate, dst->bpp);
-
-    dbg("mid=%d, mode=%d, clk=%d, lanes=%d"
-        ", cont=%d, eot=%d, vsync=%d, traffic=%d"
-        ", pre=%d, post=%d\n",
-        dst->manufacturer_id, dst->mode, dst->clockrate, dst->num_lanes,
-        dst->continuous_clock, dst->eot_mode,
-        dst->vsync_mode, dst->traffic_mode,
-        dst->t_clk_pre, dst->t_clk_post);
-
     *display_type = DISPLAY_TYPE_DSI;
     *config_type = DISPLAY_CONFIG_TYPE_DSI;
-    *size = sizeof(*dst);
-    *config = (uint8_t *)dst;
+    *size = sizeof(display->cfg);
 
-    _mhb_dsi_display_connect_on_attach(display);
+    if (config) {
+        int ret;
+        const struct mhb_cdsi_config *cfg = NULL;
+        size_t cfg_size = 0;
+        struct display_dsi_config *dst = &display->cfg;
 
-    MHB_DSI_UNLOCK(&display->sem);
+        ret = _mhb_dsi_display_get_config(display->cdsi_instance,
+                    &display->panel_info, &cfg, &cfg_size);
+        if (ret || !cfg || !cfg_size) {
+            dbg("ERROR: failed to get config.\n");
+            return -EINVAL;
+        }
+
+        MHB_DSI_LOCK(&display->sem);
+
+        MHB_DSI_DUMP_STATE(display);
+
+        _mhb_dsi_display_convert_dsi_config(display, cfg, dst);
+
+        dbg("wd=%d (%d %d %d %d %d %d), ht=%d (%d %d %d %d %d), fps=%d, bpp=%d\n",
+        dst->width,
+        dst->horizontal_back_porch, dst->horizontal_sync_pulse_width,
+        dst->horizontal_sync_skew, dst->horizontal_front_porch,
+        dst->horizontal_left_border, dst->horizontal_right_border,
+        dst->height,
+        dst->vertical_front_porch, dst->vertical_sync_pulse_width,
+        dst->vertical_back_porch, dst->vertical_top_border,
+        dst->vertical_bottom_border,
+        dst->framerate, dst->bpp);
+
+        dbg("mid=%d, mode=%d, clk=%d, lanes=%d"
+            ", cont=%d, eot=%d, vsync=%d, traffic=%d"
+            ", pre=%d, post=%d\n",
+            dst->manufacturer_id, dst->mode, dst->clockrate, dst->num_lanes,
+            dst->continuous_clock, dst->eot_mode,
+            dst->vsync_mode, dst->traffic_mode,
+            dst->t_clk_pre, dst->t_clk_post);
+
+        *config = (uint8_t *)dst;
+
+        _mhb_dsi_display_connect_on_attach(display);
+
+        MHB_DSI_UNLOCK(&display->sem);
+    }
 
     return 0;
 }

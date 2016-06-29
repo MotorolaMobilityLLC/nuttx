@@ -75,7 +75,8 @@ static int hdmi_display_get_config(struct device *dev, uint8_t *display_type, ui
     *display_type = DISPLAY_TYPE_DP;
     *config_type = DISPLAY_CONFIG_TYPE_EDID_1P3;
     *size = 0;
-    *config = NULL;
+    if (config)
+        *config = NULL;
 
     return 0;
 }

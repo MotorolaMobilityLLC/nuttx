@@ -87,7 +87,8 @@ static int null_display_get_config(struct device *dev, uint8_t *display_type, ui
     *display_type = 0;
     *config_type = 0;
     *size = sizeof(g_config);
-    *config = g_config;
+    if (config)
+        *config = g_config;
 
     return 0;
 }
