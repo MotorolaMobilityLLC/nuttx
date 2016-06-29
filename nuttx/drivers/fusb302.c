@@ -629,6 +629,7 @@ static void fusb302_update_state(struct fusb302_dev_s *info)
                 vdbg("wait_snk -> snk\n");
                 info->state = USB_STATE_ATTACHED_SNK;
                 fusb302_notify_device_usb_ext(info);
+                fusb302_notify_device_ext_power(info);
                 break;
             case ATTACH_TYPE_SRC:
                 vdbg("wait_snk -> wait_src\n");
