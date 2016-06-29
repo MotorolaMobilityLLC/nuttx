@@ -258,9 +258,7 @@ static int batt_ptp_attach_changed(FAR void *arg, const void *data)
         info->state.boost_fault = false;
     }
 
-    if (state == BASE_ATTACHED_OFF &&
-         info->state.attached == BASE_ATTACHED &&
-         info->state.direction == PTP_CURRENT_OFF)
+    if (state == BASE_ATTACHED_OFF && info->state.attached == BASE_ATTACHED)
         info->state.base_powered_off = true;
     else
         info->state.base_powered_off = false;
