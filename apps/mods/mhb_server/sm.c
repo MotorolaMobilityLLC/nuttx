@@ -551,16 +551,20 @@ static enum svc_state svc_wf_mod__mod_detected(struct svc *svc, struct svc_work 
 #if defined(CONFIG_ARCH_CHIP_TSB_I2S_TUNNEL)
     (void)i2s_unipro_tunnel_unipro_register();
 #endif
-#if CONFIG_UNIPRO_TEST_0_CPORT_ID
+
+#if CONFIG_UNIPRO_TEST_CPORTS
+# ifdef CONFIG_UNIPRO_TEST_0_CPORT_ID
     lldbg("setup cport=%d\n", CONFIG_UNIPRO_TEST_0_CPORT_ID);
     unipro_p2p_setup_test_connection(CONFIG_UNIPRO_TEST_0_CPORT_ID,
         0 /* test port */, 1 /* APBA to ABPE */, 1 /* E2EFC */);
-#endif
-#if CONFIG_UNIPRO_TEST_1_CPORT_ID
+# endif
+# ifdef CONFIG_UNIPRO_TEST_1_CPORT_ID
     lldbg("setup cport=%d\n", CONFIG_UNIPRO_TEST_1_CPORT_ID);
     unipro_p2p_setup_test_connection(CONFIG_UNIPRO_TEST_1_CPORT_ID,
         1 /* test port */, 0 /* APBE to APBA */, 1 /* E2EFC */);
+# endif
 #endif
+
 #if CONFIG_MHB_IPC_SERVER || CONFIG_MHB_IPC_CLIENT
     ipc_register_unipro();
 #endif
