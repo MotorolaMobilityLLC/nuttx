@@ -106,6 +106,10 @@ ifeq ($(CONFIG_STM32_SPI),y)
 CSRCS += stm32_spi.c
 endif
 
+ifeq ($(CONFIG_BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP),y)
+CSRCS += stm32_thermistor.c
+endif
+
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(ASRCS) $(CSRCS)
