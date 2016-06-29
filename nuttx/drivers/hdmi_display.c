@@ -33,6 +33,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <arch/byteorder.h>
+
 #include <nuttx/greybus/debug.h>
 #include <nuttx/arch.h>
 #include <nuttx/device.h>
@@ -41,6 +43,7 @@
 static struct hdmi_display
 {
     display_notification_cb callback;
+    struct display_downstream_config cfg;
 } g_display;
 
 /**
@@ -68,14 +71,33 @@ static int hdmi_display_host_ready(struct device *dev)
     return OK;
 }
 
+static const struct display_downstream_config downstream_config = {
+#ifdef CONFIG_HDMI_DISPLAY_MAX_BANDWIDTH_KHZ
+    .max_link_bandwidth_khz = CONFIG_HDMI_DISPLAY_MAX_BANDWIDTH_KHZ,
+#else
+    .max_link_bandwidth_khz = 0,
+#endif /* CONFIG_HDMI_DISPLAY_MAX_BANDWIDTH_KHZ */
+};
 
-static int hdmi_display_get_config(struct device *dev, uint8_t *display_type, uint8_t *config_type, uint32_t *size, uint8_t **config)
+static void _hdmi_display_convert_downstream_config(
+        const struct display_downstream_config *src,
+        struct display_downstream_config *dst)
 {
+    dst->max_link_bandwidth_khz = cpu_to_le32(src->max_link_bandwidth_khz);
+}
+
+static int hdmi_display_get_config(struct device *dev, uint8_t *display_type,
+        uint8_t *config_type, uint32_t *size, uint8_t **config)
+{
+    struct hdmi_display *display = device_get_private(dev);
+
     *display_type = DISPLAY_TYPE_DP;
-    *config_type = DISPLAY_CONFIG_TYPE_EDID_1P3;
-    *size = 0;
-    if (config)
-        *config = NULL;
+    *config_type = DISPLAY_CONFIG_TYPE_EDID_DOWNSTREAM;
+    *size = sizeof(downstream_config);
+    if (config) {
+        _hdmi_display_convert_downstream_config(&downstream_config, &display->cfg);
+        *config = (uint8_t*) &display->cfg;
+    }
 
     return 0;
 }
