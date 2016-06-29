@@ -75,13 +75,6 @@ int null_display_notification(enum display_notification_event event)
     return OK;
 }
 
-static int null_display_get_config_size(struct device *dev, uint32_t *size)
-{
-    *size = sizeof(g_config);
-
-    return OK;
-}
-
 static int null_display_get_config(struct device *dev, uint8_t *display_type, uint8_t *config_type, uint32_t *size, uint8_t **config)
 {
     *display_type = 0;
@@ -137,7 +130,6 @@ static int null_display_probe(struct device *dev)
 }
 
 static struct device_display_type_ops null_display_ops = {
-    .get_config_size = null_display_get_config_size,
     .get_config = null_display_get_config,
     .set_config = null_display_set_config,
     .get_state = null_display_get_state,

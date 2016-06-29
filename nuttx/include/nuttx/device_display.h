@@ -173,7 +173,6 @@ typedef int (*display_notification_cb)(struct device *dev,
 
 struct device_display_type_ops {
     int (*host_ready)(struct device *dev);
-    int (*get_config_size)(struct device *dev, uint32_t *size);
     int (*get_config)(struct device *dev, uint8_t *display_type,
         uint8_t *config_type, uint32_t *size, uint8_t **config);
     int (*set_config)(struct device *dev, uint8_t index);
@@ -202,28 +201,6 @@ static inline int device_display_host_ready(struct device *dev)
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, display)->host_ready(dev);
-}
-
-/**
- * @brief Display get_config_size() wrap function
- *
- * @param dev pointer to structure of device data
- * @param size the length of the config sent in get_config()
- * @return 0 on success, negative errno on error
- */
-static inline int device_display_get_config_size(struct device *dev, uint32_t *size)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev)) {
-        return -ENODEV;
-    }
-
-    if (!DEVICE_DRIVER_GET_OPS(dev, display)->get_config_size) {
-        return -ENOSYS;
-    }
-
-    return DEVICE_DRIVER_GET_OPS(dev, display)->get_config_size(dev, size);
 }
 
 /**

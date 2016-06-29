@@ -767,23 +767,6 @@ static int mhb_dsi_display_host_ready(struct device *dev)
     return ret;
 }
 
-static int mhb_dsi_display_get_config_size(struct device *dev, uint32_t *size)
-{
-    struct mhb_dsi_display *display = device_get_private(dev);
-    if (!display) {
-        return -ENODEV;
-    }
-
-    if (!size) {
-        return -EINVAL;
-    }
-
-    MHB_DSI_DUMP_STATE(display);
-
-    *size = sizeof(display->cfg);
-    return 0;
-}
-
 static void _mhb_dsi_display_convert_dsi_config(struct mhb_dsi_display *display,
     const struct mhb_cdsi_config *src, struct display_dsi_config *dst)
 {
@@ -1317,7 +1300,6 @@ static void mhb_dsi_display_remove(struct device *dev) {
 
 const static struct device_display_type_ops mhb_dsi_display_ops = {
     .host_ready = mhb_dsi_display_host_ready,
-    .get_config_size = mhb_dsi_display_get_config_size,
     .get_config = mhb_dsi_display_get_config,
     .set_config = mhb_dsi_display_set_config,
     .get_state = mhb_dsi_display_get_state,

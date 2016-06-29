@@ -63,12 +63,6 @@ static int hdmi_display_host_ready(struct device *dev)
     return OK;
 }
 
-static int hdmi_display_get_config_size(struct device *dev, uint32_t *size)
-{
-    *size = 0;
-
-    return OK;
-}
 
 static int hdmi_display_get_config(struct device *dev, uint8_t *display_type, uint8_t *config_type, uint32_t *size, uint8_t **config)
 {
@@ -107,7 +101,6 @@ static int hdmi_display_probe(struct device *dev)
 
 static struct device_display_type_ops hdmi_display_ops = {
     .host_ready = hdmi_display_host_ready,
-    .get_config_size = hdmi_display_get_config_size,
     .get_config = hdmi_display_get_config,
     .register_callback = hdmi_display_register_callback,
     .unregister_callback = hdmi_display_unregister_callback,
