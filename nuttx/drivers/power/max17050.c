@@ -692,6 +692,9 @@ static int max17050_por_write_vfsoc_and_qh0(FAR struct max17050_dev_s *priv)
     int vfsoc = max17050_reg_read_retry(priv, MAX17050_REG_VFSOC);
     int qh = max17050_reg_read_retry(priv, MAX17050_REG_QH);
 
+    if (vfsoc < 0 || qh < 0)
+         return -EIO;
+
     WRITE_RETRY(priv, MAX17050_REG_VFSOC0_QH0_ACCESS, MAX17050_VFSOC0_QH0_UNLOCK);
     WRITE_VERIFY(priv, MAX17050_REG_VFSOC0, vfsoc);
     WRITE_RETRY(priv, MAX17050_REG_QH0, qh);
@@ -712,6 +715,9 @@ static int max17050_por_load_new_capacity_params(FAR struct max17050_dev_s *priv
     int remcap = vfsoc * max17050_cfg.vf_fullcap / MAX17050_REM_CAP_DIV;
     int repcap = remcap * max17050_cfg.capacity / max17050_cfg.vf_fullcap;
     int dq_acc = max17050_cfg.vf_fullcap / 16;
+
+    if (vfsoc < 0)
+         return -EIO;
 
     WRITE_VERIFY(priv, MAX17050_REG_REM_CAP, remcap);
     WRITE_VERIFY(priv, MAX17050_REG_REP_CAP, repcap);
