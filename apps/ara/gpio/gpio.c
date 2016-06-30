@@ -155,9 +155,11 @@ static void do_deactivate(uint8_t *which, size_t count)
 static void do_get_direction(uint8_t *which, size_t count)
 {
     int i;
+    int direction;
     for (i = 0; i < count; i++) {
+        direction = gpio_get_direction(which[i]);
         printf("GPIO%d: %s\n", which[i],
-               gpio_get_direction(which[i]) ? "IN" : "OUT");
+               direction ? ((direction < 0) ? "UNKNOWN" : "IN") : "OUT");
     }
 }
 
