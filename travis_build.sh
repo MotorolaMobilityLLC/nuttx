@@ -1,21 +1,11 @@
 #!/bin/bash
 
-targets=""
-targets+=" hdk/muc/base_powered"
-targets+=" hdk/muc/base_unpowered"
-targets+=" hdk/muc/battery"
-targets+=" hdk/muc/blinky"
-targets+=" hdk/muc/compute"
-targets+=" hdk/muc/display"
-targets+=" hdk/muc/factory"
-targets+=" hdk/muc/speaker"
-targets+=" hdk/muc/temperature"
+defconfig_list=$(find nuttx/configs/hdk -iname defconfig)
 
-targets+=" hdk/apbe/base"
+for cfg in $defconfig_list; do
+  configpath=$(dirname "$cfg")
+  mod=$(echo "$configpath" | sed -e "s:^nuttx/configs/::")
 
-echo targets: ${targets}
-
-for mod in $targets; do
   echo "============================================"
   echo "== " $mod
   echo "============================================"
