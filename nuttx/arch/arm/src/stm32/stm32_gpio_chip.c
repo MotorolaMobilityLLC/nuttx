@@ -127,7 +127,35 @@ static void stm32_gpio_set_direction_out(void *driver_data, uint8_t pin,
 // STM32 GPIO API does not have a direction query function
 static int stm32_gpio_get_direction(void *driver_data, uint8_t pin)
 {
+#if defined(CONFIG_STM32_STM32F10XX)
     return -EOPNOTSUPP;
+#else
+    uint32_t cfgset;
+    int ret;
+    uint32_t mode;
+
+    lldbg("%s: pin=%hhu, val=%d\n", __func__, pin, val);
+
+    ret = map_pin_nr_to_cfgset(pin, &cfgset);
+    if (ret) {
+        lldbg("Invalid pin %hhu\n", pin);
+        return -EINVAL;
+    }
+
+    stm32_getconfiggpio(&cfgset);
+
+    mode = cfgset & GPIO_MODE_MASK;
+    if (mode == GPIO_INPUT)
+        return 1;
+    else if (mode == GPIO_OUTPUT)
+        return 0;
+
+    /* This function is expected to only return "input" or "output", however
+     * the STM32 can also be "analog" or "alternate function". For these two
+     * cases, return an error.
+     */
+    return -EINVAL;
+#endif
 }
 
 static void stm32_gpio_set(void *driver_data, uint8_t pin, uint8_t val)
