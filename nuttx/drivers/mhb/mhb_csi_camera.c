@@ -60,10 +60,8 @@
  *
  */
 #define CTRL_RETRIES             5
-#define I2C_RETRIES              5
-#define I2C_RETRY_DELAY_US       10000
 #define MHB_CDSI_CAM_INSTANCE    0
-#define MHB_CDSI_OP_TIMEOUT_NS   2000000000LL
+#define MHB_CDSI_OP_TIMEOUT_NS   1000000000LL
 #define CAM_CTRL_RETRY_DELAY_US  200000
 
 #define MHB_CAM_PWRCTL_WAIT_MASK 0xFE00
@@ -98,14 +96,14 @@ struct mhb_camera_s
     uint8_t cdsi_instance;
     uint8_t bootmode;
     pthread_mutex_t mutex;
+    pthread_mutex_t i2c_mutex;
+    pthread_mutex_t ctrl_mutex;
     pthread_cond_t slave_cond;
     pthread_cond_t cdsi_cond;
     uint16_t mhb_wait_event;
     mhb_camera_notification_cb callbacks[MHB_CAM_MAX_CALLBACKS];
 };
 
-pthread_mutex_t i2c_mutex;
-pthread_mutex_t ctrl_mutex;
 static struct mhb_camera_s s_mhb_camera;
 static LIST_DECLARE(cached_ctrl_list);
 
@@ -152,13 +150,15 @@ static struct pm_callback_s pm_callback =
 #endif
 
 /* Cam I2C Ops */
-int mhb_camera_i2c_set_freq(uint32_t frequency)
+
+inline void mhb_camera_i2c_lock()
 {
-    int ret = 0;
-    pthread_mutex_lock(&i2c_mutex);
-    ret = I2C_SETFREQUENCY(s_mhb_camera.cam_i2c, frequency);
-    pthread_mutex_unlock(&i2c_mutex);
-    return ret;
+    pthread_mutex_lock(&s_mhb_camera.i2c_mutex);
+}
+
+inline void mhb_camera_i2c_unlock()
+{
+    pthread_mutex_unlock(&s_mhb_camera.i2c_mutex);
 }
 
 int mhb_camera_i2c_set_repeatstart(uint8_t en)
@@ -167,12 +167,11 @@ int mhb_camera_i2c_set_repeatstart(uint8_t en)
     return 0;
 }
 
-
 int mhb_camera_i2c_read(uint16_t i2c_addr,
                     uint8_t *addr, int addr_len,
                     uint8_t *data, int data_len)
 {
-    int ret = 0, retries = I2C_RETRIES;
+    int ret = 0, retries = CONFIG_MHB_CAMERA_I2C_RETRY;
     struct i2c_msg_s msg[2];
     msg[0].addr   = i2c_addr;
     msg[0].flags  = s_mhb_camera.i2c_disable_rs?I2C_M_NORESTART:0;
@@ -184,23 +183,30 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
     msg[1].buffer = data;
     msg[1].length = data_len;
 
-    pthread_mutex_lock(&i2c_mutex);
+    pthread_mutex_lock(&s_mhb_camera.i2c_mutex);
     do {
         if (s_mhb_camera.i2c_disable_rs) {
             ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[0], 1);
-            if (!ret)
+            if (!ret) {
+                /* S10 Workaround : they cant seem to synchronize their Rx & Tx */
+                usleep(50000);
                 ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[1], 1);
+            }
         } else {
             ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, msg, 2);
         }
-        if (ret) usleep(I2C_RETRY_DELAY_US);
+        if (ret) {
+            usleep(CONFIG_MHB_CAMERA_I2C_RETRY_DELAY_US);
+            CAM_DBG("i2c err %d\n", ret);
+        }
     } while (ret && --retries);
-    pthread_mutex_unlock(&i2c_mutex);
+    pthread_mutex_unlock(&s_mhb_camera.i2c_mutex);
 
-    if (ret || (I2C_RETRIES - retries))
-        CAM_ERR("%s I2C read retried %d of %d\n",
+    if (ret || (CONFIG_MHB_CAMERA_I2C_RETRY - retries))
+        CAM_ERR("%s I2C read retried %d of %d : ret %d\n",
                 ret ? "FAIL":"INFO",
-                I2C_RETRIES - retries, I2C_RETRIES);
+                CONFIG_MHB_CAMERA_I2C_RETRY - retries,
+                CONFIG_MHB_CAMERA_I2C_RETRY, ret);
 
     return ret;
 }
@@ -209,24 +215,28 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
 int mhb_camera_i2c_write(uint16_t i2c_addr, uint8_t *addr, int addr_len)
 {
     struct i2c_msg_s msg;
-    int ret = 0, retries = I2C_RETRIES;
+    int ret = 0, retries = CONFIG_MHB_CAMERA_I2C_RETRY;
 
     msg.addr   = i2c_addr;
     msg.flags  = s_mhb_camera.i2c_disable_rs ? I2C_M_NORESTART:0;
     msg.buffer = addr;
     msg.length = addr_len;
 
-    pthread_mutex_lock(&i2c_mutex);
+    pthread_mutex_lock(&s_mhb_camera.i2c_mutex);
     do {
         ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg, 1);
-        if (ret) usleep(I2C_RETRY_DELAY_US);
+        if (ret) {
+            usleep(CONFIG_MHB_CAMERA_I2C_RETRY_DELAY_US);
+            CAM_DBG("i2c err %d\n", ret);
+        }
     } while (ret && --retries);
-    pthread_mutex_unlock(&i2c_mutex);
+    pthread_mutex_unlock(&s_mhb_camera.i2c_mutex);
 
-    if (ret || (I2C_RETRIES - retries))
-        CAM_ERR("%s I2C write retried %d of %d\n",
+    if (ret || (CONFIG_MHB_CAMERA_I2C_RETRY - retries))
+        CAM_ERR("%s I2C write retried %d of %d : ret %d\n",
                 ret ? "FAIL":"INFO",
-                I2C_RETRIES - retries, I2C_RETRIES);
+                CONFIG_MHB_CAMERA_I2C_RETRY - retries,
+                CONFIG_MHB_CAMERA_I2C_RETRY, ret);
 
     return ret;
 }
@@ -409,7 +419,7 @@ static int _mhb_camera_wait_for_response(pthread_cond_t *cond,
 
     clock_gettime(CLOCK_REALTIME, &expires);
     new_ns = timespec_to_nsec(&expires) - (new_ns - MHB_CDSI_OP_TIMEOUT_NS);
-    CAM_ERR("%s: Time spent on %s %dms Result %4x\n", result?"ERROR":"INFO",
+    CAM_ERR("%s: Time spent on %s %dms Result %X\n", result?"ERROR":"INFO",
             str, (uint16_t)(new_ns/NSEC_PER_MSEC), result);
 
     return result;
@@ -542,7 +552,7 @@ static void _mhb_camera_process_ctrl_cache(int dump)
     struct cached_ctrls_node *item;
     uint8_t soc_status;
 
-    pthread_mutex_lock(&ctrl_mutex);
+    pthread_mutex_lock(&s_mhb_camera.ctrl_mutex);
     soc_status = s_mhb_camera.soc_status;
 
     while (!list_is_empty(&cached_ctrl_list)) {
@@ -565,7 +575,7 @@ static void _mhb_camera_process_ctrl_cache(int dump)
         kmm_free(item->ctrl_val);
         kmm_free(item);
     }
-    pthread_mutex_unlock(&ctrl_mutex);
+    pthread_mutex_unlock(&s_mhb_camera.ctrl_mutex);
 
 }
 
@@ -575,6 +585,15 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
 
     CAM_DBG("soc_status = %d apbe_en_state = %d, bootmode = %d\n",
             s_mhb_camera.soc_status, s_mhb_camera.apbe_en_state, bootmode);
+
+    if (s_mhb_camera.cam_i2c == NULL) {
+        s_mhb_camera.cam_i2c = up_i2cinitialize(CONFIG_MHB_CAMERA_I2C_BUS_ID);
+        if (s_mhb_camera.cam_i2c == NULL) {
+            CAM_ERR("Failed to initialize I2C\n");
+            return MHB_CAMERA_EV_FAIL;
+        }
+        I2C_SETFREQUENCY(s_mhb_camera.cam_i2c, 400000);
+    }
 
     if (s_mhb_camera.soc_status == SOC_ENABLED) {
         if (bootmode == CAMERA_EXT_BOOTMODE_PREVIEW) {
@@ -655,6 +674,9 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
         }
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
+
+    up_i2cuninitialize(s_mhb_camera.cam_i2c);
+    s_mhb_camera.cam_i2c = NULL;
 
     return MHB_CAMERA_EV_NONE;
 }
@@ -913,28 +935,15 @@ static int _dev_probe(struct device *dev)
     struct mhb_camera_s* mhb_camera = &s_mhb_camera;
     CAM_DBG("mhb_camera_csi\n");
 
-    if (mhb_camera->cam_i2c != NULL) {
-        CAM_ERR("mhb_camera_csi already probed?\n");
-        return -1;
-    }
-
     device_set_private(dev, (void*)mhb_camera);
-
-    /* Initialize once */
-    mhb_camera->cam_i2c = up_i2cinitialize(CONFIG_MHB_CAMERA_I2C_BUS_ID);
-
-    if (mhb_camera->cam_i2c == NULL) {
-        CAM_ERR("Failed to initialize I2C\n");
-        return -1;
-    }
 
 #ifdef CONFIG_PM
     pm_register(&pm_callback);
 #endif
 
     pthread_mutex_init(&mhb_camera->mutex, NULL);
-    pthread_mutex_init(&i2c_mutex, NULL);
-    pthread_mutex_init(&ctrl_mutex, NULL);
+    pthread_mutex_init(&mhb_camera->i2c_mutex, NULL);
+    pthread_mutex_init(&mhb_camera->ctrl_mutex, NULL);
 
     pthread_cond_init(&mhb_camera->slave_cond, NULL);
     pthread_cond_init(&mhb_camera->cdsi_cond, NULL);
@@ -945,6 +954,7 @@ static int _dev_probe(struct device *dev)
     mhb_camera->mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
     mhb_camera->bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
     mhb_camera->i2c_disable_rs = 0;
+    mhb_camera->cam_i2c = NULL;
 
     memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
 
@@ -1054,9 +1064,9 @@ static int _mhb_camera_ext_ctrl_cache(struct device *dev,
     item->dev = dev;
     item->idx = idx;
     item->ctrl_val_size = ctrl_val_size;
-    pthread_mutex_lock(&ctrl_mutex);
+    pthread_mutex_lock(&s_mhb_camera.ctrl_mutex);
     list_add(&cached_ctrl_list, &item->node);
-    pthread_mutex_unlock(&ctrl_mutex);
+    pthread_mutex_unlock(&s_mhb_camera.ctrl_mutex);
 
     return 0;
 }
@@ -1087,7 +1097,7 @@ static int _mhb_camera_ext_ctrl_get(struct device *dev,
     uint32_t idx, uint8_t *ctrl_val, uint32_t ctrl_val_size)
 {
     uint8_t state = mhb_camera_sm_get_state();
-
+    static uint8_t cam_ready = 1;
     if (state == MHB_CAMERA_STATE_OFF ||
         state == MHB_CAMERA_STATE_WAIT_OFF) {
         CAM_ERR("ERROR: Camera Off : State %d\n", state);
@@ -1097,11 +1107,20 @@ static int _mhb_camera_ext_ctrl_get(struct device *dev,
     if (s_mhb_camera.soc_status != SOC_ENABLED ||
         state == MHB_CAMERA_STATE_WAIT_POWER_ON||
         state == MHB_CAMERA_STATE_WAIT_STREAM) {
-        CAM_DBG("Cam not ready, try again. CtrlID 0x%08x State %s\n",
-                idx, mhb_camera_sm_state_str(state));
-
+        if (cam_ready) {
+            CAM_DBG("Cam not ready, try again. CtrlID 0x%08x State %s\n",
+                    idx, mhb_camera_sm_state_str(state));
+            cam_ready = 0;
+        }
         return -EAGAIN;
     }
+
+    if (!cam_ready) {
+            CAM_DBG("Cam Ready, Process. CtrlID 0x%08x State %s\n",
+                    idx, mhb_camera_sm_state_str(state));
+            cam_ready = 1;
+    }
+
     return camera_ext_ctrl_get(dev, idx, ctrl_val, ctrl_val_size);
 }
 

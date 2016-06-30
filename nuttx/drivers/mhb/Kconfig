@@ -106,6 +106,16 @@ config MHB_CAMERA_I2C_BUS_ID
 	default 0
 	depends on MHB_CAMERA
 
+config MHB_CAMERA_I2C_RETRY
+        int "Camera I2C txn retry attempts"
+        default 5
+        depends on MHB_CAMERA
+
+config MHB_CAMERA_I2C_RETRY_DELAY_US
+        int "Camera I2C delay between retries"
+        default 10000
+        depends on MHB_CAMERA
+
 config MHB_CAMERA_OFF_DELAY_MS
 	int "Delay (ms) before camera powerdown"
 	default 100
