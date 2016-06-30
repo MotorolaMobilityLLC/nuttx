@@ -254,6 +254,10 @@ struct camera_ext_event_hdr {
 #define CAMERA_EXT_ERROR_FATAL      0x00
 #define CAMERA_EXT_ERROR_POWER_ON   0x01
 #define CAMERA_EXT_ERROR_STREAM_ON  0x02
+#define CAMERA_EXT_ERROR_POWER_OFF  0x03
+#define CAMERA_EXT_ERROR_STREAM_OFF 0x04
+#define CAMERA_EXT_ERROR_TIMEOUT    0x05
+#define CAMERA_EXT_ERROR_SOC_CRASH  0x06
 
 struct camera_ext_event_error {
     __le32 error_code;

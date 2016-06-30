@@ -107,6 +107,8 @@ struct mhb_camera_s
 static struct mhb_camera_s s_mhb_camera;
 static LIST_DECLARE(cached_ctrl_list);
 
+static void mhb_cam_error_cb(int err);
+
 #ifdef CONFIG_PM
 static int mhb_camera_pm_prepare(struct pm_callback_s *cb,
                                  enum pm_state_e pm_state)
@@ -1010,6 +1012,8 @@ static int _dev_open(struct device *dev)
         CAM_ERR("ERROR: Failed to register device_mhb_register_receiver %d\n", ret);
         goto open_failed;
     }
+    MHB_CAM_DEV_OP(mhb_camera->cam_device, set_err_callback, mhb_cam_error_cb);
+
     return 0;
 
 open_failed:
@@ -1044,6 +1048,14 @@ static void _dev_close(struct device *dev)
     mhb_camera->cam_device = NULL;
     mhb_camera->mhb_device = NULL;
     mhb_camera->slave_pwr_ctrl = NULL;
+}
+
+static void mhb_cam_error_cb(int err) {
+    /* Something failed on device. Pass the error up, */
+    /* so that app can clean up */
+    CAM_ERR("FATAL_ERROR : Camera module failed. Reset %d\n", err);
+    camera_ext_send_error(CAMERA_EXT_ERROR_FATAL);
+    _power_off(NULL);
 }
 
 static int _mhb_camera_ext_ctrl_cache(struct device *dev,

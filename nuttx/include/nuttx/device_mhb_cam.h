@@ -65,6 +65,8 @@
     dev == NULL? -ENODEV : device_mhb_camera_##op(dev, ##__VA_ARGS__)
 
 
+typedef void (*mhb_cam_cb)(int reason);
+
 struct device_mhb_camera_dev_type_ops {
     int (*soc_enable)(struct device *dev, uint8_t bootmode);
     int (*soc_disable)(struct device *dev);
@@ -76,6 +78,7 @@ struct device_mhb_camera_dev_type_ops {
     int (*power_limit)(struct device *dev, uint8_t enable);
     int (*get_csi_config)(struct device *dev, void *config);
     int (*get_fw_version)(struct device *dev, uint32_t *fw_ver);
+    int (*set_err_callback)(struct device *dev, mhb_cam_cb callback);
 };
 
 IMPL_MHB_CAMERA_DEV_OP_ARG0(soc_disable)
@@ -89,5 +92,6 @@ IMPL_MHB_CAMERA_DEV_OP_ARG1(soc_enable, uint8_t, bootmode)
 IMPL_MHB_CAMERA_DEV_OP_ARG1(get_fw_version, uint32_t*, fw_ver)
 IMPL_MHB_CAMERA_DEV_OP_ARG1(get_csi_config, struct mhb_cdsi_config**, config)
 IMPL_MHB_CAMERA_DEV_OP_ARG1(power_limit, uint8_t, enable)
+IMPL_MHB_CAMERA_DEV_OP_ARG1(set_err_callback, mhb_cam_cb, callback)
 
 #endif
