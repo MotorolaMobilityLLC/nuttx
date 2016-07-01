@@ -129,11 +129,6 @@ static int display_mux_host_ready(struct device *dev)
     return device_display_host_ready(get_display_dev(dev));
 }
 
-static int display_mux_get_config_size(struct device *dev, uint32_t *size)
-{
-    return device_display_get_config_size(get_display_dev(dev), size);
-}
-
 static int display_mux_get_config(struct device *dev, uint8_t *display_type,
     uint8_t *config_type, uint32_t *size, uint8_t **config)
 {
@@ -224,7 +219,6 @@ static void display_mux_remove(struct device *dev)
 
 const static struct device_display_type_ops display_mux_ops = {
     .host_ready = display_mux_host_ready,
-    .get_config_size = display_mux_get_config_size,
     .get_config = display_mux_get_config,
     .set_config = display_mux_set_config,
     .get_state = display_mux_get_state,
