@@ -43,6 +43,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/device_mhb_cam.h>
+#include <nuttx/greybus/mods.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
@@ -882,6 +883,32 @@ static int _stream_off(struct device *dev)
     return mhb_camera_sm_execute(MHB_CAMERA_EV_STREAM_OFF_REQ);
 }
 
+static int _camera_attach(void *arg, const void *data)
+{
+    if (!arg || !data) {
+        return -EINVAL;
+    }
+
+    struct device *dev = (struct device *)arg;
+    enum base_attached_e state = *((enum base_attached_e *)data);
+
+    CAM_DBG("state=%d\n", state);
+
+    switch (state) {
+    case BASE_DETACHED:
+    case BASE_ATTACHED_OFF:
+        /* trigger power off */
+        _power_off(dev);
+        break;
+    case BASE_ATTACHED:
+    case BASE_INVALID:
+        /* Ignore */
+        break;
+    }
+
+    return 0;
+}
+
 static int _dev_probe(struct device *dev)
 {
     struct mhb_camera_s* mhb_camera = &s_mhb_camera;
@@ -921,6 +948,11 @@ static int _dev_probe(struct device *dev)
     mhb_camera->i2c_disable_rs = 0;
 
     memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
+
+    /* Register for attach notifications. This will callback immediately. */
+    if (mods_attach_register(_camera_attach, dev)) {
+        dbg("ERROR: failed to register attach notifier\n");
+    }
 
     return 0;
 }
