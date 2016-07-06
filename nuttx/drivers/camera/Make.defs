@@ -43,7 +43,7 @@ ifeq ($(CONFIG_CAMERA_IMX220), y)
 endif
 
 ifeq ($(CONFIG_CAMERA_IMX230), y)
-    CSRCS += camera_ext_mhb_imx230.c
+    CSRCS += camera_ext_mhb_imx230.c camera_ext_ctrls_imx230.c
 endif
 
 endif

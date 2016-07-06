@@ -827,10 +827,7 @@ const struct camera_ext_format_db mhb_camera_format_db = {
     .input_nodes = imx230_inputs,
 };
 
-struct camera_ext_ctrl_db mhb_camera_ctrl_db = {
-    .num_ctrls = 0,
-    .ctrls = NULL,
-};
+extern struct camera_ext_ctrl_db mhb_camera_ctrl_db;
 
 struct mhb_cdsi_config mhb_camera_csi_config =
 {
