@@ -16,7 +16,7 @@ string = Motorola Mobility, LLC
 
 ; Interface product string (id can't be 0)
 [string-descriptor 2]
-string = HDK-CHARGER
+string = MDK-CHARGER
 
 ; Control protocol on CPort 0
 [cport-descriptor 0]

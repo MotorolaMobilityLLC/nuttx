@@ -10,7 +10,7 @@ product-string-id = 2
 string = Motorola Mobility, LLC
 
 [string-descriptor 2]
-string = HDK-DISPLAY
+string = MDK-DISPLAY
 
 
 [cport-descriptor 0]

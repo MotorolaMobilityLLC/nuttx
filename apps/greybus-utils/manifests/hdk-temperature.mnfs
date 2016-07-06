@@ -16,7 +16,7 @@ string = Motorola Mobility, LLC
 
 ; Interface product string (id can't be 0)
 [string-descriptor 2]
-string = HDK-TEMPERATURE
+string = MDK-TEMPERATURE
 
 ; Control protocol on CPort 0
 [cport-descriptor 0]
