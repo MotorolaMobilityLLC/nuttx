@@ -998,7 +998,7 @@ CONFIG_GB_LOG_LEVEL=y
 # CONFIG_MANIFEST_ALL is not set
 CONFIG_CUSTOM_MANIFEST=y
 # CONFIG_OOT_MANIFEST is not set
-CONFIG_MANIFEST="hdk-powered"
+CONFIG_MANIFEST="hdk-battery"
 
 #
 # Examples
