@@ -39,7 +39,7 @@ CFLAGS += ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM
 ifeq ($(CONFIG_MHB_CAMERA),y)
 
 ifeq ($(CONFIG_CAMERA_IMX220), y)
-    CSRCS += camera_ext_mhb_imx220.c
+    CSRCS += camera_ext_mhb_imx220.c camera_ext_ctrls_imx220.c
 endif
 
 ifeq ($(CONFIG_CAMERA_IMX230), y)
