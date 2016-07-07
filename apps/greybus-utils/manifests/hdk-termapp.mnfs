@@ -1,0 +1,60 @@
+;
+; HDK Manifest
+;
+
+[manifest-header]
+version-major = 0
+version-minor = 1
+
+[interface-descriptor]
+vendor-string-id = 1
+product-string-id = 2
+
+; Interface vendor string (id can't be 0)
+[string-descriptor 1]
+string = Motorola Mobility, LLC
+
+; Interface product string (id can't be 0)
+[string-descriptor 2]
+string = MDK-TERMAPP
+
+; Control protocol on CPort 0
+[cport-descriptor 0]
+bundle = 0
+protocol = 0x00
+
+; Control protocol Bundle 0
+[bundle-descriptor 0]
+class = 0
+
+; Motorola specific on CPort 1
+[cport-descriptor 1]
+bundle = 1
+protocol = 0xff
+
+; Debug related Bundle 1
+[bundle-descriptor 1]
+class = 0xff
+
+; Battery on CPort 2
+[cport-descriptor 2]
+bundle = 2
+protocol = 0x08
+
+; PTP on CPort 3
+[cport-descriptor 3]
+bundle = 2
+protocol = 0xef
+
+; Battery related Bundle 2
+[bundle-descriptor 2]
+class = 0x08
+
+; RAW interface on CPort 4
+[cport-descriptor 4]
+bundle = 3
+protocol = 0xfe
+
+; RAW Bundle 3
+[bundle-descriptor 3]
+class = 0xfe
