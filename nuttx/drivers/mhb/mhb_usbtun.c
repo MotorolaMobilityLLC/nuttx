@@ -34,7 +34,6 @@
 
 #include <nuttx/device.h>
 #include <nuttx/device_usbtun.h>
-#include <nuttx/device_usb_ext.h>
 #include <nuttx/device_slave_pwrctrl.h>
 #include <nuttx/mhb/device_mhb.h>
 #include <nuttx/mhb/mhb_protocol.h>
@@ -43,11 +42,10 @@
 struct usbtun_s {
     struct device *mhb_dev;
     struct device *slave_pwr_ctrl;
+    usbtun_status_cb cb;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
 };
-
-static bool attached;
 
 static struct usbtun_s *s_data = NULL;
 
@@ -98,7 +96,9 @@ static int _mhb_handle_msg(struct device *dev,
         _signal_response(s_data);
         break;
     case MHB_TYPE_HSIC_STATUS_NOT:
-        attached = (bool)*payload;
+        if (payload_length && s_data->cb) {
+            s_data->cb(dev, *payload);
+        }
         break;
     default:
         break;
@@ -199,6 +199,25 @@ static int _off(struct device *dev) {
     return 0;
 }
 
+static int _reg_cb(struct device *dev, usbtun_status_cb cb) {
+    struct usbtun_s *data = device_get_private(dev);
+
+    if (data->cb)
+        return -EBUSY;
+
+    data->cb = cb;
+
+    return 0;
+}
+
+static int _unreg_cb(struct device *dev) {
+    struct usbtun_s *data = device_get_private(dev);
+
+    data->cb = NULL;
+
+    return 0;
+}
+
 static int _open(struct device *dev) {
     struct usbtun_s *data = device_get_private(dev);
 
@@ -255,6 +274,8 @@ static void _remove(struct device *dev) {
 static struct device_usbtun_type_ops _type_ops = {
     .on  = _on,
     .off = _off,
+    .register_callback = _reg_cb,
+    .unregister_callback = _unreg_cb,
 };
 
 static struct device_driver_ops _driver_ops = {
@@ -270,60 +291,4 @@ struct device_driver mhb_usbtun_driver = {
     .name   = "mhb_usbtun",
     .desc   = "MHB USB Tunneling Driver",
     .ops    = &_driver_ops,
-};
-
-/*
- * device_usb_ext interface
- */
-static uint8_t usbtun_get_attached(void) {
-    return attached;
-}
-
-static uint8_t usbtun_get_protocol(void) {
-    return GB_USB_EXT_PROTOCOL_2_0;
-}
-
-static uint8_t usbtun_get_path(void) {
-    return GB_USB_EXT_PATH_B;
-}
-
-static uint8_t usbtun_get_type(void) {
-    return GB_USB_EXT_REMOTE_DEVICE;
-}
-
-static int usbtun_open(struct device *dev) {
-    return 0;
-}
-
-static void usbtun_close(struct device *dev) {
-}
-
-static int usbtun_probe(struct device *dev) {
-    return 0;
-}
-
-static void usbtun_remove(struct device *dev) {
-    usbtun_close(dev);
-}
-
-static struct device_usb_ext_type_ops usbtun_type_ops = {
-    .get_attached         = usbtun_get_attached,
-    .get_protocol         = usbtun_get_protocol,
-    .get_path             = usbtun_get_path,
-    .get_type             = usbtun_get_type,
-};
-
-static struct device_driver_ops usbtun_driver_ops = {
-    .probe              = usbtun_probe,
-    .remove             = usbtun_remove,
-    .open               = usbtun_open,
-    .close              = usbtun_close,
-    .type_ops           = &usbtun_type_ops,
-};
-
-struct device_driver usbtun_ext_driver = {
-    .type       = DEVICE_TYPE_USB_EXT_HW,
-    .name       = "usb-ext ctrl",
-    .desc       = "USB-EXT Control",
-    .ops        = &usbtun_driver_ops,
 };
