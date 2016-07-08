@@ -47,6 +47,7 @@ config MAX17050_DEVICE
 	default n
 	depends on BATTERY_MAX17050
 	select DEVICE_CORE
+	select BATTERY_STATE
 
 config BATTERY_GOOD_DEVICE_COMP
 	bool "Battery good detection with voltage comparator"
