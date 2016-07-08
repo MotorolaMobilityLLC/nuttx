@@ -7,6 +7,9 @@ config GREYBUS_MODS_SPI
 
 config GREYBUS_MODS_I2C
 	bool "I2C"
+	depends on GPIO
+	select I2C
+	select I2C_SLAVE
 
 config GREYBUS_MODS_UART
 	bool "UART"
@@ -25,17 +28,14 @@ config GREYBUS_MODS_PORT
 	---help---
 		Bus port to use to communicate with base (default 1).
 
-if GREYBUS_MODS_I2C
-
 config GREYBUS_MODS_I2C_ADDR
 	hex "Mods I2C Address"
-	default 0x55
+	depends on GREYBUS_MODS_I2C
+	default 0x42
 
-endif
-
-if GREYBUS_MODS_SPI
 config GREYBUS_MODS_MAX_BUS_SPEED
 	int "Mods Maximum Bus Speed"
+	depends on GREYBUS_MODS_SPI || GREYBUS_MODS_I2C
 	default 0
 	---help---
 		The maximum bus speed that will be reported to the AP. Set to zero to
@@ -43,6 +43,7 @@ config GREYBUS_MODS_MAX_BUS_SPEED
 
 config GREYBUS_MODS_DESIRED_PKT_SIZE
 	int "Mods Desired Packet Size"
+	depends on GREYBUS_MODS_SPI || GREYBUS_MODS_I2C
 	default 0
 	---help---
 		The desired packet size that will be reported to the AP. If the AP is
@@ -53,6 +54,7 @@ config GREYBUS_MODS_DESIRED_PKT_SIZE
 
 config GREYBUS_MODS_ACK
 	bool "Enable ACK support"
+	depends on GREYBUS_MODS_SPI
 	default y
 	---help---
 		When this option is enabled, an ACK is signaled to the base after each
@@ -61,7 +63,6 @@ config GREYBUS_MODS_ACK
 		(for example, CRC mismatch). This increases the reliability of the bus
 		at the cost of speed, so do not enable this feature if you require low
 		latency or high throughput.
-endif
 
 config GREYBUS_MODS_PTP_DEVICE
 	bool "PTP device to be used for charger and/or battery devices"

@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 2015 Motorola Mobility, LLC.
+ * Copyright (C) 2015-2016 Motorola Mobility, LLC.
  * Copyright (c) 2014-2015 Google Inc.
+ * Copyright (C) 2009, 2011-2013 Gregory Nutt.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +28,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <crc16_poly8005.h>
 #include <debug.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -34,285 +36,984 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include <nuttx/i2c.h>
-#include <nuttx/list.h>
-#include <nuttx/util.h>
-
 #include <arch/board/mods.h>
+#include <arch/byteorder.h>
+
+#include <nuttx/config.h>
+#include <nuttx/gpio.h>
+#include <nuttx/greybus/mods.h>
+#include <nuttx/greybus/types.h>
+#include <nuttx/i2c.h>
+#include <nuttx/power/pm.h>
+#include <nuttx/ring_buf.h>
+#include <nuttx/util.h>
 
 #include "datalink.h"
 
-#define I2C_BUF_SIZE             32
+#if CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE > MODS_DL_PAYLOAD_MAX_SZ
+#  error "CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE > MODS_DL_PAYLOAD_MAX_SZ"
+#endif
 
-#define HDR_BIT_VALID (0x01 << 7)
-#define HDR_BIT_RESV  (0x03 << 5)
-#define HDR_BIT_PKTS  (0x1F << 0)
+/* Protocol version supported by this driver */
+#define PROTO_VER           (1)
 
-static int i2c_write_cb(void *v);
+/*
+ * The bare minimum protocol version required by the driver. To remain backwards
+ * compatible with every base ever shipped, this value should never be changed
+ * and new features must only be enabled once determined that the base supports
+ * them.
+ */
+#define MIN_PROTO_VER       (1)
 
-struct mods_i2c_msg
+/* Default payload size of a I2C packet (in bytes) */
+#define DEFAULT_PAYLOAD_SZ (32)
+
+/* Initial number of entries for the ring buffer (will grow as needed). */
+#define INITIAL_RB_ENTRIES (10)
+
+/* I2C packet header bit definitions */
+#define HDR_BIT_ACK    (0x01 << 10) /* 1 = Base has ACK'd last packet sent */
+#define HDR_BIT_DUMMY  (0x01 <<  9) /* 1 = dummy packet */
+#define HDR_BIT_PKT1   (0x01 <<  8) /* 1 = first packet of message */
+#define HDR_BIT_VALID  (0x01 <<  7) /* 1 = packet has valid payload */
+#define HDR_BIT_TYPE   (0x01 <<  6) /* I2C message type */
+#define HDR_BIT_PKTS   (0x3F <<  0) /* How many additional packets to expect */
+
+#define MSG_TYPE_DL    (0 << 6)     /* Packet for/from data link layer */
+#define MSG_TYPE_NW    (1 << 6)     /* Packet for/from network layer */
+
+/* Priority to report to PM framework when WAKE line asserted. */
+#define PM_ACTIVITY_WAKE 10
+
+/* The number of times to try sending a datagram before giving up */
+#define NUM_TRIES      (3)
+
+/*
+ * The number of error prints before sleeping the prints. A success will reset
+ * the count.
+ */
+#define ERR_CNT_ZZZ    (5)
+
+/* Size of the header in bytes */
+#define HDR_SIZE       sizeof(struct i2c_msg_hdr)
+
+/* Size of the CRC in bytes */
+#define CRC_SIZE       (2)
+
+/* Macro to determine the packet size from the payload size */
+#define PKT_SIZE(pl_size)  (pl_size + HDR_SIZE + CRC_SIZE)
+
+/* Macro for checking if the provided number is a power of two. */
+#define IS_PWR_OF_TWO(x) (!(x & (x - 1)) && x)
+
+/*
+ * Possible data link layer messages. Responses IDs should be the request ID
+ * with the MSB set.
+ */
+enum dl_msg_id
 {
-    uint8_t checksum;
-    uint8_t hdr_bits;
-    uint8_t data[I2C_BUF_SIZE];
+  DL_MSG_ID_BUS_CFG_REQ         = 0x00,
+  DL_MSG_ID_BUS_CFG_RESP        = 0x80,
+};
+
+/* All the possible states in the state machine */
+enum dl_state_e
+{
+  DL_STATE_IDLE,                 /* 0 */
+  DL_STATE_RX,                   /* 1 */
+  DL_STATE_TX,                   /* 2 */
+  DL_STATE_ACK_RX,               /* 3 */
+  DL_STATE_ACK_TX,               /* 4 */
+  DL_STATE_DUMMY,                /* 5 */
+
+  /* Add new states above here */
+  DL_STATE__NUM_STATES,
+};
+
+struct i2c_msg_hdr
+{
+  __le16 bitmask;                /* See HDR_BIT_* defines for values */
 } __packed;
 
-struct mods_i2c_data
+struct mods_i2c_dl_s
 {
-  /* interfaces up in the stack layer */
-  struct mods_dl_s dl;
-  struct mods_dl_cb_s *cb;
+  struct mods_dl_s dl;           /* Externally visible part of the data link interface */
+  FAR struct i2c_dev_s *i2c;     /* I2C handle */
 
-  /* interfaces down in the stack */
-  FAR struct i2c_dev_s *dev;
+  struct mods_dl_cb_s *cb;       /* Callbacks to network layer */
+  enum base_attached_e bstate;   /* Base state (attached/detached) */
+  size_t pl_size;                /* Size of packet payload in bytes */
+  size_t new_pl_size;            /* Payload size to use next time TX queue empty */
+  __u8 proto_ver;                /* Protocol version supported by base */
 
-  /* rx */
-  bool in_rx;
-  uint32_t rx_ndx;
-  uint8_t rx_buf[I2C_BUF_SIZE];
+  enum dl_state_e txn_state;     /* Current transaction state */
+  uint8_t tx_tries_remaining;    /* Send attempts remaining before giving up */
 
-  uint8_t rx_payload[MODS_DL_PAYLOAD_MAX_SZ];
-  int rx_payload_ndx;
+  struct ring_buf *txp_rb;       /* Producer TX ring buffer */
+  struct ring_buf *txc_rb;       /* Consumer TX ring buffer */
 
-  /* tx */
-  bool in_tx;
-  struct list_head tx_fifo;
+  __u8 *rx_buf;                  /* Buffer for received packets */
+  uint32_t stop_err_cnt;         /* Count of stop errors seen since last success */
+  uint32_t crc_err_cnt;          /* Count of CRC errors seen since last success */
 
+  /*
+   * Buffer to hold incoming payload (which could be spread across
+   * multiple packets)
+   */
+  __u8 rcvd_payload[MODS_DL_PAYLOAD_MAX_SZ];
+  uint32_t rcvd_payload_idx;
+  uint8_t pkts_remaining;        /* Number of packets needed to complete msg */
 };
 
-struct fifo_entry
+struct i2c_dl_msg_bus_config_req
 {
-    union {
-        struct mods_i2c_msg *msg;
-        uint8_t *payload;
+  __le16 max_pl_size;            /* Maximum payload size supported by base */
+  __u8   features;               /* See DL_BIT_* defines for values */
+  __u8   version;                /* I2C msg format version of base */
+} __packed;
+
+struct i2c_dl_msg_bus_config_resp
+{
+  __le32 max_speed;              /* Maximum bus speed supported by the mod */
+  __le16 pl_size;                /* Payload size that mod has selected to use */
+  __u8   features;               /* See DL_BIT_* defines for values */
+  __u8   version;                /* I2C msg format version supported by mod */
+} __packed;
+
+struct i2c_dl_msg
+{
+  __u8 id;                       /* enum dl_msg_id */
+  union
+    {
+      struct i2c_dl_msg_bus_config_req     bus_req;
+      struct i2c_dl_msg_bus_config_resp    bus_resp;
     };
-    int size;
-    int ndx;    /* index into the payload */
-    struct list_head list;
+} __packed;
+
+struct state_funcs
+{
+  int (*start_tx)(FAR struct mods_i2c_dl_s *priv, uint8_t **buffer);
+  int (*start_rx)(FAR struct mods_i2c_dl_s *priv, uint8_t **buffer);
+
+  int (*stop_success)(FAR struct mods_i2c_dl_s *priv);
+  int (*stop_error)(FAR struct mods_i2c_dl_s *priv);
 };
 
-static inline struct fifo_entry *fifo_entry_alloc(void)
+static void set_pl_size(FAR struct mods_i2c_dl_s *priv, size_t pl_size)
 {
-  struct fifo_entry *entry;
+  /*
+   * Immediately return if payload size is not changing and ring buffer is
+   * in a good state.
+   */
+  if ((pl_size == priv->pl_size) && (priv->txp_rb == priv->txc_rb) &&
+      ring_buf_is_producers(priv->txp_rb))
+      return;
 
-  entry = (struct fifo_entry *)zalloc(sizeof(struct fifo_entry));
-  if (!entry)
-      return NULL;
+  /* Free any existing RX buffer (if any) */
+  if (priv->rx_buf)
+      free(priv->rx_buf);
 
-  entry->ndx = 0;
-  entry->size = sizeof(struct mods_i2c_msg);
+  /* Free existing TX ring buffer (if any) */
+  ring_buf_free_ring(priv->txp_rb, NULL /* free_callback */, NULL /* arg */);
 
-  entry->payload = (uint8_t *)zalloc(entry->size);
-  if (!entry->payload)
+  /* Allocate RX buffer */
+  priv->rx_buf = malloc(PKT_SIZE(pl_size));
+  ASSERT(priv->rx_buf);
+
+  /* Allocate TX ring buffer */
+  priv->txp_rb = ring_buf_alloc_ring(INITIAL_RB_ENTRIES,
+      HDR_SIZE /* headroom */, pl_size /* data_len */,
+      CRC_SIZE /* tailroom */, NULL /* alloc_callback */,
+      NULL /* free_callback */, NULL /* arg */);
+  ASSERT(priv->txp_rb);
+  priv->txc_rb = priv->txp_rb;
+
+  /* Save new packet size */
+  priv->pl_size = pl_size;
+
+  lldbg("%d bytes\n", priv->pl_size);
+}
+
+static struct ring_buf *find_prev_rb_entry(struct ring_buf *next_rb)
+{
+  struct ring_buf *rb;
+
+  rb = next_rb;
+  while(rb->next != next_rb)
+      rb = rb->next;
+
+  return rb;
+}
+
+static int add_rb_entry(FAR struct mods_i2c_dl_s *priv)
+{
+  struct ring_buf *rb;
+  struct ring_buf *prev_rb;
+
+  rb = ring_buf_alloc(HDR_SIZE /* headroom */, priv->pl_size /* data_len */,
+                      CRC_SIZE /* tailroom */);
+  if (!rb)
+      return -ENOMEM;
+
+  prev_rb = find_prev_rb_entry(priv->txp_rb);
+
+  /* Insert new ring buffer entry */
+  rb->next = priv->txp_rb;
+  prev_rb->next = rb;
+
+  /* Set producer pointer to newly added entry */
+  priv->txp_rb = rb;
+
+  llvdbg("RB entry added\n");
+
+  return OK;
+}
+
+static inline void set_txp_hdr(FAR struct mods_i2c_dl_s *priv, uint16_t bits)
+{
+  struct i2c_msg_hdr *hdr = ring_buf_get_buf(priv->txp_rb);
+  hdr->bitmask = cpu_to_le16(bits);
+}
+
+static inline void next_txp(FAR struct mods_i2c_dl_s *priv)
+{
+  ring_buf_pass(priv->txp_rb);
+  priv->txp_rb = ring_buf_get_next(priv->txp_rb);
+}
+
+static inline void setup_for_dummy_tx(FAR struct mods_i2c_dl_s *priv)
+{
+  set_txp_hdr(priv, HDR_BIT_DUMMY);
+  next_txp(priv);
+}
+
+static inline void set_ack_txc_hdr(FAR struct mods_i2c_dl_s *priv)
+{
+  struct i2c_msg_hdr *hdr = ring_buf_get_buf(priv->txc_rb);
+  hdr->bitmask = cpu_to_le16(le16_to_cpu(hdr->bitmask) | HDR_BIT_ACK);
+}
+
+static inline void set_int_if_needed(FAR struct mods_i2c_dl_s *priv)
+{
+  /* Set the base interrupt line if data is available to be sent. */
+  mods_host_int_set(ring_buf_is_consumers(priv->txc_rb));
+}
+
+static void set_crc(FAR struct mods_i2c_dl_s *priv)
+{
+  uint16_t crc = crc16_poly8005(ring_buf_get_buf(priv->txc_rb),
+                                priv->pl_size + HDR_SIZE, CRC_INIT_VAL);
+  *((uint16_t *)priv->txc_rb->tailroom) = cpu_to_le16(crc);
+}
+
+static void reset_txc_rb_entry(FAR struct mods_i2c_dl_s *priv)
+{
+  if ((priv->txp_rb == priv->txc_rb) && ring_buf_is_producers(priv->txp_rb))
     {
-      free(entry);
-      return NULL;
+      lldbg("skip\n");
+      return;
     }
-  return entry;
+
+  memset(ring_buf_get_buf(priv->txc_rb), 0, PKT_SIZE(priv->pl_size));
+  ring_buf_set_owner(priv->txc_rb, RING_BUF_OWNER_PRODUCER);
+  priv->txc_rb = ring_buf_get_next(priv->txc_rb);
 }
 
-static inline void fifo_entry_free(struct fifo_entry *entry)
+#ifdef CONFIG_DEBUG_VERBOSE
+static const char* state_name(enum dl_state_e state)
 {
-  if (entry)
+  switch (state)
     {
-      free(entry->payload);
-      free(entry);
+      case DL_STATE_IDLE:   return "IDLE";
+      case DL_STATE_RX:     return "RX";
+      case DL_STATE_TX:     return "TX";
+      case DL_STATE_ACK_RX: return "ACK_RX";
+      case DL_STATE_ACK_TX: return "ACK_TX";
+      case DL_STATE_DUMMY:  return "DUMMY";
+      default:              return "???";
+    }
+}
+#endif
+
+static void set_state(FAR struct mods_i2c_dl_s *priv, enum dl_state_e state)
+{
+  if (priv->txn_state != state)
+    {
+      llvdbg("%s -> %s\n", state_name(priv->txn_state), state_name(state));
+      priv->txn_state = state;
     }
 }
 
-static inline uint8_t calc_checksum(uint8_t *data, size_t len)
+static int attach_cb(FAR void *arg, const void *data)
 {
-  uint8_t chksum = 0;
-  int i;
+  FAR struct mods_i2c_dl_s *priv = (FAR struct mods_i2c_dl_s *)arg;
+  enum base_attached_e state = *((enum base_attached_e *)data);
+  irqstate_t flags;
 
-  // Calculate the checksum
-  for (i = 0; i < len; i++)
-      chksum += data[i];
-  return ~chksum + 1;
+  flags = irqsave();
+
+  if (state != BASE_ATTACHED)
+    {
+      vdbg("Cleaning up datalink\n");
+
+      /* Reset GPIOs to initial state */
+      mods_rfr_set(0);
+      mods_host_int_set(false);
+
+      /* Cancel I2C transaction */
+      I2C_CANCEL(priv->i2c);
+
+      /* Cleanup any unsent messages */
+      while (ring_buf_is_consumers(priv->txc_rb))
+        {
+          reset_txc_rb_entry(priv);
+        }
+
+      /* Return packet size back to default */
+      set_pl_size(priv, DEFAULT_PAYLOAD_SZ);
+
+      /* Assume next base only supports the minimum protocol version */
+      priv->proto_ver = MIN_PROTO_VER;
+
+      /* Reset state machine */
+      set_state(priv, DL_STATE_IDLE);
+      priv->tx_tries_remaining = NUM_TRIES;
+      priv->rcvd_payload_idx = 0;
+      priv->pkts_remaining = 0;
+      priv->stop_err_cnt = 0;
+      priv->crc_err_cnt = 0;
+    }
+
+  priv->bstate = state;
+
+  irqrestore(flags);
+
+  return OK;
 }
 
-/* called from transport_send                        */
-/* put the data on the tx_fifo and trigger the write */
-static int i2c_send(FAR struct mods_dl_s *dev, const void *buf, size_t len)
+static int queue_data(FAR struct mods_i2c_dl_s *priv, __u8 msg_type,
+                      const void *buf, size_t len)
 {
-  struct mods_i2c_data *slf = (struct mods_i2c_data *)dev;
-  struct fifo_entry *entry;
-  size_t remaining;
-  irqstate_t irq_flags;
+  int remaining = len;
+  __u8 *dbuf = (__u8 *)buf;
+  int packets;
 
-  uint8_t pkts_total; /* total number of pkts */
-  uint8_t pkts;
-  int i;
-  uint8_t * dbuf = (uint8_t *)buf;
+  /* Calculate how many packets are required to send whole payload */
+  packets = (remaining + priv->pl_size - 1) / priv->pl_size;
+
+  llvdbg("len=%d, packets=%d, bstate=%d\n", len, packets, priv->bstate);
+
+  if (priv->bstate != BASE_ATTACHED)
+      return -ENODEV;
 
   if (len > MODS_DL_PAYLOAD_MAX_SZ)
-    {
-      lowsyslog("request too big\n");
       return -E2BIG;
-    }
 
-
-  pkts_total = (len / I2C_BUF_SIZE) + ((len % I2C_BUF_SIZE) > 0);
-
-  for (pkts = pkts_total, i = 0; pkts > 0; pkts--, i++)
-  {
-      remaining = len - (i * I2C_BUF_SIZE);
-
-      entry = fifo_entry_alloc();
-      if (!entry)
-        return -ENOMEM;
-
-      memcpy(&entry->msg->data[0], &dbuf[i * I2C_BUF_SIZE], MIN(remaining, I2C_BUF_SIZE));
-      entry->msg->hdr_bits |= HDR_BIT_VALID;
-      entry->msg->hdr_bits |= pkts;
-      entry->msg->checksum = 0xff;
-
-      irq_flags = irqsave();
-      list_add(&slf->tx_fifo, &entry->list);
-      irqrestore(irq_flags);
-   }
-
-  /* trigger write */
-  mods_host_int_set(true);
-
-  return 0;
-}
-
-/* mod (slave) ---> i2c ---> base (master) */
-/* read one byte off fifo entry and write on i2c */
-/* once the fifo entry has been sent, then remove it */
-static int i2c_write_cb(void *v)
-{
-  struct mods_i2c_data *slf = (struct mods_i2c_data *)v;
-  struct fifo_entry *entry;
-  uint8_t val = 0;
-
-  if (!list_is_empty(&slf->tx_fifo))
+  while ((remaining > 0) && (packets > 0))
     {
-      entry = list_entry(slf->tx_fifo.next, struct fifo_entry, list);
+      uint16_t bitmask;
+      int this_pl;
 
-      if (entry->ndx < entry->size)
+      /* Check if the ring buffer is full */
+      if (ring_buf_is_consumers(priv->txp_rb))
         {
-          slf->in_tx = true;
-
-          val = entry->payload[entry->ndx];
-          entry->ndx++;
-        }
-        if ((entry->ndx == 1) && (list_count(&slf->tx_fifo) == 1))
-        {
-            mods_host_int_set(false);
-        }
-    }
-
-  I2C_SLAVE_WRITE(slf->dev, &val, sizeof(val));
-  return 0;
-}
-
-/* base (master) ---> i2c ---> mod (slave) */
-/* here we just fill the buffer until stop_cb is called */
-static int i2c_read_cb(void *v)
-{
-  struct mods_i2c_data *slf = (struct mods_i2c_data *)v;
-  uint8_t val;
-
-  slf->in_rx = true;
-
-  I2C_SLAVE_READ(slf->dev, &val, sizeof(val));
-
-  if (slf->rx_ndx < I2C_BUF_SIZE)
-    {
-      slf->rx_buf[slf->rx_ndx++] = val;
-    }
-
-  return 0;
-}
-
-/* called when when the i2c read transaction is complete */
-static int i2c_stop_cb(void *v)
-{
-  struct mods_i2c_data *slf = (struct mods_i2c_data *)v;
-
-  if (slf->in_rx)
-    {
-      struct mods_i2c_msg *msg = (struct mods_i2c_msg *)slf->rx_buf;
-
-      slf->in_rx = false;
-      slf->rx_ndx = 0;
-
-      if (slf->rx_payload_ndx + I2C_BUF_SIZE > MODS_DL_PAYLOAD_MAX_SZ)
-        {
-          slf->rx_payload_ndx = 0;
-          return -EINVAL;
+          /* Try to grow the ring buffer */
+          ASSERT(add_rb_entry(priv) == OK);
         }
 
-      memcpy(&slf->rx_payload[slf->rx_payload_ndx], msg->data, sizeof(slf->rx_buf));
-      slf->rx_payload_ndx += sizeof(slf->rx_buf);
+      /* Determine the payload size of this packet */
+      this_pl = MIN(remaining, priv->pl_size);
 
-      if ((msg->hdr_bits & HDR_BIT_PKTS) <= 1)
-        {
-            /* this is the last i2c_data packet in the message */
-            /* we can send it up */
-            /* TODO: validate checksum */
-            slf->cb->recv(slf->rx_payload, slf->rx_payload_ndx);
-            slf->rx_payload_ndx =  0;
-        }
-    }
-  else if (slf->in_tx)
-    {
-        struct fifo_entry *entry = list_entry(slf->tx_fifo.next, struct fifo_entry, list);
-        slf->in_tx = false;
+      /* Setup bitmask for packet header */
+      bitmask  = HDR_BIT_VALID;
+      bitmask |= (msg_type & HDR_BIT_TYPE);
+      bitmask |= (--packets & HDR_BIT_PKTS);
+      if (remaining == len)
+          bitmask |= HDR_BIT_PKT1;
 
-        if (entry->ndx == entry->size)
-          {
-            int irq_flags = irqsave();
-            list_del(slf->tx_fifo.next);
-            fifo_entry_free(entry);
-            irqrestore(irq_flags);
-          }
-        else
-          {
-            /* reset ndx and hope for the best */
-            entry->ndx = 0;
-          }
+      /* Populate the I2C message */
+      set_txp_hdr(priv, bitmask);
+      memcpy(ring_buf_get_data(priv->txp_rb), dbuf, this_pl);
+
+      remaining -= this_pl;
+      dbuf += this_pl;
+
+      next_txp(priv);
     }
 
-  return 0;
+  set_int_if_needed(priv);
+
+  return OK;
 }
 
-static struct i2c_cb_ops_s i2c_cb_ops =
+static int dl_recv(FAR struct mods_dl_s *dl, FAR const void *buf, size_t len)
 {
-  .read = i2c_read_cb,
-  .write = i2c_write_cb,
-  .stop = i2c_stop_cb,
+  FAR struct mods_i2c_dl_s *priv = (FAR struct mods_i2c_dl_s *)dl;
+  struct i2c_dl_msg req;
+  struct i2c_dl_msg resp;
+  uint16_t pl_size;
+  int ret;
+
+  /*
+   * To support bases running firmware with fewer values in the
+   * request, copy the message into a zero'd local struct.
+   */
+  memset(&req, 0, sizeof(req));
+  memcpy(&req, buf, MIN(len, sizeof(req)));
+
+  /* Only BUS_CFG_REQ is supported */
+  if (req.id != DL_MSG_ID_BUS_CFG_REQ)
+    {
+      lldbg("Unknown ID (%d)!\n", req.id);
+      return -EINVAL;
+    }
+
+  if (req.bus_req.version < MIN_PROTO_VER)
+    {
+      lldbg("Unsupported protocol version (%d)\n", req.bus_req.version);
+      return -EPROTONOSUPPORT;
+    }
+
+  priv->proto_ver = req.bus_req.version;
+
+  resp.id = DL_MSG_ID_BUS_CFG_RESP;
+  resp.bus_resp.max_speed = cpu_to_le32(CONFIG_GREYBUS_MODS_MAX_BUS_SPEED);
+
+  pl_size = MIN(CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE,
+                le16_to_cpu(req.bus_req.max_pl_size));
+  /*
+   * Verify new payload size is valid. The payload must be no smaller than
+   * the default payload size and must be a power of two.
+   */
+  if (IS_PWR_OF_TWO(pl_size) && (pl_size >= DEFAULT_PAYLOAD_SZ))
+    {
+      /*
+       * The new payload size cannot be used immediately since the reply
+       * must use the current payload size. Save off for now to be set later.
+       */
+      priv->new_pl_size = pl_size;
+    }
+  else
+    {
+      /*
+       * The new payload size is invalid so set returned payload size to
+       * zero so the base does not change the payload size.
+       */
+      pl_size = 0;
+    }
+  resp.bus_resp.pl_size = cpu_to_le16(pl_size);
+
+  resp.bus_resp.version = PROTO_VER;
+  resp.bus_resp.features = 0;
+
+  ret = queue_data(priv, MSG_TYPE_DL, &resp, sizeof(resp));
+  if (ret)
+    {
+      /* Abort packet size change due to the send error */
+      priv->new_pl_size = 0;
+    }
+
+  return ret;
+}
+
+static int idle_start_tx(FAR struct mods_i2c_dl_s *priv, uint8_t **buffer)
+{
+  if (ring_buf_is_consumers(priv->txc_rb))
+    {
+      mods_host_int_set(false);
+      set_state(priv, DL_STATE_TX);
+    }
+  else /* Nothing to send! */
+    {
+      setup_for_dummy_tx(priv);
+      set_state(priv, DL_STATE_DUMMY);
+    }
+
+  *buffer = ring_buf_get_buf(priv->txc_rb);
+  set_crc(priv);
+
+  return OK;
+}
+
+static int idle_start_rx(FAR struct mods_i2c_dl_s *priv, uint8_t **buffer)
+{
+  *buffer = priv->rx_buf;
+  set_state(priv, DL_STATE_RX);
+
+  return OK;
+}
+
+static int idle_stop(FAR struct mods_i2c_dl_s *priv)
+{
+  /* This should never happen */
+  lldbg("???\n");
+
+  return OK;
+}
+
+static int no_start(FAR struct mods_i2c_dl_s *priv, uint8_t **buffer)
+{
+  /* This is unexpected, so return to IDLE and start state machine again */
+  lldbg("???\n");
+  set_state(priv, DL_STATE_IDLE);
+
+  return -EAGAIN;
+}
+
+static int rx_stop_error(FAR struct mods_i2c_dl_s *priv)
+{
+  /* Ignore any received payload from previous packets */
+  priv->rcvd_payload_idx = 0;
+  priv->pkts_remaining = 0;
+
+  set_state(priv, DL_STATE_IDLE);
+
+  return OK;
+}
+
+static int rx_stop_success(FAR struct mods_i2c_dl_s *priv)
+{
+  /* First verify valid CRC */
+  uint16_t calc_crc = crc16_poly8005(priv->rx_buf, priv->pl_size + HDR_SIZE,
+                                     CRC_INIT_VAL);
+  uint16_t rcvd_crc = *((uint16_t *)&(priv->rx_buf[priv->pl_size + HDR_SIZE]));
+  rcvd_crc = le16_to_cpu(rcvd_crc);
+  if (calc_crc != rcvd_crc)
+    {
+      if (priv->crc_err_cnt++ < ERR_CNT_ZZZ)
+        {
+          lldbg("CRC mismatch: 0x%04x != 0x%04x%s\n", calc_crc, rcvd_crc,
+                priv->crc_err_cnt >= ERR_CNT_ZZZ ? " (zzz)" : "");
+        }
+      return rx_stop_error(priv);
+    }
+  priv->crc_err_cnt = 0;
+
+  struct i2c_msg_hdr *hdr = (struct i2c_msg_hdr *)priv->rx_buf;
+  uint16_t bitmask = le16_to_cpu(hdr->bitmask);
+  enum dl_state_e next_state = DL_STATE_ACK_TX;
+
+  llvdbg("bitmask=0x%04X\n", bitmask);
+
+  if (!(bitmask & HDR_BIT_VALID))
+    {
+      /* Received a dummy or garbage packet - no processing to do! */
+
+      if (!(bitmask & HDR_BIT_DUMMY))
+          lldbg("garbage packet\n");
+
+      /* Change packet size if needed */
+      if (priv->new_pl_size > 0)
+        {
+          DEBUGASSERT(priv->txp_rb == priv->txc_rb);
+          set_pl_size(priv, priv->new_pl_size);
+          priv->new_pl_size = 0;
+        }
+
+      next_state = DL_STATE_IDLE;
+      goto done;
+    }
+
+  buf_t recv = priv->cb->recv;
+
+  if ((bitmask & HDR_BIT_TYPE) == MSG_TYPE_DL)
+      recv = dl_recv;
+
+#if CONFIG_GREYBUS_MODS_DESIRED_PKT_SIZE == MODS_DL_PAYLOAD_MAX_SZ
+  /* Check if un-packetizing is not required */
+  if (MODS_DL_PAYLOAD_MAX_SZ == priv->pl_size)
+    {
+      if (bitmask & HDR_BIT_PKT1)
+          recv(&priv->dl, &priv->rx_buf[HDR_SIZE], priv->pl_size);
+      else
+          lldbg("1st pkt bit not set\n");
+      goto done;
+    }
+#endif
+
+  if (bitmask & HDR_BIT_PKT1)
+    {
+      /* Check if data exists from earlier packets */
+      if (priv->rcvd_payload_idx)
+        {
+          lldbg("1st pkt recv'd before prev msg complete\n");
+          priv->rcvd_payload_idx = 0;
+        }
+
+      priv->pkts_remaining = bitmask & HDR_BIT_PKTS;
+    }
+  else /* not first packet of message */
+    {
+      /* Check for data from earlier packets */
+      if (!priv->rcvd_payload_idx)
+        {
+          lldbg("Ignore non-first packet\n");
+          goto done;
+        }
+
+      if ((bitmask & HDR_BIT_PKTS) != --priv->pkts_remaining)
+        {
+          lldbg("Packets remaining out of sync\n");
+
+          /* Drop the entire message */
+          priv->rcvd_payload_idx = 0;
+          priv->pkts_remaining = 0;
+          goto done;
+        }
+    }
+
+  if (priv->rcvd_payload_idx >= MODS_DL_PAYLOAD_MAX_SZ)
+    {
+      lldbg("Too many packets received\n");
+
+      /* Drop the entire message */
+      priv->rcvd_payload_idx = 0;
+      priv->pkts_remaining = 0;
+      goto done;
+    }
+
+  memcpy(&priv->rcvd_payload[priv->rcvd_payload_idx],
+         &priv->rx_buf[HDR_SIZE], priv->pl_size);
+  priv->rcvd_payload_idx += priv->pl_size;
+
+  if (bitmask & HDR_BIT_PKTS)
+    {
+      /* Need additional packets */
+      goto done;
+    }
+
+  recv(&priv->dl, priv->rcvd_payload, priv->rcvd_payload_idx);
+  priv->rcvd_payload_idx = 0;
+
+done:
+  set_int_if_needed(priv);
+  set_state(priv, next_state);
+
+  return OK;
+}
+
+static int tx_stop_success(FAR struct mods_i2c_dl_s *priv)
+{
+  set_state(priv, DL_STATE_ACK_RX);
+
+  return OK;
+}
+
+static int tx_stop_error(FAR struct mods_i2c_dl_s *priv)
+{
+  if (--priv->tx_tries_remaining <= 0)
+    {
+      lldbg("abort\n");
+
+      reset_txc_rb_entry(priv);
+      priv->tx_tries_remaining = NUM_TRIES;
+    }
+  else
+      lldbg("retry\n");
+
+  set_state(priv, DL_STATE_IDLE);
+  set_int_if_needed(priv);
+
+  return OK;
+}
+
+static int ack_rx_start_tx(FAR struct mods_i2c_dl_s *priv, uint8_t **buffer)
+{
+  /* This is unexpected, so return to IDLE and start state machine again */
+  set_state(priv, DL_STATE_IDLE);
+
+  /* Assume the base was happy with last transmission */
+  reset_txc_rb_entry(priv);
+  priv->tx_tries_remaining = NUM_TRIES;
+
+  set_int_if_needed(priv);
+
+  return -EAGAIN;
+}
+
+static int ack_rx_start_rx(FAR struct mods_i2c_dl_s *priv, uint8_t **buffer)
+{
+  *buffer = priv->rx_buf;
+
+  return OK;
+}
+
+static int ack_rx_stop_success(FAR struct mods_i2c_dl_s *priv)
+{
+  struct i2c_msg_hdr *hdr = (struct i2c_msg_hdr *)priv->rx_buf;
+  uint16_t bitmask = le16_to_cpu(hdr->bitmask);
+
+  if ((bitmask & HDR_BIT_ACK) || --priv->tx_tries_remaining <= 0)
+    {
+      if (priv->tx_tries_remaining <= 0)
+          lldbg("abort\n");
+
+      reset_txc_rb_entry(priv);
+      priv->tx_tries_remaining = NUM_TRIES;
+    }
+  else
+      lldbg("retry\n");
+
+  /* It is possible the base has sent a valid packet that needs parsing */
+  set_state(priv, DL_STATE_RX);
+  return -EAGAIN;
+}
+
+static int ack_tx_start_tx(FAR struct mods_i2c_dl_s *priv, uint8_t **buffer)
+{
+  if (ring_buf_is_consumers(priv->txc_rb))
+    {
+      mods_host_int_set(false);
+    }
+  else /* Nothing to send! */
+    {
+      setup_for_dummy_tx(priv);
+    }
+
+  set_ack_txc_hdr(priv);
+
+  *buffer = ring_buf_get_buf(priv->txc_rb);
+  set_crc(priv);
+
+  return OK;
+}
+
+static int ack_tx_stop_success(FAR struct mods_i2c_dl_s *priv)
+{
+  struct i2c_msg_hdr *hdr = ring_buf_get_buf(priv->txc_rb);
+  uint16_t bitmask = le16_to_cpu(hdr->bitmask);
+
+  /* It is possible we sent a valid packet with ACK */
+  if (bitmask & HDR_BIT_VALID)
+    {
+      set_state(priv, DL_STATE_TX);
+      return -EAGAIN;
+    }
+
+  reset_txc_rb_entry(priv);
+  set_state(priv, DL_STATE_IDLE);
+
+  return OK;
+}
+
+static int ack_tx_stop_error(FAR struct mods_i2c_dl_s *priv)
+{
+  struct i2c_msg_hdr *hdr = ring_buf_get_buf(priv->txc_rb);
+  uint16_t bitmask = le16_to_cpu(hdr->bitmask);
+
+  if (!(bitmask & HDR_BIT_VALID) || --priv->tx_tries_remaining <= 0)
+    {
+      if (priv->tx_tries_remaining <= 0)
+          lldbg("abort\n");
+
+      reset_txc_rb_entry(priv);
+      priv->tx_tries_remaining = NUM_TRIES;
+    }
+  else
+      lldbg("retry\n");
+
+  set_state(priv, DL_STATE_IDLE);
+  set_int_if_needed(priv);
+
+  return OK;
+}
+
+static int dummy_stop(FAR struct mods_i2c_dl_s *priv)
+{
+  reset_txc_rb_entry(priv);
+  set_state(priv, DL_STATE_IDLE);
+
+  return OK;
+}
+
+static const struct state_funcs state_funcs_tbl[DL_STATE__NUM_STATES] =
+{
+  /* DL_STATE_IDLE */
+  { idle_start_tx,   idle_start_rx,   idle_stop,           idle_stop         },
+
+  /* DL_STATE_RX */
+  { no_start,        no_start,        rx_stop_success,     rx_stop_error     },
+
+  /* DL_STATE_TX */
+  { no_start,        no_start,        tx_stop_success,     tx_stop_error     },
+
+  /* DL_STATE_ACK_RX */
+  { ack_rx_start_tx, ack_rx_start_rx, ack_rx_stop_success, tx_stop_error     },
+
+  /* DL_STATE_ACK_TX */
+  { ack_tx_start_tx, no_start,        ack_tx_stop_success, ack_tx_stop_error },
+
+  /* DL_STATE_DUMMY */
+  { no_start,        no_start,        dummy_stop,          dummy_stop        },
 };
+
+/*
+ * Called when transaction with base has started.
+ */
+static int txn_start_cb(void *v, uint8_t dir, uint8_t **buffer, int *buflen)
+{
+  FAR struct mods_i2c_dl_s *priv = (FAR struct mods_i2c_dl_s *)v;
+  irqstate_t flags;
+  int ret;
+
+  flags = irqsave();
+
+  do
+    {
+      /* Master read is slave write */
+      if (dir == I2C_READBIT)
+        {
+          ret = state_funcs_tbl[priv->txn_state].start_tx(priv, buffer);
+        }
+      else
+        {
+          ret = state_funcs_tbl[priv->txn_state].start_rx(priv, buffer);
+        }
+    }
+  while (ret == -EAGAIN);
+
+  *buflen = PKT_SIZE(priv->pl_size);
+
+  irqrestore(flags);
+
+  return ret;
+}
+
+/*
+ * Called when transaction with base has completed.
+ */
+static void txn_stop_cb(void *v, int status, int xfered)
+{
+  FAR struct mods_i2c_dl_s *priv = (FAR struct mods_i2c_dl_s *)v;
+  irqstate_t flags;
+  int ret;
+
+  flags = irqsave();
+
+  do
+    {
+      if ((status == OK) && (xfered >= PKT_SIZE(priv->pl_size)))
+        {
+          ret = state_funcs_tbl[priv->txn_state].stop_success(priv);
+          priv->stop_err_cnt = 0;
+        }
+      else
+        {
+          if (priv->stop_err_cnt++ < ERR_CNT_ZZZ)
+            {
+              lldbg("status=%d, xfered=%d%s\n", status, xfered,
+                    priv->stop_err_cnt >= ERR_CNT_ZZZ ? " (zzz)" : "");
+            }
+          ret = state_funcs_tbl[priv->txn_state].stop_error(priv);
+        }
+    }
+  while (ret == -EAGAIN);
+
+  irqrestore(flags);
+}
+
+static const struct i2c_cb_ops_s cb_ops =
+{
+  .start = txn_start_cb,
+  .stop = txn_stop_cb,
+};
+
+/* Called by network layer when there is data to be sent to base */
+static int queue_data_nw(FAR struct mods_dl_s *dl, const void *buf, size_t len)
+{
+  FAR struct mods_i2c_dl_s *priv = (FAR struct mods_i2c_dl_s *)dl;
+  int ret;
+  irqstate_t flags;
+
+  flags = irqsave();
+  ret = queue_data(priv, MSG_TYPE_NW, buf, len);
+  irqrestore(flags);
+
+  return ret;
+}
 
 static struct mods_dl_ops_s mods_dl_ops =
 {
-  .send = i2c_send,
+  .send = queue_data_nw,
 };
 
-static struct mods_i2c_data i2c_data =
+static struct mods_i2c_dl_s mods_i2c_dl =
 {
   .dl  = { &mods_dl_ops },
 };
 
+#ifdef CONFIG_PM
+static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
+{
+  /*
+   * Do not allow IDLE when WAKE line or RDY line is asserted. Need to stay
+   * awake to reply to commands.
+   */
+  if ((state >= PM_IDLE) &&
+      (!gpio_get_value(GPIO_MODS_WAKE_N) || mods_rfr_get()))
+      return -EIO;
+
+  return OK;
+}
+
+static struct pm_callback_s pm_callback =
+{
+  .prepare = pm_prepare,
+};
+#endif
+
+static int wake_isr(int irq, void *context)
+{
+  /* Any wake interrupts when not attached are spurious */
+  if (mods_i2c_dl.bstate != BASE_ATTACHED)
+    {
+      llvdbg("ignored\n");
+      return OK;
+    }
+
+  uint8_t wake_n = gpio_get_value(GPIO_MODS_WAKE_N);
+  llvdbg("wake_n = %d\n", wake_n);
+
+  if (!wake_n)
+      pm_activity(PM_ACTIVITY_WAKE);
+
+  mods_rfr_set(!wake_n);
+
+  return OK;
+}
+
 FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
 {
-  i2c_data.cb = cb;
-  i2c_data.dev = up_i2cinitialize(CONFIG_GREYBUS_MODS_PORT);
+  FAR struct i2c_dev_s *i2c;
 
-  list_init(&i2c_data.tx_fifo);
-  i2c_data.in_rx = false;
+  DEBUGASSERT(cb);
 
-  if (I2C_SETOWNADDRESS(i2c_data.dev, CONFIG_GREYBUS_MODS_I2C_ADDR, 7) == OK)
+  i2c = up_i2cinitialize(CONFIG_GREYBUS_MODS_PORT);
+  DEBUGASSERT(i2c);
+
+  I2C_SETOWNADDRESS(i2c, CONFIG_GREYBUS_MODS_I2C_ADDR, 7);
+  I2C_REGISTERCALLBACK(i2c, &cb_ops, &mods_i2c_dl);
+
+  mods_i2c_dl.cb = cb;
+  mods_i2c_dl.i2c = i2c;
+
+  set_pl_size(&mods_i2c_dl, DEFAULT_PAYLOAD_SZ);
+
+  /* RDY GPIO must be initialized before the WAKE interrupt */
+  mods_rfr_init();
+
+  gpio_direction_in(GPIO_MODS_WAKE_N);
+  gpio_irqattach(GPIO_MODS_WAKE_N, wake_isr);
+  set_gpio_triggering(GPIO_MODS_WAKE_N, IRQ_TYPE_EDGE_BOTH);
+
+  mods_attach_register(attach_cb, &mods_i2c_dl);
+
+#ifdef CONFIG_PM
+  if (pm_register(&pm_callback) != OK)
     {
-      I2C_REGISTERCALLBACK(i2c_data.dev, &i2c_cb_ops, &i2c_data);
-      lowsyslog("I2C primary slave setup complete!\n");
+      dbg("Failed register to power management!\n");
     }
-  else
-    {
-      lowsyslog("I2C primary slave setup failed!\n");
-    }
+#endif
 
-  return (FAR struct mods_dl_s*)&i2c_data;
+  return (FAR struct mods_dl_s *)&mods_i2c_dl;
 }
