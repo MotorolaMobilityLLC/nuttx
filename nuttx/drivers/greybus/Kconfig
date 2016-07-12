@@ -57,6 +57,7 @@ config GREYBUS_SPI_PHY
 
 config GREYBUS_BATTERY
 	bool "Battery support"
+	select DEVICE_CORE
 	default n
 
 config GREYBUS_MODS_I2S_PHY
