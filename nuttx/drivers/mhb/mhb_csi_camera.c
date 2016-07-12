@@ -61,6 +61,7 @@
  */
 #define CTRL_RETRIES             5
 #define MHB_CDSI_CAM_INSTANCE    0
+#define MHB_PCTRL_OP_TIMEOUT_NS  3000000000LL
 #define MHB_CDSI_OP_TIMEOUT_NS   1000000000LL
 #define CAM_CTRL_RETRY_DELAY_US  200000
 
@@ -400,7 +401,8 @@ int mhb_csi_camera_status_register_callback(
 /* MHB Ops */
 
 static int _mhb_camera_wait_for_response(pthread_cond_t *cond,
-                                         uint16_t wait_event, char *str)
+                                         uint16_t wait_event, char *str,
+                                         uint64_t timeout)
 {
     int result;
     struct timespec expires;
@@ -410,7 +412,7 @@ static int _mhb_camera_wait_for_response(pthread_cond_t *cond,
     }
 
     uint64_t new_ns = timespec_to_nsec(&expires);
-    new_ns += MHB_CDSI_OP_TIMEOUT_NS;
+    new_ns += timeout;
     nsec_to_timespec(new_ns, &expires);
 
     s_mhb_camera.mhb_wait_event = wait_event;
@@ -420,7 +422,7 @@ static int _mhb_camera_wait_for_response(pthread_cond_t *cond,
     s_mhb_camera.mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
 
     clock_gettime(CLOCK_REALTIME, &expires);
-    new_ns = timespec_to_nsec(&expires) - (new_ns - MHB_CDSI_OP_TIMEOUT_NS);
+    new_ns = timespec_to_nsec(&expires) - (new_ns - timeout);
     CAM_ERR("%s: Time spent on %s %dms Result %X\n", result?"ERROR":"INFO",
             str, (uint16_t)(new_ns/NSEC_PER_MSEC), result);
 
@@ -631,7 +633,7 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     if(s_mhb_camera.apbe_en_state != MHB_PM_STATUS_PEER_CONNECTED) {
         if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
                 MHB_CAM_PWRCTL_WAIT_MASK|MHB_PM_STATUS_PEER_CONNECTED,
-                "PEER CONNECTED")) {
+                "PEER CONNECTED", MHB_PCTRL_OP_TIMEOUT_NS)) {
             CAM_ERR("Failed waiting for PEER_CONNECTED\n");
             pthread_mutex_unlock(&s_mhb_camera.mutex);
             goto failed_power_on;
@@ -670,7 +672,7 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     if (s_mhb_camera.apbe_en_state != MHB_PM_STATUS_PEER_NONE) {
         if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
                 MHB_CAM_PWRCTL_WAIT_MASK|MHB_PM_STATUS_PEER_NONE,
-                "PEER NONE")) {
+                "PEER NONE", MHB_PCTRL_OP_TIMEOUT_NS)) {
             CAM_ERR("Failed waiting for APBE Power OFF\n");
             s_mhb_camera.apbe_en_state = MHB_PM_STATUS_PEER_NONE;
         }
@@ -749,7 +751,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
         pthread_mutex_lock(&s_mhb_camera.mutex);
         _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
-                                  "CDSI STOP");
+                                  "CDSI STOP", MHB_CDSI_OP_TIMEOUT_NS);
         pthread_mutex_unlock(&s_mhb_camera.mutex);
 
         _mhb_csi_camera_unconfig_req();
@@ -757,7 +759,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
         pthread_mutex_lock(&s_mhb_camera.mutex);
         _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_UNCONFIG_RSP,
-                                  "CDSI UNCONFIG");
+                                  "CDSI UNCONFIG", MHB_CDSI_OP_TIMEOUT_NS);
         pthread_mutex_unlock(&s_mhb_camera.mutex);
 
         s_mhb_camera.apbe_configured = 0;
@@ -779,7 +781,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     pthread_mutex_lock(&s_mhb_camera.mutex);
     if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONFIG_RSP,
-                                  "CDSI CONFIG")) {
+                                  "CDSI CONFIG", MHB_CDSI_OP_TIMEOUT_NS)) {
         pthread_mutex_unlock(&s_mhb_camera.mutex);
         goto failed_stream_on;
     }
@@ -798,7 +800,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     pthread_mutex_lock(&s_mhb_camera.mutex);
     if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
-                                  "CDSI START")) {
+                                  "CDSI START", MHB_CDSI_OP_TIMEOUT_NS)) {
         pthread_mutex_unlock(&s_mhb_camera.mutex);
         goto failed_stream_on;
     }
@@ -827,7 +829,7 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
     pthread_mutex_lock(&s_mhb_camera.mutex);
     retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
-                                  "CDSI STOP");
+                                  "CDSI STOP", MHB_CDSI_OP_TIMEOUT_NS);
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
     retval |= MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_disable);
@@ -837,7 +839,7 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
     pthread_mutex_lock(&s_mhb_camera.mutex);
     retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_UNCONFIG_RSP,
-                                  "CDSI UNCONFIG");
+                                  "CDSI UNCONFIG", MHB_CDSI_OP_TIMEOUT_NS);
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
     s_mhb_camera.apbe_configured = 0;
