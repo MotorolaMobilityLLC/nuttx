@@ -92,6 +92,10 @@ struct mhb {
     /* uart */
     uint32_t current_baud;
     uint32_t new_baud;
+
+    /* rx/tx thread execution */
+    pthread_mutex_t run_mutex;
+    bool should_run;
 };
 
 static struct mhb *g_mhb;
@@ -568,9 +572,19 @@ static void *mhb_rx_thread(void *data)
 
     while (!ret) {
         int got = 0;
+
+        pthread_mutex_lock(&g_mhb->run_mutex);
+        if (!g_mhb->should_run) {
+            pthread_mutex_unlock(&g_mhb->run_mutex);
+            break;
+        }
+
         ret = device_uart_start_receiver(g_mhb->dev, rx_buf + rx_size,
                       sizeof(rx_buf) - rx_size, NULL /* dma */,
                       &got, NULL /* blocking */);
+
+        pthread_mutex_unlock(&g_mhb->run_mutex);
+
         if (ret) {
             if (ret != -EINTR) {
                 lldbg("FATAL: Failed to start the receiver: %d\n", ret);
@@ -768,6 +782,10 @@ static void *mhb_tx_thread(void *data)
             break;
         }
 
+        if (!g_mhb->should_run) {
+            break;
+        }
+
         /* Get the next buffer */
         irqstate_t flags = irqsave();
         bool empty = sq_empty(&g_mhb->tx_queue);
@@ -823,14 +841,20 @@ static int mhb_stop(void)
 {
     pthread_addr_t join_value;
 
+    g_mhb->should_run = false;
+
     if (g_mhb->rx_thread) {
-        pthread_kill(g_mhb->rx_thread, MHB_SIG_STOP);
+        while(pthread_mutex_trylock(&g_mhb->run_mutex)) {
+            pthread_kill(g_mhb->rx_thread, MHB_SIG_STOP);
+            usleep(10000);
+        }
+        pthread_mutex_unlock(&g_mhb->run_mutex);
         pthread_join(g_mhb->rx_thread, &join_value);
         g_mhb->rx_thread = 0;
     }
 
     if (g_mhb->tx_thread) {
-        pthread_kill(g_mhb->tx_thread, MHB_SIG_STOP);
+        sem_post(&g_mhb->tx_sem);
         pthread_join(g_mhb->tx_thread, &join_value);
         g_mhb->tx_thread = 0;
     }
@@ -842,10 +866,13 @@ static int mhb_start(void)
 {
     int ret;
 
+    g_mhb->should_run = true;
+
     ret = pthread_create(&g_mhb->rx_thread, NULL, mhb_rx_thread, NULL);
     if (ret) {
         lldbg("ERROR: Failed to create rx thread: %s.\n", strerror(errno));
         g_mhb->rx_thread = 0;
+        g_mhb->should_run = false;
         goto rx_thread_error;
     }
 
@@ -1030,6 +1057,8 @@ static int mhb_dev_probe(struct device *dev)
     pthread_cond_init(&g_mhb->cond, NULL);
 
     atomic_init(&g_mhb->pm_state_peer, 0);
+
+    pthread_mutex_init(&g_mhb->run_mutex, NULL);
 
     irqrestore(flags);
 
