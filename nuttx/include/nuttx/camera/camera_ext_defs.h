@@ -243,6 +243,10 @@ struct camera_ext_predefined_ctrl_mod_cfg {
 } __packed;
 
 #define CAMERA_EXT_REPORT_ERROR 0x00
+#define CAMERA_EXT_REPORT_METADATA 0x01
+
+/* use 1024 as metadata length*/
+#define CAMERA_EXT_EVENT_METADATA_DESC_LEN 1024
 
 /* event send from MOD to AP */
 struct camera_ext_event_hdr {

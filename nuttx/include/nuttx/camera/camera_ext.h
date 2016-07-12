@@ -308,4 +308,7 @@ int camera_ext_register_event_cb(struct device *dev, camera_ext_event_cb_t cb);
 /* Send error event to AP */
 int camera_ext_send_error(uint32_t err);
 
+/* Send metadata event to AP*/
+int camera_ext_send_metadata(const uint8_t *desc, uint32_t length);
+
 #endif

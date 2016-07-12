@@ -69,6 +69,21 @@ int camera_ext_register_event_cb(struct device *dev, camera_ext_event_cb_t cb)
     return 0;
 }
 
+int camera_ext_send_metadata(const uint8_t *desc, uint32_t length)
+{
+    if (s_event_cb == NULL) {
+        CAM_ERR("event callback not exists\n");
+        return -EINVAL;
+    }
+
+    if (length > CAMERA_EXT_EVENT_METADATA_DESC_LEN) {
+        CAM_ERR("metadata too long\n");
+        return -EINVAL;
+    }
+
+    return s_event_cb(s_dev, CAMERA_EXT_REPORT_METADATA, (uint8_t *)desc, length);
+}
+
 int camera_ext_send_error(uint32_t err)
 {
     if (s_event_cb == NULL) {
