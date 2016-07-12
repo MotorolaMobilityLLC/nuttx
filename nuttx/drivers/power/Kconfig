@@ -68,10 +68,10 @@ config BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP
 		Select if need more accurate temperature with MAX17050.
 
 config BATTERY_MAX17050_SENSE_TRACE_CORRECTION
-	bool "Adding offset to correct wrong capactity due to sense trace issue"
+	bool "Correct inaccurate metering caused by wrong sense traces"
 	default n
 	---help---
-		Select if need correct fuel gauge DC offset caused by sense trace issue.
+		Select to correct erroneous fuel gauge DC offset
 
 config BATTERY_MAX17050_COFF_CFG
 	hex "Set Max17050 COFF Register Value"
