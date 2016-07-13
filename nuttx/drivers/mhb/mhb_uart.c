@@ -528,9 +528,19 @@ static int _mhb_wait_for_sync_pattern(uint8_t *rx_buf, size_t *rx_size)
 
     while (!ret) {
         int got = 0;
+
+        pthread_mutex_lock(&g_mhb->run_mutex);
+        if (!g_mhb->should_run) {
+            pthread_mutex_unlock(&g_mhb->run_mutex);
+            break;
+        }
+
         ret = device_uart_start_receiver(g_mhb->dev, rx_buf, 1 /* size */,
                       NULL /* dma */,
                       &got, NULL /* blocking */);
+
+        pthread_mutex_unlock(&g_mhb->run_mutex);
+
         if (ret || !got) {
             if (ret != -EINTR) {
                 lldbg("FATAL: Failed to wait for sync: %d\n", ret);
@@ -842,7 +852,6 @@ static int mhb_stop(void)
     pthread_addr_t join_value;
 
     g_mhb->should_run = false;
-
     if (g_mhb->rx_thread) {
         while(pthread_mutex_trylock(&g_mhb->run_mutex)) {
             pthread_kill(g_mhb->rx_thread, MHB_SIG_STOP);
