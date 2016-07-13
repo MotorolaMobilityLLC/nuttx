@@ -254,7 +254,7 @@ struct bq25896_config bq25896_charger_init_data = {
 };
 #endif
 
-#ifdef CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
+#if defined (CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH) && defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
 static struct device_resource switch_ptp_chg_resources[] = {
     {
        .name   = "base_path",
@@ -262,22 +262,18 @@ static struct device_resource switch_ptp_chg_resources[] = {
        .start  = GPIO_MODS_CHG_VINA_EN,
        .count  = 1,
     },
-#if !(IS_BATT_PCARD)
     {
        .name   = "wrd_path",
        .type   = DEVICE_RESOURCE_TYPE_GPIO,
        .start  = GPIO_MODS_CHG_VINB_EN,
        .count  = 1,
     },
-#endif
 };
 
 struct ptp_chg_init_data switch_ptp_chg_init_data = {
-#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
        .wls_active_low = false,
        .wrd_active_low = false,
        .base_active_low = false,
-#endif
 };
 #endif
 #ifdef CONFIG_FUSB302_USB_EXT
@@ -411,9 +407,11 @@ static struct device devices[] = {
         .name = "switch_ptp_chg",
         .desc = "Charger driver with switches for power transfer protocol",
         .id   = 0,
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
         .resources      = switch_ptp_chg_resources,
         .resource_count = ARRAY_SIZE(switch_ptp_chg_resources),
         .init_data = &switch_ptp_chg_init_data,
+#endif
     },
 #endif
 #ifdef CONFIG_MAX17050_DEVICE
