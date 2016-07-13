@@ -366,6 +366,14 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+#ifdef CONFIG_MODS_RAW_TERMAPP
+    {
+        .type = DEVICE_TYPE_RAW_HW,
+        .name = "mods_raw_termapp",
+        .desc = "Termapp Raw Interface",
+        .id   = 0,
+    },
+#endif
 #ifdef CONFIG_MODS_RAW_TEMPERATURE
     {
         .type = DEVICE_TYPE_RAW_HW,
@@ -785,6 +793,10 @@ void board_initialize(void)
 #ifdef CONFIG_MODS_RAW_BLINKY
   extern struct device_driver mods_raw_blinky_driver;
   device_register_driver(&mods_raw_blinky_driver);
+#endif
+#ifdef CONFIG_MODS_RAW_TERMAPP
+  extern struct device_driver mods_raw_termapp_driver;
+  device_register_driver(&mods_raw_termapp_driver);
 #endif
 #ifdef CONFIG_MODS_RAW_TEMPERATURE
   extern struct device_driver mods_raw_temperature_driver;

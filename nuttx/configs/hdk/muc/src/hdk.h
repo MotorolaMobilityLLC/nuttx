@@ -36,6 +36,7 @@
 #define __CONFIGS_HDK_MUC_SRC_HDK_H
 
 #define  TEMP_RAW_ADC_DEVPATH         "/dev/adc0"
+#define  TERMAPP_RAW_UART2_DEVPATH    "/dev/ttyS1"
 
 /* BUTTONS -- NOTE that all have EXTI interrupts configured */
 

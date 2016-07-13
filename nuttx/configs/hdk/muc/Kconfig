@@ -32,6 +32,14 @@ config MODS_RAW_BLINKY
 	---help---
 		Enable Blinky LED Raw support
 
+config MODS_RAW_TERMAPP
+	bool "Enable termapp driver"
+	default n
+	depends on GREYBUS_RAW
+	select DEVICE_CORE
+	---help---
+		Enable termapp Raw device
+
 config MODS_RAW_TEMPERATURE
 	bool "Temperature Personality Mods Raw support"
 	default n

@@ -65,6 +65,10 @@ ifeq ($(CONFIG_MODS_RAW_BLINKY),y)
 CSRCS += stm32_modsraw_blinky.c
 endif
 
+ifeq ($(CONFIG_MODS_RAW_TERMAPP),y)
+CSRCS += stm32_modsraw_termapp.c
+endif
+
 ifeq ($(CONFIG_MODS_RAW_TEMPERATURE),y)
 CSRCS += stm32_modsraw_temperature.c
 CSRCS += aes.c
