@@ -158,9 +158,19 @@ static void stm32_freeze_iwdg_stop(void)
 
 void up_pminitialize(void)
 {
-#ifdef CONFIG_STM32_USART3
+#if defined(CONFIG_STM32_USART3) || defined(CONFIG_STM32_USART2)
   uint32_t regval;
+#endif
 
+#ifdef CONFIG_STM32_USART2
+  /* Enable USART2 in Stop Mode */
+
+  regval  = getreg32(STM32_USART2_CR1);
+  regval |= USART_CR1_UESM;
+  putreg32(regval, STM32_USART2_CR1);
+#endif
+
+#ifdef CONFIG_STM32_USART3
   /* Enable USART3 in Stop Mode */
 
   regval  = getreg32(STM32_USART3_CR1);
