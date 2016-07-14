@@ -59,6 +59,8 @@
  * for MHB (Motorola Mods Hi-speed Bus Archirecture)
  *
  */
+
+#define UNIPRO_RECOVER_RETRIES   1
 #define CTRL_RETRIES             5
 #define MHB_CDSI_CAM_INSTANCE    0
 #define MHB_PCTRL_OP_TIMEOUT_NS  3000000000LL
@@ -526,7 +528,7 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
         case MHB_TYPE_CDSI_READ_CMDS_RSP:
         case MHB_TYPE_CDSI_STATUS_RSP:
             if (hdr->result)
-                CAM_ERR("ERROR:failed cmd: addr=%d type=%d result=%d\n",
+                CAM_ERR("ERROR:failed cmd: addr=%02x type=%02x result=%02x\n",
                         hdr->addr, hdr->type, hdr->result);
             break;
         case MHB_TYPE_CDSI_UNCONFIG_RSP:
@@ -538,11 +540,15 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
                     s_mhb_camera.mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
                 }
                 pthread_cond_signal(&s_mhb_camera.cdsi_cond);
-            }
+            } else {
+                 CAM_ERR("ERROR Unexpected Rsp addr=%02x type=%02x result=%02x wait=0x%04x\n",
+                    hdr->addr, hdr->type,
+                    hdr->result, s_mhb_camera.mhb_wait_event);
+           }
             pthread_mutex_unlock(&s_mhb_camera.mutex);
             break;
         default:
-            CAM_ERR("unexpected rsp: addr=%d type=%d result=%d wait=0x%04x\n",
+            CAM_ERR("unexpected rsp: addr=%02x type=%02x result=%02x wait=0x%04x\n",
                     hdr->addr, hdr->type,
                     hdr->result, s_mhb_camera.mhb_wait_event);
         }
@@ -550,6 +556,64 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
 
     return 0;
 }
+
+static int _mhb_csi_camera_start_stream(uint8_t *cfg, size_t cfg_size)
+{
+    pthread_mutex_lock(&s_mhb_camera.mutex);
+    if (_mhb_csi_camera_config_req(cfg, cfg_size)) {
+        CAM_ERR("ERROR: Send Config Failed\n");
+        pthread_mutex_unlock(&s_mhb_camera.mutex);
+        return -1;
+    }
+
+    if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONFIG_RSP,
+                                  "CDSI CONFIG", MHB_CDSI_OP_TIMEOUT_NS)) {
+        pthread_mutex_unlock(&s_mhb_camera.mutex);
+        return -1;
+    }
+
+    if (_mhb_csi_camera_control_req(MHB_CDSI_COMMAND_START)) {
+        CAM_ERR("ERROR: MHB_CDSI_COMMAND_START Failed\n");
+        pthread_mutex_unlock(&s_mhb_camera.mutex);
+        return -1;
+    }
+
+    if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
+                                  "CDSI START", MHB_CDSI_OP_TIMEOUT_NS)) {
+        pthread_mutex_unlock(&s_mhb_camera.mutex);
+        return -1;
+    }
+    pthread_mutex_unlock(&s_mhb_camera.mutex);
+    return 0;
+}
+
+static int _mhb_csi_camera_stop_stream(void)
+{
+    int retval = 0;
+
+    pthread_mutex_lock(&s_mhb_camera.mutex);
+
+    retval |= _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
+
+    retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
+                                  "CDSI STOP", MHB_CDSI_OP_TIMEOUT_NS);
+
+    retval |= MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_disable);
+
+    retval |= _mhb_csi_camera_unconfig_req();
+
+    retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_UNCONFIG_RSP,
+                                  "CDSI UNCONFIG", MHB_CDSI_OP_TIMEOUT_NS);
+    pthread_mutex_unlock(&s_mhb_camera.mutex);
+    return retval;
+
+}
+
+
 
 static void _mhb_camera_process_ctrl_cache(int dump)
 {
@@ -692,6 +756,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     const struct camera_ext_format_node *fmt;
     const struct camera_ext_frmsize_node *frmsize;
     struct mhb_cdsi_config *cdsi_config;
+    int retry;
 
     CAM_DBG("\n");
 
@@ -746,22 +811,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
     if (s_mhb_camera.apbe_configured) {
 
         CAM_ERR("ERROR: Weird! APBE already Configured\n");
-        _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
-
-        pthread_mutex_lock(&s_mhb_camera.mutex);
-        _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
-                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
-                                  "CDSI STOP", MHB_CDSI_OP_TIMEOUT_NS);
-        pthread_mutex_unlock(&s_mhb_camera.mutex);
-
-        _mhb_csi_camera_unconfig_req();
-
-        pthread_mutex_lock(&s_mhb_camera.mutex);
-        _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
-                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_UNCONFIG_RSP,
-                                  "CDSI UNCONFIG", MHB_CDSI_OP_TIMEOUT_NS);
-        pthread_mutex_unlock(&s_mhb_camera.mutex);
-
+        _mhb_csi_camera_stop_stream();
         s_mhb_camera.apbe_configured = 0;
     }
 
@@ -772,39 +822,35 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
         goto failed_stream_on;
     }
 
-    if (_mhb_csi_camera_config_req((uint8_t*)cdsi_config,
-                                    sizeof(*cdsi_config))) {
-        CAM_ERR("ERROR: Send Config Failed\n");
-        goto failed_stream_on;
-    }
+    retry = UNIPRO_RECOVER_RETRIES;
+    do {
+        if (!_mhb_csi_camera_start_stream((uint8_t*)cdsi_config,
+                                          sizeof(*cdsi_config)))
+            break;
+        else if (retry == 0)
+            goto failed_stream_on;
 
-    pthread_mutex_lock(&s_mhb_camera.mutex);
-    if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
-                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONFIG_RSP,
-                                  "CDSI CONFIG", MHB_CDSI_OP_TIMEOUT_NS)) {
+        CAM_ERR("UNIPRO Config failed. Reset & Retry\n");
+
+        pthread_mutex_lock(&s_mhb_camera.mutex);
+        _mhb_camera_set_apbe_enable(SLAVE_STATE_DISABLED);
+        _mhb_camera_set_apbe_enable(SLAVE_STATE_ENABLED);
+
+        if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
+            MHB_CAM_PWRCTL_WAIT_MASK|MHB_PM_STATUS_PEER_CONNECTED,
+            "PEER CONNECTED", MHB_PCTRL_OP_TIMEOUT_NS)) {
+             CAM_ERR("Failed waiting for PEER_CONNECTED\n");
+             pthread_mutex_unlock(&s_mhb_camera.mutex);
+             goto failed_stream_on;
+        }
         pthread_mutex_unlock(&s_mhb_camera.mutex);
-        goto failed_stream_on;
-    }
-    pthread_mutex_unlock(&s_mhb_camera.mutex);
+    } while (retry--);
 
     if (MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_enable)) {
         CAM_ERR("ERROR: _mhb_camera_stream_enable Failed\n");
         goto failed_stream_on;
     }
 
-    if (_mhb_csi_camera_control_req(MHB_CDSI_COMMAND_START)) {
-        CAM_ERR("ERROR: MHB_CDSI_COMMAND_START Failed\n");
-        goto failed_stream_on;
-    }
-
-    pthread_mutex_lock(&s_mhb_camera.mutex);
-    if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
-                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
-                                  "CDSI START", MHB_CDSI_OP_TIMEOUT_NS)) {
-        pthread_mutex_unlock(&s_mhb_camera.mutex);
-        goto failed_stream_on;
-    }
-    pthread_mutex_unlock(&s_mhb_camera.mutex);
     s_mhb_camera.apbe_configured = 1;
 
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_ON);
@@ -819,28 +865,11 @@ failed_stream_on:
 
 mhb_camera_sm_event_t mhb_camera_stream_off(void)
 {
-    int retval = 0;
     //struct device *dev = CONTAINER_OF(&s_mhb_camera, struct device, private);
 
     CAM_DBG("\n");
 
-    retval |= _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
-
-    pthread_mutex_lock(&s_mhb_camera.mutex);
-    retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
-                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
-                                  "CDSI STOP", MHB_CDSI_OP_TIMEOUT_NS);
-    pthread_mutex_unlock(&s_mhb_camera.mutex);
-
-    retval |= MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_disable);
-
-    retval |= _mhb_csi_camera_unconfig_req();
-
-    pthread_mutex_lock(&s_mhb_camera.mutex);
-    retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
-                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_UNCONFIG_RSP,
-                                  "CDSI UNCONFIG", MHB_CDSI_OP_TIMEOUT_NS);
-    pthread_mutex_unlock(&s_mhb_camera.mutex);
+    _mhb_csi_camera_stop_stream();
 
     s_mhb_camera.apbe_configured = 0;
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_OFF);
