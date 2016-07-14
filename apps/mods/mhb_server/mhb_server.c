@@ -172,6 +172,90 @@ static int mhb_handle_unipro_config_req(struct mhb_transaction *transaction)
     return 0;
 }
 
+static void _mhb_unipro_gear_to_gearbox(struct mhb_unipro_gear *mhb_req,
+                                        struct gear_request *gearbox_req)
+{
+    switch ((mhb_req->pwrmode >> 4) & 0xf) {
+    case UNIPRO_FASTAUTO_MODE:
+    case UNIPRO_FAST_MODE:
+        if (mhb_req->series == 0) {
+            /* Series A */
+            gearbox_req->rx_max_mbps = mhb_req->rx * 1248 * 0.5;
+        } else {
+            /* Series B */
+            gearbox_req->rx_max_mbps = mhb_req->rx * 1458 * 0.5;
+        }
+        break;
+    case UNIPRO_SLOWAUTO_MODE:
+    case UNIPRO_SLOW_MODE:
+        switch (mhb_req->rx) {
+        case 1:
+            gearbox_req->rx_max_mbps = 9* 0.5;
+            break;
+        case 2:
+            gearbox_req->rx_max_mbps = 18* 0.5;
+            break;
+        case 3:
+            gearbox_req->rx_max_mbps = 36* 0.5;
+            break;
+        case 4:
+            gearbox_req->rx_max_mbps = 72* 0.5;
+            break;
+        }
+        break;
+    }
+
+    switch ((mhb_req->pwrmode >> 4) & 0xf) {
+    case UNIPRO_FASTAUTO_MODE:
+    case UNIPRO_SLOWAUTO_MODE:
+        gearbox_req->rx_auto = 1;
+        break;
+    case UNIPRO_FAST_MODE:
+    case UNIPRO_SLOW_MODE:
+        gearbox_req->rx_auto = 0;
+    }
+
+    switch (mhb_req->pwrmode & 0xf) {
+    case UNIPRO_FASTAUTO_MODE:
+    case UNIPRO_FAST_MODE:
+        if (mhb_req->series == 0) {
+            /* Series A */
+            gearbox_req->tx_max_mbps = mhb_req->tx * 1248 * 0.5;
+        } else {
+            /* Series B */
+            gearbox_req->tx_max_mbps = mhb_req->tx * 1458 * 0.5;
+        }
+        break;
+    case UNIPRO_SLOWAUTO_MODE:
+    case UNIPRO_SLOW_MODE:
+        switch (mhb_req->tx) {
+        case 1:
+            gearbox_req->tx_max_mbps = 9 * 0.5;
+            break;
+        case 2:
+            gearbox_req->tx_max_mbps = 18 * 0.5;
+            break;
+        case 3:
+            gearbox_req->tx_max_mbps = 36 * 0.5;
+            break;
+        case 4:
+            gearbox_req->tx_max_mbps = 72 * 0.5;
+            break;
+        }
+        break;
+    }
+
+    switch (mhb_req->pwrmode & 0xf) {
+    case UNIPRO_FASTAUTO_MODE:
+    case UNIPRO_SLOWAUTO_MODE:
+        gearbox_req->tx_auto = 1;
+        break;
+    case UNIPRO_FAST_MODE:
+    case UNIPRO_SLOW_MODE:
+        gearbox_req->tx_auto = 0;
+    }
+}
+
 static int mhb_handle_unipro_control_req(struct mhb_transaction *transaction)
 {
     struct mhb_unipro_control_req *req =
@@ -181,9 +265,15 @@ static int mhb_handle_unipro_control_req(struct mhb_transaction *transaction)
         return -EINVAL;
     }
 
-    uint8_t termination = 1;
-    unipro_powermode_change(req->gear.tx, req->gear.rx, req->gear.pwrmode,
-        req->gear.series, termination);
+    if (g_gearbox) {
+        struct gear_request request;
+        _mhb_unipro_gear_to_gearbox(&req->gear, &request);
+        gearbox_request(g_gearbox, g_gearbox_diag, &request);
+    } else {
+        uint8_t termination = 1;
+        unipro_powermode_change(req->gear.tx, req->gear.rx, req->gear.pwrmode,
+            req->gear.series, termination);
+    }
 
     transaction->out_msg.hdr->addr = MHB_ADDR_UNIPRO;
     transaction->out_msg.hdr->type = MHB_TYPE_UNIPRO_CONTROL_RSP;
