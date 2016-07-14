@@ -909,5 +909,14 @@ void board_initialize(void)
    battery_state_init();
 # endif
 #endif
+
+#if !defined(CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+   /* Set the power paths to be able to use USB VBUS as the system power and
+    * to prevent applying voltage to VBUS pin on the Mod connector. Also,
+    * prevent accepting power from the PCARD VBUS connection.
+    */
+   gpio_set_value(GPIO_MODS_CHG_VINA_EN, 1);
+   gpio_set_value(GPIO_MODS_CHG_VINB_EN, 0);
+#endif
 }
 #endif
