@@ -56,7 +56,6 @@ int mhb_csi_camera_status_register_callback(
 
 inline void mhb_camera_i2c_lock(void);
 inline void mhb_camera_i2c_unlock(void);
-int mhb_camera_i2c_set_repeatstart(uint8_t en);
 int mhb_camera_i2c_read(uint16_t i2c_addr,
                         uint8_t *addr, int addr_len,
                         uint8_t *data, int data_len);

@@ -92,7 +92,6 @@ struct mhb_camera_s
     struct device *cam_device;
     struct device *slave_pwr_ctrl;
     struct i2c_dev_s* cam_i2c;
-    uint8_t i2c_disable_rs;
     uint8_t apbe_en_state;
     uint8_t apbe_configured;
     uint8_t soc_status;
@@ -123,6 +122,11 @@ static int mhb_camera_pm_prepare(struct pm_callback_s *cb,
        /* SM in Wait states                                     */
        /* SM in OFF && SOC is still enabled. pthread_timed_wait */
        /* timers dont seem to wake up reliably, so handle here  */
+
+       if (!pthread_mutex_trylock(&s_mhb_camera.i2c_mutex))
+           return -EBUSY;
+
+
        pthread_mutex_lock(&s_mhb_camera.mutex);
        uint8_t sm_state = mhb_camera_sm_get_state();
        /*
@@ -140,9 +144,11 @@ static int mhb_camera_pm_prepare(struct pm_callback_s *cb,
            (sm_state == MHB_CAMERA_STATE_OFF &&
             s_mhb_camera.soc_status != SOC_DISABLED)
           ) {
+            pthread_mutex_unlock(&s_mhb_camera.i2c_mutex);
             pthread_mutex_unlock(&s_mhb_camera.mutex);
             return -EBUSY;
        }
+       pthread_mutex_unlock(&s_mhb_camera.i2c_mutex);
        pthread_mutex_unlock(&s_mhb_camera.mutex);
     }
     return 0;
@@ -166,12 +172,6 @@ inline void mhb_camera_i2c_unlock()
     pthread_mutex_unlock(&s_mhb_camera.i2c_mutex);
 }
 
-int mhb_camera_i2c_set_repeatstart(uint8_t en)
-{
-    s_mhb_camera.i2c_disable_rs = !en;
-    return 0;
-}
-
 int mhb_camera_i2c_read(uint16_t i2c_addr,
                     uint8_t *addr, int addr_len,
                     uint8_t *data, int data_len)
@@ -179,7 +179,7 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
     int ret = 0, retries = CONFIG_MHB_CAMERA_I2C_RETRY;
     struct i2c_msg_s msg[2];
     msg[0].addr   = i2c_addr;
-    msg[0].flags  = s_mhb_camera.i2c_disable_rs?I2C_M_NORESTART:0;
+    msg[0].flags  = 0;
     msg[0].buffer = addr;
     msg[0].length = addr_len;
 
@@ -190,16 +190,7 @@ int mhb_camera_i2c_read(uint16_t i2c_addr,
 
     pthread_mutex_lock(&s_mhb_camera.i2c_mutex);
     do {
-        if (s_mhb_camera.i2c_disable_rs) {
-            ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[0], 1);
-            if (!ret) {
-                /* S10 Workaround : they cant seem to synchronize their Rx & Tx */
-                usleep(50000);
-                ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, &msg[1], 1);
-            }
-        } else {
-            ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, msg, 2);
-        }
+        ret = I2C_TRANSFER(s_mhb_camera.cam_i2c, msg, 2);
         if (ret) {
             usleep(CONFIG_MHB_CAMERA_I2C_RETRY_DELAY_US);
             CAM_DBG("i2c err %d\n", ret);
@@ -223,7 +214,7 @@ int mhb_camera_i2c_write(uint16_t i2c_addr, uint8_t *addr, int addr_len)
     int ret = 0, retries = CONFIG_MHB_CAMERA_I2C_RETRY;
 
     msg.addr   = i2c_addr;
-    msg.flags  = s_mhb_camera.i2c_disable_rs ? I2C_M_NORESTART:0;
+    msg.flags  = I2C_M_NORESTART;
     msg.buffer = addr;
     msg.length = addr_len;
 
@@ -401,7 +392,6 @@ int mhb_csi_camera_status_register_callback(
 }
 
 /* MHB Ops */
-
 static int _mhb_camera_wait_for_response(pthread_cond_t *cond,
                                          uint16_t wait_event, char *str,
                                          uint64_t timeout)
@@ -986,7 +976,6 @@ static int _dev_probe(struct device *dev)
     mhb_camera->apbe_configured = 0;
     mhb_camera->mhb_wait_event = MHB_CAM_WAIT_EV_NONE;
     mhb_camera->bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
-    mhb_camera->i2c_disable_rs = 0;
     mhb_camera->cam_i2c = NULL;
 
     memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
