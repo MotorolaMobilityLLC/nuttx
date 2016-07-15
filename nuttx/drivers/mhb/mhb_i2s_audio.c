@@ -520,6 +520,26 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
         goto err;
     }
 
+    /* set pcm and dai config to audio codec */
+    if (i2s->audio_dev) {
+        struct device_aud_pcm_config pcm_cfg;
+        struct device_aud_dai_config dai_cfg;
+            memset(&dai_cfg, 0, sizeof(&dai_cfg));
+        pcm_cfg.rate = i2s_pcm->rate;
+        pcm_cfg.format = i2s_pcm->format;
+        pcm_cfg.channels = i2s_pcm->channels;
+        dai_cfg.dai_type = DEVICE_AUDIO_DAI_I2S_TYPE;
+        dai_cfg.config.i2s_dai.wclk_polarity = i2s_dai->wclk_polarity;
+        dai_cfg.config.i2s_dai.wclk_change_edge = i2s_dai->wclk_change_edge;
+        dai_cfg.config.i2s_dai.data_rx_edge = i2s_dai->data_rx_edge;
+        dai_cfg.config.i2s_dai.data_tx_edge = i2s_dai->data_tx_edge;
+        dai_cfg.config.i2s_dai.protocol = i2s_dai->protocol;
+        result = device_audio_set_config(i2s->audio_dev, &pcm_cfg, &dai_cfg);
+        if (result) {
+            lldbg("ERROR: failed configuring audio codec\n");
+            goto err;
+        }
+    }
     if (i2s->slave_state == MHB_PM_STATUS_PEER_CONNECTED &&
                                         i2s->state == MHB_I2S_AUDIO_START) {
         result =  mhb_i2s_send_config_req(i2s, &i2s_cfg);
@@ -548,29 +568,6 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
         llvdbg("mhb i2s: slave connection pending");
         i2s->state = (MHB_I2S_AUDIO_CONFIG | MHB_I2S_STATE_PENDING);
         memcpy(&i2s->config, &i2s_cfg, sizeof(struct mhb_i2s_config));
-    }
-
-    /* set pcm and dai config to audio codec */
-    if (i2s->audio_dev) {
-        struct device_aud_pcm_config pcm_cfg;
-        struct device_aud_dai_config dai_cfg;
-
-        memset(&dai_cfg, 0, sizeof(&dai_cfg));
-        pcm_cfg.rate = i2s_pcm->rate;
-        pcm_cfg.format = i2s_pcm->format;
-        pcm_cfg.channels = i2s_pcm->channels;
-        dai_cfg.dai_type = DEVICE_AUDIO_DAI_I2S_TYPE;
-        dai_cfg.config.i2s_dai.wclk_polarity = i2s_dai->wclk_polarity;
-        dai_cfg.config.i2s_dai.wclk_change_edge = i2s_dai->wclk_change_edge;
-        dai_cfg.config.i2s_dai.data_rx_edge = i2s_dai->data_rx_edge;
-        dai_cfg.config.i2s_dai.data_tx_edge = i2s_dai->data_tx_edge;
-        dai_cfg.config.i2s_dai.protocol = i2s_dai->protocol;
-
-        result = device_audio_set_config(i2s->audio_dev, &pcm_cfg, &dai_cfg);
-        if (result) {
-            lldbg("ERROR: failed configuring audio codec\n");
-            goto err;
-        }
     }
 
     sem_post(&i2s->lock);
