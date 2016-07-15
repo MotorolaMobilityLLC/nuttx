@@ -160,8 +160,10 @@ struct display_downstream_config {
 };
 
 enum display_state {
-    DISPLAY_STATE_OFF = 0x00,
-    DISPLAY_STATE_ON  = 0x01,
+    DISPLAY_STATE_OFF      = 0x00,
+    DISPLAY_STATE_ON       = 0x01,
+    DISPLAY_STATE_BLANK    = 0x02,
+    DISPLAY_STATE_UNBLANK  = 0x03,
 };
 
 enum display_notification_event {
