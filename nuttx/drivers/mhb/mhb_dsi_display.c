@@ -596,10 +596,8 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
                 display->state = MHB_DSI_DISPLAY_STATE_PANEL_INFO;
                 error = 0;
             } else {
-                /* config-dsi -> config-dcs */
-                _mhb_dsi_display_send_display_on_req(display);
-
-                display->state = MHB_DSI_DISPLAY_STATE_CONFIG_DCS;
+                /* state-on complete */
+                _mhb_dsi_display_signal_response(display);
                 error = 0;
             }
         }
@@ -612,13 +610,12 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
             display->state = MHB_DSI_DISPLAY_STATE_STARTING;
             error = 0;
         } else if (display->state == MHB_DSI_DISPLAY_STATE_UNCONFIG_DCS) {
-            /* unconfig-dcs -> unconfig-dsi */
-            _mhb_dsi_display_send_unconfig_req(display);
-
-            display->state = MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI;
+            /* state-blank complete */
+            _mhb_dsi_display_signal_response(display);
             error = 0;
         } else if (display->state == MHB_DSI_DISPLAY_STATE_BRIGHTNESS) {
             display->state = MHB_DSI_DISPLAY_STATE_ON;
+            /* dcs-brightness complete */
             _mhb_dsi_display_signal_response(display);
             error = 0;
         }
@@ -627,6 +624,7 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
         if (display->state == MHB_DSI_DISPLAY_STATE_STARTING) {
             /* starting -> on */
             display->state = MHB_DSI_DISPLAY_STATE_ON;
+            /* state-unblank complete */
             _mhb_dsi_display_signal_response(display);
             error = 0;
         } else if (display->state == MHB_DSI_DISPLAY_STATE_STOPPING) {
@@ -644,6 +642,7 @@ static int _mhb_dsi_display_mhb_handle_msg(struct device *dev,
         if (display->state == MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI) {
             /* unconfig-dsi -> off */
             display->state = MHB_DSI_DISPLAY_STATE_OFF;
+            /* state-off complete */
             _mhb_dsi_display_signal_response(display);
             error = 0;
         }
@@ -904,8 +903,32 @@ static int mhb_dsi_display_get_state(struct device *dev, uint8_t *state)
 
     MHB_DSI_DUMP_STATE(display);
 
-    *state = display->state == MHB_DSI_DISPLAY_STATE_OFF ?
-        DISPLAY_STATE_OFF : DISPLAY_STATE_ON;
+    switch (display->state) {
+    case MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI:
+    case MHB_DSI_DISPLAY_STATE_APBE_OFF:
+    case MHB_DSI_DISPLAY_STATE_OFF:
+    case MHB_DSI_DISPLAY_STATE_ERROR:
+        *state = DISPLAY_STATE_OFF;
+        break;
+
+    case MHB_DSI_DISPLAY_STATE_APBE_ON:
+    case MHB_DSI_DISPLAY_STATE_CONFIG_DSI:
+    case MHB_DSI_DISPLAY_STATE_PANEL_INFO:
+        *state = DISPLAY_STATE_ON;
+        break;
+
+    case MHB_DSI_DISPLAY_STATE_STOPPING:
+    case MHB_DSI_DISPLAY_STATE_UNCONFIG_DCS:
+        *state = DISPLAY_STATE_BLANK;
+        break;
+
+    case MHB_DSI_DISPLAY_STATE_CONFIG_DCS:
+    case MHB_DSI_DISPLAY_STATE_STARTING:
+    case MHB_DSI_DISPLAY_STATE_ON:
+    case MHB_DSI_DISPLAY_STATE_BRIGHTNESS:
+        *state = DISPLAY_STATE_UNBLANK;
+        break;
+    }
 
     MHB_DSI_UNLOCK(&display->sem);
 
@@ -1100,7 +1123,29 @@ static int _mhb_dsi_display_set_state_on(struct mhb_dsi_display *display)
     return result;
 }
 
-static int _mhb_dsi_display_set_state_off(struct mhb_dsi_display *display)
+static int _mhb_dsi_display_set_state_unblank(struct mhb_dsi_display *display)
+{
+    int result;
+
+    MHB_DSI_LOCK(&display->sem);
+
+    /* config-dsi -> config-dcs */
+    _mhb_dsi_display_send_display_on_req(display);
+
+    display->state = MHB_DSI_DISPLAY_STATE_CONFIG_DCS;
+
+    /* Release the lock before waiting for the response. */
+    MHB_DSI_UNLOCK(&display->sem);
+
+    result = _mhb_dsi_display_wait_for_response(display);
+    if (result) {
+        dbg("ERROR: start failed: %d\n", result);
+    }
+
+    return result;
+}
+
+static int _mhb_dsi_display_set_state_blank(struct mhb_dsi_display *display)
 {
     int result;
 
@@ -1114,6 +1159,28 @@ static int _mhb_dsi_display_set_state_off(struct mhb_dsi_display *display)
     }
 
     display->state = MHB_DSI_DISPLAY_STATE_STOPPING;
+
+    /* Release the lock while waiting for the response. */
+    MHB_DSI_UNLOCK(&display->sem);
+
+    result = _mhb_dsi_display_wait_for_response(display);
+    if (result) {
+        dbg("ERROR: stop failed: %d\n", result);
+    }
+
+    return result;
+}
+
+static int _mhb_dsi_display_set_state_off(struct mhb_dsi_display *display)
+{
+    int result;
+
+    MHB_DSI_LOCK(&display->sem);
+
+    /* unconfig-dcs -> unconfig-dsi */
+    _mhb_dsi_display_send_unconfig_req(display);
+
+    display->state = MHB_DSI_DISPLAY_STATE_UNCONFIG_DSI;
 
     /* Release the lock while waiting for the response. */
     MHB_DSI_UNLOCK(&display->sem);
@@ -1151,6 +1218,7 @@ static int mhb_dsi_display_set_state(struct device *dev, uint8_t state)
         return -ENODEV;
     }
 
+    dbg("state=%d\n", state);
     MHB_DSI_DUMP_STATE(display);
 
     switch (state) {
@@ -1160,6 +1228,14 @@ static int mhb_dsi_display_set_state(struct device *dev, uint8_t state)
         }
         case DISPLAY_STATE_ON: {
             result = _mhb_dsi_display_set_state_on(display);
+            break;
+        }
+        case DISPLAY_STATE_BLANK: {
+            result = _mhb_dsi_display_set_state_blank(display);
+            break;
+        }
+        case DISPLAY_STATE_UNBLANK: {
+            result = _mhb_dsi_display_set_state_unblank(display);
             break;
         }
         default:  {
