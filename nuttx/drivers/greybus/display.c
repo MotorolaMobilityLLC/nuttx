@@ -240,6 +240,17 @@ static uint8_t gb_mods_display_get_state(struct gb_operation *operation)
     if (ret)
         return GB_OP_UNKNOWN_ERROR;
 
+    if (!GB_MODS_DISPLAY_SUPPORTS(STATE_BLANKING)) {
+        gb_debug("%s(): blanking NOT supported\n", __func__);
+
+        /* Convert the blank and un-blank states to off and on respectively. */
+        if (state == GB_MODS_DISPLAY_STATE_BLANK) {
+            state = GB_MODS_DISPLAY_STATE_OFF;
+        } else if (state == GB_MODS_DISPLAY_STATE_UNBLANK) {
+            state = GB_MODS_DISPLAY_STATE_ON;
+        }
+    }
+
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)
         return GB_OP_NO_MEMORY;
@@ -266,7 +277,37 @@ static uint8_t gb_mods_display_set_state(struct gb_operation *operation)
     }
 
     request = gb_operation_get_request_payload(operation);
-    ret = device_display_set_state(display_info->dev, request->state);
+
+    if (GB_MODS_DISPLAY_SUPPORTS(STATE_BLANKING)) {
+        gb_debug("%s(): blanking supported\n", __func__);
+        ret = device_display_set_state(display_info->dev, request->state);
+    } else {
+        gb_debug("%s(): blanking NOT supported\n", __func__);
+
+        /* Add implicit blank and un-blank requests. */
+        switch (request->state) {
+        case GB_MODS_DISPLAY_STATE_OFF:
+            ret = device_display_set_state(display_info->dev,
+                                           GB_MODS_DISPLAY_STATE_BLANK);
+            if (!ret) {
+                ret = device_display_set_state(display_info->dev,
+                                               request->state);
+            }
+            break;
+        case GB_MODS_DISPLAY_STATE_ON:
+            ret = device_display_set_state(display_info->dev, request->state);
+            if (!ret) {
+                ret = device_display_set_state(display_info->dev,
+                                               GB_MODS_DISPLAY_STATE_UNBLANK);
+            }
+            break;
+        default:
+            gb_error("%s(): unexpected state: %d\n", __func__, request->state);
+            ret = -EINVAL;
+            break;
+        }
+    }
+
     if (ret)
         return GB_OP_UNKNOWN_ERROR;
 
