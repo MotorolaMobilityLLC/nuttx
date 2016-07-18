@@ -46,6 +46,7 @@ enum slave_pwrctrl_mode {
 enum {
     SLAVE_STATE_DISABLED = 0,
     SLAVE_STATE_ENABLED,
+    SLAVE_STATE_RESET,
 };
 
 struct device_slave_pwrctrl_type_ops {

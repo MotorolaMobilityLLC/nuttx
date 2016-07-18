@@ -355,23 +355,34 @@ static int apbe_pwrctrl_send_slave_state(struct device *dev, uint32_t slave_stat
         }
     }
 
-    /* Save current ref count */
     curr_ref_cnt = ctrl_info->slave_state_ref_cnt;
-
-    /* Update ref count */
     if (slave_state == SLAVE_STATE_ENABLED) {
-       ctrl_info->slave_state_ref_cnt++;
-    } else if ((slave_state == SLAVE_STATE_DISABLED) &&
-               (ctrl_info->slave_state_ref_cnt != 0)) {
-       ctrl_info->slave_state_ref_cnt--;
+        ctrl_info->slave_state_ref_cnt++;
+    } else if (slave_state == SLAVE_STATE_DISABLED) {
+        if (ctrl_info->slave_state_ref_cnt != 0)
+            ctrl_info->slave_state_ref_cnt--;
+    } else if (slave_state == SLAVE_STATE_RESET) {
+        if (ctrl_info->slave_state_cb) {
+            dbg("Reset Slave\n");
+            ret  = ctrl_info->slave_state_cb(dev, SLAVE_STATE_DISABLED);
+            ret |= ctrl_info->slave_state_cb(dev, SLAVE_STATE_ENABLED);
+            if (ret) dbg("FAILED to Reset Slave\n");
+        } else {
+            dbg("slave state cb is not registered - no reset\n");
+            ret = -EIO;
+            goto err;
+        }
     } else {
        ret = -EINVAL;
        goto err;
     }
 
-    /* Notify the AP (if appropriate) */
-    if ((ctrl_info->slave_state_ref_cnt <= 1) && (curr_ref_cnt <= 1)) {
-        dbg("state=%d, attached=%d, new votes=%d, old votes=%d\n", slave_state,
+    if (!!ctrl_info->slave_state_ref_cnt != !!curr_ref_cnt) {
+        slave_state = (slave_state == SLAVE_STATE_ENABLED) ?
+            SLAVE_STATE_ENABLED:SLAVE_STATE_DISABLED;
+
+        dbg("update state state %s, attached=%d, new votes=%d, old votes=%d\n",
+            slave_state?"Enabled":"Disabled",
             ctrl_info->attached, ctrl_info->slave_state_ref_cnt, curr_ref_cnt);
 
         if (ctrl_info->attached == BASE_ATTACHED) {
