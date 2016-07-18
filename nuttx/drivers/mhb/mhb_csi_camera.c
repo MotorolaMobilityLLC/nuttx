@@ -63,7 +63,7 @@
 #define UNIPRO_RECOVER_RETRIES   1
 #define CTRL_RETRIES             5
 #define MHB_CDSI_CAM_INSTANCE    0
-#define MHB_PCTRL_OP_TIMEOUT_NS  3000000000LL
+#define MHB_PCTRL_OP_TIMEOUT_NS  5000000000LL
 #define MHB_CDSI_OP_TIMEOUT_NS   1000000000LL
 #define CAM_CTRL_RETRY_DELAY_US  200000
 
@@ -534,7 +534,7 @@ static int _mhb_csi_camera_handle_msg(struct device *dev,
                  CAM_ERR("ERROR Unexpected Rsp addr=%02x type=%02x result=%02x wait=0x%04x\n",
                     hdr->addr, hdr->type,
                     hdr->result, s_mhb_camera.mhb_wait_event);
-           }
+            }
             pthread_mutex_unlock(&s_mhb_camera.mutex);
             break;
         default:
@@ -590,9 +590,11 @@ static int _mhb_csi_camera_stop_stream(void)
     retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
                                   MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
                                   "CDSI STOP", MHB_CDSI_OP_TIMEOUT_NS);
+    pthread_mutex_unlock(&s_mhb_camera.mutex);
 
     retval |= MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_disable);
 
+    pthread_mutex_lock(&s_mhb_camera.mutex);
     retval |= _mhb_csi_camera_unconfig_req();
 
     retval |= _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
@@ -733,6 +735,8 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
+    s_mhb_camera.apbe_configured = 0;
+
     up_i2cuninitialize(s_mhb_camera.cam_i2c);
     s_mhb_camera.cam_i2c = NULL;
 
@@ -823,17 +827,20 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
         CAM_ERR("UNIPRO Config failed. Reset & Retry\n");
 
         pthread_mutex_lock(&s_mhb_camera.mutex);
-        _mhb_camera_set_apbe_enable(SLAVE_STATE_DISABLED);
-        _mhb_camera_set_apbe_enable(SLAVE_STATE_ENABLED);
+        mhb_camera_i2c_lock();
+        _mhb_camera_set_apbe_enable(SLAVE_STATE_RESET);
 
         if (_mhb_camera_wait_for_response(&s_mhb_camera.slave_cond,
             MHB_CAM_PWRCTL_WAIT_MASK|MHB_PM_STATUS_PEER_CONNECTED,
             "PEER CONNECTED", MHB_PCTRL_OP_TIMEOUT_NS)) {
              CAM_ERR("Failed waiting for PEER_CONNECTED\n");
+             mhb_camera_i2c_unlock();
              pthread_mutex_unlock(&s_mhb_camera.mutex);
              goto failed_stream_on;
         }
+        mhb_camera_i2c_unlock();
         pthread_mutex_unlock(&s_mhb_camera.mutex);
+        MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_reset);
     } while (retry--);
 
     if (MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_enable)) {
