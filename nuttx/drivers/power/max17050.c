@@ -140,6 +140,11 @@
 /* Delay afer fuel gauge power up */
 #define MAX17050_DELAY_AFTER_POWERUP    750     /* in mS */
 
+/* Fuel gauge interrupt is only used by the device drivers */
+#define MAX17050_USE_ALRT               (defined(CONFIG_BATTERY_TEMP_DEVICE_MAX17050)       ||\
+                                         defined (CONFIG_BATTERY_LEVEL_DEVICE_MAX17050)     ||\
+                                         defined (CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050))
+
 /* Delay to wait for the ALERT line to deassert after conditions go away */
 #define MAX17050_ALERT_DEASSERT_DELAY   500     /* in mS */
 
@@ -156,10 +161,11 @@ struct max17050_dev_s
 
     FAR struct i2c_dev_s *i2c;
     bool initialized;
-    struct work_s alrt_work;
-    int alrt_gpio;
     struct work_s batt_good_work;
     struct device *batt_good_dev;
+#if MAX17050_USE_ALRT
+    struct work_s alrt_work;
+    int alrt_gpio;
     bool min_max_valrt;
     bool min_max_talrt;
     bool min_max_salrt;
@@ -169,6 +175,7 @@ struct max17050_dev_s
     int max_talrt;
     int min_salrt;
     int max_salrt;
+#endif
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
     sem_t battery_temp_sem;
     batt_temp_limits temp_limits_cb;
@@ -198,7 +205,9 @@ struct max17050_dev_s
 
 /* Forward declarations */
 static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state);
+#if MAX17050_USE_ALRT
 static void max17050_alrt_worker(FAR void *arg);
+#endif
 #if defined(CONFIG_BATTERY_LEVEL_DEVICE_MAX17050) && CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE
 static void max17050_battery_level_set_empty(struct max17050_dev_s *priv);
 static void max17050_battery_level_empty_detection(struct max17050_dev_s *priv, bool enable);
@@ -213,7 +222,7 @@ static struct max17050_dev_s* g_max17050_dev;
 /* Battery status that is set externally */
 static enum battery_status_e g_status = BATTERY_DISCHARGING;
 
-#ifdef CONFIG_PM
+#if MAX17050_USE_ALRT && defined (CONFIG_PM)
 static int pm_prepare(struct pm_callback_s *cb, enum pm_state_e state)
 {
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
@@ -527,6 +536,7 @@ static const struct battery_operations_s max17050_ops =
     .full_capacity = max17050_full_capacity,
 };
 
+#if MAX17050_USE_ALRT
 static int max17050_enable_alrt(FAR struct max17050_dev_s *priv, bool state)
 {
     uint16_t set = state ? MAX17050_CONFIG_AEN : ~MAX17050_CONFIG_AEN;
@@ -534,6 +544,7 @@ static int max17050_enable_alrt(FAR struct max17050_dev_s *priv, bool state)
     return max17050_reg_modify_retry(priv, MAX17050_REG_CONFIG, MAX17050_CONFIG_AEN,
                                set);
 }
+#endif
 
 #define WRITE_RETRY(priv, reg, val)                             \
     do {                                                        \
@@ -812,6 +823,7 @@ static void *max17050_por(void *v)
     return NULL;
 }
 
+#if MAX17050_USE_ALRT
 static int max17050_set_voltage_alert(FAR struct max17050_dev_s *priv, int min,
                                       int max)
 {
@@ -895,6 +907,7 @@ static int max17050_set_soc_alert(FAR struct max17050_dev_s *priv, int min,
 
     return max17050_reg_write(priv, MAX17050_REG_SALRT, salrt);
 }
+#endif
 
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
 static void max17050_do_temp_limits_cb(FAR struct max17050_dev_s *priv, bool min)
@@ -945,6 +958,7 @@ static void max17050_do_voltage_limits_cb(FAR struct max17050_dev_s *priv, bool 
 }
 #endif
 
+#if MAX17050_USE_ALRT
 static void max17050_queue_alrt_work(FAR struct max17050_dev_s *priv, int ms)
 {
     if (work_available(&priv->alrt_work))
@@ -1115,6 +1129,7 @@ static int max17050_alrt_isr(int irq, void *context)
 
     return OK;
 }
+#endif
 
 static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state)
 {
@@ -1152,12 +1167,13 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
 #endif
 
     priv->initialized = state;
+#if MAX17050_USE_ALRT
     if (!state) {
         priv->min_max_valrt = false;
         priv->min_max_talrt = false;
         priv->min_max_salrt = false;
     }
-
+#endif
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
     if (priv->temp_available_cb)
         priv->temp_available_cb(priv->temp_available_arg, state);
@@ -1194,7 +1210,7 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
     sem_post(&priv->battery_voltage_sem);
 #endif /* #ifdef CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050 */
 
-#if defined(CONFIG_BATTERY_TEMP_DEVICE_MAX17050) || defined (CONFIG_BATTERY_LEVEL_DEVICE_MAX17050) || defined (CONFIG_BATTERY_VOLTAGE_DEVICE_MAX17050)
+#if MAX17050_USE_ALRT
     if (state) {
         /* Make sure alerts are enabled and queue alert worker in case alert set
            in available callback is already active */
@@ -1315,15 +1331,14 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
 
         I2C_SETFREQUENCY(i2c, frequency);
 
+#if MAX17050_USE_ALRT
         priv->alrt_gpio = alrt_gpio;
-
         /* Disable alerts */
-        if (alrt_gpio >= 0) {
-            max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
-            max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
-            max17050_set_temperature_alert(priv, INT_MIN, INT_MAX);
-            max17050_enable_alrt(priv, false);
-        }
+        max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
+        max17050_set_voltage_alert(priv, INT_MIN, INT_MAX);
+        max17050_set_temperature_alert(priv, INT_MIN, INT_MAX);
+        max17050_enable_alrt(priv, false);
+#endif
 
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
         sem_init(&priv->battery_temp_sem, 0, 1);
@@ -1364,17 +1379,18 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
                        max17050_batt_is_good_worker, priv,
                        MSEC2TICK(MAX17050_DELAY_AFTER_POWERUP));
 
+#if MAX17050_USE_ALRT
         /* Setup ALRT IRQ */
         if (alrt_gpio >= 0) {
             gpio_irqattach(alrt_gpio, max17050_alrt_isr);
             set_gpio_triggering(alrt_gpio, IRQ_TYPE_EDGE_FALLING);
         }
-
-#ifdef CONFIG_PM
+ #ifdef CONFIG_PM
         if (pm_register(&pm_callback) != OK)
         {
             dbg("Failed register to power management!\n");
         }
+ #endif
 #endif
     }
 
