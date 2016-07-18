@@ -148,6 +148,9 @@
 /* Delay to wait for the ALERT line to deassert after conditions go away */
 #define MAX17050_ALERT_DEASSERT_DELAY   500     /* in mS */
 
+/* Polling interval if ALERT interrupt is not used */
+#define MAX17050_ALERT_POLLING_INTERVAL 1000    /* in mS */
+
 extern const struct max17050_config max17050_cfg;
 
 struct max17050_dev_s
@@ -959,6 +962,16 @@ static void max17050_do_voltage_limits_cb(FAR struct max17050_dev_s *priv, bool 
 #endif
 
 #if MAX17050_USE_ALRT
+static int max17050_alrt_work_delay(struct max17050_dev_s *priv,
+                                    bool empty_battery)
+{
+    if (priv->alrt_gpio >= 0)
+        return empty_battery ?
+            2 * MAX17050_ALERT_DEASSERT_DELAY : MAX17050_ALERT_DEASSERT_DELAY;
+    else
+        return MAX17050_ALERT_POLLING_INTERVAL;
+}
+
 static void max17050_queue_alrt_work(FAR struct max17050_dev_s *priv, int ms)
 {
     if (work_available(&priv->alrt_work))
@@ -971,8 +984,8 @@ static void max17050_queue_alrt_work(FAR struct max17050_dev_s *priv, int ms)
  * some corner cases. If these conditions are detected, disable the alerts to
  * clear the erroneous state and reprogram the thresholds back after at least
  * 351 mS.
- * status: The output value is "-1" if not initialized or ALRT line is not
- * asserted, otherwise the value is non negative.
+ * status: The output value is "-1" if ALRT line is not asserted, otherwise the
+ * value is non negative.
  */
 static void max17050_min_max_alrt(struct max17050_dev_s *priv, int *status)
 {
@@ -986,10 +999,6 @@ static void max17050_min_max_alrt(struct max17050_dev_s *priv, int *status)
     bool salrt = priv->min_max_salrt;
 
     *status = -1;
-
-    /* Process only if initialized */
-    if (!priv->initialized)
-        return;
 
     /* Reprogram alarms if both min and max were previously detected */
     if (valrt) {
@@ -1008,7 +1017,7 @@ static void max17050_min_max_alrt(struct max17050_dev_s *priv, int *status)
     }
 
     /* Process only if ALRT line is asserted */
-    if (gpio_get_value(priv->alrt_gpio))
+    if (priv->alrt_gpio >= 0 && gpio_get_value(priv->alrt_gpio))
         return;
 
     *status = max17050_reg_read_retry(priv, MAX17050_REG_STATUS);
@@ -1066,10 +1075,12 @@ static void max17050_alrt_worker(FAR void *arg)
     FAR struct max17050_dev_s *priv = arg;
     int status;
     bool empty_battery = false;
-    int delay;
+
+    /* Process only if initialized */
+    if (!priv->initialized)
+        return;
 
     max17050_min_max_alrt(priv, &status);
-    /* Process only if ALRT line is asserted and initialized */
     if (status < 0)
         return;
 
@@ -1115,8 +1126,7 @@ static void max17050_alrt_worker(FAR void *arg)
      * another 351 mS for the IC to process it. So, double the delay to avoid
      * false SOC alerts.
      */
-    delay = empty_battery ? 2 * MAX17050_ALERT_DEASSERT_DELAY : MAX17050_ALERT_DEASSERT_DELAY;
-    max17050_queue_alrt_work(priv, delay);
+    max17050_queue_alrt_work(priv, max17050_alrt_work_delay(priv, empty_battery));
 }
 
 static int max17050_alrt_isr(int irq, void *context)
@@ -1215,7 +1225,7 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
         /* Make sure alerts are enabled and queue alert worker in case alert set
            in available callback is already active */
         max17050_enable_alrt(priv, true);
-        max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
+        max17050_queue_alrt_work(priv, max17050_alrt_work_delay(priv, false));
     } else
         max17050_enable_alrt(priv, false);
 #endif
@@ -1404,8 +1414,8 @@ err:
 #ifdef CONFIG_BATTERY_TEMP_DEVICE_MAX17050
 int max17050_battery_temp_open(struct device *dev)
 {
-    /* Make sure the core driver is initialized and ALRT line is used */
-    if (!g_max17050_dev || g_max17050_dev->alrt_gpio < 0)
+    /* Make sure the core driver is initialized */
+    if (!g_max17050_dev)
         return -ENODEV;
 
     device_set_private(dev, g_max17050_dev);
@@ -1479,7 +1489,7 @@ int max17050_battery_temp_register_available_cb(struct device *dev,
     cb(arg, priv->initialized);
     if (priv->initialized)
         /* In case temp alert set in available callback is already active */
-        max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
+        max17050_queue_alrt_work(priv, max17050_alrt_work_delay(priv, false));
 
     sem_post(&priv->battery_temp_sem);
 
@@ -1541,8 +1551,8 @@ struct device_driver max17050_battery_temp_driver = {
 #ifdef CONFIG_BATTERY_LEVEL_DEVICE_MAX17050
 static int max17050_battery_level_open(struct device *dev)
 {
-    /* Make sure the core driver is initialized and ALRT line is used */
-    if (!g_max17050_dev || g_max17050_dev->alrt_gpio < 0)
+    /* Make sure the core driver is initialized */
+    if (!g_max17050_dev < 0)
         return -ENODEV;
 
     device_set_private(dev, g_max17050_dev);
@@ -1622,7 +1632,7 @@ static int max17050_battery_level_register_available_cb(struct device *dev,
     cb(arg, priv->initialized);
     if (priv->initialized)
         /* In case level alert set in available callback is already active */
-        max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
+        max17050_queue_alrt_work(priv, max17050_alrt_work_delay(priv, false));
 
     sem_post(&priv->battery_level_sem);
 
@@ -1871,7 +1881,7 @@ static int max17050_battery_voltage_register_available_cb(struct device *dev,
     cb(arg, priv->initialized);
     if (priv->initialized)
         /* In case voltage alert set in available callback is already active */
-        max17050_queue_alrt_work(priv, MAX17050_ALERT_DEASSERT_DELAY);
+        max17050_queue_alrt_work(priv, max17050_alrt_work_delay(priv, false));
     sem_post(&priv->battery_voltage_sem);
     return 0;
 }
@@ -1902,8 +1912,8 @@ static int max17050_battery_voltage_set_limits(struct device *dev, int min, int 
 
 static int max17050_battery_voltage_open(struct device *dev)
 {
-    /* Make sure the core driver is initialized and ALRT line is used */
-    if (!g_max17050_dev || g_max17050_dev->alrt_gpio < 0)
+    /* Make sure the core driver is initialized */
+    if (!g_max17050_dev < 0)
         return -ENODEV;
 
     device_set_private(dev, g_max17050_dev);
