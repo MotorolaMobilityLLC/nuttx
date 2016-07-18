@@ -1305,17 +1305,21 @@ static int tsb_i2s_unipro_tunnel_unipro_rx(
     void *data,
     size_t len)
 {
-    static int (* const cmd_fcn_tb[TSB_I2S_UNIPRO_CMD_END])(unsigned int cportid,
-                                                           struct tsb_i2s_unipro_msg_s *msg,
-                                                           size_t len,
-                                                           struct tsb_i2s_unipro_msg_s *rsp) =
+    static struct
     {
-        tsb_i2s_unipro_cmd_handle_measure_apba,     /* TSB_I2S_UNIPRO_CMD_MEASURE_APBA     */
-        tsb_i2s_unipro_cmd_handle_measure_apbe,     /* TSB_I2S_UNIPRO_CMD_MEASURE_APBE     */
-        tsb_i2s_unipro_cmd_handle_measure_apba_ack, /* TSB_I2S_UNIPRO_CMD_MEASURE_APBA_ACK */
-        tsb_i2s_unipro_cmd_handle_i2s_start_apba,   /* TSB_I2S_UNIPRO_CMD_I2S_START_APBA   */
-        tsb_i2s_unipro_cmd_handle_i2s_start_apbe,   /* TSB_I2S_UNIPRO_CMD_I2S_START_APBE   */
-        tsb_i2s_unipro_cmd_handle_data              /* TSB_I2S_UNIPRO_CMD_I2S_DATA         */
+        int (* const fcn)(unsigned int cportid,
+                          struct tsb_i2s_unipro_msg_s *msg,
+                          size_t len,
+                          struct tsb_i2s_unipro_msg_s *rsp);
+        bool free_msg;
+    } cmd_handler_tb[TSB_I2S_UNIPRO_CMD_END] =
+    {
+        { tsb_i2s_unipro_cmd_handle_measure_apba,     true  }, /* TSB_I2S_UNIPRO_CMD_MEASURE_APBA     */
+        { tsb_i2s_unipro_cmd_handle_measure_apbe,     true  }, /* TSB_I2S_UNIPRO_CMD_MEASURE_APBE     */
+        { tsb_i2s_unipro_cmd_handle_measure_apba_ack, true  }, /* TSB_I2S_UNIPRO_CMD_MEASURE_APBA_ACK */
+        { tsb_i2s_unipro_cmd_handle_i2s_start_apba,   true  }, /* TSB_I2S_UNIPRO_CMD_I2S_START_APBA   */
+        { tsb_i2s_unipro_cmd_handle_i2s_start_apbe,   true  }, /* TSB_I2S_UNIPRO_CMD_I2S_START_APBE   */
+        { tsb_i2s_unipro_cmd_handle_data,             false }  /* TSB_I2S_UNIPRO_CMD_I2S_DATA         */
     };
     struct tsb_i2s_unipro_msg_s *msg;
     struct tsb_i2s_unipro_msg_s rsp;
@@ -1330,19 +1334,24 @@ static int tsb_i2s_unipro_tunnel_unipro_rx(
     {
         lldbg("Error: Unipro packet too small.\n");
     }
-    else if (msg->cmd >= ARRAY_SIZE(cmd_fcn_tb))
+    else if (msg->cmd >= ARRAY_SIZE(cmd_handler_tb))
     {
         lldbg("Error: Invalid command %d received.\n", msg->cmd);
     }
     else
     {
         /* The command is valid, call the handler. */
-        cmd_fcn_tb[msg->cmd](cportid, msg, len, &rsp);
+        cmd_handler_tb[msg->cmd].fcn(cportid, msg, len, &rsp);
     }
     /* Send the response if required. */
     if (rsp.cmd < TSB_I2S_UNIPRO_CMD_END)
     {
         unipro_send(cportid, &rsp, sizeof(rsp));
+    }
+    /* Free the message if required. */
+    if (cmd_handler_tb[msg->cmd].free_msg)
+    {
+        unipro_rxbuf_free(TSB_I2S_UNIPRO_TUNNEL_CPORTID, msg);
     }
     reglog_log(0xaf, (uint32_t)rsp.cmd);
     return ret;
