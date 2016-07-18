@@ -1370,14 +1370,13 @@ FAR struct battery_dev_s *max17050_initialize(FAR struct i2c_dev_s *i2c,
             set_gpio_triggering(alrt_gpio, IRQ_TYPE_EDGE_FALLING);
         }
 
-    }
-
 #ifdef CONFIG_PM
-    if (pm_register(&pm_callback) != OK)
-    {
-        dbg("Failed register to power management!\n");
-    }
+        if (pm_register(&pm_callback) != OK)
+        {
+            dbg("Failed register to power management!\n");
+        }
 #endif
+    }
 
     return (FAR struct battery_dev_s *)priv;
 
