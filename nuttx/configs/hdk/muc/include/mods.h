@@ -104,7 +104,7 @@
 #define GPIO_MODS_RST_LS         CALC_GPIO_NUM('H',  0)
 
 #if IS_BATT_PCARD
-# define GPIO_MODS_CC_ALERT      CALC_GPIO_NUM('G', 12)
+# define GPIO_MODS_CC_ALERT      (-1)
 # define GPIO_MODS_CHG_INT_N     CALC_GPIO_NUM('C',  7)
 # define GPIO_MODS_CHG_EN        GPIO_MODS_DEMO_ENABLE
 #else
