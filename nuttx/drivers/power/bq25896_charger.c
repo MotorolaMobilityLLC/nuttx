@@ -352,6 +352,9 @@ static int bq25896_charger_send(struct device *dev, int *current)
         }
     }
 
+    /* Program the IC in case it lost its settings due to UVLO */
+    bq25896_configure(&info->init_data);
+
     *current = boost_current;
     config_bq25896(info, BQ25896_OTG, NULL);
     sem_post(&info->chg_sem);
@@ -501,9 +504,6 @@ static int bq25896_charger_open(struct device *dev)
     /* disable ship mode, allow BATFET turn on */
     bq25896_reg_modify(BQ25896_REG09, BQ25896_REG09_BATFET_MASK,
             BQ25896_REG09_BATFET_ON);
-
-    /* Initialize the device */
-    (void) bq25896_configure(&info->init_data);
 
     /* No charging by default */
     config_bq25896(info, BQ25896_CHG_OFF, NULL);
