@@ -49,6 +49,10 @@
 #  define BQ25896_REG02_ICO_EN              (1 << BQ25896_REG02_ICO_SHIFT)
 
 #define BQ25896_REG03                       (0x03)
+#define BQ25896_REG03_MIN_VBAT_SHIFT        (0)      /* Bits 0: Min Battery voltage to exit boost mode */
+#define BQ25896_REG03_MIN_VBAT_MASK         (1 << BQ25896_REG03_MIN_VBAT_SHIFT)
+#  define BQ25896_REG03_MIN_VBAT_2900MV     (0 << BQ25896_REG03_MIN_VBAT_SHIFT)
+#  define BQ25896_REG03_MIN_VBAT_2500MV     (1 << BQ25896_REG03_MIN_VBAT_SHIFT)
 #define BQ25896_REG03_CONFIG_SHIFT          (4)      /* Bits 4-5: Config */
 #define BQ25896_REG03_CONFIG_MASK           (3 << BQ25896_REG03_CONFIG_SHIFT)
 #  define BQ25896_REG03_CONFIG_OFF          (0 << BQ25896_REG03_CONFIG_SHIFT)
