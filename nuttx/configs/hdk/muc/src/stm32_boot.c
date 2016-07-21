@@ -317,7 +317,7 @@ static struct device_resource cam_resources[] = {
 };
 #endif
 
-#ifdef CONFIG_MODS_AUDIO_TFA9890
+#if defined (CONFIG_MODS_AUDIO_TFA9890) || defined (CONFIG_MODS_MHB_AUDIO_TFA9890)
 static struct device_resource tfa9890_audio_resources[] = {
     {
        .name   = "audio_en",
@@ -650,6 +650,35 @@ static struct device devices[] = {
         .desc   = "TFA9890 I2S Direct Driver",
         .id   = 1,
     },
+#endif
+#ifdef CONFIG_MODS_MHB_AUDIO_TFA9890
+    {
+        .type = DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+        .name = "slave_pwrctrl",
+        .desc = "slave power control",
+        .id   = MHB_ADDR_I2S,
+    },
+    /* For I2S Tunnel audio */
+    {
+        .type = DEVICE_TYPE_MHB,
+        .name = "mhb",
+        .desc = "mhb",
+        .id   = MHB_ADDR_I2S,
+    },
+    {
+        .type = DEVICE_TYPE_I2S_HW,
+        .name = "mhb_i2s_audio",
+        .desc = "MHB I2S Driver",
+        .id   = 1,
+    },
+    {
+        .type = DEVICE_TYPE_MUC_AUD_HW,
+        .name   = "audio_tfa9890_device_driver",
+        .desc   = "Audio Tfa9890 Device Driver",
+        .id   = DEVICE_AUDIO_MHB_ID,
+    },
+#endif
+#if defined (CONFIG_MODS_AUDIO_TFA9890) || defined (CONFIG_MODS_MHB_AUDIO_TFA9890)
     {
         .type = DEVICE_TYPE_MUC_AUD_HW,
         .name   = "audio_tfa9890_device_driver",
@@ -896,6 +925,12 @@ void board_initialize(void)
   device_register_driver(&tfa9890_i2s_direct_driver);
   extern struct device_driver tfa9890_audio_dev_driver;
   device_register_driver(&tfa9890_audio_dev_driver);
+#endif
+#ifdef CONFIG_MODS_MHB_AUDIO_TFA9890
+  extern struct device_driver tfa9890_audio_dev_driver;
+  device_register_driver(&tfa9890_audio_dev_driver);
+  extern struct device_driver mhb_i2s_driver;
+  device_register_driver(&mhb_i2s_driver);
 #endif
 #ifdef CONFIG_MODS_RAW_FACTORY
    extern struct device_driver display_mux_driver;

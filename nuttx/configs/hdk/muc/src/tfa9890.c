@@ -841,3 +841,11 @@ err:
     kmm_free(priv);
     return NULL;
 }
+
+void tfa9890_deinit(FAR struct tfa9890_lowerhalf_s *dev)
+{
+    struct tfa9890_dev_s *priv = dev->priv;
+
+    if(priv)
+        kmm_free(priv);
+}
