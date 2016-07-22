@@ -873,6 +873,7 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
         mhb_camera_i2c_unlock();
         MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_reset);
     } while (retry--);
+    camera_ext_send_error(CAMERA_EXT_ERROR_CSI_RESET);
 
     s_mhb_camera.apbe_config_state = APBE_CONFIGURED;
 
@@ -898,13 +899,6 @@ mhb_camera_sm_event_t mhb_camera_stream_off(void)
         s_mhb_camera.apbe_config_state = APBE_RESET;
     else
         s_mhb_camera.apbe_config_state = APBE_UNCONFIGURED;
-
-
-    // TODO: Monitor Stream OFF Failures.
-    // if (retval) {
-    //     camera_ext_event_send(dev, CAMERA_EXT_EV_ERROR, CAMERA_EXT_ERROR_FATAL, "");
-    //     return MHB_CAMERA_EV_FAIL;
-    // }
 
     return MHB_CAMERA_EV_DECONFIGURED;
 }
