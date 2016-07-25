@@ -1203,6 +1203,7 @@ static void max17050_set_initialized(FAR struct max17050_dev_s *priv, bool state
         max17050_set_soc_alert(priv, INT_MIN, INT_MAX);
  #if CONFIG_BATTERY_LEVEL_DEVICE_MAX17050_EMPTY_VOLTAGE
         max17050_battery_level_empty_detection(priv, false);
+        max17050_battery_level_set_empty(priv);
  #endif
     }
 
