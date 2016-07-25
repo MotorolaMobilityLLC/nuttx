@@ -120,16 +120,20 @@ static void battery_available_cb(void *arg, bool available)
 
     if (!info->available && available) {
         /*
-         * Determine if battery is low or normal based on current capacity.
-         * Device driver callbacks will be used to transition between levels.
+         * Determine initial level based on current capacity. Device driver
+         * limit callbacks will be used to transition between levels.
          */
         info->available = true;
         if (device_batt_level_get_capacity(info->dev, &capacity))
-            battery_level_set(info, CONFIG_BATTERY_LEVEL_LOW);
+            battery_level_set(info, BATTERY_LEVEL_EMPTY);
+        else if (capacity <= DEVICE_BATTERY_LEVEL_EMPTY)
+            battery_level_set(info, BATTERY_LEVEL_EMPTY);
         else if (capacity <= CONFIG_BATTERY_LEVEL_LOW)
             battery_level_set(info, BATTERY_LEVEL_LOW);
-        else
+        else if (capacity < DEVICE_BATTERY_LEVEL_FULL)
             battery_level_set(info, BATTERY_LEVEL_NORMAL);
+        else
+            battery_level_set(info, BATTERY_LEVEL_FULL);
     } else if (info->available && !available) {
         info->available = false;
         battery_state_set_level(BATTERY_LEVEL_EMPTY);
