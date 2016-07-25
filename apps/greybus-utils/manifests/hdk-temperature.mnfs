@@ -18,6 +18,10 @@ string = Motorola Mobility, LLC
 [string-descriptor 2]
 string = MDK-TEMPERATURE
 
+; Load the MDKSensor APK
+[string-descriptor 3]
+string = pkg://com.motomodsdev.mdksensor
+
 ; Control protocol on CPort 0
 [cport-descriptor 0]
 bundle = 0
