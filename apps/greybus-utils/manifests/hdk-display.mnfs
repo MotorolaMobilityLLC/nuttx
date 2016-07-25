@@ -12,6 +12,9 @@ string = Motorola Mobility, LLC
 [string-descriptor 2]
 string = MDK-DISPLAY
 
+; Load the MDKDisplay APK
+[string-descriptor 3]
+string = pkg://com.motomodsdev.mdkdisplay
 
 [cport-descriptor 0]
 bundle = 0
