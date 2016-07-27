@@ -1552,7 +1552,7 @@ struct device_driver max17050_battery_temp_driver = {
 static int max17050_battery_level_open(struct device *dev)
 {
     /* Make sure the core driver is initialized */
-    if (!g_max17050_dev < 0)
+    if (!g_max17050_dev)
         return -ENODEV;
 
     device_set_private(dev, g_max17050_dev);
@@ -1913,7 +1913,7 @@ static int max17050_battery_voltage_set_limits(struct device *dev, int min, int 
 static int max17050_battery_voltage_open(struct device *dev)
 {
     /* Make sure the core driver is initialized */
-    if (!g_max17050_dev < 0)
+    if (!g_max17050_dev)
         return -ENODEV;
 
     device_set_private(dev, g_max17050_dev);
