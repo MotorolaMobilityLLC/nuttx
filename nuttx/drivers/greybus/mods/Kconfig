@@ -116,6 +116,12 @@ config GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
 	default n
 	depends on GREYBUS_MODS_PTP_DEVICE && GPIO
 
+config GREYBUS_MODS_MAX_VBUS_CURRENT
+	depends on GREYBUS_MODS_PTP_DEVICE
+	depends on (!GREYBUS_PTP_INT_SND_NEVER || !GREYBUS_PTP_INT_RCV_NEVER || GREYBUS_PTP_EXT_SUPPORTED)
+	int "Maximum current through Mod VBUS connector in mA"
+	default 3000
+
 if DEBUG
 config GREYBUS_SELF_DESTRUCT
     bool "Support self blanking code - WARNING Debug release only"

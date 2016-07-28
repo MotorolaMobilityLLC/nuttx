@@ -41,7 +41,11 @@
 #include <sys/types.h>
 #include <nuttx/util.h>
 
-#define DEFAULT_BASE_INPUT_CURRENT  500 /* mA */
+#ifndef CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT
+  #define CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT      3000    /* mA */
+#endif
+
+#define DEFAULT_BASE_INPUT_CURRENT                  500     /* mA */
 
 /* Charging/discharging settings */
 struct mods_ptp_battery {
@@ -266,7 +270,9 @@ static int mods_ptp_attach_changed(FAR void *arg, const void *data)
     if (state == BASE_ATTACHED) {
         info->state.direction = PTP_CURRENT_OFF;
 #ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
-        info->state.battery.input_current = DEFAULT_BASE_INPUT_CURRENT;
+        /* Current cannot exceed the limit of the Mod VBUS connector */
+        info->state.battery.input_current = MIN(CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT,
+                                                DEFAULT_BASE_INPUT_CURRENT);
 #endif
     } else if (state == BASE_DETACHED) {
         info->state.boost_fault = false;
@@ -583,8 +589,12 @@ static int mods_ptp_get_max_output_current(struct device *dev, uint32_t *current
         }
     }
 
+    /* Current cannot exceed the limit of the Mod VBUS connector */
+    *current = MIN(CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT,
+                (info->state.output_current ? *info->state.output_current : 0));
+
     /* Convert mA to uA */
-    *current = (info->state.output_current ? *info->state.output_current : 0) * 1000;
+    *current *= 1000;
 
     sem_post(&info->sem);
     return 0;
@@ -660,7 +670,8 @@ static int mods_ptp_set_max_input_current(struct device *dev, uint32_t current)
         goto input_current_done;
     }
 
-    current /= 1000; /* uA to mA */
+    /* Current cannot exceed the limit of the Mod VBUS connector */
+    current = MIN(CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT, current / 1000 /*uA to mA*/);
     if (info->state.battery.input_current == current)
         goto input_current_done;
 
