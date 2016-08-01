@@ -169,12 +169,12 @@ static struct pm_callback_s pm_callback =
 
 /* Cam I2C Ops */
 
-inline void mhb_camera_i2c_lock()
+static inline void mhb_camera_i2c_lock(void)
 {
     pthread_mutex_lock(&s_mhb_camera.i2c_mutex);
 }
 
-inline void mhb_camera_i2c_unlock()
+static inline void mhb_camera_i2c_unlock(void)
 {
     pthread_mutex_unlock(&s_mhb_camera.i2c_mutex);
 }
