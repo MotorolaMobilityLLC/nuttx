@@ -242,8 +242,14 @@ static mhb_camera_sm_state_t mhb_camera_sm_off_process_ev(mhb_camera_sm_event_t 
             }
             pthread_mutex_unlock(&s_command_mutex);
             break;
-        case MHB_CAMERA_EV_DECONFIGURED:
+
         case MHB_CAMERA_EV_POWER_OFF_REQ:
+            next_state = s_state;
+            // Re-execute Power_Off sequence anyway.
+            mhb_camera_sm_run_command(mhb_camera_power_off, 0);
+            break;
+
+        case MHB_CAMERA_EV_DECONFIGURED:
         case MHB_CAMERA_EV_NONE:
             next_state = s_state;
             break;

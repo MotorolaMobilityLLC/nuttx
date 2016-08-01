@@ -679,6 +679,9 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
     CAM_DBG("soc_status = %d apbe_en_state = %d, bootmode = %d\n",
             s_mhb_camera.soc_status, s_mhb_camera.apbe_en_state, bootmode);
 
+    // TODO: Hack : Should not depend on APBE_PWR_EN
+    gpio_direction_out(GPIO_APBE_PWR_EN, 1);
+
     if (s_mhb_camera.cam_i2c == NULL) {
         s_mhb_camera.cam_i2c = up_i2cinitialize(CONFIG_MHB_CAMERA_I2C_BUS_ID);
         if (s_mhb_camera.cam_i2c == NULL) {
@@ -700,9 +703,6 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
             return MHB_CAMERA_EV_POWERED_ON;
         }
     }
-
-    // TODO: Hack : Should not depend on APBE_PWR_EN
-    gpio_direction_out(GPIO_APBE_PWR_EN, 1);
 
     if(s_mhb_camera.apbe_enabled == 0 &&
        _mhb_camera_set_apbe_enable(SLAVE_STATE_ENABLED)) {
@@ -747,10 +747,10 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
     CAM_DBG("soc_status = %d apbe_en_state = %d\n",
             s_mhb_camera.soc_status, s_mhb_camera.apbe_en_state);
 
-    if (s_mhb_camera.apbe_enabled)
+    if (s_mhb_camera.apbe_enabled) {
         _mhb_camera_set_apbe_enable(SLAVE_STATE_DISABLED);
-
-    s_mhb_camera.apbe_enabled = 0;
+        s_mhb_camera.apbe_enabled = 0;
+    }
 
     if (s_mhb_camera.soc_status == SOC_ENABLED) {
         s_mhb_camera.soc_status = SOC_DISABLING;
@@ -759,8 +759,10 @@ mhb_camera_sm_event_t mhb_camera_power_off(void)
         s_mhb_camera.soc_status = SOC_DISABLED;
     }
 
-    up_i2cuninitialize(s_mhb_camera.cam_i2c);
-    s_mhb_camera.cam_i2c = NULL;
+    if (s_mhb_camera.cam_i2c) {
+        up_i2cuninitialize(s_mhb_camera.cam_i2c);
+        s_mhb_camera.cam_i2c = NULL;
+    }
 
     return MHB_CAMERA_EV_NONE;
 }
