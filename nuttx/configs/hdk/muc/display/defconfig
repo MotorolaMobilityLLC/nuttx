@@ -448,7 +448,7 @@ CONFIG_ARCH_RESET_FLAGS=y
 #
 # Board Settings
 #
-CONFIG_BOARD_LOOPSPERMSEC=16717
+CONFIG_BOARD_LOOPSPERMSEC=1470
 # CONFIG_ARCH_CALIBRATION is not set
 
 #
@@ -1033,6 +1033,15 @@ CONFIG_EXAMPLES_NSH=y
 #
 # CONFIG_INTERPRETERS_FICL is not set
 # CONFIG_INTERPRETERS_PCODE is not set
+
+#
+# Network Utilities
+#
+
+#
+# Networking Utilities
+#
+# CONFIG_NETUTILS_JSON is not set
 
 #
 # NSH Library
