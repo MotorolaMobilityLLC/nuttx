@@ -359,6 +359,9 @@ static int attach_cb(FAR void *arg, const void *data)
       /* Reset GPIOs to initial state */
       mods_rfr_set(0);
       mods_host_int_set(false);
+#ifdef GPIO_MODS_I2C_PU_EN
+      gpio_direction_in(GPIO_MODS_I2C_PU_EN);
+#endif
 
       /* Cancel I2C transaction */
       I2C_CANCEL(priv->i2c);
@@ -383,6 +386,12 @@ static int attach_cb(FAR void *arg, const void *data)
       priv->stop_err_cnt = 0;
       priv->crc_err_cnt = 0;
     }
+#ifdef GPIO_MODS_I2C_PU_EN
+  else
+    {
+      gpio_direction_out(GPIO_MODS_I2C_PU_EN, 1);
+    }
+#endif
 
   priv->bstate = state;
 
