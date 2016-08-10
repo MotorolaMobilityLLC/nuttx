@@ -56,7 +56,7 @@
  *
  */
 
-#define MAX_COMMAND_ITEMS 4
+#define MAX_COMMAND_ITEMS 6
 #define OFF_STATE_DELAY   MSEC2TICK(CONFIG_MHB_CAMERA_OFF_DELAY_MS)
 
 struct command_item {
@@ -134,18 +134,19 @@ static int mhb_camera_sm_run_command(mhb_camera_command_func func, uint32_t dela
     pthread_mutex_lock(&s_command_mutex);
     struct command_item *item = get_item(&s_free_list);
     if (item == NULL) {
-            pthread_mutex_unlock(&s_command_mutex);
+        CAM_ERR("ERROR: Command queue full. Discard\n");
+        pthread_mutex_unlock(&s_command_mutex);
         return -EBUSY;
     }
 
     item->func = func;
     put_item(item, &s_active_list);
-    pthread_mutex_unlock(&s_command_mutex);
 
     if (!delay)
         sem_post(&s_command_sem);
     else
         work_queue(HPWORK, &mhb_sm_work, state_worker, NULL, delay);
+    pthread_mutex_unlock(&s_command_mutex);
 
     return 0;
 }
@@ -224,7 +225,7 @@ static mhb_camera_sm_state_t  mhb_camera_sm_wait_stream_off_enter(mhb_camera_sm_
 static mhb_camera_sm_state_t  mhb_camera_sm_wait_off_enter(mhb_camera_sm_event_t event)
 {
     mhb_camera_sm_run_command(mhb_camera_lens_retract, 0);
-    mhb_camera_sm_run_command(mhb_camera_sm_waiting,  OFF_STATE_DELAY);
+    mhb_camera_sm_run_command(mhb_camera_sm_waiting, OFF_STATE_DELAY);
     return s_state;
 }
 
@@ -397,11 +398,12 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_off_process_ev(mhb_camera_sm_eve
     int dump = 0;
     switch (event) {
         case MHB_CAMERA_EV_POWER_ON_REQ:
+            pthread_mutex_lock(&s_command_mutex);
+
             if (work_cancel(HPWORK, &mhb_sm_work)) {
                 CAM_ERR("ERROR: Cancel off wait FAILED");
             }
 
-            pthread_mutex_lock(&s_command_mutex);
             while ((item = get_item(&s_active_list)) != NULL) {
                 put_item(item, &s_free_list);
                 ++dump;
@@ -413,9 +415,11 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_off_process_ev(mhb_camera_sm_eve
 
         case MHB_CAMERA_EV_FAIL:
         case MHB_CAMERA_EV_POWER_OFF_REQ:
+            pthread_mutex_lock(&s_command_mutex);
             if (work_cancel(HPWORK, &mhb_sm_work)) {
                 CAM_ERR("ERROR: Cancel off wait FAILED");
             }
+            pthread_mutex_unlock(&s_command_mutex);
 
         case MHB_CAMERA_EV_WAIT_OVER:
             next_state = MHB_CAMERA_STATE_OFF;
