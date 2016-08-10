@@ -45,12 +45,12 @@
     #define DEBUG_PRINT(fmt, ...) \
         do {                                               \
             printf("%s: " fmt, __func__, ##__VA_ARGS__);   \
-            lldbg(fmt, ##__VA_ARGS__);                     \
+            lowsyslog(EXTRA_FMT fmt EXTRA_ARG, ##__VA_ARGS__);                     \
         } while (0)
     #endif
 #else
     #define DEBUG_PRINT(fmt, ...) \
-        lldbg(fmt, ##__VA_ARGS__)
+        lowsyslog(EXTRA_FMT fmt EXTRA_ARG, ##__VA_ARGS__)
 #endif
 
 #if (defined(CONFIG_DEBUG) && defined(DEBUG))
