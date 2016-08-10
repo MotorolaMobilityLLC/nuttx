@@ -602,24 +602,24 @@ static int _mhb_csi_camera_start_stream(uint8_t *cfg, size_t cfg_size)
 
 static int _mhb_csi_camera_stop_stream(void)
 {
+    int ret = -1;
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
+    ret = _mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP);
 
-    if (_mhb_csi_camera_control_req(MHB_CDSI_COMMAND_STOP)) {
-        CAM_ERR("ERROR: Send STOP Failed\n");
-        pthread_mutex_unlock(&s_mhb_camera.mutex);
-        return -1;
-    }
-
-    if (_mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
-                                  MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
-                                  "CDSI STOP", MHB_CDSI_OP_TIMEOUT_NS)) {
-        pthread_mutex_unlock(&s_mhb_camera.mutex);
-        return -1;
+    if (!ret) {
+        ret = _mhb_camera_wait_for_response(&s_mhb_camera.cdsi_cond,
+                              MHB_CAM_CDSI_WAIT_MASK|MHB_TYPE_CDSI_CONTROL_RSP,
+                              "CDSI STOP", MHB_CDSI_OP_TIMEOUT_NS);
     }
     pthread_mutex_unlock(&s_mhb_camera.mutex);
 
     MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_disable);
+
+    if (ret) {
+        CAM_ERR("ERROR: CDSI STOP Failed\n");
+        return -1;
+    }
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
     if (_mhb_csi_camera_unconfig_req()) {
