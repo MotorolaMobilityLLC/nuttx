@@ -45,7 +45,7 @@
 #include <nuttx/camera/camera_ext_defs.h>
 #include <nuttx/device_mhb_cam.h>
 #include <nuttx/math.h>
-
+#include <nuttx/camera/camera_ext_meta.h>
 #include <nuttx/camera/camera_ext.h>
 
 struct dev_private_s
@@ -1205,11 +1205,20 @@ int imx220_stream_configure(struct device *dev)
 
 int imx220_stream_enable(struct device *dev)
 {
-    return mhb_camera_i2c_write_reg1_16(CAMERA_SENSOR_I2C_ADDR, 0x0100, 0x01);
+    int ret = start_metadata_task();
+
+    if (!ret) {
+        ret = mhb_camera_i2c_write_reg1_16(CAMERA_SENSOR_I2C_ADDR, 0x0100, 0x01);
+        if (ret)
+            stop_metadata_task();
+    }
+
+    return ret;
 }
 
 int imx220_stream_disable(struct device *dev)
 {
+    stop_metadata_task();
     return mhb_camera_i2c_write_reg1_16(CAMERA_SENSOR_I2C_ADDR, 0x0100, 0x00);
 }
 
@@ -1254,6 +1263,7 @@ static int _dev_probe(struct device *dev)
 
     camera_ext_register_format_db(&mhb_camera_format_db);
     camera_ext_register_control_db(&mhb_camera_ctrl_db);
+    init_metadata_task();
 
     return 0;
 }
