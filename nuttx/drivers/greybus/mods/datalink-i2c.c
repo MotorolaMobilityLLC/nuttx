@@ -1000,6 +1000,7 @@ FAR struct mods_dl_s *mods_dl_init(struct mods_dl_cb_s *cb)
   i2c = up_i2cinitialize(CONFIG_GREYBUS_MODS_PORT);
   DEBUGASSERT(i2c);
 
+  I2C_SETFREQUENCY(i2c, CONFIG_GREYBUS_MODS_MAX_BUS_SPEED);
   I2C_SETOWNADDRESS(i2c, CONFIG_GREYBUS_MODS_I2C_ADDR, 7);
   I2C_REGISTERCALLBACK(i2c, &cb_ops, &mods_i2c_dl);
 
