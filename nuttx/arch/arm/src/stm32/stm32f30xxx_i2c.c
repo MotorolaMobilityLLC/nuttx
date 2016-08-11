@@ -2224,6 +2224,10 @@ static int stm32_i2c_setownaddress(FAR struct i2c_dev_s *dev, int addr, int nbit
   inst->address = 0;
   inst->flags   = 0;
 
+  /* Set I2C clock frequency */
+
+  stm32_i2c_setclock(priv, inst->frequency);
+
   /* Set I2C slave own address register */
 
   switch (nbits) {
