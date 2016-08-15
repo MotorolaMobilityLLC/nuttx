@@ -46,4 +46,8 @@ ifeq ($(CONFIG_CAMERA_IMX230), y)
     CSRCS += camera_ext_mhb_imx230.c camera_ext_ctrls_imx230.c
 endif
 
+ifeq ($(CONFIG_CAMERA_OV5647_PI), y)
+    CSRCS += camera_ext_mhb_ov5647_pi.c camera_ext_ctrls_ov5647_pi.c
+endif
+
 endif

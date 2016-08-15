@@ -37,4 +37,7 @@ config CAMERA_IMX220
 config CAMERA_IMX230
 	bool "SONY IMX230 Camera Sensor"
 	default n
+config CAMERA_OV5647_PI
+	bool "OV5674 Raspberry Pi module"
+	default n
 endif
