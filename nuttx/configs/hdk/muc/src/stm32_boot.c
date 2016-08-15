@@ -288,7 +288,7 @@ struct device_resource fusb302_usb_ext_resources[] = {
 };
 #endif
 
-#ifdef CONFIG_MHB_CAMERA
+#if defined(CONFIG_CAMERA_IMX220) || defined(CONFIG_CAMERA_IMX230)
 static struct device_resource cam_resources[] = {
     {
         .name   = "rst_n",
@@ -306,6 +306,29 @@ static struct device_resource cam_resources[] = {
         .name    = "areg_en",
         .type    = DEVICE_RESOURCE_TYPE_GPIO,
         .start    = GPIO_CAM_AREG_EN,
+        .count    = 1,
+    },
+    {
+        .name    = "spi_sel",
+        .type    = DEVICE_RESOURCE_TYPE_GPIO,
+        .start    = GPIO_MODS_SPI_SEL,
+        .count    = 1,
+    },
+};
+#endif
+
+#if defined(CONFIG_CAMERA_OV5647_PI)
+static struct device_resource cam_resources[] = {
+    {
+        .name   = "rst_n",
+        .type   = DEVICE_RESOURCE_TYPE_GPIO,
+        .start  = GPIO_PI_CAM_GPIO0,
+        .count  = 1,
+    },
+    {
+        .name    = "led_en",
+        .type    = DEVICE_RESOURCE_TYPE_GPIO,
+        .start    = GPIO_PI_CAM_GPIO1,
         .count    = 1,
     },
     {
@@ -643,6 +666,16 @@ static struct device devices[] = {
         .id   = MHB_CAM_DRIVER_ID,
     },
 #endif
+#if defined(CONFIG_CAMERA_OV5647_PI)
+    {
+        .type = DEVICE_TYPE_MHB_CAMERA_HW,
+        .name = "OV5647_PI",
+        .desc = "Raspbery Pi Camera",
+        .resources = cam_resources,
+        .resource_count = ARRAY_SIZE(cam_resources),
+        .id   = MHB_CAM_DRIVER_ID,
+    },
+#endif
 #ifdef CONFIG_MODS_AUDIO_TFA9890
     {
         .type = DEVICE_TYPE_I2S_HW,
@@ -919,6 +952,10 @@ void board_initialize(void)
 #if defined(CONFIG_CAMERA_IMX230)
     extern struct device_driver imx230_mhb_camera_driver;
     device_register_driver(&imx230_mhb_camera_driver);
+#endif
+#if defined(CONFIG_CAMERA_OV5647_PI)
+    extern struct device_driver ov5647_pi_mhb_camera_driver;
+    device_register_driver(&ov5647_pi_mhb_camera_driver);
 #endif
 #ifdef CONFIG_MODS_AUDIO_TFA9890
   extern struct device_driver tfa9890_i2s_direct_driver;

@@ -95,6 +95,9 @@
 #define GPIO_CAM_AREG_EN         CALC_GPIO_NUM('A', 2)
 #define GPIO_CAM_RST_N           CALC_GPIO_NUM('A', 5)
 
+#define GPIO_PI_CAM_GPIO0        CALC_GPIO_NUM('C', 9)
+#define GPIO_PI_CAM_GPIO1        CALC_GPIO_NUM('A', 9)
+
 #define GPIO_MODS_SPI_SEL        CALC_GPIO_NUM('C', 6)
 
 /* Select the SL_BPLUS_AIN pin for base attach */
