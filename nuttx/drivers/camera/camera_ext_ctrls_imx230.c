@@ -263,7 +263,7 @@ static const struct camera_ext_ctrl_cfg scene_mode = {
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF
         | CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK,
     .min = 0,
-    .menu_skip_mask = 0x02,
+    .menu_skip_mask = 0xfe,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
@@ -734,6 +734,7 @@ static const struct camera_ext_ctrl_cfg scene_mode_ext = {
     .id = CAM_EXT_CID_SCENE_MODE_EXT,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
         | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
+    .menu_skip_mask = 0xfe,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
@@ -888,13 +889,7 @@ static const struct camera_ext_ctrl_cfg supplemental_key_mask = {
         .nr_of_elem = 1,
     },
     .def = {
-        .val = CAM_EXT_HW_KEY_POWER
-             | CAM_EXT_HW_KEY_ZOOM_IN
-             | CAM_EXT_HW_KEY_ZOOM_OUT
-             | CAM_EXT_HW_KEY_FOCUS
-             | CAM_EXT_HW_KEY_FOCUS_EVT
-             | CAM_EXT_HW_KEY_CAMERA
-             | CAM_EXT_HW_KEY_CAMERA_EVT,
+        .val = 0,
     },
 };
 
