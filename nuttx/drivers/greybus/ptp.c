@@ -40,7 +40,7 @@
 #include "ptp-gb.h"
 
 #define GB_PTP_VERSION_MAJOR 0
-#define GB_PTP_VERSION_MINOR 2
+#define GB_PTP_VERSION_MINOR 3
 
 struct gb_ptp_info {
     unsigned int cport;
@@ -143,6 +143,20 @@ static uint8_t gb_ptp_set_current_flow(struct gb_operation *operation)
 
     ret = device_ptp_set_current_flow(ptp_info->dev, request->direction);
     if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_ptp_get_current_flow(struct gb_operation *operation)
+{
+    struct gb_ptp_get_current_flow_response *response;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+    if (device_ptp_get_current_flow(ptp_info->dev, &response->direction))
         return GB_OP_UNKNOWN_ERROR;
 
     return GB_OP_SUCCESS;
@@ -270,6 +284,95 @@ static uint8_t gb_ptp_power_source(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t gb_ptp_set_max_output_voltage(struct gb_operation *operation)
+{
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+    struct gb_ptp_set_max_output_voltage_request *request;
+    uint32_t voltage;
+    int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("%s(): dropping short message\n", __func__);
+        return GB_OP_INVALID;
+    }
+
+    request = gb_operation_get_request_payload(operation);
+    voltage = le32_to_cpu(request->voltage);
+    ret = device_ptp_set_max_output_voltage(ptp_info->dev, voltage);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+#else
+    return GB_OP_INVALID;
+#endif
+}
+
+static uint8_t gb_ptp_get_output_voltage(struct gb_operation *operation)
+{
+    struct gb_ptp_get_output_voltage_response *response;
+    uint32_t voltage;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+    if (device_ptp_get_output_voltage(ptp_info->dev, &voltage))
+        return GB_OP_UNKNOWN_ERROR;
+#else
+    voltage = 0;
+#endif
+
+    response->voltage = cpu_to_le32(voltage);
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_ptp_get_max_input_voltage(struct gb_operation *operation)
+{
+    struct gb_ptp_get_max_input_voltage_response *response;
+    uint32_t voltage;
+
+    response = gb_operation_alloc_response(operation, sizeof(*response));
+    if (!response)
+        return GB_OP_NO_MEMORY;
+
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    if (device_ptp_get_max_input_voltage(ptp_info->dev, &voltage))
+        return GB_OP_UNKNOWN_ERROR;
+#else
+    voltage = 0;
+#endif
+
+    response->voltage = cpu_to_le32(voltage);
+
+    return GB_OP_SUCCESS;
+}
+
+static uint8_t gb_ptp_set_input_voltage(struct gb_operation *operation)
+{
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    struct gb_ptp_set_input_voltage_request *request;
+    uint32_t voltage;
+    int ret;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("%s(): dropping short message\n", __func__);
+        return GB_OP_INVALID;
+    }
+
+    request = gb_operation_get_request_payload(operation);
+    voltage = le32_to_cpu(request->voltage);
+    ret = device_ptp_set_input_voltage(ptp_info->dev, voltage);
+    if (ret)
+        return GB_OP_UNKNOWN_ERROR;
+
+    return GB_OP_SUCCESS;
+#else
+    return GB_OP_INVALID;
+#endif
+}
 
 static int gb_ptp_changed(enum ptp_change change)
 {
@@ -368,12 +471,17 @@ static struct gb_operation_handler gb_ptp_handlers[] = {
     GB_HANDLER(GB_PTP_TYPE_PROTOCOL_VERSION, gb_ptp_protocol_version),
     GB_HANDLER(GB_PTP_TYPE_GET_FUNCTIONALITY, gp_ptp_get_functionality),
     GB_HANDLER(GB_PTP_TYPE_SET_CURRENT_FLOW, gb_ptp_set_current_flow),
+    GB_HANDLER(GB_PTP_TYPE_GET_CURRENT_FLOW, gb_ptp_get_current_flow),
     GB_HANDLER(GB_PTP_TYPE_SET_MAX_INPUT_CURRENT, gb_ptp_set_max_input_current),
     GB_HANDLER(GB_PTP_TYPE_GET_MAX_OUTPUT_CURRENT, gb_ptp_get_max_output_current),
     GB_HANDLER(GB_PTP_TYPE_EXT_POWER_PRESENT, gb_ptp_ext_power_present),
     GB_HANDLER(GB_PTP_TYPE_POWER_REQUIRED, gb_ptp_power_required),
     GB_HANDLER(GB_PTP_TYPE_POWER_AVAILABLE, gb_ptp_power_available),
-    GB_HANDLER(GB_PTP_TYPE_POWER_SOURCE, gb_ptp_power_source)
+    GB_HANDLER(GB_PTP_TYPE_POWER_SOURCE, gb_ptp_power_source),
+    GB_HANDLER(GB_PTP_TYPE_SET_MAX_OUTPUT_VOLTAGE, gb_ptp_set_max_output_voltage),
+    GB_HANDLER(GB_PTP_TYPE_GET_OUTPUT_VOLTAGE, gb_ptp_get_output_voltage),
+    GB_HANDLER(GB_PTP_TYPE_GET_MAX_INPUT_VOLTAGE, gb_ptp_get_max_input_voltage),
+    GB_HANDLER(GB_PTP_TYPE_SET_INPUT_VOLTAGE, gb_ptp_set_input_voltage),
 };
 
 static struct gb_driver gb_ptp_driver = {

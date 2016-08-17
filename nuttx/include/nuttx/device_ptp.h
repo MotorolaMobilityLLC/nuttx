@@ -163,6 +163,8 @@ typedef int (*ptp_changed)(enum ptp_change change);
 struct device_ptp_type_ops {
     /** Set the current flow between the Mod and Core. */
     int (*set_current_flow)(struct device *dev, uint8_t direction);
+    /** Get the current flow between the Mod and Core. */
+    int (*get_current_flow)(struct device *dev, uint8_t *direction);
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     /** External power present on the Mod. */
     int (*ext_power_present)(struct device *dev, uint8_t *present);
@@ -171,6 +173,10 @@ struct device_ptp_type_ops {
     /** Max amount of current that the Core can pull from the Mod. */
     int (*get_max_output_current)(struct device *dev, uint32_t *current);
     /** Power available to be sent from the Mod to the Core. */
+    /** Set the max amount of voltage the Mod can supply to the Core. */
+    int (*set_max_output_voltage)(struct device *dev, uint32_t voltage);
+    /** Voltage of the power supplied to the Core. */
+    int (*get_output_voltage)(struct device *dev, uint32_t *voltage);
     int (*power_available)(struct device *dev, uint8_t *available);
     /** Source of the power being sent from the Mod to the Core. */
     int (*power_source)(struct device *dev, uint8_t *source);
@@ -178,6 +184,10 @@ struct device_ptp_type_ops {
 #ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
     /** Set the max amount of current the Mod can pull from the Core. */
     int (*set_max_input_current)(struct device *dev, uint32_t current);
+    /** The max voltage the Core can supply to the Mod. */
+    int (*get_max_input_voltage)(struct device *dev, uint32_t *voltage);
+    /** Voltage of the power supplied to the Mod. */
+    int (*set_input_voltage)(struct device *dev, uint32_t voltage);
     /** The Mod need for its battery to be charged. */
     int (*power_required)(struct device *dev, uint8_t *required);
 #endif
@@ -206,6 +216,29 @@ static inline int device_ptp_set_current_flow(struct device *dev,
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp)->set_current_flow(dev, direction);
+}
+
+/**
+ * @brief Get the direction of the current flow.
+ * @param dev Pointer to structure of device data.
+ * @param direction Direction of the current flow. The possible values are
+ *                  defined in the enum ptp_current_flow.
+ * @return 0 on success, negative errno on error.
+ */
+static inline int device_ptp_get_current_flow(struct device *dev,
+                                              uint8_t *direction)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->get_current_flow) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->get_current_flow(dev, direction);
 }
 
 #if defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
@@ -255,6 +288,50 @@ static inline int device_ptp_get_max_output_current(struct device *dev,
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp)->get_max_output_current(dev, current);
+}
+
+/**
+ * @brief Set the max voltage the Mod can supply to the Core.
+ * @param dev Pointer to structure of device data.
+ * @param voltage The value of voltage in microvolts.
+ * @return 0 on success, negative errno on error.
+ */
+static inline int device_ptp_set_max_output_voltage(struct device *dev,
+                                                    uint32_t voltage)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->set_max_output_voltage) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->set_max_output_voltage(dev, voltage);
+}
+
+/**
+ * @brief Get the voltage of the power supplied to the Core.
+ * @param dev Pointer to structure of device data.
+ * @param voltage The value of voltage in microvolts.
+ * @return 0 on success, negative errno on error.
+ */
+static inline int device_ptp_get_output_voltage(struct device *dev,
+                                                uint32_t *voltage)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->get_output_voltage) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->get_output_voltage(dev, voltage);
 }
 
 /**
@@ -327,6 +404,50 @@ static inline int device_ptp_set_max_input_current(struct device *dev,
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp)->set_max_input_current(dev, current);
+}
+
+/**
+ * @brief Get the max voltage the Core can supply to the Mod.
+ * @param dev Pointer to structure of device data.
+ * @param voltage The value of voltage in microvolts.
+ * @return 0 on success, negative errno on error.
+ */
+static inline int device_ptp_get_max_input_voltage(struct device *dev,
+                                                   uint32_t *voltage)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->get_max_input_voltage) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->get_max_input_voltage(dev, voltage);
+}
+
+/**
+ * @brief Set the voltage of the power supplied to the Mod.
+ * @param dev Pointer to structure of device data.
+ * @param voltage The value of voltage in microvolts.
+ * @return 0 on success, negative errno on error.
+ */
+static inline int device_ptp_set_input_voltage(struct device *dev,
+                                               uint32_t voltage)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp)->set_input_voltage) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp)->set_input_voltage(dev, voltage);
 }
 
 /**

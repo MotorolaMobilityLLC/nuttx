@@ -43,6 +43,11 @@
 #define GB_PTP_TYPE_POWER_AVAILABLE         0x0A    /* added in ver 00.02 */
 #define GB_PTP_TYPE_POWER_SOURCE            0x0B    /* added in ver 00.02 */
 #define GB_PTP_TYPE_GET_MAX_OUTPUT_CURRENT  0x0C    /* added in ver 00.02 */
+#define GB_PTP_TYPE_GET_CURRENT_FLOW        0x0D    /* added in ver 00.03 */
+#define GB_PTP_TYPE_SET_MAX_OUTPUT_VOLTAGE  0x0E    /* added in ver 00.03 */
+#define GB_PTP_TYPE_GET_OUTPUT_VOLTAGE      0x0F    /* added in ver 00.03 */
+#define GB_PTP_TYPE_GET_MAX_INPUT_VOLTAGE   0x10    /* added in ver 00.03 */
+#define GB_PTP_TYPE_SET_INPUT_VOLTAGE       0x11    /* added in ver 00.03 */
 
 /* Check for operation support */
 #define GB_PTP_SUPPORTS(major, minor, name) \
@@ -75,6 +80,10 @@ struct gb_ptp_set_current_flow_request {
     __u8 direction;
 } __packed;
 
+struct gb_ptp_get_current_flow_response {
+    __u8 direction;
+} __packed;
+
 struct gb_ptp_get_max_output_current_response {
     __le32 current;
 } __packed;
@@ -97,6 +106,22 @@ struct gb_ptp_power_available_response {
 
 struct gb_ptp_power_source_response {
     __u8 source;
+} __packed;
+
+struct gb_ptp_set_max_output_voltage_request {
+    __le32 voltage;
+} __packed;
+
+struct gb_ptp_get_output_voltage_response {
+    __le32 voltage;
+} __packed;
+
+struct gb_ptp_get_max_input_voltage_response {
+    __le32 voltage;
+} __packed;
+
+struct gb_ptp_set_input_voltage_request {
+    __le32 voltage;
 } __packed;
 
 #endif /* __PTP_GB_H__ */
