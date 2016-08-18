@@ -250,6 +250,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_off_process_ev(mhb_camera_sm_event_t 
             mhb_camera_sm_run_command(mhb_camera_power_off, 0);
             break;
 
+        case MHB_CAMERA_EV_STREAM_OFF_REQ:
         case MHB_CAMERA_EV_DECONFIGURED:
         case MHB_CAMERA_EV_NONE:
             next_state = s_state;
@@ -399,7 +400,6 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_off_process_ev(mhb_camera_sm_eve
     switch (event) {
         case MHB_CAMERA_EV_POWER_ON_REQ:
             pthread_mutex_lock(&s_command_mutex);
-
             if (work_cancel(HPWORK, &mhb_sm_work)) {
                 CAM_ERR("ERROR: Cancel off wait FAILED");
             }
