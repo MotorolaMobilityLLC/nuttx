@@ -918,7 +918,7 @@ mhb_camera_sm_event_t mhb_camera_lens_retract(void)
 /* CAMERA_EXT devops */
 static int _power_on(struct device *dev, uint8_t mode)
 {
-    CAM_DBG("mhb_camera_csi: bootmode: %d\n", mode);
+    CAM_INFO("mhb_camera_csi: bootmode: %d\n", mode);
 
     if(mhb_camera_sm_execute(MHB_CAMERA_EV_POWER_ON_REQ))
         return -1;
@@ -928,7 +928,7 @@ static int _power_on(struct device *dev, uint8_t mode)
 
 static int _power_off(struct device *dev)
 {
-    CAM_DBG("mhb_camera_csi : bootmode %d\n", s_mhb_camera.bootmode);
+    CAM_INFO("mhb_camera_csi : bootmode %d\n", s_mhb_camera.bootmode);
 
     _mhb_camera_process_ctrl_cache(TRUE);
     if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) {
@@ -942,7 +942,7 @@ static int _power_off(struct device *dev)
 
 static int _stream_on(struct device *dev)
 {
-    CAM_DBG("mhb_camera_csi : bootmode %d\n", s_mhb_camera.bootmode);
+    CAM_INFO("mhb_camera_csi : bootmode %d\n", s_mhb_camera.bootmode);
     if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) {
         CAM_ERR("ERROR: mhb_camera_csi: stream_on in DFU Mode\n");
         return -EINVAL;
@@ -953,7 +953,7 @@ static int _stream_on(struct device *dev)
 
 static int _stream_off(struct device *dev)
 {
-    CAM_DBG("mhb_camera_csi\n");
+    CAM_INFO("mhb_camera_csi\n");
     return mhb_camera_sm_execute(MHB_CAMERA_EV_STREAM_OFF_REQ);
 }
 

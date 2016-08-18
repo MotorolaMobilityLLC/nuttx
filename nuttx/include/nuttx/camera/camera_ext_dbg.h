@@ -37,7 +37,8 @@
         do {                                                             \
             struct timespec __time;                                      \
             up_rtc_gettime(&__time);                                     \
-            lldbg(fmt, ##__VA_ARGS__);                                   \
+            lowsyslog("[%u.%03u] %s: " fmt, __time.tv_sec,               \
+                   (__time.tv_nsec / 1000000), __func__, ##__VA_ARGS__); \
             printf("[%u.%03u] %s: " fmt, __time.tv_sec,                  \
                    (__time.tv_nsec / 1000000), __func__, ##__VA_ARGS__); \
         } while (0)
@@ -45,7 +46,7 @@
     #define DEBUG_PRINT(fmt, ...) \
         do {                                               \
             printf("%s: " fmt, __func__, ##__VA_ARGS__);   \
-            lowsyslog(EXTRA_FMT fmt EXTRA_ARG, ##__VA_ARGS__);                     \
+            lowsyslog(EXTRA_FMT fmt EXTRA_ARG, ##__VA_ARGS__);           \
         } while (0)
     #endif
 #else
@@ -65,7 +66,7 @@
     #define CTRL_DBG(x...)
 #endif
 
-
 #define CAM_ERR(fmt, ...)   DEBUG_PRINT(fmt, ##__VA_ARGS__)
+#define CAM_INFO(fmt, ...)   DEBUG_PRINT(fmt, ##__VA_ARGS__)
 
 #endif
