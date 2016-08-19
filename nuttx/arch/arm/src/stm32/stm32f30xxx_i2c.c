@@ -283,6 +283,7 @@ struct stm32_i2c_priv_s
 #ifdef CONFIG_I2C_SLAVE
   const struct i2c_cb_ops_s *cb_ops; /* Slave callbacks */
   void *cb_v;                  /* Data pointer for slave callbacks */
+  bool only_valid_tx;          /* Flag to indicate that no dummy data was sent */
 #endif
 };
 
@@ -1600,10 +1601,12 @@ static int stm32_i2c_isr_slave(struct stm32_i2c_priv_s *priv, uint32_t status)
 
           /* Reuse flags variable to keep track of bytes transmitted */
           priv->flags++;
+          priv->only_valid_tx = true;
         }
       else
         {
           stm32_i2c_putreg(priv, STM32_I2C_TXDR_OFFSET, 0);
+          priv->only_valid_tx = false;
         }
     }
 
@@ -1624,12 +1627,23 @@ static int stm32_i2c_isr_slave(struct stm32_i2c_priv_s *priv, uint32_t status)
       /* Only call stop callback if start returned success */
       if (priv->ptr)
         {
+          if (priv->only_valid_tx)
+            {
+              /* The STM32 always fills the TX buffer with an extra byte. If
+               * only valid TX data was placed into the buffer, it means the
+               * last byte was not actually sent and the count needs to be
+               * adjusted accordingly.
+               */
+              priv->flags--;
+            }
+
           priv->cb_ops->stop(priv->cb_v, STATUS_STOP(status) ? OK : -EIO,
                              priv->flags);
 
           priv->ptr = NULL;
           priv->dcnt = 0;
           priv->flags = 0;
+          priv->only_valid_tx = false;
         }
 
       stm32_i2c_tracedump(priv);
@@ -1657,6 +1671,7 @@ static int stm32_i2c_isr_slave(struct stm32_i2c_priv_s *priv, uint32_t status)
         }
 
       priv->flags = 0;
+      priv->only_valid_tx = false;
 
       stm32_i2c_traceevent(priv, I2CEVENT_ITBUFEN, 0);
       stm32_i2c_enableinterrupts(priv);
