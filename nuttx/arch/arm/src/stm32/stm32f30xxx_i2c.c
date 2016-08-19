@@ -161,6 +161,7 @@
 #define STATUS_RXNE(status)    (status & I2C_ISR_RXNE)
 #define STATUS_TC(status)      (status & I2C_ISR_TC)
 #define STATUS_BUSY(status)    (status & I2C_ISR_BUSY)
+#define STATUS_ERR(status)     (status & I2C_ISR_ERRORMASK)
 
 /* Debug ****************************************************************************/
 /* CONFIG_DEBUG_I2C + CONFIG_DEBUG enables general I2C debug output. */
@@ -1565,34 +1566,8 @@ static int stm32_i2c_isr_slave(struct stm32_i2c_priv_s *priv, uint32_t status)
 {
   int ret;
 
-  if (STATUS_ADDR(status))
-    {
-      /* Clear the ADDR interrupt */
-
-      stm32_i2c_modifyreg32(priv, STM32_I2C_ICR_OFFSET, 0, I2C_INT_ADDR);
-
-      /* Call callback - DIR bit set means read transfer (slave enters
-       * transmitter mode)
-       */
-
-      ret = priv->cb_ops->start(priv->cb_v,
-                                STATUS_DIR(status) ? I2C_READBIT : 0,
-                                &priv->ptr, &priv->dcnt);
-      if (ret)
-        {
-          /* Ensure ptr and dcnt are not set */
-          priv->ptr = NULL;
-          priv->dcnt = 0;
-        }
-
-      priv->flags = 0;
-
-      stm32_i2c_traceevent(priv, I2CEVENT_ITBUFEN, 0);
-      stm32_i2c_enableinterrupts(priv);
-    }
-
   /* More bytes to read */
-  else if (STATUS_RXNE(status))
+  if (STATUS_RXNE(status))
     {
       stm32_i2c_traceevent(priv, I2CEVENT_RCVBYTE, priv->dcnt);
 
@@ -1612,7 +1587,7 @@ static int stm32_i2c_isr_slave(struct stm32_i2c_priv_s *priv, uint32_t status)
         }
     }
 
-  else if (STATUS_TXIS(status))
+  if (STATUS_TXIS(status))
     {
       stm32_i2c_traceevent(priv, I2CEVENT_SENDBYTE, priv->dcnt);
 
@@ -1632,7 +1607,7 @@ static int stm32_i2c_isr_slave(struct stm32_i2c_priv_s *priv, uint32_t status)
         }
     }
 
-  else
+  if (STATUS_STOP(status) || STATUS_ERR(status))
     {
       stm32_i2c_traceevent(priv,
           STATUS_STOP(status) ? I2CEVENT_BTFSTOP : I2CEVENT_ERROR, 0);
@@ -1659,6 +1634,32 @@ static int stm32_i2c_isr_slave(struct stm32_i2c_priv_s *priv, uint32_t status)
 
       stm32_i2c_tracedump(priv);
       stm32_i2c_tracereset(priv);
+    }
+
+  if (STATUS_ADDR(status))
+    {
+      /* Clear the ADDR interrupt */
+
+      stm32_i2c_modifyreg32(priv, STM32_I2C_ICR_OFFSET, 0, I2C_INT_ADDR);
+
+      /* Call callback - DIR bit set means read transfer (slave enters
+       * transmitter mode)
+       */
+
+      ret = priv->cb_ops->start(priv->cb_v,
+                                STATUS_DIR(status) ? I2C_READBIT : 0,
+                                &priv->ptr, &priv->dcnt);
+      if (ret)
+        {
+          /* Ensure ptr and dcnt are not set */
+          priv->ptr = NULL;
+          priv->dcnt = 0;
+        }
+
+      priv->flags = 0;
+
+      stm32_i2c_traceevent(priv, I2CEVENT_ITBUFEN, 0);
+      stm32_i2c_enableinterrupts(priv);
     }
 
   return OK;
