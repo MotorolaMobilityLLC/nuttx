@@ -716,6 +716,8 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
         CAM_ERR("Failed to turn on Camera SOC\n");
         goto failed_power_on;
     }
+
+    _mhb_camera_process_ctrl_cache(FALSE);
     s_mhb_camera.soc_status = SOC_ENABLED;
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
@@ -733,7 +735,6 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
         (bootmode == CAMERA_EXT_BOOTMODE_DFU) ?
         MHB_CAMERA_NOTIFY_FW_UPGRADE : MHB_CAMERA_NOTIFY_POWERED_ON);
 
-    _mhb_camera_process_ctrl_cache(FALSE);
     return MHB_CAMERA_EV_POWERED_ON;
 
 failed_power_on:
