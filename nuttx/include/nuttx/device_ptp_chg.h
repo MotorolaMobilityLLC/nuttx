@@ -48,13 +48,20 @@ struct device_ptp_chg_type_ops {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     int (*send_wireless_pwr)(struct device *dev);
     int (*send_wired_pwr)(struct device *dev);
+  #ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     int (*receive_wireless_pwr)(struct device *dev, const struct charger_config *cfg);
     int (*receive_wired_pwr)(struct device *dev, const struct charger_config *cfg);
+  #endif
 #endif
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
     int (*send_batt_pwr)(struct device *dev, int *current);
-    int (*receive_base_pwr)(struct device *dev, const struct charger_config *cfg);
-    int (*off)(struct device *dev);
     int (*register_boost_fault_cb)(struct device *dev, charger_boost_fault cb, void *arg);
+#endif
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    int (*receive_base_pwr)(struct device *dev, const struct charger_config *cfg);
+#endif
+    int (*max_input_voltage)(struct device *dev, int *voltage);
+    int (*off)(struct device *dev);
 };
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
@@ -88,6 +95,7 @@ static inline int device_ptp_chg_send_wired_pwr(struct device *dev)
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->send_wired_pwr(dev);
 }
 
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
 static inline int device_ptp_chg_receive_wireless_pwr(struct device *dev,
                                                const struct charger_config *cfg)
 {
@@ -119,8 +127,10 @@ static inline int device_ptp_chg_receive_wired_pwr(struct device *dev,
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_wired_pwr(dev, cfg);
 }
-#endif
+#endif /* CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY */
+#endif /* CONFIG_GREYBUS_PTP_EXT_SUPPORTED */
 
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
 static inline int device_ptp_chg_send_batt_pwr(struct device *dev, int *current)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
@@ -134,37 +144,6 @@ static inline int device_ptp_chg_send_batt_pwr(struct device *dev, int *current)
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->send_batt_pwr(dev, current);
-}
-
-static inline int device_ptp_chg_receive_base_pwr(struct device *dev,
-                                              const struct charger_config *cfg)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev)) {
-        return -ENODEV;
-    }
-
-    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_base_pwr) {
-        return -ENOSYS;
-    }
-
-    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_base_pwr(dev, cfg);
-}
-
-static inline int device_ptp_chg_off(struct device *dev)
-{
-    DEVICE_DRIVER_ASSERT_OPS(dev);
-
-    if (!device_is_open(dev)) {
-        return -ENODEV;
-    }
-
-    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->off) {
-        return -ENOSYS;
-    }
-
-    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->off(dev);
 }
 
 static inline int device_ptp_chg_register_boost_fault_cb(struct device *dev,
@@ -181,5 +160,54 @@ static inline int device_ptp_chg_register_boost_fault_cb(struct device *dev,
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->register_boost_fault_cb(dev, cb, arg);
+}
+#endif
+
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+static inline int device_ptp_chg_receive_base_pwr(struct device *dev,
+                                              const struct charger_config *cfg)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_base_pwr) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->receive_base_pwr(dev, cfg);
+}
+#endif
+
+static inline int device_ptp_chg_max_input_voltage(struct device *dev, int *voltage)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->max_input_voltage) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->max_input_voltage(dev, voltage);
+}
+
+static inline int device_ptp_chg_off(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->off) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->off(dev);
 }
 #endif
