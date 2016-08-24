@@ -640,7 +640,7 @@ static int _mhb_csi_camera_stop_stream(void)
 
 }
 
-static void _mhb_camera_process_ctrl_cache(int dump)
+void mhb_camera_process_ctrl_cache(int dump)
 {
     struct cached_ctrls_node *item;
     uint8_t soc_status;
@@ -717,8 +717,8 @@ mhb_camera_sm_event_t mhb_camera_power_on(void)
         goto failed_power_on;
     }
 
-    _mhb_camera_process_ctrl_cache(FALSE);
     s_mhb_camera.soc_status = SOC_ENABLED;
+    mhb_camera_process_ctrl_cache(FALSE);
 
     pthread_mutex_lock(&s_mhb_camera.mutex);
     if(s_mhb_camera.apbe_en_state != MHB_PM_STATUS_PEER_CONNECTED
@@ -874,13 +874,11 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void)
         mhb_camera_i2c_unlock();
         MHB_CAM_DEV_OP(s_mhb_camera.cam_device, stream_reset);
     } while (retry--);
+
     camera_ext_send_error(CAMERA_EXT_ERROR_CSI_RESET);
-
     s_mhb_camera.apbe_config_state = APBE_CONFIGURED;
-
     mhb_csi_camera_callback(MHB_CAMERA_NOTIFY_PREVIEW_ON);
 
-    _mhb_camera_process_ctrl_cache(FALSE);
     return MHB_CAMERA_EV_CONFIGURED;
 
 failed_stream_on:
@@ -931,7 +929,7 @@ static int _power_off(struct device *dev)
 {
     CAM_INFO("mhb_camera_csi : bootmode %d\n", s_mhb_camera.bootmode);
 
-    _mhb_camera_process_ctrl_cache(TRUE);
+    mhb_camera_process_ctrl_cache(TRUE);
     if (s_mhb_camera.bootmode == CAMERA_EXT_BOOTMODE_DFU) {
          /* Send 2 Off events when powering off from DFU to ensure */
          /* we dont linger in WAIT_OFF states.*/

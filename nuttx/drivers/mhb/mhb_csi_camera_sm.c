@@ -270,6 +270,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_poweron_process_ev(mhb_camera_sm
             next_state = MHB_CAMERA_STATE_OFF;
             break;
         case MHB_CAMERA_EV_POWERED_ON:
+            mhb_camera_process_ctrl_cache(FALSE);
             next_state = MHB_CAMERA_STATE_ON;
             break;
         case MHB_CAMERA_EV_STREAM_ON_REQ:
@@ -319,6 +320,7 @@ static mhb_camera_sm_state_t mhb_camera_sm_wait_stream_process_ev(mhb_camera_sm_
             next_state = s_state;
             pthread_mutex_lock(&s_command_mutex);
             if (list_is_empty(&s_active_list)) {
+                mhb_camera_process_ctrl_cache(FALSE);
                 next_state = MHB_CAMERA_STATE_STREAMING;
             }
             else {

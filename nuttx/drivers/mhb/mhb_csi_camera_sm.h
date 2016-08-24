@@ -102,5 +102,6 @@ mhb_camera_sm_event_t mhb_camera_stream_on(void);
 mhb_camera_sm_event_t mhb_camera_stream_off(void);
 mhb_camera_sm_event_t mhb_camera_lens_retract(void);
 mhb_camera_sm_event_t mhb_camera_lens_extend(void);
+void mhb_camera_process_ctrl_cache(int dump);
 
 #endif
