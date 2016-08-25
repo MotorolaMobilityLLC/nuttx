@@ -37,6 +37,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#define BQ25896_MAX_INPUT_VOLTAGE       (14000) /* mV */
+
 /* Boost current in OTG mode */
 const static int boost_current =
 #if defined (CONFIG_CHARGER_DEVICE_BQ25896_BOOST_LIM_500MA)
@@ -412,6 +414,12 @@ static int bq25896_charger_register_boost_fault_cb(struct device *dev,
     return 0;
 }
 
+static int bq25896_charger_max_input_voltage(struct device *dev, int *voltage)
+{
+    *voltage = BQ25896_MAX_INPUT_VOLTAGE;
+    return 0;
+}
+
 static int bq25896_get_gpio(struct device *dev, char* name)
 {
     struct device_resource *r;
@@ -534,6 +542,7 @@ static struct device_charger_type_ops bq25896_charger_type_ops = {
     .receive = bq25896_charger_receive,
     .off = bq25896_charger_off,
     .register_boost_fault_cb = bq25896_charger_register_boost_fault_cb,
+    .max_input_voltage = bq25896_charger_max_input_voltage,
 };
 
 static struct device_driver_ops driver_ops = {
