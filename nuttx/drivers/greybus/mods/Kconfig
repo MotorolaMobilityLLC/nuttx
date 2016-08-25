@@ -69,6 +69,8 @@ config GREYBUS_MODS_PTP_DEVICE
 	default n
 	depends on GREYBUS_PTP
 
+select GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY if GREYBUS_MODS_PTP_DEVICE && (!GREYBUS_PTP_INT_SND_NEVER || !GREYBUS_PTP_INT_RCV_NEVER)
+
 menuconfig GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
 	bool "PTP device has a battery"
 	select BATTERY_STATE
@@ -96,9 +98,9 @@ config GREYBUS_MODS_SLOW_CHG_CURRENT
 	int "Slow charging current limit in mA"
 	default 1000
 
-config GREYBUS_MODS_INPUT_VOLTAGE
-	int "Input voltage limit in mV"
-	default 4500
+config GREYBUS_MODS_INPUT_VOLTAGE_OFFSET
+	int "Input voltage limit offset in mV"
+	default 500
 
 config GREYBUS_MODS_NORMAL_BATTERY_OUTPUT_CURRENT
 	depends on !GREYBUS_PTP_INT_SND_NEVER
@@ -117,6 +119,12 @@ config GREYBUS_MODS_MAX_VBUS_CURRENT
 	depends on (!GREYBUS_PTP_INT_SND_NEVER || !GREYBUS_PTP_INT_RCV_NEVER || GREYBUS_PTP_EXT_SUPPORTED)
 	int "Maximum current through Mod VBUS connector in mA"
 	default 3000
+
+config GREYBUS_MODS_MAX_VBUS_VOLTAGE
+	depends on GREYBUS_MODS_PTP_DEVICE
+	depends on (!GREYBUS_PTP_INT_SND_NEVER || !GREYBUS_PTP_INT_RCV_NEVER || GREYBUS_PTP_EXT_SUPPORTED)
+	int "Maximum voltage at Mod VBUS connector in mV"
+	default 30000
 
 config GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
 	bool "PTP charger driver controlling power path through switches"

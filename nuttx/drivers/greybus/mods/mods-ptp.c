@@ -37,6 +37,7 @@
 #include <debug.h>
 #include <errno.h>
 #include <semaphore.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <nuttx/util.h>
@@ -45,7 +46,19 @@
   #define CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT      3000    /* mA */
 #endif
 
-#define DEFAULT_BASE_INPUT_CURRENT                  500     /* mA */
+#define DEFAULT_BASE_CURRENT                        500     /* mA */
+#define DEFAULT_BASE_VOLTAGE                        5000    /* mV */
+#define DEFAULT_PMIC_MAX_INPUT_VOLTAGE              5000    /* mV */
+#define DEFAULT_MAX_OUTPUT_VOLTAGE                  5000    /* mV */
+
+/* TODO: Support variable voltage battery source */
+#define BATTERY_SOURCE_OUTPUT_VOLTAGE               5000    /* mV */
+
+/* Maximum output current and voltage of a charging source */
+struct mods_ptp_chg_source {
+    int current; /* mA */
+    int voltage; /* mV */
+};
 
 /* Charging/discharging settings */
 struct mods_ptp_battery {
@@ -53,35 +66,52 @@ struct mods_ptp_battery {
     bool dischg_allowed; /* flag */
     bool low_battery; /* flag */
     /* Limits are in mA and mV */
-    int input_current; /* as per command from base */
     int charge_current; /* as per battery temp */
     int charge_voltage; /* as per battery temp */
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
+    struct mods_ptp_chg_source src; /* Mod to Base charging */
+#endif
+};
+
+/* Commands from the base */
+struct mods_ptp_base_commands {
+    enum ptp_current_flow direction; /* charging direction */
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    struct mods_ptp_chg_source base; /* Phone to Mod charging */
+#endif
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+    int max_output_voltage; /* maximum voltage that the Mod can send to Base in mV */
+#endif
 };
 
 /* Values reported to the base */
 struct ptp_reported {
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     enum ptp_ext_power present; /* external power sources */
+#endif
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
     enum ptp_power_available available; /* source that will be sent to the base */
-    enum ptp_power_source source; /* source that is sent to the base */
+    /* Source of power sent to the base */
+    enum ptp_power_source source; /* source type */
+    struct mods_ptp_chg_source to_base; /* source max output current and voltage */
+#endif
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
     enum ptp_power_required required; /* can power be received from the base ? */
+    int max_input_voltage; /* maximum voltage that the Mod can accept from the base in mV */
+#endif
 };
 
 /* Internal state */
 struct ptp_state {
     enum base_attached_e attached; /* base attachment */
-    enum ptp_current_flow direction; /* per command from base */
+    struct mods_ptp_base_commands commands; /* commands from the base */
 #ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     struct mods_ptp_battery battery; /* battery chg/dischg settings */
 #endif
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    int wired_current; /* max ouput in mA */
-    int wrls_current; /* max output in mA */
-    int *ext_power; /* points to external power source or NULL*/
+    struct mods_ptp_chg_source wired, wireless; /* external power sources */
 #endif
-#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
-    int batt_current; /* max output in mA */
-#endif
-    int *output_current; /* points either to battery, external power source or NULL */
+    int pmic_max_input_voltage; /* max voltage that that PMIC can take */
     bool base_powered_off; /* flag to indicate base is powered off with AMP attached */
     struct ptp_reported report; /* what is repoted to the base */
     bool boost_fault; /* flag to indicate fault in boost mode */
@@ -96,6 +126,70 @@ struct ptp_info {
     ptp_changed changed_cb;
 };
 
+/* Set base charging source */
+static void do_set_base_source(struct ptp_state *state, enum ptp_power_source source)
+{
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+        int current, voltage;
+
+        switch(source)
+        {
+            case PTP_POWER_SOURCE_NONE:
+                current = 0;
+                voltage = 0;
+                break;
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
+            case PTP_POWER_SOURCE_BATTERY:
+                current = state->battery.src.current;
+                voltage = state->battery.src.voltage;
+                break;
+#endif
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
+            case PTP_POWER_SOURCE_WIRED:
+                current = state->wired.current;
+                voltage = state->wired.voltage;
+                break;
+            case PTP_POWER_SOURCE_WIRELESS:
+                current = state->wireless.current;
+                voltage = state->wireless.voltage;
+                break;
+#endif
+            default:
+                /* Should never be here */
+                return;
+        }
+
+        state->report.source = source;
+        /* Current cannot exceed the limit of the Mod VBUS connector */
+        state->report.to_base.current = MIN(CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT, current);
+        state->report.to_base.voltage = voltage;
+#endif
+}
+
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
+/* Calculate power of the source. Return 0 if source voltage above the max_v */
+static int64_t do_calculate_power(const struct mods_ptp_chg_source *src,
+                                  int max_v)
+{
+    return src->voltage <= max_v ? src->current * src->voltage : 0;
+}
+
+/* Choose the source with the maximum output power */
+static const struct mods_ptp_chg_source *do_choose_ext_src(const struct ptp_state *state,
+                                                           int max_v)
+{
+    int wired_power = do_calculate_power(&state->wired, max_v);
+    int wireless_power = do_calculate_power(&state->wireless, max_v);
+
+    /* Prefer wired over wireless if both provide the same power */
+    if (wired_power == 0 && wireless_power == 0)
+        return NULL;
+    else if (wired_power >= wireless_power)
+        return &state->wired;
+    else
+        return &state->wireless;
+}
+#endif
 
 /*
  * Charge base from an external power source if it is present, otherwise from a
@@ -105,37 +199,49 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
 {
     int retval = 0;
 
-    state->output_current = NULL;
+    do_set_base_source(state, PTP_POWER_SOURCE_NONE);
 
-    /* Disable base charging if fault in boost mode is detected */
+    /* Disable base charging and set current flow to "off" if fault in boost
+       mode is detected */
     if (state->boost_fault) {
+        state->commands.direction = PTP_CURRENT_OFF;
         retval = device_ptp_chg_off(chg);
         goto done;
     }
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    if (state->ext_power == &state->wired_current) {
+    /* The voltage of the external source cannot exceed input and output limits */
+    int max_v = MIN(state->commands.max_output_voltage, state->pmic_max_input_voltage);
+    const struct mods_ptp_chg_source *src = do_choose_ext_src(state, max_v);
+
+    /* Limit voltage on all sources */
+    ext_power_set_max_output_voltage(EXT_POWER_WIRED, max_v);
+    ext_power_set_max_output_voltage(EXT_POWER_WIRELESS, max_v);
+
+    if (src == &state->wired) {
         if ((retval = device_ptp_chg_send_wired_pwr(chg)) == 0)
-            state->output_current = state->ext_power;
+            do_set_base_source(state, PTP_POWER_SOURCE_WIRED);
         goto done;
-    } else if (state->ext_power == &state->wrls_current) {
+    } else if (src == &state->wireless) {
         if ((retval = device_ptp_chg_send_wireless_pwr(chg)) == 0)
-            state->output_current = state->ext_power;
+            do_set_base_source(state, PTP_POWER_SOURCE_WIRELESS);
         goto done;
     }
 #endif
 
 #ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
     if (state->battery.dischg_allowed && !state->base_powered_off) {
-        if ((retval = device_ptp_chg_send_batt_pwr(chg, &state->batt_current)) == 0){
+        if ((retval = device_ptp_chg_send_batt_pwr(chg, &state->battery.src.current)) == 0) {
+            state->battery.src.voltage = BATTERY_SOURCE_OUTPUT_VOLTAGE;
             if (state->battery.low_battery) {
-                state->batt_current = MIN(state->batt_current,
-                    CONFIG_GREYBUS_MODS_LOW_BATTERY_OUTPUT_CURRENT);
+                state->battery.src.current = MIN(state->battery.src.current,
+                                CONFIG_GREYBUS_MODS_LOW_BATTERY_OUTPUT_CURRENT);
             } else {
-                state->batt_current = MIN(state->batt_current,
-                    CONFIG_GREYBUS_MODS_NORMAL_BATTERY_OUTPUT_CURRENT);
+                state->battery.src.current = MIN(state->battery.src.current,
+                             CONFIG_GREYBUS_MODS_NORMAL_BATTERY_OUTPUT_CURRENT);
             }
-            state->output_current = &state->batt_current;
+
+            do_set_base_source(state, PTP_POWER_SOURCE_BATTERY);
         }
         goto done;
     }
@@ -155,19 +261,25 @@ done:
 static int do_charge_battery_with_external_power(struct device *chg,
                                                  struct ptp_state *state)
 {
-    state->output_current = NULL;
+    do_set_base_source(state, PTP_POWER_SOURCE_NONE);
 
 #ifndef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     return device_ptp_chg_off(chg);
 #else
+    int max_v = state->pmic_max_input_voltage;
+    const struct mods_ptp_chg_source *src = do_choose_ext_src(state, max_v);
     struct charger_config cfg;
 
-    if (state->battery.chg_allowed && state->ext_power) {
-        cfg.input_current_limit = *state->ext_power;
-        cfg.input_voltage_limit = CONFIG_GREYBUS_MODS_INPUT_VOLTAGE;
+    /* Limit voltage on all sources */
+    ext_power_set_max_output_voltage(EXT_POWER_WIRED, max_v);
+    ext_power_set_max_output_voltage(EXT_POWER_WIRELESS, max_v);
+
+    if (state->battery.chg_allowed && src) {
+        cfg.input_current_limit = src->current;
+        cfg.input_voltage_limit = src->voltage - CONFIG_GREYBUS_MODS_INPUT_VOLTAGE_OFFSET;
         cfg.charge_current_limit = state->battery.charge_current;
         cfg.charge_voltage_limit = state->battery.charge_voltage;
-        if (state->ext_power == &state->wired_current)
+        if (src == &state->wired)
             return device_ptp_chg_receive_wired_pwr(chg, &cfg);
         else
             return device_ptp_chg_receive_wireless_pwr(chg, &cfg);
@@ -183,25 +295,32 @@ static int do_charge_battery_with_external_power(struct device *chg,
 static int do_charge_battery_with_base_power(struct device *chg,
                                              struct ptp_state *state)
 {
-    struct charger_config cfg;
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    do_set_base_source(state, PTP_POWER_SOURCE_NONE);
 
-    state->output_current = NULL;
+    struct charger_config cfg;
 
     if (!state->battery.chg_allowed) {
         return device_ptp_chg_off(chg);
     } else {
-        cfg.input_current_limit = state->battery.input_current;
-        cfg.input_voltage_limit = CONFIG_GREYBUS_MODS_INPUT_VOLTAGE;
+        cfg.input_current_limit = state->commands.base.current;
+        cfg.input_voltage_limit = state->commands.base.voltage -
+                                  CONFIG_GREYBUS_MODS_INPUT_VOLTAGE_OFFSET;
         cfg.charge_current_limit = state->battery.charge_current;
         cfg.charge_voltage_limit = state->battery.charge_voltage;
         return device_ptp_chg_receive_base_pwr(chg, &cfg);
     }
+#else
+    /* Should never be here */
+    return -EINVAL;
+#endif
 }
 #endif
+
 /* Disable power transfer */
 static void do_off(struct device *chg, struct ptp_state *state)
 {
-    state->output_current = NULL;
+    do_set_base_source(state, PTP_POWER_SOURCE_NONE);
     device_ptp_chg_off(chg);
 }
 
@@ -212,7 +331,7 @@ static int mods_ptp_process(struct device *chg, struct ptp_state *state)
     case BASE_ATTACHED_OFF:
         return do_charge_base(chg, state);
     case BASE_ATTACHED:
-        switch (state->direction) {
+        switch (state->commands.direction) {
         case PTP_CURRENT_OFF:
             return do_charge_battery_with_external_power(chg, state);
         case PTP_CURRENT_TO_MOD:
@@ -232,11 +351,25 @@ static int mods_ptp_process(struct device *chg, struct ptp_state *state)
     }
 #else
     if (state->attached == BASE_ATTACHED_OFF ||
-        (state->attached == BASE_ATTACHED && state->direction == PTP_CURRENT_FROM_MOD))
+        (state->attached == BASE_ATTACHED && state->commands.direction == PTP_CURRENT_FROM_MOD))
       return do_charge_base(chg, state);
 
     do_off(chg, state);
     return 0;
+#endif
+}
+
+static void mods_ptp_reset_base_commands(struct mods_ptp_base_commands *commands)
+{
+
+    commands->direction = PTP_CURRENT_OFF;
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    /* Current cannot exceed the limit of the Mod VBUS connector */
+    commands->base.current = MIN(CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT, DEFAULT_BASE_CURRENT);
+    commands->base.voltage = DEFAULT_BASE_VOLTAGE;
+#endif
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
+    commands->max_output_voltage = DEFAULT_MAX_OUTPUT_VOLTAGE;
 #endif
 }
 
@@ -265,18 +398,12 @@ static int mods_ptp_attach_changed(FAR void *arg, const void *data)
     if (info->state.attached == state)
         goto attach_done;
 
-    /* Once attached, set current direction and maximum input current to
-       defaults. Once detached, reset boost fault flag */
-    if (state == BASE_ATTACHED) {
-        info->state.direction = PTP_CURRENT_OFF;
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
-        /* Current cannot exceed the limit of the Mod VBUS connector */
-        info->state.battery.input_current = MIN(CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT,
-                                                DEFAULT_BASE_INPUT_CURRENT);
-#endif
-    } else if (state == BASE_DETACHED) {
+    /* Set commands to defaults when attached, reset boost fault flag when
+       detached */
+    if (state == BASE_ATTACHED)
+        mods_ptp_reset_base_commands(&info->state.commands);
+    else if (state == BASE_DETACHED)
         info->state.boost_fault = false;
-    }
 
     if (state == BASE_ATTACHED_OFF && info->state.attached == BASE_ATTACHED)
         info->state.base_powered_off = true;
@@ -310,10 +437,10 @@ static int mods_ptp_set_current_flow(struct device *dev, uint8_t direction)
         goto current_flow_done;
     }
 
-    if (info->state.direction == direction)
+    if (info->state.commands.direction == direction)
         goto current_flow_done;
 
-    info->state.direction = direction;
+    info->state.commands.direction = direction;
     /*
      * Always report success to the base. If the direction cannot be set
      * now due to the conditions such as for example, battery level and/or temp,
@@ -326,13 +453,31 @@ current_flow_done:
     return retval;
 }
 
+static int mods_ptp_get_current_flow(struct device *dev, uint8_t *direction)
+{
+    struct ptp_info *info = device_get_private(dev);
+    int retval = 0;
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    *direction = info->state.commands.direction;
+
+    sem_post(&info->sem);
+    return retval;
+}
+
 static void mods_ptp_set_power_availability(struct ptp_info *info)
 {
+#if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
     enum ptp_power_available old_available = info->state.report.available;
 
     /* Check external power first since this is the preferred source */
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    if (info->state.ext_power) {
+    if (info->state.wired.current > 0 || info->state.wireless.current > 0) {
         info->state.report.available = PTP_POWER_AVAILABLE_EXT;
         goto done;
     }
@@ -345,33 +490,28 @@ static void mods_ptp_set_power_availability(struct ptp_info *info)
     }
 #endif
 
-   info->state.report.available = PTP_POWER_AVAILABLE_NONE;
-
-#if defined(CONFIG_GREYBUS_PTP_EXT_SUPPORTED) || !defined(CONFIG_GREYBUS_PTP_INT_SND_NEVER)
 done:
-#endif
     /* Notify the change */
     if (info->changed_cb && (info->state.report.available != old_available))
         info->changed_cb(POWER_AVAILABLE);
+#endif
 }
 
 static void mods_ptp_set_power_needs(struct ptp_info *info)
 {
-   enum ptp_power_required old_required = info->state.report.required;
-
 #ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    enum ptp_power_required old_required = info->state.report.required;
+
     info->state.report.required = info->state.battery.chg_allowed ?
                                   PTP_POWER_REQUIRED : PTP_POWER_NOT_REQUIRED;
-#else
-    info->state.report.required = PTP_POWER_NOT_REQUIRED;
-#endif
 
     /* Notify the change */
     if (info->changed_cb && (info->state.report.required != old_required))
         info->changed_cb(POWER_REQUIRED);
+#endif
 }
 
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
 static void mods_ptp_boost_fault(void *arg)
 {
     struct ptp_info *info = arg;
@@ -391,7 +531,8 @@ static void mods_ptp_boost_fault(void *arg)
 
     sem_post(&info->sem);
 }
-
+#endif
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
 static void mods_ptp_set_battery_state(const struct batt_state_s *batt,
                                        struct mods_ptp_battery *state)
 {
@@ -428,7 +569,7 @@ static void mods_ptp_battery_changed(void *arg,
     static bool init = true; /* first callback is to initialize */
     static struct batt_state_s current;
     struct ptp_info *info = arg;
-    bool chg_allowed, dischg_allowed;
+    bool chg_allowed, dischg_allowed, low_battery;
 
     if (init) {
         init = false;
@@ -445,13 +586,22 @@ static void mods_ptp_battery_changed(void *arg,
 
     if (current.temp == batt->temp &&
         current.level == batt->level &&
-        current.voltage == batt-> voltage)
+        current.voltage == batt->voltage)
         goto battery_done;
 
     current = *batt;
     chg_allowed = info->state.battery.chg_allowed;
     dischg_allowed = info->state.battery.dischg_allowed;
+    low_battery = info->state.battery.low_battery;
     mods_ptp_set_battery_state(batt, &info->state.battery);
+
+    if (!dischg_allowed || low_battery != info->state.battery.low_battery) {
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
+        /* Transition to off if transfering battery power and conditions changed */
+        if (info->state.report.source == PTP_POWER_SOURCE_BATTERY)
+            info->state.commands.direction = PTP_CURRENT_OFF;
+#endif
+    }
 
     if (chg_allowed != info->state.battery.chg_allowed)
         mods_ptp_set_power_needs(info);
@@ -480,26 +630,15 @@ static int mods_ptp_ext_power_present(struct device *dev, uint8_t *present)
     return 0;
 }
 
-static void mods_ptp_choose_ext_power_source(struct ptp_state *state)
-{
-    /* Choose source that provides max output current */
-    if (state->wired_current == 0 && state->wrls_current == 0)
-        state->ext_power = NULL;
-    else if (state->wired_current >= state->wrls_current)
-        state->ext_power = &state->wired_current;
-    else
-        state->ext_power = &state->wrls_current;
-}
-
 static void mods_ptp_set_ext_power_presence(struct ptp_info *info)
 {
     enum ptp_ext_power old_present = info->state.report.present;
 
-    if (info->state.wired_current > 0 && info->state.wrls_current > 0)
+    if (info->state.wired.current > 0 && info->state.wireless.current > 0)
         info->state.report.present = PTP_EXT_POWER_WIRED_WIRELESS_PRESENT;
-    else if (info->state.wired_current > 0)
+    else if (info->state.wired.current > 0)
         info->state.report.present = PTP_EXT_POWER_WIRED_PRESENT;
-    else if (info->state.wrls_current > 0)
+    else if (info->state.wireless.current > 0)
         info->state.report.present = PTP_EXT_POWER_WIRELESS_PRESENT;
     else
         info->state.report.present = PTP_EXT_POWER_NOT_PRESENT;
@@ -509,46 +648,71 @@ static void mods_ptp_set_ext_power_presence(struct ptp_info *info)
         info->changed_cb(POWER_PRESENT);
 }
 
-static bool mods_ptp_ext_power_source_changed(struct ptp_state *state)
+static void mods_ptp_get_ext_power_output(struct device *dev,
+                                          struct mods_ptp_chg_source *output)
 {
-    int *old_src, *new_src;
-    int old_limit, new_limit;
+    device_ext_power_output_s dev_output;
 
-    /* Have source and/or limit changed? */
-    old_src = state->ext_power;
-    old_limit = state->ext_power ? *state->ext_power : 0;
-
-    mods_ptp_choose_ext_power_source(state);
-
-    new_src = state->ext_power;
-    new_limit = state->ext_power ? *state->ext_power : 0;
-
-    return (new_src != old_src || new_limit != old_limit);
+    if (dev && !device_ext_power_get_output(dev, &dev_output)) {
+        output->voltage = dev_output.voltage;
+        output->current = dev_output.current;
+    } else {
+        output->current = output->voltage = 0;
+    }
 }
 
-static int mods_ptp_get_ext_power_current(struct device *dev)
+/* Get external power sources output current and voltage */
+static void mods_ptp_get_external_power_sources(struct ptp_state *state,
+                                                struct device *const dev[])
 {
-    int current;
+    mods_ptp_get_ext_power_output(dev[EXT_POWER_WIRED], &state->wired);
+    mods_ptp_get_ext_power_output(dev[EXT_POWER_WIRELESS], &state->wireless);
+}
 
-    if (dev && !device_ext_power_get_current(dev, &current))
-        return current;
-    else
-        return 0;
+/* Have current or voltage changed ? */
+static bool mods_ptp_ext_src_changed(const struct mods_ptp_chg_source *before,
+                                     const struct mods_ptp_chg_source *now)
+{
+    return (before->current != now->current || before->voltage != now->voltage);
+}
+
+/* Will Base have a new source or has the current source changed */
+static bool mods_ptp_base_source_changed(const struct ptp_state *state)
+{
+    const struct mods_ptp_chg_source *new_src;
+    int max_v;
+
+    if (state->report.source == PTP_POWER_SOURCE_NONE)
+        return false;
+
+    max_v = MIN(state->commands.max_output_voltage, state->pmic_max_input_voltage);
+    new_src = do_choose_ext_src(state, max_v);
+
+    switch(state->report.source) {
+    case PTP_POWER_SOURCE_BATTERY:
+        return new_src != NULL;
+    case PTP_POWER_SOURCE_WIRED:
+        return (new_src != &state->wired ||
+                mods_ptp_ext_src_changed(&state->report.to_base, &state->wired));
+    case PTP_POWER_SOURCE_WIRELESS:
+        return (new_src != &state->wireless ||
+                mods_ptp_ext_src_changed(&state->report.to_base, &state->wireless));
+    default:
+        /* Should never be here! */
+        return true;
+    }
 }
 
 static void mods_ptp_ext_power_changed(void *arg, struct device *const dev[])
 {
     static bool init = true; /* first callback is to initialize */
     struct ptp_info *info = arg;
-    int wired_current =  mods_ptp_get_ext_power_current(dev[EXT_POWER_WIRED]);
-    int wrls_current = mods_ptp_get_ext_power_current(dev[EXT_POWER_WIRELESS]);
+
+    mods_ptp_get_external_power_sources(&info->state, dev);
 
     if (init) {
         init = false;
-        info->state.wired_current = wired_current;
-        info->state.wrls_current = wrls_current;
         mods_ptp_set_ext_power_presence(info);
-        mods_ptp_choose_ext_power_source(&info->state);
         return;
     }
 
@@ -558,22 +722,15 @@ static void mods_ptp_ext_power_changed(void *arg, struct device *const dev[])
         }
     }
 
-    if (info->state.wired_current == wired_current && info->state.wrls_current == wrls_current)
-        goto done;
-
-    info->state.wired_current = wired_current;
-    info->state.wrls_current = wrls_current;
-
     mods_ptp_set_ext_power_presence(info);
-
-    if (!mods_ptp_ext_power_source_changed(&info->state))
-        goto done;
-
     mods_ptp_set_power_availability(info);
+
+    /* Transition to off if charging Base and the source has changed */
+    if (mods_ptp_base_source_changed(&info->state))
+        info->state.commands.direction = PTP_CURRENT_OFF;
 
     mods_ptp_process(info->chg_dev, &info->state);
 
-done:
     sem_post(&info->sem);
 }
 #endif
@@ -589,12 +746,54 @@ static int mods_ptp_get_max_output_current(struct device *dev, uint32_t *current
         }
     }
 
-    /* Current cannot exceed the limit of the Mod VBUS connector */
-    *current = MIN(CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT,
-                (info->state.output_current ? *info->state.output_current : 0));
+    *current = info->state.report.to_base.current * 1000; /* mA to uA */
 
-    /* Convert mA to uA */
-    *current *= 1000;
+    sem_post(&info->sem);
+    return 0;
+}
+
+int mods_ptp_set_max_output_voltage(struct device *dev, uint32_t voltage)
+{
+   struct ptp_info *info = device_get_private(dev);
+   int retval = 0;
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    /* Handset cannot send any requests unless it is attached */
+    if (info->state.attached != BASE_ATTACHED) {
+        dbg("received input current request while not attached\n");
+        retval = -EPERM;
+        goto output_voltage_done;
+    }
+
+    voltage /= 1000; /* uV to mV */
+
+    if (info->state.commands.max_output_voltage == voltage)
+        goto output_voltage_done;
+
+    info->state.commands.max_output_voltage = voltage;
+    (void) mods_ptp_process(info->chg_dev, &info->state);
+
+output_voltage_done:
+    sem_post(&info->sem);
+    return retval;
+}
+
+int mods_ptp_get_output_voltage(struct device *dev, uint32_t *voltage)
+{
+   struct ptp_info *info = device_get_private(dev);
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+   *voltage = info->state.report.to_base.voltage * 1000; /* mV to uV */
 
     sem_post(&info->sem);
     return 0;
@@ -626,26 +825,8 @@ static int mods_ptp_power_source(struct device *dev, uint8_t *source)
         }
     }
 
-#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    if (info->state.output_current == &info->state.wired_current) {
-        *source = PTP_POWER_SOURCE_WIRED;
-        goto done;
-    } else if (info->state.output_current == &info->state.wrls_current) {
-         *source = PTP_POWER_SOURCE_WIRELESS;
-        goto done;
-    }
-#endif
+   *source = info->state.report.source;
 
-#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
-    if(info->state.output_current == &info->state.batt_current) {
-        *source = PTP_POWER_SOURCE_BATTERY;
-        goto done;
-    }
-#endif
-
-   *source = PTP_POWER_SOURCE_NONE;
-
-done:
     sem_post(&info->sem);
     return 0;
 }
@@ -672,10 +853,10 @@ static int mods_ptp_set_max_input_current(struct device *dev, uint32_t current)
 
     /* Current cannot exceed the limit of the Mod VBUS connector */
     current = MIN(CONFIG_GREYBUS_MODS_MAX_VBUS_CURRENT, current / 1000 /*uA to mA*/);
-    if (info->state.battery.input_current == current)
+    if (info->state.commands.base.current == current)
         goto input_current_done;
 
-    info->state.battery.input_current = current;
+    info->state.commands.base.current = current;
     /*
      * Always report success to the base. If the limit cannot be set
      * now due to the conditions such as for example, battery level and/or temp,
@@ -684,6 +865,50 @@ static int mods_ptp_set_max_input_current(struct device *dev, uint32_t current)
     (void) mods_ptp_process(info->chg_dev, &info->state);
 
 input_current_done:
+    sem_post(&info->sem);
+    return retval;
+}
+
+static int mods_ptp_get_max_input_voltage(struct device *dev, uint32_t *voltage)
+{
+    struct ptp_info *info = device_get_private(dev);
+
+    *voltage = info->state.report.max_input_voltage * 1000; /* mV to uV */
+    return 0;
+}
+
+int mods_ptp_set_input_voltage(struct device *dev, uint32_t voltage)
+{
+    struct ptp_info *info = device_get_private(dev);
+    int retval = 0;
+
+    while (sem_wait(&info->sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    /* Handset cannot send any requests unless it is attached */
+    if (info->state.attached != BASE_ATTACHED) {
+        dbg("received input voltage request while not attached\n");
+        retval = -EPERM;
+        goto input_voltage_done;
+    }
+
+    voltage /= 1000; /* uV to mV */
+
+    if (info->state.commands.base.voltage == voltage)
+        goto input_voltage_done;
+
+    info->state.commands.base.voltage = voltage;
+    /*
+     * Always report success to the base. If the limit cannot be set
+     * now due to the conditions such as for example, battery level and/or temp,
+     * the limit will be set once the conditions allow it.
+     */
+    (void) mods_ptp_process(info->chg_dev, &info->state);
+
+input_voltage_done:
     sem_post(&info->sem);
     return retval;
 }
@@ -754,13 +979,8 @@ static int mods_ptp_open(struct device *dev)
         return retval;
     }
 
-    /* Current direction is off until base sends direction request */
-    info->state.direction = PTP_CURRENT_OFF;
-
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
-    /* Input current is default until base changes it */
-    info->state.battery.input_current = DEFAULT_BASE_INPUT_CURRENT;
-#endif
+    /* Set defaults */
+    mods_ptp_reset_base_commands(&info->state.commands);
 
     info->chg_dev = device_open(DEVICE_TYPE_PTP_CHG_HW, 0);
     if (!info->chg_dev) {
@@ -770,11 +990,21 @@ static int mods_ptp_open(struct device *dev)
     }
 
     info->state.boost_fault = false;
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
     retval = device_ptp_chg_register_boost_fault_cb(info->chg_dev, mods_ptp_boost_fault, info);
     if (retval)
         dbg("boost fault detection not supported\n");
 #endif
+
+    retval = device_ptp_chg_max_input_voltage(info->chg_dev, &info->state.pmic_max_input_voltage);
+    if (retval)
+        info->state.pmic_max_input_voltage = DEFAULT_PMIC_MAX_INPUT_VOLTAGE;
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    /* Must be less than connector and the charger IC voltage */
+    info->state.report.max_input_voltage =
+        MIN(info->state.pmic_max_input_voltage, CONFIG_GREYBUS_MODS_MAX_VBUS_VOLTAGE);
+#endif
+
 
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     retval = ext_power_register_callback(mods_ptp_ext_power_changed, info);
@@ -783,6 +1013,7 @@ static int mods_ptp_open(struct device *dev)
         goto ext_err;
     }
 #endif
+
 #ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     retval = battery_state_register(mods_ptp_battery_changed, info);
     if (retval) {
@@ -819,16 +1050,21 @@ chg_err:
 
 static struct device_ptp_type_ops mods_ptp_type_ops = {
     .set_current_flow = mods_ptp_set_current_flow,
+    .get_current_flow = mods_ptp_get_current_flow,
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     .ext_power_present = mods_ptp_ext_power_present,
 #endif
 #if !defined (CONFIG_GREYBUS_PTP_INT_SND_NEVER) || defined (CONFIG_GREYBUS_PTP_EXT_SUPPORTED)
     .get_max_output_current = mods_ptp_get_max_output_current,
+    .set_max_output_voltage = mods_ptp_set_max_output_voltage,
+    .get_output_voltage = mods_ptp_get_output_voltage,
     .power_available = mods_ptp_power_available,
     .power_source = mods_ptp_power_source,
 #endif
 #ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
     .set_max_input_current = mods_ptp_set_max_input_current,
+    .get_max_input_voltage = mods_ptp_get_max_input_voltage,
+    .set_input_voltage = mods_ptp_set_input_voltage,
     .power_required = mods_ptp_power_required,
 #endif
     .register_callback = mods_ptp_register_callback,
