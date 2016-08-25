@@ -112,16 +112,21 @@ config GREYBUS_MODS_LOW_BATTERY_OUTPUT_CURRENT
 
 endif
 
-config GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
-	bool "PTP charger driver controlling power path through switches"
-	default n
-	depends on GREYBUS_MODS_PTP_DEVICE && GPIO
-
 config GREYBUS_MODS_MAX_VBUS_CURRENT
 	depends on GREYBUS_MODS_PTP_DEVICE
 	depends on (!GREYBUS_PTP_INT_SND_NEVER || !GREYBUS_PTP_INT_RCV_NEVER || GREYBUS_PTP_EXT_SUPPORTED)
 	int "Maximum current through Mod VBUS connector in mA"
 	default 3000
+
+config GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
+	bool "PTP charger driver controlling power path through switches"
+	default n
+	depends on GREYBUS_MODS_PTP_DEVICE && GPIO
+
+config GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH_MAX_INPUT_VOLTAGE
+	depends on GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH && !GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+	int "Maximum voltage Mod with no battery can accept in mV"
+	default 5000
 
 if DEBUG
 config GREYBUS_SELF_DESTRUCT

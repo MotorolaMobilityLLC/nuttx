@@ -173,7 +173,7 @@ static inline void base_path(const struct switch_ptp_chg_info *info, bool state)
 }
 #endif
 
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
 static int switch_ptp_chg_send_batt_pwr(struct device *dev, int *current)
 {
     int retval;
@@ -191,6 +191,16 @@ static int switch_ptp_chg_send_batt_pwr(struct device *dev, int *current)
     return 0;
 }
 
+static int switch_ptp_chg_register_boost_fault_cb(struct device *dev,
+                                            charger_boost_fault cb, void *arg)
+{
+    struct switch_ptp_chg_info *info = device_get_private(dev);
+
+    return device_charger_register_boost_fault_cb(info->chg_dev, cb, arg);
+}
+#endif
+
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
 static int switch_ptp_chg_receive_base_pwr(struct device *dev,
                                            const struct charger_config *cfg)
 {
@@ -209,6 +219,18 @@ static int switch_ptp_chg_receive_base_pwr(struct device *dev,
     return 0;
 }
 #endif
+
+static int switch_ptp_chg_max_input_voltage(struct device *dev, int *voltage)
+{
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+    struct switch_ptp_chg_info *info = device_get_private(dev);
+
+    return device_charger_max_input_voltage(info->chg_dev, voltage);
+#else
+    *voltage = CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH_MAX_INPUT_VOLTAGE;
+    return 0;
+#endif
+}
 
 static int switch_ptp_chg_off(struct device *dev)
 {
@@ -239,16 +261,6 @@ static int switch_ptp_chg_off(struct device *dev)
 
     return retval;
 }
-
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
-static int switch_ptp_chg_register_boost_fault_cb(struct device *dev,
-                                            charger_boost_fault cb, void *arg)
-{
-    struct switch_ptp_chg_info *info = device_get_private(dev);
-
-    return device_charger_register_boost_fault_cb(info->chg_dev, cb, arg);
-}
-#endif
 
 static int switch_ptp_chg_probe(struct device *dev)
 {
@@ -358,17 +370,20 @@ static struct device_ptp_chg_type_ops switch_ptp_chg_type_ops = {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     .send_wireless_pwr = switch_ptp_chg_send_wireless_pwr,
     .send_wired_pwr = switch_ptp_chg_send_wired_pwr,
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+  #ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
     .receive_wireless_pwr = switch_ptp_chg_receive_wireless_pwr,
     .receive_wired_pwr = switch_ptp_chg_receive_wired_pwr,
+  #endif
 #endif
-#endif
-    .off = switch_ptp_chg_off,
-#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+#ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
     .send_batt_pwr = switch_ptp_chg_send_batt_pwr,
-    .receive_base_pwr = switch_ptp_chg_receive_base_pwr,
     .register_boost_fault_cb = switch_ptp_chg_register_boost_fault_cb,
 #endif
+#ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
+    .receive_base_pwr = switch_ptp_chg_receive_base_pwr,
+#endif
+    .max_input_voltage = switch_ptp_chg_max_input_voltage,
+    .off = switch_ptp_chg_off,
 };
 
 static struct device_driver_ops driver_ops = {
