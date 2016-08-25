@@ -51,6 +51,7 @@ struct device_charger_type_ops {
     int (*receive)(struct device *dev, const struct charger_config *cfg);
     int (*off)(struct device *dev);
     int (*register_boost_fault_cb)(struct device *dev, charger_boost_fault cb, void *arg);
+    int (*max_input_voltage)(struct device *dev, int *voltage);
 };
 
 static inline int device_charger_send(struct device *dev, int *current)
@@ -112,5 +113,20 @@ static inline int device_charger_register_boost_fault_cb(struct device *dev,
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, charger)->register_boost_fault_cb(dev, cb, arg);
+}
+
+static inline int device_charger_max_input_voltage(struct device *dev, int *voltage)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, charger)->max_input_voltage) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, charger)->max_input_voltage(dev, voltage);
 }
 #endif
