@@ -40,4 +40,7 @@ config CAMERA_IMX230
 config CAMERA_OV5647_PI
 	bool "OV5674 Raspberry Pi module"
 	default n
+config CAMERA_IMX219_PI
+	bool "IMX219 Raspberry Pi module (v2)"
+	default n
 endif
