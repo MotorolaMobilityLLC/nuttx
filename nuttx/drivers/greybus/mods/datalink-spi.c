@@ -479,7 +479,7 @@ static void xfer(FAR struct mods_spi_dl_s *priv)
 
 static void reset_txc_rb_entry(FAR struct mods_spi_dl_s *priv)
 {
-  if (priv->txp_rb == priv->txc_rb)
+  if ((priv->txp_rb == priv->txc_rb) && ring_buf_is_producers(priv->txp_rb))
     {
       vdbg("skip\n");
       return;
