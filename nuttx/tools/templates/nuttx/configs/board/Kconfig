@@ -1,0 +1,83 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+if ARCH_BOARD_{{ board|upper|replace("-", "_") }}
+
+config PM_IDLEENTER_COUNT
+	int "Number of IDLE time slices to enter IDLE mode from NORMAL"
+	default 10
+	depends on PM
+
+config PM_STANDBYENTER_COUNT
+	int "Number of IDLE time slices to enter STANDBY mode from IDLE"
+	default 5
+	depends on PM
+
+{% if config_speaker is defined and config_speaker %}
+config MODS_AUDIO_TFA9890
+	bool "Audio TFA9890 Speaker"
+	default n
+	depends on GREYBUS_MODS_AUDIO && GREYBUS_MODS_AUDIO_CUSTOM
+	depends on GREYBUS_MODS_I2S_PHY
+	select DEVICE_CORE
+	select I2C
+	select I2C_TRANSFER
+	select I2C_WRITEREAD
+	---help---
+		Enable Audio TFA9890 Speaker Support
+
+config MODS_MHB_AUDIO_TFA9890
+	bool "Audio TFA9890 Speaker Over MHB"
+	default n
+	depends on MHB_I2S_AUDIO
+	depends on GREYBUS_MODS_AUDIO && GREYBUS_MODS_AUDIO_CUSTOM
+	depends on GREYBUS_MODS_I2S_PHY
+	select DEVICE_CORE
+	select I2C
+	select I2C_TRANSFER
+	select I2C_WRITEREAD
+	---help---
+		Enable Audio TFA9890 Speaker Support
+
+config MODS_TFA9890_I2C_BUS
+	int "TFA9890 I2C Bus Number"
+	default 1
+	depends on MODS_AUDIO_TFA9890 || MODS_MHB_AUDIO_TFA9890
+	---help---
+		I2C bus to use to communicate with device (default 1).
+
+if MODS_AUDIO_TFA9890 || MODS_MHB_AUDIO_TFA9890
+choice
+	prompt "Select a tfa9890 config mono or stereo"
+config MODS_AUDIO_TFA9890_STEREO
+	bool "STEREO"
+config MODS_AUDIO_TFA9890_MONO
+	bool "MONO"
+endchoice
+endif
+
+config MODS_TFA9890_LEFT_I2C_ADDR
+	int "TFA9890 LEFT I2C ADDR"
+	default 52
+	depends on MODS_AUDIO_TFA9890_STEREO
+	---help---
+		I2C addr to use to communicate with device (default 52).
+
+config MODS_TFA9890_RIGHT_I2C_ADDR
+	int "TFA9890 RIGHT I2C ADDR"
+	default 53
+	depends on MODS_AUDIO_TFA9890_STEREO
+	---help---
+		I2C addr to use to communicate with device (default 53).
+
+config MODS_TFA9890_MONO_I2C_ADDR
+	int "TFA9890 MONO I2C ADDR"
+	default 52
+	depends on MODS_AUDIO_TFA9890_MONO
+	---help---
+		I2C addr to use to communicate with device (default 52).
+
+{% endif %}
+endif

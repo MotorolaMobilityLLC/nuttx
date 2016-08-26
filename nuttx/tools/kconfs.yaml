@@ -1,0 +1,256 @@
+base:
+  dependencies:
+
+  files:
+    - nuttx/configs/$board/Kconfig
+    - nuttx/configs/$board/scripts/ld.script
+    - nuttx/configs/$board/include/board.h
+    - nuttx/configs/$board/include/mods.h
+    - nuttx/configs/$board/src/$board.h
+    - nuttx/configs/$board/src/Makefile
+    - nuttx/configs/$board/src/stm32_boot.c
+    - nuttx/configs/$board/src/stm32_mods.c
+    - nuttx/configs/$board/src/stm32_idle.c
+    - nuttx/configs/$board/src/stm32_spi.c
+    - nuttx/configs/$board/src/stm32_sysclk.c
+    - nuttx/configs/$board/src/stm32_pm.c
+    - nuttx/configs/$board/src/stm32_watchdog.c
+    - nuttx/configs/$board/src/stm32_idle.c
+    - nuttx/configs/$board/$target/Make.defs
+    - nuttx/configs/$board/$target/setenv.sh
+    - nuttx/configs/$board/$target/defconfig
+    - apps/greybus-utils/manifests/$board-$target.mnfs
+
+  configs:
+    PM_IDLEENTER_COUNT: 10
+    ARCH_BUTTONS: y
+    ARCH_IRQBUTTONS: y
+    MANIFEST: $board-$target
+
+battery:
+  dependencies:
+    - base
+
+  files:
+    - nuttx/configs/$board/src/stm32_battery.c
+    - nuttx/configs/$board/src/stm32_battery_indicator.c
+    - nuttx/configs/$board/src/stm32_buttons.c
+    - nuttx/configs/$board/src/stm32_thermistor.c
+    - nuttx/configs/$board/src/stm32_battery_good.c
+
+  configs:
+    STM32_COMP: y
+    STM32_I2C3: y
+    STM32_I2C_DYNTIMEO: y
+    STM32_I2C_DYNTIMEO_STARTSTOP: 500
+    POWER: y
+    BATTERY: y
+    BATTERY_STATE: y
+    BATTERY_TEMP: y
+    BATTERY_LEVEL: y
+    BATTERY_LEVEL_FULL_HYST: 1
+    BATTERY_LEVEL_DEVICE_MAX17050_MAX_ITERM: 16
+    BATTERY_GOOD_DEVICE_COMP: y
+    BATTERY_MAX17050: y
+    BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP: y
+    CHARGER_BQ25896: y
+    CHARGER_BQ25896_I2C_BUS: 3
+    CHARGER_DEVICE_BQ25896: y
+    GREYBUS_BATTERY: y
+    EXAMPLES_BQ25896: y
+    GREYBUS_PTP: y
+    GREYBUS_PTP_INT_RCV_SECOND: y
+    GREYBUS_PTP_INT_SND_SUPPLEMENTAL: y
+    GREYBUS_MODS_PTP_DEVICE: y
+    GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY: y
+    GREYBUS_MODS_QUICK_CHG_CURRENT: 300
+    GREYBUS_MODS_FULL_CHG_VOLTAGE: 4350
+    GREYBUS_MODS_REDUCED_CHG_CURRENT: 300
+    GREYBUS_MODS_REDUCED_CHG_VOLTAGE: 4200
+    GREYBUS_MODS_SLOW_CHG_CURRENT: 300
+    GREYBUS_MODS_FULL_CHG_VOLTAGE: 4350
+    GREYBUS_MODS_FULL_CHG_VOLTAGE: 4350
+    GREYBUS_MODS_NORMAL_BATTERY_OUTPUT_CURRENT: 500
+    GREYBUS_MODS_LOW_BATTERY_OUTPUT_CURRENT: 300
+    GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH: y
+
+camera:
+  dependencies:
+    - base
+
+  files:
+
+  configs:
+    LIBM: y
+    LIBC_FLOATINGPOINT: y
+    STM32_I2C3: y
+    STM32_I2C_DYNTIMEO: y
+    STM32_I2C_DYNTIMEO_USECPERBYTE: 500
+    STM32_I2C_DYNTIMEO_STARTSTOP: 500
+    I2C: y
+    I2C_TRANSFER: y
+    I2C_WRITEREAD: y
+    STM32_UART_DEVICE: y
+    STM32_USART1: y
+    USART1_ISUART: y
+    USART1_IFLOWCONTROL: y
+    USART1_OFLOWCONTROL: y
+    MHB: y
+    MHB_APBE_CTRL_DEVICE: y
+    MHB_UART: y
+    MHB_UART_BAUD: 115200
+    MHB_UART_RXBUFSIZE: 2048
+    MHB_UART_TXBUFSIZE: 2048
+    MHB_UART_FLOWCONTROL: y
+    MHB_UART_WAIT_FOR_SYNC: y
+    MHB_CAMERA: y
+    GREYBUS_CAMERA_EXT: y
+    CAMERA_OV5647_PI: y
+    MHB_CAMERA_I2C_BUS_ID: 3
+    MHB_CAMERA_I2C_RETRY: 5
+    MHB_CAMERA_I2C_RETRY_DELAY_US: 1000
+    MHB_CAMERA_OFF_DELAY_MS: 100
+    MODS_MHB_CLIENT: y
+    MODS_MHB_CLIENT_PROGNAME: apbe
+
+display:
+  dependencies:
+    - base
+
+  files:
+    - nuttx/configs/$board/include/stm32_lptim1.h
+    - nuttx/configs/$board/src/stm32_lptim1.c
+
+  configs:
+    STM32_I2C3: y
+    STM32_I2C_DYNTIMEO: y
+    STM32_I2C_DYNTIMEO_USECPERBYTE: 500
+    STM32_I2C_DYNTIMEO_STARTSTOP: 500
+    STM32_USART1: y
+    STM32_LPTIM1: y
+    STM32_UART_DEVICE: y
+    I2C: y
+    I2C_TRANSFER: y
+    I2C_WRITEREAD: y
+    USART1_RXBUFSIZE: 128
+    USART1_TXBUFSIZE: 128
+    USART1_BAUD: 115200
+    USART1_BITS: 8
+    USART1_PARITY: 0
+    USART1_2STOP: 0
+    USART1_IFLOWCONTROL: y
+    USART1_OFLOWCONTROL: y
+    MHB: y
+    MHB_APBE_CTRL_DEVICE: y
+    MHB_UART: y
+    MHB_UART_BAUD: 115200
+    MHB_UART_RXBUFSIZE: 2048
+    MHB_UART_TXBUFSIZE: 2048
+    MHB_UART_FLOWCONTROL: y
+    MHB_UART_WAIT_FOR_SYNC: y
+    MHB_DSI_DISPLAY: y
+    DISPLAY: y
+    DISPLAY_NT35355_360P: y
+    BACKLIGHT: y
+    BACKLIGHT_LM27965: y
+    BACKLIGHT_LM27965_I2C_BUS: 3
+    BACKLIGHT_LM27965_I2C_ADDR: 0x36
+    ARA_DEV_INFO: n
+    GREYBUS_MODS_DISPLAY: y
+    GREYBUS_LIGHTS: y
+
+raw:
+  dependencies:
+    - base
+
+  files:
+    - nuttx/configs/$board/src/stm32_modsraw.c
+
+  configs:
+    DEVICE_CORE: y
+    ARA_DEV_INFO: y
+    MODS_RAW: y
+    GREYBUS_RAW: y
+
+speaker:
+  dependencies:
+    - base
+
+  files:
+    - nuttx/configs/$board/src/stm32_audio_tfa9890.c
+    - nuttx/configs/$board/src/tfa9890.c
+    - nuttx/configs/$board/include/tfa9890_firmware.h
+    - nuttx/configs/$board/include/tfa9890_registers.h
+
+  configs:
+    STM32_I2C3: y
+    STM32_I2C_DYNTIMEO: y
+    STM32_I2C_DYNTIMEO_STARTSTOP: 500
+    I2C: y
+    I2C_WRITEREAD: y
+    I2C_TRANSFER: y
+    MODS_TFA9890_I2C_BUS: 3
+    MODS_AUDIO_TFA9890_MONO: y
+    MODS_TFA9890_MONO_I2C_ADDR: 52
+    MODS_AUDIO_TFA9890: y
+    MAX_TASKS: 32
+    GREYBUS_MODS_I2S_PHY: y
+    GREYBUS_MODS_AUDIO: y
+    GREYBUS_MODS_AUDIO_CUSTOM: y
+
+usb_charging:
+  dependencies:
+    - base
+
+  files:
+
+  configs:
+    STM32_COMP: y
+    STM32_I2C3: y
+    STM32_I2C_DYNTIMEO: y
+    STM32_I2C_DYNTIMEO_STARTSTOP: 500
+    I2C: y
+    I2C_WRITEREAD: y
+    POWER: y
+    EXT_POWER: y
+    GREYBUS_PTP_EXT_SUPPORTED: y
+    FUSB302: y
+    FUSB302_EXT_POWER: y
+    FUSB302_I2C_BUS: 3
+    FUSB302_I2C_BUS_SPEED: 400000
+    GREYBUS_PTP: y
+    GREYBUS_PTP_EXT_SUPPORTED: y
+    GREYBUS_MODS_PTP_DEVICE: y
+    GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH: y
+
+usb_data:
+  dependencies:
+    - base
+
+  files:
+
+  configs:
+    STM32_COMP: y
+    STM32_I2C3: y
+    STM32_I2C_DYNTIMEO: y
+    STM32_I2C_DYNTIMEO_STARTSTOP: 500
+    I2C: y
+    I2C_WRITEREAD: y
+    FUSB302: y
+    FUSB302_USB_EXT: y
+    FUSB302_I2C_BUS: 3
+    FUSB302_I2C_BUS_SPEED: 400000
+    GREYBUS_USB_EXT: y
+    ARA_DEV_INFO: y
+
+vendor:
+  dependencies:
+    - base
+
+  files:
+
+  configs:
+    DEVICE_CORE: y
+    ARA_DEV_INFO: y
+    GREYBUS_VENDOR: y
+    GREYBUS_VENDOR_MOTO: y

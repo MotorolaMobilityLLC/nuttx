@@ -1,0 +1,142 @@
+;
+; {{ board | upper }}_{{ target | upper }} Manifest
+;
+
+[manifest-header]
+version-major = 0
+version-minor = 1
+
+[interface-descriptor]
+vendor-string-id = 1
+product-string-id = 2
+
+; Interface vendor string (id can't be 0)
+[string-descriptor 1]
+string = Motorola Mobility, LLC
+
+; Interface product string (id can't be 0)
+[string-descriptor 2]
+string = {{ board | upper }} {{ target | upper }}
+
+{%- set cport = 0 %}
+{%- set bundle = 0 %}
+
+; Control protocol on CPort {{ cport }}
+[cport-descriptor {{ cport }}]
+bundle = {{ bundle }}
+protocol = 0x00
+
+; Control protocol Bundle {{ bundle }}
+[bundle-descriptor {{ bundle }}]
+class = 0
+
+{%- if config_raw is defined and config_raw %}
+{%- set cport = cport + 1 %}
+{%- set bundle = bundle + 1 %}
+
+; RAW protocol on CPort {{ cport }}
+[cport-descriptor {{ cport }}]
+bundle = {{bundle}}
+protocol = 0xfe
+
+; RAW Bundle {{ bundle }}
+[bundle-descriptor {{ bundle }}]
+class = 0xfe
+{% endif %}
+
+{%- if config_battery is defined and config_battery %}
+{%- set cport = cport + 1 %}
+{%- set bundle = bundle + 1 %}
+
+; Battery on CPort {{ cport }}
+[cport-descriptor {{ cport }}]
+bundle = {{ bundle }}
+protocol = 0x08
+
+{%- set cport = cport + 1 %}
+; PTP on CPort {{ cport }}
+[cport-descriptor {{ cport }}]
+bundle = {{ bundle }}
+protocol = 0xef
+
+; Power related Bundle {{ bundle }}
+[bundle-descriptor {{ bundle }}]
+class = 0x08
+{% else %}
+{%- if config_usb_charging is defined and config_usb_charging %}
+{%- set cport = cport + 1 %}
+{%- set bundle = bundle + 1 %}
+; PTP on CPort {{ cport }}
+[cport-descriptor {{ cport }}]
+bundle = {{ bundle }}
+protocol = 0xef
+
+; Power related Bundle {{ bundle }}
+[bundle-descriptor {{ bundle }}]
+class = 0xef
+{% endif %}
+{% endif %}
+
+{%- if config_usb_data is defined and config_usb_data %}
+{%- set cport = cport + 1 %}
+{%- set bundle = bundle + 1 %}
+; USB-EXT on {{ cport }}
+[cport-descriptor {{ cport }}]
+bundle = {{bundle}}
+protocol = 0xec
+
+; USB related Bundle {{ bundle }}
+[bundle-descriptor {{ bundle }}]
+class = 0xec
+{% endif %}
+
+{% if config_speaker is defined and config_speaker %}
+{%- set cport = cport + 1 %}
+{%- set bundle = bundle + 1 %}
+; I2S MGMT on CPort {{ cport }}]
+[cport-descriptor {{ cport }}]
+bundle = {{bundle}}
+protocol = 0x0a
+
+{%- set cport = cport + 1 %}
+; Mods audio on CPort {{ cport }}]
+[cport-descriptor {{ cport }}]
+bundle = {{bundle}}
+protocol = 0xf0
+
+; Audio related Bundle {{ bundle }}]
+[bundle-descriptor {{ bundle }}]
+class = 0x0a
+{% endif %}
+
+{% if config_display is defined and config_display %}
+{%- set cport = cport + 1 %}
+{%- set bundle = bundle + 1 %}
+; Display on CPort {{ cport }}]
+[cport-descriptor {{ cport }}]
+bundle = {{ bundle }}
+protocol = 0xee
+
+{%- set cport = cport + 1 %}
+; Lights on CPort {{ cport }}]
+[cport-descriptor {{ cport }}]
+bundle = 2
+protocol = 0x0f
+
+; Display related Bundle {{ bundle }}
+[bundle-descriptor {{ bundle }}]
+class = 0x0c
+{% endif %}
+
+{%- if config_vendor is defined and config_vendor %}
+{%- set cport = cport + 1 %}
+{%- set bundle = bundle + 1 %}
+; Motorola specific on {{ cport }}
+[cport-descriptor {{ cport }}]
+bundle = {{bundle}}
+protocol = 0xff
+
+; Debug related Bundle {{ bundle }}
+[bundle-descriptor {{ bundle }}]
+class = 0xff
+{% endif %}
