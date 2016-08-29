@@ -34,7 +34,7 @@
 #include <nuttx/lib.h>
 #include <nuttx/util.h>
 #include <nuttx/kmalloc.h>
-#include <nuttx/wqueue.h>
+#include <nuttx/pthread.h>
 #include <nuttx/device.h>
 #include <nuttx/device_sensors_ext.h>
 #include <nuttx/greybus/debug.h>
@@ -46,7 +46,7 @@
 
 #define PRESSURE_DEVICE_NAME  "Barometer"
 #define PRESSURE_VENDOR_NAME  "Moto"
-#define PRESSURE_VERSION      2
+#define PRESSURE_VERSION      3
 #define PRESSURE_SAMPLE_RATE  100
 #define PRESSURE_SCALE_INT    1
 #define PRESSURE_SCALE_NANO   3
@@ -54,7 +54,7 @@
 #define PRESSURE_OFFSET_NANO   4
 #define PRESSURE_CHANNEL_SIZE  1
 #define PRESSURE_MAX_RANGE     1024 * 16
-#define PRESSURE_MIN_DELAY     1000
+#define PRESSURE_MIN_DELAY     20000
 #define PRESSURE_MAX_DELAY     1000000
 #define PRESSURE_FIFO_REC     0
 #define PRESSURE_FIFO_MEC     0
@@ -65,16 +65,16 @@ struct sensor_pressure_info {
     struct device *dev;
     uint32_t flags;
     sensors_ext_event_callback callback;
-    struct work_s data_report_work;
     uint8_t sensor_id;
     uint64_t max_report_latency;
+    int latency_ms;
+    pthread_t tx_thread;
+    pthread_mutex_t run_mutex;
+    bool should_run;
 };
 
-static int data = 1000;
-static atomic_t txn;       /* Flag to indicate reporting in progress */
-
 /*
- * event fields for accelerometer in bytes
+ * event fields for pressure sensor in bytes
  * [ time_delta (2) | data_value x (4) | data_value y (4) |data_value z (4) ]
 */
 struct sensor_event_data {
@@ -89,7 +89,12 @@ struct sensor_event_data {
 #else
 #define PRESSURE_READING_NUM 1
 #endif
-static void pressure_data_report_worker(void *arg)
+#define TX_PROCESSING_DELAY     1 /* processing and tx delay (mS)*/
+
+static int data = 1000;
+static atomic_t txn;       /* Flag to indicate reporting in progress */
+
+static void *sensor_tx_thread(void *arg)
 {
     struct sensor_pressure_info *info;
     struct report_info *rinfo;
@@ -100,7 +105,6 @@ static void pressure_data_report_worker(void *arg)
     uint16_t readings_count = PRESSURE_READING_NUM;
 
     info = arg;
-
 #ifdef BATCH_PROCESS_ENABLED
     if (info->max_report_latency > 0) {
         readings_count = PRESSURE_READING_NUM;
@@ -111,59 +115,60 @@ static void pressure_data_report_worker(void *arg)
     payload_size = (readings_count * sizeof(struct sensor_event_data))
                     + (REPORTING_SENSORS * sizeof(struct report_info));
 
-    if (info->callback) {
-        rinfo_data = malloc(sizeof(struct report_info) + payload_size);
-        if (!rinfo_data)
-            goto out;
+    rinfo_data = malloc(sizeof(struct report_info_data) + payload_size);
+    if (!rinfo_data)
+        return (void *)-ENOMEM;
 
-        rinfo_data->num_sensors_reporting = REPORTING_SENSORS;
-        rinfo = rinfo_data->reportinfo;
-        rinfo->id = info->sensor_id;
-        rinfo->flags = 0;
-        event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
-        up_rtc_gettime(&ts);
-        rinfo->reference_time = timespec_to_nsec(&ts);
-        rinfo->readings = readings_count;
-        gb_debug("[%u.%03u]\n", ts.tv_sec, (ts.tv_nsec / 1000000));
+    while(1) {
+        memset(rinfo_data, 0, sizeof(struct report_info_data) + payload_size);
+
+        if (info->callback) {
+            rinfo_data->num_sensors_reporting = REPORTING_SENSORS;
+            rinfo = rinfo_data->reportinfo;
+            rinfo->id = info->sensor_id;
+            rinfo->flags = 0;
+            event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
+
+            up_rtc_gettime(&ts);
+            rinfo->reference_time = timespec_to_nsec(&ts);
+            rinfo->readings = readings_count;
 #ifdef BATCH_PROCESS_ENABLED
-        /*
-         * Batch sensor data values and its time_deltas
-         * until max fifo event count
-        */
-        if (info->max_report_latency > 0) {
-            /* Multiple sensor event data */
-            event_data->time_delta = 0;
-            event_data->data_value[0] = data++;
+            /*
+             * Batch sensor data values and its time_deltas
+             * until max fifo event count
+            */
+            if (info->max_report_latency > 0) {
+                /* Multiple sensor event data */
+                event_data->time_delta = 0;
+                event_data->data_value[0] = data++;
 
-            event_data++;
-            event_data->time_delta = 2000;
-            event_data->data_value[0] = data++;
-        } else {
-            /* Single sensor event data */
-            event_data->time_delta = 0;
-            event_data->data_value[0] = data++;
-        }
+                event_data++;
+                event_data->time_delta = 2000;
+                event_data->data_value[0] = data++;
+            } else {
+                /* Single sensor event data */
+                event_data->time_delta = 0;
+                event_data->data_value[0] = data++;
+            }
 #else
-        /* Single sensor event data */
-        event_data->num_sensors_reporting = 1;
-        event_data->time_delta = 0;
-        event_data->data_value[0] = data++;
+            /* Single sensor event data */
+            event_data->num_sensors_reporting = 1;
+            event_data->time_delta = 0;
+            event_data->data_value[0] = data++;
 #endif
+            gb_debug("report sensor: %d\n", rinfo->id);
+            info->callback(info->sensor_id, rinfo_data, payload_size);
+        }
 
-        gb_debug("report sensor: %d\n", rinfo->id);
-        info->callback(info->sensor_id, rinfo_data, payload_size);
+        if (!info->should_run)
+            break;
 
-        free(rinfo_data);
+        up_mdelay(info->latency_ms);
     }
-out:
 
-     /* cancel any work and reset ourselves */
-    if (!work_available(&info->data_report_work))
-        work_cancel(LPWORK, &info->data_report_work);
+    free(rinfo_data);
 
-    /* if not already scheduled, schedule start */
-    if (work_available(&info->data_report_work))
-        work_queue(LPWORK, &info->data_report_work, pressure_data_report_worker, info, MSEC2TICK(1000));
+    return NULL;
 }
 
 static int sensor_pressure_op_get_sensor_info(struct device *dev,
@@ -171,7 +176,7 @@ static int sensor_pressure_op_get_sensor_info(struct device *dev,
 {
     struct sensor_pressure_info *info = NULL;
 
-    gb_debug("%s: %d\n",__func__, sensor_id);
+    gb_debug("%s: dummy %d\n",__func__, sensor_id);
     if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
@@ -216,6 +221,7 @@ static int sensor_pressure_op_start_reporting(struct device *dev,
     uint8_t sensor_id, uint64_t sampling_period, uint64_t max_report_latency)
 {
     struct sensor_pressure_info *info = NULL;
+    int ret;
 
     gb_debug("%s: %d\n",__func__, sensor_id);
 
@@ -225,17 +231,22 @@ static int sensor_pressure_op_start_reporting(struct device *dev,
     info = device_get_private(dev);
 
     info->max_report_latency = max_report_latency;
-
-    /* cancel any work and reset ourselves */
-    if (!work_available(&info->data_report_work))
-        work_cancel(LPWORK, &info->data_report_work);
-
+    info->latency_ms = sampling_period/1000000;
+    if (info->latency_ms > TX_PROCESSING_DELAY) {
+        info->latency_ms -= TX_PROCESSING_DELAY;
+    }
     data = 1000;
+    info->should_run = true;
 
-    /* if not already scheduled, schedule start */
-    if (work_available(&info->data_report_work))
-        work_queue(LPWORK, &info->data_report_work, pressure_data_report_worker, info, 0);
-
+    if (!info->tx_thread) {
+        ret = pthread_create(&info->tx_thread, NULL, sensor_tx_thread, info);
+        if (ret) {
+            lldbg("ERROR: Failed to create tx thread: %s.\n", strerror(errno));
+            info->tx_thread = 0;
+            info->should_run = false;
+            return ret;
+        }
+    }
     atomic_inc(&txn);
 
     return OK;
@@ -256,7 +267,6 @@ static int sensor_pressure_op_flush(struct device *dev, uint8_t id)
     if (!dev || !device_get_private(dev)) {
         return -EINVAL;
     }
-
     info = device_get_private(dev);
 
 #ifdef BATCH_PROCESS_ENABLED
@@ -315,6 +325,21 @@ static int sensor_pressure_op_flush(struct device *dev, uint8_t id)
     return OK;
 }
 
+static void sensor_pressure_kill_pthread(struct sensor_pressure_info *info)
+{
+    info->should_run = false;
+
+    if (info->tx_thread) {
+        while(pthread_mutex_trylock(&info->run_mutex)) {
+            pthread_kill(info->tx_thread, 9);
+            usleep(10000);
+        }
+        pthread_mutex_unlock(&info->run_mutex);
+        pthread_join(info->tx_thread, NULL);
+        info->tx_thread = 0;
+    }
+}
+
 static int sensor_pressure_op_stop_reporting(struct device *dev,
     uint8_t sensor_id)
 {
@@ -326,10 +351,7 @@ static int sensor_pressure_op_stop_reporting(struct device *dev,
         return -EINVAL;
     }
     info = device_get_private(dev);
-
-    /* cancel any work and reset ourselves */
-    if (!work_available(&info->data_report_work))
-        work_cancel(LPWORK, &info->data_report_work);
+    sensor_pressure_kill_pthread(info);
 
     atomic_dec(&txn);
 
@@ -401,10 +423,7 @@ static void sensor_pressure_dev_close(struct device *dev)
         return;
     }
     info = device_get_private(dev);
-
-    /* cancel any pending events */
-    if (!work_available(&info->data_report_work))
-        work_cancel(LPWORK, &info->data_report_work);
+    sensor_pressure_kill_pthread(info);
 
     if (!(info->flags & SENSOR_PRESSURE_FLAG_OPEN)) {
         return;
@@ -431,6 +450,7 @@ static int sensor_pressure_dev_probe(struct device *dev)
     device_set_private(dev, info);
 
     atomic_init(&txn, 0);
+    pthread_mutex_init(&info->run_mutex, NULL);
 
 #ifdef CONFIG_PM
     if (pm_register(&pm_callback) != OK)
@@ -452,6 +472,7 @@ static void sensor_pressure_dev_remove(struct device *dev)
         return;
     }
     info = device_get_private(dev);
+    sensor_pressure_kill_pthread(info);
 
     if (info->flags & SENSOR_PRESSURE_FLAG_OPEN) {
         sensor_pressure_dev_close(dev);
@@ -480,7 +501,7 @@ static struct device_driver_ops sensor_pressure_driver_ops = {
 
 const struct device_driver sensor_dummy_pressure_driver = {
     .type   = DEVICE_TYPE_SENSORS_HW,
-    .name   = "sensors_ext_pressure",
-    .desc   = "Pressure Sensor Driver",
+    .name   = "sensors_ext_dummy_pressure",
+    .desc   = "DUMMY PRESSURE SENSOR",
     .ops    = &sensor_pressure_driver_ops,
 };
