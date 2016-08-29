@@ -37,10 +37,6 @@
 #include <nuttx/arch.h>
 #include <nuttx/config.h>
 #include <nuttx/gpio.h>
-#include <nuttx/i2c.h>
-#include <nuttx/power/battery.h>
-#include <nuttx/power/battery_state.h>
-#include <nuttx/power/bq24292.h>
 
 #include <debug.h>
 #include <errno.h>

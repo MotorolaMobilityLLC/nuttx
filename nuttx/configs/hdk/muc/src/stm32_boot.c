@@ -87,7 +87,6 @@ static const struct board_gpio_cfg_s board_gpio_cfgs[] =
 {
   { GPIO_MODS_CC_ALERT,      (GPIO_PULLUP)                },
   { GPIO_MODS_FUSB302_INT_N, (GPIO_INPUT|GPIO_FLOAT)      },
-  { GPIO_MODS_CHG_PG_N,      (GPIO_INPUT|GPIO_FLOAT)      },
   { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)              },
   { GPIO_MODS_LED_DRV_1,     (GPIO_OPENDRAIN)             },
   { GPIO_MODS_LED_DRV_2,     (GPIO_OPENDRAIN)             },
@@ -411,14 +410,6 @@ static struct device devices[] = {
         .type = DEVICE_TYPE_PTP_HW,
         .name = "mods_ptp",
         .desc = "Power transfer protocol for devices",
-        .id   = 0,
-    },
-#endif
-#ifdef CONFIG_CHARGER_DEVICE_BQ24292
-    {
-        .type = DEVICE_TYPE_CHARGER_HW,
-        .name = "bq2429_charger",
-        .desc = "Charger driver for TI bq24292 IC",
         .id   = 0,
     },
 #endif
@@ -879,10 +870,6 @@ void board_initialize(void)
   extern struct device_driver mods_ptp_driver;
   device_register_driver(&mods_ptp_driver);
 #endif
-#ifdef CONFIG_CHARGER_DEVICE_BQ24292
-  extern struct device_driver bq24292_charger_driver;
-  device_register_driver(&bq24292_charger_driver);
-#endif
 #ifdef CONFIG_CHARGER_DEVICE_BQ25896
   extern struct device_driver bq25896_charger_driver;
   device_register_driver(&bq25896_charger_driver);
@@ -989,9 +976,6 @@ void board_initialize(void)
    extern struct device_driver mods_raw_factory_driver;
    device_register_driver(&mods_raw_factory_driver);
 #endif
-#endif
-#if defined(CONFIG_CHARGER_BQ24292)
-   (void)bq24292_driver_init(GPIO_MODS_CHG_INT_N, GPIO_MODS_CHG_PG_N);
 #endif
 
 #ifdef CONFIG_BATTERY_MAX17050

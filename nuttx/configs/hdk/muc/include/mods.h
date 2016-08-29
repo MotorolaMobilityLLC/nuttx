@@ -89,8 +89,6 @@
 #define GPIO_FACT_DISP_PWR4_EN   CALC_GPIO_NUM('A', 2)
 #define GPIO_FACT_DISP_RST1_N    CALC_GPIO_NUM('C', 8)
 
-#define GPIO_MODS_CHG_PG_N       (-1)
-
 #define GPIO_CAM_DVDD_EN         CALC_GPIO_NUM('A', 3)
 #define GPIO_CAM_AREG_EN         CALC_GPIO_NUM('A', 2)
 #define GPIO_CAM_RST_N           CALC_GPIO_NUM('A', 5)
