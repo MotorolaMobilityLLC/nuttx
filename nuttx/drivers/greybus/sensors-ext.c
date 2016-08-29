@@ -130,7 +130,7 @@ static uint8_t gb_sensors_ext_get_sensor_info(struct gb_operation *operation)
 {
     struct gb_sensors_ext_sensor_info_request *request;
     struct gb_sensors_ext_sensor_info_response *response;
-    struct sensor_info information;
+    struct sensor_info *s_info;
     struct gb_sensors_ext_info *se_info;
     int ret = 0;
 
@@ -147,62 +147,72 @@ static uint8_t gb_sensors_ext_get_sensor_info(struct gb_operation *operation)
         return GB_OP_INVALID;
     }
 
+    s_info = zalloc(sizeof(struct sensor_info));
+    if(!s_info)
+        return GB_OP_NO_MEMORY;
+
     ret = device_sensors_ext_get_sensor_info(se_info->dev,
-                                              request->id, &information);
+                                              request->id, s_info);
     if (ret) {
+        free(s_info);
         return gb_errno_to_op_result(ret);
     }
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response) {
+        free(s_info);
         return GB_OP_NO_MEMORY;
     }
 
-    response->version = cpu_to_le32(information.version);
-    response->type = cpu_to_le32(information.type);
-    response->max_range = cpu_to_le32(information.max_range);
-    response->resolution = cpu_to_le32(information.resolution);
-    response->power = cpu_to_le32(information.power);
-    response->min_delay = cpu_to_le32(information.min_delay);
-    response->max_delay = cpu_to_le32(information.max_delay);
-    response->fifo_rec = cpu_to_le32(information.fifo_rec);
-    response->fifo_mec = cpu_to_le32(information.fifo_mec);
-    response->flags = cpu_to_le32(information.flags);
-    response->scale_int = cpu_to_le32(information.scale_int);
-    response->scale_nano = cpu_to_le32(information.scale_nano);
-    response->offset_int = cpu_to_le32(information.offset_int);
-    response->offset_nano = cpu_to_le32(information.offset_nano);
-    response->channels = information.channels;
+    response->version = cpu_to_le32(s_info->version);
+    response->type = cpu_to_le32(s_info->type);
+    response->max_range = cpu_to_le32(s_info->max_range);
+    response->resolution = cpu_to_le32(s_info->resolution);
+    response->power = cpu_to_le32(s_info->power);
+    response->min_delay = cpu_to_le32(s_info->min_delay);
+    response->max_delay = cpu_to_le32(s_info->max_delay);
+    response->fifo_rec = cpu_to_le32(s_info->fifo_rec);
+    response->fifo_mec = cpu_to_le32(s_info->fifo_mec);
+    response->flags = cpu_to_le32(s_info->flags);
+    response->scale_int = cpu_to_le32(s_info->scale_int);
+    response->scale_nano = cpu_to_le32(s_info->scale_nano);
+    response->offset_int = cpu_to_le32(s_info->offset_int);
+    response->offset_nano = cpu_to_le32(s_info->offset_nano);
+    response->channels = s_info->channels;
 
-    response->name_len = cpu_to_le16(information.name_len);
-    if (response->name_len) {
-        if ((response->name_len > sizeof(response->name)))
-            response->name_len = sizeof(response->name);
-        memcpy(&response->name[0], &information.name[0], response->name_len);
+    if (s_info->name_len) {
+        if (s_info->name_len > sizeof(response->name))
+            s_info->name_len = sizeof(response->name);
+
+        memcpy(&response->name[0], &s_info->name[0], s_info->name_len);
     } else {
         memset(&response->name[0], 0, sizeof(response->name));
     }
 
-    response->vendor_len = cpu_to_le16(information.vendor_len);
-    if (response->vendor_len) {
-        if (response->vendor_len > sizeof(response->vendor))
-            response->vendor_len = sizeof(response->vendor);
+    if (s_info->vendor_len) {
+        if (s_info->vendor_len > sizeof(response->vendor))
+            s_info->vendor_len = sizeof(response->vendor);
 
-        memcpy(&response->vendor[0], &information.vendor[0], response->vendor_len);
+        memcpy(&response->vendor[0], &s_info->vendor[0], s_info->vendor_len);
     } else {
         memset(&response->vendor[0], 0, sizeof(response->vendor));
     }
 
-    response->string_type_len = cpu_to_le16(information.string_type_len);
-    if (response->string_type_len) {
-        if (response->string_type_len > sizeof(response->string_type))
-            response->string_type_len = sizeof(response->string_type);
+    if (s_info->string_type_len) {
+        if (s_info->string_type_len > sizeof(response->string_type))
+            s_info->string_type_len = sizeof(response->string_type);
 
-        memcpy(&response->string_type[0], &information.string_type[0],
-            response->string_type_len);
+        memcpy(&response->string_type[0], &s_info->string_type[0],
+            s_info->string_type_len);
     } else {
         memset(&response->string_type[0], 0, sizeof(response->string_type));
     }
+
+    response->name_len = cpu_to_le16(s_info->name_len);
+    response->vendor_len = cpu_to_le16(s_info->vendor_len);
+    response->string_type_len = cpu_to_le16(s_info->string_type_len);
+
+    free(s_info);
 
     return GB_OP_SUCCESS;
 }
