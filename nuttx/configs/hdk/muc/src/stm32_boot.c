@@ -361,7 +361,7 @@ static struct device devices[] = {
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_PRESSURE
     {
         .type = DEVICE_TYPE_SENSORS_HW,
-        .name = "sensors_ext_pressure",
+        .name = "sensors_ext_dummy_pressure",
         .desc = "Sensors Extension Protocol",
         .id   = DUMMY_PRESSURE,
     },
@@ -369,7 +369,7 @@ static struct device devices[] = {
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL
     {
         .type = DEVICE_TYPE_SENSORS_HW,
-        .name = "sensors_ext_accel",
+        .name = "sensors_ext_dummy_accel",
         .desc = "Sensors Extension Protocol",
         .id   = DUMMY_ACCEL,
     },
