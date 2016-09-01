@@ -57,13 +57,15 @@
 /* HSI - 16 MHz RC factory-trimmed
  * LSI - 32 KHz RC
  * HSE - not installed
- * LSE - not installed
+ * LSE - 32.768 kHz
  */
 
 #define STM32_HSI_FREQUENCY     16000000ul
 #define STM32_LSI_FREQUENCY     32000
+#define STM32_LSE_FREQUENCY     32768
 
 #define STM32_BOARD_USEHSI      1
+#define STM32_BOARD_USELSEBYP   1
 
 #ifdef CONFIG_ARCH_BOARD_STM32_CUSTOM_CLOCKCONFIG
 #  define STM32_SYSCLK_FREQUENCY  STM32_HSI_FREQUENCY
