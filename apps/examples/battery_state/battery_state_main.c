@@ -42,14 +42,14 @@
 
 /* Rely on the order of the batt_temp_e and batt_level_e enums */
 static const char* t[] = {"normal", "reduced-chg", "no-chg", "cool-down", "unavailable"};
-static const char* l[] = {"empty", "normal", "full"};
+static const char* l[] = {"empty", "low", "normal", "full"};
 
 static void print_usage(void)
 {
     printf("\nUsage: battery_state [-t|l] [arguments]\n");
     printf("Where:\n");
     printf(" -t %s|%s|%s|%s : Set temperature.\n", t[0], t[1], t[2], t[3]);
-    printf(" -l %s|%s|%s : Set level.\n", l[0], l[1], l[2]);
+    printf(" -l %s|%s|%s|%s : Set level.\n", l[0], l[1], l[2], l[3]);
 }
 
 static int do_temp(int argc, FAR char *argv[])
