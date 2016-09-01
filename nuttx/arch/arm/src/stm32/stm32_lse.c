@@ -39,6 +39,8 @@
 
 #include <nuttx/config.h>
 
+#include <arch/board/board.h>
+
 #include "up_arch.h"
 
 #include "stm32_pwr.h"
@@ -110,6 +112,14 @@ void stm32_rcc_enablelse(void)
 
 void stm32_rcc_enablelse(void)
 {
+  /* Before the External Low-Speed (LSE) oscillator can be enabled, the bypass
+   * bit should be set if required.
+   */
+
+#ifdef STM32_BOARD_USELSEBYP
+  modifyreg16(STM32_RCC_BDCR, 0, RCC_BDCR_LSEBYP);
+#endif
+
   /* Enable the External Low-Speed (LSE) oscillator by setting the LSEON bit
    * the RCC BDCR register.
    */
