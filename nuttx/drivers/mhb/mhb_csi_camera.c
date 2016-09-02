@@ -910,6 +910,11 @@ mhb_camera_sm_event_t mhb_camera_lens_extend(void)
 
 mhb_camera_sm_event_t mhb_camera_lens_retract(void)
 {
+    if (APBE_CONFIGURED == s_mhb_camera.apbe_config_state) {
+        CAM_INFO("APBE Configured in lens retract.");
+        mhb_camera_stream_off();
+    }
+
     MHB_CAM_DEV_OP(s_mhb_camera.cam_device, lens_retract);
     return MHB_CAMERA_EV_NONE;
 }
