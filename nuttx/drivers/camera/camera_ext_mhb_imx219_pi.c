@@ -409,7 +409,7 @@ struct mhb_cdsi_config mhb_camera_csi_config =
 
     .pll_frs = 0,
     .pll_prd = 0,
-    .pll_fbd = 26,
+    .pll_fbd = 0,
 
     .width = 0,  /* variable */
     .height = 0, /* variable */
