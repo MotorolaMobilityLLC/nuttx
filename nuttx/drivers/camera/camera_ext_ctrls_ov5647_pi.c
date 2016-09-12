@@ -48,8 +48,8 @@
 
 static const char model_number_str[CAM_EXT_CTRL_STRING_MAX_LEN] = {
     'M', 'D', 'K', ' ', 'C', 'A', 'M', 'E',
-    'R', 'A',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
-     0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+    'R', 'A', ' ', 'O', 'V', '5', '6', '4',
+    '7', '-', 'P', 'I',  0 ,  0 ,  0 ,  0 ,
      0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
      0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
      0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
@@ -142,13 +142,13 @@ static const struct camera_ext_ctrl_cfg ae_antibanding_mode = {
     .id = CAM_EXT_CID_AE_ANTIBANDING_MODE,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK
         | CAMERA_EXT_CTRL_FLAG_NEED_DEF,
-    .menu_skip_mask = 0x09,
+    .menu_skip_mask = 0x0E,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
     .def = {
-        .val = 2,
+        .val = CAM_EXT_AE_ANTIBANDING_OFF,
     },
     .set_ctrl = ctrl_val_set,
 };
@@ -190,6 +190,7 @@ static const struct camera_ext_ctrl_cfg ae_mode = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
+    .menu_skip_mask = 0xFE,
     .def = {
         .val = CAM_EXT_AE_MODE_OFF,
     },
@@ -226,7 +227,7 @@ static const struct camera_ext_ctrl_cfg af_mode = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
-    .menu_skip_mask = 0x2E,
+    .menu_skip_mask = 0xFE,
     .def = {
         .val = CAM_EXT_AF_MODE_OFF,
     },
@@ -241,8 +242,9 @@ static const struct camera_ext_ctrl_cfg awb_mode = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
+    .menu_skip_mask = 0xFC,
     .def = {
-        .val = CAM_EXT_AWB_MODE_OFF,
+        .val = CAM_EXT_AWB_MODE_AUTO,
     },
     .set_ctrl = ctrl_val_set,
 };
@@ -255,6 +257,7 @@ static const struct camera_ext_ctrl_cfg effect_mode = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
+    .menu_skip_mask = 0xFC,
     .set_ctrl = ctrl_val_set,
 };
 
@@ -263,7 +266,7 @@ static const struct camera_ext_ctrl_cfg scene_mode = {
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF
         | CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK,
     .min = 0,
-    .menu_skip_mask = 0xfe,
+    .menu_skip_mask = 0xFFFFE,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
@@ -278,6 +281,10 @@ static const struct camera_ext_ctrl_cfg video_stabilization = {
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
+    },
+    .menu_skip_mask = 0x1,
+    .def = {
+        .val = CAM_EXT_VIDEO_STABILIZATION_MODE_OFF,
     },
     .set_ctrl = ctrl_val_set,
 };
@@ -350,7 +357,7 @@ static const struct camera_ext_ctrl_cfg flash_mode = {
     .id = CAM_EXT_CID_FLASH_MODE,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF
         | CAMERA_EXT_CTRL_FLAG_NEED_MENU_MASK,
-    .menu_skip_mask = 0x4,
+    .menu_skip_mask = 0x6,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
@@ -359,9 +366,7 @@ static const struct camera_ext_ctrl_cfg flash_mode = {
 };
 
 static const float focal_length_items[] = {
-    4.5f, 5.4f, 6.4f, 7.6f, 8.9f, 10.37f,
-    12.4f, 14.6f, 17.2f, 20.3f, 23.9f,
-    28.20f, 33.3f, 39.2f, 45.0f
+    3.60f,
 };
 
 static const struct camera_ext_ctrl_cfg focal_length = {
@@ -564,6 +569,7 @@ static const struct camera_ext_ctrl_cfg face_detection = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
+    .menu_skip_mask = 0x0E,
     .set_ctrl = ctrl_val_set,
 };
 
@@ -617,7 +623,7 @@ static const struct camera_ext_ctrl_cfg scaler_max_digital_zoom = {
         .nr_of_elem = 1,
     },
     .def = {
-        .val_f = 4.0f,
+        .val_f = 1.0f,
     },
 };
 
@@ -629,8 +635,9 @@ static const struct camera_ext_ctrl_cfg lens_optical_stabilization_mode = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
+    .menu_skip_mask = 0x02,
     .def = {
-        .val = CAM_EXT_CID_LENS_OPTICAL_STABILIZATION_MODE_ON,
+        .val = CAM_EXT_CID_LENS_OPTICAL_STABILIZATION_MODE_OFF,
     },
     .set_ctrl = ctrl_val_set,
 };
@@ -675,19 +682,6 @@ static const struct camera_ext_ctrl_cfg zoom_lock_1x = {
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_BOOL,
         .nr_of_elem = 1,
-    },
-    .set_ctrl = ctrl_val_set,
-};
-
-static const struct camera_ext_ctrl_cfg shutter_lock = {
-    .id = CAM_EXT_CID_SHUTTER_LOCK,
-    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
-    .val_cfg = {
-        .elem_type = CAM_EXT_CTRL_DATA_TYPE_BOOL,
-        .nr_of_elem = 1,
-    },
-    .def = {
-        .val = 1,
     },
     .set_ctrl = ctrl_val_set,
 };
@@ -744,33 +738,20 @@ static const struct camera_ext_ctrl_cfg scene_mode_ext = {
 static const struct camera_ext_ctrl_cfg zoom_limit = {
     .id = CAM_EXT_CID_ZOOM_LIMIT,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
-    .min = 1000,
-    .max = 4000,
+    .min = 100,
+    .max = 100,
     .val_cfg = {
         .elem_type = CAM_EXT_CTRL_DATA_TYPE_INT,
         .nr_of_elem = 1,
     },
     .def = {
-        .val = 4000,
-    },
-    .set_ctrl = ctrl_val_set,
-};
-
-static const struct camera_ext_ctrl_cfg focus_key_lock = {
-    .id = CAM_EXT_CID_FOCUS_KEY_LOCK,
-    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
-    .val_cfg = {
-        .elem_type = CAM_EXT_CTRL_DATA_TYPE_BOOL,
-        .nr_of_elem = 1,
-    },
-    .def = {
-        .val = 1,
+        .val = 100,
     },
     .set_ctrl = ctrl_val_set,
 };
 
 static const float sensor_info_physical_size_def[] = {
-    6.248f, 4.686f
+    3.76f, 2.74f
 };
 
 static const struct camera_ext_ctrl_cfg sensor_info_physical_size = {
@@ -786,7 +767,7 @@ static const struct camera_ext_ctrl_cfg sensor_info_physical_size = {
 };
 
 static const uint32_t sensor_info_pixel_array_size_def[2] = {
-    2136, 1202,
+    2624, 1956,
 };
 
 static const struct camera_ext_ctrl_cfg sensor_info_pixel_array_size = {
@@ -802,7 +783,7 @@ static const struct camera_ext_ctrl_cfg sensor_info_pixel_array_size = {
 };
 
 static const uint32_t sensor_info_active_array_size_def[4] = {
-    10, 10, 2100, 1150,
+    8, 6, 2600, 1950,
 };
 
 static const struct camera_ext_ctrl_cfg sensor_info_active_array_size = {
@@ -960,13 +941,11 @@ static const struct camera_ext_ctrl_cfg *_ctrls[] = {
     &af_trigger,
     &awb_lock,
     &zoom_lock_1x,
-    &shutter_lock,
     &model_number,
     &firmware_version,
     &ae_mode_ext,
     &scene_mode_ext,
     &zoom_limit,
-    &focus_key_lock,
     &sensor_info_physical_size,
     &sensor_info_pixel_array_size,
     &sensor_info_active_array_size,
