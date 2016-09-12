@@ -522,7 +522,7 @@ static uint8_t mb_control_rtc_sync(struct gb_operation *operation)
     }
 
     nsec_to_timespec(request->nsec, &ts);
-    ret = up_rtc_settime(&ts);
+    ret = clock_settime(CLOCK_REALTIME, &ts);
 
     return ret ? GB_OP_UNKNOWN_ERROR : GB_OP_SUCCESS;
 #else
