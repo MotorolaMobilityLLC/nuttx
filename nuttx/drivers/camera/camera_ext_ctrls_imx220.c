@@ -679,19 +679,6 @@ static const struct camera_ext_ctrl_cfg zoom_lock_1x = {
     .set_ctrl = ctrl_val_set,
 };
 
-static const struct camera_ext_ctrl_cfg shutter_lock = {
-    .id = CAM_EXT_CID_SHUTTER_LOCK,
-    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
-    .val_cfg = {
-        .elem_type = CAM_EXT_CTRL_DATA_TYPE_BOOL,
-        .nr_of_elem = 1,
-    },
-    .def = {
-        .val = 1,
-    },
-    .set_ctrl = ctrl_val_set,
-};
-
 static const struct camera_ext_ctrl_cfg model_number = {
     .id = CAM_EXT_CID_MODEL_NUMBER,
     .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
@@ -753,19 +740,6 @@ static const struct camera_ext_ctrl_cfg zoom_limit = {
     },
     .def = {
         .val = 4000,
-    },
-    .set_ctrl = ctrl_val_set,
-};
-
-static const struct camera_ext_ctrl_cfg focus_key_lock = {
-    .id = CAM_EXT_CID_FOCUS_KEY_LOCK,
-    .flags = CAMERA_EXT_CTRL_FLAG_NEED_DEF,
-    .val_cfg = {
-        .elem_type = CAM_EXT_CTRL_DATA_TYPE_BOOL,
-        .nr_of_elem = 1,
-    },
-    .def = {
-        .val = 1,
     },
     .set_ctrl = ctrl_val_set,
 };
@@ -961,13 +935,11 @@ static const struct camera_ext_ctrl_cfg *_ctrls[] = {
     &af_trigger,
     &awb_lock,
     &zoom_lock_1x,
-    &shutter_lock,
     &model_number,
     &firmware_version,
     &ae_mode_ext,
     &scene_mode_ext,
     &zoom_limit,
-    &focus_key_lock,
     &sensor_info_physical_size,
     &sensor_info_pixel_array_size,
     &sensor_info_active_array_size,
