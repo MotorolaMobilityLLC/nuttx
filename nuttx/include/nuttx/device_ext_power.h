@@ -41,13 +41,25 @@
 typedef void (*device_ext_power_notification)(void *arg);
 
 /**
+ * External power device output
+ */
+typedef struct device_ext_power_output {
+    /** Charger maximum current in mA */
+    int current;
+    /** Charger voltage in mV */
+    int voltage;
+} device_ext_power_output_s;
+
+/**
  * External power device driver operations
  */
 struct device_ext_power_type_ops {
     /** Register for external power state change notifications */
     int (*register_callback)(struct device *dev, device_ext_power_notification cb, void *arg);
-    /** Get maximum current output */
-    int (*get_current)(struct device *dev, int *current)
+    /** Set maximum output voltage */
+    int (*set_max_output_voltage)(struct device *dev, int voltage);
+    /** Get device output power */
+    int (*get_output)(struct device *dev, device_ext_power_output_s *output);
 };
 
 /**
@@ -75,13 +87,14 @@ static inline int device_ext_power_register_callback(struct device *dev,
 }
 
 /**
- * @brief Get maximum output current of external power device
+ * @brief Set maximum output voltage of external power device
  *
  * @param dev pointer to structure of device data
- * @param current maximum output current in mA
+ * @param voltage maximum voltage device can output
  * @return 0 on success, negative errno on error
  */
-static inline int device_ext_power_get_current(struct device *dev, int *current)
+static inline int device_ext_power_set_max_output_voltage(struct device *dev,
+                                                          int voltage)
 {
     DEVICE_DRIVER_ASSERT_OPS(dev);
 
@@ -89,10 +102,33 @@ static inline int device_ext_power_get_current(struct device *dev, int *current)
         return -ENODEV;
     }
 
-    if (!DEVICE_DRIVER_GET_OPS(dev, ext_power)->get_current) {
+    if (!DEVICE_DRIVER_GET_OPS(dev, ext_power)->set_max_output_voltage) {
         return -ENOSYS;
     }
 
-    return DEVICE_DRIVER_GET_OPS(dev, ext_power)->get_current(dev, current);
+    return DEVICE_DRIVER_GET_OPS(dev, ext_power)->set_max_output_voltage(dev, voltage);
+}
+
+/**
+ * @brief Get output of external power device
+ *
+ * @param dev pointer to structure of device data
+ * @param output power output of the device
+ * @return 0 on success, negative errno on error
+ */
+static inline int device_ext_power_get_output(struct device *dev,
+                                              device_ext_power_output_s *output)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ext_power)->get_output) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ext_power)->get_output(dev, output);
 }
 #endif
