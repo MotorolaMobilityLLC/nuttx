@@ -3483,7 +3483,7 @@ static inline void stm32_otginterrupt(FAR struct stm32_usbdev_s *priv)
 
   /* Clear OTG interrupt */
 
-  stm32_putreg(retval, STM32_OTGFS_GOTGINT);
+  stm32_putreg(regval, STM32_OTGFS_GOTGINT);
 }
 #endif
 
@@ -4917,7 +4917,7 @@ static int stm32_pullup(struct usbdev_s *dev, bool enable)
     }
   else
     {
-      /* Connect the device by setting the soft disconnect bit in the DCTL
+      /* Disconnect the device by setting the soft disconnect bit in the DCTL
        * register
        */
 
@@ -5186,15 +5186,36 @@ static void stm32_hwinitialize(FAR struct stm32_usbdev_s *priv)
 
   /* Deactivate the power down */
 
-  regval  = (OTGFS_GCCFG_PWRDWN | OTGFS_GCCFG_VBUSASEN | OTGFS_GCCFG_VBUSBSEN);
-#ifndef CONFIG_USBDEV_VBUSSENSING
+  regval  = OTGFS_GCCFG_PWRDWN;
+
+#ifdef CONFIG_STM32_STM32L4X6
+# ifdef CONFIG_USBDEV_VBUSSENSING
+  /* Enable Vbus sensing */
+
+  regval |= OTGFS_GCCFG_VBDEN;
+# endif
+#else
+  regval |= (OTGFS_GCCFG_VBUSASEN | OTGFS_GCCFG_VBUSBSEN);
+# ifndef CONFIG_USBDEV_VBUSSENSING
   regval |= OTGFS_GCCFG_NOVBUSSENS;
-#endif
-#ifdef CONFIG_STM32_OTGFS_SOFOUTPUT
+# endif
+# ifdef CONFIG_STM32_OTGFS_SOFOUTPUT
   regval |= OTGFS_GCCFG_SOFOUTEN;
+# endif
 #endif
+
   stm32_putreg(regval, STM32_OTGFS_GCCFG);
   up_mdelay(20);
+
+#ifdef CONFIG_STM32_STM32L4X6
+  /* When VBUS sensing is not used we need to force the B session valid */
+
+# ifndef CONFIG_USBDEV_VBUSSENSING
+  regval  =  stm32_getreg(STM32_OTGFS_GOTGCTL);
+  regval |= (OTGFS_GOTGCTL_BVALOEN | OTGFS_GOTGCTL_BVALOVAL);
+  stm32_putreg(regval, STM32_OTGFS_GOTGCTL);
+# endif
+#endif
 
   /* Force Device Mode */
 
@@ -5431,7 +5452,7 @@ void up_usbinitialize(void)
 
   up_usbuninitialize();
 
-  /* Initialie the driver data structure */
+  /* Initialize the driver data structure */
 
   stm32_swinitialize(priv);
 

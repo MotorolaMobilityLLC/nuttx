@@ -396,7 +396,9 @@
 
 #define OTGFS_GOTGCTL_SRQSCS            (1 << 0)  /* Bit 0:  Session request success */
 #define OTGFS_GOTGCTL_SRQ               (1 << 1)  /* Bit 1:  Session request */
-                                                  /* Bits 2-72 Reserved, must be kept at reset value */
+                                                  /* Bits 2-5 Reserved, must be kept at reset value */
+#define OTGFS_GOTGCTL_BVALOEN           (1 << 6)  /* Bit 6:  B-peripheral session valid override enable */
+#define OTGFS_GOTGCTL_BVALOVAL          (1 << 7)  /* Bit 7:  B-peripheral session valid override value  */
 #define OTGFS_GOTGCTL_HNGSCS            (1 << 8)  /* Bit 8:  Host negotiation success */
 #define OTGFS_GOTGCTL_HNPRQ             (1 << 9)  /* Bit 9:  HNP request */
 #define OTGFS_GOTGCTL_HSHNPEN           (1 << 10) /* Bit 10: host set HNP enable */
@@ -584,12 +586,17 @@
 /* General core configuration register */
                                                   /* Bits 15:0 Reserved, must be kept at reset value */
 #define OTGFS_GCCFG_PWRDWN              (1 << 16) /* Bit 16: Power down */
+#ifdef CONFIG_STM32_STM32L4X6
+#define OTGFS_GCCFG_VBDEN               (1 << 21) /* Bit 21: USB VBUS detection enable */
+#else
                                                   /* Bit 17 Reserved, must be kept at reset value */
-#define OTGFS_GCCFG_VBUSASEN            (1 << 18) /* Bit 18: Enable the VBUS sensing “A” device */
-#define OTGFS_GCCFG_VBUSBSEN            (1 << 19) /* Bit 19: Enable the VBUS sensing “B” device */
+#define OTGFS_GCCFG_VBUSASEN            (1 << 18) /* Bit 18: Enable the VBUS sensing "A" device */
+#define OTGFS_GCCFG_VBUSBSEN            (1 << 19) /* Bit 19: Enable the VBUS sensing "B" device */
 #define OTGFS_GCCFG_SOFOUTEN            (1 << 20) /* Bit 20: SOF output enable */
 #define OTGFS_GCCFG_NOVBUSSENS          (1 << 21) /* Bit 21: VBUS sensing disable option */
+#endif
                                                   /* Bits 31:22 Reserved, must be kept at reset value */
+
 /* Core ID register  (32-bit product ID) */
 
 /* Host periodic transmit FIFO size register */
