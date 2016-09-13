@@ -45,6 +45,9 @@
 #define PM_USBC_ACTIVITY 10
 #define USB_DEBOUNCE_MS 150
 
+/* TODO: Add support for higher voltages */
+#define OUTPUT_VOLTAGE  (5000)  /* mV */
+
 #define FUSB302_I2C_ADDR 0x22
 
 #define FUSB302_DEVICE_ID_REG                      0x01
@@ -979,14 +982,22 @@ static int fusb302_ext_power_register_callback(struct device *dev,
     return 0;
 }
 
-static int fusb302_ext_power_get_current(struct device *dev, int *current)
+static int fusb302_ext_power_set_max_output_voltage(struct device *dev,
+                                                    int voltage)
+{
+    return voltage >= OUTPUT_VOLTAGE ? 0 : -EINVAL;
+}
+
+static int fusb302_ext_power_get_output(struct device *dev,
+                                        device_ext_power_output_s *output)
 {
     struct fusb302_dev_s *info = device_get_private(dev);
 
-    if (info->state == USB_STATE_ATTACHED_SNK)
-        *current = fusb302_get_current();
-    else
-        *current = 0;
+    if (info->state == USB_STATE_ATTACHED_SNK) {
+        output->current = fusb302_get_current();
+        output->voltage = OUTPUT_VOLTAGE;
+    } else
+        output->voltage = output->current = 0;
 
     return 0;
 }
@@ -1015,7 +1026,8 @@ void fusb302_ext_power_remove(struct device *dev)
 
 static struct device_ext_power_type_ops fusb302_ext_power_type_ops  = {
     .register_callback = fusb302_ext_power_register_callback,
-    .get_current = fusb302_ext_power_get_current,
+    .set_max_output_voltage = fusb302_ext_power_set_max_output_voltage,
+    .get_output = fusb302_ext_power_get_output,
 };
 
 static struct device_driver_ops fusb302_ext_power_driver_ops = {
