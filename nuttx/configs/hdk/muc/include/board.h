@@ -70,14 +70,24 @@
 #ifdef CONFIG_ARCH_BOARD_STM32_CUSTOM_CLOCKCONFIG
 #  define STM32_SYSCLK_FREQUENCY  STM32_HSI_FREQUENCY
 #else
+/* Prescaler common to all PLL inputs */
 #  define STM32_PLLCFG_PLLM       RCC_PLLCFG_PLLM(1)
-#  define STM32_PLLCFG_PLLN       RCC_PLLCFG_PLLN(20)
-#  define STM32_PLLCFG_PLLP       RCC_PLLCFG_PLLP_7
-#  define STM32_PLLCFG_PLLQ       RCC_PLLCFG_PLLQ(4)
+
+/* 'main' PLL config; we use this to generate our system clock */
+#  define STM32_PLLCFG_PLLN       RCC_PLLCFG_PLLN(40)
+#  define STM32_PLLCFG_PLLP       0
+#  define STM32_PLLCFG_PLLQ       0
 #  define STM32_PLLCFG_PLLR       RCC_PLLCFG_PLLR(2)
+#  undef  STM32_PLLCFG_PLLP_EN
+#  undef  STM32_PLLCFG_PLLQ_EN
+#  define STM32_PLLCFG_PLLR_EN
+
+/* Use the MSI; freq = 4 MHz; autotrim from LSE */
 #  define STM32_PLLCFG_PLLSRC     RCC_PLLCFG_PLLSRC_MSI
 
+#  define STM32_BOARD_USELSE      1
 #  define STM32_BOARD_USEMSI      1
+#  define STM32_BOARD_MSIRANGE    RCC_CR_MSIRANGE_6  /* 4 MHz */
 
 #  define STM32_SYSCLK_FREQUENCY  80000000ul
 #endif
