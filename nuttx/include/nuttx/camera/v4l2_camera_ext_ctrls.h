@@ -719,8 +719,7 @@ enum {
 /* boolean */
 #define CAM_EXT_CID_ZOOM_LOCK_1X (CID_CAM_EXT_CLASS_BASE + 105)
 
-/* boolean */
-#define CAM_EXT_CID_SHUTTER_LOCK (CID_CAM_EXT_CLASS_BASE + 106)
+/* reserved (CID_CAM_EXT_CLASS_BASE + 106) */
 
 /* string read only */
 #define CAM_EXT_CID_MODEL_NUMBER (CID_CAM_EXT_CLASS_BASE + 107)
@@ -759,8 +758,7 @@ enum {
 /* integer, limit the max zoom level, 100 means 1x, 1000 means 10x */
 #define CAM_EXT_CID_ZOOM_LIMIT (CID_CAM_EXT_CLASS_BASE + 112)
 
-/* boolean */
-#define CAM_EXT_CID_FOCUS_KEY_LOCK (CID_CAM_EXT_CLASS_BASE + 113)
+/* reserved (CID_CAM_EXT_CLASS_BASE + 113) */
 
 /* integer [][4]: eis_w, eis_h, w, h. optional for MOD */
 #define CAM_EXT_CID_EIS_FRAME_SIZE_MAP (CID_CAM_EXT_CLASS_BASE + 114)
