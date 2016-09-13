@@ -448,8 +448,9 @@ static inline void rcc_enableccip(void)
 
   regval = getreg32(STM32_RCC_CCIPR);
 
-#if defined(CONFIG_STM32_OTGFS) || defined(CONFIG_STM32_RNG)
-  /* TODO: What is a good default 48 MHz clock source? */
+#ifdef STM32_BOARD_USE_CLK48
+  /* Select the 48 MHz clock */
+  regval |= STM32_BOARD_CLK48_SEL;
 #endif
 
 #if defined(CONFIG_STM32_ADC1) || defined(CONFIG_STM32_ADC2) || defined(CONFIG_STM32_ADC3)
@@ -590,10 +591,10 @@ static void stm32_stdclockconfig(void)
 #endif
 
 #ifdef STM32_BOARD_USEMSI
-  /* Set MSI clock to 8 MHz */
+  /* Enable MSI clock */
 
   regval  = getreg32(STM32_RCC_CR);
-  regval |= RCC_CR_MSIRANGE_7; /* 8 MHz */
+  regval |= STM32_BOARD_MSIRANGE;
   regval |= RCC_CR_MSIRGSEL;   /* Select new MSIRANGE */
   putreg32(regval, STM32_RCC_CR);
 
@@ -656,8 +657,18 @@ static void stm32_stdclockconfig(void)
       /* Set the PLL dividers and multiplers to configure the main PLL */
 
       regval = (STM32_PLLCFG_PLLM | STM32_PLLCFG_PLLN | STM32_PLLCFG_PLLP |
-                STM32_PLLCFG_PLLSRC | STM32_PLLCFG_PLLQ | STM32_PLLCFG_PLLR |
-                RCC_PLLCFG_PLLREN);
+                STM32_PLLCFG_PLLSRC | STM32_PLLCFG_PLLQ | STM32_PLLCFG_PLLR);
+
+#ifdef STM32_PLLCFG_PLLP_EN
+      regval |= RCC_PLLCFG_PLLPEN;
+#endif
+#ifdef STM32_PLLCFG_PLLQ_EN
+      regval |= RCC_PLLCFG_PLLQEN;
+#endif
+#ifdef STM32_PLLCFG_PLLR_EN
+      regval |= RCC_PLLCFG_PLLREN;
+#endif
+
       putreg32(regval, STM32_RCC_PLLCFG);
 
       /* Enable the main PLL */
@@ -671,6 +682,37 @@ static void stm32_stdclockconfig(void)
       while ((getreg32(STM32_RCC_CR) & RCC_CR_PLLRDY) == 0)
         {
         }
+
+#ifdef STM32_BOARD_USE_PLLSAI1
+      /* Set the PLL dividers and multipliers to configure the SAI1 PLL */
+
+      regval = (STM32_PLLSAI1CFG_PLLN | STM32_PLLSAI1CFG_PLLP |
+                STM32_PLLSAI1CFG_PLLQ | STM32_PLLSAI1CFG_PLLR);
+
+#ifdef STM32_PLLSAI1CFG_PLLP_EN
+      regval |= RCC_PLLSAI1CFG_PLLPEN;
+#endif
+#ifdef STM32_PLLSAI1CFG_PLLQ_EN
+      regval |= RCC_PLLSAI1CFG_PLLQEN;
+#endif
+#ifdef STM32_PLLSAI1CFG_PLLR_EN
+      regval |= RCC_PLLSAI1CFG_PLLREN;
+#endif
+
+      putreg32(regval, STM32_RCC_PLLSAI1CFGR);
+
+      /* Enable the SAI1 PLL */
+
+      regval  = getreg32(STM32_RCC_CR);
+      regval |= RCC_CR_PLLSAI1ON;
+      putreg32(regval, STM32_RCC_CR);
+
+       /* Wait until the PLL is ready */
+
+      while ((getreg32(STM32_RCC_CR) & RCC_CR_PLLSAI1RDY) == 0)
+        {
+        }
+#endif
 
       /* Enable FLASH prefetch, instruction cache, data cache, and 4 wait states */
 
@@ -693,6 +735,21 @@ static void stm32_stdclockconfig(void)
       while ((getreg32(STM32_RCC_CFGR) & RCC_CFGR_SWS_MASK) != RCC_CFGR_SWS_PLL)
         {
         }
+
+#ifdef STM32_BOARD_USELSE
+      /* Enable low speed external (LSE) clock source */
+
+      stm32_pwr_enablebkp();
+      stm32_rcc_enablelse();
+
+#  ifdef STM32_BOARD_USEMSI
+      /* Now that LSE is up, auto trim the MSI */
+
+      regval  = getreg32(STM32_RCC_CR);
+      regval |= RCC_CR_MSIPLLEN;
+      putreg32(regval, STM32_RCC_CR);
+#  endif
+#endif
     }
 }
 #endif

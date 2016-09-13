@@ -235,6 +235,22 @@
 
 /* PLLSAI1 configuration register */
 
+#define RCC_PLLSAI1CFG_PLLN_SHIFT   (8)       /* Bits 8-14: SAI1PLL multiplication factor for VCO */
+#define RCC_PLLSAI1CFG_PLLN_MASK    (0x7f << RCC_PLLSAI1CFG_PLLN_SHIFT)
+#  define RCC_PLLSAI1CFG_PLLN(n)    ((n) << RCC_PLLSAI1CFG_PLLN_SHIFT) /* n = 8..86 */
+#define RCC_PLLSAI1CFG_PLLPEN       (1 << 16) /* Bit 16: SAI1PLL PLLSAI1CLK output enable */
+#define RCC_PLLSAI1CFG_PLLP         (1 << 17)
+#  define RCC_PLLSAI1CFG_PLLP_7     (0)
+#  define RCC_PLLSAI1CFG_PLLP_17    RCC_PLLSAI1CFG_PLLP
+#define RCC_PLLSAI1CFG_PLLQEN       (1 << 20) /* Bit 20: SAI1PLL PLL48M2CLK output enable */
+#define RCC_PLLSAI1CFG_PLLQ_SHIFT   (21)      /* Bits 21-22: SAI1PLL division factor for PLL48M2CLK (48 MHz clock) */
+#define RCC_PLLSAI1CFG_PLLQ_MASK    (3 << RCC_PLLSAI1CFG_PLLQ_SHIFT)
+#  define RCC_PLLSAI1CFG_PLLQ(n)    ((((n)>>1)-1) << RCC_PLLSAI1CFG_PLLQ_SHIFT) /* n=2,4,6,8 */
+#define RCC_PLLSAI1CFG_PLLREN       (1 << 24) /* Bit 24: PLLSAI1 PLLADC1CLK output enable */
+#define RCC_PLLSAI1CFG_PLLR_SHIFT   (25)      /* Bits 25-26: PLLSAI1 PLL divider for PLLADC1CLK */
+#define RCC_PLLSAI1CFG_PLLR_MASK    (3 << RCC_PLLSAI1CFG_PLLR_SHIFT)
+#  define RCC_PLLSAI1CFG_PLLR(n)    ((((n)>>1)-1) << RCC_PLLSAI1CFG_PLLR_SHIFT) /* n=2,4,6,8 */
+
 /* PLLSAI2 configuration register */
 
 /* Clock interrupt enable register */
@@ -457,6 +473,12 @@
 #  define RCC_CCIPR_LPTIM2SEL_LSI    (1 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 01: LSI selected as LPTIM2 clock */
 #  define RCC_CCIPR_LPTIM2SEL_HSI    (2 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 10: HSI clock selected as LPTIM2 clock */
 #  define RCC_CCIPR_LPTIM2SEL_LSE    (3 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 11: LSE clock selected as LPTIM2 clock */
+#define RCC_CCIPR_CLK48SEL_SHIFT     (26)       /* Bits 26-27: 48 MHz clock source selection */
+#define RCC_CCIPR_CLK48SEL_MASK      (3 << RCC_CCIPR_CLK48SEL_SHIFT)
+#  define RCC_CCIPR_CLK48SEL_NONE    (0 << RCC_CCIPR_CLK48SEL_SHIFT) /* 00: No clock selected */
+#  define RCC_CCIPR_CLK48SEL_PLLSAI1 (1 << RCC_CCIPR_CLK48SEL_SHIFT) /* 01: PLLSAI1 clock selected as 48 MHz clock */
+#  define RCC_CCIPR_CLK48SEL_PLL     (2 << RCC_CCIPR_CLK48SEL_SHIFT) /* 10: PLL clock selected as 48 MHz clock */
+#  define RCC_CCIPR_CLK48SEL_MSI     (3 << RCC_CCIPR_CLK48SEL_SHIFT) /* 11: MSI clock selected as 48 MHz clock */
 #define RCC_CCIPR_ADCSEL_SHIFT       (28)       /* Bits 28-29: ADCs clock source selection */
 #define RCC_CCIPR_ADCSEL_MASK        (3 << RCC_CCIPR_ADCSEL_SHIFT)
 #  define RCC_CCIPR_ADCSEL_NONE      (0 << RCC_CCIPR_ADCSEL_SHIFT) /* 00: No clock selected */
