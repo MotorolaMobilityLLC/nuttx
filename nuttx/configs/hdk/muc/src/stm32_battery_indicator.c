@@ -353,11 +353,11 @@ static void ext_power_state_changed_cb(FAR void *arg,
         struct device *const dev[])
 {
     struct battery_indicator_info *info = arg;
-    int current;
+    device_ext_power_output_s output;
     enum ext_power_state_e new_power_state;
 
-    device_ext_power_get_current(dev[EXT_POWER_WIRED], &current);
-    new_power_state = current > 0 ?
+    device_ext_power_get_output(dev[EXT_POWER_WIRED], &output);
+    new_power_state = output.current > 0 ?
             EXT_POWER_PRESENT : EXT_POWER_NOT_PRESENT;
 
     if (info->ext_power_state == new_power_state)
