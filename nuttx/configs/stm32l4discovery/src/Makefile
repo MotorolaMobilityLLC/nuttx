@@ -66,6 +66,10 @@ ifeq ($(CONFIG_ARCH_IDLE_CUSTOM),y)
 CSRCS += stm32_idle.c
 endif
 
+ifeq ($(CONFIG_STM32_OTGFS),y)
+CSRCS += stm32_usb.c
+endif
+
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(ASRCS) $(CSRCS)

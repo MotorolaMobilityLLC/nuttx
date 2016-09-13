@@ -1,5 +1,5 @@
 #!/bin/bash
-# configs/stm32l4discovery/nsh/setenv.sh
+# configs/stm32l4discovery/usbdev/setenv.sh
 #
 #   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
