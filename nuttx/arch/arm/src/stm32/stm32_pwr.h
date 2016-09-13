@@ -112,6 +112,28 @@ void stm32_pwr_enablebkp(void);
 void stm32_pwr_setvos(uint16_t vos);
 #endif
 
+/************************************************************************************
+ * Name: stm32_pwr_enableusv
+ *
+ * Description:
+ *   Enables or disables the USB Supply Valid monitoring.  Setting this bit is
+ *   mandatory to use the USB OTG FS peripheral.
+ *
+ * Input Parameters:
+ *   set - True: Vddusb is valid; False: Vddusb is not present. Logical and electrical
+ *         isolation is applied to ignore this supply.
+ *
+ * Returned Value:
+ *   True: The bit was previously set.
+ *
+ ************************************************************************************/
+
+#ifdef CONFIG_STM32_STM32L4X6
+bool stm32_pwr_enableusv(bool set);
+#else
+#  define stm32_pwr_enableusv(set)
+#endif
+
 #undef EXTERN
 #if defined(__cplusplus)
 }

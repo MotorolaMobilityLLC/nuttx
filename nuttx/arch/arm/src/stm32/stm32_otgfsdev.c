@@ -5130,6 +5130,10 @@ static void stm32_hwinitialize(FAR struct stm32_usbdev_s *priv)
   uint32_t address;
   int i;
 
+  /* Enable Vbus monitoring in the Power control */
+
+  stm32_pwr_enableusv(true);
+
   /* At start-up the core is in FS mode. */
 
   /* Disable global interrupts by clearing the GINTMASK bit in the GAHBCFG
