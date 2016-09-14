@@ -54,10 +54,10 @@ static const char *fifo_name = "/dev/wrls_coil_adc_docked_state_fifo";
 
 static bool wrls_coil_adc_docked(struct device *dev)
 {
-    int current;
+    device_ext_power_output_s output;
 
-    if (dev && !device_ext_power_get_current(dev, &current))
-        return current != 0;
+    if (dev && !device_ext_power_get_output(dev, &output))
+        return output.current != 0;
     else
         return false;
 }
