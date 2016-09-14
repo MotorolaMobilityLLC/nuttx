@@ -585,13 +585,14 @@ static int mhb_i2s_op_set_config(struct device *dev, uint8_t clk_role,
         }
         i2s->state = MHB_I2S_AUDIO_CONFIG;
     } else {
-       /* else cache config and wait for slave connection, config req will
+       /* else wait for slave connection, config req will
         * be sent when slave is connected.
         */
         llvdbg("mhb i2s: slave connection pending");
         i2s->state = (MHB_I2S_AUDIO_CONFIG | MHB_I2S_STATE_PENDING);
-        memcpy(&i2s->config, &i2s_cfg, sizeof(struct mhb_i2s_config));
     }
+    /* save config */
+    memcpy(&i2s->config, &i2s_cfg, sizeof(struct mhb_i2s_config));
 
     sem_post(&i2s->lock);
     return 0;
@@ -628,6 +629,33 @@ static int mhb_i2s_op_start_rx_stream(struct device *dev)
     sem_wait(&i2s->lock);
     if (i2s->i2s_status & MHB_I2S_RX_ACTIVE)
         goto out;
+    /* Its possible for phone to request start playback stream again
+     * before sending stop command, use the saved config and resend config
+     * request to the bridge in this case to stay consistent with the state
+     * machine on the bridge side.
+     */
+    if (i2s->slave_state == MHB_PM_STATUS_PEER_CONNECTED
+               && i2s->state == MHB_I2S_AUDIO_STOP_STREAM) {
+        result =  mhb_i2s_send_config_req(i2s, &i2s->config);
+        if (result) {
+            lldbg("ERROR: send config req failed: %d\n", result);
+            goto out;
+        }
+        llvdbg("waiting for config rsp ..\n");
+        result = _mhb_i2s_wait_for_response(i2s);
+        if (result) {
+            lldbg("ERROR: send config req timed out: %d\n", result);
+            goto out;
+        } else {
+            rsp = &i2s->last_rsp;
+
+            if(rsp->hdr.type == MHB_TYPE_I2S_CONFIG_RSP &&
+                    rsp->hdr.result == MHB_RESULT_SUCCESS) {
+                i2s->state = MHB_I2S_AUDIO_CONFIG;
+                llvdbg("mhb i2s: reconfigured successfully\n");
+            }
+        }
+    }
 
     if (i2s->slave_state == MHB_PM_STATUS_PEER_CONNECTED  &&
                                 (i2s->state == MHB_I2S_AUDIO_CONFIG ||
