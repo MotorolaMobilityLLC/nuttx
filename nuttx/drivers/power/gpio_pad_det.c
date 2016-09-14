@@ -42,7 +42,10 @@
  * Priority to report to PM framework when reporting activity. Report high
  * activity since user-initiated.
  */
-#define PM_ACTIVITY 10
+#define PM_ACTIVITY     10
+
+/* Fixed output voltage */
+#define OUTPUT_VOLTAGE  (5000)  /* mV */
 
 struct gpio_pad_detect_info {
     uint8_t gpio; /* gpio to detect docked state */
@@ -97,14 +100,25 @@ static int gpio_pad_detect_register_callback(struct device *dev,
     return 0;
 }
 
-static int gpio_pad_detect_get_current(struct device *dev, int *current)
+static int gpio_pad_detect_get_output(struct device *dev,
+                                      device_ext_power_output_s *output)
 {
-    if (!current)
+    if (!output)
         return -EINVAL;
 
-   *current = docked() ? CONFIG_PAD_DETECT_DEVICE_GPIO_MAX_OUTPUT_CURRENT : 0;
+    if (docked()) {
+        output->current = CONFIG_PAD_DETECT_DEVICE_GPIO_MAX_OUTPUT_CURRENT;
+        output->voltage = OUTPUT_VOLTAGE;
+    } else {
+        output->current = output->voltage = 0;
+    }
 
     return 0;
+}
+
+static int gpio_pad_detect_set_max_output_voltage(struct device *dev, int voltage)
+{
+    return voltage >= OUTPUT_VOLTAGE ? 0 : -EINVAL;
 }
 
 static int gpio_pad_detect_probe(struct device *dev)
@@ -142,7 +156,8 @@ probe_err:
 
 static struct device_ext_power_type_ops gpio_pad_detect_type_ops = {
     .register_callback = gpio_pad_detect_register_callback,
-    .get_current = gpio_pad_detect_get_current,
+    .set_max_output_voltage = gpio_pad_detect_set_max_output_voltage,
+    .get_output = gpio_pad_detect_get_output,
 };
 
 static struct device_driver_ops gpio_pad_detect_driver_ops = {
