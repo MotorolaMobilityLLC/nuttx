@@ -54,7 +54,7 @@
 
 /* Version of the Greybus control protocol we support */
 #define MB_CONTROL_VERSION_MAJOR              0x00
-#define MB_CONTROL_VERSION_MINOR              0x07
+#define MB_CONTROL_VERSION_MINOR              0x09
 
 /* Version of the Greybus control protocol to support
  * send slave state
@@ -67,6 +67,12 @@
  */
 #define MB_CONTROL_VERSION_PWRUP_REASON_MAJOR 0x00
 #define MB_CONTROL_VERSION_PWRUP_REASON_MINOR 0x07
+
+#define MB_CONTROL_SUPPORT_CURRENT_RSV_MAJOR  0x00
+#define MB_CONTROL_SUPPORT_CURRENT_RSV_MINOR  0x08
+
+#define MB_CONTROL_VERSION_TEST_MODE_MAJOR    0x00
+#define MB_CONTROL_VERSION_TEST_MODE_MINOR    0x09
 
 /* Greybus control request types */
 #define MB_CONTROL_TYPE_INVALID               0x00
@@ -85,6 +91,7 @@
 #define MB_CONTROL_TYPE_GET_PWRUP_REASON      0x0c
 #define MB_CONTROL_TYPE_CURRENT_RSV           0x0d
 #define MB_CONTROL_TYPE_CURRENT_RSV_ACK       0x0e
+#define MB_CONTROL_TYPE_TEST_MODE             0x0f
 
 /* Valid modes for the reboot request */
 #define MB_CONTROL_REBOOT_MODE_RESET          0x01
@@ -197,6 +204,11 @@ struct mb_control_slave_state_request {
 
 struct mb_control_get_pwrup_response {
     __le32 reason;
+} __packed;
+
+#define MODS_TEST_MODE_STATUS_ENABLED_BIT 0x00000001
+struct mb_control_test_mode_request {
+    __le32  value;
 } __packed;
 
 #ifdef CONFIG_DEVICE_CORE
@@ -651,6 +663,21 @@ static uint8_t mb_control_current_rsv_ack(struct gb_operation *operation)
     return GB_OP_SUCCESS;
 }
 
+static uint8_t mb_control_test_mode(struct gb_operation *operation)
+{
+    struct mb_control_test_mode_request *request =
+        gb_operation_get_request_payload(operation);
+
+
+    if (le32_to_cpu(request->value) & MODS_TEST_MODE_STATUS_ENABLED_BIT) {
+        /* TODO: No current implementation */
+    } else {
+        /* TODO: No current implementation */
+    }
+
+    return GB_OP_SUCCESS;
+}
+
 static int mb_control_init(unsigned int cport)
 {
     ctrl_info = zalloc(sizeof(*ctrl_info));
@@ -734,6 +761,7 @@ static struct gb_operation_handler mb_control_handlers[] = {
     GB_HANDLER(MB_CONTROL_TYPE_SET_CURRENT_LIMIT, mb_control_set_current_limit),
     GB_HANDLER(MB_CONTROL_TYPE_GET_PWRUP_REASON, mb_control_get_pwrup_reason),
     GB_HANDLER(MB_CONTROL_TYPE_CURRENT_RSV_ACK, mb_control_current_rsv_ack),
+    GB_HANDLER(MB_CONTROL_TYPE_TEST_MODE, mb_control_test_mode),
 };
 
 struct gb_driver mb_control_driver = {
