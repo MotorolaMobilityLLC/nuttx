@@ -69,4 +69,20 @@ static int ext_power_register_callback(ext_power_notification callback, void *ar
     return -ENODEV;
 }
 #endif
+
+/**
+ * @brief Set maximum output voltage of external power source
+ *
+ * @param source external power source.
+ * @param voltage maximum output voltage in mV.
+ * @return 0 on success, negative errno on error.
+ */
+#ifdef CONFIG_EXT_POWER
+int ext_power_set_max_output_voltage(ext_power_source_e source, int voltage);
+#else
+static int ext_power_set_max_output_voltage(ext_power_source_e source, int voltage)
+{
+    return -ENODEV;
+}
 #endif
+#endif /* __INCLUDE_NUTTX_EXT_POWER_H */

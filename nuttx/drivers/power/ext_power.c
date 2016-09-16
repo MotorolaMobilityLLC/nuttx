@@ -69,7 +69,19 @@ static void ext_power_state_changed(void *arg)
 
 static int ext_power_init(void)
 {
-    int i, j, retval;
+    static sem_t init_sem = SEM_INITIALIZER(1);
+    static bool initialized = false;
+    int retval = 0;
+    int i, j;
+
+    while (sem_wait(&init_sem) != OK) {
+        if (errno == EINVAL) {
+            return -EINVAL;
+        }
+    }
+
+    if (initialized)
+        goto init_done;
 
     for (i = 0; i < EXT_POWER_NUMBER_OF_SOURCES; i++) {
         dev[i] = device_open(DEVICE_TYPE_EXT_POWER_HW, i);
@@ -81,18 +93,21 @@ static int ext_power_init(void)
                     device_close(dev[i]);
                     dev[i] = NULL;
                 }
-                return retval;
+                goto init_done;
             }
         } else
             dbg("external power source %d is not supported\n", i);
     }
 
-    return 0;
+    initialized = true;
+
+init_done:
+    sem_post(&init_sem);
+    return retval;
 }
 
 int ext_power_register_callback(ext_power_notification callback, void *arg)
 {
-    static bool initialized = false;
     struct notify_node_s *node;
     int retval = 0;
 
@@ -102,13 +117,9 @@ int ext_power_register_callback(ext_power_notification callback, void *arg)
         }
     }
 
-    if (!initialized) {
-        retval = ext_power_init();
-        if (retval)
-            goto register_done;
-        else
-            initialized = true;
-    }
+    retval = ext_power_init();
+    if (retval)
+        goto register_done;
 
     node = zalloc(sizeof(*node));
     if (!node) {
@@ -125,4 +136,17 @@ int ext_power_register_callback(ext_power_notification callback, void *arg)
 register_done:
     sem_post(&sem);
     return retval;
+}
+
+int ext_power_set_max_output_voltage(ext_power_source_e source, int voltage)
+{
+    int retval = ext_power_init();
+
+    if (retval)
+        return retval;
+
+    if (dev[source])
+        return device_ext_power_set_max_output_voltage(dev[source], voltage);
+    else
+        return 0;
 }
