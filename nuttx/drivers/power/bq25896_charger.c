@@ -468,6 +468,7 @@ static int bq25896_charger_probe(struct device *dev)
     ret = bq25896_driver_init(int_n, pg_n);
     if (ret) {
         dbg("failed to initialize bq25896 driver\n");
+        free(info->init_data.reg);
         free(info);
         return ret;
     }
@@ -480,6 +481,7 @@ static void bq25896_charger_remove(struct device *dev)
 {
     struct bq25896_charger_info *info = device_get_private(dev);
 
+    free(info->init_data.reg);
     free(info);
     device_set_private(dev, NULL);
 }
