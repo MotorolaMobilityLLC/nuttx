@@ -38,6 +38,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_sensors_ext.h>
 #include <nuttx/greybus/debug.h>
+#include <nuttx/greybus/mods-ctrl.h>
 #include <nuttx/power/pm.h>
 #include <nuttx/rtc.h>
 #include <nuttx/time.h>
@@ -71,6 +72,7 @@ struct sensor_pressure_info {
     pthread_t tx_thread;
     pthread_mutex_t run_mutex;
     bool should_run;
+    uint32_t clk_cntr;
 };
 
 /*
@@ -103,6 +105,7 @@ static void *sensor_tx_thread(void *arg)
     struct timespec ts;
     uint16_t payload_size;
     uint16_t readings_count = PRESSURE_READING_NUM;
+    uint32_t cntr;
 
     info = arg;
 #ifdef BATCH_PROCESS_ENABLED
@@ -128,7 +131,6 @@ static void *sensor_tx_thread(void *arg)
             rinfo->id = info->sensor_id;
             rinfo->flags = 0;
             event_data = (struct sensor_event_data *)&rinfo->data_payload[0];
-
             up_rtc_gettime(&ts);
             rinfo->reference_time = timespec_to_nsec(&ts);
             rinfo->readings = readings_count;
@@ -138,20 +140,35 @@ static void *sensor_tx_thread(void *arg)
              * until max fifo event count
             */
             if (info->max_report_latency > 0) {
+                uint32_t time_delta;
                 /* Multiple sensor event data */
-                event_data->time_delta = 0;
-                event_data->data_value[0] = data++;
-
-                event_data++;
-                event_data->time_delta = 2000;
-                event_data->data_value[0] = data++;
+                for (time_delta = 0; time_delta <= 2000; time_delta += 2000) {
+                    cntr = mods_control_get_rtc_clock_counter();
+                    if (cntr != info->clk_cntr) {
+                        info->clk_cntr = cntr;
+                        if (time_delta > 0) {
+                            /* clock changed between events send what we have */
+                            goto send_data;
+                        }
+                    }
+                    event_data->time_delta = time_delta;
+                    event_data->data_value[0] = data++;  /* read data */
+                    event_data++;
+                }
             } else {
                 /* Single sensor event data */
+                cntr = mods_control_get_rtc_clock_counter();
+                if (cntr != info->clk_cntr)
+                    info->clk_cntr = cntr;
                 event_data->time_delta = 0;
                 event_data->data_value[0] = data++;
             }
+send_data:
 #else
             /* Single sensor event data */
+            cntr = mods_control_get_rtc_clock_counter();
+            if (cntr != info->clk_cntr)
+                info->clk_cntr = cntr;
             event_data->num_sensors_reporting = 1;
             event_data->time_delta = 0;
             event_data->data_value[0] = data++;
@@ -448,6 +465,7 @@ static int sensor_pressure_dev_probe(struct device *dev)
 
     info->dev = dev;
     device_set_private(dev, info);
+    info->clk_cntr = mods_control_get_rtc_clock_counter();
 
     atomic_init(&txn, 0);
     pthread_mutex_init(&info->run_mutex, NULL);
