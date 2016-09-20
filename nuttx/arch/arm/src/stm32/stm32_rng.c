@@ -232,7 +232,7 @@ static ssize_t stm32_read(struct file *filep, char *buffer, size_t buflen)
        * interrupts.
        */
 
-      sem_init(&g_rngdev.rd_readsem, 0, 1);
+      sem_init(&g_rngdev.rd_readsem, 0, 0);
 
       g_rngdev.rd_buflen = buflen;
       g_rngdev.rd_buf = buffer;
