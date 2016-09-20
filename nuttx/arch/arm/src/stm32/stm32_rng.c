@@ -100,8 +100,6 @@ static const struct file_operations g_rngops =
 
 static int stm32_rnginitialize()
 {
-  uint32_t regval;
-
   vdbg("Initializing RNG\n");
 
   memset(&g_rngdev, 0, sizeof(struct rng_dev_s));
@@ -117,14 +115,6 @@ static int stm32_rnginitialize()
       return -EAGAIN;
     }
 
-  /* Enable interrupts */
-
-  regval = getreg32(STM32_RNG_CR);
-  regval |=  RNG_CR_IE;
-  putreg32(regval, STM32_RNG_CR);
-
-  up_enable_irq(STM32_IRQ_RNG);
-
   return OK;
 }
 
@@ -134,15 +124,24 @@ static void stm32_enable()
 
   g_rngdev.rd_first = true;
 
+  /* Enable generation and interrupts */
+
   regval = getreg32(STM32_RNG_CR);
   regval |= RNG_CR_RNGEN;
+  regval |= RNG_CR_IE;
   putreg32(regval, STM32_RNG_CR);
+
+  up_enable_irq(STM32_IRQ_RNG);
 }
 
 static void stm32_disable()
 {
   uint32_t regval;
+
+  up_disable_irq(STM32_IRQ_RNG);
+
   regval = getreg32(STM32_RNG_CR);
+  regval &= ~RNG_CR_IE;
   regval &= ~RNG_CR_RNGEN;
   putreg32(regval, STM32_RNG_CR);
 }
