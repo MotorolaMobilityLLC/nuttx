@@ -211,6 +211,20 @@ struct mb_control_test_mode_request {
     __le32  value;
 } __packed;
 
+/* Keep track of changes in the clock, for potential */
+/* detection of 'jumps' in time.                     */
+static uint32_t mods_rtc_sync_cntr;
+
+uint32_t mods_control_get_rtc_clock_counter(void)
+{
+    return mods_rtc_sync_cntr;
+}
+
+static inline void mods_control_inc_rtc_clock_counter(void)
+{
+    mods_rtc_sync_cntr++;
+}
+
 #ifdef CONFIG_DEVICE_CORE
 /**
  * @brief send slave state
@@ -532,6 +546,8 @@ static uint8_t mb_control_rtc_sync(struct gb_operation *operation)
         gb_error("dropping short message\n");
         return GB_OP_INVALID;
     }
+
+    mods_control_inc_rtc_clock_counter();
 
     nsec_to_timespec(request->nsec, &ts);
     ret = clock_settime(CLOCK_REALTIME, &ts);

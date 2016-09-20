@@ -29,6 +29,8 @@
 #ifndef _GREYBUS_MODS_CTRL_H_
 #define _GREYBUS_MODS_CTRL_H_
 
+#include <stdint.h>
+
 #ifdef CONFIG_GREYBUS_MODS
 void mb_control_register(int cport);
 extern int mods_cport_valid(int c);
@@ -40,5 +42,7 @@ extern int mods_cport_valid(int c);
 
 /* Valid masks for the slave mask */
 #define MB_CONTROL_SLAVE_MASK_APBE            (1 << 0)
+
+uint32_t mods_control_get_rtc_clock_counter(void);
 
 #endif /* _GREYBUS_MODS_CTRL_H_ */
