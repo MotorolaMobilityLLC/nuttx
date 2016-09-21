@@ -27,10 +27,6 @@ protocol = 0x00
 [bundle-descriptor 0]
 class = 0
 
-; Interface category string (id can't be 0)
-[string-descriptor 3]
-string = cat://0401
-
 ; Motorola specific on CPort 1
 [cport-descriptor 1]
 bundle = 1
