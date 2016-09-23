@@ -22,3 +22,9 @@ config MODS_USBTUN_CPORT_ID
 	default 13
 	depends on ARCH_CHIP_USB_HCD || ARCH_CHIP_USB_PCD
 
+config MODS_USB_HCD_TUN_PORT
+	int "USB Hub port to be tunneled"
+	default 1
+	depends on MODS_USB_HCD_ROUTER
+	---help---
+		Hub port number USB traffic to be tunneled

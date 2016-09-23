@@ -60,9 +60,14 @@ int mhb_send_hsic_status_not(uint8_t status);
 #define SET_ADDRESS           0x0005
 #define SET_CONFIGURATION     0x0009
 
-#define USB3813_CONFIG_ID       1
-#define USB3813_ADDRESS         2
-#define USB3813_EXTERNAL_PORT   1
+#define USBHUB_CONFIG_ID       1
+#define USBHUB_ADDRESS         2
+
+#ifdef CONFIG_MODS_USB_HCD_TUN_PORT
+#define USBHUB_EXTERNAL_PORT CONFIG_MODS_USB_HCD_TUN_PORT
+#else
+#define USBHUB_EXTERNAL_PORT 1
+#endif
 
 #define URB_MAX_PACKET  0x40
 
@@ -122,14 +127,14 @@ typedef struct {
     size_t config_size;
     ep_map_t ep_map;
     uint8_t iface_settings[MAX_NUM_IFACES];
-} hdc_config_desc_t;
+} hcd_config_desc_t;
 
 struct hcd_router_data_s {
     struct device *dev;
     bool do_tunnel;
     bool hcd_ready;
     bool pcd_ready;
-    hdc_config_desc_t *configs;
+    hcd_config_desc_t *configs;
     uint8_t num_configs;
     uint8_t selected_config;
     struct usb_epdesc_s ep_list[MAX_ENDPOINTS];
@@ -437,7 +442,7 @@ static bool prepare_config_list(void *buf, size_t len) {
     if (s_data.configs)
         USBTUN_FREE(s_data.configs);
 
-    s_data.configs = USBTUN_ALLOC(desc->nconfigs * sizeof(hdc_config_desc_t));
+    s_data.configs = USBTUN_ALLOC(desc->nconfigs * sizeof(hcd_config_desc_t));
 
     if (!s_data.configs) {
         lldbg("Failed to allocate config_desc list\n");
@@ -490,7 +495,7 @@ static bool prepare_config_item(uint8_t idx, void *buf, size_t len) {
     return true;
 }
 
-static hdc_config_desc_t *find_selected_config(void) {
+static hcd_config_desc_t *find_selected_config(void) {
     /* non-zero config must be selected */
     if (!s_data.selected_config) {
         lldbg("Config not selected yet\n");
@@ -498,7 +503,7 @@ static hdc_config_desc_t *find_selected_config(void) {
     }
 
     int i;
-    hdc_config_desc_t *cdesc = NULL;
+    hcd_config_desc_t *cdesc = NULL;
     for (i = 0; i < s_data.num_configs; i++) {
         if (s_data.configs[i].config_desc) {
             struct usb_cfgdesc_s *desc = s_data.configs[i].config_desc;
@@ -515,7 +520,7 @@ static void select_interface(uint8_t iface, uint8_t alt_setting) {
 
     lldbg("iface=%d, alt=%d\n", iface, alt_setting);
 
-    hdc_config_desc_t *cdesc = find_selected_config();
+    hcd_config_desc_t *cdesc = find_selected_config();
 
     if (!cdesc) {
         lldbg("Selected config not found\n");
@@ -527,7 +532,7 @@ static void select_interface(uint8_t iface, uint8_t alt_setting) {
 
 static bool prepare_config(ep_map_t *ep_map, struct usb_epdesc_s *ep_list) {
 
-    hdc_config_desc_t *cdesc = find_selected_config();
+    hcd_config_desc_t *cdesc = find_selected_config();
 
     if (!cdesc) {
         lldbg("Selected config not found\n");
@@ -854,7 +859,7 @@ static int usb_control_transfer(struct device *dev, hcd_req_t *req,
     req->urb.status = 0;
 
     if (to_port) {
-        req->urb.devnum = USB3813_ADDRESS;
+        req->urb.devnum = USBHUB_ADDRESS;
         req->urb.dev_ttport = 1;
     }
 
@@ -969,7 +974,7 @@ static bool init_ep_req(uint8_t local_ep, hcd_req_t *req, struct usb_epdesc_s *e
     req->urb.buffer = buffer;
     req->urb.setup_packet = NULL;
     req->urb.interval = get_hcd_ep_interval(ep_info->interval);
-    req->urb.devnum = USB3813_ADDRESS;
+    req->urb.devnum = USBHUB_ADDRESS;
     req->urb.dev_ttport = 1;
 
     return true;
@@ -993,11 +998,11 @@ static port_status_t get_port_status(void) {
         return rstatus;
     }
 
-    prep_internal_setup(req, GET_PORT_STATUS, 0, USB3813_EXTERNAL_PORT, sizeof(port_status_t));
+    prep_internal_setup(req, GET_PORT_STATUS, 0, USBHUB_EXTERNAL_PORT, sizeof(port_status_t));
     req->data.type = USBTUN_MEM_NONE;
     req->data.ptr = status;
     req->data.size = sizeof(*status);
-    int ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_IN, USB3813_ADDRESS, false);
+    int ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_IN, USBHUB_ADDRESS, false);
     if (ret) {
         lldbg("Failed to get port 1 status on 3813 hub.\n");
     } else {
@@ -1020,8 +1025,8 @@ static void clear_feature(uint16_t feature) {
         lldbg("no more req\n");
         return;
     }
-    prep_internal_setup(req, CLR_PORT_FEATURE, feature, USB3813_EXTERNAL_PORT, 0);
-    int ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
+    prep_internal_setup(req, CLR_PORT_FEATURE, feature, USBHUB_EXTERNAL_PORT, 0);
+    int ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USBHUB_ADDRESS, false);
     if (ret) {
         lldbg("Failed to clear port 1 feature on 3813 hub.\n");
     }
@@ -1029,8 +1034,8 @@ static void clear_feature(uint16_t feature) {
 
 static void reset_port(void) {
     hcd_req_t *req = (hcd_req_t *)usbtun_req_dq(0);
-    prep_internal_setup(req, SET_PORT_FEATURE, PORT_RESET, USB3813_EXTERNAL_PORT, 0);
-    int ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
+    prep_internal_setup(req, SET_PORT_FEATURE, PORT_RESET, USBHUB_EXTERNAL_PORT, 0);
+    int ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USBHUB_ADDRESS, false);
     if (ret) {
         lldbg("Failed to reset port 1 on 3813 hub\n");
         return;
@@ -1148,7 +1153,7 @@ static bool start_port_monitor(hcd_req_t *req) {
     /* ep_info is pointing APBA descriptor. Converto back to APBE eq number */
     req->urb.pipe.endpoint = 1;
     req->urb.pipe.type = USB_HOST_PIPE_INTERRUPT;
-    req->urb.pipe.device = USB3813_ADDRESS;
+    req->urb.pipe.device = USBHUB_ADDRESS;
     req->urb.pipe.direction = USB_HOST_DIR_IN;
     req->urb.dev_speed = USB_SPEED_HIGH;
     req->urb.maxpacket = 1;
@@ -1229,11 +1234,11 @@ static void *hcd_router_startup(void *arg) {
     device_usb_hcd_hub_control(s_data.dev, GET_PORT_STATUS, 0, 1, (char *)status, sizeof(*status));
 
     lldbg("Status on root hub port %08x\n", *status);
-    lldbg("HDC Router started\n");
+    lldbg("HCD Router started\n");
 
     /* Configure usb3813 hub */
     req = (hcd_req_t *)usbtun_req_dq(0);
-    prep_internal_setup(req, SET_ADDRESS, USB3813_ADDRESS, 0, 0);
+    prep_internal_setup(req, SET_ADDRESS, USBHUB_ADDRESS, 0, 0);
     ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, 0, false);
     if (ret) {
         lldbg("Failed to set address to 3813 hub\n");
@@ -1241,8 +1246,8 @@ static void *hcd_router_startup(void *arg) {
     }
 
     req = (hcd_req_t *)usbtun_req_dq(0);
-    prep_internal_setup(req, SET_CONFIGURATION, USB3813_CONFIG_ID, 0, 0);
-    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
+    prep_internal_setup(req, SET_CONFIGURATION, USBHUB_CONFIG_ID, 0, 0);
+    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USBHUB_ADDRESS, false);
     if (ret) {
         lldbg("Failed to set configuration to 3813 hub\n");
         goto stop_hcd;
@@ -1274,8 +1279,8 @@ static void *hcd_router_startup(void *arg) {
 
     /* Enable port 1 on usb3813 hub */
     req = (hcd_req_t *)usbtun_req_dq(0);
-    prep_internal_setup(req, SET_PORT_FEATURE, PORT_POWER, USB3813_EXTERNAL_PORT, 0);
-    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USB3813_ADDRESS, false);
+    prep_internal_setup(req, SET_PORT_FEATURE, PORT_POWER, USBHUB_EXTERNAL_PORT, 0);
+    ret = usb_control_transfer_sync(s_data.dev, req, USB_HOST_DIR_OUT, USBHUB_ADDRESS, false);
     if (ret) {
         lldbg("Failed to enable port 1 on 3813 hub\n");
         goto stop_hcd;
