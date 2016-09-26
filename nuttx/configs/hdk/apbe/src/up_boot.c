@@ -40,6 +40,7 @@
 #include <nuttx/device_table.h>
 
 #include <nuttx/mhb/device_mhb.h>
+#include <nuttx/usb.h>
 
 #include <reglog.h>
 #include <tsb_fr_tmr.h>
@@ -106,6 +107,16 @@ static struct device mod_devices[] = {
         .resource_count = ARRAY_SIZE(gpio_tunnel_resources),
     },
 #endif
+
+#ifdef CONFIG_MODS_USB_HCD_ROUTER
+    {
+        .type = DEVICE_TYPE_HSIC_DEVICE,
+        .name = "dummy_hsic",
+        .desc = "Dummy HSIC Driver",
+        .id   = 0,
+    },
+#endif
+
 };
 
 static struct device_table mod_device_table = {
@@ -169,5 +180,11 @@ void board_initialize(void) {
    extern struct device_driver gpio_tunnel_driver;
    device_register_driver(&gpio_tunnel_driver);
 #endif
+
+#ifdef CONFIG_MODS_USB_HCD_ROUTER
+   extern struct device_driver dummy_hsic_driver;
+   device_register_driver(&dummy_hsic_driver);
+#endif
+
 #endif
 }

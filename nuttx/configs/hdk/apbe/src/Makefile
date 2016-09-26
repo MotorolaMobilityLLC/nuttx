@@ -20,6 +20,10 @@ ifeq ($(CONFIG_WATCHDOG),y)
 	CSRCS		+= up_watchdog.c
 endif
 
+ifeq ($(CONFIG_MODS_USB_HCD_ROUTER),y)
+	CSRCS		+= dummy_hsic.c
+endif
+
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
