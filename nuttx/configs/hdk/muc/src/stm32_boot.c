@@ -58,6 +58,7 @@
 #include <nuttx/device_audio.h>
 #include <nuttx/device_i2s.h>
 #include <nuttx/device_mhb_cam.h>
+#include <nuttx/device_usbtun.h>
 #include <nuttx/device_usb_ext.h>
 #include <nuttx/fusb302.h>
 
@@ -65,6 +66,7 @@
 #include <nuttx/power/bq25896.h>
 #include <nuttx/power/ext_power.h>
 #include <nuttx/util.h>
+#include <nuttx/usb.h>
 
 #include <nuttx/mhb/device_mhb.h>
 
@@ -365,6 +367,37 @@ static struct device_resource tfa9890_audio_resources[] = {
        .name   = "rst_ls",
        .type   = DEVICE_RESOURCE_TYPE_GPIO,
        .start  = GPIO_MODS_RST_LS,
+       .count  = 1,
+    },
+};
+#endif
+
+#ifdef CONFIG_MODS_RAW_HSIC
+static struct device_resource hsic_resources[] = {
+    {
+       .name   = "hub_rst_n",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_USBHUB_RST_N,
+       .count  = 1,
+    },
+    {
+       .name   = "susp_int",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_SUSP_IRQ_INT_N,
+       .count  = 1,
+    },
+};
+static struct device_resource hsic_usb_resources[] = {
+    {
+       .name   = "c_int_n",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_USBC_INT_N,
+       .count  = 1,
+    },
+    {
+       .name   = "vbus_ena",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_USBC_VBUS_ENA,
        .count  = 1,
     },
 };
@@ -760,6 +793,54 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+#ifdef CONFIG_MODS_RAW_HSIC
+#ifdef CONFIG_MHB_UART
+    {
+        .type = DEVICE_TYPE_MHB,
+        .name = "mhb",
+        .desc = "mhb",
+        .id   = MHB_ADDR_HSIC,
+        .resources = mhb_resources,
+        .resource_count = ARRAY_SIZE(mhb_resources),
+    },
+#endif
+#ifdef CONFIG_MHB_APBE_CTRL_DEVICE
+    {
+        .type = DEVICE_TYPE_SLAVE_PWRCTRL_HW,
+        .name = "slave_pwrctrl",
+        .desc = "slave power control",
+        .id   = MHB_ADDR_HSIC,
+    },
+#endif
+    {
+        .type = DEVICE_TYPE_RAW_HW,
+        .name = "raw_hsic",
+        .desc = "Raw HSIC Interface",
+        .id   = 0,
+    },
+    {
+        .type = DEVICE_TYPE_HSIC_DEVICE,
+        .name = "usb3813",
+        .desc = "USB3813 HSIC Hub",
+        .id   = 0,
+        .resources = hsic_resources,
+        .resource_count = ARRAY_SIZE(hsic_resources),
+    },
+    {
+        .type = DEVICE_TYPE_USB_EXT_HW,
+        .name = "usb_ext",
+        .desc = "USB-EXT Interface",
+        .resources = hsic_usb_resources,
+        .resource_count = ARRAY_SIZE(hsic_usb_resources),
+        .id   = 0,
+    },
+    {
+        .type = DEVICE_TYPE_USBTUN_HW,
+        .name = "mhb_usbtun",
+        .desc = "MHB USB Tunneling Driver",
+        .id   = 0,
+    },
+#endif /* MODS_RAW_HSIC */
 };
 
 static struct device_table muc_device_table = {
@@ -1003,6 +1084,16 @@ void board_initialize(void)
    device_register_driver(&display_mux_driver);
    extern struct device_driver mods_raw_factory_driver;
    device_register_driver(&mods_raw_factory_driver);
+#endif
+#ifdef CONFIG_MODS_RAW_HSIC
+   extern struct device_driver usb3813_driver;
+   device_register_driver(&usb3813_driver);
+   extern struct device_driver raw_hsic_usb_ext_driver;
+   device_register_driver(&raw_hsic_usb_ext_driver);
+   extern struct device_driver mhb_usbtun_driver;
+   device_register_driver(&mhb_usbtun_driver);
+   extern struct device_driver mods_raw_hsic_driver;
+   device_register_driver(&mods_raw_hsic_driver);
 #endif
 #endif
 

@@ -129,6 +129,12 @@
 #define BATT_COMP_SPEED          STM32_COMP_SPEED_LOW    /* Speed */
 #define BATT_COMP_INV            false                   /* Output not inverted */
 
+/* HSIC pcard */
+#define GPIO_USBHUB_RST_N        CALC_GPIO_NUM('C', 8)
+#define GPIO_SUSP_IRQ_INT_N      CALC_GPIO_NUM('A', 10)
+#define GPIO_USBC_INT_N          CALC_GPIO_NUM('C', 7)
+#define GPIO_USBC_VBUS_ENA       CALC_GPIO_NUM('D', 6)
+
 static inline void mods_rfr_init(void)
 {
     /* On this board, RFR is active high */

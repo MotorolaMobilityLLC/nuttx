@@ -118,6 +118,10 @@ ifeq ($(CONFIG_BATTERY_MAX17050_THERMISTOR_ACCURATE_TEMP),y)
 CSRCS += stm32_thermistor.c
 endif
 
+ifeq ($(CONFIG_MODS_RAW_HSIC),y)
+CSRCS += stm32_modsraw_hsic.c usb3813.c
+endif
+
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(ASRCS) $(CSRCS)

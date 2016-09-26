@@ -130,4 +130,10 @@ config MODS_RAW_FACTORY
 	default n
 	depends on GREYBUS_MODS_DISPLAY
 	depends on GREYBUS_RAW
+
+config MODS_RAW_HSIC
+	bool "Enable HSIC pcard control interface"
+	default n
+	depends on GREYBUS_RAW
+	select DEVICE_CORE
 endif
