@@ -64,10 +64,12 @@ static struct modterm_info *info;
 static void *modterm_rx_thread(void *data)
 {
     int ret = 0;
-    int i, data_size;
     char *output;
-    uint8_t rx_buf[MODTERM_MAX_BUF_LENGTH];
     cJSON *root, *fmt_term;
+#ifndef CONFIG_TERMAPP_ROCK_SEVEN
+    int i, data_size;
+    uint8_t rx_buf[MODTERM_MAX_BUF_LENGTH];
+#endif
 
     if (!info) {
         return (void *)(-EINVAL);
@@ -77,6 +79,12 @@ static void *modterm_rx_thread(void *data)
     while (1) {
         /* initialize the buffers and data_size */
         memset(info->post_buf,0,sizeof(info->post_buf));
+#ifdef CONFIG_TERMAPP_ROCK_SEVEN
+        /* blocking read */
+        ret = read(info->fd, &info->post_buf[0], sizeof(info->post_buf));
+
+        llvdbg("send %d bytes over raw\n", ret);
+#else
         memset(rx_buf, 0, sizeof(rx_buf));
         data_size = 0;
         /* read uart data till carriage return */
@@ -95,12 +103,18 @@ static void *modterm_rx_thread(void *data)
         }
 
         llvdbg("send %d bytes over raw\n", data_size);
+#endif
+
         if (info->gCallback) {
             /* build JSON objects for terminal */
             root=cJSON_CreateObject();
             cJSON_AddItemToObject(root, "term", fmt_term=cJSON_CreateObject());
             cJSON_AddStringToObject(fmt_term,"data", (const char *)&info->post_buf[0]);
+#ifdef CONFIG_TERMAPP_ROCK_SEVEN
+            cJSON_AddNumberToObject(fmt_term,"size", ret);
+#else
             cJSON_AddNumberToObject(fmt_term,"size", data_size);
+#endif
             cJSON_AddStringToObject(fmt_term,"sender", "mod");
 
             /* generate JSON for terminal */
@@ -161,6 +175,10 @@ static int modterm_raw_recv(struct device *dev, uint32_t len, uint8_t data[])
         data_recv = cJSON_GetObjectItem(term,"data")->valuestring;
         /* get the data size */
         data_size = cJSON_GetObjectItem(term,"size")->valueint;
+#ifdef CONFIG_TERMAPP_ROCK_SEVEN
+        if (*(data_recv + (data_size - 1)) == 0xa)
+            *(data_recv + (data_size - 1)) = 0xd;
+#endif
 
         llvdbg("wrote %d bytes to uart\n", data_size);
         /* write the data to uart */

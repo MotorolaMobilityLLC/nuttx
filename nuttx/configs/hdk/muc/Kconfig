@@ -40,6 +40,11 @@ config MODS_RAW_TERMAPP
 	---help---
 		Enable termapp Raw device
 
+config TERMAPP_ROCK_SEVEN
+	bool "Termapp support for Rock Seven RockBLOCK"
+	default n
+	depends on MODS_RAW_TERMAPP
+
 config MODS_RAW_TEMPERATURE
 	bool "Temperature Personality Mods Raw support"
 	default n
