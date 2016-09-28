@@ -1206,6 +1206,7 @@ static struct device_camera_ext_dev_type_ops camera_ext_type_ops = {
     .ctrl_get          = _mhb_camera_ext_ctrl_get,
     .ctrl_set          = _mhb_camera_ext_ctrl_set,
     .ctrl_try          = camera_ext_ctrl_try,
+    .set_phone_ver     = camera_ext_set_phone_ver,
 };
 
 static struct device_driver_ops camera_ext_driver_ops = {
