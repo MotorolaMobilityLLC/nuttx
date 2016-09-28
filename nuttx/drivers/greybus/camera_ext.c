@@ -37,6 +37,8 @@ struct camera_ext_db {
     struct camera_ext_ctrl_db *ctrl_db;
 };
 
+static uint16_t s_phone_ver; /* major << 8 | minor */
+
 static size_t get_local_ctrl_val_size(
         const struct camera_ext_ctrl_val_cfg *val_cfg);
 
@@ -804,11 +806,18 @@ static void cam_ext_ctrl_get_size_info(struct camera_ext_ctrl_db *ctrl_db,
         /* no more next */
         cfg->next.id = (uint32_t) -1;
     } else {
-        cfg->next.id = cpu_to_le32(ctrl_db->ctrls[idx]->id);
-        cfg->next.array_size = cpu_to_le32(
-            ctrl_db->ctrls[idx]->array_size);
-        cfg->next.val_size = cpu_to_le32((uint32_t)
-            get_local_ctrl_val_size(&ctrl_db->ctrls[idx]->val_cfg));
+        uint16_t ctrl_ver = ctrl_db->ctrls[idx]->ver;
+        if (ctrl_ver == 0) /* default as 1.0 if not set */
+            ctrl_ver = 0x100;
+
+        if (ctrl_ver <= s_phone_ver) {
+            cfg->next.id = cpu_to_le32(ctrl_db->ctrls[idx]->id);
+            cfg->next.array_size = cpu_to_le32(
+                ctrl_db->ctrls[idx]->array_size);
+            cfg->next.val_size = cpu_to_le32((uint32_t)
+                get_local_ctrl_val_size(&ctrl_db->ctrls[idx]->val_cfg));
+        } else
+            cfg->next.id = (uint32_t) -1;
     }
 }
 
@@ -1098,4 +1107,16 @@ int camera_ext_ctrl_try(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
     struct camera_ext_ctrl_db *ctrl_db = camera_ext_get_control_db();
 
     return cam_ext_ctrl_try(dev, ctrl_db, idx, ctrl_val, ctrl_val_size);
+}
+
+int camera_ext_set_phone_ver(struct device *dev, uint8_t major, uint8_t minor)
+{
+    s_phone_ver = (major << 8) | minor;
+
+    return 0;
+}
+
+uint16_t camera_ext_get_phone_ver(void)
+{
+    return s_phone_ver;
 }

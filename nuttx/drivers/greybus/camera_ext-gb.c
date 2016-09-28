@@ -43,7 +43,7 @@
 
 /* Version of the Greybus camera protocol we support */
 #define GB_CAMERA_EXT_VERSION_MAJOR 0x01
-#define GB_CAMERA_EXT_VERSION_MINOR 0x00
+#define GB_CAMERA_EXT_VERSION_MINOR 0x01
 
 /* Used to indicate enum index is not found */
 #define GB_CAMERA_EXT_INVALID_INDEX cpu_to_le32(0xFFFFFFFF)
@@ -79,10 +79,16 @@
 #define GB_CAMERA_EXT_TYPE_CTRL_TRY     0x13
 
 #define GB_CAMERA_EXT_EVENT             0x14
+
+struct gb_proto_version_request {
+    __u8    major;
+    __u8    minor;
+} __packed;
+
 struct gb_proto_version_response {
     uint8_t major;
     uint8_t minor;
-};
+} __packed;
 
 struct gb_camera_ext_info {
     unsigned int cport;
@@ -194,7 +200,20 @@ static void gb_camera_ext_exit(unsigned int cport)
 
 static uint8_t gb_camera_protocol_version(struct gb_operation *operation)
 {
+    struct gb_proto_version_request *request;
     struct gb_proto_version_response *response;
+
+    if (gb_operation_get_request_payload_size(operation) == sizeof(*request)) {
+        request = (struct gb_proto_version_request *)
+                        gb_operation_get_request_payload(operation);
+        int ret = CALL_CAM_DEV_OP(dev_info.dev, set_phone_ver, request->major,
+                        request->minor);
+        if (ret != 0)
+            return gb_operation_errno_map(ret);
+    } else {
+        CAM_ERR("invalid version request");
+        return -EINVAL;
+    }
 
     response = gb_operation_alloc_response(operation, sizeof(*response));
     if (!response)

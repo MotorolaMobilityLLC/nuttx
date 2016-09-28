@@ -177,6 +177,7 @@ struct camera_ext_ctrl_cfg {
         const float *menu_float;
     };
 
+    uint16_t ver; //(major << 8) | minor
     struct camera_ext_ctrl_val_cfg val_cfg;
     const camera_ext_ctrl_val_t def;
 
@@ -297,6 +298,9 @@ int camera_ext_ctrl_set(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
     uint32_t ctrl_val_size);
 int camera_ext_ctrl_try(struct device *dev, uint32_t idx, uint8_t *ctrl_val,
     uint32_t ctrl_val_size);
+int camera_ext_set_phone_ver(struct device *dev, uint8_t major, uint8_t minor);
+/* get phone camera_ext protocol version. 0 means not connected yet */
+uint16_t camera_ext_get_phone_ver(void);
 
 /* Functions to for v4l2 controls */
 int cam_ext_ctrl_get_cfg(struct camera_ext_ctrl_db *ctrl_db, uint32_t idx,
