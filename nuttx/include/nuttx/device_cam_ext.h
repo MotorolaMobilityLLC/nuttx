@@ -114,6 +114,8 @@ struct device_camera_ext_dev_type_ops {
             uint8_t *ctrl_val, uint32_t ctrl_val_size);
     int (*ctrl_try)(struct device *dev, uint32_t idx,
             uint8_t *ctrl_val, uint32_t ctrl_val_size);
+
+    int (*set_phone_ver)(struct device *dev, uint8_t major, uint8_t minor);
 };
 
 IMPL_CAMERA_EXT_DEV_OP_ARG1(register_event_cb, camera_ext_event_cb_t, cb)
@@ -152,5 +154,7 @@ IMPL_CAMERA_EXT_DEV_OP_ARG3(ctrl_set, uint32_t, idx, \
     uint8_t*, ctrl_val, uint32_t, ctrl_val_size)
 IMPL_CAMERA_EXT_DEV_OP_ARG3(ctrl_try, uint32_t, idx, \
     uint8_t*, ctrl_val, uint32_t, ctrl_val_size)
+
+IMPL_CAMERA_EXT_DEV_OP_ARG2(set_phone_ver, uint8_t, major, uint8_t, minor)
 
 #endif
