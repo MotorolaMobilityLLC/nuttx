@@ -41,7 +41,7 @@
 #include <nuttx/mhb/mhb_protocol.h>
 #include <nuttx/usb.h>
 
-enum { DIRECT_USB, APBE_TUNNEL };
+enum { DIRECT_USB, APBE_TUNNEL, HSIC_TEST };
 
 typedef struct {
     int conn_type;
@@ -81,6 +81,10 @@ static int _recv(struct device *dev, uint32_t len, uint8_t data[])
         usb3813_set_hsic_uplink(true);
         s_data.conn_type = APBE_TUNNEL;
         lldbg("set type to %d\n", s_data.conn_type);
+    } else if (!strcmp((const char *)data, "hsictest")) {
+        usb3813_set_hsic_uplink(false);
+        s_data.conn_type = HSIC_TEST;
+        lldbg("HSIC test mode\n");
     } else {
         lldbg("unknown command :%s, ignored\n", data);
     }
@@ -212,7 +216,9 @@ static int _slave_status_callback(struct device *dev, uint32_t slave_status)
 
     switch (slave_status) {
     case MHB_PM_STATUS_PEER_CONNECTED:
-        device_hsic_release_reset(s_data.hsic);
+        if (s_data.hsic)
+            device_hsic_release_reset(s_data.hsic);
+
         s_data.attached = true;
         if (s_data.usb_ext_callback)
             s_data.usb_ext_callback(s_data.usb_ext,  s_data.attached);
@@ -236,6 +242,20 @@ static void _usb_turn_on(void) {
     int ret;
 
     if (s_data.conn_type == DIRECT_USB) {
+        s_data.hsic = device_open(DEVICE_TYPE_HSIC_DEVICE, 0);
+
+        if (!s_data.hsic) {
+            lldbg("Failed to open HSIC devie\n");
+            return;
+        }
+
+        ret = device_hsic_hold_reset(s_data.hsic);
+        if (ret) {
+            device_close(s_data.hsic);
+            s_data.hsic = NULL;
+            return;
+        }
+
         // Turn on APBE to enable 19.2 MHx ref clock
         s_data.slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW,
                                              MHB_ADDR_HSIC);
@@ -266,15 +286,18 @@ static void _usb_turn_on(void) {
 
         device_usbtun_register_callback(s_data.usbtun, &_hsic_status_cb);
 
+        if (s_data.conn_type == HSIC_TEST) {
+            s_data.attached = true;
+            if (s_data.usb_ext_callback)
+                s_data.usb_ext_callback(s_data.usb_ext,  s_data.attached);
+        }
+
         ret = device_usbtun_on(s_data.usbtun);
 
         if (ret) {
             lldbg("Failed to turn on usb tunneling\n");
             return;
         }
-
-        usleep(HSIC_DEV_RELEASE_RESET_DELAY);
-        device_hsic_release_reset(s_data.hsic);
     }
 }
 
@@ -309,7 +332,12 @@ static void _usb_turn_off(void) {
         device_close(s_data.usbtun);
     }
 
-    device_hsic_hold_reset(s_data.hsic);
+    if (s_data.hsic) {
+        device_hsic_hold_reset(s_data.hsic);
+        device_close(s_data.hsic);
+    }
+
+    s_data.hsic = NULL;
     s_data.attached = false;
 
     if (s_data.usb_ext_callback)
@@ -318,23 +346,8 @@ static void _usb_turn_off(void) {
 
 static int _usb_ext_open(struct device *dev)
 {
-    int ret = 0;
-
     if (!dev)
         return -EINVAL;
-
-    s_data.hsic = device_open(DEVICE_TYPE_HSIC_DEVICE, 0);
-
-    if (!s_data.hsic) {
-        lldbg("Failed to open HSIC devie\n");
-        return -ENODEV;
-    }
-
-    ret = device_hsic_hold_reset(s_data.hsic);
-    if (ret) {
-        device_close(s_data.hsic);
-        return ret;
-    }
 
     return 0;
 }
