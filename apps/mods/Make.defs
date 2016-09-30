@@ -28,3 +28,6 @@ endif
 ifeq ($(CONFIG_MODS_USB_PCD_ROUTER), y)
 CONFIGURED_APPS += mods/usbtun
 endif
+ifeq ($(CONFIG_MODS_HSIC_TEST), y)
+CONFIGURED_APPS += mods/hsic_test
+endif

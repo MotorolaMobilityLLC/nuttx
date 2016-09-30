@@ -1,0 +1,12 @@
+#
+# For a description of the syntax of this configuration file,
+# see misc/tools/kconfig-language.txt.
+#
+
+config MODS_HSIC_TEST
+	bool "Enable HSIC Test Interface"
+	default n
+	depends on ARCH_CHIP_USB_PCD
+	---help---
+		Enable HSIC Test Interface at start up.
+
