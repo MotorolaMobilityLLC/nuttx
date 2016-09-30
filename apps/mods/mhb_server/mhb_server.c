@@ -74,6 +74,10 @@
 #include <nuttx/usbtun/usbtun_pcd_router.h>
 #endif
 
+#ifdef CONFIG_MODS_HSIC_TEST
+int hsic_test_init(void);
+void hsic_test_uninit(void);
+#endif
 
 #include "sm.h"
 #include "gearbox.h"
@@ -1265,13 +1269,21 @@ static int mhb_handle_hsic_control_req(struct mhb_transaction *transaction)
         ret = 0;
         break;
 #endif
+#ifdef CONFIG_MODS_HSIC_TEST
+    case MHB_HSIC_COMMAND_START:
+        ret = hsic_test_init();
+        break;
+    case MHB_HSIC_COMMAND_STOP:
+        hsic_test_uninit();
+        break;
+#endif
     default:
         dbg("ERROR: HSIC event %d not handled\n", req->command);
         ret = -EINVAL;
         goto snd_resp;
     }
 
-#if CONFIG_MHB_IPC_CLIENT
+#ifdef CONFIG_MODS_USB_HCD_ROUTER
     /* Configure APBA side */
     ret = mhb_unipro_send(transaction);
 
