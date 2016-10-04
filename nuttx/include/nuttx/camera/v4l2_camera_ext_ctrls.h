@@ -840,4 +840,7 @@ enum {
 /* int[2] max jpeg size, max raw image size, optional for uvc fragment buffers */
 #define CAM_EXT_CID_UVC_FRAG_CFG  (CID_CAM_EXT_CLASS_BASE + 125)
 
+/* float, Mod's capability of the continuous snapshot, optional */
+#define CAM_EXT_CID_CONTINUOUS_SNAPSHOT_FPS (CID_CAM_EXT_CLASS_BASE + 126)
+
 #endif /* __CAMERA_EXT_CTRLS_H */
