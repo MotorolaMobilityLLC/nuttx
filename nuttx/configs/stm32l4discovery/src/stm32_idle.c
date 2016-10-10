@@ -87,7 +87,7 @@ static void stm32_idlepm(void)
           goto errout;
         }
 
-      lldbg("newstate= %d oldstate=%d\n", newstate, oldstate);
+      llvdbg("%d -> %d\n", oldstate, newstate);
 
       /* Then perform board-specific, state-dependent logic here */
 
@@ -161,4 +161,3 @@ void up_idle(void)
   /* Sleep until an interrupt occurs to save power. */
   asm("WFI");
 }
-
