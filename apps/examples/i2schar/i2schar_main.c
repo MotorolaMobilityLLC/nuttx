@@ -199,7 +199,9 @@ static void parse_args(FAR struct i2schar_state_s *i2schar, int argc, FAR char *
                 exit(1);
               }
 
+#ifdef CONFIG_EXAMPLES_I2SCHAR_RX
             i2schar->rxcount = (uint32_t)value;
+#endif
             index += nargs;
             break;
 
@@ -211,7 +213,9 @@ static void parse_args(FAR struct i2schar_state_s *i2schar, int argc, FAR char *
                 exit(1);
               }
 
+#ifdef CONFIG_EXAMPLES_I2SCHAR_TX
             i2schar->txcount = (uint32_t)value;
+#endif
             index += nargs;
             break;
 
