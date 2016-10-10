@@ -85,6 +85,7 @@
 #include "stm32_pwr.h"
 #include "stm32_rcc.h"
 #include "stm32_rtc.h"
+#include "stm32_sai.h"
 #include "stm32_sdio.h"
 #include "stm32_spi.h"
 #include "stm32_tim.h"
