@@ -70,6 +70,12 @@ ifeq ($(CONFIG_STM32_OTGFS),y)
 CSRCS += stm32_usb.c
 endif
 
+ifeq ($(CONFIG_AUDIO_I2SCHAR),y)
+ifeq ($(CONFIG_STM32_SAI),y)
+CSRCS += stm32_i2schar.c
+endif
+endif
+
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(ASRCS) $(CSRCS)

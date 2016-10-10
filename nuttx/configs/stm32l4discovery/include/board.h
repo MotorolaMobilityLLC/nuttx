@@ -103,7 +103,7 @@
 #  undef  STM32_PLLCFG_PLLQ_EN
 #  define STM32_PLLCFG_PLLR_EN
 
-/* 'SAIPLL1' is used to generate the 48 MHz clock */
+/* 'PLLSAI1' is used to generate the 48 MHz clock */
 #  define STM32_BOARD_USE_PLLSAI1 1
 #  define STM32_PLLSAI1CFG_PLLN   RCC_PLLSAI1CFG_PLLN(24)
 #  define STM32_PLLSAI1CFG_PLLP   0
@@ -113,6 +113,16 @@
 #  define STM32_PLLSAI1CFG_PLLQ_EN
 #  undef  STM32_PLLSAI1CFG_PLLR_EN
 
+/* 'PLLSAI2' is used to generate the 24.571 MHz clock */
+#  define STM32_BOARD_USE_PLLSAI2 1
+#  define STM32_PLLSAI2CFG_PLLN   RCC_PLLSAI2CFG_PLLN(43)
+#  define STM32_PLLSAI2CFG_PLLP   RCC_PLLSAI2CFG_PLLP_7
+#  define STM32_PLLSAI2CFG_PLLQ   0
+#  define STM32_PLLSAI2CFG_PLLR   0
+#  define STM32_PLLSAI2CFG_PLLP_EN
+#  undef  STM32_PLLSAI2CFG_PLLQ_EN
+#  undef  STM32_PLLSAI2CFG_PLLR_EN
+
 /* Use the MSI; freq = 4 MHz; autotrim from LSE */
 #  define STM32_PLLCFG_PLLSRC     RCC_PLLCFG_PLLSRC_MSI
 
@@ -120,10 +130,10 @@
 #  define STM32_BOARD_USEMSI      1
 #  define STM32_BOARD_MSIRANGE    RCC_CR_MSIRANGE_6  /* 4 MHz */
 
-/* Enable CLK48; get it from PLLSAI1 */
+/* Select the clock sources */
 
-#  define STM32_BOARD_USE_CLK48   1
 #  define STM32_BOARD_CLK48_SEL   RCC_CCIPR_CLK48SEL_PLLSAI1
+#  define STM32_BOARD_SAI1_SEL    RCC_CCIPR_SAI1SEL_PLLSAI2
 
 #  define STM32_SYSCLK_FREQUENCY  80000000ul
 #endif
@@ -185,8 +195,8 @@
 
 #define STM32_USART2_FREQUENCY  STM32_HSI_FREQUENCY
 
-#define GPIO_USART2_RX GPIO_USART2_RX_2    /* PD6 */
-#define GPIO_USART2_TX GPIO_USART2_TX_2    /* PD5 */
+#define GPIO_USART2_RX   GPIO_USART2_RX_2    /* PD6 */
+#define GPIO_USART2_TX   GPIO_USART2_TX_2    /* PD5 */
 
 /* I2C */
 
@@ -201,18 +211,28 @@
 
 /* SPI */
 
-#define GPIO_SPI1_MISO GPIO_SPI1_MISO_3
-#define GPIO_SPI1_MOSI GPIO_SPI1_MOSI_3
-#define GPIO_SPI1_SCK  GPIO_SPI1_SCK_3
-#define GPIO_SPI1_NSS_SW   GPIO_SPI1_NSS_3_SW
+#define GPIO_SPI1_MISO   GPIO_SPI1_MISO_3
+#define GPIO_SPI1_MOSI   GPIO_SPI1_MOSI_3
+#define GPIO_SPI1_SCK    GPIO_SPI1_SCK_3
 
-#define SPI1_MODE_TYPE		SPI_MODE_TYPE_SLAVE
+#define SPI1_MODE_TYPE   SPI_MODE_TYPE_SLAVE
 
 #define stm32_spi1select NULL
 #define stm32_spi1status NULL
 
-#define DMACHAN_SPI1_RX DMACHAN_SPI1_RX_1
-#define DMACHAN_SPI1_TX DMACHAN_SPI1_TX_1
+#define DMACHAN_SPI1_RX  DMACHAN_SPI1_RX_1
+#define DMACHAN_SPI1_TX  DMACHAN_SPI1_TX_1
+
+/* SAI */
+
+#define STM32_SAI1_FREQUENCY  24576000ul
+
+#define GPIO_SAI1_FS_A   GPIO_SAI1_FS_A_2
+#define GPIO_SAI1_SCK_A  GPIO_SAI1_SCK_A_2
+#define GPIO_SAI1_SD_A   GPIO_SAI1_SD_A_3
+#define GPIO_SAI1_MCLK_A GPIO_SAI1_MCLK_A_2
+
+#define DMACHAN_SAI1_A   DMACHAN_SAI1_A_1
 
 /************************************************************************************
  * Public Data
