@@ -424,7 +424,32 @@ static inline void rcc_enableapb2(void)
   regval |= RCC_APB2ENR_USART1EN;
 #endif
 
-  /* TODO Add TIM15EN, TIM16EN, TIM17EN, SAI1EN, SAI2EN, and DFSDMEN */
+#ifdef CONFIG_STM32_TIM15
+  /* TIM15 clock enable */
+  regval |= RCC_APB2ENR_TIM15EN;
+#endif
+
+#ifdef CONFIG_STM32_TIM16
+  /* TIM16 clock enable */
+  regval |= RCC_APB2ENR_TIM16EN;
+#endif
+
+#ifdef CONFIG_STM32_TIM17
+  /* TIM17 clock enable */
+  regval |= RCC_APB2ENR_TIM17EN;
+#endif
+
+#if defined(CONFIG_STM32_SAI1_A) || defined(CONFIG_STM32_SAI1_B)
+  /* SAI1 clock enable */
+  regval |= RCC_APB2ENR_SAI1EN;
+#endif
+
+#if defined(CONFIG_STM32_SAI2_A) || defined(CONFIG_STM32_SAI2_B)
+  /* SAI2 clock enable */
+  regval |= RCC_APB2ENR_SAI2EN;
+#endif
+
+  /* TODO Add DFSDMEN */
 
   putreg32(regval, STM32_RCC_APB2ENR);   /* Enable peripherals */
 }
