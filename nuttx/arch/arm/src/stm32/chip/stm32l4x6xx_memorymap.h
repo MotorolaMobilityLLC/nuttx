@@ -136,7 +136,11 @@
 #define STM32_TIM16_BASE     0x40014400     /* 0x40014400-0x400147ff TIM16 */
 #define STM32_TIM17_BASE     0x40014800     /* 0x40014800-0x40014bff TIM17 */
 #define STM32_SAI1_BASE      0x40015400     /* 0x40015400-0x400157ff SAI1 */
+#  define STM32_SAI1_A_BASE  0x40015404     /*                       Block A */
+#  define STM32_SAI1_B_BASE  0x40015424     /*                       Block B */
 #define STM32_SAI2_BASE      0x40015800     /* 0x40015800-0x40015bff SAI2 */
+#  define STM32_SAI2_A_BASE  0x40015804     /*                       Block A */
+#  define STM32_SAI2_B_BASE  0x40015824     /*                       Block B */
 #define STM32_DFSDM_BASE     0x40016000     /* 0x40016000-0x400163ff DFSDM */
 
 /* AHB1 Base Addresses **************************************************************/
