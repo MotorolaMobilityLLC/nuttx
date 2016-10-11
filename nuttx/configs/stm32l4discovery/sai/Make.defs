@@ -1,5 +1,5 @@
 ############################################################################
-# configs/stm32l4discovery/nsh/Make.defs
+# configs/stm32l4discovery/sai/Make.defs
 #
 #   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <gnutt@nuttx.org>
