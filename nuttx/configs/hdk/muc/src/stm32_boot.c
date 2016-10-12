@@ -892,15 +892,6 @@ void stm32_boardinitialize(void)
   regval  = getreg32(STM32_PWR_CR2);
   regval |= PWR_CR2_IOSV;
   putreg32(regval, STM32_PWR_CR2);
-
-#ifdef CONFIG_STM32_SPI_DMA
-  /* set up DMA Channels for SPI */
-  regval  = DMA1_CSELR_CHAN2_SPI1_RX;
-  regval |= DMA1_CSELR_CHAN3_SPI1_TX;
-  regval |= DMA1_CSELR_CHAN4_SPI2_RX;
-  regval |= DMA1_CSELR_CHAN5_SPI2_TX;
-  putreg32(regval, STM32_DMA1_CSELR);
-#endif
 }
 
 /****************************************************************************
