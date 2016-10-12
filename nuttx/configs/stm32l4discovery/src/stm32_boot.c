@@ -75,11 +75,6 @@ void stm32_boardinitialize(void)
 #ifdef CONFIG_ARCH_LEDS
   board_led_initialize();
 #endif
-
-#ifdef CONFIG_STM32_SPI_DMA
-  /* set up DMA Channels for SPI */
-  putreg32(DMA1_CSELR_CHAN2_SPI1_RX | DMA1_CSELR_CHAN3_SPI1_TX, STM32_DMA1_CSELR);
-#endif
 }
 
 /****************************************************************************
