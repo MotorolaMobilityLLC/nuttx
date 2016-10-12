@@ -94,6 +94,9 @@
 struct stm32_dma_s
 {
   uint8_t        chan;     /* DMA channel number (0-6) */
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+  uint8_t        function; /* DMA peripheral connected to this channel (0-7) */
+#endif
   uint8_t        irq;      /* DMA channel IRQ number */
   sem_t          sem;      /* Used to wait for DMA channel to become available */
   uint32_t       base;     /* DMA register channel base address */
@@ -433,8 +436,15 @@ void weak_function up_dmainitialize(void)
  *
  ****************************************************************************/
 
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+DMA_HANDLE stm32_dmachannel(unsigned int chndef)
+{
+  int chndx = (chndef & DMACHAN_SETTING_CHANNEL_MASK) >>
+              DMACHAN_SETTING_CHANNEL_SHIFT;
+#else
 DMA_HANDLE stm32_dmachannel(unsigned int chndx)
 {
+#endif
   struct stm32_dma_s *dmach = &g_dma[chndx];
 
   DEBUGASSERT(chndx < DMA_NCHANNELS);
@@ -446,6 +456,14 @@ DMA_HANDLE stm32_dmachannel(unsigned int chndx)
   stm32_dmatake(dmach);
 
   /* The caller now has exclusive use of the DMA channel */
+
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+  /* Define the peripheral that will use the channel. This is stored until
+   * dmasetup is called.
+   */
+  dmach->function = (chndef & DMACHAN_SETTING_FUNCTION_MASK) >>
+                    DMACHAN_SETTING_FUNCTION_SHIFT;
+#endif
 
   return (DMA_HANDLE)dmach;
 }
@@ -534,6 +552,15 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
               DMA_CCR_MINC|DMA_CCR_PINC|DMA_CCR_CIRC|DMA_CCR_DIR);
   regval |= ccr;
   dmachan_putreg(dmach, STM32_DMACHAN_CCR_OFFSET, regval);
+
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+  /* define peripheral indicated in dmach->function */
+
+  regval  = dmabase_getreg(dmach, STM32_DMA_CSELR_OFFSET);
+  regval &= ~(0x0f << (dmach->chan << 2));
+  regval |= (dmach->function << (dmach->chan << 2));
+  dmabase_putreg(dmach, STM32_DMA_CSELR_OFFSET, regval);
+#endif
 }
 
 /****************************************************************************
