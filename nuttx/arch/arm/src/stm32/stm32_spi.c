@@ -203,8 +203,8 @@ struct stm32_spidev_s
 #ifdef CONFIG_STM32_SPI_DMA
   volatile uint8_t rxresult;   /* Result of the RX DMA */
   volatile uint8_t txresult;   /* Result of the RX DMA */
-  uint8_t          rxch;       /* The RX DMA channel number */
-  uint8_t          txch;       /* The TX DMA channel number */
+  uint16_t         rxch;       /* The RX DMA channel number */
+  uint16_t         txch;       /* The TX DMA channel number */
   DMA_HANDLE       rxdma;      /* DMA channel handle for RX transfers */
   DMA_HANDLE       txdma;      /* DMA channel handle for TX transfers */
   sem_t            rxsem;      /* Wait for RX DMA to complete */
