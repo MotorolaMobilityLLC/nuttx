@@ -253,6 +253,22 @@
 
 /* PLLSAI2 configuration register */
 
+#define RCC_PLLSAI2CFG_PLLN_SHIFT   (8)       /* Bits 8-14: SAI2PLL multiplication factor for VCO */
+#define RCC_PLLSAI2CFG_PLLN_MASK    (0x7f << RCC_PLLSAI2CFG_PLLN_SHIFT)
+#  define RCC_PLLSAI2CFG_PLLN(n)    ((n) << RCC_PLLSAI2CFG_PLLN_SHIFT) /* n = 8..86 */
+#define RCC_PLLSAI2CFG_PLLPEN       (1 << 16) /* Bit 16: SAI2PLL PLLSAI2CLK output enable */
+#define RCC_PLLSAI2CFG_PLLP         (1 << 17)
+#  define RCC_PLLSAI2CFG_PLLP_7     (0)
+#  define RCC_PLLSAI2CFG_PLLP_17    RCC_PLLSAI2CFG_PLLP
+#define RCC_PLLSAI2CFG_PLLQEN       (1 << 20) /* Bit 20: SAI2PLL PLL48M2CLK output enable */
+#define RCC_PLLSAI2CFG_PLLQ_SHIFT   (21)      /* Bits 21-22: SAI2PLL division factor for PLL48M2CLK (48 MHz clock) */
+#define RCC_PLLSAI2CFG_PLLQ_MASK    (3 << RCC_PLLSAI2CFG_PLLQ_SHIFT)
+#  define RCC_PLLSAI2CFG_PLLQ(n)    ((((n)>>1)-1) << RCC_PLLSAI2CFG_PLLQ_SHIFT) /* n=2,4,6,8 */
+#define RCC_PLLSAI2CFG_PLLREN       (1 << 24) /* Bit 24: PLLSAI2 PLLADC1CLK output enable */
+#define RCC_PLLSAI2CFG_PLLR_SHIFT   (25)      /* Bits 25-26: PLLSAI2 PLL divider for PLLADC1CLK */
+#define RCC_PLLSAI2CFG_PLLR_MASK    (3 << RCC_PLLSAI2CFG_PLLR_SHIFT)
+#  define RCC_PLLSAI2CFG_PLLR(n)    ((((n)>>1)-1) << RCC_PLLSAI2CFG_PLLR_SHIFT) /* n=2,4,6,8 */
+
 /* Clock interrupt enable register */
 
 #define RCC_CIER_LSIRDYIE           (1 << 0)  /* Bit 0: LSI Ready Interrupt Enable */
@@ -473,6 +489,18 @@
 #  define RCC_CCIPR_LPTIM2SEL_LSI    (1 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 01: LSI selected as LPTIM2 clock */
 #  define RCC_CCIPR_LPTIM2SEL_HSI    (2 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 10: HSI clock selected as LPTIM2 clock */
 #  define RCC_CCIPR_LPTIM2SEL_LSE    (3 << RCC_CCIPR_LPTIM1SEL_SHIFT) /* 11: LSE clock selected as LPTIM2 clock */
+#define RCC_CCIPR_SAI1SEL_SHIFT      (22)       /* Bits 22-23: SAI1 clock source selection */
+#define RCC_CCIPR_SAI1SEL_MASK       (3 << RCC_CCIPR_SAI1SEL_SHIFT)
+#  define RCC_CCIPR_SAI1SEL_PLLSAI1  (0 << RCC_CCIPR_SAI1SEL_SHIFT) /* 00: PLLSAI1 "P" clock selected as SAI1 clock */
+#  define RCC_CCIPR_SAI1SEL_PLLSAI2  (1 << RCC_CCIPR_SAI1SEL_SHIFT) /* 01: PLLSAI2 "P" clock selected as SAI1 clock */
+#  define RCC_CCIPR_SAI1SEL_PLL      (2 << RCC_CCIPR_SAI1SEL_SHIFT) /* 10: PLL "P" clock selected as SAI1 clock */
+#  define RCC_CCIPR_SAI1SEL_EXTCLK   (3 << RCC_CCIPR_SAI1SEL_SHIFT) /* 11: EXTCLK clock selected as SAI1 clock */
+#define RCC_CCIPR_SAI2SEL_SHIFT      (24)       /* Bits 24-25: SAI2 clock source selection */
+#define RCC_CCIPR_SAI2SEL_MASK       (3 << RCC_CCIPR_SAI2SEL_SHIFT)
+#  define RCC_CCIPR_SAI2SEL_PLLSAI1  (0 << RCC_CCIPR_SAI2SEL_SHIFT) /* 00: PLLSAI1 "P" clock selected as SAI2 clock */
+#  define RCC_CCIPR_SAI2SEL_PLLSAI2  (1 << RCC_CCIPR_SAI2SEL_SHIFT) /* 01: PLLSAI2 "P" clock selected as SAI2 clock */
+#  define RCC_CCIPR_SAI2SEL_PLL      (2 << RCC_CCIPR_SAI2SEL_SHIFT) /* 10: PLL "P" clock selected as SAI2 clock */
+#  define RCC_CCIPR_SAI2SEL_EXTCLK   (3 << RCC_CCIPR_SAI2SEL_SHIFT) /* 11: EXTCLK clock selected as SAI2 clock */
 #define RCC_CCIPR_CLK48SEL_SHIFT     (26)       /* Bits 26-27: 48 MHz clock source selection */
 #define RCC_CCIPR_CLK48SEL_MASK      (3 << RCC_CCIPR_CLK48SEL_SHIFT)
 #  define RCC_CCIPR_CLK48SEL_NONE    (0 << RCC_CCIPR_CLK48SEL_SHIFT) /* 00: No clock selected */

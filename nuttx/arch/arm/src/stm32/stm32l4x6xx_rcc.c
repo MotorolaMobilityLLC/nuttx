@@ -448,9 +448,19 @@ static inline void rcc_enableccip(void)
 
   regval = getreg32(STM32_RCC_CCIPR);
 
-#ifdef STM32_BOARD_USE_CLK48
+#ifdef STM32_BOARD_CLK48_SEL
   /* Select the 48 MHz clock */
   regval |= STM32_BOARD_CLK48_SEL;
+#endif
+
+#ifdef STM32_BOARD_SAI1_SEL
+  /* Select the SAI1 clock source */
+  regval |= STM32_BOARD_SAI1_SEL;
+#endif
+
+#ifdef STM32_BOARD_SAI2_SEL
+  /* Select the SAI2 clock source */
+  regval |= STM32_BOARD_SAI2_SEL;
 #endif
 
 #if defined(CONFIG_STM32_ADC1) || defined(CONFIG_STM32_ADC2) || defined(CONFIG_STM32_ADC3)
@@ -710,6 +720,37 @@ static void stm32_stdclockconfig(void)
        /* Wait until the PLL is ready */
 
       while ((getreg32(STM32_RCC_CR) & RCC_CR_PLLSAI1RDY) == 0)
+        {
+        }
+#endif
+
+#ifdef STM32_BOARD_USE_PLLSAI2
+      /* Set the PLL dividers and multipliers to configure the SAI2 PLL */
+
+      regval = (STM32_PLLSAI2CFG_PLLN | STM32_PLLSAI2CFG_PLLP |
+                STM32_PLLSAI2CFG_PLLQ | STM32_PLLSAI2CFG_PLLR);
+
+#ifdef STM32_PLLSAI2CFG_PLLP_EN
+      regval |= RCC_PLLSAI2CFG_PLLPEN;
+#endif
+#ifdef STM32_PLLSAI2CFG_PLLQ_EN
+      regval |= RCC_PLLSAI2CFG_PLLQEN;
+#endif
+#ifdef STM32_PLLSAI2CFG_PLLR_EN
+      regval |= RCC_PLLSAI2CFG_PLLREN;
+#endif
+
+      putreg32(regval, STM32_RCC_PLLSAI2CFGR);
+
+      /* Enable the SAI2 PLL */
+
+      regval  = getreg32(STM32_RCC_CR);
+      regval |= RCC_CR_PLLSAI2ON;
+      putreg32(regval, STM32_RCC_CR);
+
+       /* Wait until the PLL is ready */
+
+      while ((getreg32(STM32_RCC_CR) & RCC_CR_PLLSAI2RDY) == 0)
         {
         }
 #endif
