@@ -114,10 +114,10 @@ static void i2schar_help(FAR struct i2schar_state_s *i2schar)
          "Default: %d Current: %d\n",
          CONFIG_EXAMPLES_I2SCHAR_TXBUFFERS, i2schar->txcount);
 #endif
-#ifdef CONFIG_EXAMPLES_I2SCHAR_TX
+#ifdef CONFIG_EXAMPLES_I2SCHAR_RX
   message("  [-r count] selects the number of audio buffers to receive.  "
          "Default: %d Current: %d\n",
-         CONFIG_EXAMPLES_I2SCHAR_RXBUFFERS, i2schar->txcount);
+         CONFIG_EXAMPLES_I2SCHAR_RXBUFFERS, i2schar->rxcount);
 #endif
   message("  [-h] shows this message and exits\n");
 }
@@ -283,7 +283,8 @@ int i2schar_main(int argc, char *argv[])
 
 #ifdef CONFIG_EXAMPLES_I2SCHAR_TX
       g_i2schar.txcount = CONFIG_EXAMPLES_I2SCHAR_TXBUFFERS;
-#else
+#endif
+#ifdef CONFIG_EXAMPLES_I2SCHAR_RX
       g_i2schar.rxcount = CONFIG_EXAMPLES_I2SCHAR_RXBUFFERS;
 #endif
 
