@@ -19,9 +19,6 @@ endif
 ifeq ($(CONFIG_MODS_RAW),y)
 CONFIGURED_APPS += mods/raw
 endif
-ifeq ($(CONFIG_MODS_USB_EXT_TEST),y)
-CONFIGURED_APPS += mods/usb_ext
-endif
 ifeq ($(CONFIG_MODS_USB_HCD_ROUTER), y)
 CONFIGURED_APPS += mods/usbtun
 endif

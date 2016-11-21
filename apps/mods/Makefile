@@ -7,10 +7,10 @@
 -include $(TOPDIR)/.config # Current configuration
 
 # Sub-directories
-SUBDIRS = diet mhb_client mhb_server raw spi_reg usb_ext usbtun hsic_test
+SUBDIRS = diet mhb_client mhb_server raw spi_reg usbtun hsic_test
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
-CNTXTDIRS = mhb_client spi_reg raw usb_ext
+CNTXTDIRS = mhb_client spi_reg raw
 endif
 
 all: nothing
