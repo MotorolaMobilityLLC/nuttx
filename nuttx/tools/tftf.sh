@@ -48,7 +48,7 @@ function tftf_apbe()
           --unipro-mfg 0x00000126 \
           --unipro-pid 0x00001001 \
           --ara-vid 0xfed70128 \
-          --ara-pid 0xffff0002 \
+          --ara-pid 0x00000000 \
           --ara-stage "02" \
           --ara-reserved-tftf 0x${VERSION}
 
