@@ -483,9 +483,6 @@ static struct tsb_gdmac_drv_info {
 
 static struct gdmac_event gdmac_event_to_chan_map[GDMAC_NUMBER_OF_EVENTS];
 
-static const uint16_t skip_mem_load_and_store = (DMANOP | (DMANOP << 8));
-static const uint16_t do_mem_load_and_store = (DMALD | (DMAST << 8));
-
 static inline uint32_t gsmac_bit_to_pos(uint32_t value)
 {
     if (value == 0) {
