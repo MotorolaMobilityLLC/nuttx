@@ -154,6 +154,7 @@ static const struct cam_i2c_reg_array res0_array[] = {
     { 0x015B, 0xDC, },
 };
 
+#if 0
 static const struct cam_i2c_reg_array res1_array[] = {
     { 0x0103, 0x01, },
     { 0x0100, 0x00, },
@@ -296,12 +297,14 @@ static const struct cam_i2c_reg_array res2_array[] = {
     { 0x015A, 0x05, },
     { 0x015B, 0xDC, },
 };
+#endif
 
 static const struct cam_i2c_reg_setting frmival_res0_user_data = {
     .size = ARRAY_SIZE(res0_array),
     .regs = res0_array,
 };
 
+#if 0
 static const struct cam_i2c_reg_setting frmival_res1_user_data = {
     .size = ARRAY_SIZE(res1_array),
     .regs = res1_array,
@@ -311,6 +314,7 @@ static const struct cam_i2c_reg_setting frmival_res2_user_data = {
     .size = ARRAY_SIZE(res2_array),
     .regs = res2_array,
 };
+#endif
 
 static const struct camera_ext_frmival_node frmival_res0[] = {
     {
@@ -320,6 +324,7 @@ static const struct camera_ext_frmival_node frmival_res0[] = {
     },
 };
 
+#if 0
 static const struct camera_ext_frmival_node frmival_res1[] = {
     {
         .numerator = 1,
@@ -335,6 +340,7 @@ static const struct camera_ext_frmival_node frmival_res2[] = {
         .user_data = &frmival_res2_user_data,
     },
 };
+#endif
 
 // frame sizes for BGGR10
 static const struct camera_ext_frmsize_node _cam_frmsizes[] = {
@@ -593,4 +599,3 @@ struct device_driver imx219_pi_mhb_camera_driver = {
     .desc = "Raspberry Pi Camera",
     .ops  = &_mhb_camera_driver_ops,
 };
-
