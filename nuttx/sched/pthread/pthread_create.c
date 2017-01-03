@@ -80,9 +80,11 @@ const pthread_attr_t g_default_pthread_attr = PTHREAD_ATTR_INITIALIZER;
  * Private Variables
  ****************************************************************************/
 
+#if CONFIG_TASK_NAME_SIZE > 0
 /* This is the name for name-less pthreads */
 
 static const char g_pthreadname[] = "<pthread>";
+#endif
 
 /****************************************************************************
  * Private Functions
