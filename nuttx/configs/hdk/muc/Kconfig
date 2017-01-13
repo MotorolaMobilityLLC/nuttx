@@ -142,3 +142,19 @@ config MODS_RAW_HSIC
 	depends on GREYBUS_RAW
 	select DEVICE_CORE
 endif
+
+config MODS_HID_EXAMPLE
+	bool "Enable HID Example"
+	default n
+	select DEVICE_CORE
+	select GREYBUS_HID
+	select STM32_TIM6
+	# Axis
+	select ADC
+	select ANALOG
+	select STM32_ADC
+	select STM32_ADC1
+	# Buttons
+	select GPIO
+	---help---
+		Enable HID game controller example.
