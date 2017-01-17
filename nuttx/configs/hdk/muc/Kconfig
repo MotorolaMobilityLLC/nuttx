@@ -149,6 +149,13 @@ config MODS_RAW_HSIC
 	default n
 	depends on GREYBUS_RAW
 	select DEVICE_CORE
+
+config MODS_RAW_FLIR
+	bool "Enable Lepton FLIR control interface"
+	default n
+	depends on GREYBUS_RAW
+	select DEVICE_CORE
+
 endif
 
 config MODS_HID_EXAMPLE
