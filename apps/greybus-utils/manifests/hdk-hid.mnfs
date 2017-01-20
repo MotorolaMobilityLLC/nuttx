@@ -1,0 +1,37 @@
+[manifest-header]
+version-major = 0
+version-minor = 1
+
+[interface-descriptor]
+vendor-string-id = 1
+product-string-id = 2
+
+[string-descriptor 1]
+string = Motorola Mobility, LLC
+
+[string-descriptor 2]
+string = MDK-HID
+
+
+[cport-descriptor 0]
+bundle = 0
+protocol = 0x00        ; Control
+
+[bundle-descriptor 0]
+class = 0              ; Control (bundle)
+
+
+[cport-descriptor 1]
+bundle = 1
+protocol = 0xff        ; Vendor-Motorola
+
+[bundle-descriptor 1]
+class = 0xff           ; Vendor-Motorola (bundle)
+
+
+[cport-descriptor 2]
+bundle = 2
+protocol = 0x05        ; HID
+
+[bundle-descriptor 2]
+class = 0x05           ; HID (bundle)

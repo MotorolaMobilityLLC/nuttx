@@ -93,7 +93,7 @@
 #ifdef CONFIG_ADC_DMA
 #  define ADC_MAX_SAMPLES 16
 #else
-#  define ADC_MAX_SAMPLES 1
+#  define ADC_MAX_SAMPLES 16
 #endif
 
 #define container_of(x, s, f) ((void*) ((char*)(x) - offsetof(s, f)))

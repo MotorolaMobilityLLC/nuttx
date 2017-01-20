@@ -793,6 +793,7 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+
 #ifdef CONFIG_MODS_RAW_HSIC
 #ifdef CONFIG_MHB_UART
     {
@@ -841,6 +842,13 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif /* MODS_RAW_HSIC */
+#ifdef CONFIG_MODS_HID_EXAMPLE
+    {
+        .type = DEVICE_TYPE_HID_HW,
+        .name = "hid_game",
+        .desc = "HID Game Controller",
+    },
+#endif
 };
 
 static struct device_table muc_device_table = {
@@ -1085,6 +1093,10 @@ void board_initialize(void)
    device_register_driver(&mhb_usbtun_driver);
    extern struct device_driver mods_raw_hsic_driver;
    device_register_driver(&mods_raw_hsic_driver);
+#endif
+#ifdef CONFIG_MODS_HID_EXAMPLE
+   extern struct device_driver hid_game_driver;
+   device_register_driver(&hid_game_driver);
 #endif
 #endif
 
