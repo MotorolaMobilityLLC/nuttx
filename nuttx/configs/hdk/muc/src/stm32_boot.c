@@ -412,6 +412,14 @@ static struct device devices[] = {
         .id   = DUMMY_PRESSURE,
     },
 #endif
+#ifdef CONFIG_MODS_USB2
+    {
+        .type = DEVICE_TYPE_USB_EXT_HW,
+        .name = "usb_ext_usb2",
+        .desc = "USB-EXT USB2 Interface",
+        .id   = 0,
+    },
+#endif
 #ifdef CONFIG_GREYBUS_SENSORS_EXT_DUMMY_ACCEL
     {
         .type = DEVICE_TYPE_SENSORS_HW,
@@ -957,6 +965,10 @@ void board_initialize(void)
 #ifdef CONFIG_MODS_RAW
   extern struct device_driver mods_raw_driver;
   device_register_driver(&mods_raw_driver);
+#endif
+#ifdef CONFIG_MODS_USB2
+  extern struct device_driver usb2_driver;
+  device_register_driver(&usb2_driver);
 #endif
 #ifdef CONFIG_MODS_RAW_BLINKY
   extern struct device_driver mods_raw_blinky_driver;
