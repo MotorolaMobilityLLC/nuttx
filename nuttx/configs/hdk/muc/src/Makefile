@@ -130,6 +130,10 @@ ifeq ($(CONFIG_MODS_HID_EXAMPLE),y)
 CSRCS += stm32_hid_example.c
 endif
 
+ifeq ($(CONFIG_MODS_RAW_FLIR),y)
+CSRCS += flir_raw.c
+endif
+
 COBJS = $(CSRCS:.c=$(OBJEXT))
 
 SRCS = $(ASRCS) $(CSRCS)

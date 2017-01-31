@@ -857,6 +857,14 @@ static struct device devices[] = {
         .desc = "HID Game Controller",
     },
 #endif
+#ifdef CONFIG_MODS_RAW_FLIR
+    {
+        .type = DEVICE_TYPE_RAW_HW,
+        .name = "flir_raw",
+        .desc = "Raw FLIR Control Interface",
+        .id   = 0,
+    },
+#endif /* MODS_RAW_FLIR */
 };
 
 static struct device_table muc_device_table = {
@@ -1109,6 +1117,10 @@ void board_initialize(void)
 #ifdef CONFIG_MODS_HID_EXAMPLE
    extern struct device_driver hid_game_driver;
    device_register_driver(&hid_game_driver);
+#endif
+#ifdef CONFIG_MODS_RAW_FLIR
+   extern struct device_driver mods_flir_raw_driver;
+   device_register_driver(&mods_flir_raw_driver);
 #endif
 #endif
 
