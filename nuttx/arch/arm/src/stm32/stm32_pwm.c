@@ -107,12 +107,17 @@
 #  define TIMTYPE_TIM2     TIMTYPE_GENERAL16
 #  define TIMTYPE_TIM3     TIMTYPE_GENERAL16
 #  define TIMTYPE_TIM4     TIMTYPE_GENERAL16
-#  define TIMTYPE_TIM5     TIMTYPE_GENERAL32
+#  define TIMTYPE_TIM5     TIMTYPE_GENERAL16 /* Set to 16 to retain behavior */
 #elif defined(CONFIG_STM32_STM32F10XX)
 #  define TIMTYPE_TIM2     TIMTYPE_GENERAL16
 #  define TIMTYPE_TIM3     TIMTYPE_GENERAL16
 #  define TIMTYPE_TIM4     TIMTYPE_GENERAL16
 #  define TIMTYPE_TIM5     TIMTYPE_GENERAL16
+#elif defined(CONFIG_STM32_STM32L4X6)
+#  define TIMTYPE_TIM2     TIMTYPE_GENERAL32
+#  define TIMTYPE_TIM3     TIMTYPE_GENERAL16
+#  define TIMTYPE_TIM4     TIMTYPE_GENERAL16
+#  define TIMTYPE_TIM5     TIMTYPE_GENERAL32
 #else
 #  define TIMTYPE_TIM2     TIMTYPE_GENERAL32
 #  define TIMTYPE_TIM3     TIMTYPE_GENERAL32
@@ -144,7 +149,7 @@
 #    define pwmllvdbg         llvdbg
 #    define pwm_dumpgpio(p,m) stm32_dumpgpio(p,m)
 #  else
-#    define pwmlldbg(x...)
+#    define pwmvdbg(x...)
 #    define pwmllvdbg(x...)
 #    define pwm_dumpgpio(p,m)
 #  endif
@@ -189,11 +194,14 @@ struct stm32_pwmtimer_s
 
 static uint16_t pwm_getreg(struct stm32_pwmtimer_s *priv, int offset);
 static void pwm_putreg(struct stm32_pwmtimer_s *priv, int offset, uint16_t value);
+static void pwm_putreg32(struct stm32_pwmtimer_s *priv, int offset, uint32_t value);
 
 #if defined(CONFIG_DEBUG_PWM) && defined(CONFIG_DEBUG_VERBOSE)
 static void pwm_dumpregs(struct stm32_pwmtimer_s *priv, FAR const char *msg);
+static uint32_t pwm_getreg32(struct stm32_pwmtimer_s *priv, int offset);
 #else
 #  define pwm_dumpregs(priv,msg)
+#  define pwm_getreg32(priv,offset)
 #endif
 
 /* Timer management */
@@ -441,7 +449,7 @@ static struct stm32_pwmtimer_s g_pwm14dev =
  ****************************************************************************/
 
 /****************************************************************************
- * Name: pwm_getreg
+ * Name: pwm_getreg/pwm_getreg32
  *
  * Description:
  *   Read the value of an PWM timer register.
@@ -459,9 +467,15 @@ static uint16_t pwm_getreg(struct stm32_pwmtimer_s *priv, int offset)
 {
   return getreg16(priv->base + offset);
 }
+#if defined(CONFIG_DEBUG_PWM) && defined(CONFIG_DEBUG_VERBOSE)
+static uint32_t pwm_getreg32(struct stm32_pwmtimer_s *priv, int offset)
+{
+  return getreg32(priv->base + offset);
+}
+#endif
 
 /****************************************************************************
- * Name: pwm_putreg
+ * Name: pwm_putreg/pwm_putreg32
  *
  * Description:
  *   Read the value of an PWM timer register.
@@ -478,6 +492,10 @@ static uint16_t pwm_getreg(struct stm32_pwmtimer_s *priv, int offset)
 static void pwm_putreg(struct stm32_pwmtimer_s *priv, int offset, uint16_t value)
 {
   putreg16(value, priv->base + offset);
+}
+static void pwm_putreg32(struct stm32_pwmtimer_s *priv, int offset, uint32_t value)
+{
+  putreg32(value, priv->base + offset);
 }
 
 /****************************************************************************
@@ -498,30 +516,48 @@ static void pwm_putreg(struct stm32_pwmtimer_s *priv, int offset, uint16_t value
 static void pwm_dumpregs(struct stm32_pwmtimer_s *priv, FAR const char *msg)
 {
   pwmvdbg("%s:\n", msg);
-  pwmvdbg("  CR1: %04x CR2:  %04x SMCR:  %04x DIER:  %04x\n",
+  pwmvdbg("  CR1:  %04x  CR2:  %04x  SMCR:  %04x  DIER:  %04x\n",
           pwm_getreg(priv, STM32_GTIM_CR1_OFFSET),
           pwm_getreg(priv, STM32_GTIM_CR2_OFFSET),
           pwm_getreg(priv, STM32_GTIM_SMCR_OFFSET),
           pwm_getreg(priv, STM32_GTIM_DIER_OFFSET));
-  pwmvdbg("   SR: %04x EGR:  %04x CCMR1: %04x CCMR2: %04x\n",
+  pwmvdbg("  SR:   %04x  EGR:  %04x  CCMR1: %04x  CCMR2: %04x\n",
           pwm_getreg(priv, STM32_GTIM_SR_OFFSET),
           pwm_getreg(priv, STM32_GTIM_EGR_OFFSET),
           pwm_getreg(priv, STM32_GTIM_CCMR1_OFFSET),
           pwm_getreg(priv, STM32_GTIM_CCMR2_OFFSET));
-  pwmvdbg(" CCER: %04x CNT:  %04x PSC:   %04x ARR:   %04x\n",
-          pwm_getreg(priv, STM32_GTIM_CCER_OFFSET),
-          pwm_getreg(priv, STM32_GTIM_CNT_OFFSET),
-          pwm_getreg(priv, STM32_GTIM_PSC_OFFSET),
-          pwm_getreg(priv, STM32_GTIM_ARR_OFFSET));
-  pwmvdbg(" CCR1: %04x CCR2: %04x CCR3:  %04x CCR4:  %04x\n",
-          pwm_getreg(priv, STM32_GTIM_CCR1_OFFSET),
-          pwm_getreg(priv, STM32_GTIM_CCR2_OFFSET),
-          pwm_getreg(priv, STM32_GTIM_CCR3_OFFSET),
-          pwm_getreg(priv, STM32_GTIM_CCR4_OFFSET));
+  if (priv->timtype == TIMTYPE_GENERAL32)
+    {
+      pwmvdbg("  CCER: %04x      PSC:  %04x\n",
+              pwm_getreg(priv, STM32_GTIM_CCER_OFFSET),
+              pwm_getreg(priv, STM32_GTIM_PSC_OFFSET));
+      pwmvdbg("  CNT:  %08x  ARR:  %08x\n",
+              pwm_getreg32(priv, STM32_GTIM_CNT_OFFSET),
+              pwm_getreg32(priv, STM32_GTIM_ARR_OFFSET));
+      pwmvdbg("  CCR1: %08x  CCR2: %08x\n",
+              pwm_getreg32(priv, STM32_GTIM_CCR1_OFFSET),
+              pwm_getreg32(priv, STM32_GTIM_CCR2_OFFSET));
+      pwmvdbg("  CCR3: %08x  CCR4: %08x\n",
+              pwm_getreg32(priv, STM32_GTIM_CCR3_OFFSET),
+              pwm_getreg32(priv, STM32_GTIM_CCR4_OFFSET));
+    }
+  else
+    {
+      pwmvdbg("  CCER: %04x  CNT:  %04x  PSC:   %04x  ARR:   %04x\n",
+              pwm_getreg(priv, STM32_GTIM_CCER_OFFSET),
+              pwm_getreg(priv, STM32_GTIM_CNT_OFFSET),
+              pwm_getreg(priv, STM32_GTIM_PSC_OFFSET),
+              pwm_getreg(priv, STM32_GTIM_ARR_OFFSET));
+      pwmvdbg("  CCR1: %04x  CCR2: %04x  CCR3:  %04x  CCR4:  %04x\n",
+              pwm_getreg(priv, STM32_GTIM_CCR1_OFFSET),
+              pwm_getreg(priv, STM32_GTIM_CCR2_OFFSET),
+              pwm_getreg(priv, STM32_GTIM_CCR3_OFFSET),
+              pwm_getreg(priv, STM32_GTIM_CCR4_OFFSET));
+    }
 #if defined(CONFIG_STM32_TIM1_PWM) || defined(CONFIG_STM32_TIM8_PWM)
   if (priv->timtype == TIMTYPE_ADVANCED)
     {
-      pwmvdbg("  RCR: %04x BDTR: %04x DCR:   %04x DMAR:  %04x\n",
+      pwmvdbg("  RCR:  %04x  BDTR: %04x  DCR:   %04x  DMAR:  %04x\n",
           pwm_getreg(priv, STM32_ATIM_RCR_OFFSET),
           pwm_getreg(priv, STM32_ATIM_BDTR_OFFSET),
           pwm_getreg(priv, STM32_ATIM_DCR_OFFSET),
@@ -530,7 +566,7 @@ static void pwm_dumpregs(struct stm32_pwmtimer_s *priv, FAR const char *msg)
   else
 #endif
     {
-      pwmvdbg("  DCR: %04x DMAR: %04x\n",
+      pwmvdbg("  DCR:  %04x  DMAR: %04x\n",
           pwm_getreg(priv, STM32_GTIM_DCR_OFFSET),
           pwm_getreg(priv, STM32_GTIM_DMAR_OFFSET));
     }
@@ -560,6 +596,7 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
   uint32_t prescaler;
   uint32_t timclk;
   uint32_t reload;
+  uint64_t reload64;
   uint32_t ccr;
 
   /* Register contents */
@@ -625,7 +662,7 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
    *            = 6.4 (or 7 -- taking the ceiling always)
    *  timclk    = 42,000,000 / 7
    *            = 6,000,000
-   *  reload    = 7,000,000 / 100
+   *  reload    = 6,000,000 / 100
    *            = 60,000
    */
 
@@ -641,24 +678,44 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
 
   timclk = priv->pclk / prescaler;
 
-  reload = timclk / info->frequency;
-  if (reload < 1)
+  reload64 = timclk / info->frequency;
+  if (reload64 < 1)
     {
       reload = 1;
     }
-  else if (reload > 65535)
+  else
     {
-      reload = 65535;
+      if (priv->timtype == TIMTYPE_GENERAL32)
+        {
+          if (reload64 > 0xFFFFFFFF)
+            {
+              reload = 0xFFFFFFFF;
+            }
+          else
+            {
+              reload = (uint32_t)reload64;
+            }
+        }
+      else
+        {
+          if (reload64 > 0xFFFF)
+            {
+              reload = 0xFFFF;
+            }
+          else
+            {
+              reload = (uint16_t)reload64;
+            }
+       }
     }
 
   /* Duty cycle:
    *
    * duty cycle = ccr / reload (fractional value)
    */
-
   ccr = b16toi(info->duty * reload + b16HALF);
 
-  pwmvdbg("TIM%d PCLK: %d frequency: %d TIMCLK: %d prescaler: %d reload: %d ccr: %d\n",
+  pwmvdbg("TIM%d PCLK: %u frequency: %u TIMCLK: %u prescaler: %u reload: %u ccr: %u\n",
           priv->timid, priv->pclk, info->frequency, timclk, prescaler, reload, ccr);
 
   /* Set up the timer CR1 register:
@@ -707,7 +764,14 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
 
   /* Set the reload and prescaler values */
 
-  pwm_putreg(priv, STM32_GTIM_ARR_OFFSET, (uint16_t)reload);
+  if (priv->timtype == TIMTYPE_GENERAL32)
+    {
+      pwm_putreg32(priv, STM32_GTIM_ARR_OFFSET, (uint32_t)reload);
+    }
+  else
+    {
+      pwm_putreg(priv, STM32_GTIM_ARR_OFFSET, (uint16_t)reload);
+    }
   pwm_putreg(priv, STM32_GTIM_PSC_OFFSET, (uint16_t)(prescaler - 1));
 
   /* Set the advanced timer's repitition counter */
@@ -792,7 +856,15 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
 
           /* Set the duty cycle by writing to the CCR register for this channel */
 
-          pwm_putreg(priv, STM32_GTIM_CCR1_OFFSET, (uint16_t)ccr);
+
+          if (priv->timtype == TIMTYPE_GENERAL32)
+            {
+              pwm_putreg32(priv, STM32_GTIM_CCR1_OFFSET, (uint32_t)ccr);
+            }
+          else
+            {
+              pwm_putreg(priv, STM32_GTIM_CCR1_OFFSET, (uint16_t)ccr);
+            }
         }
         break;
 
@@ -810,7 +882,14 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
 
           /* Set the duty cycle by writing to the CCR register for this channel */
 
-          pwm_putreg(priv, STM32_GTIM_CCR2_OFFSET, (uint16_t)ccr);
+          if (priv->timtype == TIMTYPE_GENERAL32)
+            {
+              pwm_putreg32(priv, STM32_GTIM_CCR2_OFFSET, (uint32_t)ccr);
+            }
+          else
+            {
+              pwm_putreg(priv, STM32_GTIM_CCR2_OFFSET, (uint16_t)ccr);
+            }
         }
         break;
 
@@ -828,7 +907,14 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
 
           /* Set the duty cycle by writing to the CCR register for this channel */
 
-          pwm_putreg(priv, STM32_GTIM_CCR3_OFFSET, (uint16_t)ccr);
+          if (priv->timtype == TIMTYPE_GENERAL32)
+            {
+              pwm_putreg32(priv, STM32_GTIM_CCR3_OFFSET, (uint32_t)ccr);
+            }
+          else
+            {
+              pwm_putreg(priv, STM32_GTIM_CCR3_OFFSET, (uint16_t)ccr);
+            }
         }
         break;
 
@@ -846,7 +932,14 @@ static int pwm_timer(FAR struct stm32_pwmtimer_s *priv,
 
           /* Set the duty cycle by writing to the CCR register for this channel */
 
-          pwm_putreg(priv, STM32_GTIM_CCR4_OFFSET, (uint16_t)ccr);
+          if (priv->timtype == TIMTYPE_GENERAL32)
+            {
+              pwm_putreg32(priv, STM32_GTIM_CCR4_OFFSET, (uint32_t)ccr);
+            }
+          else
+            {
+              pwm_putreg(priv, STM32_GTIM_CCR4_OFFSET, (uint16_t)ccr);
+            }
         }
         break;
 
@@ -1227,6 +1320,10 @@ static void pwm_set_apb_clock(FAR struct stm32_pwmtimer_s *priv, bool on)
         en_bit   = RCC_APB1ENR_TIM14EN;
         break;
 #endif
+      default:
+        pwmdbg("Cannot setup TIM%d, does not exist\n",priv->timid);
+        return;
+        break;
     }
 
   /* Enable/disable APB 1/2 clock for timer */
@@ -1496,6 +1593,11 @@ static int pwm_stop(FAR struct pwm_lowerhalf_s *dev)
         resetbit = RCC_APB1RSTR_TIM14RST;
         break;
 #endif
+      default:
+        pwmdbg("Cannot reset TIM%d, does not exist\n",priv->timid);
+        irqrestore(flags);
+        return -EINVAL;
+        break;
     }
 
   /* Reset the timer - stopping the output and putting the timer back
@@ -1508,6 +1610,7 @@ static int pwm_stop(FAR struct pwm_lowerhalf_s *dev)
 
   regval &= ~resetbit;
   putreg32(regval, regaddr);
+
   irqrestore(flags);
 
   pwmvdbg("regaddr: %08x resetbit: %08x\n", regaddr, resetbit);
@@ -1533,11 +1636,10 @@ static int pwm_stop(FAR struct pwm_lowerhalf_s *dev)
 
 static int pwm_ioctl(FAR struct pwm_lowerhalf_s *dev, int cmd, unsigned long arg)
 {
-#ifdef CONFIG_DEBUG_PWM
+#if defined(CONFIG_DEBUG_PWM) && defined(CONFIG_DEBUG_VERBOSE)
   FAR struct stm32_pwmtimer_s *priv = (FAR struct stm32_pwmtimer_s *)dev;
 
   /* There are no platform-specific ioctl commands */
-
   pwmvdbg("TIM%d\n", priv->timid);
 #endif
   return -ENOTTY;
