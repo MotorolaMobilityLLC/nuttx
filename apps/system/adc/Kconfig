@@ -1,0 +1,14 @@
+config SYSTEM_ADCTOOL
+	bool "ADC tool"
+	default n
+	depends on ADC
+	---help---
+		Enable support for the ADC tool.
+
+if SYSTEM_ADCTOOL
+config ADCTOOL_APP_PROGNAME
+	string "Program name"
+	default "adc"
+	---help---
+		Name of the app.
+endif
