@@ -76,6 +76,7 @@
 
 #include "up_arch.h"
 #include "hdk.h"
+#include "stm32_adc_init.h"
 
 #include <nuttx/gpio/stm32_gpio_chip.h>
 
@@ -954,6 +955,10 @@ void board_initialize(void)
 
 #ifdef CONFIG_STM32_SPI
   stm32_spiinitialize();
+#endif
+
+#if CONFIG_STM32_ADC_INIT
+  stm32_adc_initialize();
 #endif
 
 #ifdef CONFIG_MODS_DIET
