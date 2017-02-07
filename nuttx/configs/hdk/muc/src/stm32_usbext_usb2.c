@@ -35,6 +35,7 @@
 #include <nuttx/device.h>
 #include <nuttx/device_usb_ext.h>
 #include <nuttx/usb.h>
+#include <arch/board/mods.h>
 
 
 typedef struct {
@@ -55,6 +56,10 @@ static int usb2_probe(struct device *dev)
 
     s_data.usb_ext_callback = NULL;
 
+    /* Enable power out the MDK USB2 (TypeC) */
+    /* Power is always present on USB3 (microB) */
+    gpio_direction_out(GPIO_MODS_VBUS_PWR_EN, 0);
+    gpio_set_value(GPIO_MODS_VBUS_PWR_EN, 1);
     return 0;
 }
 
@@ -67,6 +72,9 @@ static void usb2_remove(struct device *dev)
         return;
 
     s_data.usb_ext_callback = NULL;
+
+    /* Disable power out the MDK USB2 (TypeC) */
+    gpio_set_value(GPIO_MODS_VBUS_PWR_EN, 0);
 }
 
 
