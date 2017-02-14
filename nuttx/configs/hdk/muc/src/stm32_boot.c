@@ -446,6 +446,14 @@ static struct device devices[] = {
         .id   = 0,
     },
 #endif
+#ifdef CONFIG_MODS_RAW_STUB
+    {
+        .type = DEVICE_TYPE_RAW_HW,
+        .name = "mods_raw_stub",
+        .desc = "Raw Stub with Thread/Queue",
+        .id   = 0,
+    },
+#endif
 #ifdef CONFIG_MODS_RAW_BLINKY
     {
         .type = DEVICE_TYPE_RAW_HW,
@@ -977,6 +985,10 @@ void board_initialize(void)
 #ifdef CONFIG_MODS_USB2
   extern struct device_driver usb2_driver;
   device_register_driver(&usb2_driver);
+#endif
+#ifdef CONFIG_MODS_RAW_STUB
+  extern struct device_driver raw_stub_driver;
+  device_register_driver(&raw_stub_driver);
 #endif
 #ifdef CONFIG_MODS_RAW_BLINKY
   extern struct device_driver mods_raw_blinky_driver;

@@ -61,6 +61,10 @@ ifeq ($(CONFIG_MODS_RAW),y)
 CSRCS += stm32_modsraw.c
 endif
 
+ifeq ($(CONFIG_MODS_RAW_STUB),y)
+CSRCS += stm32_modsraw_stub.c
+endif
+
 ifeq ($(CONFIG_MODS_USB2),y)
 CSRCS += stm32_usbext_usb2.c
 endif
