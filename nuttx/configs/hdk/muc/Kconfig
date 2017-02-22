@@ -31,6 +31,14 @@ config MODS_USB2
 	---help---
 		Enable USB-Ext for USB2
 
+config MODS_RAW_STUB
+	bool "Raw Stub with Loopback"
+	default n
+	depends on GREYBUS_RAW
+	select DEVICE_CORE
+	---help---
+		Raw Stub driver with Thread/Queue support
+
 config MODS_RAW_BLINKY
 	bool "Blinky LED Mods Raw support"
 	default n
