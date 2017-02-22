@@ -881,12 +881,14 @@ int stm32_getconfiggpio(uint32_t *cfgset)
   else
     {
       uint32_t regaddr;
+      uint32_t mask;
       int shift;
 
       regaddr = STM32_SYSCFG_EXTICR(pin);
       regval  = getreg32(regaddr);
       shift   = SYSCFG_EXTICR_EXTI_SHIFT(pin);
-      regval  = (regval & SYSCFG_EXTICR_PORT_MASK) >> shift;
+      mask    = SYSCFG_EXTICR_EXTI_MASK(pin);
+      regval  = (regval & mask) >> shift;
       if (regval == port)
         {
           *cfgset |= GPIO_EXTI;
