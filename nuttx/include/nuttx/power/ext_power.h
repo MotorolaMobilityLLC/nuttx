@@ -41,6 +41,7 @@
 typedef enum ext_power_source {
     EXT_POWER_WIRED,
     EXT_POWER_WIRELESS,
+    EXT_POWER_DONGLE,
     EXT_POWER_NUMBER_OF_SOURCES
 } ext_power_source_e;
 
