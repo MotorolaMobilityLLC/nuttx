@@ -260,3 +260,12 @@ void gpio_cfg_restore(uint8_t which, gpio_cfg_t cfg)
     DEBUGASSERT(chip->ops->cfg_restore);
     chip->ops->cfg_restore(chip->driver_data, which, cfg);
 }
+
+void gpio_cfg_set(uint8_t which, gpio_cfg_t cfg)
+{
+    struct gpio_chip_s *chip = get_gpio_chip(&which);
+
+    DEBUGASSERT(chip);
+    DEBUGASSERT(chip->ops->cfg_set);
+    chip->ops->cfg_set(chip->driver_data, which, cfg);
+}
