@@ -124,6 +124,7 @@ static void int_worker(FAR void *arg)
 {
     struct notify_node *node;
     struct list_head *iter;
+    enum bq25896_event power_good_state;
     int regval;
 
     /* Boost fault */
@@ -152,11 +153,16 @@ static void int_worker(FAR void *arg)
         return;
 
     /* Only interested in the power good bit */
-    if (regval &= BQ25896_REG0B_PG) {
-        list_foreach(&notify_list, iter) {
-            node = list_entry(iter, struct notify_node, list);
-            node->callback(POWER_GOOD, node->arg);
-        }
+    if (regval & BQ25896_REG0B_PG) {
+        power_good_state = POWER_GOOD;
+    } else {
+        power_good_state = NO_POWER_GOOD;
+    }
+    vdbg("Report power_good = %d\n", power_good_state);
+
+    list_foreach(&notify_list, iter) {
+        node = list_entry(iter, struct notify_node, list);
+        node->callback(power_good_state, node->arg);
     }
 }
 
