@@ -111,6 +111,7 @@ struct ptp_state {
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
     struct mods_ptp_chg_source wired, wireless; /* external power sources */
 #endif
+    struct mods_ptp_chg_source dongle; /* power adapter over vbus */
     int pmic_max_input_voltage; /* max voltage that that PMIC can take */
     bool base_powered_off; /* flag to indicate base is powered off with AMP attached */
     struct ptp_reported report; /* what is repoted to the base */
@@ -166,28 +167,38 @@ static void do_set_base_source(struct ptp_state *state, enum ptp_power_source so
 #endif
 }
 
-#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
 /* Calculate power of the source. Return 0 if source voltage above the max_v */
-static int64_t do_calculate_power(const struct mods_ptp_chg_source *src,
+static inline int64_t do_calculate_power(const struct mods_ptp_chg_source *src,
                                   int max_v)
 {
     return src->voltage <= max_v ? src->current * src->voltage : 0;
 }
 
+#ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
 /* Choose the source with the maximum output power */
 static const struct mods_ptp_chg_source *do_choose_ext_src(const struct ptp_state *state,
                                                            int max_v)
 {
-    int wired_power = do_calculate_power(&state->wired, max_v);
-    int wireless_power = do_calculate_power(&state->wireless, max_v);
+    int i;
+    int pwr = 0;
+    int selected = 0;
+    const struct mods_ptp_chg_source *srcs[] = {
+        NULL,
+        &state->wired,
+        &state->wireless,
+        &state->dongle,
+    };
 
-    /* Prefer wired over wireless if both provide the same power */
-    if (wired_power == 0 && wireless_power == 0)
-        return NULL;
-    else if (wired_power >= wireless_power)
-        return &state->wired;
-    else
-        return &state->wireless;
+    for (i = 1; i < ARRAY_SIZE(srcs); i++) {
+        int new_pwr = do_calculate_power(srcs[i], max_v);
+        if (new_pwr > pwr) {
+            pwr = new_pwr;
+            selected = i;
+        }
+    }
+    vdbg("selected = %d\n", selected);
+
+    return srcs[selected];
 }
 #endif
 
@@ -227,6 +238,7 @@ static int do_charge_base(struct device *chg, struct ptp_state *state)
             do_set_base_source(state, PTP_POWER_SOURCE_WIRELESS);
         goto done;
     }
+
 #endif
 
 #ifndef CONFIG_GREYBUS_PTP_INT_SND_NEVER
@@ -262,30 +274,42 @@ static int do_charge_battery_with_external_power(struct device *chg,
                                                  struct ptp_state *state)
 {
     do_set_base_source(state, PTP_POWER_SOURCE_NONE);
+    int max_v = state->pmic_max_input_voltage;
+    struct charger_config cfg;
 
 #ifndef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
+    const struct mods_ptp_chg_source *src = &state->dongle;
+
+    if ((do_calculate_power(src, max_v) > 0) &&
+        (state->battery.chg_allowed && src->current)) {
+            return device_ptp_chg_receive_base_pwr(chg, &cfg);
+    }
+
     return device_ptp_chg_off(chg);
 #else
-    int max_v = state->pmic_max_input_voltage;
     const struct mods_ptp_chg_source *src = do_choose_ext_src(state, max_v);
-    struct charger_config cfg;
 
     /* Limit voltage on all sources */
     ext_power_set_max_output_voltage(EXT_POWER_WIRED, max_v);
     ext_power_set_max_output_voltage(EXT_POWER_WIRELESS, max_v);
 
-    if (state->battery.chg_allowed && src) {
+    if (state->battery.chg_allowed && src == NULL) {
+        return device_ptp_chg_all_paths_open(chg);
+    }
+
+    if (state->battery.chg_allowed && src && src->current) {
         cfg.input_current_limit = src->current;
         cfg.input_voltage_limit = src->voltage - CONFIG_GREYBUS_MODS_INPUT_VOLTAGE_OFFSET;
         cfg.charge_current_limit = state->battery.charge_current;
         cfg.charge_voltage_limit = state->battery.charge_voltage;
         if (src == &state->wired)
             return device_ptp_chg_receive_wired_pwr(chg, &cfg);
-        else
+        else if (src == &state->wireless)
             return device_ptp_chg_receive_wireless_pwr(chg, &cfg);
-    } else {
-        return device_ptp_chg_off(chg);
-    }
+        else
+            return device_ptp_chg_receive_base_pwr(chg, &cfg);
+    } else
+        return device_ptp_chg_receive_base_pwr(chg, &cfg);
 #endif
 }
 
@@ -345,14 +369,17 @@ static int mods_ptp_process(struct device *chg, struct ptp_state *state)
     case BASE_DETACHED:
         return do_charge_battery_with_external_power(chg, state);
     case BASE_INVALID:
+        return 0;
+        break;
     default:
         do_off(chg, state);
         return -EINVAL;
     }
 #else
     if (state->attached == BASE_ATTACHED_OFF ||
-        (state->attached == BASE_ATTACHED && state->commands.direction == PTP_CURRENT_FROM_MOD))
+        (state->attached == BASE_ATTACHED && state->commands.direction == PTP_CURRENT_FROM_MOD)) {
       return do_charge_base(chg, state);
+    }
 
     do_off(chg, state);
     return 0;
@@ -477,7 +504,8 @@ static void mods_ptp_set_power_availability(struct ptp_info *info)
 
     /* Check external power first since this is the preferred source */
 #ifdef CONFIG_GREYBUS_PTP_EXT_SUPPORTED
-    if (info->state.wired.current > 0 || info->state.wireless.current > 0) {
+    if (info->state.wired.current > 0 || info->state.wireless.current > 0 ||
+        info->state.dongle.current > 0) {
         info->state.report.available = PTP_POWER_AVAILABLE_EXT;
         goto done;
     }
@@ -640,6 +668,8 @@ static void mods_ptp_set_ext_power_presence(struct ptp_info *info)
         info->state.report.present = PTP_EXT_POWER_WIRED_PRESENT;
     else if (info->state.wireless.current > 0)
         info->state.report.present = PTP_EXT_POWER_WIRELESS_PRESENT;
+    else if (info->state.dongle.current > 0)
+        info->state.report.present = PTP_EXT_POWER_DONGLE_PRESENT;
     else
         info->state.report.present = PTP_EXT_POWER_NOT_PRESENT;
 
@@ -666,6 +696,7 @@ static void mods_ptp_get_external_power_sources(struct ptp_state *state,
                                                 struct device *const dev[])
 {
     mods_ptp_get_ext_power_output(dev[EXT_POWER_WIRED], &state->wired);
+    mods_ptp_get_ext_power_output(dev[EXT_POWER_DONGLE], &state->dongle);
     mods_ptp_get_ext_power_output(dev[EXT_POWER_WIRELESS], &state->wireless);
 }
 
