@@ -106,6 +106,10 @@ ifeq ($(CONFIG_CHARGER_BQ25896),y)
 CSRCS += bq25896.c
 endif
 
+ifeq ($(CONFIG_GREYBUS_MODS_PTP_DEVICE),y)
+CSRCS += dongle_ext_pwr.c
+endif
+
 ifeq ($(CONFIG_PWR_LIMIT_DUMMY),y)
 CSRCS += pwr_limit_dummy.c
 endif
