@@ -99,6 +99,8 @@ enum ptp_ext_power {
     PTP_EXT_POWER_WIRED_PRESENT          = 0x03,    /* added in ver 00.02 */
     /** Wired and wireless charging sources are present. */
     PTP_EXT_POWER_WIRED_WIRELESS_PRESENT = 0x04,    /* added in ver 00.02 */
+
+    PTP_EXT_POWER_DONGLE_PRESENT = 0x05,    /* added in ver 00.02 */
 };
 
 /* Last version 'PTP_EXT_POWER_PRESENT' response was supported */
@@ -129,6 +131,8 @@ enum ptp_power_source {
     PTP_POWER_SOURCE_WIRED      = 0x02,
     /** The power for a wireless charger is being sent to the Core. */
     PTP_POWER_SOURCE_WIRELESS   = 0x03,
+    /** The power for a wireless charger is being sent to the Core. */
+    PTP_POWER_SOURCE_DONGLE     = 0x04,
 };
 
 /**
