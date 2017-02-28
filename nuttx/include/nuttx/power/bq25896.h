@@ -208,6 +208,8 @@ enum bq25896_event {
     POWER_GOOD,
     /** VBUS over-current or over-voltage in boost mode. */
     BOOST_FAULT,
+    /** No good power input source. */
+    NO_POWER_GOOD,
 };
 
 /**
