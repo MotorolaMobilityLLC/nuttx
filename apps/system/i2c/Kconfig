@@ -8,6 +8,7 @@ config SYSTEM_I2CTOOL
 	bool "I2C tool"
 	default n
 	depends on I2C
+	select I2C_TRANSFER
 	---help---
 		Enable support for the I2C tool.
 
