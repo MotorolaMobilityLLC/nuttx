@@ -357,6 +357,9 @@ static void ext_power_state_changed_cb(FAR void *arg,
     enum ext_power_state_e new_power_state;
 
     device_ext_power_get_output(dev[EXT_POWER_WIRED], &output);
+    if (output.current <= 0)
+        device_ext_power_get_output(dev[EXT_POWER_DONGLE], &output);
+
     new_power_state = output.current > 0 ?
             EXT_POWER_PRESENT : EXT_POWER_NOT_PRESENT;
 

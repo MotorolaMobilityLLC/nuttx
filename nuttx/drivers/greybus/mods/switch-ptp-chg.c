@@ -262,6 +262,19 @@ static int switch_ptp_chg_off(struct device *dev)
     return retval;
 }
 
+static int switch_ptp_chg_all_paths_open(struct device *dev)
+{
+    int retval = 0;
+    struct switch_ptp_chg_info *info = device_get_private(dev);
+
+    dbg("\n");
+    wireless_path(info, true);
+    wired_path(info, true);
+    base_path(info, true);
+
+    return retval;
+}
+
 static int switch_ptp_chg_probe(struct device *dev)
 {
     struct switch_ptp_chg_info *info = zalloc(sizeof(*info));
@@ -384,6 +397,7 @@ static struct device_ptp_chg_type_ops switch_ptp_chg_type_ops = {
 #endif
     .max_input_voltage = switch_ptp_chg_max_input_voltage,
     .off = switch_ptp_chg_off,
+    .all_paths_open = switch_ptp_chg_all_paths_open,
 };
 
 static struct device_driver_ops driver_ops = {

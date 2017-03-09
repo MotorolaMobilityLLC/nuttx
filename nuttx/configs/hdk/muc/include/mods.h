@@ -50,6 +50,7 @@
 #define GPIO_MODS_VBUS_PWR_EN    CALC_GPIO_NUM('A', 11)
 #define GPIO_MODS_WAKE_N         CALC_GPIO_NUM('B',  0)
 #define GPIO_MODS_SPI_CS_N       CALC_GPIO_NUM('B', 12)
+#define GPIO_MODS_SPI_SCK        CALC_GPIO_NUM('B', 13)  /* GPIO_SPI2_SCK_1 as SPI clock & Dongle Detect */
 #define GPIO_MODS_SPI_TACK       CALC_GPIO_NUM('B', 14)
 #define GPIO_MODS_SPI_RACK       CALC_GPIO_NUM('B', 15)
 #define GPIO_MODS_RFR            CALC_GPIO_NUM('C',  2)

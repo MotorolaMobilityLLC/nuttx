@@ -90,6 +90,9 @@ static const struct board_gpio_cfg_s board_gpio_cfgs[] =
   { GPIO_MODS_CC_ALERT,      (GPIO_PULLUP)                },
   { GPIO_MODS_FUSB302_INT_N, (GPIO_INPUT|GPIO_FLOAT)      },
   { GPIO_MODS_SPI_CS_N,      (GPIO_SPI2_NSS)              },
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE
+  { GPIO_MODS_SPI_SCK,       (GPIO_OUTPUT)                },/* dongle detect */
+#endif
   { GPIO_MODS_LED_DRV_1,     (GPIO_OPENDRAIN)             },
   { GPIO_MODS_LED_DRV_2,     (GPIO_OPENDRAIN)             },
   { GPIO_MODS_LED_DRV_3,     (GPIO_OPENDRAIN)             },
@@ -369,6 +372,25 @@ static struct device_resource tfa9890_audio_resources[] = {
        .start  = GPIO_MODS_RST_LS,
        .count  = 1,
     },
+};
+#endif
+
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE
+uint32_t dongle_gpio_cfgset = GPIO_INPUT | GPIO_PULLUP | GPIO_MODS_SPI_SCK;
+
+static struct device_resource dongle_resources[] = {
+    {
+       .name   = "capability",
+       .type   = DEVICE_RESOURCE_TYPE_GPIO,
+       .start  = GPIO_MODS_SPI_SCK,
+       .count  = 1,
+    },
+    {
+       .name = "gpio-cfgset",
+       .type = DEVICE_RESOURCE_TYPE_REGS,
+       .start = (uint32_t)&dongle_gpio_cfgset,
+       .count = 1,
+    }
 };
 #endif
 
@@ -692,6 +714,16 @@ static struct device devices[] = {
         .resource_count = ARRAY_SIZE(fusb302_usb_ext_resources),
     },
 #endif
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE
+    {
+        .type = DEVICE_TYPE_EXT_POWER_HW,
+        .name = "dongle_ext_power",
+        .desc = "Charging Dongle",
+        .id   = EXT_POWER_DONGLE,
+        .resources = dongle_resources,
+        .resource_count = ARRAY_SIZE(dongle_resources),
+    },
+#endif
 #ifdef CONFIG_MHB_CAMERA
 #ifdef CONFIG_MHB_UART
     /* For CSI Camera */
@@ -970,6 +1002,7 @@ void board_initialize(void)
 #ifdef CONFIG_FUSB302
   fusb302_register(GPIO_MODS_FUSB302_INT_N, GPIO_MODS_VBUS_PWR_EN);
 #endif
+
 #ifdef CONFIG_FUSB302_USB_EXT
   extern struct device_driver fusb302_usb_ext_driver;
   device_register_driver(&fusb302_usb_ext_driver);
@@ -1009,6 +1042,10 @@ void board_initialize(void)
 #ifdef CONFIG_CHARGER_DEVICE_BQ25896
   extern struct device_driver bq25896_charger_driver;
   device_register_driver(&bq25896_charger_driver);
+#endif
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE
+  extern struct device_driver dongle_ext_power_driver;
+  device_register_driver(&dongle_ext_power_driver);
 #endif
 #ifdef CONFIG_GREYBUS_MODS_PTP_CHG_DEVICE_SWITCH
   extern struct device_driver switch_ptp_chg_driver;
