@@ -1223,6 +1223,237 @@ config STM32_ADC4
 	select STM32_ADC
 	depends on STM32_HAVE_ADC4
 
+config STM32_ADC_INIT
+	bool "ADC Device Initialization"
+	default n
+	depends on ADC
+	---help---
+		Create a /dev/adcX for each ADC device.
+
+if STM32_ADC_INIT
+if STM32_ADC1
+menu "ADC1 Device Initialization"
+
+config STM32_ADC1_CHAN0_INIT
+	bool "ADC1 Channel 0"
+	default n
+config STM32_ADC1_CHAN1_INIT
+	bool "ADC1 Channel 1"
+	default n
+config STM32_ADC1_CHAN2_INIT
+	bool "ADC1 Channel 2"
+	default n
+config STM32_ADC1_CHAN3_INIT
+	bool "ADC1 Channel 3"
+	default n
+config STM32_ADC1_CHAN4_INIT
+	bool "ADC1 Channel 4"
+	default n
+config STM32_ADC1_CHAN5_INIT
+	bool "ADC1 Channel 5"
+	default n
+config STM32_ADC1_CHAN6_INIT
+	bool "ADC1 Channel 6"
+	default n
+config STM32_ADC1_CHAN7_INIT
+	bool "ADC1 Channel 7"
+	default n
+config STM32_ADC1_CHAN8_INIT
+	bool "ADC1 Channel 8"
+	default n
+config STM32_ADC1_CHAN9_INIT
+	bool "ADC1 Channel 9"
+	default n
+config STM32_ADC1_CHAN10_INIT
+	bool "ADC1 Channel 10"
+	default n
+config STM32_ADC1_CHAN11_INIT
+	bool "ADC1 Channel 11"
+	default n
+config STM32_ADC1_CHAN12_INIT
+	bool "ADC1 Channel 12"
+	default n
+config STM32_ADC1_CHAN13_INIT
+	bool "ADC1 Channel 13"
+	default n
+config STM32_ADC1_CHAN14_INIT
+	bool "ADC1 Channel 14"
+	default n
+config STM32_ADC1_CHAN15_INIT
+	bool "ADC1 Channel 15"
+	default n
+endmenu
+endif
+endif
+
+if STM32_ADC_INIT
+if STM32_ADC2
+menu "ADC3 Device Initialization"
+
+config STM32_ADC2_CHAN0_INIT
+	bool "ADC2 Channel 0"
+	default n
+config STM32_ADC2_CHAN1_INIT
+	bool "ADC2 Channel 1"
+	default n
+config STM32_ADC2_CHAN2_INIT
+	bool "ADC2 Channel 2"
+	default n
+config STM32_ADC2_CHAN3_INIT
+	bool "ADC2 Channel 3"
+	default n
+config STM32_ADC2_CHAN4_INIT
+	bool "ADC2 Channel 4"
+	default n
+config STM32_ADC2_CHAN5_INIT
+	bool "ADC2 Channel 5"
+	default n
+config STM32_ADC2_CHAN6_INIT
+	bool "ADC2 Channel 6"
+	default n
+config STM32_ADC2_CHAN7_INIT
+	bool "ADC2 Channel 7"
+	default n
+config STM32_ADC2_CHAN8_INIT
+	bool "ADC2 Channel 8"
+	default n
+config STM32_ADC2_CHAN9_INIT
+	bool "ADC2 Channel 9"
+	default n
+config STM32_ADC2_CHAN10_INIT
+	bool "ADC2 Channel 10"
+	default n
+config STM32_ADC2_CHAN11_INIT
+	bool "ADC2 Channel 11"
+	default n
+config STM32_ADC2_CHAN12_INIT
+	bool "ADC2 Channel 12"
+	default n
+config STM32_ADC2_CHAN13_INIT
+	bool "ADC2 Channel 13"
+	default n
+config STM32_ADC2_CHAN14_INIT
+	bool "ADC2 Channel 14"
+	default n
+config STM32_ADC2_CHAN15_INIT
+	bool "ADC2 Channel 15"
+	default n
+endmenu
+endif
+endif
+
+if STM32_ADC_INIT
+if STM32_ADC3
+menu "ADC1 Device Initialization"
+
+config STM32_ADC3_CHAN0_INIT
+	bool "ADC3 Channel 0"
+	default n
+config STM32_ADC3_CHAN1_INIT
+	bool "ADC3 Channel 1"
+	default n
+config STM32_ADC3_CHAN2_INIT
+	bool "ADC3 Channel 2"
+	default n
+config STM32_ADC3_CHAN3_INIT
+	bool "ADC3 Channel 3"
+	default n
+config STM32_ADC3_CHAN4_INIT
+	bool "ADC3 Channel 4"
+	default n
+config STM32_ADC3_CHAN5_INIT
+	bool "ADC3 Channel 5"
+	default n
+config STM32_ADC3_CHAN6_INIT
+	bool "ADC3 Channel 6"
+	default n
+config STM32_ADC3_CHAN7_INIT
+	bool "ADC3 Channel 7"
+	default n
+config STM32_ADC3_CHAN8_INIT
+	bool "ADC3 Channel 8"
+	default n
+config STM32_ADC3_CHAN9_INIT
+	bool "ADC3 Channel 9"
+	default n
+config STM32_ADC3_CHAN10_INIT
+	bool "ADC3 Channel 10"
+	default n
+config STM32_ADC3_CHAN11_INIT
+	bool "ADC3 Channel 11"
+	default n
+config STM32_ADC3_CHAN12_INIT
+	bool "ADC3 Channel 12"
+	default n
+config STM32_ADC3_CHAN13_INIT
+	bool "ADC3 Channel 13"
+	default n
+config STM32_ADC3_CHAN14_INIT
+	bool "ADC3 Channel 14"
+	default n
+config STM32_ADC3_CHAN15_INIT
+	bool "ADC3 Channel 15"
+	default n
+endmenu
+endif
+endif
+
+if STM32_ADC_INIT
+if STM32_ADC4
+menu "ADC4 Device Initialization"
+
+config STM32_ADC4_CHAN0_INIT
+	bool "ADC4 Channel 0"
+	default n
+config STM32_ADC4_CHAN1_INIT
+	bool "ADC4 Channel 1"
+	default n
+config STM32_ADC4_CHAN2_INIT
+	bool "ADC4 Channel 2"
+	default n
+config STM32_ADC4_CHAN3_INIT
+	bool "ADC4 Channel 3"
+	default n
+config STM32_ADC4_CHAN4_INIT
+	bool "ADC4 Channel 4"
+	default n
+config STM32_ADC4_CHAN5_INIT
+	bool "ADC4 Channel 5"
+	default n
+config STM32_ADC4_CHAN6_INIT
+	bool "ADC4 Channel 6"
+	default n
+config STM32_ADC4_CHAN7_INIT
+	bool "ADC4 Channel 7"
+	default n
+config STM32_ADC4_CHAN8_INIT
+	bool "ADC4 Channel 8"
+	default n
+config STM32_ADC4_CHAN9_INIT
+	bool "ADC4 Channel 9"
+	default n
+config STM32_ADC4_CHAN10_INIT
+	bool "ADC4 Channel 10"
+	default n
+config STM32_ADC4_CHAN11_INIT
+	bool "ADC4 Channel 11"
+	default n
+config STM32_ADC4_CHAN12_INIT
+	bool "ADC4 Channel 12"
+	default n
+config STM32_ADC4_CHAN13_INIT
+	bool "ADC4 Channel 13"
+	default n
+config STM32_ADC4_CHAN14_INIT
+	bool "ADC4 Channel 14"
+	default n
+config STM32_ADC4_CHAN15_INIT
+	bool "ADC4 Channel 15"
+	default n
+endmenu
+endif
+endif
+
 config STM32_COMP
 	bool "COMP"
 	default n

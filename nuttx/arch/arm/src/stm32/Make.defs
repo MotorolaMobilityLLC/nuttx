@@ -233,6 +233,9 @@ CHIP_CSRCS += stm32l4x3xx_adc.c
 else
 CHIP_CSRCS += stm32_adc.c
 endif
+ifeq ($(CONFIG_STM32_ADC_INIT),y)
+CHIP_CSRCS += stm32_adc_init.c
+endif
 endif
 
 ifeq ($(CONFIG_DAC),y)
