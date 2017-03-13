@@ -57,4 +57,4 @@ export CROSSDEV=arm-eabi-
 export ARCROSSDEV=arm-eabi-
 fi
 
-alias flash="openocd -f board/moto_mdk_muc.cfg -c \"program $WD/nuttx.tftf 0x08008000 reset exit\""
+alias flash="openocd -f board/moto_mdk_muc_reset.cfg -c \"program $WD/nuttx.tftf 0x08008000 reset exit\""
