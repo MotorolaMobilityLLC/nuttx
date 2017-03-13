@@ -62,6 +62,7 @@ struct gpio_ops_s
     int (*clear_interrupt)(void *driver_data, uint8_t which);
     gpio_cfg_t (*cfg_save)(void *driver_data, uint8_t which);
     void (*cfg_restore)(void *driver_data, uint8_t which, gpio_cfg_t cfg);
+    void (*cfg_set)(void *driver_data, uint8_t which, gpio_cfg_t cfg);
 };
 
 struct gpio_chip_s
@@ -90,6 +91,7 @@ int gpio_unmask_irq(uint8_t which);
 int gpio_clear_interrupt(uint8_t which);
 gpio_cfg_t gpio_cfg_save(uint8_t which);
 void gpio_cfg_restore(uint8_t which, gpio_cfg_t cfg);
+void gpio_cfg_set(uint8_t which, gpio_cfg_t cfg);
 
 int register_gpio_chip(struct gpio_ops_s *ops, int base, void *driver_data);
 int unregister_gpio_chip(void *driver_data);

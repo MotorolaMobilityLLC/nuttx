@@ -60,6 +60,7 @@ struct device_ptp_chg_type_ops {
 #ifndef CONFIG_GREYBUS_PTP_INT_RCV_NEVER
     int (*receive_base_pwr)(struct device *dev, const struct charger_config *cfg);
 #endif
+    int (*all_paths_open)(struct device *dev);
     int (*max_input_voltage)(struct device *dev, int *voltage);
     int (*off)(struct device *dev);
 };
@@ -209,5 +210,20 @@ static inline int device_ptp_chg_off(struct device *dev)
     }
 
     return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->off(dev);
+}
+
+static inline int device_ptp_chg_all_paths_open(struct device *dev)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev)) {
+        return -ENODEV;
+    }
+
+    if (!DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->all_paths_open) {
+        return -ENOSYS;
+    }
+
+    return DEVICE_DRIVER_GET_OPS(dev, ptp_chg)->all_paths_open(dev);
 }
 #endif

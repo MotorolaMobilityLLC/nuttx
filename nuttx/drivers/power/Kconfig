@@ -104,6 +104,13 @@ config BATTERY_MAX17050_STD_MODEL_1580_CFG
 endchoice
 endif
 
+config CHARGING_MODS_DONGLE
+	bool "Mods support for charging from VBUS dongle"
+	default n
+	depends on BATTERY
+	---help---
+		Support taking power from the Motorola Dongle
+
 menuconfig CHARGER_BQ24292
 	bool "TI bq24292 charger support"
 	default n
