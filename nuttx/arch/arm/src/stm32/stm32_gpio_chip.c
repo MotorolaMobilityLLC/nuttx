@@ -414,6 +414,14 @@ static void stm32_gpio_cfg_restore(void *driver_data, uint8_t pin,
     cfg = NULL;
 }
 
+static void stm32_gpio_cfg_set(void *driver_data, uint8_t pin,
+                               gpio_cfg_t cfg)
+{
+    if (cfg == NULL) return;
+
+    stm32_configgpio(*(uint32_t *)cfg);
+}
+
 static struct gpio_ops_s stm32_gpio_ops = {
     .direction_in =     stm32_gpio_set_direction_in,
     .direction_out =    stm32_gpio_set_direction_out,
@@ -431,6 +439,7 @@ static struct gpio_ops_s stm32_gpio_ops = {
     .clear_interrupt =  stm32_gpio_clear_interrupt,
     .cfg_save =         stm32_gpio_cfg_save,
     .cfg_restore =      stm32_gpio_cfg_restore,
+    .cfg_set =          stm32_gpio_cfg_set,
 };
 
 /* Public functions */
