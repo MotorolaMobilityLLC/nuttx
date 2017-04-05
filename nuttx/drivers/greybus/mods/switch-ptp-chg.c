@@ -267,7 +267,9 @@ static int switch_ptp_chg_all_paths_open(struct device *dev)
     int retval = 0;
     struct switch_ptp_chg_info *info = device_get_private(dev);
 
-    dbg("\n");
+#ifdef CONFIG_GREYBUS_MODS_PTP_DEVICE_HAS_BATTERY
+    retval = device_charger_off(info->chg_dev);
+#endif
     wireless_path(info, true);
     wired_path(info, true);
     base_path(info, true);
