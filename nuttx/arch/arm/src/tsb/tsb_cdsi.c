@@ -58,12 +58,6 @@ struct cdsi_dev *cdsi_initialize(int cdsi, int tx)
     dev->tx = tx;
     dev->base = cdsi == TSB_CDSI0 ? CDSI0_BASE : CDSI1_BASE;
     tsb_clk_enable(cdsi == TSB_CDSI0 ? TSB_CLK_CDSI0_REF : TSB_CLK_CDSI1_REF);
-#if CONFIG_ARCH_VIDCRYPT
-    tsb_clk_enable(TSB_CLK_VIDENCRYPT);
-    tsb_reset(TSB_RST_VIDCRYPTIF);
-    tsb_reset(TSB_RST_VIDCRYPTCH0);
-    tsb_reset(TSB_RST_VIDCRYPTCH1);
-#endif
     if (tx) {
         if (cdsi == TSB_CDSI0) {
             tsb_clk_enable(TSB_CLK_CDSI0_TX_SYS);
@@ -91,8 +85,7 @@ struct cdsi_dev *cdsi_initialize(int cdsi, int tx)
     }
 
 #if CONFIG_ARCH_VIDCRYPT
-    tsb_vidcrypt_set_mode(cdsi, tx);
-    tsb_vidcrypt_enable(cdsi);
+    tsb_vidcrypt_enable(cdsi, tx);
 #endif
     return dev;
 }
@@ -103,7 +96,6 @@ void cdsi_uninitialize(struct cdsi_dev *dev)
 
 #if CONFIG_ARCH_VIDCRYPT
     tsb_vidcrypt_disable(cdsi);
-    tsb_clk_disable(TSB_CLK_VIDENCRYPT);
 #endif
     tsb_clk_disable(cdsi == TSB_CDSI0 ? TSB_CLK_CDSI0_REF : TSB_CLK_CDSI1_REF);
     if (dev->tx) {

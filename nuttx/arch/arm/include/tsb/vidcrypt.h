@@ -29,8 +29,7 @@
 #ifndef __ARCH_ARM_INCLUDE_TSB_VIDCRYPT_H
 #define __ARCH_ARM_INCLUDE_TSB_VIDCRYPT_H
 
-int tsb_vidcrypt_set_mode(uint32_t cdsi, uint32_t tx);
-int tsb_vidcrypt_enable(uint32_t cdsi);
+int tsb_vidcrypt_enable(uint32_t cdsi, uint32_t tx);
 int tsb_vidcrypt_disable(uint32_t cdsi);
 
 #endif
