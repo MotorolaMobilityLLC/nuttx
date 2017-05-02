@@ -40,6 +40,9 @@
 #include <nuttx/device.h>
 #include <nuttx/device_display.h>
 
+/* Config options */
+#define HDMI_DISPLAY_CONNECT_ON_ATTACH  (1)
+
 static struct hdmi_display
 {
     display_notification_cb callback;
@@ -98,6 +101,10 @@ static int hdmi_display_get_config(struct device *dev, uint8_t *display_type,
         _hdmi_display_convert_downstream_config(&downstream_config, &display->cfg);
         *config = (uint8_t*) &display->cfg;
     }
+
+#if HDMI_DISPLAY_CONNECT_ON_ATTACH
+    hdmi_display_notification(dev, DISPLAY_NOTIFICATION_EVENT_CONNECT);
+#endif
 
     return 0;
 }
