@@ -184,7 +184,7 @@ static void unipro_evt_handler(enum unipro_event evt)
 
         break;
     case UNIPRO_EVT_PWRMODE:
-        if (g_svc.gearbox) {
+        {
             uint32_t pmi_val0 = 0;
             rc = unipro_attr_read(TSB_DME_POWERMODEIND, &pmi_val0, 0, 0);
             llvdbg("rc=%d, pmi0=%x\n", rc, pmi_val0);
@@ -200,7 +200,9 @@ static void unipro_evt_handler(enum unipro_event evt)
                 llvdbg("Powermode change failed\n");
                 err = -1;
             }
+        }
 
+        if (g_svc.gearbox) {
             svc_send_event(SVC_EVENT_GEAR_SHIFT_DONE,
                 (void *)(unsigned int)err,
                 (void *)(unsigned int)0,
@@ -682,7 +684,9 @@ static enum svc_state svc_connected__gear_shifted(struct svc *svc, struct svc_wo
     vdbg("\n");
 
     int err = (int)work->parameter0;
-    gearbox_shift_complete(g_svc.gearbox, err);
+    if (g_svc.gearbox) {
+        gearbox_shift_complete(g_svc.gearbox, err);
+    }
     return g_svc.state;
 }
 

@@ -34,6 +34,7 @@
 
 #include "chip.h"
 #include "up_arch.h"
+#include "tsb_scm.h"
 
 #define TSB_VIDCRYPT_CONFIG       0x00000000
     #define TSB_VIDCRYPT_CONFIG_CDSI0_MASK  0x3
@@ -50,6 +51,8 @@
     #define TSB_VIDCRYPT_ENABLE_EN          1
 #define TSB_VIDCRYPT_DISABLE      0x00000008
 
+static int vidcrypt_count;
+
 static uint32_t tsb_vidcrypt_read(uint32_t offset)
 {
     return getreg32(VIDCRYPT_BASE + offset);
@@ -60,7 +63,7 @@ static void tsb_vidcrypt_write(uint32_t offset, uint32_t v)
     putreg32(v, VIDCRYPT_BASE + offset);
 }
 
-int tsb_vidcrypt_set_mode(uint32_t cdsi, uint32_t tx)
+static int tsb_vidcrypt_set_mode(uint32_t cdsi, uint32_t tx)
 {
     uint32_t direction = (tx ? TSB_VIDCRYPT_CONFIG_TX : TSB_VIDCRYPT_CONFIG_RX);
     uint32_t shift = (cdsi == TSB_CDSI0 ? TSB_VIDCRYPT_CONFIG_CDSI0_SHIFT : TSB_VIDCRYPT_CONFIG_CDSI1_SHIFT);
@@ -75,7 +78,7 @@ int tsb_vidcrypt_set_mode(uint32_t cdsi, uint32_t tx)
     return 0;
 }
 
-int tsb_vidcrypt_enable(uint32_t cdsi)
+static int _tsb_vidcrypt_enable(uint32_t cdsi)
 {
     uint32_t value = tsb_vidcrypt_read(TSB_VIDCRYPT_ENABLE);
 
@@ -90,7 +93,7 @@ int tsb_vidcrypt_enable(uint32_t cdsi)
     return 0;
 }
 
-int tsb_vidcrypt_disable(uint32_t cdsi)
+static int _tsb_vidcrypt_disable(uint32_t cdsi)
 {
     uint32_t value = tsb_vidcrypt_read(TSB_VIDCRYPT_DISABLE);
 
@@ -101,6 +104,35 @@ int tsb_vidcrypt_disable(uint32_t cdsi)
     value |= (TSB_VIDCRYPT_ENABLE_EN << shift);
 
     tsb_vidcrypt_write(TSB_VIDCRYPT_DISABLE, value);
+
+    return 0;
+}
+
+int tsb_vidcrypt_enable(uint32_t cdsi, uint32_t tx)
+{
+    if (vidcrypt_count == 0) {
+        tsb_clk_enable(TSB_CLK_VIDENCRYPT);
+        tsb_reset(TSB_RST_VIDCRYPTIF);
+    }
+    vidcrypt_count++;
+
+    uint32_t reset = (cdsi == TSB_CDSI0 ? TSB_RST_VIDCRYPTCH0 : TSB_RST_VIDCRYPTCH1);
+    tsb_reset(reset);
+
+    tsb_vidcrypt_set_mode(cdsi, tx);
+    _tsb_vidcrypt_enable(cdsi);
+
+    return 0;
+}
+
+int tsb_vidcrypt_disable(uint32_t cdsi)
+{
+    _tsb_vidcrypt_disable(cdsi);
+
+    vidcrypt_count--;
+    if (vidcrypt_count == 0) {
+        tsb_clk_disable(TSB_CLK_VIDENCRYPT);
+    }
 
     return 0;
 }

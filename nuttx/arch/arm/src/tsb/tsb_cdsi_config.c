@@ -505,7 +505,7 @@ int cdsi_read_until(struct cdsi_dev *dev, uint32_t addr, uint32_t mask, uint32_t
         uint32_t value = cdsi_read(dev, addr);
         if ((value & mask) == desired_value) {
             /* success */
-            vdbg("wait: i=%d addr=%x value=%x\n", i, addr, value);
+            //vdbg("wait: i=%d addr=%x value=%x\n", i, addr, value);
             return 0;
         }
 
