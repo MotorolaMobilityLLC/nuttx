@@ -40,6 +40,8 @@ enum device_resource_type {
     DEVICE_RESOURCE_TYPE_REGS,
     DEVICE_RESOURCE_TYPE_IRQ,
     DEVICE_RESOURCE_TYPE_GPIO,
+    DEVICE_RESOURCE_TYPE_I2C_ADDR,
+    DEVICE_RESOURCE_TYPE_I2C_BUS,
 };
 
 struct device_resource {
