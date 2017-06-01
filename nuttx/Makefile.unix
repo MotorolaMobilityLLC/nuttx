@@ -595,6 +595,8 @@ endif
 	$(call DELFILE, setenv.bat)
 	$(call DELFILE, .config)
 	$(call DELFILE, .config.old)
+	$(call DELFILE, .version)
+	$(call DELFILE, tftf.hdr)
 
 # Application housekeeping targets.  The APPDIR variable refers to the user
 # application directory.  A sample apps/ directory is included with NuttX,
