@@ -45,7 +45,6 @@ rebuild_defconfig() {
   cp -r $TOPDIR/../nuttx $ARA_BUILD_TOPDIR/nuttx
   cp -r $TOPDIR/../apps $ARA_BUILD_TOPDIR/apps
   cp -r $TOPDIR/../misc $ARA_BUILD_TOPDIR/misc
-  cp -r $TOPDIR/../NxWidgets $ARA_BUILD_TOPDIR/NxWidgets
 
   # copy Make.defs to build output tree
   if ! install -m 644 -p ${configpath}/Make.defs ${ARA_BUILD_TOPDIR}/nuttx/Make.defs  >/dev/null 2>&1; then

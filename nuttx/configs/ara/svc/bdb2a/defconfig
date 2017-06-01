@@ -1018,10 +1018,6 @@ CONFIG_NSH_CONSOLE=y
 CONFIG_NSH_ARCHINIT=y
 
 #
-# NxWidgets/NxWM
-#
-
-#
 # Platform-specific Support
 #
 # CONFIG_PLATFORM_CONFIGDATA is not set
