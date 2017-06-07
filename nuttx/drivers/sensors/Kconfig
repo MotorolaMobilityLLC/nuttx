@@ -52,6 +52,25 @@ config INA230
 	default n
 	depends on I2C
 
+config SENSOR_BME680
+	bool "BME680 Sensor Support"
+	default n
+	select I2C
+
+if SENSOR_BME680
+config SENSOR_BME680_I2C_BUS
+	int "BME680 Sensor Bus Number"
+	default 3
+
+config SENSOR_BME680_I2C_ADDRESS
+	hex "BME680 Sensor I2C Address"
+	default 0x77
+
+config SENSOR_BME680_I2C_BUS_SPEED
+	int "BME680 Sensor Bus Speed in Hz"
+	default 400000
+endif
+
 config GREYBUS_SENSORS_EXT_TMP007
 	bool "TMP007 Sensor Greybus Adapter"
 	default n
