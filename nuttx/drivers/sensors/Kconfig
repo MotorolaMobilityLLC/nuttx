@@ -52,6 +52,12 @@ config INA230
 	default n
 	depends on I2C
 
+config GREYBUS_SENSORS_EXT_BME680
+	bool "BME680 Sensor Greybus Adapter"
+	default n
+	select GREYBUS
+	select GREYBUS_SENSORS_EXT
+
 config SENSOR_BME680
 	bool "BME680 Sensor Support"
 	default n
