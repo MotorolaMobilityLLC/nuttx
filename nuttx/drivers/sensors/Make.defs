@@ -61,6 +61,12 @@ endif
 ifeq ($(CONFIG_GREYBUS_SENSORS_EXT_TMP007),y)
   CSRCS += device_sensor_tmp007.c
 endif
+
+ifneq ($(or $(CONFIG_GREYBUS_SENSORS_EXT_LSM6DS3_ACCEL), \
+$(CONFIG_GREYBUS_SENSORS_EXT_LSM6DS3_GYRO), \
+$(CONFIG_GREYBUS_SENSORS_EXT_LSM6DS3_GYRO)),)
+  CSRCS += lsm6ds3-gb.c
+endif
 endif
 
 # Quadrature encoder upper half
