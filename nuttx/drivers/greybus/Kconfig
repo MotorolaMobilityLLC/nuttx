@@ -254,6 +254,15 @@ config GREYBUS_SENSORS_EXT_DUMMY_ACCEL
 config GREYBUS_SENSORS_EXT_LSM9DS1_ACCEL
 	bool "LSM9DS1 Accel Sensor"
 	depends on RTC && I2C
+config GREYBUS_SENSORS_EXT_LSM6DS3_ACCEL
+	bool "LSM6DS3 Accel Sensor"
+	depends on RTC && I2C
+config GREYBUS_SENSORS_EXT_LSM6DS3_GYRO
+	bool "LSM6DS3 Gyro Sensor"
+	depends on RTC && I2C
+config GREYBUS_SENSORS_EXT_LSM6DS3_TEMP
+	bool "LSM6DS3 Temp Sensor"
+	depends on RTC && I2C
 endif
 
 menuconfig GREYBUS_MODS

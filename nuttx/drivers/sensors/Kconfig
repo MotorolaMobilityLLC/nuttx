@@ -51,3 +51,53 @@ config INA230
 	bool "TI ina230 power monitor support"
 	default n
 	depends on I2C
+
+config GREYBUS_SENSORS_EXT_BME680
+	bool "BME680 Sensor Greybus Adapter"
+	default n
+	select GREYBUS
+	select GREYBUS_SENSORS_EXT
+
+config SENSOR_BME680
+	bool "BME680 Sensor Support"
+	default n
+	select I2C
+
+if SENSOR_BME680
+config SENSOR_BME680_I2C_BUS
+	int "BME680 Sensor Bus Number"
+	default 3
+
+config SENSOR_BME680_I2C_ADDRESS
+	hex "BME680 Sensor I2C Address"
+	default 0x77
+
+config SENSOR_BME680_I2C_BUS_SPEED
+	int "BME680 Sensor Bus Speed in Hz"
+	default 400000
+endif
+
+config GREYBUS_SENSORS_EXT_TMP007
+	bool "TMP007 Sensor Greybus Adapter"
+	default n
+	select I2C
+	select GREYBUS
+	select GREYBUS_SENSORS_EXT
+
+if GREYBUS_SENSORS_EXT_TMP007
+config SENSOR_TMP007_I2C_BUS
+	int "TMP007 Sensor Bus Number"
+	default 3
+
+config SENSOR_TMP007_I2C_ADDRESS
+	hex "TMP007 Sensor I2C Address"
+	default 0x40
+
+config SENSOR_TMP007_I2C_BUS_SPEED
+	int "TMP007 Sensor Bus Speed in Hz"
+	default 400000
+
+config SENSOR_TMP007_BATCH_SIZE
+	int "TMP007 Sensor Bus Batch Size"
+	default 1
+endif
