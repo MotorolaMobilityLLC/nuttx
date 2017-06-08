@@ -156,7 +156,7 @@ endif
 ifeq ($(CONFIG_STM32_I2C_ALT),y)
 CHIP_CSRCS += stm32_i2c_alt.c
 else
-ifneq ($(filter y,$(CONFIG_STM32_STM32F30XX) $(CONFIG_STM32_STM32L4X6) $(CONFIG_STM32_STM32L4X3)),)
+ifneq ($(filter y,$(CONFIG_STM32_STM32F30XX) $(CONFIG_STM32_STM32L4X6) $(CONFIG_STM32_STM32L4X3) $(CONFIG_STM32_STM32L4X1)),)
 CHIP_CSRCS += stm32f30xxx_i2c.c
 else
 CHIP_CSRCS += stm32_i2c.c
@@ -201,7 +201,7 @@ endif
 ifeq ($(CONFIG_PM),y)
 CHIP_CSRCS += stm32_pmstop.c stm32_pmstandby.c stm32_pmsleep.c
 
-ifneq ($(filter y,$(CONFIG_STM32_STM32L4X6) $(CONFIG_STM32_STM32L4X3)),)
+ifneq ($(filter y,$(CONFIG_STM32_STM32L4X6) $(CONFIG_STM32_STM32L4X3) $(CONFIG_STM32_STM32L4X1)),)
 CHIP_CSRCS += stm32_pmlpr.c
 endif
 endif
@@ -230,6 +230,8 @@ ifeq ($(CONFIG_STM32_STM32L4X6),y)
 CHIP_CSRCS += stm32l4x6xx_adc.c
 else ifeq ($(CONFIG_STM32_STM32L4X3),y)
 CHIP_CSRCS += stm32l4x3xx_adc.c
+else ifeq ($(CONFIG_STM32_STM32L4X1),y)
+CHIP_CSRCS += stm32l4x1xx_adc.c
 else
 CHIP_CSRCS += stm32_adc.c
 endif

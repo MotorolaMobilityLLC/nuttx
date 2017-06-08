@@ -48,6 +48,8 @@
 
 #if defined(CONFIG_STM32_STM32L4X3)
 #  include "chip/stm32l4x3xx_pwr.h"
+#elif defined(CONFIG_STM32_STM32L4X1)
+#  include "chip/stm32l4x1xx_pwr.h"
 #elif defined(CONFIG_STM32_STM32L4X6)
 #  include "chip/stm32l4x6xx_pwr.h"
 #else

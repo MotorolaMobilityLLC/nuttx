@@ -80,6 +80,8 @@
 
 #if defined(CONFIG_STM32_STM32L15XX)
 #  include <arch/stm32/stm32l15xxx_irq.h>
+#elif defined(CONFIG_STM32_STM32L4X1)
+#  include <arch/stm32/stm32l4x1xx_irq.h>
 #elif defined(CONFIG_STM32_STM32L4X3)
 #  include <arch/stm32/stm32l4x3xx_irq.h>
 #elif defined(CONFIG_STM32_STM32L4X6)

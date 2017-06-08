@@ -42,7 +42,7 @@
 
 #include <nuttx/config.h>
 
-#if defined(CONFIG_STM32_STM32L4X3)
+#if defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 #include "chip/stm32l4x3xx_comp.h"
 #elif defined(CONFIG_STM32_STM32L4X6)
 #include "chip/stm32l4x6xx_comp.h"
@@ -56,7 +56,7 @@
  * Public Types
  ************************************************************************************/
 
-#if defined(CONFIG_STM32_STM32L4X3)
+#if defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 /* Comparators **********************************************************************/
 typedef enum {
     STM32_COMP1,
