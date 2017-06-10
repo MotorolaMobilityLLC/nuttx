@@ -802,7 +802,7 @@ void stm32_wwdginitialize(FAR const char *devpath)
       uint32_t cr = getreg32(STM32_DBGMCU_APB1_FZ);
       cr |= DBGMCU_APB1_WWDGSTOP;
       putreg32(cr, STM32_DBGMCU_APB1_FZ);
-#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+#elif defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
       uint32_t cr = getreg32(STM32_DBGMCU_APB1_FZ1);
       cr |= DBGMCU_APB1_WWDGSTOP;
       putreg32(cr, STM32_DBGMCU_APB1_FZ1);
