@@ -784,7 +784,7 @@ static int spi_registercallback(FAR struct spi_dev_s *dev,
 
 static inline bool spi_16bitmode(FAR struct stm32_spidev_s *priv)
 {
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
   return ((spi_getreg(priv, STM32_SPI_CR2_OFFSET) & SPI_CR2_DS_MASK) == SPI_CR2_DS_16BIT);
 #else
   return ((spi_getreg(priv, STM32_SPI_CR1_OFFSET) & SPI_CR1_DFF) != 0);
@@ -1429,7 +1429,7 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
         {
         case -8:
           setbits = SPI_CR1_LSBFIRST;
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
           clrbits = SPI_CR1_CRCL;
 #else
           clrbits = SPI_CR1_DFF;
@@ -1438,7 +1438,7 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
 
         case 8:
           setbits = 0;
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
           clrbits = SPI_CR1_CRCL|SPI_CR1_LSBFIRST;
 #else
           clrbits = SPI_CR1_DFF|SPI_CR1_LSBFIRST;
@@ -1446,7 +1446,7 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
           break;
 
         case -16:
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
           setbits = SPI_CR1_CRCL|SPI_CR1_LSBFIRST;
 #else
           setbits = SPI_CR1_DFF|SPI_CR1_LSBFIRST;
@@ -1455,7 +1455,7 @@ static void spi_setbits(FAR struct spi_dev_s *dev, int nbits)
           break;
 
         case 16:
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
           setbits = SPI_CR1_CRCL;
 #else
           setbits = SPI_CR1_DFF;
@@ -1996,7 +1996,7 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
        *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
        *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
        */
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
       clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_MSTR|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
                 SPI_CR1_RXONLY|SPI_CR1_CRCL|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
 #else
@@ -2016,7 +2016,7 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
        *   Replace NSS with SSI & SSI=1:  SSI=1 SSM=1 (prevents MODF error)
        *   Two lines full duplex:         BIDIMODE=0 BIDIOIE=(Don't care) and RXONLY=0
        */
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
       clrbits = SPI_CR1_CPHA|SPI_CR1_CPOL|SPI_CR1_BR_MASK|SPI_CR1_LSBFIRST|
                 SPI_CR1_RXONLY|SPI_CR1_CRCL|SPI_CR1_BIDIOE|SPI_CR1_BIDIMODE;
 #else
@@ -2041,7 +2041,7 @@ static void spi_portinitialize(FAR struct stm32_spidev_s *priv)
     }
 
 #if defined(CONFIG_SPI_CRC16) && \
-    (defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)) || defined(CONFIG_STM32_STM32L4X1))
+    (defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)) || defined(CONFIG_STM32_STM32L4X1)
   if (priv->crc16_en)
     {
       /* CRC setup */
