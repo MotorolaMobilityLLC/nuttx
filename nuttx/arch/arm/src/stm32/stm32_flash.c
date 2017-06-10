@@ -60,7 +60,7 @@
 #if defined(CONFIG_STM32_STM32F10XX)  || \
     defined (CONFIG_STM32_STM32F40XX) || \
     defined (CONFIG_STM32_STM32L4X6) || \
-    defined (CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1))
+    defined (CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 
 /************************************************************************************
  * Pre-processor Definitions
