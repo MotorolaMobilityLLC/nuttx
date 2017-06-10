@@ -62,6 +62,9 @@
 
 /* STM32 L4 Family ******************************************************************/
 
+#elif defined(CONFIG_STM32_STM32L4X1)
+#  include "chip/stm32l4x1xx_pinmap.h"
+
 #elif defined(CONFIG_STM32_STM32L4X3)
 #  include "chip/stm32l4x3xx_pinmap.h"
 
@@ -145,6 +148,8 @@
 #ifdef CONFIG_ARMV7M_CMNVECTOR
 #  if defined(CONFIG_STM32_STM32L15XX)
 #    include "chip/stm32l15xxx_vectors.h"
+#  elif defined(CONFIG_STM32_STM32L4X1)
+#    include "chip/stm32l4x1xx_vectors.h"
 #  elif defined(CONFIG_STM32_STM32L4X3)
 #    include "chip/stm32l4x3xx_vectors.h"
 #  elif defined(CONFIG_STM32_STM32L4X6)

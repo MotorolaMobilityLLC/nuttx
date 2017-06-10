@@ -122,7 +122,7 @@
  * 48KB SRAM1 and another 16KB of SRAM2.
  */
 
-#elif defined(CONFIG_STM32_STM32L4X3)
+#elif defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 
    /* Set the end of system SRAM */
 

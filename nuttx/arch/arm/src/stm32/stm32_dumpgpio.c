@@ -175,7 +175,7 @@ int stm32_dumpgpio(uint32_t pinset, const char *msg)
     }
 
 #elif defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32L4X6) || \
-      defined(CONFIG_STM32_STM32L4X3)
+      defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 
   DEBUGASSERT(port < STM32_NGPIO_PORTS);
 

@@ -56,7 +56,7 @@
 
 #if defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F20XX) || \
     defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX) || \
-    defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3)
+    defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 #  include "chip/stm32_syscfg.h"
 #endif
 
@@ -103,7 +103,7 @@ const uint32_t g_gpiobase[STM32_NGPIO_PORTS] =
   STM32_GPIOG_BASE,
 #endif
 
-#elif defined(CONFIG_STM32_STM32L4X3)
+#elif defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 
 #if STM32_NGPIO_PORTS > 5
   STM32_RESERVED1_BASE,
@@ -434,7 +434,7 @@ int stm32_configgpio(uint32_t cfgset)
 
 #if defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F20XX) || \
     defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX) || \
-    defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3)
+    defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 int stm32_configgpio(uint32_t cfgset)
 {
   uintptr_t base;
@@ -526,7 +526,7 @@ int stm32_configgpio(uint32_t cfgset)
   regval |= (setting << GPIO_PUPDR_SHIFT(pin));
   putreg32(regval, base + STM32_GPIO_PUPDR_OFFSET);
 
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
   /* Set the analog switch (analog mode only) */
 
   regval = getreg32(base + STM32_GPIO_ASCR_OFFSET);
@@ -770,7 +770,7 @@ int stm32_getconfiggpio(uint32_t *cfgset)
         }
     }
 
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
   /* Get the analog switch (analog mode only) */
 
   if (pinmode == GPIO_MODER_ANALOG)
@@ -929,7 +929,7 @@ int stm32_unconfiggpio(uint32_t cfgset)
   cfgset |= GPIO_INPUT | GPIO_CNF_INFLOAT | GPIO_MODE_INPUT;
 #elif defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F20XX) || \
       defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX) || \
-      defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3)
+      defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
   cfgset |= GPIO_INPUT | GPIO_FLOAT;
 #else
 # error "Unsupported STM32 chip"
@@ -955,7 +955,7 @@ void stm32_gpiowrite(uint32_t pinset, bool value)
   uint32_t offset;
 #elif defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F20XX) || \
       defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX) || \
-      defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3)
+      defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
   uint32_t bit;
 #endif
   unsigned int port;
@@ -989,7 +989,7 @@ void stm32_gpiowrite(uint32_t pinset, bool value)
 
 #elif defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32F20XX) || \
       defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F40XX) || \
-      defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3)
+      defined(CONFIG_STM32_STM32L4X6)  || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
 
       if (value)
         {

@@ -1414,7 +1414,8 @@ static int pwm_shutdown(FAR struct pwm_lowerhalf_s *dev)
 #if defined(CONFIG_STM32_STM32F10XX)
   pincfg |= (GPIO_INPUT|GPIO_CNF_INFLOAT|GPIO_MODE_INPUT);
 #elif defined(CONFIG_STM32_STM32F20XX) || defined(CONFIG_STM32_STM32F40XX) || \
-      defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+      defined(CONFIG_STM32_STM32L15XX) || defined(CONFIG_STM32_STM32L4X6) || \
+      defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
   pincfg |= (GPIO_INPUT|GPIO_FLOAT);
 #else
 #  error "Unrecognized STM32 chip"

@@ -84,7 +84,7 @@ int stm32_pmstandby(void)
 {
   uint32_t regval;
 
-#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3)
+#if defined(CONFIG_STM32_STM32L4X6) || defined(CONFIG_STM32_STM32L4X3) || defined(CONFIG_STM32_STM32L4X1)
   /* Clear the Wake-Up Flags by setting the CWUFx bits in the power status
    * clear register 
    */
