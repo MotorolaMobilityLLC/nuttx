@@ -157,7 +157,9 @@ config BUILD_PROTECTED
 	select LIB_SYSCALL
 	select BUILD_2PASS
 	---help---
-		Builds NuttX and selected applications as two "blobs":  A protected, privileged kernel blob and a separate unprivileged, user blob.  This require sue of the two pass build with each blob being build on each pass.
+		Builds NuttX and selected applications as two "blobs":  A protected, privileged 
+                kernel blob and a separate   unprivileged, user blob.  This require use of 
+                the two path builds with each blob being built on each path.
 
 		NOTE:  This build configuration requires that the platform support
 		a memory protection unit (MPU).  Support, however, may not be
@@ -305,16 +307,16 @@ config TFTF_STAGE
 if ! ARCH_CHIP_TSB
 
 config CHIP_MFG_ID
-	hex "Unique Manufacturer ID for chip"
+	hex "MIPI Manufacturer ID for chip (always 0x0104 for ST Micro)"
 	default 0x00000104
 	---help---
-		Chip Vendor ID.  For example STM's ID is 00000104
+		Chip Vendor MIPI ID.  For example STM's ID is 00000104
 
 config CHIP_PRODUCT_ID
-	hex "Unique Product ID for chip"
+	hex "Unipro Product ID for chip (Investigate)"
 	default 0x00006435
 	---help---
-		Chip Product ID returned by chip.
+		Chip Product ID returned by chip (Note: every motomod has used same 0x6435 code, only appended as part of tftf filename).
 
 endif
 
@@ -845,3 +847,4 @@ endmenu
 menu "Application Configuration"
 source "$APPSDIR/Kconfig"
 endmenu
+
