@@ -311,10 +311,10 @@ config CHIP_MFG_ID
 		Chip Vendor ID.  For example STM's ID is 00000104
 
 config CHIP_PRODUCT_ID
-	hex "Unique Product ID for chip"
-	default 0x00006435
+	hex "Unique Product ID for chip (STM32L4X3 = 0x435, STM32L4X6 = 0x415)"
+        default 0x415
 	---help---
-		Chip Product ID returned by chip.
+		Chip Product ID returned by chip.   (STM32L4X3 = 0x435, STM32L4X6 = 0x415)
 
 endif
 
@@ -329,16 +329,16 @@ config WRAP_CHIP_MFG_ID
 		the MuC.
 
 config WRAP_CHIP_PRODUCT_ID
-	hex "Unique Product ID for MuC Chip"
-	default 0x00006435
+	hex "Unique Product ID for MuC Chip  (STM32L4X3 = 0x6435, STM32L4X6 = 0x6415)"
+        default 0x6415
 	---help---
 		For the APBE, the base tftf file is wrapped in
 		a tftf file associated with the muc.  This wrapped file
 		is used during updates. This is the CHIP_PRODUCT_ID of
-		the MuC.
+		the MuC.  (STM32L4X3 = 0x6435, STM32L4X6 = 0x6415)
 
 config WRAP_ARCH_BOARDID_VID
-	hex "Vendor ID of the MuC"
+	hex "Vendor ID of the MuC (VID)"
 	default 00000000
 	---help---
 		For the APBE, the base tftf file is wrapped in
@@ -347,7 +347,7 @@ config WRAP_ARCH_BOARDID_VID
 		the MuC.
 
 config WRAP_ARCH_BOARDID_PID
-	hex "Product ID of the MuC"
+	hex "Product ID of the MuC (PID)"
 	default 00000000
 	---help---
 		For the APBE, the base tftf file is wrapped in
