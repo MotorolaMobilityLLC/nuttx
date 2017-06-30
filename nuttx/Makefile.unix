@@ -276,11 +276,13 @@ endif
 tools/mkversion$(HOSTEXEEXT):
 	$(Q) $(MAKE) -C tools -f Makefile.host TOPDIR="$(TOPDIR)"  mkversion$(HOSTEXEEXT)
 
-ifneq (${BUILD_NUMBER},)
-  OVERRIDE_VERSION = 0.${BUILD_NUMBER}
-else
-  OVERRIDE_VERSION = 0.1
+ifeq (${BUILD_MAJOR_NUMBER},)
+  BUILD_MAJOR_NUMBER = 0
 endif
+ifeq (${BUILD_NUMBER},)
+  BUILD_NUMBER = 1
+endif
+OVERRIDE_VERSION = ${BUILD_MAJOR_NUMBER}.${BUILD_NUMBER}
 OVERRIDE_BUILD_NUM = ${shell git describe --always --dirty --match nothing 2>/dev/null}
 
 $(TOPDIR)/.version: FORCE
