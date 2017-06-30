@@ -298,7 +298,6 @@ config ARCH_CHIP
 	default "sam34"		if ARCH_CHIP_SAM34
 	default "stm32"		if ARCH_CHIP_STM32
 	default "str71x"	if ARCH_CHIP_STR71X
-
 if ARCH_CHIP_STM32
 source arch/arm/src/stm32/Kconfig
 endif
