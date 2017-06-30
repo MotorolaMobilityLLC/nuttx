@@ -340,14 +340,12 @@ config WRAP_CHIP_PRODUCT_ID
 	---help---
 		For the APBE, the base tftf file is wrapped in
 		a tftf file associated with the muc.  This wrapped file
-		is used during updates. 
-		
-		This is the CHIP_PRODUCT_ID of the MuC.
-		    For STM32L4 series see RM0394 or RM0351 in section "MCU device ID code"
+		is used during updates. This is the CHIP_PRODUCT_ID of the MuC.
+		For STM32L4 series see RM0394 or RM0351 in section "MCU device ID code"
 		Include "6 or 0110" in the ST reserved Bit 15:12 location in accordance 
 		with the initial versions of the STM32L4 Reference Manuals.
-		    *STM32L4X3 = 0x00006435
-		    *STM32L4X6 = 0x00006415
+		    STM32L4X3 = 0x00006435
+		    STM32L4X6 = 0x00006415
 
 config WRAP_ARCH_BOARDID_VID
 	hex "Vendor ID of the MuC (VID)"
