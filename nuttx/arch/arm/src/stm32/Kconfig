@@ -1221,7 +1221,7 @@ config ARCH_CHIP_STM32L476ZG
         select STM32_HAVE_SDMMC
         select STM32_HAVE_OPAMP2
         ---help---
-                144pin, 1024KB FLASH, 128KB SRAM
+                144pin, 1024KB FLASH, 128KB SRAM.
 
 endchoice
 
