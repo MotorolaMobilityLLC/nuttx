@@ -298,6 +298,15 @@ config ARCH_CHIP
 	default "stm32"		if ARCH_CHIP_STM32
 	default "str71x"	if ARCH_CHIP_STR71X
 	default "tsb"		if ARCH_CHIP_TSB
+if ARCH_CHIP_STM32
+source arch/arm/src/stm32/Kconfig
+endif
+if ARCH_CHIP_TSB
+source arch/arm/src/tsb/Kconfig
+endif
+if ARCH_CORTEXM3 || ARCH_CORTEXM4
+source arch/arm/src/armv7-m/Kconfig
+endif
 
 config ARMV7M_USEBASEPRI
 	bool "Use BASEPRI Register"
@@ -393,9 +402,6 @@ endif
 if ARCH_CORTEXA5 || ARCH_CORTEXA8
 source arch/arm/src/armv7-a/Kconfig
 endif
-if ARCH_CORTEXM3 || ARCH_CORTEXM4
-source arch/arm/src/armv7-m/Kconfig
-endif
 if ARCH_ARM7TDMI || ARCH_ARM926EJS
 source arch/arm/src/arm/Kconfig
 endif
@@ -450,15 +456,10 @@ endif
 if ARCH_CHIP_SAM34
 source arch/arm/src/sam34/Kconfig
 endif
-if ARCH_CHIP_STM32
-source arch/arm/src/stm32/Kconfig
-endif
 if ARCH_CHIP_STR71X
 source arch/arm/src/str71x/Kconfig
 endif
-if ARCH_CHIP_TSB
-source arch/arm/src/tsb/Kconfig
-endif
+
 
 
 endif

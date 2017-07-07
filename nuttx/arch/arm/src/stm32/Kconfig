@@ -33,7 +33,7 @@ comment "STM32 Configuration Options"
 
 choice
 	prompt "STM32 Chip Selection"
-	default ARCH_CHIP_STM32F103ZE
+	default ARCH_CHIP_STM32L476MG
 	depends on ARCH_CHIP_STM32
 
 config ARCH_CHIP_STM32L151C6
@@ -198,30 +198,6 @@ config ARCH_CHIP_STM32L162ZD
 	---help---
 		STM32L 144-pin EnergyLite, 384KB FLASH, 48KB SRAM, 12KB EEPRROM with
 		8x40 LCD interface
-
-config ARCH_CHIP_STM32L433CB
-        bool "STM32L433CB"
-        select ARCH_CORTEXM4
-        select STM32_STM32L4X3
-        select ARCH_HAVE_FPU
-
-config ARCH_CHIP_STM32L433CC
-        bool "STM32L433CC"
-        select ARCH_CORTEXM4
-        select STM32_STM32L4X3
-        select ARCH_HAVE_FPU
-
-config ARCH_CHIP_STM32L476JG
-	bool "STM32L476JG"
-	select ARCH_CORTEXM4
-	select STM32_STM32L4X6
-	select ARCH_HAVE_FPU
-
-config ARCH_CHIP_STM32L476VG
-	bool "STM32L476VG"
-	select ARCH_CORTEXM4
-	select STM32_STM32L4X6
-	select ARCH_HAVE_FPU
 
 config ARCH_CHIP_STM32F100C8
 	bool "STM32F100C8"
@@ -657,6 +633,595 @@ config ARCH_CHIP_STM32F446Z
 	select STM32_STM32F446
 	select ARCH_HAVE_FPU
 
+config ARCH_CHIP_STM32L431KB
+        bool "STM32L431KB"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_32PINS
+        select STM32_HAVE_FLASH_128
+        select STM32_HAVE_SRAM_64
+        ---help---
+              32-pin, 128KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431KC
+        bool "STM32L431KC"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_32PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_64
+        ---help---
+                32-pin, 256KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431CB
+        bool "STM32L431CB"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_48PINS
+        select STM32_HAVE_FLASH_128
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        ---help---
+                48-pin, 128KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431CC
+        bool "STM32L431CC"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_48PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        ---help---
+                48-pin, 256KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431RB
+        bool "STM32L431RB"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_128
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                64-pin, 128KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431RC
+        bool "STM32L431RC"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                64-pin, 256KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431RE
+        bool "STM32L431RE"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                64-pin, 512KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431RG
+        bool "STM32L431RG"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_1024
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                64-pin, 1024KB FLASH, 64B SRAM
+
+config ARCH_CHIP_STM32L431VC
+        bool "STM32L431VC"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_100PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                100-pin, 256KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431VE
+        bool "STM32L431VE"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_100PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                100-pin, 512KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L431VG
+        bool "STM32L431VG"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_100PINS
+        select STM32_HAVE_FLASH_1024
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                100-pin, 1024KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L433CB
+        bool "STM32L433CB"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_48PINS
+        select STM32_HAVE_FLASH_128
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_LCD
+        select STM32_HAVE_USBFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        ---help---
+                48-pin, 128KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L433CC
+        bool "STM32L433CC"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_48PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_LCD
+        select STM32_HAVE_USBFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        ---help---
+                48-pin, 256KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L433RB
+        bool "STM32L433RB"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_128
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_LCD
+        select STM32_HAVE_USBFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                64-pin, 128KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L433RC
+        bool "STM32L433RC"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_LCD
+        select STM32_HAVE_USBFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                64-pin, 256KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L433VC
+        bool "STM32L433VC"
+        select STM32L4
+        select STM32_STM32L4X3
+        select STM32_HAVE_100PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_64
+        select STM32_HAVE_LCD
+        select STM32_HAVE_USBFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        ---help---
+                100-pin, 256KB FLASH, 64KB SRAM
+
+config ARCH_CHIP_STM32L476RC
+        bool "STM32L476RC"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                64-pin, 256KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476RE
+        bool "STM32L476RE"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                64-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476RG
+        bool "STM32L476RG"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_64PINS
+        select STM32_HAVE_FLASH_1024
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                64-pin, 1024KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476JE
+        bool "STM32L476JE"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_72PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                72-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476JG
+        bool "STM32L476JG"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_72PINS
+        select STM32_HAVE_FLASH_1024
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                72-pin, 1024KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476ME
+        bool "STM32L476ME"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_81PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                81-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476MG
+        bool "STM32L476MG (MDK Version)"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_81PINS
+        select STM32_HAVE_FLASH_1024
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                81-pin, 1024B FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476VC
+        bool "STM32L476VC"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_100PINS
+        select STM32_HAVE_FLASH_256
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                100-pin, 256KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476VE
+        bool "STM32L476VE"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_100PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                100-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476VG
+        bool "STM32L476VG"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_100PINS
+        select STM32_HAVE_FLASH_1024
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                100-pin, 1024KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476QE
+        bool "STM32L476QE"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_132PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_ADC3
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                132-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476QG
+        bool "STM32L476QG"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_132PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_ADC3
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                132-pin, 1024KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476ZE
+        bool "STM32L476ZE"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_144PINS
+        select STM32_HAVE_FLASH_512
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_ADC3
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                144pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L476ZG
+        bool "STM32L476ZG"
+        select STM32L4
+        select STM32_STM32L4X6
+        select STM32_HAVE_144PINS
+        select STM32_HAVE_FLASH_1024
+        select STM32_HAVE_SRAM_128
+        select STM32_HAVE_LCD
+        select STM32_HAVE_TIM3
+        select STM32_HAVE_TIM4
+        select STM32_HAVE_TIM5
+        select STM32_HAVE_TIM8
+        select STM32_HAVE_TIM17
+        select STM32_HAVE_OTGFS
+        select STM32_HAVE_USART3
+        select STM32_HAVE_USART4
+        select STM32_HAVE_USART5
+        select STM32_HAVE_ADC2
+        select STM32_HAVE_ADC3
+        select STM32_HAVE_SAI2
+        select STM32_HAVE_SPI3
+        select STM32_HAVE_I2C3
+        select STM32_HAVE_SDMMC
+        select STM32_HAVE_OPAMP2
+        ---help---
+                144pin, 1024KB FLASH, 128KB SRAM.
 
 endchoice
 
@@ -665,6 +1230,49 @@ config STM32_STM32L15XX
 	bool
 	default n
 	select STM32_HAVE_RTC_SUBSECONDS if !STM32_LOWDENSITY
+
+config STM32L4
+        bool
+        select STM32_HAVE_ADC1
+        select STM32_HAVE_CAN1
+        select STM32_HAVE_COMP
+        select STM32_HAVE_CORTEXM4
+        select STM32_HAVE_CRC
+        select STM32_HAVE_DAC1
+        select STM32_HAVE_DAC2
+        select STM32_HAVE_DMA1
+        select STM32_HAVE_FPU
+        select STM32_HAVE_MCU
+        select STM32_HAVE_FSMC
+        select STM32_HAVE_I2C1
+        select STM32_HAVE_I2C2
+        select STM32_HAVE_IWDG
+        select STM32_HAVE_WWDG
+        select STM32_HAVE_LPTIM1
+        select STM32_HAVE_LPTIM2
+        select STM32_HAVE_OPAMP1
+        select STM32_HAVE_QUADSPI
+        select STM32_HAVE_RNG
+        select STM32_HAVE_RTC_SUBSECONDS
+        select STM32_HAVE_SAI1
+        select STM32_HAVE_SPI1
+        select STM32_HAVE_SPI2
+        select STM32_HAVE_SWPMI
+        select STM32_HAVE_TIM1
+        select STM32_HAVE_TIM2
+        select STM32_HAVE_TIM6
+        select STM32_HAVE_TIM7
+        select STM32_HAVE_TIM15
+        select STM32_HAVE_TIM16
+        select STM32_HAVE_USART1
+        select STM32_HAVE_USART2
+        select STM32_HAVE_USART6
+        select STM32_HAVE_PWR
+        select ARCH_HAVE_UID
+        select ARCH_HAVE_CHIPID
+        select ARCH_HAVE_BOARDID
+        select ARCH_HAVE_RESET_FLAGS
+        select ARCH_HAVE_PROGMEM
 
 config STM32_ENERGYLITE
 	bool
@@ -677,64 +1285,6 @@ config STM32_ENERGYLITE
 	select STM32_HAVE_TIM10
 	select STM32_HAVE_TIM11
 	select STM32_HAVE_ADC2
-
-config STM32_STM32L4X3
-	bool
-	default n
-	select ARCH_HAVE_UID
-	select ARCH_HAVE_CHIPID
-	select ARCH_HAVE_BOARDID
-	select ARCH_HAVE_RESET_FLAGS
-	select ARCH_HAVE_PROGMEM
-	select STM32_HAVE_USART3
-	select STM32_HAVE_TIM1
-	select STM32_HAVE_TIM2
-	select STM32_HAVE_TIM6
-	select STM32_HAVE_TIM7
-	select STM32_HAVE_TIM15
-	select STM32_HAVE_TIM16
-	select STM32_HAVE_LPTIM1
-	select STM32_HAVE_LPTIM2
-	select STM32_HAVE_CAN1
-	select STM32_HAVE_RNG
-	select STM32_HAVE_RTC_SUBSECONDS
-	select STM32_HAVE_COMP
-	select STM32_HAVE_SAI1
-	select STM32_HAVE_SAI2
-
-config STM32_STM32L4X6
-	bool
-	default n
-	select ARCH_HAVE_UID
-	select ARCH_HAVE_CHIPID
-	select ARCH_HAVE_BOARDID
-	select ARCH_HAVE_RESET_FLAGS
-	select ARCH_HAVE_PROGMEM
-	select STM32_HAVE_OTGFS
-	select STM32_HAVE_USART3
-	select STM32_HAVE_USART4
-	select STM32_HAVE_USART5
-	select STM32_HAVE_TIM1
-	select STM32_HAVE_TIM2
-	select STM32_HAVE_TIM3
-	select STM32_HAVE_TIM4
-	select STM32_HAVE_TIM5
-	select STM32_HAVE_TIM6
-	select STM32_HAVE_TIM7
-	select STM32_HAVE_TIM8
-	select STM32_HAVE_TIM15
-	select STM32_HAVE_TIM16
-	select STM32_HAVE_TIM17
-	select STM32_HAVE_LPTIM1
-	select STM32_HAVE_LPTIM2
-	select STM32_HAVE_ADC2
-	select STM32_HAVE_ADC3
-	select STM32_HAVE_CAN1
-	select STM32_HAVE_RNG
-	select STM32_HAVE_RTC_SUBSECONDS
-	select STM32_HAVE_COMP
-	select STM32_HAVE_SAI1
-	select STM32_HAVE_SAI2
 
 config STM32_STM32F10XX
 	bool
@@ -1062,7 +1612,43 @@ config STM32_HAVE_OTGFS
 	bool
 	default n
 
+config STM32_HAVE_USBFS
+	bool
+	default n
+
 config STM32_HAVE_FSMC
+	bool
+	default n
+
+config STM32_HAVE_SPI1
+	bool
+	default n
+
+config STM32_HAVE_SPI2
+	bool
+	default n
+
+config STM32_HAVE_SPI3
+	bool
+	default n
+
+config STM32_HAVE_I2C1
+	bool
+	default n
+
+config STM32_HAVE_I2C2
+	bool
+	default n
+
+config STM32_HAVE_I2C3
+	bool
+	default n
+
+config STM32_HAVE_USART1
+	bool
+	default n
+
+config STM32_HAVE_USART2
 	bool
 	default n
 
@@ -1154,6 +1740,10 @@ config STM32_HAVE_LPTIM2
 	bool
 	default n
 
+config STM32_HAVE_ADC1
+	bool
+	default n
+
 config STM32_HAVE_ADC2
 	bool
 	default n
@@ -1198,12 +1788,113 @@ config STM32_HAVE_SAI2
 	bool
 	default n
 
+config STM32_HAVE_DAC1
+	bool
+	default n
+
+config STM32_HAVE_DAC2
+	bool
+	default n
+
+config STM32_STM32L4X6
+	bool
+	default n
+
+config STM32_STM32L4X3
+	bool
+	default n
+
+config STM32_STM32L4X1
+	bool
+	default n
+
+config STM32_HAVE_CORTEXM4
+	bool
+	default n
+
+config STM32_HAVE_FPU
+	bool
+	default n
+
+config STM32_HAVE_MCU
+	bool
+	default n
+
+config STM32_HAVE_CRC
+	bool
+	default n
+
+config STM32_HAVE_DMA1
+	bool
+	default n
+
+config STM32_HAVE_FLASH_1024
+	bool
+	default n
+
+config STM32_HAVE_FLASH_512
+	bool
+	default n
+
+config STM32_HAVE_FLASH_256
+	bool
+	default n
+
+config STM32_HAVE_FLASH_128
+	bool
+	default n
+
+config STM32_HAVE_IWDG
+	bool
+	default n
+
+config STM32_HAVE_WWDG
+	bool
+	default n
+
+config STM32_HAVE_LCD
+	bool
+	default n
+
+config STM32_HAVE_OPAMP1
+	bool
+	default n
+
+config STM32_HAVE_OPAMP2
+	bool
+	default n
+
+config STM32_HAVE_QUADSPI
+	bool
+	default n
+
+config STM32_HAVE_SDMMC
+	bool
+	default n
+
+config STM32_HAVE_SWPMI
+	bool
+	default n
+
+config STM32_HAVE_SRAM_128
+	bool
+	default n
+
+config STM32_HAVE_SRAM_64
+	bool
+	default n
+
+config STM32_HAVE_PWR
+	bool
+	default n
+
 # These are the peripheral selections proper
 
 config STM32_ADC1
 	bool "ADC1"
 	default n
 	select STM32_ADC
+	depends on STM32_HAVE_ADC1
 
 config STM32_ADC2
 	bool "ADC2"
@@ -1226,7 +1917,7 @@ config STM32_ADC4
 config STM32_ADC_INIT
 	bool "ADC Device Initialization"
 	default n
-	depends on ADC
+	depends on STM32_ADC
 	---help---
 		Create a /dev/adcX for each ADC device.
 
@@ -1235,52 +1926,58 @@ if STM32_ADC1
 menu "ADC1 Device Initialization"
 
 config STM32_ADC1_CHAN0_INIT
-	bool "ADC1 Channel 0"
+	bool "ADC1 Channel 0 (IN1-PC0)"
 	default n
+        depends on STM32_ADC1 && !(STM32_HAVE_48PINS || STM32_HAVE_32PINS)
 config STM32_ADC1_CHAN1_INIT
-	bool "ADC1 Channel 1"
+	bool "ADC1 Channel 1 (IN2-PC1)"
 	default n
+        depends on STM32_ADC1 && !(STM32_HAVE_48PINS || STM32_HAVE_32PINS)
 config STM32_ADC1_CHAN2_INIT
-	bool "ADC1 Channel 2"
+	bool "ADC1 Channel 2 (IN3-PC2)"
 	default n
+        depends on STM32_ADC1 && !(STM32_HAVE_48PINS || STM32_HAVE_32PINS)
 config STM32_ADC1_CHAN3_INIT
-	bool "ADC1 Channel 3"
+	bool "ADC1 Channel 3 (IN4-PC3)"
 	default n
+        depends on STM32_ADC1 && !(STM32_HAVE_48PINS || STM32_HAVE_32PINS)
 config STM32_ADC1_CHAN4_INIT
-	bool "ADC1 Channel 4"
+	bool "ADC1 Channel 4 (IN5-PA0)"
 	default n
 config STM32_ADC1_CHAN5_INIT
-	bool "ADC1 Channel 5"
+	bool "ADC1 Channel 5 (IN6-PA1)"
 	default n
 config STM32_ADC1_CHAN6_INIT
-	bool "ADC1 Channel 6"
+	bool "ADC1 Channel 6 (IN7-PA2)"
 	default n
 config STM32_ADC1_CHAN7_INIT
-	bool "ADC1 Channel 7"
+	bool "ADC1 Channel 7 (IN8-PA3)"
 	default n
 config STM32_ADC1_CHAN8_INIT
-	bool "ADC1 Channel 8"
+	bool "ADC1 Channel 8 (IN9-PA4)"
 	default n
 config STM32_ADC1_CHAN9_INIT
-	bool "ADC1 Channel 9"
+	bool "ADC1 Channel 9 (IN10-PA5)"
 	default n
 config STM32_ADC1_CHAN10_INIT
-	bool "ADC1 Channel 10"
+	bool "ADC1 Channel 10 (IN11-PA6)"
 	default n
 config STM32_ADC1_CHAN11_INIT
-	bool "ADC1 Channel 11"
+	bool "ADC1 Channel 11 (IN12-PA7)"
 	default n
 config STM32_ADC1_CHAN12_INIT
-	bool "ADC1 Channel 12"
+	bool "ADC1 Channel 12 (IN13-PC4)"
 	default n
+        depends on STM32_ADC1 && !(STM32_HAVE_48PINS || STM32_HAVE_32PINS)
 config STM32_ADC1_CHAN13_INIT
-	bool "ADC1 Channel 13"
+	bool "ADC1 Channel 13 (IN14-PC5)"
 	default n
+        depends on STM32_ADC1 && !(STM32_HAVE_48PINS || STM32_HAVE_32PINS)
 config STM32_ADC1_CHAN14_INIT
-	bool "ADC1 Channel 14"
+	bool "ADC1 Channel 14 (IN15-PB0)"
 	default n
 config STM32_ADC1_CHAN15_INIT
-	bool "ADC1 Channel 15"
+	bool "ADC1 Channel 15 (IN16-PB1)"
 	default n
 endmenu
 endif
@@ -1288,55 +1985,55 @@ endif
 
 if STM32_ADC_INIT
 if STM32_ADC2
-menu "ADC3 Device Initialization"
+menu "ADC2 Device Initialization"
 
 config STM32_ADC2_CHAN0_INIT
-	bool "ADC2 Channel 0"
+	bool "ADC2 Channel 0 (IN1-PC0)"
 	default n
 config STM32_ADC2_CHAN1_INIT
-	bool "ADC2 Channel 1"
+	bool "ADC2 Channel 1 (IN2-PC1)"
 	default n
 config STM32_ADC2_CHAN2_INIT
-	bool "ADC2 Channel 2"
+	bool "ADC2 Channel 2 (IN3-PC2)"
 	default n
 config STM32_ADC2_CHAN3_INIT
-	bool "ADC2 Channel 3"
+	bool "ADC2 Channel 3 (IN4-PC3)"
 	default n
 config STM32_ADC2_CHAN4_INIT
-	bool "ADC2 Channel 4"
+	bool "ADC2 Channel 4 (IN5-PA0)"
 	default n
 config STM32_ADC2_CHAN5_INIT
-	bool "ADC2 Channel 5"
+	bool "ADC2 Channel 5 (IN6-PA1)"
 	default n
 config STM32_ADC2_CHAN6_INIT
-	bool "ADC2 Channel 6"
+	bool "ADC2 Channel 6 (IN7-PA2)"
 	default n
 config STM32_ADC2_CHAN7_INIT
-	bool "ADC2 Channel 7"
+	bool "ADC2 Channel 7 (IN8-PA3)"
 	default n
 config STM32_ADC2_CHAN8_INIT
-	bool "ADC2 Channel 8"
+	bool "ADC2 Channel 8 (IN9-PA4)"
 	default n
 config STM32_ADC2_CHAN9_INIT
-	bool "ADC2 Channel 9"
+	bool "ADC2 Channel 9 (IN10-PA5)"
 	default n
 config STM32_ADC2_CHAN10_INIT
-	bool "ADC2 Channel 10"
+	bool "ADC2 Channel 10 (IN11-PA6)"
 	default n
 config STM32_ADC2_CHAN11_INIT
-	bool "ADC2 Channel 11"
+	bool "ADC2 Channel 11 (IN12-PA7)"
 	default n
 config STM32_ADC2_CHAN12_INIT
-	bool "ADC2 Channel 12"
+	bool "ADC2 Channel 12 (IN13-PC4)"
 	default n
 config STM32_ADC2_CHAN13_INIT
-	bool "ADC2 Channel 13"
+	bool "ADC2 Channel 13 (IN14-PC5)"
 	default n
 config STM32_ADC2_CHAN14_INIT
-	bool "ADC2 Channel 14"
+	bool "ADC2 Channel 14 (IN15-PB0)"
 	default n
 config STM32_ADC2_CHAN15_INIT
-	bool "ADC2 Channel 15"
+	bool "ADC2 Channel 15 (IN16-PB1)"
 	default n
 endmenu
 endif
@@ -1344,47 +2041,51 @@ endif
 
 if STM32_ADC_INIT
 if STM32_ADC3
-menu "ADC1 Device Initialization"
+menu "ADC3 Device Initialization"
 
 config STM32_ADC3_CHAN0_INIT
-	bool "ADC3 Channel 0"
+	bool "ADC3 Channel 0 (IN1-PC0)"
 	default n
 config STM32_ADC3_CHAN1_INIT
-	bool "ADC3 Channel 1"
+	bool "ADC3 Channel 1 (IN2-PC1)"
 	default n
 config STM32_ADC3_CHAN2_INIT
-	bool "ADC3 Channel 2"
+	bool "ADC3 Channel 2 (IN3-PC2)"
 	default n
 config STM32_ADC3_CHAN3_INIT
-	bool "ADC3 Channel 3"
-	default n
+	bool "ADC3 Channel 3 (IN4-PC3)"
 config STM32_ADC3_CHAN4_INIT
 	bool "ADC3 Channel 4"
 	default n
 config STM32_ADC3_CHAN5_INIT
-	bool "ADC3 Channel 5"
+	bool "ADC3 Channel 5 (IN6-PF3)"
 	default n
 config STM32_ADC3_CHAN6_INIT
-	bool "ADC3 Channel 6"
+	bool "ADC3 Channel 6 (IN7-PF4)"
 	default n
 config STM32_ADC3_CHAN7_INIT
-	bool "ADC3 Channel 7"
+	bool "ADC3 Channel 7 (IN8-PF5)"
 	default n
 config STM32_ADC3_CHAN8_INIT
-	bool "ADC3 Channel 8"
+	bool "ADC3 Channel 8 (IN9-PF6)"
 	default n
+        depends on STM32_HAVE_132PINS
 config STM32_ADC3_CHAN9_INIT
-	bool "ADC3 Channel 9"
+	bool "ADC3 Channel 9 (IN10-PF7)"
 	default n
+        depends on STM32_HAVE_132PINS
 config STM32_ADC3_CHAN10_INIT
-	bool "ADC3 Channel 10"
+	bool "ADC3 Channel 10 (IN11-PF8)"
 	default n
+        depends on STM32_HAVE_132PINS
 config STM32_ADC3_CHAN11_INIT
-	bool "ADC3 Channel 11"
+	bool "ADC3 Channel 11 (IN12-PF9)"
 	default n
+        depends on STM32_HAVE_132PINS
 config STM32_ADC3_CHAN12_INIT
-	bool "ADC3 Channel 12"
+	bool "ADC3 Channel 12 (IN13-PF10)"
 	default n
+        depends on STM32_HAVE_132PINS
 config STM32_ADC3_CHAN13_INIT
 	bool "ADC3 Channel 13"
 	default n
@@ -1496,6 +2197,7 @@ config STM32_CEC
 config STM32_CRC
 	bool "CRC"
 	default n
+        depends on STM32_HAVE_CRC
 
 config STM32_CRYP
 	bool "CRYP"
@@ -1505,6 +2207,7 @@ config STM32_CRYP
 config STM32_DMA1
 	bool "DMA1"
 	default n
+        depends on STM32_HAVE_DMA1
 	select ARCH_DMA
 
 config STM32_DMA2
@@ -1516,11 +2219,13 @@ config STM32_DMA2
 config STM32_DAC1
 	bool "DAC1"
 	default n
+        depends on STM32_HAVE_DAC1
 	select STM32_DAC
 
 config STM32_DAC2
 	bool "DAC2"
 	default n
+        depends on STM32_HAVE_DAC2
 	select STM32_DAC
 
 config STM32_DCMI
@@ -1548,18 +2253,19 @@ config STM32_HASH
 config STM32_I2C1
 	bool "I2C1"
 	default n
+        depends on STM32_HAVE_I2C1
 	select STM32_I2C
 
 config STM32_I2C2
 	bool "I2C2"
 	default n
-	depends on !(STM32_STM32F10XX && STM32_LOWDENSITY)
+	depends on !(STM32_STM32F10XX && STM32_LOWDENSITY) || STM32_HAVE_I2C2
 	select STM32_I2C
 
 config STM32_I2C3
 	bool "I2C3"
 	default n
-	depends on STM32_STM32F207 || STM32_STM32F40XX || STM32_STM32L4X6 || STM32_STM32L4X3
+	depends on STM32_STM32F207 || STM32_STM32F40XX || STM32_HAVE_I2C3
 	select STM32_I2C
 
 config STM32_LTDC
@@ -1597,6 +2303,7 @@ config STM32_OTGHS_FS_MODE
 
 config STM32_PWR
 	bool "PWR"
+        depends on STM32_HAVE_PWR
 	default n
 
 config STM32_RNG
@@ -1608,6 +2315,7 @@ config STM32_RNG
 config STM32_SAI1_A
 	bool "SAI1 Block A"
 	default n
+        depends on STM32_HAVE_SAI1
 	select AUDIO
 	select I2S
 	select SCHED_WORKQUEUE
@@ -1616,6 +2324,7 @@ config STM32_SAI1_A
 config STM32_SAI1_B
 	bool "SAI1 Block B"
 	default n
+        depends on STM32_HAVE_SAI1
 	select AUDIO
 	select I2S
 	select SCHED_WORKQUEUE
@@ -1624,6 +2333,7 @@ config STM32_SAI1_B
 config STM32_SAI2_A
 	bool "SAI2 Block A"
 	default n
+        depends on STM32_HAVE_SAI2
 	select AUDIO
 	select I2S
 	select SCHED_WORKQUEUE
@@ -1632,6 +2342,7 @@ config STM32_SAI2_A
 config STM32_SAI2_B
 	bool "SAI2 Block B"
 	default n
+        depends on STM32_HAVE_SAI2
 	select AUDIO
 	select I2S
 	select SCHED_WORKQUEUE
@@ -1640,27 +2351,28 @@ config STM32_SAI2_B
 config STM32_SDIO
 	bool "SDIO"
 	default n
-	depends on !STM32_CONNECTIVITYLINE && !STM32_VALUELINE
+	depends on !STM32_CONNECTIVITYLINE && !STM32_VALUELINE || STM32_HAVE_SDMMC
 	select ARCH_HAVE_SDIO
 	select SDIO_PREFLIGHT
 
 config STM32_SPI1
 	bool "SPI1"
 	default n
+	depends on STM32_HAVE_SPI1
 	select SPI
 	select STM32_SPI
 
 config STM32_SPI2
 	bool "SPI2"
 	default n
-	depends on STM32_CONNECTIVITYLINE || STM32_STM32F207 || STM32_STM32F40XX || (STM32_VALUELINE && STM32_HIGHDENSITY) || (STM32_STM32F10XX && (STM32_HIGHDENSITY || STM32_MEDIUMDENSITY)) || STM32_STM32F30XX || STM32_STM32L4X6 || STM32_STM32L4X3
+	depends on STM32_CONNECTIVITYLINE || STM32_STM32F207 || STM32_STM32F40XX || (STM32_VALUELINE && STM32_HIGHDENSITY) || (STM32_STM32F10XX && (STM32_HIGHDENSITY || STM32_MEDIUMDENSITY)) || STM32_STM32F30XX || STM32_HAVE_SPI2
 	select SPI
 	select STM32_SPI
 
 config STM32_SPI3
 	bool "SPI3"
 	default n
-	depends on STM32_CONNECTIVITYLINE || STM32_STM32L15XX || STM32_STM32F207 || STM32_STM32F40XX || (STM32_VALUELINE && STM32_HIGHDENSITY) || (STM32_STM32F10XX && STM32_HIGHDENSITY) || STM32_STM32L4X6 || STM32_STM32L4X3
+	depends on STM32_CONNECTIVITYLINE || STM32_STM32L15XX || STM32_STM32F207 || STM32_STM32F40XX || (STM32_VALUELINE && STM32_HIGHDENSITY) || (STM32_STM32F10XX && STM32_HIGHDENSITY) || STM32_HAVE_SPI3
 	select SPI
 	select STM32_SPI
 
@@ -1698,14 +2410,17 @@ config STM32_TIM1
 config STM32_TIM2
 	bool "TIM2"
 	default n
+	depends on STM32_HAVE_TIM2
 
 config STM32_TIM3
 	bool "TIM3"
 	default n
+	depends on STM32_HAVE_TIM3
 
 config STM32_TIM4
 	bool "TIM4"
 	default n
+	depends on STM32_HAVE_TIM4
 
 config STM32_TIM5
 	bool "TIM5"
@@ -1790,12 +2505,14 @@ config STM32_TSC
 config STM32_USART1
 	bool "USART1"
 	default n
+	depends on STM32_HAVE_USART1
 	select ARCH_HAVE_USART1
 	select STM32_USART
 
 config STM32_USART2
 	bool "USART2"
 	default n
+	depends on STM32_HAVE_USART2
 	select ARCH_HAVE_USART2
 	select STM32_USART
 
@@ -1850,16 +2567,18 @@ config STM32_USB
 config STM32_LCD
 	bool "Segment LCD"
 	default n
-	depends on STM32_STM32L15XX
+	depends on STM32_STM32L15XX || STM32_HAVE_LCD
 
 config STM32_IWDG
 	bool "IWDG"
 	default n
+        depends on STM32_HAVE_IWDG
 	select WATCHDOG
 
 config STM32_WWDG
 	bool "WWDG"
 	default n
+        depends on STM32_HAVE_WWDG 
 	select WATCHDOG
 
 endmenu
@@ -1889,7 +2608,7 @@ menu "Alternate Pin Mapping"
 
 choice
 	prompt "CAN1 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_CAN1
+	depends on STM32_STM32F10XX || STM32_CAN1
 	default STM32_CAN1_NO_REMAP
 
 config STM32_CAN1_NO_REMAP
@@ -1906,36 +2625,41 @@ endchoice
 config STM32_CAN2_REMAP
 	bool "CAN2 Alternate Pin Mapping"
 	default n
-	depends on STM32_CONNECTIVITYLINE && STM32_CAN2
+	depends on STM32_CONNECTIVITYLINE || STM32_CAN2
 
 config STM32_CEC_REMAP
 	bool "CEC Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_CEC
+	depends on STM32_STM32F10XX || STM32_CEC
 
 config STM32_ETH_REMAP
 	bool "Ethernet Alternate Pin Mapping"
 	default n
-	depends on STM32_CONNECTIVITYLINE && STM32_ETHMAC
+	depends on STM32_CONNECTIVITYLINE || STM32_ETHMAC
 
 config STM32_I2C1_REMAP
 	bool "I2C1 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_I2C1
+	depends on STM32_STM32F10XX || STM32_I2C1
 
 config STM32_SPI1_REMAP
 	bool "SPI1 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_SPI1
+	depends on STM32_STM32F10XX || STM32_SPI1
+
+config STM32_SPI2_REMAP
+	bool "SPI2 Alternate Pin Mapping"
+	default n
+	depends on STM32_SPI2
 
 config STM32_SPI3_REMAP
 	bool "SPI3 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_SPI3 && !STM32_VALUELINE
+	depends on (STM32_STM32F10XX && !STM32_VALUELINE) || STM32_SPI3
 
 choice
 	prompt "TIM1 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_TIM1
+	depends on STM32_STM32F10XX || STM32_TIM1
 	default STM32_TIM1_NO_REMAP
 
 config STM32_TIM1_NO_REMAP
@@ -1951,7 +2675,7 @@ endchoice
 
 choice
 	prompt "TIM2 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_TIM2
+	depends on STM32_STM32F10XX || STM32_TIM2
 	default STM32_TIM2_NO_REMAP
 
 config STM32_TIM2_NO_REMAP
@@ -1970,7 +2694,7 @@ endchoice
 
 choice
 	prompt "TIM3 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_TIM3
+	depends on STM32_STM32F10XX || STM32_TIM3
 	default STM32_TIM3_NO_REMAP
 
 config STM32_TIM3_NO_REMAP
@@ -1987,66 +2711,66 @@ endchoice
 config STM32_TIM4_REMAP
 	bool "TIM4 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM4
+	depends on STM32_STM32F10XX || STM32_TIM4
 
 config STM32_TIM9_REMAP
 	bool "TIM9 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM9
+	depends on STM32_STM32F10XX || STM32_TIM9
 
 config STM32_TIM10_REMAP
 	bool "TIM10 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM10
+	depends on STM32_STM32F10XX || STM32_TIM10
 
 config STM32_TIM11_REMAP
 	bool "TIM11 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM11
+	depends on STM32_STM32F10XX || STM32_TIM11
 
 config STM32_TIM12_REMAP
 	bool "TIM12 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM12
+	depends on STM32_STM32F10XX || STM32_TIM12
 
 config STM32_TIM13_REMAP
 	bool "TIM13 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM13
+	depends on STM32_STM32F10XX || STM32_TIM13
 
 config STM32_TIM14_REMAP
 	bool "TIM14 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM14
+	depends on STM32_STM32F10XX || STM32_TIM14
 
 config STM32_TIM15_REMAP
 	bool "TIM15 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM15
+	depends on STM32_STM32F10XX || STM32_TIM15
 
 config STM32_TIM16_REMAP
 	bool "TIM16 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM16
+	depends on STM32_STM32F10XX || STM32_TIM16
 
 config STM32_TIM17_REMAP
 	bool "TIM17 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_TIM17
+	depends on STM32_STM32F10XX || STM32_TIM17
 
 config STM32_USART1_REMAP
 	bool "USART1 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_USART1
+	depends on STM32_STM32F10XX || STM32_USART1
 
 config STM32_USART2_REMAP
 	bool "USART2 Alternate Pin Mapping"
 	default n
-	depends on STM32_STM32F10XX && STM32_USART2
+	depends on STM32_STM32F10XX || STM32_USART2
 
 choice
 	prompt "USART3 Alternate Pin Mappings"
-	depends on STM32_STM32F10XX && STM32_USART3
+	depends on STM32_STM32F10XX || STM32_USART3
 	default STM32_USART3_NO_REMAP
 
 config STM32_USART3_NO_REMAP
@@ -2064,7 +2788,7 @@ endmenu
 
 config STM32_FLASH_PREFETCH
 	bool "Enable FLASH Pre-fetch"
-	depends on STM32_STM32F207 || STM32_STM32F40XX || STM32_STM32L4X6 || STM32_STM32L4X3
+	depends on STM32_STM32F207 || STM32_STM32F40XX || STM32_STM32L4
 	default y if STM32_STM32F427 || STM32_STM32F429 || STM32_STM32F446
 	default n
 	---help---
@@ -3507,7 +4231,7 @@ endmenu
 config STM32_USART_SINGLEWIRE
 	bool "Single Wire Support"
 	default n
-	depends on STM32_USART
+	depends on STM32_USART || STM32_HAVE_SWPMI
 	---help---
 		Enable single wire UART support.  The option enables support for the
 		TIOCSSINGLEWIRE ioctl in the STM32 serial driver.
