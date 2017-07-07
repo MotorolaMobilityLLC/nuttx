@@ -318,8 +318,8 @@ config CHIP_PRODUCT_ID
 		For STM32L4 series see RM0394 or RM0351 in section MCU device ID code
 		Include "6 or 0110" in the ST reserved Bit 15:12 location in accordance 
 		with the initial versions of the STM32L4 Reference Manuals.
-		    *STM32L4X3 = 0x00006435
-		    *STM32L4X6 = 0x00006415
+		    *STM32L4X3 = 0x00006435 per RM0394
+		    *STM32L4X6 = 0x00006415 per RM0351
 
 endif
 
@@ -344,8 +344,8 @@ config WRAP_CHIP_PRODUCT_ID
 		For STM32L4 series see RM0394 or RM0351 in section "MCU device ID code"
 		Include "6 or 0110" in the ST reserved Bit 15:12 location in accordance 
 		with the initial versions of the STM32L4 Reference Manuals.
-		    STM32L4X3 = 0x00006435
-		    STM32L4X6 = 0x00006415
+		    STM32L4X3 = 0x00006435 per RM0394
+		    STM32L4X6 = 0x00006415 per RM0351
 
 config WRAP_ARCH_BOARDID_VID
 	hex "Vendor ID of the MuC (VID)"
