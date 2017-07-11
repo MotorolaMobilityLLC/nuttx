@@ -412,11 +412,11 @@
 #  define STM32_NUSART                   3   /* USART1-3 */
 #  define STM32_NI2C                     3   /* I2C1-3 */
 #  define STM32_NCAN                     1   /* bxCAN */
-#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NSDIO                    0   /* SDIO */
 #  define STM32_NLCD                     1   /* LCD 4x19 */
-#  define STM32_NUSBOTG                  0   /* USB OTG FS (only) */
-#  define STM32_NGPIO                    114 /* GPIOA-C, plus few in GPIOD,E, H. GPIOF & GPIOG not available */
-#  define STM32_NADC                     1   /* ADC1-1, 16-channels */
+#  define STM32_NUSBOTG                  0   /* No USB OTG FS but does have USBFS*/
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     1   /* ADC1-1, 10-channels */
 #  define STM32_NDAC                     2   /* DAC1-2, 1 channel */
                                              /* (2) Comparators */
 #  define STM32_NCAPSENSE                6   /* Capacitive sensing channels */
@@ -449,13 +449,13 @@
 #  define STM32_NDMA                     2   /* DMA1-2 */
 #  define STM32_NSPI                     3   /* SPI1-3 */
 #  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
-#  define STM32_NUSART                   5   /* USART1-3, UART4-5 */
+#  define STM32_NUSART                   3   /* USART1-3 */
 #  define STM32_NI2C                     3   /* I2C1-3 */
 #  define STM32_NCAN                     1   /* bxCAN */
 #  define STM32_NSDIO                    1   /* SDIO */
 #  define STM32_NLCD                     1   /* LCD 4x32, 8x28*/
 #  define STM32_NUSBOTG                  1   /* USB OTG FS (only) */
-#  define STM32_NGPIO                    114 /* GPIOA-C, plus few in GPIOD,G, H */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
 #  define STM32_NADC                     3   /* ADC1-3, 16-channels */
 #  define STM32_NDAC                     2   /* DAC1-2, 1 channel */
                                              /* (2) Comparators */
@@ -489,17 +489,387 @@
 #  define STM32_NDMA                     2   /* DMA1-2 */
 #  define STM32_NSPI                     3   /* SPI1-3 */
 #  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
-#  define STM32_NUSART                   5   /* USART1-3, UART4-5 */
+#  define STM32_NUSART                   3   /* USART1-3 */
 #  define STM32_NI2C                     3   /* I2C1-3 */
 #  define STM32_NCAN                     1   /* bxCAN */
 #  define STM32_NSDIO                    1   /* SDIO */
 #  define STM32_NLCD                     1   /* LCD 4x44, 8x40*/
 #  define STM32_NUSBOTG                  1   /* USB OTG FS (only) */
-#  define STM32_NGPIO                    82  /* GPIOA-H */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
 #  define STM32_NADC                     3   /* ADC1-3, 16-channels */
 #  define STM32_NDAC                     2   /* DAC1-2, 1 channel */
                                              /* (2) Comparators */
 #  define STM32_NCAPSENSE                21  /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L431KB) || defined(CONFIG_ARCH_CHIP_STM32L431KC)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X3         1   /* STM32L4X3 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    0   /* No FSMC */
+#  define STM32_NATIM                    1   /* One advanced timers TIM1 */
+#  define STM32_NGTIM                    3   /* 2 (16-bit, 1 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     2   /* SPI1-2 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   2   /* USART1-2 */
+#  define STM32_NI2C                     2   /* I2C1-2 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    0   /* SDIO */
+#  define STM32_NLCD                     0   /* No LCD */
+#  define STM32_NUSBOTG                  0   /* No USB OTG FS */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     1   /* ADC1-1, 9-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                3   /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L431CB) || defined(CONFIG_ARCH_CHIP_STM32L431CC)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X3         1   /* STM32L4X3 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    0   /* No FSMC */
+#  define STM32_NATIM                    1   /* One advanced timers TIM1 */
+#  define STM32_NGTIM                    3   /* 2 (16-bit, 1 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    0   /* SDIO */
+#  define STM32_NLCD                     0   /* No LCD */
+#  define STM32_NUSBOTG                  0   /* No USB OTG FS */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     1   /* ADC1-1, 10-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                6   /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L431RB) || defined(CONFIG_ARCH_CHIP_STM32L431RC) || defined(CONFIG_ARCH_CHIP_STM32L431RE)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X3         1   /* STM32L4X3 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    0   /* No FSMC */
+#  define STM32_NATIM                    1   /* One advanced timers TIM1 */
+#  define STM32_NGTIM                    3   /* 2 (16-bit, 1 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NLCD                     0   /* No LCD */
+#  define STM32_NUSBOTG                  0   /* No USB OTG FS */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     1   /* ADC1-1, 16-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                12  /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L431VC) || defined(CONFIG_ARCH_CHIP_STM32L431VE) || defined(CONFIG_ARCH_CHIP_STM32L431VG)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X3         1   /* STM32L4X3 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    0   /* No FSMC */
+#  define STM32_NATIM                    1   /* One advanced timers TIM1 */
+#  define STM32_NGTIM                    3   /* 2 (16-bit, 1 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NLCD                     0   /* No LCD */
+#  define STM32_NUSBOTG                  0   /* No USB OTG FS */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     1   /* ADC1-1, 16-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                21  /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L433RB) || defined(CONFIG_ARCH_CHIP_STM32L433RC)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X3         1   /* STM32L4X3 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    0   /* No FSMC */
+#  define STM32_NATIM                    1   /* One advanced timers TIM1 */
+#  define STM32_NGTIM                    3   /* 2 (16-bit, 1 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NLCD                     1   /* LCD */
+#  define STM32_NUSBOTG                  0   /* No USB OTG FS but does have USBFS*/
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     1   /* ADC1-1, 16-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                12   /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L433VC)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X3         1   /* STM32L4X3 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    0   /* No FSMC */
+#  define STM32_NATIM                    1   /* One advanced timers TIM1 */
+#  define STM32_NGTIM                    3   /* 2 (16-bit, 1 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NLCD                     1   /* LCD */
+#  define STM32_NUSBOTG                  0   /* No USB OTG FS but does have USBFS*/
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     1   /* ADC1-1, 16-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                21   /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L476RE) ||  defined(CONFIG_ARCH_CHIP_STM32L476RG) || defined(CONFIG_ARCH_CHIP_STM32L476RC)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X6         1   /* STM32L4X6 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    0   /* No FSMC */
+#  define STM32_NATIM                    2   /* Advanced timers TIM1/8 */
+#  define STM32_NGTIM                    7   /* 5 (16-bit, 2 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NLCD                     1   /* LCD */
+#  define STM32_NUSBOTG                  1   /* USB OTG FS */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     3   /* ADC1-3, 16-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                12  /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L476ME) ||  defined(CONFIG_ARCH_CHIP_STM32L476MG)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X6         1   /* STM32L4X6 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    0   /* No FSMC */
+#  define STM32_NATIM                    2   /* Advanced timers TIM1/8 */
+#  define STM32_NGTIM                    7   /* 5 (16-bit, 2 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NLCD                     1   /* LCD */
+#  define STM32_NUSBOTG                  1   /* USB OTG FS */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     3   /* ADC1-3, 16-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                12  /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L476QE) ||  defined(CONFIG_ARCH_CHIP_STM32L476QG)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X6         1   /* STM32L4X6 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    1   /* FSMC v476 => 100pins*/
+#  define STM32_NATIM                    2   /* Advanced timers TIM1/8 */
+#  define STM32_NGTIM                    7   /* 5 (16-bit, 2 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NLCD                     1   /* LCD */
+#  define STM32_NUSBOTG                  1   /* USB OTG FS */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     3   /* ADC1-3, 19-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                24  /* Capacitive sensing channels */
+#  define STM32_NCRC                     1   /* CRC */
+#  define STM32_NETHERNET                0   /* No ethernet */
+#  define STM32_NRNG                     1   /* Random number generator (RNG) */
+#  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
+
+#elif defined(CONFIG_ARCH_CHIP_STM32L476ZE) ||  defined(CONFIG_ARCH_CHIP_STM32L476ZG)
+#  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
+#  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
+#  define CONFIG_STM32_STM32L4X6         1   /* STM32L4X6 family */
+#  undef  CONFIG_STM32_STM32F10XX            /* STM32F10xxx family */
+#  undef  CONFIG_STM32_LOWDENSITY            /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 16/32 Kbytes & STM32L15xxx */
+#  undef  CONFIG_STM32_MEDIUMDENSITY         /* STM32F100x, STM32F101x, STM32F102x and STM32F103x w/ 64/128 Kbytes */
+#  undef  CONFIG_STM32_MEDIUMPLUSDENSITY     /* STM32L15xxC w/ 32/256 Kbytes */
+#  undef  CONFIG_STM32_HIGHDENSITY           /* STM32F100x, STM32F101x, & STM32F103x w/ 256/512 Kbytes, STM32L16x w/ 48/384 Kbytes. */
+#  undef  CONFIG_STM32_VALUELINE             /* STM32F100x */
+#  undef  CONFIG_STM32_CONNECTIVITYLINE      /* STM32F105x and STM32F107x */
+#  undef  CONFIG_STM32_STM32F20XX            /* STM32F205x and STM32F207x */
+#  undef  CONFIG_STM32_STM32F30XX            /* STM32F30xxx family */
+#  undef  CONFIG_STM32_STM32F40XX            /* STM32F405xx and STM32407xx families */
+#  define STM32_NFSMC                    1   /* FSMC */
+#  define STM32_NATIM                    2   /* Advanced timers TIM1/8 */
+#  define STM32_NGTIM                    7   /* 5 (16-bit, 2 (32-bit) */
+#  define STM32_NGTIMNDMA                0   /* All general timers have DMA */
+#  define STM32_NBTIM                    2   /* 2 basic timers: TIM6, TIM7 without DMA */
+#  define STM32_NDMA                     2   /* DMA1-2 */
+#  define STM32_NSPI                     3   /* SPI1-3 */
+#  define STM32_NI2S                     0   /* Has Serial Audio Interface (SAI) instead */
+#  define STM32_NUSART                   3   /* USART1-3 */
+#  define STM32_NI2C                     3   /* I2C1-3 */
+#  define STM32_NCAN                     1   /* bxCAN */
+#  define STM32_NSDIO                    1   /* SDIO */
+#  define STM32_NLCD                     1   /* LCD */
+#  define STM32_NUSBOTG                  1   /* USB OTG FS */
+#  define STM32_NGPIO                    127 /* GPIO A0-H3 */
+#  define STM32_NADC                     3   /* ADC1-3, 24-channels */
+#  define STM32_NDAC                     2   /* DAC1-2, 1 channel, (2) Comparators */
+#  define STM32_NCAPSENSE                24  /* Capacitive sensing channels */
 #  define STM32_NCRC                     1   /* CRC */
 #  define STM32_NETHERNET                0   /* No ethernet */
 #  define STM32_NRNG                     1   /* Random number generator (RNG) */
