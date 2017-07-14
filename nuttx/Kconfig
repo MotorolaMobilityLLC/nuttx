@@ -308,13 +308,18 @@ config CHIP_MFG_ID
 	hex "Unique Manufacturer ID for chip"
 	default 0x00000104
 	---help---
-		Chip Vendor ID.  For example STM's ID is 00000104
+		Chip Vendor ID.  For example STM's ID is 00000104 (http://mid.mipi.org/)
 
 config CHIP_PRODUCT_ID
 	hex "Unique Product ID for chip"
-	default 0x00006435
+	default 0x00006415
 	---help---
 		Chip Product ID returned by chip.
+		For STM32L4 series see RM0394 or RM0351 in section MCU device ID code
+		Include "6 or 0110" in the ST reserved Bit 15:12 location in accordance
+		with the initial versions of the STM32L4 Reference Manuals.
+		    *STM32L4X3 = 0x00006435 per RM0394
+		    *STM32L4X6 = 0x00006415 per RM0351
 
 endif
 
@@ -323,6 +328,7 @@ config WRAP_CHIP_MFG_ID
 	hex "Unique Manufacturer ID for MuC Chip"
 	default 0x00000104
 	---help---
+		For example STM's ID is 00000104 (http://mid.mipi.org/).
 		For the APBE, the base tftf file is wrapped in
 		a tftf file associated with the muc.  This wrapped file
 		is used during updates. This is the CHIP_MFG_ID of
@@ -330,15 +336,19 @@ config WRAP_CHIP_MFG_ID
 
 config WRAP_CHIP_PRODUCT_ID
 	hex "Unique Product ID for MuC Chip"
-	default 0x00006435
+	default 0x00006415
 	---help---
 		For the APBE, the base tftf file is wrapped in
 		a tftf file associated with the muc.  This wrapped file
-		is used during updates. This is the CHIP_PRODUCT_ID of
-		the MuC.
+		is used during updates. This is the CHIP_PRODUCT_ID of the MuC.
+		For STM32L4 series see RM0394 or RM0351 in section "MCU device ID code"
+		Include "6 or 0110" in the ST reserved Bit 15:12 location in accordance
+		with the initial versions of the STM32L4 Reference Manuals.
+		    STM32L4X3 = 0x00006435 per RM0394
+		    STM32L4X6 = 0x00006415 per RM0351
 
 config WRAP_ARCH_BOARDID_VID
-	hex "Vendor ID of the MuC"
+	hex "Vendor ID of the MuC (VID)"
 	default 00000000
 	---help---
 		For the APBE, the base tftf file is wrapped in
@@ -347,7 +357,7 @@ config WRAP_ARCH_BOARDID_VID
 		the MuC.
 
 config WRAP_ARCH_BOARDID_PID
-	hex "Product ID of the MuC"
+	hex "Product ID of the MuC (PID)"
 	default 00000000
 	---help---
 		For the APBE, the base tftf file is wrapped in
