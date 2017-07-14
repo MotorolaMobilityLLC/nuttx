@@ -107,6 +107,8 @@
 #define STM32_RCC_BDCR              (STM32_RCC_BASE+STM32_RCC_BDCR_OFFSET)
 #define STM32_RCC_CSR               (STM32_RCC_BASE+STM32_RCC_CSR_OFFSET)
 
+#define STM32_RCC_APB1RSTR STM32_RCC_APB1RSTR1
+
 /* Register Bitfield Definitions ********************************************************************/
 
 /* Clock control register */
@@ -349,6 +351,8 @@
 #define RCC_APB1RSTR1_DAC1RST       (1 << 29) /* Bit 29: DAC1 reset */
 #define RCC_APB1RSTR1_OPAMPRST      (1 << 30) /* Bit 30: OPAMP reset */
 #define RCC_APB1RSTR1_LPTIM1RST     (1 << 31) /* Bit 31: LPTIM1 reset */
+
+#define RCC_APB1RSTR_DACRST RCC_APB1RSTR1_DAC1RST
 
 /* APB1 Peripheral reset register 2 */
 

@@ -336,9 +336,9 @@ static inline void rcc_enableapb1_1(void)
    */
   regval |= RCC_APB1ENR1_PWREN;
 
-#ifdef CONFIG_STM32_DAC1
+#if defined(CONFIG_STM32_DAC1) || defined(CONFIG_STM32_DAC2)
   /* DAC1 interface clock enable */
-  regval |= RCC_APB1ENR_DAC1EN;
+  regval |= RCC_APB1ENR1_DAC1EN;
 #endif
 
 #ifdef CONFIG_STM32_LPTIM1

@@ -120,6 +120,15 @@
 #define GPIO_ADC3_IN11        (GPIO_ANALOG|GPIO_ADC|GPIO_PORTF|GPIO_PIN9)
 #define GPIO_ADC3_IN12        (GPIO_ANALOG|GPIO_ADC|GPIO_PORTF|GPIO_PIN10)
 
+/* DAC - "Once the DAC channelx is enabled, the corresponding GPIO pin
+ * (PA4 or PA5) is automatically connected to the analog converter output
+ * (DAC_OUTx). In order to avoid parasitic consumption, the PA4 or PA5 pin
+ * should first be configured to analog (AIN)".
+ */
+
+#define GPIO_DAC1_OUT          (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN4)
+#define GPIO_DAC2_OUT          (GPIO_ANALOG|GPIO_PORTA|GPIO_PIN5)
+
 /* Comparators */
 
 #define GPIO_COMP1_INP_1      (GPIO_ANALOG|GPIO_ADC|GPIO_PORTC|GPIO_PIN5)

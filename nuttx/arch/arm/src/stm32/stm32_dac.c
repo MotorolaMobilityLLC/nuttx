@@ -43,13 +43,13 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <math.h>
 #include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 
 #include <arch/board/board.h>
 #include <nuttx/arch.h>
+#include <nuttx/math.h>
 #include <nuttx/analog/dac.h>
 
 #include "up_internal.h"
@@ -459,9 +459,9 @@ static struct stm32_dac_s g_dacblock;
 static inline void stm32_dac_modify_cr(FAR struct stm32_chan_s *priv,
                                        uint32_t clearbits, uint32_t setbits)
 {
-  uint32_t cr = getreg32(STM32_DAC_CR);
+  getreg32(STM32_DAC_CR);
   modifyreg32(STM32_DAC_CR, clearbits << (priv->intf*16), setbits << (priv->intf*16));
-  uint32_t cr1 = getreg32(STM32_DAC_CR);
+  getreg32(STM32_DAC_CR);
 }
 
 /****************************************************************************
@@ -574,7 +574,6 @@ static int dac_interrupt(int irq, void *context)
 static void dac_reset(FAR struct dac_dev_s *dev)
 {
   irqstate_t flags;
-  uint32_t regval;
 
   /* Reset only the selected DAC channel; the other DAC channel must remain
    * functional.
@@ -605,8 +604,12 @@ static void dac_reset(FAR struct dac_dev_s *dev)
 
 static int dac_setup(FAR struct dac_dev_s *dev)
 {
+#if defined(CONFIG_STM32_STM32L4X6)
+  return OK;
+#else
 # warning "Missing logic"
   return -ENOSYS;
+#endif
 }
 
 /****************************************************************************
@@ -659,9 +662,11 @@ static void dac_txint(FAR struct dac_dev_s *dev, bool enable)
  *
  ****************************************************************************/
 
+#ifdef HAVE_DMA
 static void dac_dmatxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 {
 }
+#endif
 
 /****************************************************************************
  * Name: dac_send
@@ -727,15 +732,23 @@ static int dac_send(FAR struct dac_dev_s *dev, FAR struct dac_msg_s *msg)
       /* Non-DMA transfer */
 
       putreg16(msg->am_data, chan->dro);
+
+#ifdef CONFIG_STM32_DAC1
+      if (chan->intf == 0)
+        {
+          dac_txdone(&g_dac1dev);
+        }
+      else
+#endif
 #ifdef CONFIG_STM32_DAC2
-      if (chan->intf)
+      if (chan->intf == 1)
         {
           dac_txdone(&g_dac2dev);
         }
       else
 #endif
         {
-          dac_txdone(&g_dac1dev);
+          dbg("Invalid DAC send channel\n");
         }
     }
 
@@ -910,8 +923,6 @@ static int dac_timinit(struct stm32_chan_s *chan)
 
 static int dac_chaninit(struct stm32_chan_s *chan)
 {
-  int ret;
-
   /* Is the selected channel already in-use? */
 
   if (chan->inuse)
@@ -939,7 +950,6 @@ static int dac_chaninit(struct stm32_chan_s *chan)
    */
 
   /* Disable before change */
-
   stm32_dac_modify_cr(chan, DAC_CR_EN, 0);
 
   uint16_t clear =
@@ -953,6 +963,7 @@ static int dac_chaninit(struct stm32_chan_s *chan)
 
 #ifdef HAVE_DMA
   /* Determine if DMA is supported by this channel */
+  int ret;
 
   if (chan->hasdma)
     {
@@ -1062,7 +1073,7 @@ FAR struct dac_dev_s *stm32_dacinitialize(int intf)
   int ret;
 
 #ifdef CONFIG_STM32_DAC1
-  if (intf == 1)
+  if (intf == 0)
     {
       avdbg("DAC1 Selected\n");
       dev = &g_dac1dev;
@@ -1070,7 +1081,7 @@ FAR struct dac_dev_s *stm32_dacinitialize(int intf)
   else
 #endif
 #ifdef CONFIG_STM32_DAC2
-  if (intf == 2)
+  if (intf == 1)
     {
       avdbg("DAC2 Selected\n");
       dev = &g_dac2dev;
