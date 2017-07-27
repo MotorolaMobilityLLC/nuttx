@@ -1755,9 +1755,7 @@ config STM32_ADC1_CHAN15_INIT
 	depends on !(ARCH_CHIP_STM32L433CB || ARCH_CHIP_STM32L433CC)
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
 if STM32_ADC2 && STM32_STM32L4
 menu "ADC2 Device Initialization"
 
@@ -1811,9 +1809,7 @@ config STM32_ADC2_CHAN15_INIT
 	default n
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
 if STM32_ADC3 && STM32_STM32L4
 menu "ADC3 Device Initialization"
 
@@ -1863,9 +1859,7 @@ config STM32_ADC3_CHAN12_INIT
 	depends on ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
 if STM32_ADC1 && !STM32_STM32L4
 menu "ADC1 Device Initialization"
 
@@ -1919,9 +1913,7 @@ config STM32_ADC1_CHAN15_INIT
 	default n
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
 if STM32_ADC2 && !STM32_STM32L4
 menu "ADC2 Device Initialization"
 
@@ -1975,9 +1967,7 @@ config STM32_ADC2_CHAN15_INIT
 	default n
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
 if STM32_ADC3 && !STM32_STM32L4
 menu "ADC3 Device Initialization"
 
@@ -2031,9 +2021,7 @@ config STM32_ADC3_CHAN15_INIT
 	default n
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
 if STM32_ADC4
 menu "ADC4 Device Initialization"
 
