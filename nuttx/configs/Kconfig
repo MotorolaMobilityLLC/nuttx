@@ -189,11 +189,11 @@ config ARCH_BOARD_FREEDOM_KL25Z
 
 config ARCH_BOARD_HDK_MUC
 	bool "Motorola HDK MuC"
-	depends on ARCH_CHIP_STM32L476JG
+	depends on ARCH_CHIP_STM32L476MG || ARCH_CHIP_STM32L476JG
 	select ARCH_HAVE_BUTTONS
 	select ARCH_HAVE_IRQBUTTONS
 	---help---
-		Motorola HDK board based on the STMicro STM32L476JG7YTR MCU.
+		Motorola HDK board based on the STMicro STM32L476MG MCU.
 
 config ARCH_BOARD_HDK_APBE
 	bool "Motorola HDK APBE"
@@ -203,11 +203,11 @@ config ARCH_BOARD_HDK_APBE
 
 config ARCH_BOARD_MDK_TMPLT
 	bool "Motorola MDK MuC"
-	depends on ARCH_CHIP_STM32L476JG
+	depends on ARCH_CHIP_STM32L476MG || ARCH_CHIP_STM32L476JG
 	select ARCH_HAVE_BUTTONS
 	select ARCH_HAVE_IRQBUTTONS
 	---help---
-		Motorola HDK board based on the STMicro STM32L476JG7YTR MCU.
+		Motorola HDK board based on the STMicro STM32L476MG MCU.
 
 config ARCH_BOARD_HYMINI_STM32V
 	bool "HY-Mini STM32v board"
@@ -855,7 +855,7 @@ config ARCH_BOARD_STM32L4_DISCOVERY
 	select ARCH_HAVE_BUTTONS
 	select ARCH_HAVE_IRQBUTTONS
 	---help---
-		STMicro STM32L4-Discovery board based on the STMicro STM32L476VGT6 MCU.
+		STMicro STM32L4-Discovery board based on the STMicro STM32L476VG MCU.
 
 config ARCH_BOARD_STM32L_DISCOVERY
 	bool "STMicro STM32L-Discovery board"

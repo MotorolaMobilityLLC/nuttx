@@ -1098,7 +1098,6 @@ config ARCH_CHIP_STM32F446Z
 	select STM32_STM32F446
 	select ARCH_HAVE_FPU
 
-
 endchoice
 
 # This is really 15XX/16XX, but we treat the two the same.
@@ -1143,7 +1142,7 @@ config STM32_STM32L4
 	select STM32_HAVE_COMP
 	select STM32_HAVE_SAI1
 	select STM32_HAVE_SAI2
-        select STM32_HAVE_OPAMP1
+	select STM32_HAVE_OPAMP1
 
 config STM32_STM32L4X3
 	bool
@@ -1690,7 +1689,178 @@ config STM32_ADC_INIT
 		Create a /dev/adcX for each ADC device.
 
 if STM32_ADC_INIT
-if STM32_ADC1
+if STM32_ADC1 && STM32_STM32L4
+menu "ADC1 Device Initialization"
+
+config STM32_ADC1_CHAN0_INIT
+	bool "ADC1 Channel 0 (IN1-PC0)"
+	default n
+	depends on !(ARCH_CHIP_STM32L431KB || ARCH_CHIP_STM32L431KC || ARCH_CHIP_STM32L431CB || ARCH_CHIP_STM32L431CC)
+config STM32_ADC1_CHAN1_INIT
+	bool "ADC1 Channel 1 (IN2-PC1)"
+	default n
+	depends on !(ARCH_CHIP_STM32L431KB || ARCH_CHIP_STM32L431KC || ARCH_CHIP_STM32L431CB || ARCH_CHIP_STM32L431CC)
+config STM32_ADC1_CHAN2_INIT
+	bool "ADC1 Channel 2 (IN3-PC2)"
+	default n
+	depends on !(ARCH_CHIP_STM32L431KB || ARCH_CHIP_STM32L431KC || ARCH_CHIP_STM32L431CB || ARCH_CHIP_STM32L431CC)
+config STM32_ADC1_CHAN3_INIT
+	bool "ADC1 Channel 3 (IN4-PC3)"
+	default n
+	depends on !(ARCH_CHIP_STM32L431KB || ARCH_CHIP_STM32L431KC || ARCH_CHIP_STM32L431CB || ARCH_CHIP_STM32L431CC)
+config STM32_ADC1_CHAN4_INIT
+	bool "ADC1 Channel 4 (IN5-PA0)"
+	default n
+	depends on !(ARCH_CHIP_STM32L431KB || ARCH_CHIP_STM32L431KC)
+config STM32_ADC1_CHAN5_INIT
+	bool "ADC1 Channel 5 (IN6-PA1)"
+	default n
+config STM32_ADC1_CHAN6_INIT
+	bool "ADC1 Channel 6 (IN7-PA2)"
+	default n
+config STM32_ADC1_CHAN7_INIT
+	bool "ADC1 Channel 7 (IN8-PA3)"
+	default n
+config STM32_ADC1_CHAN8_INIT
+	bool "ADC1 Channel 8 (IN9-PA4)"
+	default n
+config STM32_ADC1_CHAN9_INIT
+	bool "ADC1 Channel 9 (IN10-PA5)"
+	default n
+config STM32_ADC1_CHAN10_INIT
+	bool "ADC1 Channel 10 (IN11-PA6)"
+	default n
+	depends on !(ARCH_CHIP_STM32L433CB || ARCH_CHIP_STM32L433CC)
+config STM32_ADC1_CHAN11_INIT
+	bool "ADC1 Channel 11 (IN12-PA7)"
+	default n
+	depends on !(ARCH_CHIP_STM32L433CB || ARCH_CHIP_STM32L433CC)
+config STM32_ADC1_CHAN12_INIT
+	bool "ADC1 Channel 12 (IN13-PC4)"
+	default n
+	depends on !(ARCH_CHIP_STM32L431KB || ARCH_CHIP_STM32L431KC || ARCH_CHIP_STM32L431CB || ARCH_CHIP_STM32L431CC \
+	|| ARCH_CHIP_STM32L433CB || ARCH_CHIP_STM32L433CC)
+config STM32_ADC1_CHAN13_INIT
+	bool "ADC1 Channel 13 (IN14-PC5)"
+	default n
+	depends on !(ARCH_CHIP_STM32L431KB || ARCH_CHIP_STM32L431KC || ARCH_CHIP_STM32L431CB || ARCH_CHIP_STM32L431CC \
+	|| ARCH_CHIP_STM32L433CB || ARCH_CHIP_STM32L433CC)
+config STM32_ADC1_CHAN14_INIT
+	bool "ADC1 Channel 14 (IN15-PB0)"
+	default n
+	depends on !(ARCH_CHIP_STM32L433CB || ARCH_CHIP_STM32L433CC)
+config STM32_ADC1_CHAN15_INIT
+	bool "ADC1 Channel 15 (IN16-PB1)"
+	default n
+	depends on !(ARCH_CHIP_STM32L433CB || ARCH_CHIP_STM32L433CC)
+endmenu
+endif
+
+if STM32_ADC2 && STM32_STM32L4
+menu "ADC2 Device Initialization"
+
+config STM32_ADC2_CHAN0_INIT
+	bool "ADC2 Channel 0 (IN1-PC0)"
+	default n
+config STM32_ADC2_CHAN1_INIT
+	bool "ADC2 Channel 1 (IN2-PC1)"
+	default n
+config STM32_ADC2_CHAN2_INIT
+	bool "ADC2 Channel 2 (IN3-PC2)"
+	default n
+config STM32_ADC2_CHAN3_INIT
+	bool "ADC2 Channel 3 (IN4-PC3)"
+	default n
+config STM32_ADC2_CHAN4_INIT
+	bool "ADC2 Channel 4 (IN5-PA0)"
+	default n
+config STM32_ADC2_CHAN5_INIT
+	bool "ADC2 Channel 5 (IN6-PA1)"
+	default n
+config STM32_ADC2_CHAN6_INIT
+	bool "ADC2 Channel 6 (IN7-PA2)"
+	default n
+config STM32_ADC2_CHAN7_INIT
+	bool "ADC2 Channel 7 (IN8-PA3)"
+	default n
+config STM32_ADC2_CHAN8_INIT
+	bool "ADC2 Channel 8 (IN9-PA4)"
+	default n
+config STM32_ADC2_CHAN9_INIT
+	bool "ADC2 Channel 9 (IN10-PA5)"
+	default n
+config STM32_ADC2_CHAN10_INIT
+	bool "ADC2 Channel 10 (IN11-PA6)"
+	default n
+config STM32_ADC2_CHAN11_INIT
+	bool "ADC2 Channel 11 (IN12-PA7)"
+	default n
+config STM32_ADC2_CHAN12_INIT
+	bool "ADC2 Channel 12 (IN13-PC4)"
+	default n
+config STM32_ADC2_CHAN13_INIT
+	bool "ADC2 Channel 13 (IN14-PC5)"
+	default n
+config STM32_ADC2_CHAN14_INIT
+	bool "ADC2 Channel 14 (IN15-PB0)"
+	default n
+config STM32_ADC2_CHAN15_INIT
+	bool "ADC2 Channel 15 (IN16-PB1)"
+	default n
+endmenu
+endif
+
+if STM32_ADC3 && STM32_STM32L4
+menu "ADC3 Device Initialization"
+
+config STM32_ADC3_CHAN0_INIT
+	bool "ADC3 Channel 0 (IN1-PC0)"
+	default n
+config STM32_ADC3_CHAN1_INIT
+	bool "ADC3 Channel 1 (IN2-PC1)"
+	default n
+config STM32_ADC3_CHAN2_INIT
+	bool "ADC3 Channel 2 (IN3-PC2)"
+	default n
+config STM32_ADC3_CHAN3_INIT
+	bool "ADC3 Channel 3 (IN4-PC3)"
+	default n
+config STM32_ADC3_CHAN5_INIT
+	bool "ADC3 Channel 5 (IN6-PF3)"
+	default n
+	depends on ARCH_CHIP_STM32L476QE || ARCH_CHIP_STM32L476QG || ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
+config STM32_ADC3_CHAN6_INIT
+	bool "ADC3 Channel 6 (IN7-PF4)"
+	default n
+	depends on ARCH_CHIP_STM32L476QE || ARCH_CHIP_STM32L476QG || ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
+config STM32_ADC3_CHAN7_INIT
+	bool "ADC3 Channel 7 (IN8-PF5)"
+	default n
+	depends on ARCH_CHIP_STM32L476QE || ARCH_CHIP_STM32L476QG || ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
+config STM32_ADC3_CHAN8_INIT
+	bool "ADC3 Channel 8 (IN9-PF6)"
+	default n
+	depends on ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
+config STM32_ADC3_CHAN9_INIT
+	bool "ADC3 Channel 9 (IN10-PF7)"
+	default n
+	depends on ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
+config STM32_ADC3_CHAN10_INIT
+	bool "ADC3 Channel 10 (IN11-PF8)"
+	default n
+	depends on ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
+config STM32_ADC3_CHAN11_INIT
+	bool "ADC3 Channel 11 (IN12-PF9)"
+	default n
+	depends on ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
+config STM32_ADC3_CHAN12_INIT
+	bool "ADC3 Channel 12 (IN13-PF10)"
+	default n
+	depends on ARCH_CHIP_STM32L476ZE || ARCH_CHIP_STM32L476ZG
+endmenu
+endif
+
+if STM32_ADC1 && !STM32_STM32L4
 menu "ADC1 Device Initialization"
 
 config STM32_ADC1_CHAN0_INIT
@@ -1743,10 +1913,8 @@ config STM32_ADC1_CHAN15_INIT
 	default n
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
-if STM32_ADC2
+if STM32_ADC2 && !STM32_STM32L4
 menu "ADC2 Device Initialization"
 
 config STM32_ADC2_CHAN0_INIT
@@ -1799,10 +1967,8 @@ config STM32_ADC2_CHAN15_INIT
 	default n
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
-if STM32_ADC3
+if STM32_ADC3 && !STM32_STM32L4
 menu "ADC3 Device Initialization"
 
 config STM32_ADC3_CHAN0_INIT
@@ -1855,9 +2021,7 @@ config STM32_ADC3_CHAN15_INIT
 	default n
 endmenu
 endif
-endif
 
-if STM32_ADC_INIT
 if STM32_ADC4
 menu "ADC4 Device Initialization"
 
