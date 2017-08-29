@@ -1098,6 +1098,7 @@ config ARCH_BOARD
 	default "fire-stm32v2"        if ARCH_BOARD_FIRE_STM32
 	default "freedom-kl25z"       if ARCH_BOARD_FREEDOM_KL25Z
 	default "hdk/muc"             if ARCH_BOARD_HDK_MUC
+	default "hdk/muc"	      if ARCH_BOARD_CUSTOM
 	default "hdk/apbe"            if ARCH_BOARD_HDK_APBE
 	default "mdk-tmplt"           if ARCH_BOARD_MDK_TMPLT
 	default "hymini-stm32v"       if ARCH_BOARD_HYMINI_STM32V
