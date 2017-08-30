@@ -39,6 +39,14 @@ config MODS_RAW_STUB
 	---help---
 		Raw Stub driver with Thread/Queue support
 
+config MODS_MODBOT
+	bool "Dual motor ModBot"
+	default n
+	depends on GREYBUS_RAW
+	select DEVICE_CORE
+	---help---
+		Robot with dual Mindstorm EVE Large motors
+
 config MODS_RAW_BLINKY
 	bool "Blinky LED Mods Raw support"
 	default n
