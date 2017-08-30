@@ -136,6 +136,13 @@
 #define GPIO_USBC_INT_N          CALC_GPIO_NUM('C', 7)
 #define GPIO_USBC_VBUS_ENA       CALC_GPIO_NUM('D', 6)
 
+/* MODBOT */
+#define GPIO_MODBOT_STANDBY      CALC_GPIO_NUM('A', 10)
+#define GPIO_MODBOT_AIN1         CALC_GPIO_NUM('B', 10)
+#define GPIO_MODBOT_AIN2         CALC_GPIO_NUM('B', 11)
+#define GPIO_MODBOT_BIN1         CALC_GPIO_NUM('A', 4)
+#define GPIO_MODBOT_BIN2         CALC_GPIO_NUM('A', 5)
+
 static inline void mods_rfr_init(void)
 {
     /* On this board, RFR is active high */
