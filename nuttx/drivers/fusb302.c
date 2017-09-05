@@ -481,13 +481,12 @@ static void fusb302_write_disconnected(void)
 {
     fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES0_REG, 0x00);
     fusb302_reg_write(fusb302_info->i2c, FUSB302_SWITCHES1_REG, 0x00);
-    /* mask all interrupts */
+    /* mask all interrupts except I_BC_LVL */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_MASK_REG,
                                          FUSB302_MASK_M_VBUSOK_MASK|
                                          FUSB302_MASK_M_ACTIVITY_MASK|FUSB302_MASK_M_COMP_CHNG_MASK|
                                          FUSB302_MASK_M_CRC_CHK_MASK|FUSB302_MASK_M_ALERT_MASK|
-                                         FUSB302_MASK_M_WAKE_MASK|FUSB302_MASK_M_COLLISION_MASK|
-                                         FUSB302_MASK_M_BC_LVL_MASK);
+                                         FUSB302_MASK_M_WAKE_MASK|FUSB302_MASK_M_COLLISION_MASK);
     /* clear toggle state */
     fusb302_reg_write(fusb302_info->i2c, FUSB302_CONTROL2_REG, 0x00);
 
