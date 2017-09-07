@@ -1532,6 +1532,18 @@ config STM32_HAVE_TIM1
 	bool
 	default n
 
+config STM32_HAVE_TIM2
+	bool
+	default n
+
+config STM32_HAVE_TIM3
+	bool
+	default n
+
+config STM32_HAVE_TIM4
+	bool
+	default n
+
 config STM32_HAVE_TIM5
 	bool
 	default n
@@ -1645,6 +1657,10 @@ config STM32_HAVE_I2C3
 	default n
 
 config STM32_HAVE_LCD
+	bool
+	default n
+
+config STM32_HAVE_OPAMP1
 	bool
 	default n
 
