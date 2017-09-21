@@ -122,7 +122,7 @@
 /* APB2 Base Addresses **************************************************************/
 
 #define STM32_SYSCFG_BASE    0x40010000     /* 0x40010000-0x4001002f SYSCFG */
-#define STM32_VREF_BASE      0x40010030     /* 0x40010030-0x400101ff VREF */
+#define STM32_VREF_BASE      0x40010030     /* 0x40010030-0x400101ff VREFBUF */
 #define STM32_COMP_BASE      0x40010200     /* 0x40010200-0x400103ff COMP */
 #define STM32_EXTI_BASE      0x40010400     /* 0x40010400-0x400107ff EXTI */
 #define STM32_FIREWALL_BASE  0x40011c00     /* 0x40011c00-0x40011fff FIREWALL */
