@@ -359,7 +359,18 @@
 #define RCC_APB1RSTR2_LPTIM2RST     (1 << 18) /* Bit 18: LPTIM2 reset */
 
 /* APB2 Peripheral reset register */
-#define RCC_APB2RSTR_SPI1RST       (1 << 12) /* Bit 12: SPI 1 reset */
+#define RCC_APB2RSTR_SYSCFGRST     (1 << 0)   /* Bit 0: SYSCFGRST reset */
+#define RCC_APB2RSTR_SDMMC1RST     (1 << 10)  /* Bit 10: SDMMC1RST reset */
+#define RCC_APB2RSTR_TIM1RST       (1 << 11)  /* Bit 11: TIM1RST reset */
+#define RCC_APB2RSTR_SPI1RST       (1 << 12)  /* Bit 12: SPI 1 reset */
+#define RCC_APB2RSTR_TIM8RST       (1 << 13)  /* Bit 13: TIM8RST reset */
+#define RCC_APB2RSTR_USART1RST     (1 << 14)  /* Bit 14: USART1RST reset */
+#define RCC_APB2RSTR_TIM15RST      (1 << 16)  /* Bit 16: TIM15RST reset */
+#define RCC_APB2RSTR_TIM16RST      (1 << 17)  /* Bit 17: TIM16RST reset */
+#define RCC_APB2RSTR_TIM17RST      (1 << 18)  /* Bit 18: TIM17RST reset */
+#define RCC_APB2RSTR_SAI1RST       (1 << 21)  /* Bit 21: SAI1RST reset */
+#define RCC_APB2RSTR_SAI2RST       (1 << 22)  /* Bit 22: SAI2RST reset */
+#define RCC_APB2RSTR_DFSDM1RST     (1 << 24)  /* Bit 24: DFSDM1RST reset */
 
 /* AHB1 Peripheral Clock enable register */
 
@@ -414,20 +425,22 @@
 
 /* APB1 Peripheral Clock enable register 2 */
 
-#define RCC_APB1ENR2_LPTIM2EN       (1 << 18) /* Bit 18: LPTIM2 enable */
+#define RCC_APB1ENR2_LPTIM2EN       (1 << 5) /* Bit 5: LPTIM2 enable */
+#define RCC_APB1ENR2_SWPMI1EN       (1 << 2) /* Bit 2: SWPMI1EN enable */
+#define RCC_APB1ENR2_LPUART1EN      (1 << 0) /* Bit 0: LPUART1EN enable */
 
-/* APB2 Peripheral Clock enable register */
+/* APB2 peripheral clock enable register (RCC_APB2ENR) */
 
 #define RCC_APB2ENR_SYSCFGEN        (1 << 0)  /* Bit 0:  System configuration controller clock enable */
-#define RCC_APB2ENR_PWEN            (1 << 7)  /* Bit 7:  Firewall clock enable */
+#define RCC_APB2ENR_FWEN            (1 << 7)  /* Bit 7:  Firewall clock enable */
 #define RCC_APB2ENR_SDMMC1EN        (1 << 10) /* Bit 10: SDMMC clock enable */
 #define RCC_APB2ENR_TIM1EN          (1 << 11) /* Bit 11: TIM1 timer clock enable */
 #define RCC_APB2ENR_SPI1EN          (1 << 12) /* Bit 12: SPI 1 clock enable */
 #define RCC_APB2ENR_TIM8EN          (1 << 13) /* Bit 13: TIM8 timer clock enable */
 #define RCC_APB2ENR_USART1EN        (1 << 14) /* Bit 14: USART1 clock enable */
-#define RCC_APB2ENR_TIM15EN         (1 << 15) /* Bit 15: TIM15 timer clock enable */
-#define RCC_APB2ENR_TIM16EN         (1 << 16) /* Bit 16: TIM16 timer clock enable */
-#define RCC_APB2ENR_TIM17EN         (1 << 17) /* Bit 17: TIM17 timer clock enable */
+#define RCC_APB2ENR_TIM15EN         (1 << 16) /* Bit 16: TIM15 timer clock enable */
+#define RCC_APB2ENR_TIM16EN         (1 << 17) /* Bit 17: TIM16 timer clock enable */
+#define RCC_APB2ENR_TIM17EN         (1 << 18) /* Bit 18: TIM17 timer clock enable */
 #define RCC_APB2ENR_SAI1EN          (1 << 21) /* Bit 21: SAI1 clock enable */
 #define RCC_APB2ENR_SAI2EN          (1 << 22) /* Bit 22: SAI2 clock enable */
 #define RCC_APB2ENR_DFSDMEN         (1 << 24) /* Bit 24: DFSDM timer clock enable */
