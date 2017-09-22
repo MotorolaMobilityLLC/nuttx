@@ -465,7 +465,7 @@
 #  define STM32_NRNG                     1   /* Random number generator (RNG) */
 #  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
 
-#elif defined(CONFIG_ARCH_CHIP_STM32L476VG)
+#elif defined(CONFIG_ARCH_CHIP_STM32L476VG) || defined(CONFIG_ARCH_CHIP_STM32L471VG) || defined(CONFIG_ARCH_CHIP_STM32L471VE)
 #  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
 #  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
 #  define CONFIG_STM32_STM32L4X6         1   /* STM32L4X6 family */
@@ -727,7 +727,7 @@
 #  define STM32_NRNG                     1   /* Random number generator (RNG) */
 #  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
 
-#elif defined(CONFIG_ARCH_CHIP_STM32L476RE) ||  defined(CONFIG_ARCH_CHIP_STM32L476RG) || defined(CONFIG_ARCH_CHIP_STM32L476RC)
+#elif defined(CONFIG_ARCH_CHIP_STM32L476RE) ||  defined(CONFIG_ARCH_CHIP_STM32L476RG) || defined(CONFIG_ARCH_CHIP_STM32L476RC) || defined(CONFIG_ARCH_CHIP_STM32L471RE) || defined(CONFIG_ARCH_CHIP_STM32L471RG)
 #  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
 #  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
 #  define CONFIG_STM32_STM32L4X6         1   /* STM32L4X6 family */
@@ -801,7 +801,7 @@
 #  define STM32_NRNG                     1   /* Random number generator (RNG) */
 #  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
 
-#elif defined(CONFIG_ARCH_CHIP_STM32L476QE) ||  defined(CONFIG_ARCH_CHIP_STM32L476QG)
+#elif defined(CONFIG_ARCH_CHIP_STM32L476QE) ||  defined(CONFIG_ARCH_CHIP_STM32L476QG) ||  defined(CONFIG_ARCH_CHIP_STM32L471QG) ||  defined(CONFIG_ARCH_CHIP_STM32L471QE)
 #  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
 #  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
 #  define CONFIG_STM32_STM32L4X6         1   /* STM32L4X6 family */
@@ -838,7 +838,7 @@
 #  define STM32_NRNG                     1   /* Random number generator (RNG) */
 #  define STM32_NDCMI                    0   /* No digital camera interface (DCMI) */
 
-#elif defined(CONFIG_ARCH_CHIP_STM32L476ZE) ||  defined(CONFIG_ARCH_CHIP_STM32L476ZG)
+#elif defined(CONFIG_ARCH_CHIP_STM32L476ZE) ||  defined(CONFIG_ARCH_CHIP_STM32L476ZG) ||  defined(CONFIG_ARCH_CHIP_STM32L471ZG) || defined(CONFIG_ARCH_CHIP_STM32L471ZE)
 #  undef  CONFIG_STM32_STM32L15XX            /* STM32L151xx and STM32L152xx family */
 #  undef  CONFIG_STM32_ENERGYLITE            /* STM32L EnergyLite vamily */
 #  define CONFIG_STM32_STM32L4X6         1   /* STM32L4X6 family */
