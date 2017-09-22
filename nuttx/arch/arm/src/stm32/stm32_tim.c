@@ -738,19 +738,23 @@ static int stm32_tim_setchannel(FAR struct stm32_tim_dev_s *dev, uint8_t channel
           {
 #if defined(GPIO_TIM1_CH1OUT)
             case 0:
-              stm32_tim_gpioconfig(GPIO_TIM1_CH1OUT, mode); break;
+              stm32_tim_gpioconfig(GPIO_TIM1_CH1OUT, mode); 
+	      break;
 #endif
 #if defined(GPIO_TIM1_CH2OUT)
             case 1:
-              stm32_tim_gpioconfig(GPIO_TIM1_CH2OUT, mode); break;
+              stm32_tim_gpioconfig(GPIO_TIM1_CH2OUT, mode);
+              break;
 #endif
 #if defined(GPIO_TIM1_CH3OUT)
             case 2:
-              stm32_tim_gpioconfig(GPIO_TIM1_CH3OUT, mode); break;
+              stm32_tim_gpioconfig(GPIO_TIM1_CH3OUT, mode);
+              break;
 #endif
 #if defined(GPIO_TIM1_CH4OUT)
             case 3:
-              stm32_tim_gpioconfig(GPIO_TIM1_CH4OUT, mode); break;
+              stm32_tim_gpioconfig(GPIO_TIM1_CH4OUT, mode);
+              break;
 #endif
             default: return ERROR;
           }
@@ -762,22 +766,25 @@ static int stm32_tim_setchannel(FAR struct stm32_tim_dev_s *dev, uint8_t channel
           {
 #if defined(GPIO_TIM8_CH1OUT)
             case 0:
-              stm32_tim_gpioconfig(GPIO_TIM8_CH1OUT, mode); break;
+              stm32_tim_gpioconfig(GPIO_TIM8_CH1OUT, mode);
+              break;
 #endif
 #if defined(GPIO_TIM8_CH2OUT)
             case 1:
-              stm32_tim_gpioconfig(GPIO_TIM8_CH2OUT, mode); break;
+              stm32_tim_gpioconfig(GPIO_TIM8_CH2OUT, mode);
+              break;
 #endif
 #if defined(GPIO_TIM8_CH3OUT)
             case 2:
-              stm32_tim_gpioconfig(GPIO_TIM8_CH3OUT, mode); break;
+              stm32_tim_gpioconfig(GPIO_TIM8_CH3OUT, mode);
+              break;
 #endif
 #if defined(GPIO_TIM8_CH4OUT)
             case 3:
-              stm32_tim_gpioconfig(GPIO_TIM8_CH4OUT, mode); break;
+              stm32_tim_gpioconfig(GPIO_TIM8_CH4OUT, mode);
+              break;
 #endif
-            default:
-              return ERROR;
+            default: return ERROR;
           }
         break;
 #endif
