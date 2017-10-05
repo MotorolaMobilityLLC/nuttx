@@ -299,6 +299,278 @@ config ARCH_CHIP_STM32L431VG
 	---help---
 		100-pin, 1024KB FLASH, 64KB SRAM
 
+config ARCH_CHIP_STM32L471RE
+	bool "STM32L471RE"
+	select STM32_STM32L4X6
+	select ARCH_HAVE_FPU
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM8
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM5
+	select STM32_HAVE_TIM3
+	select STM32_HAVE_TIM4
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
+	select STM32_HAVE_USART1
+	select STM32_HAVE_USART2
+	select STM32_HAVE_USART3
+	select STM32_HAVE_USART4
+	select STM32_HAVE_USART5
+	select STM32_HAVE_SPI1
+	select STM32_HAVE_SPI2
+	select STM32_HAVE_SPI3
+	select STM32_HAVE_I2C1
+	select STM32_HAVE_I2C2
+	select STM32_HAVE_I2C3
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_SDMMC
+	select STM32_HAVE_OPAMP2
+	select STM32_HAVE_ADC2
+	select STM32_HAVE_ADC3
+	---help---
+		64-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L471RG
+	bool "STM32L471RG"
+	select STM32_STM32L4X6
+	select ARCH_HAVE_FPU
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM8
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM5
+	select STM32_HAVE_TIM3
+	select STM32_HAVE_TIM4
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
+	select STM32_HAVE_USART1
+	select STM32_HAVE_USART2
+	select STM32_HAVE_USART3
+	select STM32_HAVE_USART4
+	select STM32_HAVE_USART5
+	select STM32_HAVE_SPI1
+	select STM32_HAVE_SPI2
+	select STM32_HAVE_SPI3
+	select STM32_HAVE_I2C1
+	select STM32_HAVE_I2C2
+	select STM32_HAVE_I2C3
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_SDMMC
+	select STM32_HAVE_OPAMP2
+	select STM32_HAVE_ADC2
+	select STM32_HAVE_ADC3
+	---help---
+		64-pin, 1024KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L471VE
+	bool "STM32L471VE"
+	select STM32_STM32L4X6
+	select ARCH_HAVE_FPU
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM8
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM5
+	select STM32_HAVE_TIM3
+	select STM32_HAVE_TIM4
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
+	select STM32_HAVE_USART1
+	select STM32_HAVE_USART2
+	select STM32_HAVE_USART3
+	select STM32_HAVE_USART4
+	select STM32_HAVE_USART5
+	select STM32_HAVE_SPI1
+	select STM32_HAVE_SPI2
+	select STM32_HAVE_SPI3
+	select STM32_HAVE_I2C1
+	select STM32_HAVE_I2C2
+	select STM32_HAVE_I2C3
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_SDMMC
+	select STM32_HAVE_OPAMP2
+	select STM32_HAVE_ADC2
+	select STM32_HAVE_ADC3
+	---help---
+		100-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L471VG
+	bool "STM32L471VG"
+	select STM32_STM32L4X6
+	select ARCH_HAVE_FPU
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM8
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM5
+	select STM32_HAVE_TIM3
+	select STM32_HAVE_TIM4
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
+	select STM32_HAVE_USART1
+	select STM32_HAVE_USART2
+	select STM32_HAVE_USART3
+	select STM32_HAVE_USART4
+	select STM32_HAVE_USART5
+	select STM32_HAVE_SPI1
+	select STM32_HAVE_SPI2
+	select STM32_HAVE_SPI3
+	select STM32_HAVE_I2C1
+	select STM32_HAVE_I2C2
+	select STM32_HAVE_I2C3
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_SDMMC
+	select STM32_HAVE_OPAMP2
+	select STM32_HAVE_ADC2
+	select STM32_HAVE_ADC3
+	---help---
+		100-pin, 1024KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L471QE
+	bool "STM32L471QE"
+	select STM32_STM32L4X6
+	select ARCH_HAVE_FPU
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM8
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM5
+	select STM32_HAVE_TIM3
+	select STM32_HAVE_TIM4
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
+	select STM32_HAVE_USART1
+	select STM32_HAVE_USART2
+	select STM32_HAVE_USART3
+	select STM32_HAVE_USART4
+	select STM32_HAVE_USART5
+	select STM32_HAVE_SPI1
+	select STM32_HAVE_SPI2
+	select STM32_HAVE_SPI3
+	select STM32_HAVE_I2C1
+	select STM32_HAVE_I2C2
+	select STM32_HAVE_I2C3
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_SDMMC
+	select STM32_HAVE_OPAMP2
+	select STM32_HAVE_ADC2
+	select STM32_HAVE_ADC3
+	---help---
+		132-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L471QG
+	bool "STM32L471QG"
+	select STM32_STM32L4X6
+	select ARCH_HAVE_FPU
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM8
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM5
+	select STM32_HAVE_TIM3
+	select STM32_HAVE_TIM4
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
+	select STM32_HAVE_USART1
+	select STM32_HAVE_USART2
+	select STM32_HAVE_USART3
+	select STM32_HAVE_USART4
+	select STM32_HAVE_USART5
+	select STM32_HAVE_SPI1
+	select STM32_HAVE_SPI2
+	select STM32_HAVE_SPI3
+	select STM32_HAVE_I2C1
+	select STM32_HAVE_I2C2
+	select STM32_HAVE_I2C3
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_SDMMC
+	select STM32_HAVE_OPAMP2
+	select STM32_HAVE_ADC2
+	select STM32_HAVE_ADC3
+	---help---
+		132-pin, 1024KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L471ZE
+	bool "STM32L471ZE"
+	select STM32_STM32L4X6
+	select ARCH_HAVE_FPU
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM8
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM5
+	select STM32_HAVE_TIM3
+	select STM32_HAVE_TIM4
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
+	select STM32_HAVE_USART1
+	select STM32_HAVE_USART2
+	select STM32_HAVE_USART3
+	select STM32_HAVE_USART4
+	select STM32_HAVE_USART5
+	select STM32_HAVE_SPI1
+	select STM32_HAVE_SPI2
+	select STM32_HAVE_SPI3
+	select STM32_HAVE_I2C1
+	select STM32_HAVE_I2C2
+	select STM32_HAVE_I2C3
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_SDMMC
+	select STM32_HAVE_OPAMP2
+	select STM32_HAVE_ADC2
+	select STM32_HAVE_ADC3
+	---help---
+		144-pin, 512KB FLASH, 128KB SRAM
+
+config ARCH_CHIP_STM32L471ZG
+	bool "STM32L471ZG"
+	select STM32_STM32L4X6
+	select ARCH_HAVE_FPU
+	select STM32_HAVE_TIM1
+	select STM32_HAVE_TIM8
+	select STM32_HAVE_TIM2
+	select STM32_HAVE_TIM5
+	select STM32_HAVE_TIM3
+	select STM32_HAVE_TIM4
+	select STM32_HAVE_TIM15
+	select STM32_HAVE_TIM16
+	select STM32_HAVE_TIM17
+	select STM32_HAVE_LPTIM1
+	select STM32_HAVE_LPTIM2
+	select STM32_HAVE_USART1
+	select STM32_HAVE_USART2
+	select STM32_HAVE_USART3
+	select STM32_HAVE_USART4
+	select STM32_HAVE_USART5
+	select STM32_HAVE_SPI1
+	select STM32_HAVE_SPI2
+	select STM32_HAVE_SPI3
+	select STM32_HAVE_I2C1
+	select STM32_HAVE_I2C2
+	select STM32_HAVE_I2C3
+	select STM32_HAVE_CAN1
+	select STM32_HAVE_SDMMC
+	select STM32_HAVE_OPAMP2
+	select STM32_HAVE_ADC2
+	select STM32_HAVE_ADC3
+	---help---
+		144-pin, 1024KB FLASH, 128KB SRAM
+
 config ARCH_CHIP_STM32L433CB
 	bool "STM32L433CB"
 	select STM32_STM32L4X3
@@ -2341,86 +2613,408 @@ config STM32_TIM1
 	bool "TIM1"
 	default n
 	depends on STM32_HAVE_TIM1
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM2
 	bool "TIM2"
 	default n
 	depends on STM32_HAVE_TIM2
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM3
 	bool "TIM3"
 	default n
 	depends on STM32_HAVE_TIM3
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM4
 	bool "TIM4"
 	default n
 	depends on STM32_HAVE_TIM4
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM5
 	bool "TIM5"
 	default n
 	depends on STM32_HAVE_TIM5
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM6
 	bool "TIM6"
 	default n
 	depends on STM32_HAVE_TIM6
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM7
 	bool "TIM7"
 	default n
 	depends on STM32_HAVE_TIM7
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM8
 	bool "TIM8"
 	default n
 	depends on STM32_HAVE_TIM8
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
 
 config STM32_TIM9
 	bool "TIM9"
 	default n
 	depends on STM32_HAVE_TIM9
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM10
 	bool "TIM10"
 	default n
 	depends on STM32_HAVE_TIM10
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM11
 	bool "TIM11"
 	default n
 	depends on STM32_HAVE_TIM11
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM12
 	bool "TIM12"
 	default n
 	depends on STM32_HAVE_TIM12
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM13
 	bool "TIM13"
 	default n
 	depends on STM32_HAVE_TIM13
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM14
 	bool "TIM14"
 	default n
 	depends on STM32_HAVE_TIM14
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM15
 	bool "TIM15"
 	default n
 	depends on STM32_HAVE_TIM15
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM16
 	bool "TIM16"
 	default n
 	depends on STM32_HAVE_TIM16
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_TIM17
 	bool "TIM17"
 	default n
 	depends on STM32_HAVE_TIM17
+	---help---
+	This TIMER may have optional channel/port configurations.  
+	If so, then modify the nuttx/nuttx/configs/hdk/muc/include/board.h file as demonstrated below:
+
+		#ifdef CONFIG_MODS_MYMOD    (i.e. Available from the menuconfig tool after modifying the nuttx/configs/hdk/muc/Kconfig file)
+    			#define GPIO_TIM2_CH3OUT GPIO_TIM2_CH3OUT_1     /* PA2 */ 
+    			#define GPIO_TIM5_CH4OUT GPIO_TIM5_CH4OUT_1     /* PA3 */   
+		#endif
+
+ 		(i.e. map to nuttx/nuttx/arch/arm/src/stm32/chip/ stm32l4x6xx_pinmap.h or stm32l4x3xx_pinmap.h file)
+
+		For additional TIMER GPIO pin assignments that have yet to be defined
+		see the STM32L4_PinMap_and_AlternateFunctions.xlsx tool at your Windchill Projects Folder
+		> Stage-1 (NDA and Evaluation Agreement) 
+   			> Design Reference Material 
+      				> MDK Reference Material 
+         				> Software 
+            					> MDK Firmware Support
+
 
 config STM32_LPTIM1
 	bool "LPTIM1"

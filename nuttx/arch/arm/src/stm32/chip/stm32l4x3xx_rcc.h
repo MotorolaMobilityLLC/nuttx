@@ -237,7 +237,7 @@
 
 /* PLLSAI2 configuration register */
 
-/* Clock interrupt enable register */
+/* Clock interrupt enable register (RCC_CIER) */
 
 #define RCC_CIER_LSIRDYIE           (1 << 0)  /* Bit 0: LSI Ready Interrupt Enable */
 #define RCC_CIER_LSERDYIE           (1 << 1)  /* Bit 1: LSE Ready Interrupt Enable */
@@ -249,7 +249,7 @@
 #define RCC_CIER_LSECSSIE           (1 << 9)  /* Bit 9: LSE clock security system Interrupt enable */
 #define RCC_CIER_HSI48RDYIE         (1 << 10) /* Bit 10: HSI48 ready interrupt enable */
 
-/* Clock interrupt flag register */
+/* Clock interrupt flag register (RCC_CIFR) */
 
 #define RCC_CIFR_LSIRDYF            (1 << 0)  /* Bit 0: LSI Ready Interrupt flag */
 #define RCC_CIFR_LSERDYF            (1 << 1)  /* Bit 1: LSE Ready Interrupt flag */
@@ -262,7 +262,7 @@
 #define RCC_CIFR_LSECSSF            (1 << 9)  /* Bit 9: LSE Clock Security System Interrupt flag */
 #define RCC_CIFR_HSI48RDYF          (1 << 10) /* Bit 10: HSI48 ready interrupt flag */
 
-/* Clock interrupt clear register */
+/* Clock interrupt clear register (RCC_CICR) */
 
 #define RCC_CICR_LSIRDYC            (1 << 0)  /* Bit 0: LSI Ready Interrupt clear */
 #define RCC_CICR_LSERDYC            (1 << 1)  /* Bit 1: LSE Ready Interrupt clear */
@@ -275,9 +275,14 @@
 #define RCC_CICR_LSECSSC            (1 << 9)  /* Bit 9: LSE Clock Security System Interrupt clear */
 #define RCC_CICR_HSI48RDYC          (1 << 10) /* Bit 10: HSI48 oscillator ready interrupt clear */
 
-/* AHB1 peripheral reset register */
+/* AHB1 peripheral reset register (RCC_AHB1RSTR) */
+#define RCC_AHB1RSTR_DMA1RST      (1 << 0)   /* Bit 0:  DMA1 reset */
+#define RCC_AHB1RSTR_DMA2RST      (1 << 1)   /* Bit 1:  DMA2 reset */
+#define RCC_AHB1RSTR_FLASHRST     (1 << 8)   /* Bit 8:  Flash memory interface reset */
+#define RCC_AHB1RSTR_CRCRST       (1 << 12)  /* Bit 12:  Flash memory interface reset */
+#define RCC_AHB1RSTR_TSCRST       (1 << 16)  /* Bit 16:  Touch Sensing Controller reset */
 
-/* AHB2 peripheral reset register */
+/* AHB2 peripheral reset register (RCC_AHB2RSTR) */
 
 #define RCC_AHB2RSTR_GPIOARST      (1 << 0)  /* Bit 0:  IO port A reset */
 #define RCC_AHB2RSTR_GPIOBRST      (1 << 1)  /* Bit 1:  IO port B reset */
@@ -291,7 +296,7 @@
 
 /* AHB3 peripheral reset register */
 
-/* APB1 Peripheral reset register 1 */
+/* APB1 peripheral reset register 1 (RCC_APB1RSTR1) */
 
 #define RCC_APB1RSTR1_TIM2RST       (1 << 0)  /* Bit 0:  TIM2 reset */
 #define RCC_APB1RSTR1_TIM6RST       (1 << 4)  /* Bit 4:  TIM6 reset */
@@ -312,14 +317,22 @@
 #define RCC_APB1RSTR1_OPAMPRST      (1 << 30) /* Bit 30: OPAMP reset */
 #define RCC_APB1RSTR1_LPTIM1RST     (1 << 31) /* Bit 31: LPTIM1 reset */
 
-/* APB1 Peripheral reset register 2 */
+/* APB1 peripheral reset register 2 (RCC_APB1RSTR2) */
+#define RCC_APB1RSTR2_LPUART1RST    (1 << 0) /* Bit 0: Low-power UART 1 reset */
+#define RCC_APB1RSTR2_SWPMI1RST     (1 << 2) /* Bit 2: Single wire protocol reset */
+#define RCC_APB1RSTR2_LPTIM2RST     (1 << 5) /* Bit 5: Low-power timer 2 reset */
 
-#define RCC_APB1RSTR2_LPTIM2RST     (1 << 18) /* Bit 18: LPTIM2 reset */
-
-/* APB2 Peripheral reset register */
+/* APB2 peripheral reset register (RCC_APB2RSTR) */
+#define RCC_APB2RSTR_SYSCFGRST     (1 << 0) /* Bit 0: SSYSCFG + COMP + VREFBUF reset */
+#define RCC_APB2RSTR_SDMMC1RST     (1 << 10) /* Bit 10: SDMMC reset */
+#define RCC_APB2RSTR_TIM1RST       (1 << 11) /* Bit 11: TIM1 timer reset */
 #define RCC_APB2RSTR_SPI1RST       (1 << 12) /* Bit 12: SPI 1 reset */
+#define RCC_APB2RSTR_USART1RST     (1 << 14) /* Bit 14: USART1 reset */
+#define RCC_APB2RSTR_TIM15RST      (1 << 16) /* Bit 16: TIM15 timer reset */
+#define RCC_APB2RSTR_TIM16RST      (1 << 17) /* Bit 17: TIM16 timer reset */
+#define RCC_APB2RSTR_SAI1RST       (1 << 21) /* Bit 21: Serial audio interface 1 (SAI1) reset */
 
-/* AHB1 Peripheral Clock enable register */
+/* AHB1 peripheral clock enable register (RCC_AHB1ENR) */
 
 #define RCC_AHB1ENR_DMA1EN          (1 << 0)  /* Bit 0: DMA1 clock enable */
 #define RCC_AHB1ENR_DMA2EN          (1 << 1)  /* Bit 1: DMA2 clock enable */
@@ -327,7 +340,7 @@
 #define RCC_AHB1ENR_CRCEN           (1 << 12) /* Bit 12: CRC clock enable */
 #define RCC_AHB1ENR_TSCEN           (1 << 16) /* Bit 16: Touch Sensing Controller clock enable */
 
-/* AHB2 Peripheral Clock enable register */
+/* AHB2 peripheral clock enable register (RCC_AHB2ENR) */
 
 #define RCC_AHB2ENR_GPIOEN(n)       (1 << (n))
 #define RCC_AHB2ENR_GPIOAEN         (1 << 0)  /* Bit 0: IO port A clock enable */
@@ -342,7 +355,7 @@
 
 /* AHB3 Peripheral Clock enable register */
 
-/* APB1 Peripheral Clock enable register 1 */
+/* APB1 peripheral clock enable register 1 (RCC_APB1ENR1) */
 
 #define RCC_APB1ENR1_TIM2EN         (1 << 0)  /* Bit 0:  TIM2 enable */
 #define RCC_APB1ENR1_TIM6EN         (1 << 4)  /* Bit 4:  TIM6 enable */
@@ -365,15 +378,22 @@
 #define RCC_APB1ENR1_OPAMPEN        (1 << 30) /* Bit 30: OPAMP enable */
 #define RCC_APB1ENR1_LPTIM1EN       (1 << 31) /* Bit 31: LPTIM1 enable */
 
-/* APB1 Peripheral Clock enable register 2 */
+/* APB1 peripheral clock enable register 2 (RCC_APB1ENR2) */
+#define RCC_APB1ENR2_LPUART1EN      (1 << 0) /* Bit 0: Low power UART 1 clock enable */
+#define RCC_APB1ENR2_SWPMI1EN       (1 << 2) /* Bit 2: Single wire protocol clock enable */
+#define RCC_APB1ENR2_LPTIM2EN       (1 << 5) /* Bit 5: Low power timer 2 clock enable */
 
-#define RCC_APB1ENR2_LPTIM2EN       (1 << 18) /* Bit 18: LPTIM2 enable */
-
-/* APB2 Peripheral Clock enable register (incomplete) */
-
+/* APB2 peripheral clock enable register (RCC_APB2ENR) */
 #define RCC_APB2ENR_SYSCFGEN        (1 << 0)  /* Bit 0:  System configuration controller clock enable */
+#define RCC_APB2ENR_FWEN            (1 << 7)  /* Bit 7:  Firewall clock enable */
+#define RCC_APB2ENR_SDMMC1EN        (1 << 10) /* Bit 10: SDMMC clock enable */
+#define RCC_APB2ENR_TIM1EN          (1 << 11) /* Bit 11: TIM1 timer clock enable */
 #define RCC_APB2ENR_SPI1EN          (1 << 12) /* Bit 12: SPI 1 clock enable */
 #define RCC_APB2ENR_USART1EN        (1 << 14) /* Bit 14: USART1 clock enable */
+#define RCC_APB2ENR_TIM15EN         (1 << 16) /* Bit 16: TIM15 timer clock enable */
+#define RCC_APB2ENR_TIM16EN         (1 << 17) /* Bit 17: TIM16 timer clock enable */
+#define RCC_APB2ENR_SAI1EN          (1 << 21) /* Bit 21: SAI1 clock enable */
+#define RCC_APB2ENR_DFSDMEN         (1 << 24) /* Bit 24: DFSDM timer clock enable */
 
 /* AHB1 Peripheral Clocks Enable in Sleep and Stop modes register */
 
