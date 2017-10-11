@@ -46,6 +46,7 @@
 #define GB_BATTERY_TYPE_CURRENT             0x08
 #define GB_BATTERY_TYPE_CAPACITY            0x09
 #define GB_BATTERY_TYPE_SHUTDOWN_TEMP       0x0a
+#define GB_BATTERY_TYPE_SHIP_MODE           0x0b    /* added in ver 00.02 */
 
 struct gb_battery_technology_response {
     __le32  technology;
@@ -81,6 +82,10 @@ struct gb_battery_totoal_capacity_response {
 
 struct gb_battery_shutdown_temperature_response {
     __le32  temperature;
+};
+
+struct gb_battery_set_ship_mode_request {
+    __u8 mode;
 };
 
 /* version request has no payload */
