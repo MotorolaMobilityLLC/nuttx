@@ -80,6 +80,9 @@ struct device_battery_type_ops {
 
     /** battery get_shutdown_temperature() function pointer */
     int (*get_shutdown_temp)(struct device *dev, int *shutdown_temp);
+
+    /** battery set_ship_mode() function pointer */
+    int (*set_ship_mode)(struct device *dev, uint8_t mode);
 };
 
 /**
@@ -255,6 +258,25 @@ static inline int device_battery_shutdown_temp(struct device *dev,
     if (DEVICE_DRIVER_GET_OPS(dev, battery)->get_shutdown_temp)
         return DEVICE_DRIVER_GET_OPS(dev, battery)->
                get_shutdown_temp(dev, temp);
+
+    return -ENOSYS;
+}
+
+/**
+ * @brief battery set ship mode
+ * @param dev pointer to structure of device data.
+ * @return 0 on success, negative errno on error.
+ */
+static inline int device_battery_set_ship_mode(struct device *dev, uint8_t mode)
+{
+    DEVICE_DRIVER_ASSERT_OPS(dev);
+
+    if (!device_is_open(dev))
+        return -ENODEV;
+
+    if (DEVICE_DRIVER_GET_OPS(dev, battery)->set_ship_mode)
+        return DEVICE_DRIVER_GET_OPS(dev, battery)->
+               set_ship_mode(dev, mode);
 
     return -ENOSYS;
 }

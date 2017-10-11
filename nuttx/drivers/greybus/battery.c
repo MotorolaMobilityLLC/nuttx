@@ -42,7 +42,7 @@
 
 /* Version of the Greybus battery protocol we support */
 #define GB_BATTERY_VERSION_MAJOR    0x00
-#define GB_BATTERY_VERSION_MINOR    0x01
+#define GB_BATTERY_VERSION_MINOR    0x02
 
 /* Allocated in initial function for internal data store */
 static struct device *batt_dev = NULL;
@@ -287,6 +287,30 @@ static uint8_t gb_battery_shutdown_temp(struct gb_operation *operation)
 }
 
 /**
+* @brief Set battery to ship mode
+*
+* @param operation The pointer to structure of gb_operation.
+*
+* @return GB_OP_SUCCESS on success, error code on failure.
+*/
+static uint8_t gb_battery_set_ship_mode(struct gb_operation *operation)
+{
+    struct gb_battery_set_ship_mode_request *request;
+    int ret = 0;
+
+    if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
+        gb_error("%s(): dropping short message\n", __func__);
+        return GB_OP_INVALID;
+    }
+
+    request = gb_operation_get_request_payload(operation);
+
+    ret = device_battery_set_ship_mode(batt_dev, request->mode);
+
+    return gb_errno_to_op_result(ret);
+}
+
+/**
  * @brief Greybus battery protocol initialize function
  *
  * @param cport CPort number
@@ -328,6 +352,7 @@ static struct gb_operation_handler gb_battery_handlers[] = {
     GB_HANDLER(GB_BATTERY_TYPE_CURRENT, gb_battery_current),
     GB_HANDLER(GB_BATTERY_TYPE_CAPACITY, gb_battery_capacity),
     GB_HANDLER(GB_BATTERY_TYPE_SHUTDOWN_TEMP, gb_battery_shutdown_temp),
+    GB_HANDLER(GB_BATTERY_TYPE_SHIP_MODE, gb_battery_set_ship_mode),
 };
 
 static struct gb_driver gb_battery_driver = {
