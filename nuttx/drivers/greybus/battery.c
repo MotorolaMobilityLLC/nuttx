@@ -295,7 +295,9 @@ static uint8_t gb_battery_shutdown_temp(struct gb_operation *operation)
 */
 static uint8_t gb_battery_set_ship_mode(struct gb_operation *operation)
 {
-    struct gb_battery_set_ship_mode_request *request;
+    struct gb_battery_set_ship_mode_request *request = NULL;
+    struct gb_battery_set_ship_mode_response *response = NULL;
+    uint8_t status = 0;
     int ret = 0;
 
     if (gb_operation_get_request_payload_size(operation) < sizeof(*request)) {
@@ -304,8 +306,16 @@ static uint8_t gb_battery_set_ship_mode(struct gb_operation *operation)
     }
 
     request = gb_operation_get_request_payload(operation);
+    if (request->mode != GB_BATTERY_SET_SHIP_MODE_READ) {
+        ret = device_battery_set_ship_mode(batt_dev, request->mode);
+    } else {
+        response = gb_operation_alloc_response(operation, sizeof(*response));
+        if (!response)
+            return GB_OP_NO_MEMORY;
 
-    ret = device_battery_set_ship_mode(batt_dev, request->mode);
+        ret = device_battery_get_ship_mode(batt_dev, &status);
+        response->status = status;
+    }
 
     return gb_errno_to_op_result(ret);
 }
