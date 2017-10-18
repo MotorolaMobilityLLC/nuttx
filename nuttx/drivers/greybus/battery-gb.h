@@ -84,8 +84,22 @@ struct gb_battery_shutdown_temperature_response {
     __le32  temperature;
 };
 
+enum gb_battery_ship_mode_ops {
+    GB_BATTERY_SET_SHIP_MODE_READ,       
+    GB_BATTERY_SET_SHIP_MODE_ENABLE,
+};
+      
 struct gb_battery_set_ship_mode_request {
     __u8 mode;
+};
+
+enum gb_battery_ship_mode_status {
+    GB_BATTERY_SET_SHIP_MODE_DISABLED,       
+    GB_BATTERY_SET_SHIP_MODE_ENABLED,
+};
+      
+struct gb_battery_set_ship_mode_response {
+    __u8 status;
 };
 
 /* version request has no payload */
