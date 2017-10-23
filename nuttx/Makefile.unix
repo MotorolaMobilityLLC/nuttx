@@ -282,8 +282,11 @@ endif
 ifeq (${BUILD_NUMBER},)
   BUILD_NUMBER = 1
 endif
+
 OVERRIDE_VERSION = ${BUILD_MAJOR_NUMBER}.${BUILD_NUMBER}
-OVERRIDE_BUILD_NUM = ${shell git describe --always --dirty --match nothing 2>/dev/null}
+ifeq (${OVERRIDE_BUILD_NUM},)
+  OVERRIDE_BUILD_NUM = ${shell git describe --always --dirty --match nothing 2>/dev/null}
+endif
 
 $(TOPDIR)/.version: FORCE
 	tools/version.sh -v $(OVERRIDE_VERSION) -b $(OVERRIDE_BUILD_NUM) .version; \
