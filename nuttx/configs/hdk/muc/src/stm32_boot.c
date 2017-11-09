@@ -965,13 +965,15 @@ int map_pin_nr_to_cfgset(uint8_t pin, uint32_t *cfgset)
 
 void stm32_boardinitialize(void)
 {
-  uint32_t regval;
+  #ifdef CONFIG_ARCH_CHIP_STM32L476JG
+    uint32_t regval;
 
-  /* VDDIO2 is valid on this board */
+    /* VDDIO2 is valid on this board */
 
-  regval  = getreg32(STM32_PWR_CR2);
-  regval |= PWR_CR2_IOSV;
-  putreg32(regval, STM32_PWR_CR2);
+    regval  = getreg32(STM32_PWR_CR2);
+    regval |= PWR_CR2_IOSV;
+    putreg32(regval, STM32_PWR_CR2);
+  #endif
 }
 
 /****************************************************************************
