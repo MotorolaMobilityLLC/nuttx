@@ -84,11 +84,21 @@ config MHB_UART_SEND_SYNC
 		Send a sync pattern on start-up.
 endif
 
+choice
+	prompt "CDSI0 mode"
+config MHB_HAVE_CSI0
+	bool "CSI"
+config MHB_HAVE_DSI0
+	bool "DSI"
+endchoice
+
+if MHB_HAVE_DSI0
 config MHB_DSI_DISPLAY
 	bool "MHB DSI Display"
 	default n
 	---help---
 		DSI display driven by an MHB server.
+endif
 
 config MHB_CAMERA
 	bool "MHB Camera"
