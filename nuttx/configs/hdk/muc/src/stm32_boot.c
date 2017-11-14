@@ -187,6 +187,17 @@ static struct device_resource mhb_resources[] = {
 };
 #endif
 
+#ifdef CONFIG_MHB_CAMERA
+struct device_resource csi_resources[] = {
+    {
+       .name = "cdsi_interface",
+       .type = DEVICE_RESOURCE_TYPE_REGS,
+       .start = CONFIG_MHB_CAMERA_CDSI_INTERFACE,
+       .count = 1,
+    }
+};
+#endif
+
 #ifdef CONFIG_MHB_DSI_DISPLAY
 # if CONFIG_DISPLAY_NT35355_360P
 static struct device_resource dsi_display_resources[] = {
@@ -766,6 +777,8 @@ static struct device devices[] = {
         .name = "Motorola",
         .desc = "Motorola MHB Camera",
         .id   = 0,
+        .resources = csi_resources,
+        .resource_count = ARRAY_SIZE(csi_resources),
     },
 #endif /* CONFIG_MHB_CAMERA */
 #if defined(CONFIG_CAMERA_IMX220) || defined(CONFIG_CAMERA_IMX230)
