@@ -104,6 +104,7 @@ struct mhb_camera_s
     uint8_t soc_status;
     uint8_t cdsi_instance;
     uint8_t bootmode;
+    uint32_t cdsi_interface;
     pthread_mutex_t mutex;
     pthread_mutex_t i2c_mutex;
     pthread_mutex_t ctrl_mutex;
@@ -467,7 +468,7 @@ static int _mhb_csi_camera_config_req(uint8_t *cfg, size_t cfg_size)
     int result = -1;
 
     memset(&hdr, 0, sizeof(hdr));
-    hdr.addr = MHB_ADDR_CDSI1;
+    hdr.addr = s_mhb_camera.cdsi_interface;
     hdr.type = MHB_TYPE_CDSI_CONFIG_REQ;
 
     result = device_mhb_send(s_mhb_camera.mhb_device, &hdr, (uint8_t *)cfg, cfg_size, 0);
@@ -485,7 +486,7 @@ static int _mhb_csi_camera_unconfig_req(void)
     int result = 0;
 
     memset(&hdr, 0, sizeof(hdr));
-    hdr.addr = MHB_ADDR_CDSI1;
+    hdr.addr = s_mhb_camera.cdsi_interface;
     hdr.type = MHB_TYPE_CDSI_UNCONFIG_REQ;
 
     result = device_mhb_send(s_mhb_camera.mhb_device, &hdr, NULL, 0, 0);
@@ -505,7 +506,7 @@ static int _mhb_csi_camera_control_req(uint8_t command)
     int result = 0;
 
     memset(&hdr, 0, sizeof(hdr));
-    hdr.addr = MHB_ADDR_CDSI1;
+    hdr.addr = s_mhb_camera.cdsi_interface;
     hdr.type = MHB_TYPE_CDSI_CONTROL_REQ;
 
     req.command = command;
@@ -522,7 +523,7 @@ static int _mhb_csi_camera_control_req(uint8_t command)
 static int _mhb_csi_camera_handle_msg(struct device *dev,
     struct mhb_hdr *hdr, uint8_t *payload, size_t payload_length)
 {
-    if (hdr->addr == MHB_ADDR_CDSI1) {
+    if (hdr->addr == s_mhb_camera.cdsi_interface) {
         switch (hdr->type) {
         case MHB_TYPE_CDSI_WRITE_CMDS_RSP:
         case MHB_TYPE_CDSI_READ_CMDS_RSP:
@@ -1013,6 +1014,16 @@ static int _dev_probe(struct device *dev)
     mhb_camera->bootmode = CAMERA_EXT_BOOTMODE_NORMAL;
     mhb_camera->cam_i2c = NULL;
 
+    struct device_resource *cdsi_interface = device_resource_get_by_name(dev,
+        DEVICE_RESOURCE_TYPE_GPIO, "cdsi_interface");
+    if (cdsi_interface) {
+        mhb_camera->cdsi_interface =
+                    (cdsi_interface->start ? MHB_ADDR_CDSI1 : MHB_ADDR_CDSI0);
+    } else {
+        mhb_camera->cdsi_interface = MHB_ADDR_CDSI1;
+    }
+    CAM_DBG("CDSI interface: 0x%02x\n", mhb_camera->cdsi_interface);
+
     memset(mhb_camera->callbacks, 0x00, sizeof(mhb_camera->callbacks));
 
     /* Register for attach notifications. This will callback immediately. */
@@ -1040,13 +1051,13 @@ static int _dev_open(struct device *dev)
         goto open_failed;
     }
 
-    mhb_camera->slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, MHB_ADDR_CDSI1);
+    mhb_camera->slave_pwr_ctrl = device_open(DEVICE_TYPE_SLAVE_PWRCTRL_HW, s_mhb_camera.cdsi_interface);
     if (!mhb_camera->slave_pwr_ctrl) {
         CAM_ERR("ERROR: Failed to open SLAVE Power Control\n");
         goto open_failed;
     }
 
-    mhb_camera->mhb_device = device_open(DEVICE_TYPE_MHB, MHB_ADDR_CDSI1);
+    mhb_camera->mhb_device = device_open(DEVICE_TYPE_MHB, s_mhb_camera.cdsi_interface);
     if (!mhb_camera->mhb_device) {
         CAM_ERR("ERROR: failed to open MHB device.\n");
         goto open_failed;
@@ -1060,7 +1071,7 @@ static int _dev_open(struct device *dev)
         goto open_failed;
     }
 
-    ret = device_mhb_register_receiver(mhb_camera->mhb_device, MHB_ADDR_CDSI1,
+    ret = device_mhb_register_receiver(mhb_camera->mhb_device, s_mhb_camera.cdsi_interface,
                                        _mhb_csi_camera_handle_msg);
 
     if(ret) {
@@ -1088,7 +1099,7 @@ static void _dev_close(struct device *dev)
     struct mhb_camera_s* mhb_camera = (struct mhb_camera_s*)device_get_private(dev);
 
     if (mhb_camera->mhb_device) {
-        device_mhb_unregister_receiver(mhb_camera->mhb_device, MHB_ADDR_CDSI1,
+        device_mhb_unregister_receiver(mhb_camera->mhb_device, s_mhb_camera.cdsi_interface,
                                        _mhb_csi_camera_handle_msg);
     }
 
