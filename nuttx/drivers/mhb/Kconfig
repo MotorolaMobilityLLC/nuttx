@@ -108,6 +108,12 @@ config MHB_CAMERA
 		GB CAMERA_EXT based camera driven by an MHB server.
 
 if MHB_CAMERA
+config MHB_CAMERA_CDSI_INTERFACE
+	int "MHB Camera CDSI interface"
+	default 1
+	---help---
+		MHB Camera CDSI interface (0 or 1).  Default: 1
+
 source drivers/camera/Kconfig
 endif
 
