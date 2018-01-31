@@ -1015,7 +1015,7 @@ static int _dev_probe(struct device *dev)
     mhb_camera->cam_i2c = NULL;
 
     struct device_resource *cdsi_interface = device_resource_get_by_name(dev,
-        DEVICE_RESOURCE_TYPE_GPIO, "cdsi_interface");
+        DEVICE_RESOURCE_TYPE_REGS, "cdsi_interface");
     if (cdsi_interface) {
         mhb_camera->cdsi_interface =
                     (cdsi_interface->start ? MHB_ADDR_CDSI1 : MHB_ADDR_CDSI0);
