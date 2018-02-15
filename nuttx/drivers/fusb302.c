@@ -383,6 +383,20 @@ static inline int fusb302_reg_write(struct i2c_dev_s *i2c, uint8_t reg, uint8_t 
     return ret;
 }
 
+static void fusb302_clear_isr(void)
+{
+    /* do we have unhandled isr? */
+    while(0 == gpio_get_value(fusb302_info->int_n)) {
+        //read to clear fusb302 interrupt register
+        fusb302_regs.interrupta = fusb302_reg_read(fusb302_info->i2c, FUSB302_INTERRUPTA_REG);
+        fusb302_regs.interruptb = fusb302_reg_read(fusb302_info->i2c, FUSB302_INTERRUPTB_REG);
+        fusb302_regs.interrupt  = fusb302_reg_read(fusb302_info->i2c, FUSB302_INTERRUPT_REG);
+        vdbg("unhandled isr cleared, int = %d, inta = %d, intb = %d\n",
+            fusb302_regs.interrupt, fusb302_regs.interrupta, fusb302_regs.interruptb);
+    }
+    return;
+}
+
 static void fusb302_init(void)
 {
     fusb302_reg_write(fusb302_info->i2c, FUSB302_RESET_REG, FUSB302_RESET_SW_RES_MASK);
@@ -777,6 +791,8 @@ static void fusb302_isr_worker(FAR void *arg)
 
     if (!waiting)
         fusb302_update_state(info);
+
+    fusb302_clear_isr();
 }
 
 static int fusb302_isr(int irq, void *context)
